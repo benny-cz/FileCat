@@ -90,14 +90,18 @@ public static class PartitionTable
             long entriesLba = BinaryPrimitives.ReadInt64LittleEndian(header.AsSpan(72));
             uint count = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(80));
             uint size = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(84));
-            if (count > MaxGptEntries || size is < 128 or > 4096 || entriesLba <= 0 || entriesLba * sector >= source.Length)
+            // Compare in sectors before multiplying an untrusted LBA. A wrapped offset could otherwise
+            // become negative and reach the source reader during damaged-table salvage.
+            long tableBytes = count <= MaxGptEntries && size <= 4096 ? (long)count * size : -1;
+            if (count > MaxGptEntries || size is < 128 or > 4096 || entriesLba <= 0 ||
+                tableBytes < 0 || tableBytes > source.Length || entriesLba > (source.Length - tableBytes) / sector)
             {
                 if (!strict) warnings.Add("The GPT partition table is damaged; FileCat looked for file systems without it.");
                 if (strict) continue;
                 return null;
             }
             var slots = new List<VolumeSlot>();
-            var table = source.ReadExactly(entriesLba * sector, (int)(count * size));
+            var table = source.ReadExactly(entriesLba * sector, (int)tableBytes);
             if (strict && Crc32.HashToUInt32(table) != BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(88))) continue;
             for (int i = 0; i < count; i++)
             {
@@ -106,13 +110,19 @@ public static class PartitionTable
                 if (type == Guid.Empty || type == MicrosoftReserved) continue;
                 long firstLba = BinaryPrimitives.ReadInt64LittleEndian(entry[32..]);
                 long lastLba = BinaryPrimitives.ReadInt64LittleEndian(entry[40..]);
-                if (firstLba <= 0 || lastLba < firstLba || firstLba * sector >= source.Length)
+                long lastSourceLba = (source.Length - 1) / sector;
+                if (firstLba <= 0 || lastLba < firstLba || firstLba > lastSourceLba)
                 {
                     warnings.Add($"GPT partition {i + 1} lies outside the source and was left out.");
                     continue;
                 }
+                if (lastLba > lastSourceLba)
+                    warnings.Add($"GPT partition {i + 1} extends past the end of the source and was clipped.");
+                long offset = firstLba * sector;
+                long boundedLastLba = Math.Min(lastLba, lastSourceLba);
+                long length = Math.Min((boundedLastLba - firstLba + 1) * sector, source.Length - offset);
                 string name = Encoding.Unicode.GetString(entry.Slice(56, Math.Min(72, entry.Length - 56))).TrimEnd('\0');
-                slots.Add(new VolumeSlot(slots.Count + 1, firstLba * sector, (lastLba - firstLba + 1) * sector, name.Length > 0 ? name : null)
+                slots.Add(new VolumeSlot(slots.Count + 1, offset, length, name.Length > 0 ? name : null)
                 {
                     Origin = primary ? VolumeOrigin.Table : VolumeOrigin.BackupTable,
                     Found = primary ? null : "only the copy of the GPT partition table at the end of the disk lists it: the table at its start is damaged or was erased",

@@ -1,0 +1,9 @@
+# E-CI-I516 — exact pushed-source Linux mapped-volume discovery
+
+GitHub Actions run `38793584881` attempt 1 completed **success** at exact pushed `26c3c2fa4e83bdeca49fe620ccea1c78bc81ebf6`. The producer-policy, Windows x64, Windows ARM64, Ubuntu and macOS jobs passed; four tag/manual/preview jobs skipped by their configured conditions. No candidate or stable publication was created.
+
+All **27 official server-digested ZIPs** and their **2,779 members** match the GitHub artifact SHA-256 values. Fourteen raw TRX contain **33,724 passed, 1,254 explicitly not executed and zero failed**. The full duplicate-preserving comparison with prior green `5e1dc0f7`/38784435721 retains every **34,970** prior test row, including outcome and message. Exactly eight rows add: the two new mapped-volume Core/App tests each pass in Windows x64, Windows ARM64, Ubuntu and macOS. Hosted tests cover classification; the separate two-VMDK recovery job, exact 16 MiB bytes and disk-preservation evidence are in [E-I516](E-I516-linux-mapped-volume-discovery.md).
+
+Official raw archive: `V:\FileCat\artifacts\release-evidence\ci-i516-linux-mapped-20261015-v1`. Its 27 ZIPs, run/jobs/artifact JSON, all member/test inventories, audit and source script rehash under `file-manifest.json` SHA-256 `bd10f90e8ad01c48db3eb8c952d1e97372b6935b3ad42c7c48f0f5036722f0a0`. The audit SHA-256 is `637fada45d6e2b16f4d85670a5eba7d3489c01e8fd6ddd58a9e0486b1fd6a1ee`; complete TRX inventory SHA-256 `437ef628d9504c5f27cbe4d5ebfce1bc877dc039da9c92f07ae628967092a97e`. The independent comparison archive `V:\FileCat\artifacts\release-evidence\ci-i516-linux-mapped-comparison-20261015-v1` has comparison SHA-256 `6bc9cc76430cec5cf6d831e9c3158d52b5716b661aa9784dd6a13cadb4909421` and manifest SHA-256 `50479a403580c86e17e3fce64a478bce8b581ef27d7885805cd40d93df42a314`.
+
+Unmounted mapped layers, installed UI/authorization, physical RAID and exact candidate qualification remain open.
