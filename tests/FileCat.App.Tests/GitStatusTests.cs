@@ -4,6 +4,40 @@ namespace FileCat.App.Tests;
 
 public sealed class GitStatusTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void Child_repository_discovery_does_not_allocate_for_every_nonrepository_directory()
+    {
+        string root = Directory.CreateDirectory(Path.Join(Path.GetTempPath(),
+            "filecat-git-discovery-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            for (int i = 0; i < 4096; i++)
+                Directory.CreateDirectory(Path.Join(root, $"child-{i:D4}"));
+            Assert.Null(GitStatusReader.SafeRepository(root));
+            string unusedExecutable = OperatingSystem.IsWindows()
+                ? Path.Join(Environment.SystemDirectory, "cmd.exe") : "/usr/bin/git";
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var pending = GitStatusReader.ReadAsync(root, CancellationToken.None, unusedExecutable);
+            Assert.True(pending.IsCompletedSuccessfully, "A folder without child repositories should not start Git.");
+            var snapshot = pending.GetAwaiter().GetResult();
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            output.WriteLine($"CHILD_REPOSITORY_DISCOVERY_ALLOCATED_BYTES={allocated}; CHILD_DIRECTORIES=4096");
+            Assert.Null(snapshot);
+            Assert.InRange(allocated, 0, 1024 * 1024);
+
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            before = GC.GetAllocatedBytesForCurrentThread();
+            pending = GitStatusReader.ReadAsync(root, cancelled.Token, unusedExecutable);
+            Assert.True(pending.IsCompletedSuccessfully);
+            Assert.Null(pending.GetAwaiter().GetResult());
+            allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            output.WriteLine($"CHILD_REPOSITORY_DISCOVERY_CANCELLED_ALLOCATED_BYTES={allocated}");
+            Assert.InRange(allocated, 0, 128 * 1024);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData("[core]\n\tbare = false # ignored slash\\\n[filter \"owned\"]\n\tclean = unused\n")]
     [InlineData("[core]\n\tbare = false ; ignored slash\\\n[filter \"owned\"]\n\tclean = unused\n")]

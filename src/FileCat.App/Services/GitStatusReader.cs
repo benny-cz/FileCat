@@ -83,6 +83,7 @@ internal static class GitStatusReader
     /// <param name="gitExecutable">Git by full path; by default an OS-installed copy for automatic badges.</param>
     internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
+        if (cancellationToken.IsCancellationRequested) return null;
         if (!Path.IsPathFullyQualified(folder) || !IsLocalPath(folder) || !Directory.Exists(folder)) return null;
         if ((gitExecutable ?? s_git.Value) is not { } git) return null;
         gitExecutable = git;
@@ -120,10 +121,22 @@ internal static class GitStatusReader
         List<string> repositories;
         try
         {
-            repositories = new DirectoryInfo(folder).EnumerateDirectories()
-                .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0 && IsLocalPath(Path.Join(d.FullName, ".git")) &&
-                            (Directory.Exists(Path.Join(d.FullName, ".git")) || File.Exists(Path.Join(d.FullName, ".git"))))
-                .Select(d => d.FullName).Take(MostRepositories).ToList();
+            // A directory without repositories otherwise probes every child before its optional badges return.
+            // Stop discovery independently of the per-repository Git deadlines below.
+            const int maxDirectories = 256;
+            repositories = new List<string>(MostRepositories);
+            long started = Stopwatch.GetTimestamp();
+            int scanned = 0;
+            foreach (var directory in new DirectoryInfo(folder).EnumerateDirectories())
+            {
+                if (cancellationToken.IsCancellationRequested) return null;
+                if (++scanned > maxDirectories || Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250)) break;
+                if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                string dotGit = Path.Join(directory.FullName, ".git");
+                if (!IsLocalPath(dotGit) || !Directory.Exists(dotGit) && !File.Exists(dotGit)) continue;
+                repositories.Add(directory.FullName);
+                if (repositories.Count == MostRepositories) break;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { return null; }
         if (repositories.Count == 0) return null;
