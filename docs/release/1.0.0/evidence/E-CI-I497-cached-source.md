@@ -1,0 +1,9 @@
+# E-CI-I497 — exact hosted recovery-cache qualification
+
+The exact pushed `main` commit `1646eafbac31eab6e62eb59d66ad0740e5f3a73c` [run 38708148645](https://github.com/benny-cz/FileCat/actions/runs/38708148645) completed successfully on 2026-10-15. The producer reference policy and Windows x64, Windows ARM64, macOS 26 and Ubuntu 24.04 jobs succeeded; four conditional package/preview jobs were skipped. This is hosted source validation, not an installed release candidate or stable GO.
+
+All 27 official ZIPs match GitHub's server SHA-256 digests. They contain 2,778 independently rehashed members and fourteen TRX inventories: **33,564 passed, 1,242 explicitly not executed, zero failed**. A full row comparison with the preceding green `8fe93efe` run preserves every earlier outcome and message. The only additions are the three `CachedSourceConcurrentReadTests` passes in each of the four platform Core lanes, twelve new passes total. The explicit skips remain unchanged; no physical or installed-app claim follows.
+
+The 35-file official archive is `V:\FileCat\artifacts\release-evidence\ci-i497-cached-source-20261015-v1`. Its self-excluding file-manifest SHA-256 is `a8a20abf15bfe8f0d6b16c8411b8c8096b15991236a1ff5076910140b9ac80a0` and audit SHA-256 is `61efde63a998aae1aa40b4af2a7fb7a7e026c75001dda088357d4a16a8c5148f`. The independent three-file comparison archive is `V:\FileCat\artifacts\release-evidence\ci-i497-cached-source-comparison-20261015-v1`; manifest SHA-256 `0a81f9d350519005202e4a026399dee80da54334b2e670d5ece33fc1fece9ea3`, comparison SHA-256 `c9747108c962bc415f59991e148999ad51aba2c23000236392ca8271b8f99e26`. Both archives and all predecessor rows were rehashed in a separate verification pass.
+
+The paired local defect and correction, including the original one-case failed assertion and its source/test provenance limit, remain in [E-I497](E-I497-recovery-cache-single-flight.md). The later I498 commit and its CI are separate source identities.

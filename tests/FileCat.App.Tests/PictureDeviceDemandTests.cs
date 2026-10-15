@@ -94,7 +94,11 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             {
                 var before = ViewerWindow.OpenWindows.ToHashSet();
                 await ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
-                var window = Assert.Single(ViewerWindow.OpenWindows.Where(w => !before.Contains(w)));
+                // The queued viewer can finish while the healthy viewer opens. Identify the
+                // window from this call so the subsequent device-admission assertions report
+                // the behavior being tested instead of failing on two unrelated new windows.
+                var window = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w) &&
+                    w.DisplayName.EndsWith($"{device}/p{i}.png", StringComparison.Ordinal));
                 windows.Add(window);
                 return window;
             }
@@ -154,7 +158,8 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             {
                 var before = ViewerWindow.OpenWindows.ToHashSet();
                 await ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
-                var window = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w));
+                var window = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w) &&
+                    w.DisplayName.EndsWith($"{device}/p{i}.png", StringComparison.Ordinal));
                 windows.Add(window);
                 return window;
             }
@@ -203,11 +208,13 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
     {
         // These cases isolate normal per-device admission. Native decoder startup on a busy runner may push the
         // whole case beyond the production eight-second watchdog, which then correctly replaces held workers.
-        // Watchdog replacement/hard caps have separate scheduler controls; keep this owned fixture below its own
-        // threshold without changing the application's default or its source/lifetime/healthy-device assertions.
+        // Give the owned held source longer than the bounded 60-second progress wait below, and keep the
+        // watchdog beyond both. Otherwise the fixture's own 25-second release can admit the third read on
+        // a slow CI runner before the test checks that it is still queued.
+        // Watchdog replacement/hard caps have separate scheduler controls; this does not change production.
         typeof(DeviceIoScheduler).GetField("<HangThreshold>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(services.Io, TimeSpan.FromMinutes(1));
-        Assert.Equal(TimeSpan.FromMinutes(1), services.Io.HangThreshold);
+            .SetValue(services.Io, TimeSpan.FromMinutes(3));
+        Assert.Equal(TimeSpan.FromMinutes(3), services.Io.HangThreshold);
     }
 
     private static async Task JoinReads(Source[] sources) => await WaitFor(() => sources.All(s => s.ActiveReads == 0));
@@ -227,7 +234,7 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
     /// machine, and a tight bound there fails a test for being slow rather than for being wrong. The
     /// deliberate 1.5-second window that shows the third feed is *not* admitted is separate and unchanged.
     /// </summary>
-    private static readonly TimeSpan Patient = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Patient = TimeSpan.FromSeconds(60);
 
     private static async Task WaitFor(Func<bool> condition)
     {
@@ -300,7 +307,7 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
                 {
                     HeldCallStack = Environment.StackTrace;
                     Entered.TrySetResult();
-                    if (!Release.Wait(TimeSpan.FromSeconds(25))) throw new IOException("Owned device picture read was not released.");
+                    if (!Release.Wait(TimeSpan.FromMinutes(2))) throw new IOException("Owned device picture read was not released.");
                 }
                 return _file.Read(offset,buffer);
             }

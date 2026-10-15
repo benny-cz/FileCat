@@ -88,7 +88,8 @@ public sealed class EscAuditTests
                 await Task.Delay(100, ct);
                 shown.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
                 for (int i = 0; i < 100 && open().Count > 0; i++) await Task.Delay(20, ct);
-                Assert.True(open().Count == 0, what + " stayed open after Esc");
+                Assert.True(open().Count == 0, what + " stayed open after Esc; focused element: " +
+                    (shown.FocusManager?.GetFocusedElement()?.GetType().Name ?? "(none)"));
             }
 
             listing.FocusName("a.txt");
