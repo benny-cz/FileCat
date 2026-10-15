@@ -126,7 +126,17 @@ public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard, IDeviceSe
     {
         if (offset < 0 || offset >= Length) return 0;
         if (buffer.Length > Length - offset) buffer = buffer[..(int)(Length - offset)];
-        if (!_wholeSectors) return RandomAccess.Read(_handle, buffer, offset);
+        if (!_wholeSectors)
+        {
+            int completed = 0;
+            while (completed < buffer.Length)
+            {
+                int n = RandomAccess.Read(_handle, buffer[completed..], offset + completed);
+                if (n == 0) throw new IOException("The selected device ended before its reported length.");
+                completed += n;
+            }
+            return completed;
+        }
         // Whole sectors around the range, a bounded piece at a time.
         int done = 0;
         byte[] chunk = ArrayPool<byte>.Shared.Rent(MaxChunk + 2 * _sector);
@@ -140,7 +150,7 @@ public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard, IDeviceSe
                 long end = Math.Min(Length, (at + want + _sector - 1) / _sector * _sector);
                 int n = RandomAccess.Read(_handle, chunk.AsSpan(0, (int)(end - start)), start);
                 int usable = (int)Math.Min(want, n - (at - start));
-                if (usable <= 0) break;
+                if (usable <= 0) throw new IOException("The selected device ended before its reported length.");
                 chunk.AsSpan((int)(at - start), usable).CopyTo(buffer[done..]);
                 done += usable;
             }
