@@ -297,6 +297,17 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
         _reader = new AlignedDeviceReader(handle, DeviceTopology.ServedLength(handle, length, sectorSize), sectorSize);
     }
 
+    // A held, file-backed handle lets the native read contract be checked when the
+    // source stops serving bytes after its length was established. Production opens
+    // continue through Open and its device topology/served-length checks.
+    internal DirectDeviceSource(SafeFileHandle handle, string description, long declaredLength, int sectorSize)
+    {
+        _handle = handle;
+        _wholeDisk = false;
+        Description = description;
+        _reader = new AlignedDeviceReader(handle, declaredLength, sectorSize);
+    }
+
     /// <summary>Opens a volume device (\\?\Volume{…}) or a disk for reading; access denied without administrator rights.</summary>
     public static DirectDeviceSource Open(string device, string description)
     {
@@ -341,7 +352,10 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
                 {
                     throw new IOException($"The drive could not be read at byte {offset + done:N0}: {ex.Message}", ex) { HResult = ex.HResult };
                 }
-                if (data.IsEmpty) break;
+                // The held device was described as reaching farther. Returning zero or a
+                // partial count here would make unreadable bytes look like an ordinary end.
+                if (data.IsEmpty)
+                    throw new IOException($"The drive stopped serving bytes at {offset + done:N0} before its reported end of {Length:N0}.");
                 data.CopyTo(buffer[done..]);
                 done += data.Length;
             }
