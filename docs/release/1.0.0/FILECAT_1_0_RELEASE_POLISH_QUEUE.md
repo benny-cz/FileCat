@@ -11,6 +11,8 @@ change the release issue/campaign counts.
   A separate main/advanced feature-list split is queued. [Exact screenshot evidence](evidence/E-PQ01-windows-theme-showcase.md).
 - Improve the README's text presentation of FileCat for GitHub readers;
   include main and advanced feature lists.
+- Mention that the app has not just been vibecoded: it has also been properly
+  and thoroughly tested.
 - Include polished screenshots of the real Windows app. Show its main window
   with four panels, each containing more than two tabs (at least three).
 - Include every available theme; verify the actual theme list before capture.
