@@ -103,4 +103,67 @@ public class MetadataTests
         Assert.Equal(MetadataState.Available, value.State);
         Assert.Equal(target, value.Value);
     }
+
+    [Fact]
+    public void Windows_origin_column_binds_allocation_for_oversized_zone_stream()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Windows NTFS alternate streams only.");
+            return;
+        }
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "owned.bin");
+        File.WriteAllText(path, "owned");
+        string ads = path + ":Zone.Identifier";
+        File.WriteAllText(ads, "[ZoneTransfer]\r\n" + new string('x', 8 * 1024 * 1024) + "\r\nZoneId=3\r\n");
+
+        using var io = new DeviceIoScheduler();
+        var service = new MetadataService(io);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var value = service.Compute("zone", path, new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated < 2 * 1024 * 1024, $"Automatic Origin metadata allocated {allocated:N0} bytes for one oversized stream.");
+        Assert.Equal(MetadataState.Available, value.State);
+        Assert.Equal("Marked", value.Value);
+    }
+
+    [Fact]
+    public void Windows_origin_column_reads_a_normal_zone_stream()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Windows NTFS alternate streams only.");
+            return;
+        }
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "owned.bin");
+        File.WriteAllText(path, "owned");
+        File.WriteAllText(path + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+
+        using var io = new DeviceIoScheduler();
+        var value = new MetadataService(io).Compute("zone", path,
+            new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Available, value.State);
+        Assert.Equal("Internet", value.Value);
+    }
+
+    [Fact]
+    public void Windows_origin_column_keeps_an_unmarked_file_absent()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Windows NTFS alternate streams only.");
+            return;
+        }
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "owned.bin");
+        File.WriteAllText(path, "owned");
+
+        using var io = new DeviceIoScheduler();
+        var value = new MetadataService(io).Compute("zone", path,
+            new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Absent, value.State);
+    }
 }

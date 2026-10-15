@@ -342,16 +342,46 @@ public static class BuiltInFields
     /// <summary>Where a file came from: Windows zones; the quarantine mark on macOS; a browser's origin URL on Linux.</summary>
     public static readonly MetadataField Zone = new("zone", "Origin", MetadataCost.Cheap,
         _ => true,
-        (p, _) =>
+        (p, ct) =>
         {
             if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } ? "Quarantined" : null;
             if (OperatingSystem.IsLinux()) return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } ? "Internet" : null;
             var ads = p + ":Zone.Identifier";
-            if (!File.Exists(ads)) return null;
-            foreach (var line in File.ReadLines(ads))
+            const int maxMarkBytes = 64 * 1024;
+            FileStream stream;
+            try { stream = new FileStream(ads, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
+            catch (FileNotFoundException) { return null; }
+            using (stream)
             {
-                if (line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var zone))
-                    return zone switch { 3 => "Internet", 4 => "Restricted", 2 => "Trusted", 1 => "Intranet", 0 => "Local", _ => $"Zone {zone}" };
+                // Origin is automatic visible-row metadata. A single newline-free ADS must not allocate
+                // in proportion to its size, and a growing stream must not bypass the size precheck.
+                long length = stream.Length;
+                if (length > maxMarkBytes) return "Marked";
+                // Ordinary marks are tiny; reserve only their observed size plus a growth sentinel.
+                // A concurrent writer can still grow the stream, so keep the actual read bounded.
+                var bytes = new byte[(int)Math.Min(maxMarkBytes + 1L, Math.Max(256L, length + 1))];
+                int read = 0;
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    int count = stream.Read(bytes, read, bytes.Length - read);
+                    if (count == 0) break;
+                    read += count;
+                    if (read == bytes.Length)
+                    {
+                        if (bytes.Length == maxMarkBytes + 1) return "Marked";
+                        Array.Resize(ref bytes, maxMarkBytes + 1);
+                    }
+                }
+                using var reader = new StreamReader(new MemoryStream(bytes, 0, read, writable: false),
+                    System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                string? line;
+                while ((line = reader.ReadLine()) is not null)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var zone))
+                        return zone switch { 3 => "Internet", 4 => "Restricted", 2 => "Trusted", 1 => "Intranet", 0 => "Local", _ => $"Zone {zone}" };
+                }
             }
             return "Marked";
         },
