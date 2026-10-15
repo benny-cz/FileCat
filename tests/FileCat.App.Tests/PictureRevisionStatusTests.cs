@@ -18,6 +18,9 @@ namespace FileCat.App.Tests;
 public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
 {
     private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
+    // The decoder itself may use its full 30-second limit under hosted load. A shorter
+    // fixture wait cancels the viewer before the product can report success or failure.
+    private static readonly TimeSpan PictureLoadDeadline = PictureDecoder.Timeout + TimeSpan.FromSeconds(15);
 
     [AvaloniaTheory]
     [InlineData("visible", false)]
@@ -47,7 +50,7 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
             if (mode != "late")
             {
                 Assert.NotNull(viewer.PictureLoad);
-                await viewer.PictureLoad.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                await viewer.PictureLoad.WaitAsync(PictureLoadDeadline, TestContext.Current.CancellationToken);
                 Assert.Equal((12, 8), (viewer.Picture!.Width, viewer.Picture.Height));
             }
             else Assert.Null(viewer.PictureLoad);
@@ -66,7 +69,7 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
             Assert.Equal(changed ? replacement : original, bytes);
             if (mode != "visible") viewer.ShowPicture();
             Assert.NotNull(viewer.PictureLoad);
-            await viewer.PictureLoad.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await viewer.PictureLoad.WaitAsync(PictureLoadDeadline, TestContext.Current.CancellationToken);
             var picture = viewer.Picture!;
             Assert.Equal(changed && mode == "late" ? (16, 10) : (12, 8), (picture.Width, picture.Height));
             string pictureStatus = Field<TextBlock>(viewer, "_status").Text ?? "";
@@ -101,7 +104,7 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
         finally
         {
             viewer.Close();
-            if (viewer.PictureLoad is { } work) await work.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            if (viewer.PictureLoad is { } work) await work.WaitAsync(PictureLoadDeadline, TestContext.Current.CancellationToken);
             Assert.Equal(temp.TrimEnd(Path.DirectorySeparatorChar), Path.GetDirectoryName(Path.GetFullPath(root)));
             Directory.Delete(root, recursive: true);
         }
