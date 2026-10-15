@@ -669,7 +669,7 @@ public sealed class RecoveryProvider : ResourceProvider
         });
         if (device)
             foreach (var v in volumes)
-                v.Warnings.Insert(0, "This drive is in use while FileCat reads it: Windows and programs can change it at any moment, so this is a snapshot, and deleted files can be overwritten while you work. Recover to another disk, and write nothing to this one meanwhile.");
+                v.Warnings.Insert(0, "This drive is in use while FileCat reads it: the operating system and other programs can change it at any moment, so this is a snapshot, and deleted files can be overwritten while you work. Recover to another disk, and write nothing to this one meanwhile.");
         return volumes;
     }
 

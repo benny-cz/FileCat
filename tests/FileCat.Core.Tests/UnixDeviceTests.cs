@@ -135,6 +135,50 @@ public sealed class UnixDeviceTests : IDisposable
     }
 
     [Fact]
+    public void Linux_mounted_mapped_volume_is_discoverable_alongside_its_underlying_disks()
+    {
+        string sys = Path.Combine(_dir.Path, "sys");
+        static void Write(string sys, string relative, string content)
+        {
+            string path = Path.Combine(sys, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, content + "\n");
+        }
+        Write(sys, "block/sdb/size", "524288");
+        Write(sys, "block/sdc/size", "524288");
+        Write(sys, "block/dm-0/size", "1048576");
+        Write(sys, "block/dm-0/dev", "253:0");
+        Write(sys, "block/dm-0/dm/name", "filecat-test-stripe");
+        Write(sys, "block/dm-1/size", "1048576"); // an unmounted mapped layer is not a mounted recovery choice
+        Write(sys, "block/dm-1/dev", "253:1");
+        Write(sys, "block/md0/size", "1048576");
+        Write(sys, "block/md0/dev", "9:0");
+        string mountInfo = Path.Combine(_dir.Path, "mountinfo");
+        File.WriteAllLines(mountInfo,
+        [
+            "42 1 253:0 / /mnt/filecat-test rw - vfat /dev/mapper/filecat-test-stripe rw",
+            "43 1 9:0 / /mnt/filecat-raid rw - exfat /dev/md0 rw",
+        ]);
+
+        var devices = UnixDisks.Linux(sys, mountInfo);
+        Assert.Contains(devices, d => d.Device == "/dev/sdb");
+        Assert.Contains(devices, d => d.Device == "/dev/sdc");
+        var mapped = Assert.Single(devices, d => d.Device == "/dev/dm-0");
+        Assert.Equal(["/mnt/filecat-test"], mapped.MountPoints);
+        Assert.Equal("vfat", mapped.FileSystem);
+        Assert.Equal(536870912, mapped.Length);
+        Assert.True(mapped.IsLayeredVolume);
+        Assert.Equal("mapped volume", mapped.Bus);
+        Assert.Equal("filecat-test-stripe", mapped.Model);
+        Assert.DoesNotContain(devices, d => d.Device == "/dev/dm-1");
+        var raid = Assert.Single(devices, d => d.Device == "/dev/md0");
+        Assert.True(raid.IsLayeredVolume);
+        Assert.Equal("RAID volume", raid.Bus);
+        Assert.Equal("exfat", raid.FileSystem);
+        Assert.Equal(["/mnt/filecat-raid"], raid.MountPoints);
+    }
+
+    [Fact]
     public void Where_writing_goes_is_told_by_real_paths_backing_files_and_servers_and_unknown_never_counts_as_elsewhere()
     {
         // Release plan V09 (I09): a recovery's destination, and FileCat's own folders, must not be taken for another disk

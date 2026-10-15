@@ -275,6 +275,8 @@ public sealed record UnixBlockDevice(string Device, long Length, string? Model, 
     IReadOnlyList<string> MountPoints, string? FileSystem)
 {
     public string Name => Path.GetFileName(Device);
+    /// <summary>A mounted device-mapper or RAID file system is a volume, even without a partition parent.</summary>
+    public bool IsLayeredVolume { get; init; }
     /// <summary>The entry observed while building this choice, before any confirmation or authorization wait.</summary>
     public string? Identity { get; init; }
 }
@@ -392,13 +394,19 @@ public static class UnixDisks
         foreach (var dir in Directory.EnumerateFileSystemEntries(blocks).Order(StringComparer.Ordinal))
         {
             string name = Path.GetFileName(dir);
-            // RAM disks, optical drives, floppies, and the device mapper's and RAID's layers (their disks are listed).
+            // RAM disks, optical drives and floppies are not recovery sources here.
             if (name.StartsWith("ram", StringComparison.Ordinal) || name.StartsWith("zram", StringComparison.Ordinal) || name.StartsWith("sr", StringComparison.Ordinal) ||
-                name.StartsWith("fd", StringComparison.Ordinal) || name.StartsWith("dm-", StringComparison.Ordinal) || name.StartsWith("md", StringComparison.Ordinal)) continue;
+                name.StartsWith("fd", StringComparison.Ordinal)) continue;
             long length = Sectors(dir);
             if (length <= 0) continue; // no medium, or an unused loop device
+            bool layered = name.StartsWith("dm-", StringComparison.Ordinal) || name.StartsWith("md", StringComparison.Ordinal);
+            var deviceMounts = MountsOf(mounts, dir, name).ToList();
+            // A mapped layer is offered as a volume only when a supported file system is actually mounted on it.
+            // Its physical slaves remain separate whole-disk choices; topology resolves all of them for write safety.
+            if (layered && !deviceMounts.Any(m => RecoverableTypes.Contains(m.Type))) continue;
             string real = RealPath(dir);
-            string bus = name.StartsWith("nvme", StringComparison.Ordinal) ? "NVMe"
+            string bus = layered ? name.StartsWith("dm-", StringComparison.Ordinal) ? "mapped volume" : "RAID volume"
+                : name.StartsWith("nvme", StringComparison.Ordinal) ? "NVMe"
                 : name.StartsWith("mmcblk", StringComparison.Ordinal) ? "SD card"
                 : name.StartsWith("loop", StringComparison.Ordinal) ? "loop device"
                 : real.Contains("/usb", StringComparison.Ordinal) ? "USB"
@@ -406,10 +414,11 @@ public static class UnixDisks
                 : real.Contains("/ata", StringComparison.Ordinal) ? "SATA" : "";
             string? model = string.Join(' ', new[] { Read(dir, "device/vendor"), Read(dir, "device/model") ?? Read(dir, "device/name") }
                 .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => string.Join(' ', s!.Split(' ', StringSplitOptions.RemoveEmptyEntries))));
-            if (model.Length == 0) model = null;
+            if (model.Length == 0) model = layered ? Read(dir, "dm/name") : null;
             bool removable = Read(dir, "removable") == "1";
-            result.Add(new UnixBlockDevice("/dev/" + name, length, model, bus, removable, null, MountsOf(mounts, dir, name).Select(m => m.Point).ToList(),
-                MountsOf(mounts, dir, name).FirstOrDefault()?.Type));
+            result.Add(new UnixBlockDevice("/dev/" + name, length, model, bus, removable, null, deviceMounts.Select(m => m.Point).ToList(),
+                deviceMounts.FirstOrDefault()?.Type) { IsLayeredVolume = layered });
+            if (layered) continue;
             IEnumerable<string> partitions;
             try
             {

@@ -4,6 +4,7 @@ using FileCat.App.ViewModels;
 using FileCat.Core.Listing;
 using FileCat.Core.State;
 using FileCat.Recovery;
+using FileCat.Recovery.Unix;
 
 namespace FileCat.App.Tests;
 
@@ -14,6 +15,17 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class RecoverySafetyTests
 {
+    [Fact]
+    public void Mounted_mapped_file_system_is_a_recovery_volume_not_a_whole_disk()
+    {
+        var mapped = new UnixBlockDevice("/dev/dm-0", 536870912, "stripe", "mapped volume", false, null,
+            ["/mnt/stripe"], "vfat") { IsLayeredVolume = true };
+        Assert.True(MainViewModel.IsRecoverableVolume(mapped));
+        Assert.False(MainViewModel.IsRecoverableVolume(mapped with { MountPoints = [] }));
+        Assert.False(MainViewModel.IsRecoverableVolume(mapped with { FileSystem = "ext4" }));
+        Assert.False(MainViewModel.IsRecoverableVolume(mapped with { IsLayeredVolume = false }));
+    }
+
     [AvaloniaFact]
     public async Task Drive_letter_scan_refuses_a_replaced_backing_before_reading_it()
         => await RunReplacedDriveSelectionAsync(changedDiskNumber: false);

@@ -107,7 +107,7 @@ public sealed partial class MainViewModel
                     isHere ? "this folder's drive" : isFocused ? "under the cursor" : null) { Icon = () => icons.GetIcon(row) }, () => FindDeletedOnUnixDeviceAsync(panel, volume, folder)));
             }
             if (selected < 0) selected = preferred;
-            foreach (var disk in devices.Where(v => v.Disk is null))
+            foreach (var disk in devices.Where(v => v.Disk is null && !v.IsLayeredVolume))
             {
                 var row = new EntryData(disk.Name, EntryKind.Drive) { Tag = new DriveTag(disk.Device, disk.Model, disk.Removable ? "Removable" : "Fixed", null, -1, disk.Length, true) };
                 var parts = devices.Where(v => v.Disk == disk.Device).ToList();
@@ -594,9 +594,9 @@ public sealed partial class MainViewModel
         return null;
     }
 
-    /// <summary>A mounted partition with a file system a scan reads.</summary>
-    private static bool IsRecoverableVolume(UnixBlockDevice device) =>
-        device.Disk is not null && device.MountPoints.Count > 0 && UnixDisks.RecoverableTypes.Contains(device.FileSystem);
+    /// <summary>A mounted partition or mapped volume with a file system a scan reads.</summary>
+    internal static bool IsRecoverableVolume(UnixBlockDevice device) =>
+        (device.Disk is not null || device.IsLayeredVolume) && device.MountPoints.Count > 0 && UnixDisks.RecoverableTypes.Contains(device.FileSystem);
 
     /// <summary>Whether <paramref name="path"/> lies at or below the mount point <paramref name="mount"/>.</summary>
     private static bool Holds(string mount, string path) => path == mount || mount == "/" || path.StartsWith(mount.TrimEnd('/') + "/", StringComparison.Ordinal);
@@ -613,7 +613,7 @@ public sealed partial class MainViewModel
             Notify($"{device.Name} cannot be scanned: Unix did not provide a device identity FileCat can verify when it opens the device. Select it again.", true);
             return;
         }
-        bool disk = device.Disk is null;
+        bool disk = device.Disk is null && !device.IsLayeredVolume;
         string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
         bool direct = await Task.Run(() => CanRead(device.Device));
         string how = direct ? "FileCat can read it with your own rights, and only reads: FileCat changes nothing on it. "
