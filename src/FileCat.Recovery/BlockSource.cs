@@ -156,13 +156,14 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
     public long Length => inner.Length;
 
     /// <summary>A small read that is not worth a block in the cache (a glance at many scattered places).</summary>
-    public int ReadDirect(long offset, Span<byte> buffer) => offset >= Length ? 0 : inner.Read(offset, buffer);
+    public int ReadDirect(long offset, Span<byte> buffer) => ReadFully(offset, buffer);
 
     public int Read(long offset, Span<byte> buffer)
     {
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
         if (offset >= Length) return 0;
         // Large reads (copying content) go straight through.
-        if (buffer.Length >= blockSize) return inner.Read(offset, buffer);
+        if (buffer.Length >= blockSize) return ReadFully(offset, buffer);
         int done = 0;
         while (done < buffer.Length && offset + done < Length)
         {
@@ -170,7 +171,7 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
             var data = Block(block);
             int within = (int)(offset + done - block * blockSize);
             int n = Math.Min(buffer.Length - done, data.Length - within);
-            if (n <= 0) break;
+            if (n <= 0) throw new IOException("The recovery source ended before its reported length.");
             data.AsSpan(within, n).CopyTo(buffer[done..]);
             done += n;
         }
@@ -223,15 +224,25 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
     {
         long start = block * blockSize;
         var data = new byte[(int)Math.Min(blockSize, Length - start)];
+        if (ReadFully(start, data) != data.Length)
+            throw new IOException("The recovery source ended before its reported length.");
+        return data;
+    }
+
+    private int ReadFully(long offset, Span<byte> buffer)
+    {
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+        if (offset >= Length) return 0;
+        if (buffer.Length > Length - offset) buffer = buffer[..(int)(Length - offset)];
         int done = 0;
-        while (done < data.Length)
+        while (done < buffer.Length)
         {
-            int n = inner.Read(start + done, data.AsSpan(done));
-            if (n <= 0) break;
+            int n = inner.Read(offset + done, buffer[done..]);
+            if (n <= 0 || n > buffer.Length - done)
+                throw new IOException("The recovery source ended before its reported length.");
             done += n;
         }
-        if (done < data.Length) Array.Resize(ref data, done);
-        return data;
+        return done;
     }
 
     public void Dispose() => inner.Dispose();
