@@ -63,19 +63,31 @@ public sealed class FileListSmokeTests
                 var scroll = Assert.Single(list.GetVisualDescendants().OfType<ScrollBar>());
                 scroll.Value = 100;
                 Assert.Equal(100, scroll.Value);
+                int focusedBeforeScroll = tab.Listing.FocusedIndex;
+                var scrollTrack = new Point(scroll.Bounds.X + scroll.Bounds.Width / 2,
+                    scroll.Bounds.Y + scroll.Bounds.Height * 0.75);
+                window.MouseDown(scrollTrack, MouseButton.Left);
+                window.MouseUp(scrollTrack, MouseButton.Left);
+                Assert.Equal(focusedBeforeScroll, tab.Listing.FocusedIndex);
+                double manuallyScrolledTop = scroll.Value;
+                Assert.True(manuallyScrolledTop > 100);
+                Assert.Null(list.FocusedRowBounds());
 
                 File.WriteAllText(Path.Combine(folder, "item-250.txt"), "x");
                 tab.Refresh();
                 for (int i = 0; i < 250 && (tab.Listing.IsRefreshing || tab.Listing.TotalCount != 251); i++) await Task.Delay(20, ct);
                 Assert.Equal(251, tab.Listing.TotalCount);
-                Assert.Equal(100, scroll.Value);
+                Assert.Equal(manuallyScrolledTop, scroll.Value);
+                Assert.Null(list.FocusedRowBounds());
 
                 window.Height = 460;
-                Assert.Equal(100, scroll.Value); // resizing must not seek back to the cursor either
+                Assert.Equal(manuallyScrolledTop, scroll.Value); // resizing must not seek back to the cursor either
 
-                scroll.Value = 75;
                 File.WriteAllText(Path.Combine(folder, "item-251.txt"), "x");
                 tab.Refresh();
+                // A scrollbar movement made while the folder is already refreshing wins over
+                // the top row captured when that refresh started.
+                scroll.Value = 75;
                 for (int i = 0; i < 250 && (tab.Listing.IsRefreshing || tab.Listing.TotalCount != 252); i++) await Task.Delay(20, ct);
                 Assert.Equal(252, tab.Listing.TotalCount);
                 Assert.Equal(75, scroll.Value);
