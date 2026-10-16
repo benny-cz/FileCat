@@ -1,0 +1,9 @@
+# E-CI-I534 — exact pushed-source picture-worker input-copy matrix
+
+[Run 38902936619](https://github.com/benny-cz/FileCat/actions/runs/38902936619) completed **success** at pushed source `2120884dc8552e2d3a2039a57025fdd34008e69c`. Producer reference policy and Windows x64/ARM64, Ubuntu 24.04 and macOS 26 jobs passed; four publication-only jobs skipped. This is the hosted follow-up for the [I534 local/Ubuntu pair](E-I534-picture-worker-input-copy.md) and the separate [physical-Mac worker repeat](E-I534-MAC-picture-worker-memory.md).
+
+Private official archive `V:\FileCat\artifacts\release-evidence\ci-i534-picture-input-20261016-v1` retains the run/job API responses and **27 server-digest-verified ZIPs, 2,779 independently hashed members and fourteen TRX**: **33,852 Passed, 1,302 NotExecuted, zero Failed**. The Mac and Ubuntu eight-scenario instance-process artifacts each report **8/8 passed**. Audit SHA-256 is `446cfc712e4266fd3062c15bda58a49038ad90678424b7d4bf1460e279534de1`; file-manifest SHA-256 is `b08dca238e1244d38f97a254407a8c0b4ec1c2d6038de77cec75920ffba22bad`.
+
+The independently rehashed `ci-i534-picture-input-comparison-20261016-v1` archive compares this run with immediately prior green `113a2c79` run 38900305768. All **35,150** duplicate-preserved predecessor test names, outcomes and failure messages remain identical; **four new passing App rows** are the picture-worker input-allocation case once on each lane. No rows were removed. Comparison SHA-256 is `bc97af886cbb8edcafafb7de02f84205d46d1e69f7413449e49e5d94df362943`; comparison-manifest SHA-256 is `8cb0799db19f8eda6960efa3045e9edf1748d25a6067fb4e5765fce1d40c96ad`.
+
+This matrix qualifies only pushed I534 source at its tested scope. It predates the separate I535 supplementary-group fix. Installed UI, aggregate I06 memory and candidate acceptance remain open.
