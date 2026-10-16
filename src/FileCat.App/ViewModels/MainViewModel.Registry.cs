@@ -709,13 +709,12 @@ public sealed partial class MainViewModel
         byte[] data;
         try
         {
-            var info = new FileInfo(path);
-            if (info.Length > RegistryRaw.EditLimit)
-            {
-                Notify($"The file is {info.Length:N0} bytes; Registry values are limited to {RegistryRaw.EditLimit:N0} bytes here.", true);
-                return;
-            }
-            data = await Task.Run(() => File.ReadAllBytes(path));
+            data = await Task.Run(() => ReadRegistryImportBytes(path));
+        }
+        catch (InvalidDataException ex)
+        {
+            Notify(ex.Message, true);
+            return;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -732,6 +731,21 @@ public sealed partial class MainViewModel
             return;
         SubmitRegistry(new RegistryChange(RegistryAction.SetValue, key, name, expected, new RegistryValueSnapshot(type, data)),
             $"Load data into Registry value {label}", existing, name);
+    }
+
+    internal static byte[] ReadRegistryImportBytes(string path)
+    {
+        // The chosen pathname can be replaced or grown after a metadata check.
+        // Bound the bytes on the handle that actually supplies the value.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        long length = stream.Length;
+        if (length > RegistryRaw.EditLimit)
+            throw new InvalidDataException($"The file is {length:N0} bytes; Registry values are limited to {RegistryRaw.EditLimit:N0} bytes here.");
+        var bytes = new byte[checked((int)length)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1)
+            throw new InvalidDataException($"The file grew beyond its initial {length:N0} bytes while being read. Save it and choose it again.");
+        return bytes;
     }
 
     /// <summary>

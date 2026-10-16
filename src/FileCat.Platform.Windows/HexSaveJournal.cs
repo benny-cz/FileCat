@@ -112,10 +112,15 @@ public static class HexSaveJournal
 
     public static HexRecoveryRecord Read(string journalPath)
     {
-        var info = new FileInfo(journalPath);
-        if (info.Length < 44 || info.Length > MaxJournalBytes + 5L * (HexPatchOverlay.MaxTouchedBytes + 1))
+        // Open once: a journal may be replaced or grown after a pathname size query.
+        // Never let ReadAllBytes allocate from a different, unbounded file.
+        using var stream = new FileStream(journalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        long journalSize = stream.Length;
+        if (journalSize < 44 || journalSize > MaxJournalBytes + 5L * (HexPatchOverlay.MaxTouchedBytes + 1))
             throw new InvalidDataException("Invalid hex journal size.");
-        var bytes = File.ReadAllBytes(journalPath);
+        var bytes = new byte[checked((int)journalSize)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1) throw new InvalidDataException("Hex journal grew while being read.");
         int payloadLength = BitConverter.ToInt32(bytes, 0);
         if (payloadLength < 0 || payloadLength > MaxJournalBytes - 36 || bytes.Length < payloadLength + 36)
             throw new InvalidDataException("Hex journal is truncated or oversized.");
@@ -159,7 +164,8 @@ public static class HexSaveJournal
             if (step != written + 1 || step > ranges.Count) break;
             written = step;
         }
-        return new HexRecoveryRecord(journalPath, target, identity, length, ranges, written, info.CreationTimeUtc);
+        return new HexRecoveryRecord(journalPath, target, identity, length, ranges, written,
+            File.GetCreationTimeUtc(stream.SafeFileHandle));
     }
 
     /// <summary>

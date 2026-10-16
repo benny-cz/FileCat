@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Buffers.Binary;
 using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows;
@@ -87,6 +88,10 @@ internal static class GitStatusReader
         if (!Path.IsPathFullyQualified(folder) || !IsLocalPath(folder) || !Directory.Exists(folder)) return null;
         if ((gitExecutable ?? s_git.Value) is not { } git) return null;
         gitExecutable = git;
+        // Starting a malformed .exe can block synchronously inside Windows CreateProcess,
+        // before the cancellation budget can be observed. Optional badges need no child
+        // when the selected file cannot even be a Windows executable.
+        if (OperatingSystem.IsWindows() && !LooksLikeWindowsExecutable(git)) return null;
         // Outside a repository, the child folders that are repositories show their work trees' state; inside one whose
         // configuration names programs, running Git would run them.
         if (SafeRepository(folder) is null) return await ReadRepositoriesAsync(folder, git, cancellationToken).ConfigureAwait(false);
@@ -591,6 +596,27 @@ internal static class GitStatusReader
             }
         }
         return null;
+    }
+
+    private static bool LooksLikeWindowsExecutable(string path)
+    {
+        try
+        {
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            Span<byte> dos = stackalloc byte[64];
+            if (file.ReadAtLeast(dos, dos.Length, throwOnEndOfStream: false) != dos.Length ||
+                dos[0] != (byte)'M' || dos[1] != (byte)'Z') return false;
+            int peOffset = BinaryPrimitives.ReadInt32LittleEndian(dos[0x3c..]);
+            if (peOffset < dos.Length || peOffset > 1024 * 1024 || peOffset + 4L > file.Length) return false;
+            file.Position = peOffset;
+            Span<byte> pe = stackalloc byte[4];
+            return file.ReadAtLeast(pe, pe.Length, throwOnEndOfStream: false) == pe.Length &&
+                   pe.SequenceEqual("PE\0\0"u8);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return false;
+        }
     }
 
     private static async Task<string?> RunAsync(string folder, CancellationToken cancellationToken, string gitExecutable, params string[] arguments)

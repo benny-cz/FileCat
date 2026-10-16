@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using FileCat.App.Services;
 using FileCat.Core.Jobs;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 using FileCat.Core.Resources;
 
@@ -166,11 +167,16 @@ public sealed partial class MainViewModel
                         $"Change the names in the editor (one per line, {rows.Count:N0} lines, same order), save the file, then choose Load names.",
                         "Load names"))
                     return null;
-                var lines = (await File.ReadAllLinesAsync(file)).ToList();
-                while (lines.Count > rows.Count && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
-                if (lines.Count == rows.Count) return lines;
+                (IReadOnlyList<string> lines, int count) edited;
+                try { edited = await Task.Run(() => ReadEditedNames(file, rows.Count)); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    await Dialogs.AlertAsync("Name list cannot be loaded", ex.Message);
+                    continue;
+                }
+                if (edited.count == rows.Count) return edited.lines;
                 await Dialogs.AlertAsync("Line count changed",
-                    $"The file has {lines.Count:N0} lines, but {rows.Count:N0} names are needed. Keep one line per item in the same order, save, and load again.");
+                    $"The file has {edited.count:N0} lines, but {rows.Count:N0} names are needed. Keep one line per item in the same order, save, and load again.");
             }
         }
         finally
@@ -178,5 +184,37 @@ public sealed partial class MainViewModel
             try { File.Delete(file); }
             catch (IOException) { }
         }
+    }
+
+    internal static (IReadOnlyList<string> lines, int count) ReadEditedNames(string file, int expected)
+    {
+        // The external editor can replace this private path with a large file. Check and
+        // read the same opened handle, then retain only the names this operation can use.
+        long maxBytes = Math.Min(64L * 1024 * 1024, (long)expected * 4096 + 4096);
+        using var stream = OperatingSystem.IsWindows()
+            ? new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(file), FileAccess.Read);
+        if (stream.Length > maxBytes)
+            throw new InvalidDataException($"The edited name list exceeds its {maxBytes:N0}-byte limit. Save a shorter list and load it again.");
+        var bytes = new byte[checked((int)stream.Length)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1)
+            throw new InvalidDataException("The edited name list grew while being read. Save it and load it again.");
+        using var reader = new StreamReader(new MemoryStream(bytes, writable: false), System.Text.Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true);
+        var names = new List<string>(Math.Min(expected, 4096));
+        int count = 0, trailingEmpty = 0;
+        while (reader.ReadLine() is { } line)
+        {
+            if (line.Length > 4096)
+                throw new InvalidDataException("An edited name is longer than 4,096 characters. Shorten it and load the list again.");
+            count++;
+            trailingEmpty = line.Length == 0 ? trailingEmpty + 1 : 0;
+            if (names.Count < expected) names.Add(line);
+        }
+        // Match the old editor round-trip: ignore surplus blank lines only after
+        // the expected number of entries (an intentional blank entry still fails preview).
+        count = Math.Max(count - trailingEmpty, Math.Min(count, expected));
+        return (names, count);
     }
 }
