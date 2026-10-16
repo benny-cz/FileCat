@@ -297,6 +297,68 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Unavailable_image_change_token_refuses_recovered_content()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-no-change-token-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = Image(17, false);
+        File.WriteAllBytes(path, original);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        string? nativeToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path);
+        bool injected = false;
+        if (nativeToken is not null)
+        {
+            // Keep one compiled test usable against the preceding product assembly: that assembly has
+            // no injection seam and must fail the refusal oracle, while FAT32 naturally has no token.
+            var property = provider.GetType().GetProperty("GetImageChangeToken",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (property is not null)
+            {
+                property.SetValue(provider, (Func<string, string?>)(_ => null));
+                injected = true;
+            }
+        }
+        IContentSource? opened = null;
+        try
+        {
+            var sink = new Sink();
+            var location = RecoveryProvider.ForImage(path, 1);
+            await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
+            var item = provider.GetItemRef(location, Assert.Single(sink.Rows));
+            Exception? error = Record.Exception(() => opened = provider.OpenContent(item));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                nativeToken, injected,
+                identity = files.GetFileIdentity(path),
+                sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                error = error?.GetType().Name,
+                opened = opened is not null,
+            }));
+            var refusal = Assert.IsType<IOException>(error);
+            Assert.Contains("change token", refusal.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(opened);
+            Assert.Equal(original, File.ReadAllBytes(path));
+        }
+        finally
+        {
+            opened?.Dispose();
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
     public async Task Held_image_reader_refuses_rewritten_old_file_after_its_path_is_replaced()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-renamed-rewrite-" + Guid.NewGuid().ToString("N"));

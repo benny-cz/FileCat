@@ -64,6 +64,9 @@ public sealed class RecoveryProvider : ResourceProvider
     public Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> GetOpenedSourceIdentity { get; set; } =
         handle => UnixFiles.Stat(handle)?.Identity.ToString();
 
+    // Replaceable only by the friend test assembly to exercise filesystems without a usable change token.
+    internal Func<string, string?> GetImageChangeToken { get; set; } = SourceChangeToken.FromPath;
+
 
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device,
@@ -403,6 +406,11 @@ public sealed class RecoveryProvider : ResourceProvider
                 throw new InvalidDataException($"\"{found.Name}\" is overwritten: the space it used holds other data now, so nothing of it can be recovered.");
             if (found.State == RecoveryState.NameOnly)
                 throw new InvalidDataException($"Only the name of \"{found.Name}\" survives: {string.Join(" ", found.Evidence)}");
+            // A same-size in-place rewrite can restore mtime and keep the same file identity. Without
+            // a native change token there is no way to attest that a held image still has the scanned
+            // bytes, so do not issue a reader that would return unauthenticated deleted-file content.
+            if (!IsDevice(item.Parent) && session.VerifyImageContent is null)
+                throw new IOException("This disk image is on a filesystem without a usable change token. Move it to a filesystem with change tracking, then open it again before recovering deleted content.");
             var window = session.Window(volume);
             // A device may change after this content handle opens. Keep the selected path
             // bound around every later read, including reads already in progress at a swap.
@@ -435,7 +443,7 @@ public sealed class RecoveryProvider : ResourceProvider
 
     /// <summary>An image is scanned again when it changes; a drive is identified by its device alone.</summary>
     private string Key(Location location) => IsDevice(location) ? Key(location, null, null)
-        : Key(location, GetSourceIdentity(SourcePath(location)), SourceChangeToken.FromPath(SourcePath(location)));
+        : Key(location, GetSourceIdentity(SourcePath(location)), GetImageChangeToken(SourcePath(location)));
 
     private static string Key(Location location, string? identity, string? changeToken)
     {
@@ -531,7 +539,7 @@ public sealed class RecoveryProvider : ResourceProvider
         bool device = IsDevice(location);
         if (!device && !File.Exists(path)) throw new FileNotFoundException("The disk image no longer exists.", path);
         string? identity = device ? null : GetSourceIdentity(path);
-        string? changeToken = device ? null : SourceChangeToken.FromPath(path);
+        string? changeToken = device ? null : GetImageChangeToken(path);
         string key = Key(location, identity, changeToken);
         bool reuse = device || !string.IsNullOrEmpty(identity) && !string.IsNullOrEmpty(changeToken);
         void VerifyImageScan(IBlockSource scanned)
@@ -540,7 +548,7 @@ public sealed class RecoveryProvider : ResourceProvider
             if (identity is not null && !string.Equals(GetSourceIdentity(path), identity, StringComparison.Ordinal))
                 throw new IOException("The disk image changed while it was being scanned. Open it again.");
             if (changeToken is not null &&
-                (image.CurrentChangeToken() != changeToken || SourceChangeToken.FromPath(path) != changeToken))
+                (image.CurrentChangeToken() != changeToken || GetImageChangeToken(path) != changeToken))
                 throw new IOException("The disk image changed while it was being scanned. Open it again.");
         }
         void VerifySourceListing(IBlockSource scanned)
