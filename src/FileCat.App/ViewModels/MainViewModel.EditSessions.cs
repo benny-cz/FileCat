@@ -48,6 +48,14 @@ public sealed partial class MainViewModel
         public bool Finishing { get; set; }
     }
     private readonly Dictionary<Job, SessionCommit> _sessionCommits = new();
+    // Bounded checkpoints for diagnosing a completed upload whose session was not acknowledged.
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _editCommitTrace = new();
+    internal string EditCommitTrace => string.Join("; ", _editCommitTrace.ToArray());
+    private void TraceEditCommit(string checkpoint)
+    {
+        _editCommitTrace.Enqueue(checkpoint);
+        while (_editCommitTrace.Count > 24) _editCommitTrace.TryDequeue(out _);
+    }
     private readonly HashSet<string> _sessionActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sessionCopyActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
@@ -383,12 +391,14 @@ public sealed partial class MainViewModel
     {
         try
         {
+            TraceEditCommit("submit-start");
             CheckSessionAction(); _ = Operations; // Register the finish observer before a fast job can return.
             var job = Services.Jobs.Submit(request);
             _sessionCommits[job] = new SessionCommit(session, copy);
+            TraceEditCommit($"owner-registered:{job.ShortId}:{job.State}");
             if (origin is not null) Track(job, origin);
         }
-        catch { copy.Dispose(); throw; }
+        catch { TraceEditCommit("submit-error"); copy.Dispose(); throw; }
     }
 
     private async Task CommitArchiveSessionAsync(EditSessionRecord session, TabViewModel? origin)
@@ -509,7 +519,14 @@ public sealed partial class MainViewModel
 
     private void OnEditCommitFinished(Job job)
     {
-        if (!_sessionCommits.TryGetValue(job, out var commit) || commit.Finishing) return;
+        if (!_sessionCommits.TryGetValue(job, out var commit))
+        {
+            if (job.Request.Description?.StartsWith("Commit \"", StringComparison.Ordinal) == true)
+                TraceEditCommit($"completion-without-owner:{job.ShortId}:{job.State}");
+            return;
+        }
+        if (commit.Finishing) return;
+        TraceEditCommit($"completion-observed:{job.ShortId}:{job.State}");
         commit.Finishing = true;
         _ = FinishEditCommitAsync(job, commit);
     }
@@ -528,11 +545,15 @@ public sealed partial class MainViewModel
             if (session.IsRemote)
             {
                 var folder = job.Request.Destination!;
+                TraceEditCommit("remote-revision-start");
                 var revision = await Services.Io.Run(Services.Providers.For(folder).GetDeviceKey(folder), IoPriority.Normal, _ =>
                 { CheckSessionAction(); return RemoteRevision(folder, session.RemotePath); });
+                TraceEditCommit($"remote-revision-read:{revision?.Length}");
                 CheckSessionAction();
                 if (revision is not { } r || r.Length != commit.Copy.Length) throw new IOException("The committed server file is missing or changed; the previous edit baseline is kept.");
+                TraceEditCommit("baseline-save-start");
                 await MutationIoAsync(session.WorkingPath, () => Services.EditSessions.CommittedRemote(session, commit.Copy.Sha256, r), CheckSessionAction);
+                TraceEditCommit("baseline-saved");
             }
             else
                 await MutationIoAsync(session.ArchivePath, () => Services.EditSessions.Committed(session, commit.Copy), CheckSessionAction);
@@ -540,9 +561,10 @@ public sealed partial class MainViewModel
             _announcedEdits.Remove(session.Id);
             Notify($"Committed \"{session.DisplayName}\" to {session.DisplayTarget}. The edit stays open for more changes; discard it when you are done.");
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { TraceEditCommit($"ack-canceled:active={EditSessionsActive}"); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
+            TraceEditCommit($"ack-error:{ex.GetType().Name}");
             if (EditSessionsActive) Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
         }
         finally

@@ -17,6 +17,7 @@ public static class BinaryDiff
 
     public static BinaryDiffResult Compare(IContentSource left, IContentSource right, CancellationToken ct, Action<long>? progress = null)
     {
+        long expectedLeft = left.Length, expectedRight = right.Length;
         var ranges = new List<(long Offset, long Length)>();
         bool truncated = false;
         var ba = new byte[Chunk];
@@ -33,8 +34,12 @@ public static class BinaryDiff
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            int na = ReadFull(left, offset, ba);
-            int nb = ReadFull(right, offset, bb);
+            int wantA = expectedLeft < 0 ? ba.Length : (int)Math.Min(ba.Length, Math.Max(0, expectedLeft - offset));
+            int wantB = expectedRight < 0 ? bb.Length : (int)Math.Min(bb.Length, Math.Max(0, expectedRight - offset));
+            int na = ReadFull(left, offset, ba.AsSpan(0, wantA));
+            int nb = ReadFull(right, offset, bb.AsSpan(0, wantB));
+            if ((expectedLeft >= 0 && na != wantA) || (expectedRight >= 0 && nb != wantB))
+                throw new IOException("Comparison content ended before its reported length.");
             int common = Math.Min(na, nb);
             var sa = ba.AsSpan(0, common);
             var sb = bb.AsSpan(0, common);
@@ -56,8 +61,10 @@ public static class BinaryDiff
             {
                 Close(offset + common);
                 // Past the shorter end, the rest of the longer input is one difference.
-                long leftLength = offset + na + (na == Chunk ? Remaining(left, offset + na) : 0);
-                long rightLength = offset + nb + (nb == Chunk ? Remaining(right, offset + nb) : 0);
+                long leftLength = offset + na + (na == Chunk ? Remaining(left, offset + na, expectedLeft, ct) : 0);
+                long rightLength = offset + nb + (nb == Chunk ? Remaining(right, offset + nb, expectedRight, ct) : 0);
+                if ((expectedLeft >= 0 && left.Length != expectedLeft) || (expectedRight >= 0 && right.Length != expectedRight))
+                    throw new IOException("Comparison content changed length while it was being read.");
                 if (leftLength != rightLength)
                 {
                     long from = Math.Min(leftLength, rightLength);
@@ -78,6 +85,8 @@ public static class BinaryDiff
     /// </summary>
     public static (long Offset, long Length)? NextDifference(IContentSource left, IContentSource right, long leftLength, long rightLength, long from, CancellationToken ct)
     {
+        if ((left.Length >= 0 && left.Length != leftLength) || (right.Length >= 0 && right.Length != rightLength))
+            throw new IOException("Comparison content changed length since it was compared.");
         long common = Math.Min(leftLength, rightLength);
         var ba = new byte[Chunk];
         var bb = new byte[Chunk];
@@ -87,8 +96,8 @@ public static class BinaryDiff
             ct.ThrowIfCancellationRequested();
             int want = (int)Math.Min(Chunk, common - offset);
             int na = ReadFull(left, offset, ba.AsSpan(0, want)), nb = ReadFull(right, offset, bb.AsSpan(0, want));
-            int n = Math.Min(na, nb);
-            if (n <= 0) break;
+            if (na != want || nb != want) throw new IOException("Comparison content ended before its reported length.");
+            int n = want;
             var sa = ba.AsSpan(0, n);
             var sb = bb.AsSpan(0, n);
             int i = 0;
@@ -113,6 +122,8 @@ public static class BinaryDiff
     /// <summary>The last differing run that starts before <paramref name="before"/>, read backwards; null when none does.</summary>
     public static (long Offset, long Length)? PreviousDifference(IContentSource left, IContentSource right, long leftLength, long rightLength, long before, CancellationToken ct)
     {
+        if ((left.Length >= 0 && left.Length != leftLength) || (right.Length >= 0 && right.Length != rightLength))
+            throw new IOException("Comparison content changed length since it was compared.");
         long common = Math.Min(leftLength, rightLength);
         // Past the shorter end, the rest is one run.
         if (leftLength != rightLength && before > common) return (common, Math.Abs(leftLength - rightLength));
@@ -124,7 +135,8 @@ public static class BinaryDiff
             ct.ThrowIfCancellationRequested();
             int want = (int)Math.Min(Chunk, end);
             long start = end - want;
-            if (ReadFull(left, start, ba.AsSpan(0, want)) < want || ReadFull(right, start, bb.AsSpan(0, want)) < want) return null;
+            if (ReadFull(left, start, ba.AsSpan(0, want)) < want || ReadFull(right, start, bb.AsSpan(0, want)) < want)
+                throw new IOException("Comparison content ended before its reported length.");
             int i = want - 1;
             if (runEnd < 0)
             {
@@ -153,13 +165,20 @@ public static class BinaryDiff
         return total;
     }
 
-    private static long Remaining(IContentSource source, long offset)
+    private static long Remaining(IContentSource source, long offset, long expectedLength, CancellationToken ct)
     {
-        if (source.Length >= 0) return Math.Max(0, source.Length - offset);
         var buffer = new byte[Chunk];
         long total = 0;
-        int n;
-        while ((n = source.Read(offset + total, buffer)) > 0) total += n;
+        while (expectedLength < 0 || offset + total < expectedLength)
+        {
+            ct.ThrowIfCancellationRequested();
+            int want = expectedLength < 0 ? buffer.Length : (int)Math.Min(buffer.Length, expectedLength - offset - total);
+            int n = ReadFull(source, offset + total, buffer.AsSpan(0, want));
+            if (n < want && expectedLength >= 0)
+                throw new IOException("Comparison content ended before its reported length.");
+            if (n == 0) break;
+            total += n;
+        }
         return total;
     }
 }

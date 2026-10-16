@@ -58,19 +58,29 @@ public sealed class TextSide
     /// <summary>Decodes up to <see cref="MaxBytes"/>; larger content is refused (binary comparison still works).</summary>
     public static TextSide Load(IContentSource source, CancellationToken ct)
     {
-        if (source.Length > MaxBytes)
+        long expectedLength = source.Length;
+        if (expectedLength > MaxBytes)
             throw new InvalidDataException($"Text comparison reads files up to {MaxBytes / (1024 * 1024)} MiB; compare larger files as binary.");
-        using var buffer = new MemoryStream(source.Length > 0 ? (int)source.Length : 64 * 1024);
+        using var buffer = new MemoryStream(expectedLength > 0 ? (int)expectedLength : 64 * 1024);
         var chunk = new byte[1 << 20];
         for (long offset = 0; ;)
         {
             ct.ThrowIfCancellationRequested();
-            int n = source.Read(offset, chunk);
-            if (n <= 0) break;
+            int want = expectedLength < 0 ? chunk.Length : (int)Math.Min(chunk.Length, expectedLength - offset);
+            if (want == 0) break;
+            int n = source.Read(offset, chunk.AsSpan(0, want));
+            if (n <= 0)
+            {
+                if (expectedLength >= 0 || n < 0)
+                    throw new IOException("Text comparison content ended before its reported length.");
+                break;
+            }
             buffer.Write(chunk, 0, n);
             offset += n;
             if (buffer.Length > MaxBytes) throw new InvalidDataException($"Text comparison reads files up to {MaxBytes / (1024 * 1024)} MiB; compare larger files as binary.");
         }
+        if (expectedLength >= 0 && source.Length != expectedLength)
+            throw new IOException("Text comparison content changed length while it was being read.");
         var bytes = buffer.GetBuffer().AsSpan(0, (int)buffer.Length);
         var guess = TextDecoding.Detect(bytes[..Math.Min(bytes.Length, 64 * 1024)]);
         return FromText(guess.Encoding.GetString(bytes[guess.PreambleLength..]), guess);

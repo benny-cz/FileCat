@@ -6,6 +6,132 @@ namespace FileCat.Core.Tests;
 
 public sealed class FileCompareTests
 {
+    private sealed class AdvertisedContent(byte[] bytes, long advertisedLength) : IContentSource
+    {
+        public string DisplayName => "owned compare input";
+        public long Length => advertisedLength;
+        public bool CanSeek => true;
+        public string? LocalPath => null;
+        public ContentRevision? GetRevision() => null;
+        public int Read(long offset, Span<byte> buffer)
+        {
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (offset >= bytes.Length) return 0;
+            int n = Math.Min(257, Math.Min(buffer.Length, bytes.Length - (int)offset));
+            bytes.AsSpan((int)offset, n).CopyTo(buffer);
+            return n;
+        }
+        public void Dispose() { }
+    }
+
+    private sealed class ShrinkingFileContent(string path, long shortenedLength) : IContentSource
+    {
+        private readonly FileContentSource _source = new(path);
+        private bool _shortened;
+        public string DisplayName => _source.DisplayName;
+        public long Length => _source.Length;
+        public bool CanSeek => true;
+        public string? LocalPath => _source.LocalPath;
+        public ContentRevision? GetRevision() => _source.GetRevision();
+        public int Read(long offset, Span<byte> buffer)
+        {
+            if (!_shortened)
+            {
+                _shortened = true;
+                using var writer = new FileStream(LocalPath!, FileMode.Open, FileAccess.Write,
+                    FileShare.ReadWrite | FileShare.Delete);
+                writer.SetLength(shortenedLength);
+            }
+            return _source.Read(offset, buffer);
+        }
+        public void Dispose() => _source.Dispose();
+    }
+
+    [Fact]
+    public void Two_local_files_shrinking_during_comparison_are_not_reported_equal()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-compare-early-end-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string a = Path.Combine(root, "a.txt"), b = Path.Combine(root, "b.txt");
+        byte[] original = Encoding.UTF8.GetBytes(new string('C', 8192));
+        File.WriteAllBytes(a, original);
+        File.WriteAllBytes(b, original);
+        try
+        {
+            using var left = new ShrinkingFileContent(a, 4096);
+            using var right = new ShrinkingFileContent(b, 4096);
+            Assert.Throws<IOException>(() => BinaryDiff.Compare(left, right, TestContext.Current.CancellationToken));
+            Assert.Equal(4096, new FileInfo(a).Length);
+            Assert.Equal(4096, new FileInfo(b).Length);
+            TestContext.Current.TestOutputHelper?.WriteLine($"originalLength={original.Length} finalLength={new FileInfo(a).Length} leftHash={Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(a)))} rightHash={Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(b)))}");
+        }
+        finally
+        {
+            File.Delete(a);
+            File.Delete(b);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public void Known_length_binary_compare_refuses_matching_truncated_prefixes()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(new string('A', 4096));
+        using var left = new AdvertisedContent(bytes, bytes.Length + 512);
+        using var right = new AdvertisedContent(bytes, bytes.Length + 512);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Throws<IOException>(() => BinaryDiff.Compare(left, right, ct));
+    }
+
+    [Fact]
+    public void Known_length_binary_compare_refuses_a_truncated_longer_tail()
+    {
+        byte[] shortBytes = new byte[4096];
+        byte[] longPrefix = new byte[1 << 20];
+        using var left = new AdvertisedContent(shortBytes, shortBytes.Length);
+        using var right = new AdvertisedContent(longPrefix, longPrefix.Length + 512);
+        Assert.Throws<IOException>(() => BinaryDiff.Compare(left, right, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Known_length_text_compare_refuses_a_truncated_prefix()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(new string('A', 4096));
+        using var left = new AdvertisedContent(bytes, bytes.Length + 512);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Throws<IOException>(() => TextSide.Load(left, ct));
+    }
+
+    [Fact]
+    public void Next_difference_refuses_truncated_known_length_content()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(new string('B', 4096));
+        using var left = new AdvertisedContent(bytes, bytes.Length + 512);
+        using var right = new AdvertisedContent(bytes, bytes.Length + 512);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Throws<IOException>(() => BinaryDiff.NextDifference(left, right, left.Length, right.Length, 0, ct));
+    }
+
+    [Fact]
+    public void Previous_difference_refuses_truncated_known_length_content()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(new string('B', 4096));
+        using var left = new AdvertisedContent(bytes, bytes.Length + 512);
+        using var right = new AdvertisedContent(bytes, bytes.Length + 512);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Throws<IOException>(() => BinaryDiff.PreviousDifference(left, right, left.Length, right.Length, left.Length, ct));
+    }
+
+    [Fact]
+    public void Unknown_length_compare_accepts_a_real_end_of_content()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes("a\nb\n");
+        using var left = new AdvertisedContent(bytes, -1);
+        using var right = new AdvertisedContent(bytes, -1);
+        Assert.True(BinaryDiff.Compare(left, right, TestContext.Current.CancellationToken).Equal);
+        Assert.Equal(["a", "b"], TextSide.Load(left, TestContext.Current.CancellationToken).Lines);
+    }
+
     private static TextDiffResult Diff(string left, string right, TextDiffOptions? options = null) =>
         TextDiff.Compare(TextSide.FromText(left).Lines, TextSide.FromText(right).Lines, options, TestContext.Current.CancellationToken);
 

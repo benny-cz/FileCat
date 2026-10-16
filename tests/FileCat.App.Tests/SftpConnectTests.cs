@@ -118,7 +118,7 @@ public sealed class SftpConnectTests
                 $"Remote bytes were uploaded, but the edit session is {finalState}; job={job.State}, " +
                 $"pendingCommits={pendingCommits.Count}, ioStopped={s.Services.Io.IsStopped}, " +
                 $"lastCommitUtc={finalRecord.LastCommitUtc:O}, baseSha256={finalRecord.BaseSha256}, " +
-                $"notification={s.Vm.Notification}.");
+                $"notification={s.Vm.Notification}, commitTrace={s.Vm.EditCommitTrace}.");
         }
         finally
         {
