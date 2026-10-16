@@ -69,10 +69,30 @@ public static partial class UnixWorkerIdentity
             effectiveUser, effectiveGroup, afterEffective, afterEffectiveGroup));
     }
 
-    private static Result Verified(Result result) =>
-        OperatingSystem.IsLinux() && !LinuxCapabilitiesClear()
-            ? result with { Refusal = "The Linux picture worker retained or could not verify process capabilities, so this picture was not decoded." }
-            : result;
+    private static Result Verified(Result result)
+    {
+        if (!SupplementaryRootGroupAbsent())
+            return result with { Refusal = "The picture worker retained or could not verify supplementary root-group rights, so this picture was not decoded." };
+        if (OperatingSystem.IsLinux() && !LinuxCapabilitiesClear())
+            return result with { Refusal = "The Linux picture worker retained or could not verify process capabilities, so this picture was not decoded." };
+        return result;
+    }
+
+    // The real and effective GIDs alone do not describe a worker's file authority. An ordinary UID/GID can
+    // retain supplementary group 0, including after a set-user-ID launch, and read root-group-only files.
+    private static unsafe bool SupplementaryRootGroupAbsent()
+    {
+        int count = GetGroups(0, nint.Zero);
+        if (count < 0 || count > 65_536) return false;
+        if (count == 0) return true;
+
+        Span<uint> groups = count <= 64 ? stackalloc uint[count] : new uint[count];
+        fixed (uint* pointer = groups)
+        {
+            if (GetGroups(count, (nint)pointer) != count) return false;
+        }
+        return !groups.Contains(0u);
+    }
 
     /// <summary>
     /// A non-root Linux UID may still have effective, permitted, inheritable or ambient capabilities. Read the
@@ -155,4 +175,7 @@ public static partial class UnixWorkerIdentity
 
     [LibraryImport("libc", EntryPoint = "setgroups", SetLastError = true)]
     private static partial int SetGroups(nint count, nint list);
+
+    [LibraryImport("libc", EntryPoint = "getgroups", SetLastError = true)]
+    private static partial int GetGroups(int size, nint list);
 }

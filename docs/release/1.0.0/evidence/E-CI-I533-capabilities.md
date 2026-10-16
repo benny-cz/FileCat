@@ -1,0 +1,9 @@
+# E-CI-I533 — exact pushed-source Linux worker capability matrix
+
+[Run 38900305768](https://github.com/benny-cz/FileCat/actions/runs/38900305768) completed **success** at pushed source `113a2c79e078cb7fde56af37e85c05f9a9963966`. Producer reference policy and macOS 26, Ubuntu 24.04, Windows ARM64 and Windows x64 jobs passed; four publication-only jobs skipped. These ordinary-user CI lanes complement, but do not replace, the [native old/final file-capability worker pair](E-I533-linux-worker-capability-admission.md).
+
+Private official archive `V:\FileCat\artifacts\release-evidence\ci-i533-capabilities-20261016-v1` retains the run/job API responses and **27 server-digest-verified ZIPs, 2,779 independently hashed members and fourteen TRX**: **33,848 Passed, 1,302 NotExecuted, zero Failed**. The native Mac and Ubuntu eight-scenario instance-process artifacts each report **8/8 passed**. Audit SHA-256 is `d2d35941bd588631d3de35c3043ebb454cb4bd965bacd1302c4b1bf2b4dc2da9`; file-manifest SHA-256 is `98a2628298209f76d2f9c238872f101e6e58c880cc788db6b6128e8c8bdaee19`.
+
+The independently rehashed `ci-i533-capabilities-comparison-20261016-v1` archive compares this run with immediately prior green `7bef94da` run 38897334150. All **35,130** duplicate-preserved predecessor test names, outcomes and failure messages remain identical; **twenty new passing Core rows** are the five Linux capability-inventory cases on each of four lanes. No rows were removed. Comparison SHA-256 is `ecce093b69a62e1cd44f603a8a5ab7d59c882baf284cb695e3a905c3e620ddbd`; comparison-manifest SHA-256 is `c086c64eb3b75d57b6793d25a17a953c0280c42c1937f767226affe05a0eb4dd`.
+
+This matrix qualifies the pushed I533 source at its tested scope. It predates the separate I534 worker-memory change and the later I535 supplementary-group finding; installed UI, broader containment and candidate acceptance remain open.
