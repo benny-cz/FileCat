@@ -667,7 +667,15 @@ internal sealed class ArchiveIndex : IDisposable
                 if (ex is IOException or InvalidDataException or UnauthorizedAccessException) throw;
                 throw new InvalidDataException("The member could not be decompressed: " + ex.Message, ex);
             }
-            if (dst is MemoryStream ms) return new MemoryContentSource(tag.FullName, ms.ToArray());
+            if (dst is MemoryStream ms)
+            {
+                // Keep the exact logical member length without copying its entire extraction buffer.
+                // A damaged size may expand the stream geometrically; trim a substantially oversized buffer.
+                if (ms.Capacity - ms.Length > MemberLimits.Slack)
+                    return new MemoryContentSource(tag.FullName, ms.ToArray());
+                return new MemoryContentSource(tag.FullName,
+                    new ArraySegment<byte>(ms.GetBuffer(), 0, checked((int)ms.Length)));
+            }
             dst.Position = 0;
             return new StreamContentSource(tag.FullName, (FileStream)dst);
         }

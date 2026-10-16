@@ -630,8 +630,12 @@ public sealed class RecoveryProvider : ResourceProvider
                         string? currentIdentity = getIdentity(path);
                         if (currentIdentity is null)
                             throw new IOException("The disk image's path identity cannot be verified while reading it.");
-                        // A replaced path can leave a valid reader on its original file; an in-place rewrite cannot.
-                        if (currentIdentity == identity && image.CurrentChangeToken() != changeToken)
+                        // A replaced path can leave this handle on the former file. Its change token may
+                        // advance for a rename, so we cannot distinguish that from a later rewrite of the
+                        // former file. Refuse the stale path rather than return unverified recovered bytes.
+                        if (!string.Equals(currentIdentity, identity, StringComparison.Ordinal))
+                            throw new IOException("The disk image no longer names the source being read. Open it again.");
+                        if (image.CurrentChangeToken() != changeToken)
                             throw new IOException("The disk image changed while its deleted content was being read. Open it again.");
                     };
                 }

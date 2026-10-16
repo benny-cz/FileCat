@@ -297,6 +297,66 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Held_image_reader_refuses_rewritten_old_file_after_its_path_is_replaced()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-renamed-rewrite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img"), moved = Path.Combine(root, "former.img"), next = Path.Combine(root, "next.img");
+        byte[] original = Image(17, false), rewritten = Image(97, false), replacement = Image(47, true);
+        File.WriteAllBytes(path, original); File.WriteAllBytes(next, replacement);
+        File.SetLastWriteTimeUtc(path, Stamp); File.SetLastWriteTimeUtc(next, Stamp);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        var location = RecoveryProvider.ForImage(path, 1);
+        IContentSource? held = null;
+        try
+        {
+            var first = new Sink();
+            await provider.EnumerateAsync(location, first, TestContext.Current.CancellationToken);
+            held = provider.OpenContent(provider.GetItemRef(location, Assert.Single(first.Rows)))!;
+            Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), Read(held));
+            string selectedIdentity = Assert.IsType<string>(files.GetFileIdentity(path));
+            string selectedToken = Assert.IsType<string>(FileCat.Core.FileSystem.SourceChangeToken.FromPath(path));
+            File.Move(path, moved); File.Move(next, path);
+            Assert.NotEqual(selectedIdentity, files.GetFileIdentity(path));
+            using (var writer = File.OpenHandle(moved, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                RandomAccess.Write(writer, rewritten, 0);
+                RandomAccess.FlushToDisk(writer);
+            }
+            File.SetLastWriteTimeUtc(moved, Stamp);
+            byte[]? read = null;
+            Exception? error = Record.Exception(() => read = Read(held));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                selectedIdentity, pathIdentity = files.GetFileIdentity(path), selectedToken,
+                formerToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(moved),
+                formerSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(moved))),
+                replacementSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                readSha256 = read is null ? null : Convert.ToHexString(SHA256.HashData(read)),
+                error = error?.GetType().Name,
+            }));
+            Assert.Equal(rewritten, File.ReadAllBytes(moved));
+            Assert.Equal(replacement, File.ReadAllBytes(path));
+            if (read is not null) Assert.Equal(rewritten.AsSpan(4 * 512, 4096).ToArray(), read);
+            Assert.IsType<IOException>(error);
+            Assert.Null(read);
+        }
+        finally
+        {
+            held?.Dispose(); provider.CloseAll();
+            bool closed = new[] { path, moved, next }.Where(File.Exists).All(Exclusive);
+            Directory.Delete(root, recursive: true);
+            output.WriteLine(JsonSerializer.Serialize(new { root, closed, absent = !Directory.Exists(root) }));
+            Assert.True(closed); Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
     public async Task Held_image_reader_without_identity_refuses_in_place_source_rewrite()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-unknown-held-rewrite-" + Guid.NewGuid().ToString("N"));
@@ -535,8 +595,11 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             Assert.Equal(changed && route == "catalog", first.Name != current.Name);
             if (held is not null)
             {
-                if (changed && !identityAvailable && heldReadError is IOException)
-                    Assert.Null(heldRead); // With no identity, a renamed old image may be conservatively refused.
+                if (changed)
+                {
+                    Assert.IsType<IOException>(heldReadError); // A stale path cannot attest the former file's later bytes.
+                    Assert.Null(heldRead);
+                }
                 else
                 {
                     Assert.Null(heldReadError);

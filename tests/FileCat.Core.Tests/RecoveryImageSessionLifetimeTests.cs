@@ -114,7 +114,16 @@ public sealed class RecoveryImageSessionLifetimeTests(ITestOutputHelper output)
             else
             {
                 Assert.Equal(1, afterRetire);
-                foreach (var reader in readers) { var bytes = new byte[4096]; Assert.Equal(4096, reader.Read(0, bytes)); Assert.Equal(expected, bytes); Assert.Empty(((IPartialContent)reader).MissingRanges); }
+                foreach (var reader in readers)
+                {
+                    if (route == "replace")
+                        Assert.Throws<IOException>(() => reader.Read(0, new byte[4096]));
+                    else
+                    {
+                        var bytes = new byte[4096]; Assert.Equal(4096, reader.Read(0, bytes)); Assert.Equal(expected, bytes);
+                    }
+                    Assert.Empty(((IPartialContent)reader).MissingRanges);
+                }
             }
             readers[0].Dispose(); readers[0].Dispose();
             int afterFirst = Handles(observedPath);
