@@ -9,6 +9,15 @@ namespace FileCat.Core.Tests;
 /// </summary>
 public sealed class UnixWorkerIdentityTests
 {
+    [Theory]
+    [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000000\n", true)]
+    [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000002\nCapEff:\t0000000000000002\nCapAmb:\t0000000000000000\n", false)]
+    [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000001\n", false)]
+    [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\n", false)]
+    [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\tgarbled\n", false)]
+    public void Linux_worker_requires_a_complete_zero_capability_inventory(string status, bool expected) =>
+        Assert.Equal(expected, UnixWorkerIdentity.CapabilitiesClear(status));
+
     [Fact]
     public void An_ordinary_user_keeps_the_identity_it_already_has()
     {

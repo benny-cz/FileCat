@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace FileCat.Core.FileSystem;
 
@@ -20,7 +21,7 @@ public static partial class UnixWorkerIdentity
         public bool StartedPrivileged => UserBefore == 0 || EffectiveUserBefore == 0;
 
         /// <summary>True when the worker now holds an ordinary identity it cannot give back.</summary>
-        public bool Unprivileged => UserAfter != 0 && GroupAfter != 0 &&
+        public bool Unprivileged => Refusal is null && UserAfter != 0 && GroupAfter != 0 &&
             EffectiveUserAfter != 0 && EffectiveGroupAfter != 0 && RegainRefused;
     }
 
@@ -43,8 +44,8 @@ public static partial class UnixWorkerIdentity
             if (user == 0 || group == 0 || effectiveGroup == 0 || SetGid(0) == 0)
                 return Failed(user, group, effectiveUser, effectiveGroup,
                     "the worker retains root group or user rights that cannot be discarded");
-            return new Result(user, group, user, group, RegainRefused: true, Refusal: null,
-                effectiveUser, effectiveGroup, GetEuid(), GetEgid());
+            return Verified(new Result(user, group, user, group, RegainRefused: true, Refusal: null,
+                effectiveUser, effectiveGroup, GetEuid(), GetEgid()));
         }
 
         var target = user != 0 && group != 0 ? (user, group) : Requester();
@@ -64,8 +65,58 @@ public static partial class UnixWorkerIdentity
         if (after != wantedUser || afterEffective != wantedUser || afterGroup != wantedGroup ||
             afterEffectiveGroup != wantedGroup || !regainRefused)
             return Failed(user, group, effectiveUser, effectiveGroup, "the worker kept root rights after giving them up");
-        return new Result(user, group, after, afterGroup, RegainRefused: true, Refusal: null,
-            effectiveUser, effectiveGroup, afterEffective, afterEffectiveGroup);
+        return Verified(new Result(user, group, after, afterGroup, RegainRefused: true, Refusal: null,
+            effectiveUser, effectiveGroup, afterEffective, afterEffectiveGroup));
+    }
+
+    private static Result Verified(Result result) =>
+        OperatingSystem.IsLinux() && !LinuxCapabilitiesClear()
+            ? result with { Refusal = "The Linux picture worker retained or could not verify process capabilities, so this picture was not decoded." }
+            : result;
+
+    /// <summary>
+    /// A non-root Linux UID may still have effective, permitted, inheritable or ambient capabilities. Read the
+    /// kernel's own status before any picture input; a missing or malformed answer is an unsafe identity.
+    /// The bounding set alone is ordinary process policy and does not grant current authority.
+    /// </summary>
+    private static bool LinuxCapabilitiesClear()
+    {
+        try
+        {
+            using var status = File.OpenRead("/proc/self/status");
+            var bytes = new byte[64 * 1024 + 1];
+            int count = 0;
+            while (count < bytes.Length)
+            {
+                int read = status.Read(bytes, count, bytes.Length - count);
+                if (read == 0) break;
+                count += read;
+            }
+            return count < bytes.Length && CapabilitiesClear(Encoding.ASCII.GetString(bytes, 0, count));
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    internal static bool CapabilitiesClear(string status)
+    {
+        string[] names = ["CapInh:", "CapPrm:", "CapEff:", "CapAmb:"];
+        int seen = 0;
+        foreach (string line in status.Split('\n'))
+        {
+            for (int index = 0; index < names.Length; index++)
+            {
+                if (!line.StartsWith(names[index], StringComparison.Ordinal)) continue;
+                int bit = 1 << index;
+                if ((seen & bit) != 0) return false;
+                string value = line[names[index].Length..].Trim();
+                if (value.Length is < 1 or > 16 ||
+                    !ulong.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong capabilities) ||
+                    capabilities != 0) return false;
+                seen |= bit;
+            }
+        }
+        return seen == 15;
     }
 
     private static Result Failed(uint user, uint group, uint effectiveUser, uint effectiveGroup, string what) =>

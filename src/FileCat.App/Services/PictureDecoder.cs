@@ -23,8 +23,9 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// through standard input and read back within bounds, and stopped after <see cref="Timeout"/>. On Windows the worker
 /// normally starts with low integrity and a job that caps its memory and child count. A failed low-integrity start
 /// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
-/// On Unix it inherits the parent's permissions without dropping its UID, an OS filesystem/network sandbox or job
-/// memory limit. Linux x64 also restricts direct process creation on every worker thread before consuming input.
+/// On Unix it verifies an ordinary identity and irreversibly gives up retained root rights before consuming input;
+/// it has no OS filesystem/network sandbox or job memory limit. Linux x64 also restricts direct process creation
+/// on every worker thread before consuming input.
 /// The Unix decoder itself ends when its launching parent dies; this does not contain detached descendants.
 /// A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
