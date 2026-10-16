@@ -108,6 +108,9 @@ public sealed class ListingModel : IDisposable
     public ResourceProvider? Provider { get; private set; }
     public ListingState State { get; private set; }
     public string? Error { get; private set; }
+
+    /// <summary>Why the location could not be listed (<see cref="Error"/> says it in words), or null.</summary>
+    public Exception? LoadError { get; private set; }
     public IReadOnlyList<string> Issues => _issues;
 
     /// <summary>Why the last reread failed (its rows were kept), or null; the folder may have gone, say.</summary>
@@ -397,6 +400,7 @@ public sealed class ListingModel : IDisposable
         _awaitingEntries = true;
         _lastOperation = null;
         Error = null;
+        LoadError = null;
         State = ListingState.Loading;
         CompletedAtUtc = null;
         _pipeline = StartPipeline(location, provider, _store, isRefresh: false);
@@ -701,6 +705,7 @@ public sealed class ListingModel : IDisposable
             if (r.Error is not null)
             {
                 Error = DescribeError(r.Error);
+                LoadError = r.Error;
                 State = VisibleCount > (HasParentRow ? 1 : 0) ? ListingState.Complete : ListingState.Failed;
                 if (State == ListingState.Complete) _issues.Add($"Listing incomplete: {Error}");
             }
@@ -1091,6 +1096,7 @@ public sealed class ListingModel : IDisposable
         _issues.Clear();
         LastRefreshError = null;
         Error = null;
+        LoadError = null;
         _awaitingEntries = false;
         _appliedCount = 0;
         _focusStore = -1;

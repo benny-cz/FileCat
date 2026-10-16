@@ -105,7 +105,17 @@ public class LocalFileSystemProvider : ResourceProvider
         var detector = ContainerDetector;
         var batch = new EntryData[BatchSize];
         int n = 0;
-        var enumerable = new FileSystemEnumerable<EntryData>(location.Path, ToEntry, ListOptions);
+        FileSystemEnumerable<EntryData> enumerable;
+        try
+        {
+            // The folder is opened here, so a refusal to list it comes before any entry.
+            enumerable = new FileSystemEnumerable<EntryData>(location.Path, ToEntry, ListOptions);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            if (ListableTargetOfRefusedLink(location.Path) is not { } target) throw;
+            throw new LinkListingRefusedException(location.Path, target, ex);
+        }
         using var e = enumerable.GetEnumerator();
         while (true)
         {
@@ -133,6 +143,44 @@ public class LocalFileSystemProvider : ResourceProvider
         }
         if (n > 0) sink.AddBatch(batch.AsSpan(0, n));
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The folder <paramref name="path"/> leads to when it is a link that denies listing itself while that folder lists;
+    /// else null. Windows' compatibility junctions ("Local Settings", "Application Data", "My Documents", "Documents and
+    /// Settings"…) deny everyone "List folder" so that programs walking a profile do not loop through them, yet paths
+    /// through them work. Only Windows gives a link permissions of its own.
+    /// </summary>
+    internal static string? ListableTargetOfRefusedLink(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            if (new DirectoryInfo(path).LinkTarget is not { } stored) return null;
+            // The folder the link names (a relative target counts from the link's folder); failing that, the folder a
+            // chain of such links ends at.
+            string named = Path.GetFullPath(stored, Path.GetDirectoryName(path) ?? path);
+            if (Lists(named)) return named;
+            return Directory.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName is { } final && Lists(final) ? final : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+
+        // Proved the way the panel will list it.
+        static bool Lists(string folder)
+        {
+            try
+            {
+                new FileSystemEnumerable<byte>(folder, static (ref FileSystemEntry _) => 0, ListOptions).GetEnumerator().Dispose();
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
     }
 
     internal static EntryData ToEntry(ref FileSystemEntry fe)
@@ -230,4 +278,19 @@ public class LocalFileSystemProvider : ResourceProvider
         a.Scheme == b.Scheme && a.Scheme == Schemes.FileSystem
             ? PathUtil.NormalizeForCompare(a.Path).Equals(PathUtil.NormalizeForCompare(b.Path), PathUtil.SafetyComparison)
             : a.Equals(b);
+}
+
+/// <summary>
+/// A folder link denied listing itself while the folder it leads to lists (see
+/// <see cref="LocalFileSystemProvider.ListableTargetOfRefusedLink"/>): a panel shows <see cref="Target"/> instead, as
+/// Salamander does; anything else meets it as access denied.
+/// </summary>
+public sealed class LinkListingRefusedException(string link, string target, Exception inner)
+    : UnauthorizedAccessException($"{inner.Message} It is a link to {target}, which can be listed instead.", inner)
+{
+    /// <summary>The link that was to be listed.</summary>
+    public string Link { get; } = link;
+
+    /// <summary>The folder it leads to, which lists.</summary>
+    public Location Target { get; } = Location.FileSystem(LocalFileSystemProvider.NormalizeUserPath(target));
 }

@@ -347,11 +347,41 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Listing.Sort = kept;
             _sortOutsideJournal = null;
         }
+        _navigatedFocus = (location, focusName);
         Listing.Load(location, focusName);
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The name the last navigation was to put the cursor on, and where: a link shown by its target keeps it.</summary>
+    private (Location At, string? Name)? _navigatedFocus;
+
+    /// <summary>
+    /// The location is a link that refuses to be listed itself while the folder it leads to lists (Windows' compatibility
+    /// junctions, such as "Local Settings", deny everyone that): the panel shows that folder and says why, as Salamander
+    /// does, where Explorer stops at "Access is denied". It takes the link's place, so Back returns to where it was entered from.
+    /// </summary>
+    private void ShowLinkTarget(LinkListingRefusedException refused)
+    {
+        var link = Location;
+        string? focus = _navigatedFocus is { } f && f.At == link ? f.Name : null;
+        // Posted: the listing is still reporting the refusal.
+        Services.Ui.Post(() =>
+        {
+            if (_disposed || link is null || Location != link || Listing.LoadError != refused) return;
+            EndQuickSearch();
+            ComparisonLabel = null;
+            _navigatedFocus = (refused.Target, focus);
+            Listing.Load(refused.Target, focus);
+            if (IsActiveTab) StartWatching();
+            Services.RecordFolder(refused.Target);
+            UpdateTitle();
+            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(refused.Link));
+            Banner = $"“{name}” is a link that refuses to be listed itself, as Windows' compatibility junctions do. This is the folder it leads to.";
+        });
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
@@ -417,6 +447,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(target);
+        _navigatedFocus = (target, null);
         Listing.Load(target);
         if (IsActiveTab) StartWatching();
         UpdateTitle();
@@ -543,6 +574,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 OnLoadCompleted();
                 NoteSidecars();
                 if (Listing.LastRefreshError is DirectoryNotFoundException && Location is { IsFileSystem: true } gone) LeaveVanishedFolder(gone);
+            }
+            else if (Listing.State == ListingState.Failed && Listing.LoadError is LinkListingRefusedException refused)
+            {
+                ShowLinkTarget(refused);
             }
         }
         // The focused item is described with items marked too (the marked ones are summed on the left).

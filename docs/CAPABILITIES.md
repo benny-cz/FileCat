@@ -16,7 +16,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 
 | Location | Browse | View (F3) | Copy from (F5) | Copy into | Move, rename | Create (F7, Shift+F4) | Delete (F8, Shift+F8) | Watch |
 |---|---|---|---|---|---|---|---|---|
-| Local folders (NTFS, ReFS, Dev Drive, FAT, exFAT) | Yes | Yes | Yes | Yes | Yes | Yes | Recycle where the volume has a bin; otherwise explicit permanent delete | Yes |
+| Local folders (NTFS, ReFS, Dev Drive, FAT, exFAT) | Yes (a link that refuses to be listed itself, such as Windows' `Local Settings` or `Documents and Settings` compatibility junction, opens the folder it leads to, as in Salamander) | Yes | Yes | Yes | Yes | Yes | Recycle where the volume has a bin; otherwise explicit permanent delete | Yes |
 | SMB shares (`\\server\share`, mapped drives) | Yes (sign-in prompt when needed) | Yes | Yes | Yes | Yes | Yes | Permanent delete only (no Recycle Bin; asked explicitly) | Yes (best effort) |
 | Network servers (`\\server`) | Share list | – | – | – | – | – | – | – |
 | This PC | Drives | – | – | – | – | – | – | – |
