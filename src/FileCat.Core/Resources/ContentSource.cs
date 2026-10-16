@@ -103,11 +103,24 @@ public sealed class FileContentSource : IContentSource
 }
 
 /// <summary>In-memory content (small archive members, tests).</summary>
-public sealed class MemoryContentSource(string displayName, byte[] data) : IContentSource
+public sealed class MemoryContentSource : IContentSource
 {
-    private byte[]? _data = data;
-    private readonly int _length = data.Length;
-    public string DisplayName { get; } = displayName;
+    private byte[]? _data;
+    private readonly int _offset;
+    private readonly int _length;
+
+    public MemoryContentSource(string displayName, byte[] data) : this(displayName, new ArraySegment<byte>(data)) { }
+
+    /// <summary>Borrow a logical slice without copying unused capacity from an extraction buffer.</summary>
+    public MemoryContentSource(string displayName, ArraySegment<byte> data)
+    {
+        _data = data.Array ?? throw new ArgumentException("A backing array is required.", nameof(data));
+        _offset = data.Offset;
+        _length = data.Count;
+        DisplayName = displayName;
+    }
+
+    public string DisplayName { get; }
     public long Length => _length;
     public bool CanSeek => true;
     public string? LocalPath => null;
@@ -116,9 +129,9 @@ public sealed class MemoryContentSource(string displayName, byte[] data) : ICont
     {
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         var bytes = Volatile.Read(ref _data) ?? throw new ObjectDisposedException(nameof(MemoryContentSource));
-        if (offset >= bytes.Length) return 0;
-        int n = (int)Math.Min(buffer.Length, bytes.Length - offset);
-        bytes.AsSpan((int)offset, n).CopyTo(buffer);
+        if (offset >= _length) return 0;
+        int n = (int)Math.Min(buffer.Length, _length - offset);
+        bytes.AsSpan(_offset + (int)offset, n).CopyTo(buffer);
         return n;
     }
 

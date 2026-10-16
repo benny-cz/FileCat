@@ -615,7 +615,13 @@ internal sealed class ZipIndex : IDisposable
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
             using (var source = entry.Open()) limits.CopyAll(source, memory);
             VerifySource();
-            return new MemoryContentSource(tag.FullName, memory.ToArray());
+            // Ordinary members already have an exact-sized backing array. Keep its logical length instead of
+            // copying the whole payload just before a viewer or nested reader allocates again. A malformed
+            // member may expand within the allowed slack and force geometric over-allocation; trim that case.
+            if (memory.Capacity - memory.Length > MemberLimits.Slack)
+                return new MemoryContentSource(tag.FullName, memory.ToArray());
+            return new MemoryContentSource(tag.FullName,
+                new ArraySegment<byte>(memory.GetBuffer(), 0, checked((int)memory.Length)));
         }
     }
 
