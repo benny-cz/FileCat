@@ -43,6 +43,8 @@ internal static class PictureWorker
             // worker may start, not what it may read or rewrite.
             var identity = FileCat.Core.FileSystem.UnixWorkerIdentity.Drop();
             if (identity.Refusal is { } refusal) return Fail(output, refusal);
+            if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) && !identity.Unprivileged)
+                return Fail(output, "The picture worker could not verify that it gave up elevated user and group rights.");
             LinuxPictureProcessPolicy.Apply();
             int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, MinSide, MaxSide) : 2048;
             using var input = Console.OpenStandardInput();

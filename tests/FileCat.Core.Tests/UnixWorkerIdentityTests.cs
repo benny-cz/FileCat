@@ -20,6 +20,11 @@ public sealed class UnixWorkerIdentityTests
         Assert.Equal(result.UserBefore, result.UserAfter);
         Assert.Equal(result.GroupBefore, result.GroupAfter);
         Assert.NotEqual(0u, result.UserAfter);
+        Assert.Equal(result.UserBefore, result.EffectiveUserBefore);
+        Assert.Equal(result.GroupBefore, result.EffectiveGroupBefore);
+        Assert.Equal(result.UserAfter, result.EffectiveUserAfter);
+        Assert.Equal(result.GroupAfter, result.EffectiveGroupAfter);
+        Assert.True(result.Unprivileged);
     }
 
     [Fact]

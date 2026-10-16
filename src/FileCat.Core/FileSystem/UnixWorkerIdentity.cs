@@ -12,50 +12,66 @@ namespace FileCat.Core.FileSystem;
 public static partial class UnixWorkerIdentity
 {
     /// <summary>What a drop attempt found and did. <paramref name="Refusal"/> is set only when root could not be given up.</summary>
-    public readonly record struct Result(uint UserBefore, uint GroupBefore, uint UserAfter, uint GroupAfter, bool RegainRefused, string? Refusal)
+    public readonly record struct Result(uint UserBefore, uint GroupBefore, uint UserAfter, uint GroupAfter, bool RegainRefused, string? Refusal,
+        uint EffectiveUserBefore = uint.MaxValue, uint EffectiveGroupBefore = uint.MaxValue,
+        uint EffectiveUserAfter = uint.MaxValue, uint EffectiveGroupAfter = uint.MaxValue)
     {
         /// <summary>True when the worker started with root rights.</summary>
-        public bool StartedPrivileged => UserBefore == 0;
+        public bool StartedPrivileged => UserBefore == 0 || EffectiveUserBefore == 0;
 
         /// <summary>True when the worker now holds an ordinary identity it cannot give back.</summary>
-        public bool Unprivileged => UserAfter != 0 && GroupAfter != 0 && RegainRefused;
+        public bool Unprivileged => UserAfter != 0 && GroupAfter != 0 &&
+            EffectiveUserAfter != 0 && EffectiveGroupAfter != 0 && RegainRefused;
     }
 
     /// <summary>
-    /// Drops root to the user who asked for FileCat (<c>SUDO_UID</c>/<c>SUDO_GID</c>). Returns a result whose
-    /// <see cref="Result.Refusal"/> is set when the worker is root and cannot become anyone else; the caller must
-    /// then decode nothing. Not root, or not Unix, is success with nothing to do.
+    /// Drops retained root rights to the real ordinary identity, or to the user who asked for a root FileCat
+    /// (<c>SUDO_UID</c>/<c>SUDO_GID</c>). A refusal means the caller must decode nothing. On Unix, callers must
+    /// also require <see cref="Result.Unprivileged"/> before reading untrusted input.
     /// </summary>
     public static Result Drop()
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
             return new Result(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, RegainRefused: false, Refusal: null);
 
-        uint user = GetUid(), group = GetGid();
-        if (user != 0) return new Result(user, group, user, group, RegainRefused: false, Refusal: null);
+        uint user = GetUid(), group = GetGid(), effectiveUser = GetEuid(), effectiveGroup = GetEgid();
+        // A set-user-ID launch can have an ordinary real UID and root effective/saved UID. Even an
+        // apparently ordinary effective UID may retain a saved root ID. Probe regain before reading
+        // any picture bytes; success elevates only long enough to perform the irreversible drop.
+        if (effectiveUser != 0 && SetUid(0) != 0)
+        {
+            if (user == 0 || group == 0 || effectiveGroup == 0 || SetGid(0) == 0)
+                return Failed(user, group, effectiveUser, effectiveGroup,
+                    "the worker retains root group or user rights that cannot be discarded");
+            return new Result(user, group, user, group, RegainRefused: true, Refusal: null,
+                effectiveUser, effectiveGroup, GetEuid(), GetEgid());
+        }
 
-        if (Requester() is not { } target)
-            return new Result(user, group, user, group, false,
-                "FileCat runs as root and the worker has no ordinary user to become, so this picture was not decoded. " +
-                "Start FileCat through sudo, or as an ordinary user, to see pictures.");
+        var target = user != 0 && group != 0 ? (user, group) : Requester();
+        if (target is not { } ordinary)
+            return Failed(user, group, effectiveUser, effectiveGroup,
+                "the worker has no ordinary user and group to become");
 
-        var (wantedUser, wantedGroup) = target;
+        var (wantedUser, wantedGroup) = ordinary;
         // Supplementary groups first, while still root: afterwards this is no longer permitted.
-        if (SetGroups(0, 0) != 0) return Failed(user, group, "the worker could not leave root's groups");
-        if (SetGid(wantedGroup) != 0) return Failed(user, group, "the worker could not change group");
-        if (SetUid(wantedUser) != 0) return Failed(user, group, "the worker could not change user");
+        if (SetGroups(0, 0) != 0) return Failed(user, group, effectiveUser, effectiveGroup, "the worker could not leave root's groups");
+        if (SetGid(wantedGroup) != 0) return Failed(user, group, effectiveUser, effectiveGroup, "the worker could not change group");
+        if (SetUid(wantedUser) != 0) return Failed(user, group, effectiveUser, effectiveGroup, "the worker could not change user");
 
-        uint after = GetUid(), afterGroup = GetGid();
-        // A real drop cannot be undone. If root comes back, the identity was only the effective one.
-        bool regainRefused = SetUid(0) != 0 && GetUid() != 0;
-        if (after != wantedUser || GetEuid() != wantedUser || afterGroup != wantedGroup || !regainRefused)
-            return Failed(user, group, "the worker kept root rights after giving them up");
-        return new Result(user, group, after, afterGroup, RegainRefused: true, Refusal: null);
+        uint after = GetUid(), afterGroup = GetGid(), afterEffective = GetEuid(), afterEffectiveGroup = GetEgid();
+        // A real drop cannot be undone. Check both saved user and saved group authority.
+        bool regainRefused = SetUid(0) != 0 && GetEuid() != 0 && SetGid(0) != 0 && GetEgid() != 0;
+        if (after != wantedUser || afterEffective != wantedUser || afterGroup != wantedGroup ||
+            afterEffectiveGroup != wantedGroup || !regainRefused)
+            return Failed(user, group, effectiveUser, effectiveGroup, "the worker kept root rights after giving them up");
+        return new Result(user, group, after, afterGroup, RegainRefused: true, Refusal: null,
+            effectiveUser, effectiveGroup, afterEffective, afterEffectiveGroup);
     }
 
-    private static Result Failed(uint user, uint group, string what) =>
+    private static Result Failed(uint user, uint group, uint effectiveUser, uint effectiveGroup, string what) =>
         new(user, group, GetUid(), GetGid(), RegainRefused: false,
-            Refusal: $"FileCat runs as root and {what} ({Marshal.GetLastPInvokeError()}), so this picture was not decoded.");
+            Refusal: $"FileCat worker has elevated rights and {what} ({Marshal.GetLastPInvokeError()}), so this picture was not decoded.",
+            effectiveUser, effectiveGroup, GetEuid(), GetEgid());
 
     /// <summary>The user who asked for this FileCat, as sudo records them; null when nothing names one.</summary>
     private static (uint User, uint Group)? Requester()
@@ -76,6 +92,9 @@ public static partial class UnixWorkerIdentity
 
     [LibraryImport("libc", EntryPoint = "getgid")]
     private static partial uint GetGid();
+
+    [LibraryImport("libc", EntryPoint = "getegid")]
+    private static partial uint GetEgid();
 
     [LibraryImport("libc", EntryPoint = "setuid", SetLastError = true)]
     private static partial int SetUid(uint uid);
