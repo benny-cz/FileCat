@@ -50,7 +50,7 @@ internal static class PictureWorker
             using var input = Console.OpenStandardInput();
             var bytes = ReadAll(input);
             if (bytes is null) return Fail(output, $"it is larger than {MaxInputBytes / (1024 * 1024)} MiB, which is more than FileCat shows");
-            Decode(bytes, maxSide, output);
+            Decode(bytes.Value, maxSide, output);
             return 0;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException or OutOfMemoryException)
@@ -59,7 +59,7 @@ internal static class PictureWorker
         }
     }
 
-    private static byte[]? ReadAll(Stream input)
+    private static ArraySegment<byte>? ReadAll(Stream input)
     {
         using var buffer = new MemoryStream();
         var chunk = new byte[1024 * 1024];
@@ -69,7 +69,9 @@ internal static class PictureWorker
             if (buffer.Length + n > MaxInputBytes) return null;
             buffer.Write(chunk, 0, n);
         }
-        return buffer.ToArray();
+        // Keep the bounded buffer itself. ToArray would briefly retain a second full picture copy,
+        // just before the native codec allocates its own decoded pixels.
+        return new ArraySegment<byte>(buffer.GetBuffer(), 0, checked((int)buffer.Length));
     }
 
     private static int Fail(Stream output, string reason)
@@ -89,9 +91,11 @@ internal static class PictureWorker
     /// height (as shown), its frame count, flags (1: the data ended early), its format's name, then premultiplied BGRA
     /// rows without padding.
     /// </summary>
-    internal static void Decode(byte[] bytes, int maxSide, Stream output)
+    internal static void Decode(byte[] bytes, int maxSide, Stream output) => Decode(new ArraySegment<byte>(bytes), maxSide, output);
+
+    private static void Decode(ArraySegment<byte> bytes, int maxSide, Stream output)
     {
-        using var codec = SKCodec.Create(new MemoryStream(bytes, writable: false), out var opened)
+        using var codec = SKCodec.Create(new MemoryStream(bytes.Array!, bytes.Offset, bytes.Count, writable: false), out var opened)
                           ?? throw new InvalidDataException(opened == SKCodecResult.Unimplemented ? "FileCat does not show this kind of picture" : "it is damaged or not a picture");
         var info = codec.Info;
         if (info.Width <= 0 || info.Height <= 0) throw new InvalidDataException("it declares no size");
