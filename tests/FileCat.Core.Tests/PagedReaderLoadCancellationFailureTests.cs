@@ -18,7 +18,7 @@ public sealed class PagedReaderLoadCancellationFailureTests(ITestOutputHelper ou
 
 [Theory]
     [MemberData(nameof(Cases))]
-    public void Retiring_an_active_page_keeps_unhandled_cancellation_and_the_handled_read_policy(bool pendingClose, string primary, string secondary)
+    public async Task Retiring_an_active_page_keeps_unhandled_cancellation_and_the_handled_read_policy(bool pendingClose, string primary, string secondary)
 {
     string folder = Path.Combine(Path.GetTempPath(), "filecat-load-retirement-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(folder);
@@ -40,7 +40,7 @@ public sealed class PagedReaderLoadCancellationFailureTests(ITestOutputHelper ou
             try { return ((Exception?)null, (int?)reader.Read(0, destination)); }
             catch (Exception error) { return (error, (int?)null); }
         });
-        if (!source.Entered.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Owned source did not reach its fence.");
+        if (!source.Entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)) throw new TimeoutException("Owned source did not reach its fence.");
         Exception? atFence = null, laterClose = null;
         bool? openAtFence = null;
         int? closesAtFence = null;
@@ -55,7 +55,7 @@ public sealed class PagedReaderLoadCancellationFailureTests(ITestOutputHelper ou
             readersAtFence = budget.Readers;
         }
         source.Release.Set();
-        var observed = work.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        var observed = await work.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         string? readError = reader.ReadError;
         long budgetAfterWork = budget.UsedBytes;
         if (!pendingClose)

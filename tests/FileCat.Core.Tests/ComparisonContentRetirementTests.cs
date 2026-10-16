@@ -37,7 +37,7 @@ public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
             : stopped ? observed is OperationCanceledException && observed.Message == "Comparison admission stopped."
             : rig.Provider.Primary is { } primary ? ReferenceEquals(primary, observed) : ReferenceEquals(expectedClose, observed);
         var sources = rig.Provider.Sources.Select(s => new { s.Side, s.Path, s.Closes, s.Reads, Released = Exclusive(s.Path), ErrorType = s.CloseFailure?.GetType().Name }).ToArray();
-        int other = rig.Io.IsStopped ? await Task.FromResult(42) : await rig.Io.Run("unrelated-owned", IoPriority.Normal, _ => 42).WaitAsync(TimeSpan.FromSeconds(5));
+        int other = rig.Io.IsStopped ? await Task.FromResult(42) : await rig.Io.Run("unrelated-owned", IoPriority.Normal, _ => 42, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         output.WriteLine("COMPARISON_CONTENT_RETIREMENT " + JsonSerializer.Serialize(new
         {
             scenario, cleanup, sameDevice, Value = value, PrimaryErrorRetained = primaryRetained,

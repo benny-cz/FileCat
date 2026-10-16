@@ -33,7 +33,7 @@ public sealed class SyncTargetPublicationTests(ITestOutputHelper output)
         var comparison = TreeCompare.Compare(rig.Providers, Location.FileSystem(rig.Left), Location.FileSystem(rig.Right),
             CompareCriteria.Size | CompareCriteria.Time, TimeSpan.FromSeconds(2), OperatingSystem.IsWindows(), TestContext.Current.CancellationToken);
         var plan = SyncPlanner.Propose(comparison, left, mode, OperatingSystem.IsWindows());
-        var item = Assert.Single(plan.Where(i => i.Entry.RelativePath == (nested ? "nested/notes.txt" : "notes.txt")));
+        var item = Assert.Single(plan, i => i.Entry.RelativePath == (nested ? "nested/notes.txt" : "notes.txt"));
         Assert.Equal(mode == SyncMode.Update ? SyncAction.ReplaceOlder : SyncAction.Replace, item.Action);
         var request = Assert.Single(SyncPlanner.BuildRequests([item], left, Location.FileSystem(rig.TargetRoot), rig.Providers, deletePermanently: true));
         var expected = Assert.Single(request.ExpectedTargets!);

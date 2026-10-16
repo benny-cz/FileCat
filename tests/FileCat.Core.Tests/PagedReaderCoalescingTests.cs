@@ -38,7 +38,7 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
             else await Task.Delay(100, TestContext.Current.CancellationToken); // asynchronous request is already admitted by TryRead
             int before = source.Reads; bool ownerPending = owner is null || !owner.IsCompleted;
             if (outcome == "close") reader.Dispose();
-            int disposalWhileHeld = source.Disposals; source.Release.Set(); if (owner is not null) await owner.WaitAsync(TimeSpan.FromSeconds(10)); if (peer is not null) await peer.WaitAsync(TimeSpan.FromSeconds(10)); await Wait(() => reader.PendingLoads == 0);
+            int disposalWhileHeld = source.Disposals; source.Release.Set(); if (owner is not null) await owner.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); if (peer is not null) await peer.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); await Wait(() => reader.PendingLoads == 0);
             if (outcome == "complete")
             {
                 if (owner is null) { Assert.True(reader.TryRead(0, first, out int count)); Assert.Equal(first.Length, count); }
@@ -61,9 +61,9 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
         var source = new Source(false); using var reader = new PagedReader(source); var bytes = new byte[32]; var owner = Task.Factory.StartNew(() => reader.Read(0, bytes), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         try
         {
-            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)); long offset = PagedReader.PageSize;
-            if (refresh) { var changed = source.Bytes.ToArray(); changed[0] = 123; File.WriteAllBytes(source.Path, changed); File.SetLastWriteTimeUtc(source.Path, File.GetLastWriteTimeUtc(source.Path).AddMinutes(2)); Assert.True(reader.Refresh()); offset = 0; }
-            var current = new byte[32]; var other = Task.Factory.StartNew(() => reader.Read(offset, current), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); Assert.Equal(32, await other.WaitAsync(TimeSpan.FromSeconds(10))); Assert.False(owner.IsCompleted);
+            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); long offset = PagedReader.PageSize;
+            if (refresh) { var changed = source.Bytes.ToArray(); changed[0] = 123; File.WriteAllBytes(source.Path, changed); File.SetLastWriteTimeUtc(source.Path, File.GetLastWriteTimeUtc(source.Path).AddMinutes(2)); Assert.True(reader.Refresh(TestContext.Current.CancellationToken)); offset = 0; }
+            var current = new byte[32]; var other = Task.Factory.StartNew(() => reader.Read(offset, current), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); Assert.Equal(32, await other.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)); Assert.False(owner.IsCompleted);
             Assert.Equal(File.ReadAllBytes(source.Path).AsSpan((int)offset, 32).ToArray(), current); source.Release.Set(); await owner; reader.Dispose();
             output.WriteLine("PAGE_INDEPENDENCE " + JsonSerializer.Serialize(new { refresh, source.Reads, source.PeakActive, source.Disposals, source.DisposedDuringRead, Calls = source.Calls.ToArray(), CurrentBytes = Convert.ToHexString(current), NativeOrAtomicContentSnapshotQualified = false }));
             Assert.Equal(2, source.Reads); Assert.Equal(2, source.PeakActive); Assert.Equal(1, source.Disposals); Assert.False(source.DisposedDuringRead);
@@ -78,7 +78,7 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
         var owner = Task.Factory.StartNew(() => reader.Read(0, new byte[32]), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         try
         {
-            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)); peer = Task.Factory.StartNew(() => { thread = Thread.CurrentThread; return reader.Read(0, new byte[32], cancellation.Token); }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); peer = Task.Factory.StartNew(() => { thread = Thread.CurrentThread; return reader.Read(0, new byte[32], cancellation.Token); }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             await Wait(() => peer.IsCompleted || thread is not null && (thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0); cancellation.Cancel(); bool pending = !peer.IsCompleted; source.Release.Set(); await owner;
             Exception? error = null; try { await peer; } catch (OperationCanceledException ex) { error = ex; }
             reader.Dispose(); output.WriteLine("PAGE_CANCELLED_WAITER " + JsonSerializer.Serialize(new { pending, Error = error?.GetType().FullName, source.Reads, source.Disposals, source.DisposedDuringRead, Calls = source.Calls.ToArray(), OwnedFilesOnly = true }));
@@ -92,12 +92,12 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
     {
         var source = new Source(false); using var io = new DeviceIoScheduler(TimeSpan.FromMinutes(1), threadsPerDevice: 2, maxThreadsPerDevice: 2);
         using var reader = new PagedReader(source, io, "owned-device-page"); Task<int>? healthy = null;
-        var owner = io.Run("owned-device-page", IoPriority.Interactive, _ => reader.Read(0, new byte[32]));
+        var owner = io.Run("owned-device-page", IoPriority.Interactive, _ => reader.Read(0, new byte[32]), TestContext.Current.CancellationToken);
         try
         {
-            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)); Assert.False(reader.TryRead(0, new byte[1], out _));
-            var bytes = new byte[32]; healthy = io.Run("owned-device-page", IoPriority.Interactive, _ => reader.Read(PagedReader.PageSize, bytes));
-            bool completedWhileHeld; try { Assert.Equal(32, await healthy.WaitAsync(TimeSpan.FromSeconds(2))); completedWhileHeld = true; } catch (TimeoutException) { completedWhileHeld = false; }
+            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); Assert.False(reader.TryRead(0, new byte[1], out _));
+            var bytes = new byte[32]; healthy = io.Run("owned-device-page", IoPriority.Interactive, _ => reader.Read(PagedReader.PageSize, bytes), TestContext.Current.CancellationToken);
+            bool completedWhileHeld; try { Assert.Equal(32, await healthy.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken)); completedWhileHeld = true; } catch (TimeoutException) { completedWhileHeld = false; }
             bool ownerPending = !owner.IsCompleted, waiterPending = reader.PendingLoads == 1; int callsBeforeRelease = source.Reads;
             source.Release.Set(); await owner; await healthy; await Wait(() => reader.PendingLoads == 0); reader.Dispose();
             output.WriteLine("PAGE_DEVICE_YIELD " + JsonSerializer.Serialize(new { completedWhileHeld, ownerPending, waiterPending, callsBeforeRelease, source.Reads, source.PeakActive, source.Disposals, source.DisposedDuringRead, Calls = source.Calls.ToArray(), ExactOtherPageBytes = Convert.ToHexString(bytes), OwnedFilesOnly = true, NativeDesktopOrPhysicalOrCandidateQualified = false }));
@@ -112,7 +112,7 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
         var source = new Source(true); using var reader = new PagedReader(source); source.Release.Set();
         try
         {
-            Assert.Equal(0, reader.Read(0, new byte[32])); source.FailReads = false; var bytes = new byte[32]; Assert.Equal(32, reader.Read(0, bytes)); Assert.Equal(source.Bytes[..32], bytes); reader.Dispose();
+            Assert.Equal(0, reader.Read(0, new byte[32], TestContext.Current.CancellationToken)); source.FailReads = false; var bytes = new byte[32]; Assert.Equal(32, reader.Read(0, bytes, TestContext.Current.CancellationToken)); Assert.Equal(source.Bytes[..32], bytes); reader.Dispose();
             output.WriteLine("PAGE_RETRY " + JsonSerializer.Serialize(new { source.Reads, source.Disposals, source.DisposedDuringRead, Calls = source.Calls.ToArray(), ExactRecoveredBytes = Convert.ToHexString(bytes), OwnedFilesOnly = true })); Assert.Equal(2, source.Reads); Assert.Equal(1, source.Disposals);
         }
         finally { reader.Dispose(); source.Cleanup(); }

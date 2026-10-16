@@ -103,7 +103,7 @@ public sealed class RecycleBinPlaceTests
                 Assert.Equal(["Old", "report.txt"], Rows().Where(e => e.Kind != EntryKind.Parent).Select(e => e.Name.ToString()).Order(StringComparer.Ordinal));
                 Assert.Equal(@"C:\Docs", tab.GetDetailsText(Rows().Single(e => e.Name == "report.txt")));
                 // FILECAT_RECYCLE_BIN_SHOT: the window as drawn, to look at the view (this bin holds no one's names).
-                if (Environment.GetEnvironmentVariable("FILECAT_RECYCLE_BIN_SHOT") is { Length: > 0 } shot) window.CaptureRenderedFrame()?.Save(shot);
+                if (Environment.GetEnvironmentVariable("FILECAT_RECYCLE_BIN_SHOT") is { Length: > 0 } shot) window.CaptureRenderedFrame()?.Save(shot, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
                 // Read-only: deleting says where it is done.
                 var delete = vm.GetAvailability(CommandIds.Delete);
                 Assert.False(delete.Enabled);

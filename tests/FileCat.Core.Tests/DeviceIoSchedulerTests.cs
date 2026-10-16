@@ -72,7 +72,7 @@ public sealed class DeviceIoSchedulerTests
         using var io = new DeviceIoScheduler();
         ((Timer)typeof(DeviceIoScheduler).GetField("_watchdog", fields)!.GetValue(io)!)
             .Change(Timeout.Infinite, Timeout.Infinite);
-        await io.Run("existing", IoPriority.Interactive, _ => { }).WaitAsync(TimeSpan.FromSeconds(5));
+        await io.Run("existing", IoPriority.Interactive, _ => { }, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var queues = typeof(DeviceIoScheduler).GetField("_devices", fields)!.GetValue(io)!;
         object[] gates;
         if (newDevice)
@@ -102,7 +102,7 @@ public sealed class DeviceIoSchedulerTests
             try
             {
                 caller.Start();
-                Assert.True(ready.Wait(TimeSpan.FromSeconds(5)));
+                Assert.True(ready.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
                 Assert.True(SpinWait.SpinUntil(() => (caller.ThreadState & ThreadState.WaitSleepJoin) != 0 || admitted.Task.IsCompleted,
                     TimeSpan.FromSeconds(5)));
                 Assert.False(admitted.Task.IsCompleted); // public Run passed its initial check and is blocked on admission
@@ -113,10 +113,10 @@ public sealed class DeviceIoSchedulerTests
                 foreach (var gate in gates.Reverse()) Monitor.Exit(gate);
             }
             Assert.True(caller.Join(TimeSpan.FromSeconds(5)));
-            var late = await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var late = await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             Assert.True(late.IsCanceled);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => late);
-            var after = io.Run(key, IoPriority.Interactive, _ => Interlocked.Increment(ref calls));
+            var after = io.Run(key, IoPriority.Interactive, _ => Interlocked.Increment(ref calls), TestContext.Current.CancellationToken);
             Assert.True(after.IsCanceled);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => after);
             Assert.Equal(0, Volatile.Read(ref calls));
@@ -141,20 +141,20 @@ public sealed class DeviceIoSchedulerTests
             {
                 entered.TrySetResult();
                 if (!release.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Owned held call was not released");
-            });
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }, TestContext.Current.CancellationToken);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             // One base worker is occupied, so this completes only after the real timer adds a replacement.
-            int replacement = await io.Run("held", IoPriority.Interactive, _ => 17).WaitAsync(TimeSpan.FromSeconds(5));
+            int replacement = await io.Run("held", IoPriority.Interactive, _ => 17, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             Assert.Equal(17, replacement);
             Assert.False(held.IsCompleted);
             Assert.Equal(DeviceHealth.NotResponding, io.GetHealth("held"));
-            Assert.Equal(42, await io.Run("healthy", IoPriority.Interactive, _ => 42).WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(42, await io.Run("healthy", IoPriority.Interactive, _ => 42, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
             Assert.Equal(DeviceHealth.Responsive, io.GetHealth("healthy"));
         }
         finally
         {
             release.Set();
-            if (held is not null) await held.WaitAsync(TimeSpan.FromSeconds(5));
+            if (held is not null) await held.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
         // The returned call no longer contributes to the device's unhealthy state.
         for (int i = 0; i < 100 && io.GetHealth("held") != DeviceHealth.Responsive; i++)
@@ -193,12 +193,12 @@ public sealed class DeviceIoSchedulerTests
         Task<int>? live = null;
         try
         {
-            first = io.Run("capped", IoPriority.Interactive, _ => Hold(firstEntered));
-            await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            second = io.Run("capped", IoPriority.Interactive, _ => Hold(secondEntered));
+            first = io.Run("capped", IoPriority.Interactive, _ => Hold(firstEntered), TestContext.Current.CancellationToken);
+            await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            second = io.Run("capped", IoPriority.Interactive, _ => Hold(secondEntered), TestContext.Current.CancellationToken);
             await Task.Delay(5, TestContext.Current.CancellationToken);
             Watch(io);
-            await secondEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await secondEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             await Task.Delay(5, TestContext.Current.CancellationToken);
             Watch(io); // both slots now hold quarantined calls
 
@@ -208,18 +208,18 @@ public sealed class DeviceIoSchedulerTests
                 Enter(); liveEntered.TrySetResult();
                 try { Interlocked.Increment(ref liveCalls); return 99; }
                 finally { Interlocked.Decrement(ref active); }
-            });
+            }, TestContext.Current.CancellationToken);
             abandonedStop.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => abandoned);
-            Assert.Equal(42, await io.Run("healthy", IoPriority.Interactive, _ => 42).WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(42, await io.Run("healthy", IoPriority.Interactive, _ => 42, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
             Assert.NotSame(liveEntered.Task, await Task.WhenAny(liveEntered.Task, Task.Delay(500, TestContext.Current.CancellationToken)));
             Assert.Equal(2, Volatile.Read(ref active));
             Assert.Equal(2, Volatile.Read(ref peak));
             Assert.Equal(0, Volatile.Read(ref abandonedCalls));
 
             release.Set();
-            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal(99, await live.WaitAsync(TimeSpan.FromSeconds(5)));
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.Equal(99, await live.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
             Assert.Equal(1, Volatile.Read(ref liveCalls));
             Assert.Equal(0, Volatile.Read(ref abandonedCalls));
             Assert.Equal(0, Volatile.Read(ref active));
@@ -230,7 +230,7 @@ public sealed class DeviceIoSchedulerTests
             abandonedStop.Cancel();
             release.Set();
             foreach (var task in new[] { first, second, live }.OfType<Task>())
-                await task.WaitAsync(TimeSpan.FromSeconds(5));
+                await task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
     }
 }

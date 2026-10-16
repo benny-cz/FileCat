@@ -325,20 +325,21 @@ public sealed class UploadSourceEvidenceTests(ITestOutputHelper output)
         public override IContentSource OpenContent(ItemRef item)
         {
             int opened = Interlocked.Increment(ref Opens);
-            if (opened == 2 && behavior == "revision-before-verification") _changed = true;
-            if (opened == 2 && behavior is "resume-native-id" or "resume-modified")
+            if (opened == 2 && _behavior == "revision-before-verification") _changed = true;
+            if (opened == 2 && _behavior is "resume-native-id" or "resume-modified")
             {
-                byte[] bytes = File.ReadAllBytes(path);
+                byte[] bytes = File.ReadAllBytes(_path);
                 // Keep both 64 KiB resume comparisons identical; alter only the middle already copied.
-                for (int i = 65537; i < length / 2 - 65536; i++) bytes[i] ^= 0x5A;
-                File.WriteAllBytes(path, bytes); _changed = true;
+                for (int i = 65537; i < _length / 2 - 65536; i++) bytes[i] ^= 0x5A;
+                File.WriteAllBytes(_path, bytes); _changed = true;
             }
-            bool verifying = opened == (behavior.StartsWith("resume-", StringComparison.Ordinal) ? 3 : 2);
-            return behavior.StartsWith("partial-", StringComparison.Ordinal) ? new PartialSource(this, verifying) : new Source(this, verifying);
+            bool verifying = opened == (_behavior.StartsWith("resume-", StringComparison.Ordinal) ? 3 : 2);
+            return _behavior.StartsWith("partial-", StringComparison.Ordinal) ? new PartialSource(this, verifying) : new Source(this, verifying);
         }
         public sealed record ReadObservation(long Offset, int Requested, int Returned, bool Verifying);
         private class Source(CopyProvider owner, bool verifying) : IContentSource
         {
+            protected CopyProvider Owner => owner;
             private readonly FileContentSource _file = new(owner._path);
             protected bool ReadStarted;
             public string DisplayName => "owned copy.dat";
@@ -379,8 +380,8 @@ public sealed class UploadSourceEvidenceTests(ITestOutputHelper output)
         }
         private sealed class PartialSource(CopyProvider owner, bool verifying) : Source(owner, verifying), IPartialContent
         {
-            public IReadOnlyList<(long Offset, long Length)> MissingRanges => owner._behavior == "partial-range-before" || owner._behavior == "partial-range-during" && ReadStarted ? [(0, Math.Max(1, owner._length))] : [];
-            public string? Caveat => owner._behavior == "partial-caveat-before" || owner._behavior == "partial-caveat-during" && ReadStarted ? "Owned partial control: recovered bytes are uncertain." : null;
+            public IReadOnlyList<(long Offset, long Length)> MissingRanges => Owner._behavior == "partial-range-before" || Owner._behavior == "partial-range-during" && ReadStarted ? [(0, Math.Max(1, Owner._length))] : [];
+            public string? Caveat => Owner._behavior == "partial-caveat-before" || Owner._behavior == "partial-caveat-during" && ReadStarted ? "Owned partial control: recovered bytes are uncertain." : null;
         }
     }
 

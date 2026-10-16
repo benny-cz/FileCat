@@ -249,7 +249,7 @@ public sealed class RecoveryDestinationAdmissionTests
         public override IContentSource OpenContent(ItemRef item)
         {
             Opens++;
-            if (moment == "open") Changed = true;
+            if (_moment == "open") Changed = true;
             return new Source(this);
         }
         private sealed class Source(LateProvider owner) : IContentSource

@@ -104,7 +104,7 @@ public sealed class UploadVerificationBoundsTests(ITestOutputHelper output)
             foreach (var job in jobs.Jobs) job.Cancel(); Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(3)));
             connections.Dispose();
             string resolved = Path.GetFullPath(directory);
-            Assert.True(Path.GetRelativePath(Path.Join(Path.GetTempPath(), "filecat-upload-bounds"), resolved).StartsWith(Path.GetFileName(directory), StringComparison.Ordinal));
+            Assert.StartsWith(Path.GetFileName(directory), Path.GetRelativePath(Path.Join(Path.GetTempPath(), "filecat-upload-bounds"), resolved), StringComparison.Ordinal);
             Directory.Delete(resolved, recursive: true);
         }
     }

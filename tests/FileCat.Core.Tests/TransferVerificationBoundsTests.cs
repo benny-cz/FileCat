@@ -149,18 +149,19 @@ public sealed class TransferVerificationBoundsTests(ITestOutputHelper output)
         public override IContentSource OpenContent(ItemRef item)
         {
             int opened = Interlocked.Increment(ref Opens);
-            bool resumed = behavior.StartsWith("resume-", StringComparison.Ordinal);
-            if (resumed && opened == 2 && behavior == "resume-new")
+            bool resumed = _behavior.StartsWith("resume-", StringComparison.Ordinal);
+            if (resumed && opened == 2 && _behavior == "resume-new")
             {
-                File.WriteAllBytes(sourcePath, File.ReadAllBytes(sourcePath).Select(b => (byte)(b ^ 0x5A)).ToArray());
+                File.WriteAllBytes(_sourcePath, File.ReadAllBytes(_sourcePath).Select(b => (byte)(b ^ 0x5A)).ToArray());
                 _version++;
             }
             bool verifying = opened == (resumed ? 3 : 2);
-            return verifying && behavior.StartsWith("partial-", StringComparison.Ordinal) ? new PartialSource(this, true) : new Source(this, verifying);
+            return verifying && _behavior.StartsWith("partial-", StringComparison.Ordinal) ? new PartialSource(this, true) : new Source(this, verifying);
         }
         public sealed record ReadObservation(long Offset, int Requested, int Returned);
         private class Source(VerificationProvider owner, bool verifying) : IContentSource
         {
+            protected VerificationProvider Owner => owner;
             private readonly FileContentSource _file = new(owner._sourcePath);
             protected bool ReadStarted;
             public string DisplayName => "owned copy.dat";
@@ -200,8 +201,8 @@ public sealed class TransferVerificationBoundsTests(ITestOutputHelper output)
         }
         private sealed class PartialSource(VerificationProvider owner, bool verifying) : Source(owner, verifying), IPartialContent
         {
-            public IReadOnlyList<(long Offset, long Length)> MissingRanges => owner._behavior == "partial-range-before" || owner._behavior == "partial-range-during" && ReadStarted ? [(0, Math.Max(1, owner._length))] : [];
-            public string? Caveat => owner._behavior == "partial-before" || owner._behavior == "partial-during" && ReadStarted ? "Owned control: reopened verification bytes are uncertain." : null;
+            public IReadOnlyList<(long Offset, long Length)> MissingRanges => Owner._behavior == "partial-range-before" || Owner._behavior == "partial-range-during" && ReadStarted ? [(0, Math.Max(1, Owner._length))] : [];
+            public string? Caveat => Owner._behavior == "partial-before" || Owner._behavior == "partial-during" && ReadStarted ? "Owned control: reopened verification bytes are uncertain." : null;
         }
     }
 }

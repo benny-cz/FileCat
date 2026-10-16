@@ -54,7 +54,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
     [InlineData("7z")]
     [InlineData("iso")]
     [InlineData("tar.gz")]
-    public void In_place_other_format_rewrite_refreshes_names_and_bytes(string format)
+    public async Task In_place_other_format_rewrite_refreshes_names_and_bytes(string format)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-archive-format-in-place-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -98,7 +98,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             Assert.Equal(length, replacement.LongLength);
             var location = ArchiveProvider.ForFile(path);
             var first = new List<EntryData>();
-            provider.EnumerateAsync(location, new Sink(first), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await provider.EnumerateAsync(location, new Sink(first), TestContext.Current.CancellationToken);
             var oldItem = Assert.Single(first);
             Assert.Equal("alpha.txt", oldItem.Name);
             using (var content = provider.OpenContent(provider.GetItemRef(location, oldItem)))
@@ -120,7 +120,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             Assert.NotEqual(token, changed);
 
             var current = new List<EntryData>();
-            provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken);
             var newItem = Assert.Single(current);
             Assert.Equal("omega.txt", newItem.Name);
             using (var content = provider.OpenContent(provider.GetItemRef(location, newItem)))
@@ -134,7 +134,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void In_place_tar_rewrite_refreshes_a_cached_catalog_with_restored_mtime()
+    public async Task In_place_tar_rewrite_refreshes_a_cached_catalog_with_restored_mtime()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-tar-in-place-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -153,7 +153,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             Assert.Equal(length, replacement.LongLength);
             var location = ArchiveProvider.ForFile(path);
             var initial = new List<EntryData>();
-            provider.EnumerateAsync(location, new Sink(initial), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await provider.EnumerateAsync(location, new Sink(initial), TestContext.Current.CancellationToken);
             Assert.Equal(["alpha.txt"], initial.Select(entry => entry.Name));
 
             DateTime originalTime = File.GetLastWriteTimeUtc(path);
@@ -172,7 +172,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             Assert.NotEqual(originalToken, changedToken);
 
             var current = new List<EntryData>();
-            provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken);
             Assert.Equal(["omega.txt"], current.Select(entry => entry.Name));
         }
         finally
@@ -229,7 +229,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
     [Theory]
     [InlineData("tar")]
     [InlineData("zip")]
-    public void In_place_outer_rewrite_refreshes_a_nested_tar_spool(string outer)
+    public async Task In_place_outer_rewrite_refreshes_a_nested_tar_spool(string outer)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-nested-in-place-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -256,7 +256,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             var outerLocation = outer == "zip" ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
             var innerLocation = new Location(Schemes.Archive, "", outerLocation.WithPath("inside.tar"));
             var initial = new List<EntryData>();
-            archive.EnumerateAsync(innerLocation, new Sink(initial), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await archive.EnumerateAsync(innerLocation, new Sink(initial), TestContext.Current.CancellationToken);
             Assert.Equal(["alpha.txt"], initial.Select(entry => entry.Name));
             DateTime originalTime = File.GetLastWriteTimeUtc(path);
             string? originalToken = SourceChangeToken.FromPath(path);
@@ -266,7 +266,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             Assert.Equal(originalTime, File.GetLastWriteTimeUtc(path));
             Assert.NotEqual(originalToken, SourceChangeToken.FromPath(path));
             var current = new List<EntryData>();
-            archive.EnumerateAsync(innerLocation, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await archive.EnumerateAsync(innerLocation, new Sink(current), TestContext.Current.CancellationToken);
             Assert.Equal(["omega.txt"], current.Select(entry => entry.Name));
         }
         finally
@@ -288,7 +288,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
     }
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Same_metadata_replacement_does_not_reuse_the_previous_archive(string format, string route, bool identityAvailable)
+    public async Task Same_metadata_replacement_does_not_reuse_the_previous_archive(string format, string route, bool identityAvailable)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-archive-replacement-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -318,7 +318,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
             if (route != "lease") { held.Dispose(); held = null; }
             if (route != "repeat") { File.Move(path, moved); File.Move(next, path); }
             var entries = new List<EntryData>();
-            provider.EnumerateAsync(location, new Sink(entries), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            await provider.EnumerateAsync(location, new Sink(entries), TestContext.Current.CancellationToken);
             byte[]? currentRead = null; string? refusal = null;
             try { using var source = provider.OpenContent(new ItemRef(location, secondName, EntryKind.File))!; currentRead = Read(source); }
             catch (Exception ex) { refusal = ex.GetType().Name + ": " + ex.Message; }

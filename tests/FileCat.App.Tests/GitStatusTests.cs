@@ -5,7 +5,7 @@ namespace FileCat.App.Tests;
 public sealed class GitStatusTests(ITestOutputHelper output)
 {
     [Fact]
-    public void Child_repository_discovery_does_not_allocate_for_every_nonrepository_directory()
+    public async Task Child_repository_discovery_does_not_allocate_for_every_nonrepository_directory()
     {
         string root = Directory.CreateDirectory(Path.Join(Path.GetTempPath(),
             "filecat-git-discovery-" + Guid.NewGuid().ToString("N"))).FullName;
@@ -19,7 +19,8 @@ public sealed class GitStatusTests(ITestOutputHelper output)
             long before = GC.GetAllocatedBytesForCurrentThread();
             var pending = GitStatusReader.ReadAsync(root, CancellationToken.None, unusedExecutable);
             Assert.True(pending.IsCompletedSuccessfully, "A folder without child repositories should not start Git.");
-            var snapshot = pending.GetAwaiter().GetResult();
+            // Already complete: awaiting it continues on this thread, whose allocations are counted.
+            var snapshot = await pending;
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
             output.WriteLine($"CHILD_REPOSITORY_DISCOVERY_ALLOCATED_BYTES={allocated}; CHILD_DIRECTORIES=4096");
             Assert.Null(snapshot);
@@ -30,7 +31,7 @@ public sealed class GitStatusTests(ITestOutputHelper output)
             before = GC.GetAllocatedBytesForCurrentThread();
             pending = GitStatusReader.ReadAsync(root, cancelled.Token, unusedExecutable);
             Assert.True(pending.IsCompletedSuccessfully);
-            Assert.Null(pending.GetAwaiter().GetResult());
+            Assert.Null(await pending);
             allocated = GC.GetAllocatedBytesForCurrentThread() - before;
             output.WriteLine($"CHILD_REPOSITORY_DISCOVERY_CANCELLED_ALLOCATED_BYTES={allocated}");
             Assert.InRange(allocated, 0, 128 * 1024);

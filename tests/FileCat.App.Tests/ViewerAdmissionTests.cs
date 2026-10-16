@@ -102,7 +102,7 @@ public sealed class ViewerAdmissionTests(ITestOutputHelper output)
             Assert.False(fixture.Source.DisposedDuringCall);
             Assert.Equal(0, fixture.Source.Active);
             Assert.Equal(fixture.Hash, hash);
-            Assert.Empty(ViewerWindow.OpenWindows.Where(w => !before.Contains(w)));
+            Assert.DoesNotContain(ViewerWindow.OpenWindows, w => !before.Contains(w));
         }
         finally
         {

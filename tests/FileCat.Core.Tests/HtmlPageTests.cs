@@ -79,7 +79,7 @@ public sealed class HtmlPageTests
         Assert.NotNull(page.Resolve("/"));
         cts.Cancel();
         Assert.Null(page.Resolve("/"));
-        Assert.True(reader.Read(0, new byte[10]) > 0);
+        Assert.True(reader.Read(0, new byte[10], TestContext.Current.CancellationToken) > 0);
     }
 
     [Fact]

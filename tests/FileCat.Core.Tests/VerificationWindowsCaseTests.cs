@@ -22,8 +22,8 @@ public sealed class VerificationWindowsCaseTests
             RedirectStandardOutput = true,
             RedirectStandardError = true
         })!;
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
+        Task<string> stdout = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        Task<string> stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         await process.WaitForExitAsync(TestContext.Current.CancellationToken);
         _ = await stdout;
         _ = await stderr;

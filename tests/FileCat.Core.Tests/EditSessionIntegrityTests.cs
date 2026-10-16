@@ -22,7 +22,7 @@ public sealed class EditSessionIntegrityTests(ITestOutputHelper output)
             using (var catalog = ZipFile.Open(path, ZipArchiveMode.Create))
                 foreach (string text in new[] { "first owned member", "second owned member" }) { using var w = new StreamWriter(catalog.CreateEntry("notes.txt").Open()); w.Write(text); }
             var before = SHA256.HashData(File.ReadAllBytes(path)); var store = new EditSessionStore(Path.Join(root, "sessions"), new PortableFileOperations());
-            var error = Record.Exception(() => store.Create(zip, new ItemRef(zip.GetContainerLocation(path)!, "notes.txt", EntryKind.File) { Ordinal = ordinal }));
+            var error = Record.Exception(() => store.Create(zip, new ItemRef(zip.GetContainerLocation(path)!, "notes.txt", EntryKind.File) { Ordinal = ordinal }, TestContext.Current.CancellationToken));
             output.WriteLine("EDIT_ARCHIVE_INTEGRITY " + JsonSerializer.Serialize(new { ordinal, accepted = error is null, error = error?.GetType().Name, SourceUnchanged = before.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path))), OwnedZip = true }));
             Assert.IsAssignableFrom<IOException>(error); Assert.Empty(store.LoadAll());
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(path)));
@@ -38,7 +38,7 @@ public sealed class EditSessionIntegrityTests(ITestOutputHelper output)
     public void Complete_copies_keep_exact_bytes_and_leave_the_borrowed_source_open(string scenario)
     {
         using var f = new Fixture(scenario);
-        var session = f.Create();
+        var session = f.Create(TestContext.Current.CancellationToken);
         var bytes = File.ReadAllBytes(session.WorkingPath);
         Emit(f, new { accepted = true, session.BaseSha256, actual = Convert.ToHexString(SHA256.HashData(bytes)) });
         Assert.Equal(f.Source.Bytes, bytes);
@@ -70,7 +70,7 @@ public sealed class EditSessionIntegrityTests(ITestOutputHelper output)
     public void Uncertain_or_incomplete_sources_never_publish_a_session_or_leave_a_working_copy(string scenario)
     {
         using var f = new Fixture(scenario);
-        var error = Record.Exception(() => f.Create());
+        var error = Record.Exception(() => f.Create(TestContext.Current.CancellationToken));
         Emit(f, new { accepted = error is null, error = error?.GetType().Name, sessions = f.Store.LoadAll().Count });
         Assert.NotNull(error);
         Assert.True(error is IOException or UnauthorizedAccessException or InvalidDataException, error.ToString());

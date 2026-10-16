@@ -94,7 +94,7 @@ public sealed class ResumeLifetimeEvidenceTests(ITestOutputHelper output)
         };
         public override IContentSource OpenContent(ItemRef item)
         {
-            int attempt=Interlocked.Increment(ref Attempts);var source=new Source(this,attempt,attempt>1&&stage=="changed"?alternate:original);_sources.Add(source);
+            int attempt=Interlocked.Increment(ref Attempts);var source=new Source(this,attempt,attempt>1&&_stage=="changed"?alternate:original);_sources.Add(source);
             Interlocked.Increment(ref Opens);return source;
         }
         public void CloseOwnedFixtureSources(){foreach(var source in _sources)source.CloseFixture();}

@@ -18,7 +18,7 @@ public sealed class DiscoveryFuzzTests
     [InlineData("probe-matches")] // what a device answers a probe with (XML over UDP)
     [InlineData("metadata")] // what it answers a WS-Transfer Get with (XML over HTTP)
     [InlineData("mdns")] // an mDNS answer naming an SMB service (binary)
-    public void Damaged_answers_are_ignored_never_crashed_on(string kind)
+    public async Task Damaged_answers_are_ignored_never_crashed_on(string kind)
     {
         int rounds = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_DISCOVERY_FUZZ_ROUNDS"), out var r) ? r : 2000;
         int first = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_DISCOVERY_FUZZ_START"), out var s) ? s : 0;
@@ -41,9 +41,9 @@ public sealed class DiscoveryFuzzTests
                 long start = GC.GetAllocatedBytesForCurrentThread();
                 try { found = Read(kind, data, out error); }
                 finally { allocated = GC.GetAllocatedBytesForCurrentThread() - start; }
-            });
-            if (!reading.Wait(TimeSpan.FromSeconds(30)))
-                throw new Xunit.Sdk.XunitException($"{kind}, round {round}: still reading after 30 s (a loop on damaged data?).");
+            }, TestContext.Current.CancellationToken);
+            try { await reading.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken); }
+            catch (TimeoutException) { throw new Xunit.Sdk.XunitException($"{kind}, round {round}: still reading after 30 s (a loop on damaged data?)."); }
             if (error is not null) throw new Xunit.Sdk.XunitException($"{kind}, round {round}: {error}");
             read += found;
             if (allocated > most) (most, mostRound) = (allocated, round);

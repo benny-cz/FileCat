@@ -31,7 +31,7 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
         string working = _dir.File("working.txt", ""); byte[] bytes = Enumerable.Range(0, size).Select(i => (byte)(i * 31)).ToArray(); File.WriteAllBytes(working, bytes);
         DateTime time = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc); File.SetLastWriteTimeUtc(working, time); ops.Values[working] = "owned origin";
         var record = new EditSessionRecord { WorkingPath = working }; string temp = Path.Join(_dir.Path, "temp");
-        var copy = Prepare(store, record, temp); string path = Value<string>(copy, "Path");
+        var copy = Prepare(store, record, temp, TestContext.Current.CancellationToken); string path = Value<string>(copy, "Path");
         try
         {
             File.WriteAllText(working, "new editor contents");
@@ -68,7 +68,7 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
         string working = _dir.File("working.txt", "mine");
         ops.Values[working] = "[ZoneTransfer]\r\nZoneId=3\r\n";
         string temp = Directory.CreateDirectory(Path.Join(_dir.Path, "temp")).FullName;
-        Assert.Throws<IOException>(() => Prepare(store, new EditSessionRecord { WorkingPath = working }, temp));
+        Assert.Throws<IOException>(() => Prepare(store, new EditSessionRecord { WorkingPath = working }, temp, TestContext.Current.CancellationToken));
         Assert.Empty(Directory.EnumerateFileSystemEntries(temp));
         Assert.Equal("mine", File.ReadAllText(working));
     }
@@ -93,7 +93,7 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
         string archive = Path.Join(_dir.Path, "owned.zip"); using (var z = ZipFile.Open(archive, ZipArchiveMode.Create)) { using var w = new StreamWriter(z.CreateEntry("notes.txt").Open()); w.Write("base"); }
         var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); var zip = new ZipProvider(Path.Join(_dir.Path, "zip-temp")); providers.Register(zip);
         var fs = new PortableFileOperations(); var store = new EditSessionStore(Path.Join(_dir.Path, "sessions"), fs);
-        var session = store.Create(zip, new ItemRef(zip.GetContainerLocation(archive)!, "notes.txt", EntryKind.File)); zip.Release(archive);
+        var session = store.Create(zip, new ItemRef(zip.GetContainerLocation(archive)!, "notes.txt", EntryKind.File), TestContext.Current.CancellationToken); zip.Release(archive);
         File.WriteAllText(session.WorkingPath, "mine"); string sha = EditSessionStore.Hash(session.WorkingPath);
         var jobs = new JobManager(fs, providers, Path.Join(_dir.Path, "journal")); var job = jobs.Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = store.CommitPlan(session, false) });
         while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken); Assert.Equal(JobState.Completed, job.State);

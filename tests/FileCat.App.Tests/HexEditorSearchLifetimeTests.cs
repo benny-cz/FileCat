@@ -60,7 +60,7 @@ public sealed class HexEditorSearchLifetimeTests
                 var replacement = Find(window);
                 // Both searches need the held page; the replacement shares its active read.
                 Assert.False(replacement.IsCompleted);
-                Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+                Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
                 source.Release.Set();
                 await replacement.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Assert.Equal(68, Field<HexView>(window, "_hex").CursorOffset);
@@ -93,7 +93,7 @@ public sealed class HexEditorSearchLifetimeTests
             Assert.True(disposed);
             Assert.True(currentCleared);
             Assert.Equal(0, source.DisposalsDuringRead);
-            Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+            Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
         }
         finally
         {

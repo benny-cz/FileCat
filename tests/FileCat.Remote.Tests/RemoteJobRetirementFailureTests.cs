@@ -128,7 +128,7 @@ public sealed class RemoteJobRetirementFailureTests(ITestOutputHelper output)
         FaultConnector connector, string retirement, Exception? primary) : SftpExecutorBase(job, new PortableFileOperations(), journal, provider)
     {
         public byte[] ActualBytes { get; private set; } = [];
-        protected override Location ConnectionLocation => job.Request.Destination!;
+        protected override Location ConnectionLocation => Job.Request.Destination!;
         protected override void Run()
         {
             var channel = Channel;

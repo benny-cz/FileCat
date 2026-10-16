@@ -17,7 +17,7 @@ public sealed class DeviceIoIdleBurstTests(ITestOutputHelper output)
         using var io = new DeviceIoScheduler(TimeSpan.FromHours(1), slots, slots);
         const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
         const string key = "owned-idle-burst";
-        Assert.Equal(7, await io.Run(key, IoPriority.Normal, _ => 7));
+        Assert.Equal(7, await io.Run(key, IoPriority.Normal, _ => 7, TestContext.Current.CancellationToken));
         var devices = (System.Collections.IDictionary)typeof(DeviceIoScheduler).GetField("_devices", fields)!.GetValue(io)!;
         var queue = devices[key]!; var type = queue.GetType(); var gate = type.GetField("_lock", fields)!.GetValue(queue)!;
         var idle = type.GetField("_idle", fields)!; var workers = type.GetField("_workers", fields)!;
@@ -40,10 +40,10 @@ public sealed class DeviceIoIdleBurstTests(ITestOutputHelper output)
                     {
                         threads.TryAdd(Environment.CurrentManagedThreadId, Thread.CurrentThread.Name ?? "");
                         Interlocked.Increment(ref occupied); started.Signal(); release.Wait(); return item;
-                    }));
+                    }, TestContext.Current.CancellationToken));
                 }
             }
-            admitted = started.Wait(TimeSpan.FromSeconds(5)); observed = Volatile.Read(ref occupied);
+            admitted = started.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); observed = Volatile.Read(ref occupied);
             pending = tasks.All(t => !t.IsCompleted); lock (gate) live = ((System.Collections.ICollection)workers.GetValue(queue)!).Count;
         }
         finally { release.Set(); await Task.WhenAll(tasks); io.Dispose(); }

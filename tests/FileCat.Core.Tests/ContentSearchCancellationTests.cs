@@ -43,7 +43,7 @@ public sealed class ContentSearchCancellationTests
         }
         finally
         {
-            source.Release.Set();if(work is not null) { try { await work.WaitAsync(TimeSpan.FromSeconds(10)); } catch(OperationCanceledException){} }
+            source.Release.Set();if(work is not null) { try { await work.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); } catch(OperationCanceledException){} }
             reader.Dispose();Assert.Equal(1,source.Disposals);source.Release.Dispose();
             Assert.Equal(temp.TrimEnd(Path.DirectorySeparatorChar),Path.GetDirectoryName(Path.GetFullPath(root)));Directory.Delete(root,recursive:true);
         }

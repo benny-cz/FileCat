@@ -126,7 +126,7 @@ public sealed class EditSessionTests : IDisposable
         string zip = MakeZip();
         _ops.Marks[zip] = "[ZoneTransfer]\nZoneId=3";
         var store = new EditSessionStore(Path.Combine(_dir.Path, "sessions"), _ops);
-        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"));
+        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"), TestContext.Current.CancellationToken);
         Assert.Equal("buy milk", File.ReadAllText(session.WorkingPath));
         Assert.Equal("todo.txt", Path.GetFileName(session.WorkingPath));
         Assert.True(_ops.Marks.ContainsKey(session.WorkingPath)); // the download mark travels with the copy
@@ -158,7 +158,7 @@ public sealed class EditSessionTests : IDisposable
     {
         string zip = MakeZip();
         var store = new EditSessionStore(Path.Combine(_dir.Path, "old-sessions"), _ops);
-        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"));
+        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"), TestContext.Current.CancellationToken);
         string record = Path.Combine(store.Root, session.Id, "session.json");
         var document = JsonNode.Parse(File.ReadAllText(record))!.AsObject();
         Assert.True(document["Baseline"]!.AsObject().Remove("Sha256Hex"));
@@ -177,7 +177,7 @@ public sealed class EditSessionTests : IDisposable
         _ops.Marks[zip] = "[ZoneTransfer]\r\nZoneId=3\r\n";
         _ops.RejectWrites = true;
         var store = new EditSessionStore(Path.Combine(_dir.Path, "refused-sessions"), _ops);
-        Assert.Throws<IOException>(() => store.Create(_zip, Member(zip, "notes", "todo.txt")));
+        Assert.Throws<IOException>(() => store.Create(_zip, Member(zip, "notes", "todo.txt"), TestContext.Current.CancellationToken));
         Assert.Empty(store.LoadAll());
         if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
         Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", _ops.Marks[zip]);
@@ -191,7 +191,7 @@ public sealed class EditSessionTests : IDisposable
         using var source = new MemoryContentSource("notes.txt", "mine"u8.ToArray());
         var revision = source.GetRevision()!.Value;
         Assert.Throws<IOException>(() => store.CreateRemote("owned", "owned", "/notes.txt", source, revision,
-            "[ZoneTransfer]\r\nZoneId=3\r\n"));
+            "[ZoneTransfer]\r\nZoneId=3\r\n", TestContext.Current.CancellationToken));
         Assert.Empty(store.LoadAll());
         if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
     }
@@ -201,7 +201,7 @@ public sealed class EditSessionTests : IDisposable
     {
         string zip = MakeZip();
         var store = new EditSessionStore(Path.Combine(_dir.Path, "sessions"), _ops);
-        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"));
+        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"), TestContext.Current.CancellationToken);
         File.WriteAllText(session.WorkingPath, "mine");
 
         // Another change to the archive that leaves this member alone: an explicit rebase is safe.
@@ -215,7 +215,7 @@ public sealed class EditSessionTests : IDisposable
         Assert.Equal("unrelated", ReadMember(zip, "new.txt"));
 
         // Someone else changes the member itself.
-        var second = store.Create(_zip, Member(zip, "", "other.txt"));
+        var second = store.Create(_zip, Member(zip, "", "other.txt"), TestContext.Current.CancellationToken);
         string theirs = _dir.File("theirs.txt", "their change");
         Assert.Equal(JobState.Completed, (await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip), [new ArchiveChange(ArchiveChangeKind.Replace, "other.txt", theirs)]))).State);
         Assert.Equal(CommitCheck.MemberChanged, store.Check(second));

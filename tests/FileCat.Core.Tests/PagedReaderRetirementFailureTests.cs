@@ -20,7 +20,7 @@ public sealed class PagedReaderRetirementFailureTests(ITestOutputHelper output)
 
     [Theory]
         [MemberData(nameof(Cases))]
-        public void A_retired_source_keeps_the_original_active_error_and_releases_its_resources(string api, bool pendingClose, string primary, string secondary)
+        public async Task A_retired_source_keeps_the_original_active_error_and_releases_its_resources(string api, bool pendingClose, string primary, string secondary)
     {
         string folder = Path.Combine(Path.GetTempPath(), "filecat-retirement-failure-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
@@ -36,7 +36,7 @@ public sealed class PagedReaderRetirementFailureTests(ITestOutputHelper output)
         try
         {
             byte[] prime = new byte[16];
-            int primed = reader.Read(0, prime);
+            int primed = reader.Read(0, prime, TestContext.Current.CancellationToken);
             long beforeBytes = budget.UsedBytes;
             int beforeReaders = budget.Readers;
             source.Armed = true;
@@ -50,7 +50,7 @@ public sealed class PagedReaderRetirementFailureTests(ITestOutputHelper output)
                 }
                 catch (Exception error) { return error; }
             });
-            if (!source.Entered.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Owned source did not reach its fence.");
+            if (!source.Entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)) throw new TimeoutException("Owned source did not reach its fence.");
             Exception? disposeAtFence = null, laterClose = null;
             bool? openAtFence = null;
             int? closesAtFence = null;
@@ -65,7 +65,7 @@ public sealed class PagedReaderRetirementFailureTests(ITestOutputHelper output)
                 readersAtFence = budget.Readers;
             }
             source.Release.Set();
-            Exception? observed = work.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            Exception? observed = await work.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             if (!pendingClose)
             {
                 try { reader.Dispose(); } catch (Exception error) { laterClose = error; }

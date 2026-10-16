@@ -153,8 +153,8 @@ public sealed class PagedReaderLifetimeTests
                 Assert.True(reader.TryRead(0, new byte[1], out int read));
                 Assert.Equal(0, read);
             }
-            else Assert.Equal(0, reader.Read(0, new byte[1]));
-            Assert.False(reader.Refresh());
+            else Assert.Equal(0, reader.Read(0, new byte[1], TestContext.Current.CancellationToken));
+            Assert.False(reader.Refresh(TestContext.Current.CancellationToken));
             await Quiescent(reader);
             Assert.Equal(0, source.Reads);
             Assert.Equal(1, source.Revisions); // only construction asked
@@ -208,7 +208,7 @@ public sealed class PagedReaderLifetimeTests
         try
         {
             var bytes = new byte[source.Bytes.Length];
-            Assert.Equal(bytes.Length, reader.Read(0, bytes));
+            Assert.Equal(bytes.Length, reader.Read(0, bytes, TestContext.Current.CancellationToken));
             Assert.Equal(source.OriginalSHA256, SHA256.HashData(bytes));
             Assert.True(reader.TryRead(0, bytes, out int read));
             Assert.Equal(bytes.Length, read);

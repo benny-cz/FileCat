@@ -409,7 +409,7 @@ public sealed class ListingModelTests : IDisposable
         // A refresh reads the names, then waits; b.txt goes away meanwhile, and the change asks for another refresh.
         provider.Hold();
         await _ui.InvokeAsync(model.Refresh);
-        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10)));
+        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
         provider.Names = ["a.txt"];
         await _ui.InvokeAsync(model.Refresh);
         provider.Let();
@@ -463,7 +463,7 @@ public sealed class ListingModelTests : IDisposable
         });
         try
         {
-            Assert.True(provider.FirstRefreshBatch.Wait(TimeSpan.FromSeconds(10)));
+            Assert.True(provider.FirstRefreshBatch.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
             await Task.Delay(650, TestContext.Current.CancellationToken); // beyond the partial-refresh swap delay
             Assert.Equal(200, await _ui.InvokeAsync(() => model.VisibleCount));
             Assert.Equal("item-180.txt", await _ui.InvokeAsync(() => model.TryGetFocused(out var e) ? e.Name : null));
@@ -484,7 +484,7 @@ public sealed class ListingModelTests : IDisposable
         var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
         provider.Hold();
         await _ui.InvokeAsync(() => model.Load(new Location("changing", "root"), "b.txt"));
-        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10)));
+        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
         await _ui.InvokeAsync(model.Refresh);
         provider.Let();
         await _ui.WaitUntilAsync(() => model.State == ListingState.Complete && model.VisibleCount == 3);

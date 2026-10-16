@@ -22,7 +22,7 @@ public sealed class ArchiveIndexConcurrencyOwnershipTests(ITestOutputHelper outp
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Concurrent_requests_share_one_owned_index_and_release_every_source(bool zip, int members, int callers)
+    public async Task Concurrent_requests_share_one_owned_index_and_release_every_source(bool zip, int members, int callers)
     {
         string root = Directory.CreateTempSubdirectory("filecat-index-concurrent-").FullName;
         string path = Path.Combine(root, zip ? "owned.zip" : "owned.tar");
@@ -68,10 +68,10 @@ public sealed class ArchiveIndexConcurrencyOwnershipTests(ITestOutputHelper outp
                 }) { IsBackground = true };
                 threads.Add(thread); thread.Start();
             }
-            Assert.True(ready.Wait(TimeSpan.FromSeconds(15))); start.Set(); Assert.True(done.Wait(TimeSpan.FromSeconds(30)));
+            Assert.True(ready.Wait(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)); start.Set(); Assert.True(done.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
             Assert.All(failures, e => Assert.Null(e)); Assert.All(indexes, i => Assert.NotNull(i));
             object[] distinct = indexes.Cast<object>().Distinct(ReferenceEqualityComparer.Instance).ToArray();
-            var sink = new Sink(); provider.EnumerateAsync(location, sink, CancellationToken.None).GetAwaiter().GetResult(); Assert.Equal(members + 1, sink.Count);
+            var sink = new Sink(); await provider.EnumerateAsync(location, sink, CancellationToken.None); Assert.Equal(members + 1, sink.Count);
             Read(provider, location, expected);
             var sources = distinct.Select(index =>
             {
@@ -94,7 +94,7 @@ public sealed class ArchiveIndexConcurrencyOwnershipTests(ITestOutputHelper outp
                 startGatedThreadsWithoutInternalBuildHookOrInjectedFault = true, noGCClosureOracle = true, root,
             }));
             Assert.True(unchanged); Assert.Equal(sources.Length, initiallyOpen); Assert.Equal(1, cached);
-            Assert.Equal(1, distinct.Length); Assert.Equal(sources.Length, closed);
+            Assert.Single(distinct); Assert.Equal(sources.Length, closed);
             if (OperatingSystem.IsWindows()) { Assert.False(exclusiveBefore); Assert.True(exclusiveAfter); }
         }
         finally

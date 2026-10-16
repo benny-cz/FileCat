@@ -124,7 +124,7 @@ public sealed class NestedReaderAdmissionTests(ITestOutputHelper output)
                     }) { IsBackground = true };
                     threads.Add(thread); thread.Start();
                 }
-                try { Assert.True(ready.Wait(TimeSpan.FromSeconds(15))); start.Set(); }
+                try { Assert.True(ready.Wait(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)); start.Set(); }
                 finally { start.Set(); foreach (var thread in threads) Assert.True(thread.Join(TimeSpan.FromSeconds(30))); }
             }
             Capture();

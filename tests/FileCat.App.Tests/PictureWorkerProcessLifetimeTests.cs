@@ -54,7 +54,7 @@ public sealed class PictureWorkerProcessLifetimeTests
         try
         {
             using var reader = new StreamReader((Stream)type.GetProperty("Output")!.GetValue(worker)!, leaveOpen: true);
-            string pid = (await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))!;
+            string pid = (await reader.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))!;
             child = Process.GetProcessById(int.Parse(pid, CultureInfo.InvariantCulture));
             Assert.True(Running(child));
             if (dispose) disposing = ((IAsyncDisposable)worker).DisposeAsync().AsTask();
@@ -74,7 +74,7 @@ public sealed class PictureWorkerProcessLifetimeTests
                 if (Running(child)) child.Kill();
                 child.Dispose();
             }
-            await (disposing ??= ((IAsyncDisposable)worker).DisposeAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10));
+            await (disposing ??= ((IAsyncDisposable)worker).DisposeAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         }
     }
 

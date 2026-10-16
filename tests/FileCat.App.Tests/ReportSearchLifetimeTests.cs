@@ -65,7 +65,7 @@ public sealed class ReportSearchLifetimeTests
                 var replacement = Find(window, true);
                 // Both searches need the held page; the replacement shares its active read.
                 Assert.False(replacement.IsCompleted);
-                Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+                Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
                 source.Release.Set();
                 await replacement.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Assert.Equal(64, Field<long>(window, "_lastHit"));
@@ -87,7 +87,7 @@ public sealed class ReportSearchLifetimeTests
             Assert.Null(error);
             Assert.Equal(0, source.Active);
             Assert.Equal(0, source.DisposalsDuringRead);
-            Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+            Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
             if (action == "complete") Assert.Equal(HeldOffset + 10, Field<long>(window, "_lastHit"));
             else
             {

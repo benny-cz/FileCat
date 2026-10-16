@@ -54,7 +54,7 @@ public sealed class ApplyNamedBatchBudgetTests(ITestOutputHelper output)
                 var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(root, "journal"));
                 job = manager.Submit(new JobRequest { Kind = JobKind.ApplyCommand, Sources = [item], Invocations = [row] });
                 var clock = Stopwatch.StartNew();
-                while (!job.State.IsFinished() && clock.Elapsed < TimeSpan.FromSeconds(15)) await Task.Delay(10);
+                while (!job.State.IsFinished() && clock.Elapsed < TimeSpan.FromSeconds(15)) await Task.Delay(10, TestContext.Current.CancellationToken);
                 if (!job.State.IsFinished()) { job.Cancel(); throw new TimeoutException("Owned named-batch Apply job exceeded fifteen seconds"); }
                 jobReceipt = File.Exists(receiptPath) ? File.ReadAllBytes(receiptPath) : null;
             }

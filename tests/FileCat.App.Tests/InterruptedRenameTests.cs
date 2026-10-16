@@ -130,7 +130,7 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
             // A native Move already entered before stop owns its call until return; stop cannot undo that call.
             // A held review has not entered Move and must still refuse it after stop.
             if (held == "move")
-            { Assert.False(Exists(f.Via)); Assert.True(Exists(f.Target)); Assert.Equal("reviewed", File.ReadAllText(f.Target)); Assert.Single(f.Files.Calls.Where(c => c.Operation == "move")); }
+            { Assert.False(Exists(f.Via)); Assert.True(Exists(f.Target)); Assert.Equal("reviewed", File.ReadAllText(f.Target)); Assert.Single(f.Files.Calls, c => c.Operation == "move"); }
             else
             { Assert.True(Exists(f.Via)); Assert.False(Exists(f.Target)); Assert.Equal("reviewed", File.ReadAllText(f.Via)); Assert.DoesNotContain(f.Files.Calls, c => c.Operation == "move"); }
         }

@@ -190,14 +190,14 @@ foreach (var theme in themes)
         }
         using var bitmap = window.CaptureRenderedFrame();
         string file = Path.Combine(output, frames == 1 ? $"{theme}.png" : $"{theme}-{frame + 1}.png");
-        bitmap?.Save(file);
+        bitmap?.Save(file, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
         Console.WriteLine(bitmap is null ? $"{theme}: nothing rendered" : file);
         foreach (var other in opened.Where(w => w != window && w.IsVisible).ToList())
         {
             using var shot = other.CaptureRenderedFrame();
             string name = string.Concat((other.Title ?? "window").Split(Path.GetInvalidFileNameChars())).Trim();
             string otherFile = Path.Combine(output, $"{theme}-{name}{(frames == 1 ? "" : $"-{frame + 1}")}.png");
-            shot?.Save(otherFile);
+            shot?.Save(otherFile, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             Console.WriteLine(shot is null ? $"{theme} / {name}: nothing rendered" : otherFile);
         }
     }

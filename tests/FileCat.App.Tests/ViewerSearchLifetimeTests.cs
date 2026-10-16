@@ -64,7 +64,7 @@ public sealed class ViewerSearchLifetimeTests
                 // The replacement's search chunk includes the page still being read by the old
                 // demand. It shares that call, so release it before awaiting the new search.
                 Assert.False(replacement.IsCompleted);
-                Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+                Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
                 source.Release.Set();
                 await replacement.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Assert.Equal(68, Field<HexView>(viewer, "_hex").CursorOffset);
@@ -97,7 +97,7 @@ public sealed class ViewerSearchLifetimeTests
             Assert.True(disposed);
             Assert.True(currentCleared);
             Assert.Equal(0, source.DisposalsDuringRead);
-            Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+            Assert.Single(source.ArmedReads, c => c.Offset == HeldOffset);
         }
         finally
         {

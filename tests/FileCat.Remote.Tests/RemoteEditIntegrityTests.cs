@@ -32,7 +32,7 @@ public sealed class RemoteEditIntegrityTests(ITestOutputHelper output)
     {
         using var f = new Fixture(); using var original = f.Open(); var baseline = original.GetRevision()!.Value;
         using var source = new MutatingSource(original, () => f.Change(change));
-        var error = Record.Exception(() => f.Store.CreateRemote(f.Profile.Id, f.Profile.Display, "/owned/notes.txt", source, baseline, null));
+        var error = Record.Exception(() => f.Store.CreateRemote(f.Profile.Id, f.Profile.Display, "/owned/notes.txt", source, baseline, null, TestContext.Current.CancellationToken));
         Emit(change, "copy", new { accepted = error is null, error = error?.GetType().Name, source.Reads });
         Assert.IsAssignableFrom<IOException>(error); Assert.Empty(f.Store.LoadAll());
         if (Directory.Exists(f.Store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(f.Store.Root));

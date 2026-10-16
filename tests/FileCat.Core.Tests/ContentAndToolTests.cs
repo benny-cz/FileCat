@@ -82,11 +82,11 @@ public class ContentAndToolTests
         var data = Enumerable.Range(0, 200_000).Select(i => (byte)i).ToArray();
         using var reader = new PagedReader(new MemoryContentSource("m", data), maxPages: 4);
         var buf = new byte[100];
-        Assert.Equal(100, reader.Read(PagedReader.PageSize - 50, buf));
+        Assert.Equal(100, reader.Read(PagedReader.PageSize - 50, buf, TestContext.Current.CancellationToken));
         Assert.Equal(data[PagedReader.PageSize - 50], buf[0]);
         Assert.Equal(data[PagedReader.PageSize + 49], buf[99]);
-        Assert.Equal(40, reader.Read(data.Length - 40, buf));
-        Assert.Equal(0, reader.Read(data.Length + 10, buf));
+        Assert.Equal(40, reader.Read(data.Length - 40, buf, TestContext.Current.CancellationToken));
+        Assert.Equal(0, reader.Read(data.Length + 10, buf, TestContext.Current.CancellationToken));
     }
 
     /// <summary>Content whose second page is damaged (an archive member found broken part way).</summary>

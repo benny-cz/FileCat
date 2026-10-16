@@ -37,8 +37,8 @@ public sealed class SyncLinkPublicationTests(ITestOutputHelper output)
         var criteria = mode == SyncMode.Update ? CompareCriteria.Size | CompareCriteria.Time : CompareCriteria.Size;
         var comparison = TreeCompare.Compare(rig.Providers, Location.FileSystem(rig.Left), Location.FileSystem(rig.Right),
             criteria, TimeSpan.FromSeconds(2), OperatingSystem.IsWindows(), TestContext.Current.CancellationToken);
-        var item = Assert.Single(SyncPlanner.Propose(comparison, left, mode, OperatingSystem.IsWindows())
-            .Where(i => i.Entry.RelativePath == (nested ? "nested/notes.txt" : "notes.txt")));
+        var item = Assert.Single(SyncPlanner.Propose(comparison, left, mode, OperatingSystem.IsWindows()),
+            i => i.Entry.RelativePath == (nested ? "nested/notes.txt" : "notes.txt"));
         Assert.Equal(mode == SyncMode.Update ? SyncAction.ReplaceOlder : SyncAction.Replace, item.Action);
         Assert.True((left ? item.Entry.Left : item.Entry.Right)!.Value.Has(EntryFlags.Link));
         var request = Assert.Single(SyncPlanner.BuildRequests([item], left, Location.FileSystem(rig.TargetRoot), rig.Providers, true));

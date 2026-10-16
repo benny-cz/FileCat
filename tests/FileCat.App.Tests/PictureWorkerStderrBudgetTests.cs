@@ -26,7 +26,7 @@ public sealed class PictureWorkerStderrBudgetTests(ITestOutputHelper output)
         {
             var process = (Process)workerType.GetField("_process", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(worker)!;
             using var reader = new StreamReader((Stream)workerType.GetProperty("Output")!.GetValue(worker)!, leaveOpen: true);
-            string? ready = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+            string? ready = await reader.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
             Assert.Equal("ready", ready);
             Assert.False(process.HasExited);
             long after = GC.GetTotalMemory(forceFullCollection: true);

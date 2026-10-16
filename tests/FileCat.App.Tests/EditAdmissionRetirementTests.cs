@@ -65,12 +65,12 @@ public sealed class EditAdmissionRetirementTests(ITestOutputHelper output)
                     Assert.Equal(bytes.Length, published.Read(0, bytes));
                     actualBytes = Convert.ToHexStringLower(SHA256.HashData(bytes));
                     published.Dispose();
-                }).WaitAsync(TimeSpan.FromSeconds(10));
+                }, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             }
             catch (Exception ex) { actual = ex; }
             var source = Assert.Single(provider.Sources);
             bool released = Exclusive(path);
-            int other = await io.Run("owned-edit-admission-other", IoPriority.Normal, _ => 42).WaitAsync(TimeSpan.FromSeconds(5));
+            int other = await io.Run("owned-edit-admission-other", IoPriority.Normal, _ => 42, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             Exception? expected = primaryError ?? closeError;
             bool retained = ReferenceEquals(expected, actual);
             output.WriteLine("EDIT_ADMISSION_RETIREMENT " + JsonSerializer.Serialize(new

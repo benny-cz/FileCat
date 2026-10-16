@@ -44,7 +44,7 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
         {
             reader = ArchiveFormats.Open(path, ArchiveKind.DiscImage, "owned.iso");
             var members = reader.List(_ => { }, CancellationToken.None).ToList();
-            var selected = Assert.Single(members.Where(v => v.Path.Replace('\\', '/').EndsWith("member.bin", StringComparison.Ordinal)));
+            var selected = Assert.Single(members, v => v.Path.Replace('\\', '/').EndsWith("member.bin", StringComparison.Ordinal));
             byte[] actualMember;
             using (var entry = reader.Open(selected.Index, CancellationToken.None))
             using (var copy = new MemoryStream())
@@ -152,6 +152,7 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
 
     private sealed class FaultingCdReader(Stream input, int fault) : CDReader(input, joliet: true)
     {
+        private readonly Stream _input = input;
         public Exception? Error { get; } = fault switch
         {
             0 => null,
@@ -171,7 +172,7 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
         public void RetireFixtureState()
         {
             base.Dispose(true);
-            input.Dispose();
+            _input.Dispose();
             GC.SuppressFinalize(this);
         }
     }

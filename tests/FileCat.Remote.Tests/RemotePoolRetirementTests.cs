@@ -40,7 +40,7 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
         {
             var job = new Job(new JobRequest { Kind = JobKind.Copy, Destination = SftpProvider.At(rig.Profile, "/"), Sources = [] }, "Owned retry", "owned", [], []);
             using var journal = JobJournal.Create(rig.Root, job);
-            var executor = new RetryExecutor(job, journal, rig.Provider, rig.Connector, fault);
+            var executor = new RetryExecutor(job, journal, rig.Provider, fault);
             var work = Task.Run(() => Record.Exception(executor.Execute), TestContext.Current.CancellationToken);
             var clock = Stopwatch.StartNew();
             try
@@ -206,13 +206,13 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
         try { using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None); return true; }
         catch (IOException) { return false; }
     }
-    private sealed class RetryExecutor(Job job, JobJournal journal, SftpProvider provider, Connector connector, string fault)
+    private sealed class RetryExecutor(Job job, JobJournal journal, SftpProvider provider, string fault)
         : SftpExecutorBase(job, new PortableFileOperations(), journal, provider)
     {
         public FaultChannel? Original;
         public byte[] Recovered = [];
         public int Attempts;
-        protected override Location ConnectionLocation => job.Request.Destination!;
+        protected override Location ConnectionLocation => Job.Request.Destination!;
         protected override void Run()
         {
             Remote("/one.dat", "read the owned file", () =>

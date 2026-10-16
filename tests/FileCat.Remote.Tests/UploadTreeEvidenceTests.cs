@@ -299,12 +299,13 @@ public sealed class UploadTreeEvidenceTests(ITestOutputHelper output)
         public override IContentSource OpenContent(ItemRef item)
         {
             bool verifying = Interlocked.Increment(ref Attempts) > 1;
-            if (verifying && stage == "verify-open") Fail();
+            if (verifying && _stage == "verify-open") Fail();
             Interlocked.Increment(ref Opens);
-            return stage is "caveat" or "ranges" ? new PartialSource(this, verifying) : new Source(this, verifying);
+            return _stage is "caveat" or "ranges" ? new PartialSource(this, verifying) : new Source(this, verifying);
         }
         private class Source(FaultProvider owner, bool verifying) : IContentSource
         {
+            protected FaultProvider Owner => owner;
             private readonly FileContentSource _file = new(owner._path);
             private bool _ended;
             public string DisplayName => "owned failing source";
@@ -329,8 +330,8 @@ public sealed class UploadTreeEvidenceTests(ITestOutputHelper output)
         }
         private sealed class PartialSource(FaultProvider owner, bool verifying) : Source(owner, verifying), IPartialContent
         {
-            public IReadOnlyList<(long Offset, long Length)> MissingRanges { get { if (owner._stage == "ranges") owner.Fail(); return []; } }
-            public string? Caveat { get { if (owner._stage == "caveat") owner.Fail(); return null; } }
+            public IReadOnlyList<(long Offset, long Length)> MissingRanges { get { if (Owner._stage == "ranges") Owner.Fail(); return []; } }
+            public string? Caveat { get { if (Owner._stage == "caveat") Owner.Fail(); return null; } }
         }
     }
 

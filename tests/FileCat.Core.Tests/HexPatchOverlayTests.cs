@@ -72,7 +72,7 @@ public sealed class HexPatchOverlayTests
         var source = new GatedSource(content, gate);
         using var reader = new PagedReader(source);
         var buffer = new byte[4];
-        Assert.Equal(4, reader.Read(0, buffer)); // page 0 cached
+        Assert.Equal(4, reader.Read(0, buffer, TestContext.Current.CancellationToken)); // page 0 cached
         content[1] = 0x11;
         reader.Overwrite(1, [0x11]);
         Assert.True(reader.TryRead(0, buffer, out int n));
@@ -92,7 +92,7 @@ public sealed class HexPatchOverlayTests
         Assert.True(loaded.Wait(5000, TestContext.Current.CancellationToken));
         source.ServeStale = false;
         if (reader.TryRead(PagedReader.PageSize, buffer, out _)) Assert.Equal(0x22, buffer[0]);
-        Assert.Equal(1, reader.Read(PagedReader.PageSize, buffer.AsSpan(0, 1)));
+        Assert.Equal(1, reader.Read(PagedReader.PageSize, buffer.AsSpan(0, 1), TestContext.Current.CancellationToken));
         Assert.Equal(0x22, buffer[0]);
     }
 

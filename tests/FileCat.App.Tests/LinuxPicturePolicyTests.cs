@@ -66,8 +66,8 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             };
             await worker.StandardInput.BaseStream.WriteAsync(input, TestContext.Current.CancellationToken);
             worker.StandardInput.Close();
-            await worker.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10));
-            await reading.WaitAsync(TimeSpan.FromSeconds(10));
+            await worker.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await reading.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             byte[] actual = response.ToArray();
             output.WriteLine(JsonSerializer.Serialize(new { kind, Input = Convert.ToBase64String(input), Answer = Convert.ToBase64String(actual), worker.ExitCode, Stderr = await error }));
             if (kind is "BMP" or "PNG")
@@ -93,9 +93,9 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         finally
         {
             if (!worker.HasExited) worker.Kill(entireProcessTree: true);
-            await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
-            await reading.WaitAsync(TimeSpan.FromSeconds(10));
-            await error.WaitAsync(TimeSpan.FromSeconds(10));
+            await worker.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await reading.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await error.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             response.Dispose();
         }
     }

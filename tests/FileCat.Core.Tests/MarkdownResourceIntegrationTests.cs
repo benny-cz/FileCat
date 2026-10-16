@@ -32,7 +32,7 @@ public sealed class MarkdownResourceIntegrationTests(ITestOutputHelper output)
         byte[] markdown = Encoding.UTF8.GetBytes($"# Owned {mode}\n\n![Owned](<{destination}>)\n");
         File.WriteAllBytes(fixture.Main, markdown);
         using var reader = new PagedReader(new FileContentSource(fixture.Main));
-        var page = HtmlPage.ForMarkdown(reader, fixture.Main);
+        var page = HtmlPage.ForMarkdown(reader, fixture.Main, TestContext.Current.CancellationToken);
         var served = page.Resolve("/");
         Assert.NotNull(served);
         string html = Encoding.UTF8.GetString(served.Value.Bytes);
@@ -74,7 +74,7 @@ public sealed class MarkdownResourceIntegrationTests(ITestOutputHelper output)
         fixture.MakeLinks();
         string main = alias ? Path.Combine(fixture.Alias, "README.md") : fixture.Main;
         using var reader = new PagedReader(new FileContentSource(main));
-        var page = HtmlPage.ForMarkdown(reader, main);
+        var page = HtmlPage.ForMarkdown(reader, main, TestContext.Current.CancellationToken);
         Assert.NotNull(page.Resolve("/"));
         string actualTarget = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(main)!, Uri.UnescapeDataString(request).TrimStart('/')));
         bool targetBytesConfirmed = mode != "cyclic-directory" && File.ReadAllBytes(actualTarget).SequenceEqual(Png);
@@ -97,7 +97,7 @@ public sealed class MarkdownResourceIntegrationTests(ITestOutputHelper output)
         using var fixture = new Fixture();
         fixture.MakeMimeLink();
         using var reader = new PagedReader(new FileContentSource(fixture.Main));
-        var page = HtmlPage.ForMarkdown(reader, fixture.Main);
+        var page = HtmlPage.ForMarkdown(reader, fixture.Main, TestContext.Current.CancellationToken);
         byte[] expected = Encoding.UTF8.GetBytes("body { color: #123456; }\n");
         var resource = page.Resolve("/style.css");
         output.WriteLine(JsonSerializer.Serialize(new { Group = "page-resource-link-mime", Case = "internal-css-to-bin",

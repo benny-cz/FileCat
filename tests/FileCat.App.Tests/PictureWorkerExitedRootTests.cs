@@ -23,8 +23,8 @@ public sealed class PictureWorkerExitedRootTests(ITestOutputHelper output)
         string rootScript = Path.Combine(root, "root.sh");
         // An independent finite watchdog only bounds failed-fixture cleanup. Success requires retirement
         // while the owned child is still running and before the fixture releases its inherited stderr.
-        await File.WriteAllTextAsync(childScript, "i=0\nwhile [ ! -f \"$1/release\" ] && [ $i -lt 1000 ]; do i=$((i+1)); sleep 0.02; done\n");
-        await File.WriteAllTextAsync(rootScript, "/bin/sh \"$1/child.sh\" \"$1\" </dev/null >/dev/null " + (retainError ? "" : "2>/dev/null ") + "&\necho $!\nexit 0\n");
+        await File.WriteAllTextAsync(childScript, "i=0\nwhile [ ! -f \"$1/release\" ] && [ $i -lt 1000 ]; do i=$((i+1)); sleep 0.02; done\n", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(rootScript, "/bin/sh \"$1/child.sh\" \"$1\" </dev/null >/dev/null " + (retainError ? "" : "2>/dev/null ") + "&\necho $!\nexit 0\n", TestContext.Current.CancellationToken);
         Type type = typeof(PictureDecoder).GetNestedType("Worker", BindingFlags.NonPublic)!;
         object? worker = null;
         Process? child = null;
@@ -34,7 +34,7 @@ public sealed class PictureWorkerExitedRootTests(ITestOutputHelper output)
             worker = type.GetMethod("Start")!.Invoke(null, ["/bin/sh", $"\"{rootScript}\" \"{root}\""])!;
             var process = (Process)type.GetField("_process", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(worker)!;
             using var reader = new StreamReader((Stream)type.GetProperty("Output")!.GetValue(worker)!, leaveOpen: true);
-            string pid = (await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))!;
+            string pid = (await reader.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))!;
             child = Process.GetProcessById(int.Parse(pid, CultureInfo.InvariantCulture));
             long childStart = child.StartTime.ToUniversalTime().Ticks;
             var clock = Stopwatch.StartNew();
@@ -56,15 +56,15 @@ public sealed class PictureWorkerExitedRootTests(ITestOutputHelper output)
         }
         finally
         {
-            await File.WriteAllTextAsync(release, "release-owned-child\n");
+            await File.WriteAllTextAsync(release, "release-owned-child\n", TestContext.Current.CancellationToken);
             if (child is not null)
             {
-                await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                await child.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 output.WriteLine($"OwnedChildExited={child.HasExited}");
                 child.Dispose();
             }
             if (worker is not null)
-                await (disposing ??= ((IAsyncDisposable)worker).DisposeAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10));
+                await (disposing ??= ((IAsyncDisposable)worker).DisposeAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             Directory.Delete(root, recursive: true);
             output.WriteLine($"OwnedRootRemoved={!Directory.Exists(root)}");
         }

@@ -95,7 +95,7 @@ int MainWindowShot(string[] a, string? command = null)
             if (Environment.GetEnvironmentVariable("FILECAT_SHOT_STARTUP") == "1")
             {
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-                window.CaptureRenderedFrame()?.Save(Path.Combine(output, $"startup-{theme}.png"));
+                window.CaptureRenderedFrame()?.Save(Path.Combine(output, $"startup-{theme}.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             }
             vm.Workspace.Activate(panels[0]);
             Pump(() => panels.All(p => p.ActiveTab?.Listing.State is ListingState.Complete or ListingState.Failed));
@@ -251,7 +251,7 @@ void Save(TopLevel window, string name)
     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
     var frame = window.CaptureRenderedFrame();
     string file = Path.Combine(output, name);
-    frame?.Save(file);
+    frame?.Save(file, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
     Console.WriteLine(frame is null ? $"no frame for {file}" : "saved " + file);
 }
 

@@ -35,7 +35,7 @@ public sealed class InspectorFuzzTests
     [InlineData("webm")]
     [InlineData("html")]
     [InlineData("apk")]
-    public void Damaged_files_give_reports_with_warnings_never_exceptions(string format)
+    public async Task Damaged_files_give_reports_with_warnings_never_exceptions(string format)
     {
         int rounds = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_INSPECT_FUZZ_ROUNDS"), out var r) ? r : 200;
         int first = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_INSPECT_FUZZ_START"), out var s) ? s : 0;
@@ -56,9 +56,9 @@ public sealed class InspectorFuzzTests
                 long start = GC.GetAllocatedBytesForCurrentThread();
                 try { Inspect(data, out error); }
                 finally { allocated = GC.GetAllocatedBytesForCurrentThread() - start; }
-            });
-            if (!reading.Wait(TimeSpan.FromSeconds(30)))
-                throw new Xunit.Sdk.XunitException($"{format}, round {round}: still inspecting after 30 s (a loop on damaged data?).");
+            }, TestContext.Current.CancellationToken);
+            try { await reading.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken); }
+            catch (TimeoutException) { throw new Xunit.Sdk.XunitException($"{format}, round {round}: still inspecting after 30 s (a loop on damaged data?)."); }
             if (error is not null) throw new Xunit.Sdk.XunitException($"{format}, round {round}: {error}");
             if (allocated > most) (most, mostRound) = (allocated, round);
             Assert.True(allocated <= 256L << 20, $"{format}, round {round} allocated {allocated >> 20} MiB inspecting a {original.Length >> 10} KiB file.");

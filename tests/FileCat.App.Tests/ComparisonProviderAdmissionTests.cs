@@ -142,7 +142,7 @@ public sealed class ComparisonProviderAdmissionTests(ITestOutputHelper output)
             Assert.Equal(4, f.Provider.Sources.Count);
             Assert.All(f.Provider.Sources, s => { Assert.Equal(1, s.Disposals); Assert.False(s.DisposedDuringOpen); });
             Assert.All(fresh, s => { Assert.Equal(0, s.Metadata); Assert.Equal(0, s.Reads); });
-            Assert.Empty(CompareWindow.OpenWindows.Where(w => !before.Contains(w))); f.AssertHashes();
+            Assert.DoesNotContain(CompareWindow.OpenWindows, w => !before.Contains(w)); f.AssertHashes();
         }
         finally { await f.Finish([task], before); }
     }

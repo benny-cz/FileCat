@@ -156,12 +156,12 @@ public sealed class RecoveryConsumerRetirementTests(ITestOutputHelper output)
         using var closeStarted = new ManualResetEventSlim();
         try
         {
-            reading = Task.Run(() => content.Read(0, actual)); Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
-            closing = Task.Run(() => { closeStarted.Set(); content.Dispose(); });
-            Assert.True(closeStarted.Wait(TimeSpan.FromSeconds(10)));
-            bool returnedDuringRead = closing.Wait(TimeSpan.FromMilliseconds(150));
-            release.Set(); Assert.Equal(actual.Length, await reading.WaitAsync(TimeSpan.FromSeconds(10)));
-            await closing.WaitAsync(TimeSpan.FromSeconds(10));
+            reading = Task.Run(() => content.Read(0, actual)); Assert.True(entered.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            closing = Task.Run(() => { closeStarted.Set(); content.Dispose(); }, TestContext.Current.CancellationToken);
+            Assert.True(closeStarted.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            bool returnedDuringRead = await Task.WhenAny(closing, Task.Delay(150, TestContext.Current.CancellationToken)) == closing;
+            release.Set(); Assert.Equal(actual.Length, await reading.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            await closing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             bool unitRetained = typeof(RecoveryContent).GetField("_unit", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(content) is not null;
             bool readRefused = false; try { content.Read(0, new byte[32]); } catch (ObjectDisposedException) { readRefused = true; }
             output.WriteLine("RECOVERY_CONSUMER_RACE " + JsonSerializer.Serialize(new {
@@ -175,8 +175,8 @@ public sealed class RecoveryConsumerRetirementTests(ITestOutputHelper output)
         }
         finally
         {
-            release.Set(); if (reading is not null) await reading.WaitAsync(TimeSpan.FromSeconds(15));
-            if (closing is not null) await closing.WaitAsync(TimeSpan.FromSeconds(15));
+            release.Set(); if (reading is not null) await reading.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            if (closing is not null) await closing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
             content.Dispose(); Assert.Equal(0, source.Disposals); source.Dispose(); Directory.Delete(root, true);
             Assert.False(Directory.Exists(root));
         }
