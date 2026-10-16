@@ -1,0 +1,9 @@
+# E-CI-I527 — exact pushed-source language FIFO CI
+
+[Run 38880389320](https://github.com/benny-cz/FileCat/actions/runs/38880389320) completed **success** at pushed source `09a47bbeabff20e54ba0a78a25432a39aa3bc04d`. Producer reference policy and Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 jobs passed; four publication-only jobs conditionally skipped. This is a portable CI matrix, not an installed release candidate or stable GO.
+
+Private official archive `V:\FileCat\artifacts\release-evidence\ci-i527-language-fifo-20261016-v1` retains the run/job API responses, **27 server-digest-verified ZIPs, 2,779 independently hashed members and fourteen TRX**: **33,790 Passed, 1,264 NotExecuted, zero Failed**. Its audit SHA-256 is `14a540fa441017ca8ab14a18925d966f5af8aba9e1684a0a0eb125c733dcd85d`; file-manifest SHA-256 is `9e60e9192d164353b556190a6028f0094b91035e8163b9111033aae69e679b79`.
+
+The separate `ci-i527-language-fifo-comparison-20261016-v1` archive rehashes every member of both this run and last green OpenSSH run `38858950606`, then compares duplicate-preserved test names, outcomes and messages. **All 35,018 predecessor rows persist unchanged; 36 new rows** cover the I525 App input cases and I527 direct/linked Unix language FIFO tests, with Windows platform skips explicit. The macOS hard-link row that failed in intervening run `38878200150` passes here; the original failed run remains failed and its intermittent cause is still open. Comparison SHA-256 is `a39306a5bd5c323a540f13883a7aef52b0ef3c82c4927e46e1bb42e9bdbf32b0`; comparison-manifest SHA-256 is `e003a97f7c03a300efbe26198b5cbc12d9697445453df324a5cbe3cd3bcc8aa4`.
+
+This matrix qualifies the pushed I525/I526/I527 source at its tested scope. It does not establish candidate provenance, resolve the earlier macOS hard-link timing failure, or close aggregate I06/I16.

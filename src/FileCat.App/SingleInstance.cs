@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.App;
 
@@ -186,7 +188,11 @@ public static partial class SingleInstance
 
     private static T? ReadInstanceMetadata<T>(string file) where T : class
     {
-        using var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        // A stale or replaced per-user metadata pathname can be a FIFO. Open without blocking and
+        // require a regular opened descriptor before the forwarding or recovery-safety path reads it.
+        using var input = OperatingSystem.IsWindows()
+            ? new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(file), FileAccess.Read);
         // Bound the read as well as the initial length, including a file changed while it is being read.
         var bytes = new byte[32769];
         int length = 0, count;
@@ -226,8 +232,9 @@ public static partial class SingleInstance
                 BufferSize = 1,
                 UnixCreateMode = create ? UnixFileMode.UserRead | UnixFileMode.UserWrite : null,
             };
-            stream = new FileStream(path, options);
-            // FileShare's Unix lock is best-effort. Require the native lock as well, including on removable filesystems.
+            stream = OperatingSystem.IsWindows() ? new FileStream(path, options)
+                : OpenUnixRegularLock(path, create, exclusive: false);
+            // The native lock elects the owner, including on removable filesystems.
             int error;
             do
             {
@@ -255,7 +262,9 @@ public static partial class SingleInstance
         do
         {
             string? pipe = null;
-            try { pipe = ReadUnixEndpoint(file)?.Pipe; } catch (FileNotFoundException) { }
+            // An owner can still be publishing its endpoint, and a stale/unreadable pathname is
+            // treated like an absent endpoint for this finite retry rather than launching early.
+            try { pipe = ReadUnixEndpoint(file)?.Pipe; } catch (IOException) { }
             if (pipe is not null)
             {
                 var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out, PipeOptions.CurrentUserOnly);
@@ -283,6 +292,36 @@ public static partial class SingleInstance
     [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)]
     private static partial int Flock(int fd, int operation);
 
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int OpenLockNative(string path, int flags, int mode);
+
+    private static FileStream OpenUnixRegularLock(string path, bool create, bool exclusive)
+    {
+        // An existing instance file can be replaced by a FIFO between enumeration and open. A nonblocking
+        // descriptor check closes that race; O_NOFOLLOW also rejects a link swapped in after the path check.
+        int flags = OperatingSystem.IsMacOS()
+            ? 4 | 16777216 | 256   // O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW
+            : 2048 | 524288 | 131072;
+        if (create) flags |= OperatingSystem.IsMacOS() ? 2 | 512 : 2 | 64; // O_RDWR | O_CREAT
+        if (exclusive) flags |= OperatingSystem.IsMacOS() ? 2048 : 128; // O_EXCL
+        int fd = OpenLockNative(path, flags, 0x180); // mode 0600 for a new lock
+        if (fd < 0)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error == 2) throw new FileNotFoundException("The FileCat instance file is absent.", path);
+            throw new IOException("Cannot open the FileCat instance file: " + new Win32Exception(error).Message,
+                unchecked((int)0x80070000) | error);
+        }
+        var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+        try
+        {
+            if (UnixFiles.Stat(handle) is not { IsRegular: true })
+                throw new IOException("The FileCat instance file is not a regular file.");
+            return new FileStream(handle, create ? FileAccess.ReadWrite : FileAccess.Read, 1);
+        }
+        catch { handle.Dispose(); throw; }
+    }
+
     private static FileStream? OpenIndependentLock(string file, bool create)
     {
         if (new FileInfo(file).LinkTarget is not null)
@@ -297,7 +336,8 @@ public static partial class SingleInstance
                 Share = FileShare.None,
             };
             if (create && !OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-            stream = new FileStream(file, options);
+            stream = OperatingSystem.IsWindows() ? new FileStream(file, options)
+                : OpenUnixRegularLock(file, create, exclusive: create);
             if (!OperatingSystem.IsWindows())
             {
                 int error;
