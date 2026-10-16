@@ -1,9 +1,14 @@
 using FileCat.Core.Commands;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace FileCat.Core.Tests;
 
 public class CommandTests
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
     [Theory]
     [InlineData("Ctrl+Shift+F5", "F5", KeyMods.Ctrl | KeyMods.Shift)]
     [InlineData("Num+", "Add", KeyMods.None)]
@@ -142,5 +147,21 @@ public class CommandTests
                 Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
         }
         Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("cs-CZ")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(bool linked)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO control.");
+        using var dir = new TempDir();
+        string input = Path.Combine(dir.Path, "cs-CZ.json");
+        string pipe = linked ? Path.Combine(dir.Path, "owned.pipe") : input;
+        Assert.Equal(0, MakeFifo(pipe, 384));
+        if (linked) File.CreateSymbolicLink(input, pipe);
+        var clock = Stopwatch.StartNew();
+        Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("cs-CZ")));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Language file admission waited {clock.Elapsed}.");
     }
 }

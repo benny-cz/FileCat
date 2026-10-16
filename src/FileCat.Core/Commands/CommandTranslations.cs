@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Commands;
 
@@ -20,7 +21,9 @@ public static class CommandTranslations
             if (!File.Exists(path)) continue;
             try
             {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var stream = OperatingSystem.IsWindows()
+                    ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)
+                    : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read);
                 if (stream.Length > MaxLanguageFileBytes) throw new InvalidDataException("Language file is too large.");
                 byte[] bytes = new byte[checked((int)stream.Length)];
                 stream.ReadExactly(bytes);
