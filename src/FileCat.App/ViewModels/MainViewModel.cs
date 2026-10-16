@@ -125,16 +125,22 @@ public sealed partial class MainViewModel : ObservableObject
         _ = RefreshDriveButtonsAsync();
         Workspace.LoadState(state);
         if (WorkspaceReadOnly)
-            Notify(WorkspaceOversized
-                ? "The saved window layout exceeds FileCat's safe input limit. The default layout is shown and the original file will not be overwritten."
-                : "The window layout was saved by a newer FileCat; this one starts with the default layout and does not save over it.", true);
+            Notify(WorkspaceUnavailable
+                ? "The saved window layout cannot be read safely. The default layout is shown and the original file will not be overwritten."
+                : WorkspaceOversized
+                    ? "The saved window layout exceeds FileCat's safe input limit. The default layout is shown and the original file will not be overwritten."
+                    : "The window layout was saved by a newer FileCat; this one starts with the default layout and does not save over it.", true);
+        if (Services.SettingsStatus == StateLoadStatus.UnavailableReadOnly)
+            Notify("Settings cannot be read safely. A backup or defaults are shown read-only; the original file was left untouched.", true);
         if (Services.SettingsStatus == StateLoadStatus.OversizedReadOnly)
             Notify("Settings exceed FileCat's safe input limit. A backup or defaults are shown read-only; the original file was left untouched.", true);
         else if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
             Notify("Settings were written by a newer FileCat and are opened read-only; changes will not be saved.", true);
         else if (Services.SettingsStatus is StateLoadStatus.RecoveredFromBackup or StateLoadStatus.CorruptUsingDefaults)
             Notify("Settings were damaged; FileCat restored a usable copy and kept the damaged file for inspection.", true);
-        if (Services.HistoryStatus == StateLoadStatus.OversizedReadOnly)
+        if (Services.HistoryStatus == StateLoadStatus.UnavailableReadOnly)
+            Notify("History cannot be read safely. It is shown from a backup or defaults and will not be saved over the original.", true);
+        else if (Services.HistoryStatus == StateLoadStatus.OversizedReadOnly)
             Notify("History exceeds FileCat's safe input limit. It is shown from a backup or defaults and will not be saved over the original.", true);
     }
 
@@ -237,6 +243,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public bool WorkspaceReadOnly { get; private set; }
     private bool WorkspaceOversized { get; set; }
+    private bool WorkspaceUnavailable { get; set; }
 
     /// <summary>
     /// The saved window layout, or null for the default one: none saved yet, damaged beyond its backup, written by a
@@ -249,7 +256,8 @@ public sealed partial class MainViewModel : ObservableObject
             WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var status);
         if (status is StateLoadStatus.CorruptUsingDefaults) AppLog.Warn("Workspace was corrupt; using the default layout.");
         WorkspaceOversized = status == StateLoadStatus.OversizedReadOnly;
-        WorkspaceReadOnly = status is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly;
+        WorkspaceUnavailable = status == StateLoadStatus.UnavailableReadOnly;
+        WorkspaceReadOnly = status is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly;
         return WorkspaceReadOnly || reset ? null : state;
     }
 

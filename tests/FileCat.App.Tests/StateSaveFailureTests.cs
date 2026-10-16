@@ -63,8 +63,11 @@ public sealed class StateSaveFailureTests
             var told = new List<string>();
             services.StateSaveFailed += told.Add;
 
-            // A folder where the save writes its temporary copy: the write fails as on a medium that takes none.
-            string blocker = services.Paths.SettingsFile + ".tmp";
+            // Block the destination on Unix, where saves deliberately use a fresh temporary sibling;
+            // retain the fixed temporary-path control on Windows.
+            string blocker = OperatingSystem.IsWindows()
+                ? services.Paths.SettingsFile + ".tmp"
+                : services.Paths.SettingsFile;
             Directory.CreateDirectory(blocker);
             services.Settings.ShowHidden = !services.Settings.ShowHidden;
             services.SaveSettings();

@@ -293,18 +293,41 @@ public static partial class SingleInstance
     private static partial int Flock(int fd, int operation);
 
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int OpenLockNative(string path, int flags, int mode);
+    private static partial int OpenLockNative(string path, int flags);
 
     private static FileStream OpenUnixRegularLock(string path, bool create, bool exclusive)
     {
         // An existing instance file can be replaced by a FIFO between enumeration and open. A nonblocking
         // descriptor check closes that race; O_NOFOLLOW also rejects a link swapped in after the path check.
+        // On Apple Silicon libc open's creation mode is variadic and uses a different calling convention.
+        // Let FileStream create a new regular inode with the requested 0600 mode, then use the two-argument
+        // native open only for an existing path. CreateNew rejects an existing FIFO without opening it.
+        if (create)
+        {
+            try
+            {
+                var created = new FileStream(path, new FileStreamOptions
+                {
+                    Mode = FileMode.CreateNew,
+                    Access = FileAccess.ReadWrite,
+                    Share = FileShare.None,
+                    BufferSize = 1,
+                    UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+                });
+                try
+                {
+                    if (UnixFiles.Stat(created.SafeFileHandle) is { IsRegular: true }) return created;
+                    throw new IOException("The FileCat instance file is not a regular file.");
+                }
+                catch { created.Dispose(); throw; }
+            }
+            catch (IOException) when (!exclusive && UnixFiles.Stat(path) is not null) { }
+        }
         int flags = OperatingSystem.IsMacOS()
             ? 4 | 16777216 | 256   // O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW
             : 2048 | 524288 | 131072;
-        if (create) flags |= OperatingSystem.IsMacOS() ? 2 | 512 : 2 | 64; // O_RDWR | O_CREAT
-        if (exclusive) flags |= OperatingSystem.IsMacOS() ? 2048 : 128; // O_EXCL
-        int fd = OpenLockNative(path, flags, 0x180); // mode 0600 for a new lock
+        if (create) flags |= 2; // O_RDWR; creation above is exclusive and owner-only
+        int fd = OpenLockNative(path, flags);
         if (fd < 0)
         {
             int error = Marshal.GetLastPInvokeError();

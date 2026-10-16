@@ -74,7 +74,7 @@ public sealed partial class MainViewModel
             name = names[r.Index];
         }
         var state = JsonFileStore.Load(WorkspacePath(name), StateJsonContext.Default.WorkspaceState, WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var status);
-        if (status is StateLoadStatus.CorruptUsingDefaults or StateLoadStatus.Missing or StateLoadStatus.OversizedReadOnly)
+        if (status is StateLoadStatus.CorruptUsingDefaults or StateLoadStatus.Missing or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly)
         {
             Notify($"Workspace \"{name}\" could not be read.", true);
             return;

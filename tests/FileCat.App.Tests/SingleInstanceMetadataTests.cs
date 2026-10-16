@@ -64,6 +64,47 @@ public sealed class SingleInstanceMetadataTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("OpenUnixLock")]
+    [InlineData("OpenIndependentLock")]
+    public void Unix_new_instance_lock_is_owner_readable_for_a_second_process(string method)
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix lock creation-mode control."); return; }
+        string root = Path.Combine(Path.GetTempPath(), "filecat-instance-mode-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string file = Path.Combine(root, "instance.lock");
+            using var held = Assert.IsType<FileStream>(OpenLock(method, file, create: true));
+            UnixFileMode mode = File.GetUnixFileMode(file);
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite,
+                mode & (UnixFileMode.UserRead | UnixFileMode.UserWrite));
+            Assert.Equal(UnixFileMode.None, mode & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
+                UnixFileMode.OtherRead | UnixFileMode.OtherWrite));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("OpenUnixLock")]
+    [InlineData("OpenIndependentLock")]
+    public void Unix_instance_creation_refuses_an_existing_fifo_without_waiting(string method)
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix lock creation FIFO control."); return; }
+        string root = Path.Combine(Path.GetTempPath(), "filecat-instance-create-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string fifo = Path.Combine(root, "instance.lock");
+            Assert.Equal(0, MkFifo(fifo, 0x180));
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var error = Assert.Throws<TargetInvocationException>(() => OpenLock(method, fifo, create: true));
+            Assert.True(error.InnerException is IOException or UnauthorizedAccessException);
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"Instance-lock creation took {clock.Elapsed}.");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Unix_active_instance_with_fifo_metadata_remains_unknown_to_recovery_safety()
     {

@@ -82,8 +82,8 @@ public sealed class WorkingSets : IDisposable
 
     public StateLoadStatus Status { get; }
 
-    /// <summary>A newer or oversized file is not saved over (plan §19.1).</summary>
-    public bool IsReadOnly => Status is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly;
+    /// <summary>A newer, oversized or unreadable file is not saved over (plan §19.1).</summary>
+    public bool IsReadOnly => Status is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly;
 
     /// <summary>Raised after a set is created, renamed, or deleted, or its members change.</summary>
     public event Action? Changed;
