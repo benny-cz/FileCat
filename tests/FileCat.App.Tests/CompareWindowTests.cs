@@ -20,6 +20,21 @@ public sealed class CompareWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Excessive_line_count_keeps_exact_binary_comparison_available()
+    {
+        string dense = new('\n', 1_000_001);
+        var window = await OpenAsync(dense, dense);
+        try
+        {
+            Assert.False(window.IsComparing);
+            Assert.StartsWith("Identical: every byte was compared", window.Summary);
+            Assert.Contains("Text comparison has more than", window.Summary);
+            Assert.Contains("compare as binary", window.Summary);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Text_differences_are_counted_navigable_and_never_called_identical_by_mistake()
     {
         var diff = await OpenAsync("one\ntwo\nthree\n", "one\nTWO\nthree\nfour\n");

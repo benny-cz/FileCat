@@ -132,6 +132,34 @@ public sealed class FileCompareTests
         Assert.Equal(["a", "b"], TextSide.Load(left, TestContext.Current.CancellationToken).Lines);
     }
 
+    [Fact]
+    public void Text_comparison_refuses_to_materialize_more_than_one_million_lines()
+    {
+        string text = new('\n', 1_000_001);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        Exception? result = Record.Exception(() => TextSide.FromText(text));
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        TestContext.Current.TestOutputHelper?.WriteLine($"inputChars={text.Length} allocatedBytes={allocated} result={result?.GetType().Name ?? "accepted"}");
+        Assert.IsType<InvalidDataException>(result);
+    }
+
+    [Fact]
+    public void Loaded_text_comparison_refuses_more_than_one_million_lines()
+    {
+        byte[] bytes = Enumerable.Repeat((byte)'\n', 1_000_001).ToArray();
+        using var source = new MemoryContentSource("owned newline input", bytes);
+        Assert.Throws<InvalidDataException>(() => TextSide.Load(source, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Text_comparison_accepts_the_one_million_line_boundary()
+    {
+        var side = TextSide.FromText(new string('\n', 1_000_000));
+        Assert.Equal(1_000_000, side.Lines.Count);
+        Assert.Equal(string.Empty, side.Lines[0]);
+        Assert.Equal(string.Empty, side.Lines[^1]);
+    }
+
     private static TextDiffResult Diff(string left, string right, TextDiffOptions? options = null) =>
         TextDiff.Compare(TextSide.FromText(left).Lines, TextSide.FromText(right).Lines, options, TestContext.Current.CancellationToken);
 

@@ -16,6 +16,7 @@ public static partial class Markdown
 {
     /// <summary>Larger files are not drawn: their text is shown instead.</summary>
     public const int MaxChars = 4 << 20;
+    public const int MaxLines = 200_000;
 
     private const int MaxDepth = 32;
 
@@ -27,7 +28,9 @@ public static partial class Markdown
     {
         var body = markdown.Length > MaxChars
             ? $"<p class=\"note\">This file is {markdown.Length / (1 << 20)} MB of text, more than FileCat draws as a page; the Text mode shows it.</p>"
-            : ToHtml(markdown);
+            : TooManyLines(markdown)
+                ? $"<p class=\"note\">This file has more than {MaxLines:N0} lines, more than FileCat draws as a page; the Text mode shows it.</p>"
+                : RenderHtml(markdown);
         return $$"""
             <!DOCTYPE html>
             <html><head><meta charset="utf-8">
@@ -43,6 +46,27 @@ public static partial class Markdown
 
     /// <summary>The document's HTML (no page around it).</summary>
     public static string ToHtml(string markdown)
+    {
+        if (markdown.Length > MaxChars || TooManyLines(markdown))
+            throw new InvalidDataException("Markdown exceeds the page character or line limit; show it as text.");
+        return RenderHtml(markdown);
+    }
+
+    // Split materializes an entry even for the empty line after a trailing terminator. Check before it allocates.
+    private static bool TooManyLines(string markdown)
+    {
+        int lines = 1;
+        for (int i = 0; i < markdown.Length; i++)
+        {
+            char c = markdown[i];
+            if (c != '\n' && c != '\r') continue;
+            if (++lines > MaxLines) return true;
+            if (c == '\r' && i + 1 < markdown.Length && markdown[i + 1] == '\n') i++;
+        }
+        return false;
+    }
+
+    private static string RenderHtml(string markdown)
     {
         var lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Select(ExpandTabs).ToList();
         var renderer = new Renderer();

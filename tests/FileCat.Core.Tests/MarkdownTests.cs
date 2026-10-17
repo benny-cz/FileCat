@@ -168,6 +168,34 @@ public sealed class MarkdownTests
         Assert.Contains("more than FileCat draws as a page", Markdown.ToPage(new string('a', Markdown.MaxChars + 1), "big.md"));
     }
 
+    [Fact]
+    public void A_newline_dense_page_falls_back_before_materializing_millions_of_lines()
+    {
+        string markdown = new('\n', 1_000_001);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        string page = Markdown.ToPage(markdown, "dense.md");
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        TestContext.Current.TestOutputHelper?.WriteLine($"inputChars={markdown.Length} allocatedBytes={allocated} outputChars={page.Length}");
+        Assert.Contains("more than FileCat draws as a page", page);
+        Assert.Contains("Text mode shows it", page);
+    }
+
+    [Fact]
+    public void Direct_markdown_html_refuses_more_than_the_page_character_budget()
+    {
+        string markdown = new('a', Markdown.MaxChars + 1);
+        Assert.Throws<InvalidDataException>(() => Markdown.ToHtml(markdown));
+    }
+
+    [Fact]
+    public void Markdown_page_accepts_the_200000_line_boundary()
+    {
+        // Split includes the final empty line after a trailing newline.
+        string page = Markdown.ToPage(new string('\n', 199_999), "limit.md");
+        Assert.DoesNotContain("more than FileCat draws as a page", page);
+        Assert.Contains("<article>", page);
+    }
+
     private sealed class Bytes(byte[] data, string? local) : IContentSource
     {
         public string DisplayName => "doc.md";

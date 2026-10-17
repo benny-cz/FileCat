@@ -42,6 +42,7 @@ public sealed record TextDiffOptions(bool IgnoreWhitespace = false, bool IgnoreC
 public sealed class TextSide
 {
     public const long MaxBytes = 64L * 1024 * 1024;
+    public const int MaxLines = 1_000_000;
 
     private TextSide(List<string> lines, List<string> terminators, EncodingGuess encoding)
     {
@@ -88,6 +89,19 @@ public sealed class TextSide
 
     public static TextSide FromText(string text, EncodingGuess? encoding = null)
     {
+        // A tiny newline-only input can otherwise materialize tens of millions of list entries even though
+        // its encoded byte count is within MaxBytes. Refuse it before allocating either line list.
+        int count = 0, lastStart = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c != '\n' && c != '\r') continue;
+            if (++count > MaxLines) throw new InvalidDataException($"Text comparison has more than {MaxLines:N0} lines; compare as binary.");
+            if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
+            lastStart = i + 1;
+        }
+        if ((lastStart < text.Length || count == 0) && count >= MaxLines)
+            throw new InvalidDataException($"Text comparison has more than {MaxLines:N0} lines; compare as binary.");
         var lines = new List<string>();
         var terminators = new List<string>();
         int start = 0;
