@@ -38,6 +38,8 @@
           <Button Classes="flat" Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
           <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+          <Button Classes="flat" Content="Results" IsVisible="{Binding CanShowResults}" Click="OnShowResults"
+                  ToolTip.Tip="What the check found, file by file: each checksum's expected and computed values, and each signature" />
           <Button Classes="flat" Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
                   ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
           <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).Summary}" VerticalAlignment="Center" Classes="small muted" />
@@ -108,6 +110,8 @@
             <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
             <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+            <Button Content="Results" IsVisible="{Binding CanShowResults}" Click="OnShowResults"
+                    ToolTip.Tip="What the check found, file by file: each checksum's expected and computed values, and each signature" />
             <Button Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
                     ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
             <Button Content="Move up" Click="OnMoveUp" IsVisible="{Binding !IsActive}" />

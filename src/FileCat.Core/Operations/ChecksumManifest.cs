@@ -85,7 +85,7 @@ public static partial class Checksums
     /// <summary>Hashes a file with sequential reads; <paramref name="progress"/> receives the bytes read by each step.</summary>
     public static string Compute(string path, ChecksumKind kind, CancellationToken ct, Action<long>? progress = null)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+        using var stream = VerificationFileReader.OpenSequential(path);
         var buffer = new byte[1 << 20];
         int n;
         if (kind == ChecksumKind.Crc32)
@@ -133,6 +133,12 @@ public sealed record ManifestEntry(int Line, string Name, string? Path, Checksum
 public sealed record ChecksumManifest(string ManifestPath, string Root, IReadOnlyList<ManifestEntry> Entries)
 {
     public int Verifiable => Entries.Count(e => e.Problem is null);
+
+    /// <summary>
+    /// It carries its own OpenPGP signature (clearsigned, as Fedora's CHECKSUM files are): its armor is not read as checksum
+    /// lines, and the signature is not checked.
+    /// </summary>
+    public bool ClearSigned { get; init; }
 }
 
 /// <summary>
@@ -175,31 +181,30 @@ public static partial class ChecksumManifests
     public static bool IsManifestName(string fileName) => KindFromName(fileName) is not null;
 
     /// <summary>Reads a manifest (UTF-8, or Latin-1 when it is not valid UTF-8) and parses it.</summary>
-    public static ChecksumManifest Load(string manifestPath, long maxBytes = MaxManifestBytes)
+    public static ChecksumManifest Load(string manifestPath, long maxBytes = MaxManifestBytes) => Load(manifestPath, maxBytes, keep: false, out _);
+
+    /// <summary>
+    /// Reads and parses a manifest, giving the bytes read as well: a signature over it is checked over exactly what was
+    /// parsed, never over the file read again (it may have changed since, or a server may answer differently).
+    /// </summary>
+    internal static ChecksumManifest Load(string manifestPath, long maxBytes, out byte[] content) => Load(manifestPath, maxBytes, keep: true, out content);
+
+    private static ChecksumManifest Load(string manifestPath, long maxBytes, bool keep, out byte[] content)
     {
         if (maxBytes is <= 0 or > MaxManifestBytes) throw new ArgumentOutOfRangeException(nameof(maxBytes));
-        var info = new FileInfo(manifestPath);
-        if (info.Length > maxBytes) throw new InvalidDataException($"The manifest is larger than {maxBytes} bytes.");
-        // A zero-length special file, or a regular file grown after the metadata check,
-        // must not make ReadAllBytes wait for EOF while retaining arbitrary input.
-        using var input = VerificationFileReader.OpenRead(manifestPath);
-        using var content = new MemoryStream((int)info.Length);
-        byte[] buffer = new byte[64 * 1024];
-        while (true)
-        {
-            int count = input.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, maxBytes + 1 - content.Length)));
-            if (count == 0) break;
-            if (content.Length + count > maxBytes)
-                throw new InvalidDataException($"The manifest is larger than {maxBytes} bytes.");
-            content.Write(buffer, 0, count);
-        }
-        ReadOnlySpan<byte> bytes = content.GetBuffer().AsSpan(0, (int)content.Length);
+        // Opened as a regular file (a pipe or a device planted under its name would never end), and read once, bounded: a
+        // file that grows while it is read must not make the read wait or keep arbitrary input.
+        byte[] bytes = VerificationFileReader.ReadAll(manifestPath, maxBytes)
+            ?? throw new InvalidDataException($"It is larger than {Size(maxBytes)}, more than a checksum file holds.");
+        content = keep ? bytes : [];
         string text;
         try { text = new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(bytes); }
         catch (DecoderFallbackException) { text = Encoding.Latin1.GetString(bytes); }
         if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
         return Parse(manifestPath, text);
     }
+
+    private static string Size(long bytes) => bytes >= 1 << 20 ? $"{bytes >> 20} MiB" : $"{bytes:N0} bytes";
 
     public static ChecksumManifest Parse(string manifestPath, string text)
     {
@@ -208,13 +213,19 @@ public static partial class ChecksumManifests
         var entries = new List<ManifestEntry>();
         int lineNumber = 0;
         ReadOnlySpan<char> remaining = text;
+        // A clearsigned list: its header ("Hash: SHA256", up to a blank line) and its signature's armor are not checksum lines.
+        bool clearSigned = false, header = false, armor = false;
         while (true)
         {
             int newline = remaining.IndexOf('\n');
             ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
             lineNumber++;
             ReadOnlySpan<char> line = raw.TrimEnd('\r');
-            if (!line.Trim().IsEmpty && line[0] is not ('#' or ';'))
+            if (!clearSigned && entries.Count == 0 && line.SequenceEqual("-----BEGIN PGP SIGNED MESSAGE-----")) clearSigned = header = true;
+            else if (header) header = !line.Trim().IsEmpty;
+            else if (clearSigned && !armor && line.SequenceEqual("-----BEGIN PGP SIGNATURE-----")) armor = true;
+            else if (armor) armor = !line.SequenceEqual("-----END PGP SIGNATURE-----");
+            else if (!line.Trim().IsEmpty && line[0] is not ('#' or ';'))
             {
                 if (entries.Count >= MaxEntries) throw new InvalidDataException($"The manifest lists more than {MaxEntries:N0} files.");
                 if (line.Length > MaxLineChars)
@@ -226,7 +237,7 @@ public static partial class ChecksumManifests
             if (newline < 0) break;
             remaining = remaining[(newline + 1)..];
         }
-        return new ChecksumManifest(manifestPath, root, entries);
+        return new ChecksumManifest(manifestPath, root, entries) { ClearSigned = clearSigned };
     }
 
     private static ManifestEntry ParseLine(string root, string line, int number, ChecksumKind? announced)
@@ -345,19 +356,44 @@ public static partial class ChecksumManifests
 
 /// <summary>
 /// Verifies checksum manifests (<see cref="JobRequest.Sources"/>): an explicit, cancellable read-only job with byte
-/// progress and a result per listed file. Mismatches and missing files are errors; unverifiable lines are reported.
+/// progress and a result per listed file. Mismatches and missing files are errors; unverifiable lines are reported. A
+/// signature over a manifest (<c>SHA256SUMS.asc</c>, <c>.minisig</c>) vouches for what it lists, as beside files (D-57):
+/// it is checked once, and a bad one fails every file the manifest lists. Lines the check beside the files compared
+/// already (<see cref="JobRequest.ComparedBeside"/>) are left out; with <see cref="JobRequest.IgnoreMissing"/>, so are
+/// lines for files that are not there.
 /// </summary>
 internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
     public const string MismatchCause = "checksum-mismatch";
     public const string MissingCause = "checksum-missing";
+    /// <summary>The file's checksum matched, but the signature over the manifest that lists it is bad.</summary>
+    public const string SignatureCause = "checksum-signature-bad";
 
     public override void Execute()
     {
-        int verified = 0, mismatched = 0, missing = 0, unreadable = 0, skipped = 0, planned = 0;
+        int verified = 0, mismatched = 0, missing = 0, unreadable = 0, skipped = 0, planned = 0, unsure = 0, badSignature = 0, leftBeside = 0, absent = 0;
         var compatibilityOnly = new SortedSet<string>(StringComparer.Ordinal);
-        var plan = new List<(ManifestEntry Entry, string Manifest)>();
+        var plan = new List<(ManifestEntry Entry, string Manifest, IReadOnlyList<SignatureCheck> Signatures, string? Unvouched)>();
+        var signed = new List<string>();
+        string first = Job.Request.Sources.FirstOrDefault()?.FileSystemPath ?? "";
+        var report = Job.VerificationReport = new VerificationReport(System.IO.Path.GetDirectoryName(first) ?? "");
+        var compared = Job.Request.ComparedBeside;
+        // Named as listed when the manifest is in the folder the check started from; from that folder otherwise.
+        string Shown(string path) => System.IO.Path.GetDirectoryName(path) is { } folder && !string.Equals(folder, report.Folder, PathUtil.SafetyComparison)
+            ? PathUtil.IsSameOrUnder(path, report.Folder) ? System.IO.Path.GetRelativePath(report.Folder, path) : path
+            : System.IO.Path.GetFileName(path);
+        string NameOf(ManifestEntry e, ChecksumManifest m) => e.Path is { } p && !string.Equals(m.Root, report.Folder, PathUtil.SafetyComparison)
+            ? PathUtil.IsSameOrUnder(p, report.Folder) ? System.IO.Path.GetRelativePath(report.Folder, p) : p
+            : e.Name;
+        void Missing(ManifestEntry e, string why, string text)
+        {
+            missing++;
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, e.Path!, why, StepOutcome.Failed, MissingCause);
+            report.Add(new VerifiedFile(e.Path, e.Name, VerifiedOutcome.Missing, text) { Notes = [why] });
+        }
         long bytes = 0;
+        bool completed = false;
         try
         {
             for (int i = 0; i < Job.Request.Sources.Count; i++)
@@ -365,96 +401,257 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                 Job.Checkpoint();
                 var source = Job.Request.Sources[i];
                 string manifestPath = source.FileSystemPath ?? throw new NotSupportedException("Checksum manifests are verified only on disk.");
+                string manifestName = Shown(manifestPath);
+                // What signs it is found first: then a signature is checked over the very bytes whose lines are verified.
+                var claims = FolderSidecars.SignaturesOver(manifestPath);
                 ChecksumManifest manifest;
-                try { manifest = ChecksumManifests.Load(manifestPath); }
+                byte[] content = [];
+                try
+                {
+                    manifest = claims is { Count: > 0 }
+                        ? ChecksumManifests.Load(manifestPath, ChecksumManifests.MaxManifestBytes, out content)
+                        : ChecksumManifests.Load(manifestPath);
+                }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                 {
-                    Issue(IssueSeverity.Error, manifestPath, "The manifest could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                    string why = $"{manifestName} could not be read: {ErrorText.Describe(ex)}";
+                    Issue(IssueSeverity.Error, manifestPath, why, StepOutcome.Failed);
+                    // Listed with the files: a checksum file chosen and not read is a problem, not a footnote.
+                    report.Add(new VerifiedFile(manifestPath, manifestName, VerifiedOutcome.Unreadable, "could not be read") { Notes = [why] });
                     Job.RootFailed(i);
                     continue;
                 }
                 if (manifest.Entries.Count == 0)
                 {
                     Issue(IssueSeverity.Error, manifestPath, "No checksum lines were found in this file.", StepOutcome.Failed);
+                    report.Add(new VerifiedFile(manifestPath, manifestName, VerifiedOutcome.NotChecked, "lists no checksums")
+                    {
+                        Notes = [$"{manifestName} has no checksum lines: there is nothing in it to check files against."],
+                    });
                     Job.RootFailed(i);
                     continue;
                 }
+                // Checked once, before the files it lists are read: what the signature says holds for each of them.
+                var signatures = SignaturesOver(manifestPath, manifestName, claims, content, report, signed, out string? unvouched);
+                if (manifest.ClearSigned)
+                {
+                    string inline = $"{manifestName} carries its own OpenPGP signature (it is clearsigned), which FileCat does not check: what it lists is " +
+                                    $"at most intact, not proven authentic. gpg --verify {manifestName} checks that signature.";
+                    Issue(IssueSeverity.Info, manifestPath, inline, StepOutcome.Committed);
+                    report.Note(inline);
+                }
+                // The lines the check beside the files compared are keyed by the checksum file as that check found it.
+                string listed = System.IO.Path.GetFullPath(manifestPath);
+                int notHere = 0;
                 foreach (var e in manifest.Entries)
                 {
+                    // Compared beside its file already (by the check this one followed), exactly as it reads here: that file is
+                    // shown there, with this line among its claims.
+                    if (compared is not null && e.Problem is null && compared.Contains(new ChecksumClaim(e.Kind, e.Expected, listed, e.Line)))
+                    {
+                        leftBeside++;
+                        continue;
+                    }
                     if (e.Problem is not null)
                     {
                         skipped++;
                         Job.ItemSkipped();
                         Issue(IssueSeverity.Warning, manifestPath, $"Line {e.Line}: {e.Problem}", StepOutcome.Skipped);
+                        // Named by where it is: the line may hold anything (a bare value, a refused path).
+                        report.Add(new VerifiedFile(e.Path, $"{manifestName}, line {e.Line}", VerifiedOutcome.NotChecked, "not checked")
+                        {
+                            IsLine = true,
+                            // A checksum with a name it may not use, or a line that is no checksum at all.
+                            Notes = [e.Problem, e.Expected.Length > 0 ? $"It names: {VerificationReport.Cut(e.Name, 260)}" : $"It reads: {e.Name}"],
+                        });
                         continue;
                     }
                     var info = Fs.TryGetInfo(e.Path!);
+                    if (info is null && Job.Request.IgnoreMissing)
+                    {
+                        notHere++;
+                        continue;
+                    }
                     if (info is null || info.IsDirectory)
                     {
-                        missing++;
-                        Job.ItemFailed();
-                        Issue(IssueSeverity.Error, e.Path!, info is null
-                            ? $"Missing: {System.IO.Path.GetFileName(manifestPath)} lists it (line {e.Line}), but it does not exist."
-                            : $"Listed in {System.IO.Path.GetFileName(manifestPath)} (line {e.Line}) as a file, but it is a folder.", StepOutcome.Failed, MissingCause);
+                        var entry = e with { Name = NameOf(e, manifest) };
+                        if (info is null) Missing(entry, $"Missing: {manifestName} lists it (line {e.Line}), but it is not there.", "missing");
+                        else Missing(entry, $"Listed in {manifestName} (line {e.Line}) as a file, but it is a folder.", "a folder, not a file");
                         continue;
                     }
                     if (Checksums.IsCompatibilityOnly(e.Kind)) compatibilityOnly.Add(Checksums.Name(e.Kind));
-                    plan.Add((e, manifestPath));
+                    plan.Add((e with { Name = NameOf(e, manifest) }, manifestPath, signatures, unvouched));
                     bytes += Math.Max(0, info.Size);
+                }
+                if (notHere > 0)
+                {
+                    absent += notHere;
+                    report.Note($"{manifestName} also lists {(notHere == 1 ? "1 file that is not here: it was" : $"{notHere:N0} files that are not here: they were")} " +
+                                "not looked for (the folder was checked, not this checksum file).");
                 }
             }
             planned = plan.Count;
             Job.AddTotals(plan.Count + skipped + missing, bytes);
-            foreach (var (e, manifestPath) in plan)
+            foreach (var (e, manifestPath, signatures, unvouched) in plan)
             {
                 Job.Checkpoint();
                 Job.SetCurrent(e.Path);
+                string manifestName = Shown(manifestPath);
+                string actual;
                 try
                 {
                     var before = Verification.VerificationService.Stamp(e.Path!);
-                    string actual = Checksums.Compute(e.Path!, e.Kind, Job.Token, Job.AddBytes);
+                    actual = Checksums.Compute(e.Path!, e.Kind, Job.Token, n =>
+                    {
+                        Job.AddBytes(n);
+                        Job.AddDataProcessed(n);
+                    });
                     // The value read stays for the checks beside files (D-57): a large file then need not be read again.
                     if (before is { } stamp) Verification.VerificationService.Current?.Remember(e.Path!, stamp, new Dictionary<ChecksumKind, string> { [e.Kind] = actual });
-                    if (string.Equals(actual, e.Expected, StringComparison.OrdinalIgnoreCase))
-                    {
-                        verified++;
-                        Job.ItemDone();
-                    }
-                    else
-                    {
-                        mismatched++;
-                        Job.ItemFailed();
-                        Issue(IssueSeverity.Error, e.Path!, $"Does not match: its {Checksums.Name(e.Kind)} is {actual}; {System.IO.Path.GetFileName(manifestPath)} (line {e.Line}) says {e.Expected}.",
-                            StepOutcome.Failed, MismatchCause);
-                    }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
+                    // Gone since it was planned: missing, not unreadable.
+                    if (ex is FileNotFoundException or DirectoryNotFoundException || Verification.VerificationService.Stamp(e.Path!) is null)
+                    {
+                        Missing(e, $"Missing: it was moved or deleted while the check ran ({manifestName} lists it, line {e.Line}).", "not there any more");
+                        continue;
+                    }
                     unreadable++;
                     Job.ItemFailed();
-                    Issue(IssueSeverity.Error, e.Path!, "Could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                    string why = "It could not be read: " + ErrorText.Describe(ex);
+                    Issue(IssueSeverity.Error, e.Path!, why, StepOutcome.Failed);
+                    report.Add(new VerifiedFile(e.Path, e.Name, VerifiedOutcome.Unreadable, "could not be read") { Notes = [why] });
+                    continue;
                 }
+                // Judged and worded as the file's row would be: its checksum, and the signatures over the manifest.
+                string listName = System.IO.Path.GetFileName(manifestPath);
+                var result = Verifier.Check([new ChecksumClaim(e.Kind, e.Expected, manifestPath, e.Line)], [],
+                    _ => new Dictionary<ChecksumKind, string> { [e.Kind] = actual },
+                    (claim, _) => signatures.First(s => s.Claim == claim).Result,
+                    name => string.Equals(name, listName, StringComparison.Ordinal) ? [.. signatures.Select(s => s.Claim)] : [],
+                    Job.Token);
+                var entry = VerificationReport.Entry(e.Path!, e.Name, result);
+                if (!string.Equals(actual, e.Expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    mismatched++;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, e.Path!, $"Does not match: its {Checksums.Name(e.Kind)} is {actual}; {manifestName} (line {e.Line}) says {e.Expected}.",
+                        StepOutcome.Failed, MismatchCause);
+                }
+                else if (entry.Outcome == VerifiedOutcome.Failed)
+                {
+                    badSignature++;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, e.Path!, $"Its checksum matches {manifestName} (line {e.Line}), but the signature over {manifestName} is bad: the list may have been changed.",
+                        StepOutcome.Failed, SignatureCause);
+                }
+                else if (entry.Outcome == VerifiedOutcome.Good && unvouched is null)
+                {
+                    verified++;
+                    Job.ItemDone();
+                }
+                else
+                {
+                    // The checksum matched, but no signature could vouch for the list, or whether one does is not known (said
+                    // once, for the manifest).
+                    unsure++;
+                    Job.ItemDone();
+                    entry = entry with
+                    {
+                        Outcome = VerifiedOutcome.Unsure,
+                        Authentic = false,
+                        Notes = unvouched is null ? entry.Notes : [unvouched, .. entry.Notes],
+                    };
+                }
+                report.Add(entry);
             }
             if (compatibilityOnly.Count > 0)
                 Issue(IssueSeverity.Info, Job.Request.Sources[0].FileSystemPath ?? "",
                     $"{string.Join(" and ", compatibilityOnly)} {(compatibilityOnly.Count == 1 ? "is a compatibility check" : "are compatibility checks")}: a match shows the files are intact, not that they are authentic.",
                     StepOutcome.Committed);
+            completed = true;
+            report.IsComplete = true;
         }
         finally
         {
             var parts = new List<string>();
-            bool canceled = Job.IsCancellationRequested;
-            if (canceled) parts.Add($"canceled after {verified + mismatched + unreadable:N0} of {planned:N0} files");
+            bool ended = completed && !Job.IsCancellationRequested;
+            int matched = verified + unsure + badSignature, reached = matched + mismatched + unreadable;
+            bool any = matched + mismatched + missing + unreadable > 0;
+            // Never "all match" about a check that did not reach every file.
+            if (!ended)
+            {
+                string how = Job.IsCancellationRequested ? "canceled" : "stopped by an error";
+                parts.Add(planned > 0 ? $"{how} after {reached:N0} of {planned:N0} files" : $"{how} before any file was read");
+                if (matched > 0) parts.Add($"{matched:N0} match");
+            }
             // "All match" only about files that were compared: a manifest without a usable line verified nothing.
-            if (verified + mismatched + missing + unreadable == 0 && !canceled)
-                parts.Add(skipped > 0 ? $"nothing verified: none of its {skipped:N0} lines is a checksum line" : "nothing verified: the manifest lists no files");
-            else
-                parts.Add(mismatched == 0 && missing == 0 && unreadable == 0 && !canceled ? $"{verified:N0} verified, all match" : $"{verified:N0} match");
+            else if (!any)
+            {
+                if (leftBeside > 0)
+                {
+                    parts.Add("the files it lists were checked beside them");
+                    if (skipped > 0) parts.Add($"{skipped:N0} lines not verified");
+                }
+                else if (absent > 0) parts.Add("none of the files it lists is here");
+                else parts.Add(skipped > 0 ? $"nothing verified: none of its {skipped:N0} lines is a checksum line" : "nothing verified: the manifest lists no files");
+            }
+            // "0 match" says nothing beside what did not.
+            else if (matched > 0)
+                parts.Add(mismatched == 0 && missing == 0 && unreadable == 0 && badSignature == 0 ? $"{matched:N0} verified, all match" : $"{matched:N0} match");
             if (mismatched > 0) parts.Add($"{mismatched:N0} do not match");
             if (missing > 0) parts.Add($"{missing:N0} missing");
             if (unreadable > 0) parts.Add($"{unreadable:N0} unreadable");
-            if (skipped > 0 && verified + mismatched + missing + unreadable > 0) parts.Add($"{skipped:N0} lines not verified");
+            if (skipped > 0 && matched + mismatched + missing + unreadable > 0) parts.Add($"{skipped:N0} lines not verified");
+            if (absent > 0 && any) parts.Add($"{absent:N0} not here, not looked for");
+            if (leftBeside > 0 && any) parts.Add($"{leftBeside:N0} checked beside them");
+            parts.AddRange(signed);
             Job.SetSummary(string.Join(", ", parts));
         }
+    }
+
+    /// <summary>
+    /// The signatures over a manifest (<paramref name="claims"/>), checked now over <paramref name="content"/>, the bytes its
+    /// lines were read from, and what they say: in the results, in the job's summary, and as an issue when one cannot
+    /// vouch for the list (an error when it is bad). <paramref name="unvouched"/> says why its files are only unsure when
+    /// whether anything signs it could not be found out (its folder could not be listed) or the signatures not checked.
+    /// </summary>
+    private IReadOnlyList<SignatureCheck> SignaturesOver(string manifestPath, string name, IReadOnlyList<SignatureClaim>? claims, byte[] content,
+        VerificationReport report, List<string> summary, out string? unvouched)
+    {
+        unvouched = null;
+        if (claims is { Count: 0 }) return [];
+        if (claims is null || Verification.VerificationService.Current is not { } service)
+        {
+            unvouched = claims is null
+                ? $"Whether a signature vouches for {name} could not be found out: its folder could not be listed."
+                : $"The signatures over {name} were not checked: checking signatures is not set up here.";
+            Issue(IssueSeverity.Warning, manifestPath, unvouched, StepOutcome.Committed);
+            report.Note(unvouched);
+            summary.Add($"{name}: signatures not checked");
+            return [];
+        }
+        var checks = service.CheckSignaturesOver(manifestPath, claims, content, Job.Token);
+        foreach (var check in checks)
+        {
+            string text = $"{System.IO.Path.GetFileName(check.Claim.Signature)} (over {name}): {check.Result.Text}.";
+            report.Note(text);
+            switch (check.Result.State)
+            {
+                case VerificationState.SignatureGood:
+                    summary.Add($"{name} signed by {check.Result.Signer}");
+                    break;
+                case VerificationState.SignatureBad:
+                    summary.Add($"{name}: {Verifier.Short(check.Result)}");
+                    Issue(IssueSeverity.Error, manifestPath, text, StepOutcome.Failed, SignatureCause);
+                    break;
+                default:
+                    summary.Add($"{name}: {Verifier.Short(check.Result)}");
+                    Issue(IssueSeverity.Warning, manifestPath, text, StepOutcome.Committed);
+                    break;
+            }
+        }
+        return checks;
     }
 }

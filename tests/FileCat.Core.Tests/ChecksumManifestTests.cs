@@ -4,6 +4,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Operations;
 using FileCat.Core.Resources;
+using FileCat.Core.Verification;
 
 namespace FileCat.Core.Tests;
 
@@ -23,10 +24,18 @@ public sealed class ChecksumManifestTests : IDisposable
 
     private static string Sha256(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
-    private async Task<Job> VerifyAsync(params string[] manifests)
+    private async Task<Job> VerifyAsync(params string[] manifests) =>
+        await FinishedAsync(_jobs.Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = manifests.Select(m => ItemRef.ForFileSystemPath(m, EntryKind.File)).ToList() }));
+
+    /// <summary>The job once it has ended; one that does not within a minute fails the test instead of holding up the run.</summary>
+    private static async Task<Job> FinishedAsync(Job job)
     {
-        var job = _jobs.Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = manifests.Select(m => ItemRef.ForFileSystemPath(m, EntryKind.File)).ToList() });
-        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        var deadline = DateTime.UtcNow.AddMinutes(1);
+        while (!job.State.IsFinished())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"{job.Title} did not end within a minute ({job.State}).");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
         return job;
     }
 
@@ -108,6 +117,144 @@ public sealed class ChecksumManifestTests : IDisposable
         Assert.Equal(JobState.Completed, ok.State);
         Assert.Equal("1 verified, all match", ok.Summary);
         Assert.Contains(ok.Issues, i => i.Severity == IssueSeverity.Info && i.Message.Contains("MD5", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Its_results_list_every_line_with_both_values_problems_first()
+    {
+        _dir.File("good.txt", "good");
+        string bad = _dir.File("bad.txt", "changed");
+        string manifest = _dir.File("files.sha256", string.Join("\n",
+            $"{Sha256("good")}  good.txt", $"{Sha256("original")}  bad.txt", $"{Sha256("gone")}  gone.txt", $"{Sha256("x")}  ../outside.txt", ""));
+        var job = await VerifyAsync(manifest);
+        var report = job.VerificationReport!;
+        Assert.True(report.IsComplete);
+        Assert.Equal(_dir.Path, report.Folder);
+        Assert.Equal([("bad.txt", VerifiedOutcome.Failed), ("gone.txt", VerifiedOutcome.Missing), ("good.txt", VerifiedOutcome.Good), ("files.sha256, line 4", VerifiedOutcome.NotChecked)],
+            report.Files.Select(f => (f.Name, f.Outcome)));
+        var differs = Assert.Single(report.Files[0].Checksums);
+        Assert.Equal((Sha256("original"), Sha256("changed"), manifest, 2, bad), (differs.Claim.Expected, differs.Actual, differs.Claim.Source, differs.Claim.Line, report.Files[0].Path));
+        Assert.Contains("lists it (line 3), but it is not there", Assert.Single(report.Files[1].Notes), StringComparison.Ordinal);
+        // A line naming what may not be read is named by where it is, says why and what it names, and counts as a line.
+        Assert.Null(report.Files[3].Path);
+        Assert.True(report.Files[3].IsLine);
+        Assert.Equal(["Not verified: the path leads out of the manifest's folder (\"..\").", "It names: ../outside.txt"], report.Files[3].Notes);
+        Assert.Equal((4, 1), (report.Total, report.Lines));
+        // A checksum file nobody signed vouches for no origin: the matching file says so.
+        Assert.Contains(report.Files[2].Notes, n => n.Contains("proves nothing against tampering", StringComparison.Ordinal));
+        // What it read is counted as read (the operations strip's pace, and the results' "read from disk").
+        Assert.Equal(new FileInfo(bad).Length + new FileInfo(Path.Combine(_dir.Path, "good.txt")).Length, job.DataBytesProcessed);
+    }
+
+    [Fact]
+    public async Task Lines_the_check_beside_the_files_compared_are_left_out_and_no_others()
+    {
+        _dir.File("good.txt", "good");
+        _dir.File("sub/x.txt", "x");
+        string manifest = _dir.File("files.sha256", $"{Sha256("good")}  good.txt\n{Sha256("x")}  sub/x.txt\n");
+        // As the check of the files against everything beside them read the line: the checksum file, the line, the value.
+        ChecksumClaim Line(string list, int line, string expected) => new(ChecksumKind.Sha256, expected, Path.GetFullPath(list), line);
+        async Task<Job> VerifyAfterBesideAsync(string list, params ChecksumClaim[] compared) => await FinishedAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.VerifyChecksums,
+            Sources = [ItemRef.ForFileSystemPath(list, EntryKind.File)],
+            ComparedBeside = new HashSet<ChecksumClaim>(compared),
+        }));
+
+        // Compared already: left out. Not compared (a file in another folder): checked here.
+        var job = await VerifyAfterBesideAsync(manifest, Line(manifest, 1, Sha256("good")));
+        Assert.Equal("sub/x.txt", Assert.Single(job.VerificationReport!.Files).Name);
+        Assert.Equal("1 verified, all match, 1 checked beside them", job.Summary);
+
+        // The list changed since that check read it: a line that reads otherwise now is checked, not taken as compared.
+        var changed = await VerifyAfterBesideAsync(manifest, Line(manifest, 1, Sha256("an older value")), Line(manifest, 2, Sha256("x")));
+        Assert.Equal("good.txt", Assert.Single(changed.VerificationReport!.Files).Name);
+
+        // Every line compared already: it says so, not that it verified nothing.
+        string mine = _dir.File("mine.sha256", $"{Sha256("good")}  good.txt\n");
+        var left = await VerifyAfterBesideAsync(mine, Line(mine, 1, Sha256("good")));
+        Assert.Empty(left.VerificationReport!.Files);
+        Assert.Equal("the files it lists were checked beside them", left.Summary);
+    }
+
+    [Fact]
+    public async Task Checksum_files_found_in_a_folder_being_checked_leave_out_files_that_are_not_there()
+    {
+        _dir.File("desktop.iso", "desktop");
+        string sums = _dir.File("SHA256SUMS", $"{Sha256("desktop")}  desktop.iso\n{Sha256("server")}  server.iso\n{Sha256("arm")}  arm.iso\n");
+        var job = await FinishedAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.VerifyChecksums,
+            Sources = [ItemRef.ForFileSystemPath(sums, EntryKind.File)],
+            IgnoreMissing = true,
+        }));
+        // As sha256sum --ignore-missing: what is here is checked, what is not is no failure, and the results say so once.
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal("1 verified, all match, 2 not here, not looked for", job.Summary);
+        var report = job.VerificationReport!;
+        Assert.Equal([("desktop.iso", VerifiedOutcome.Good)], report.Files.Select(f => (f.Name, f.Outcome)));
+        Assert.Equal(["SHA256SUMS also lists 2 files that are not here: they were not looked for (the folder was checked, not this checksum file)."], report.Notes);
+        // Chosen, the same checksum file reports them missing.
+        Assert.Equal(2, (await VerifyAsync(sums)).VerificationReport!.Count(VerifiedOutcome.Missing));
+    }
+
+    [Fact]
+    public async Task A_clearsigned_checksum_file_is_read_without_its_armor_and_says_its_signature_is_not_checked()
+    {
+        _dir.File("Fedora.iso", "fedora");
+        string list = _dir.File("Fedora-CHECKSUM", string.Join("\n",
+            "-----BEGIN PGP SIGNED MESSAGE-----", "Hash: SHA256", "",
+            "# Fedora.iso: 6 bytes", $"SHA256 (Fedora.iso) = {Sha256("fedora")}",
+            "-----BEGIN PGP SIGNATURE-----", "", "iQIzBAEBCAAdFiEEabcdefghijklmnopqrstuvwxyz0123456789", "=AbCd", "-----END PGP SIGNATURE-----", ""));
+        var manifest = ChecksumManifests.Parse(list, File.ReadAllText(list));
+        Assert.True(manifest.ClearSigned);
+        Assert.Equal(("Fedora.iso", 5), (Assert.Single(manifest.Entries).Name, manifest.Entries[0].Line));
+        // Its lines are checked; what its own signature would say is not claimed.
+        var job = await VerifyAsync(list);
+        var file = Assert.Single(job.VerificationReport!.Files);
+        Assert.Equal((VerifiedOutcome.Good, false), (file.Outcome, file.Authentic));
+        Assert.Contains(job.VerificationReport.Notes, n => n.StartsWith("Fedora-CHECKSUM carries its own OpenPGP signature (it is clearsigned), which FileCat does not check", StringComparison.Ordinal));
+        // Armor anywhere but around a clearsigned list is read as lines (and so reported, not hidden).
+        var plain = ChecksumManifests.Parse(list, $"{Sha256("fedora")}  Fedora.iso\n-----BEGIN PGP SIGNATURE-----\n{Sha256("x")}  x.iso\n");
+        Assert.False(plain.ClearSigned);
+        Assert.Equal(3, plain.Entries.Count);
+    }
+
+    [Fact]
+    public async Task A_check_stopped_by_an_error_never_says_all_match()
+    {
+        _dir.File("good.txt", "good");
+        string trap = Path.Combine(_dir.Path, "trap.txt");
+        string manifest = _dir.File("files.sha256", $"{Sha256("gone")}  gone.txt\n{Sha256("trap")}  trap.txt\n{Sha256("good")}  good.txt\n");
+        var jobs = new JobManager(new FailingOn(trap), _providers, Path.Combine(_dir.Path, "journal2"));
+        var job = await FinishedAsync(jobs.Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = [ItemRef.ForFileSystemPath(manifest, EntryKind.File)] }));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal("stopped by an error before any file was read, 1 missing", job.Summary);
+        // What it reached is kept, and known not to be all there was.
+        Assert.False(job.VerificationReport!.IsComplete);
+        Assert.Equal("gone.txt", Assert.Single(job.VerificationReport.Files).Name);
+    }
+
+    /// <summary>Asked about one path, it fails as a defect would (not an I/O error a check expects).</summary>
+    private sealed class FailingOn(string path) : PortableFileOperations
+    {
+        public override FileSystemItemInfo? TryGetInfo(string asked) =>
+            string.Equals(asked, path, StringComparison.OrdinalIgnoreCase) ? throw new InvalidOperationException("a defect") : base.TryGetInfo(asked);
+    }
+
+    [Fact]
+    public async Task A_checksum_file_that_cannot_be_read_or_lists_nothing_is_listed_with_the_files()
+    {
+        // Chosen and not read (here a folder with a checksum file's name): a problem in the list, not a footnote.
+        string unreadable = Directory.CreateDirectory(Path.Combine(_dir.Path, "dir.sha256")).FullName;
+        string empty = _dir.File("empty.md5", "# only a comment\n");
+        _dir.File("good.txt", "good");
+        string fine = _dir.File("fine.sha256", $"{Sha256("good")}  good.txt\n");
+        var report = (await VerifyAsync(unreadable, empty, fine)).VerificationReport!;
+        Assert.Equal([("dir.sha256", VerifiedOutcome.Unreadable), ("good.txt", VerifiedOutcome.Good), ("empty.md5", VerifiedOutcome.NotChecked)],
+            report.Files.Select(f => (f.Name, f.Outcome)));
+        Assert.StartsWith("dir.sha256 could not be read", Assert.Single(report.Files[0].Notes), StringComparison.Ordinal);
+        Assert.Equal(("lists no checksums", "empty.md5 has no checksum lines: there is nothing in it to check files against."), (report.Files[2].Text, Assert.Single(report.Files[2].Notes)));
     }
 
     [Fact]

@@ -587,7 +587,8 @@ public sealed partial class MainViewModel
         }
         // Permissions change without a new modification time: shown values are read again.
         if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
-        RefreshAffected(job);
+        // Verifying only reads: nothing to list again (the rows of the files it read ask for their new results).
+        if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside)) RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);

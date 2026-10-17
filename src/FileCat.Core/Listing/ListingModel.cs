@@ -1005,6 +1005,20 @@ public sealed class ListingModel : IDisposable
     }
 
     /// <summary>
+    /// The files the listing shows (not folders or ".."), in display order, captured as a large selection is: one integer
+    /// each here, the items made where they are used. Null without a location; the caller releases it when done with it.
+    /// </summary>
+    public SelectionSnapshot? CaptureShownFiles()
+    {
+        if (Provider is null || Location is null) return null;
+        var indices = new List<int>();
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
+        foreach (int si in EnumerateVisible())
+            if (si < _appliedCount && scan[si].Kind == EntryKind.File) indices.Add(si);
+        return new SelectionSnapshot(Provider, Location, _store, [.. indices]);
+    }
+
+    /// <summary>
     /// Marked items in display order (hidden marked items last), or the focused item when none are marked. Large
     /// selections come back as a <see cref="SelectionSnapshot"/> that the caller releases when done with it.
     /// </summary>

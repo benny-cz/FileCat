@@ -34,6 +34,15 @@ public sealed record VerificationResult(VerificationState State, string Text, IR
     /// <summary>The file changed a moment ago and was not read: ask again once it has been still (it may be being written).</summary>
     public bool Settling { get; init; }
 
+    /// <summary>Each checksum compared with the file's own value, the strongest first: from a check just made (a kept result has none).</summary>
+    public IReadOnlyList<ChecksumComparison> Checksums { get; init; } = [];
+
+    /// <summary>Each signature checked, over the file or over a checksum file that lists it (as <see cref="Checksums"/>).</summary>
+    public IReadOnlyList<SignatureCheck> Signatures { get; init; } = [];
+
+    /// <summary>What a match does not show (MD5 is forgeable; an unsigned checksum proves no origin), also among <see cref="Details"/>.</summary>
+    public IReadOnlyList<string> Notes { get; init; } = [];
+
     public bool IsGood => State is VerificationState.Matches or VerificationState.SignatureGood;
     public bool IsBad => State is VerificationState.Differs or VerificationState.SignatureBad;
 }
@@ -46,7 +55,7 @@ public static class Verifier
     /// <summary>Each algorithm's value for the file, read once in 1 MiB blocks; <paramref name="progress"/> gets the bytes of each block.</summary>
     public static Dictionary<ChecksumKind, string> Hash(string path, IReadOnlyCollection<ChecksumKind> kinds, CancellationToken ct, Action<long>? progress = null)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+        using var stream = VerificationFileReader.OpenSequential(path);
         var hashes = kinds.Where(k => k != ChecksumKind.Crc32).Distinct().ToDictionary(k => k, k => IncrementalHash.CreateHash(k switch
         {
             ChecksumKind.Md5 => HashAlgorithmName.MD5,
@@ -96,15 +105,21 @@ public static class Verifier
         var importantDetails = new List<bool>();
         var texts = new List<string>();
         var importantTexts = new List<bool>();
-        long hiddenDetails = 0, hiddenTexts = 0;
+        // The same claims, kept whole for the results of a check asked for (the comparisons, the signatures).
+        var comparisons = new List<ChecksumComparison>();
+        var importantComparisons = new List<bool>();
+        var signatureChecks = new List<SignatureCheck>();
+        var importantSignatures = new List<bool>();
+        var notes = new List<string>();
+        long hiddenDetails = 0, hiddenTexts = 0, hiddenClaims = 0;
         VerificationState? state = null;
-        bool hasManifestSignature = false;
-        static void Show(List<string> messages, List<bool> priorities, ref long hidden, string message, bool important, int maximum)
+        bool hasManifestSignature = false, signedByTrustedKey = false;
+        int differing = 0;
+        static void Keep<T>(List<T> items, List<bool> priorities, ref long hidden, T item, bool important, int maximum)
         {
-            if (message.Length > maxMessageChars) message = message[..maxMessageChars] + "…";
-            if (messages.Count < maximum - 1)
+            if (items.Count < maximum - 1)
             {
-                messages.Add(message);
+                items.Add(item);
                 priorities.Add(important);
                 return;
             }
@@ -113,16 +128,23 @@ public static class Verifier
                 int replace = priorities.FindLastIndex(priority => !priority);
                 if (replace >= 0)
                 {
-                    messages.RemoveAt(replace);
+                    items.RemoveAt(replace);
                     priorities.RemoveAt(replace);
-                    messages.Add(message);
+                    items.Add(item);
                     priorities.Add(true);
                 }
             }
             hidden++;
         }
+        static void Show(List<string> messages, List<bool> priorities, ref long hidden, string message, bool important, int maximum) =>
+            Keep(messages, priorities, ref hidden, message.Length > maxMessageChars ? message[..maxMessageChars] + "…" : message, important, maximum);
         void Detail(string message, bool important = false) => Show(details, importantDetails, ref hiddenDetails, message, important, maxDetails);
         void Text(string message, bool important = false) => Show(texts, importantTexts, ref hiddenTexts, message, important, maxTextParts);
+        void Note(string message)
+        {
+            Detail(message, important: true);
+            if (!notes.Contains(message)) notes.Add(message);
+        }
         void Include(VerificationState next) => state = state is { } current && current < next ? current : next;
         if (checksums.Count > 0)
         {
@@ -139,7 +161,9 @@ public static class Verifier
             {
                 string name = Checksums.Name(claim.Kind);
                 string where = $"{Path.GetFileName(claim.Source)}, line {claim.Line}";
-                if (string.Equals(actual[claim.Kind], claim.Expected, StringComparison.OrdinalIgnoreCase))
+                var comparison = new ChecksumComparison(claim, actual[claim.Kind]);
+                Keep(comparisons, importantComparisons, ref hiddenClaims, comparison, !comparison.Matches, maxDetails);
+                if (comparison.Matches)
                 {
                     if (!matched.Contains(name)) matched.Add(name);
                     Detail($"{name} matches {where}.");
@@ -150,10 +174,12 @@ public static class Verifier
                     Detail($"{name} differs: {where} says {claim.Expected}, the file's is {actual[claim.Kind]}.", important: true);
                 }
             }
+            differing = differed.Count;
             if (differed.Count > 0)
             {
                 Include(VerificationState.Differs);
                 Text($"✗ {string.Join(", ", differed)} differs", important: true);
+                Note("It is not the file the checksum describes: it was damaged, cut short, or changed, or the checksum itself is wrong.");
             }
             else
             {
@@ -162,32 +188,57 @@ public static class Verifier
                 Text($"✓ {string.Join(", ", matched)}" + (kinds.All(Checksums.IsCompatibilityOnly) ? " (integrity only)" : ""));
             }
             if (checksums.Any(c => Checksums.IsCompatibilityOnly(c.Kind)))
-                Detail("MD5, SHA-1, and CRC-32 show that the file is intact, not that it is authentic: they can be forged.", important: true);
-            // A signature over a manifest vouches for the files it lists.
+                Note("MD5, SHA-1, and CRC-32 show that the file is intact, not that it is authentic: they can be forged.");
+            // A signature over a manifest vouches for the files it lists, as far as the hash that ties each file to it can:
+            // MD5, SHA-1, and CRC-32 can be forged, so through them a file is intact, never proven authentic.
             foreach (string manifest in checksums.Select(c => c.Source).Distinct())
                 foreach (var signature in manifestSignatures(Path.GetFileName(manifest)))
                 {
                     var r = checkSignature(signature, ct);
                     hasManifestSignature = true;
+                    Keep(signatureChecks, importantSignatures, ref hiddenClaims, new SignatureCheck(signature, r, Path.GetFileName(manifest)), r.State != VerificationState.SignatureGood, maxDetails);
                     Detail($"{Path.GetFileName(signature.Signature)} (over {Path.GetFileName(manifest)}): {r.Text}.", important: r.State != VerificationState.SignatureGood);
+                    var tied = checksums.Where(c => c.Source == manifest).Select(c => c.Kind).Distinct().ToList();
+                    if (r.State == VerificationState.SignatureGood && tied.All(Checksums.IsCompatibilityOnly))
+                    {
+                        string weak = string.Join(" and ", tied.Select(Checksums.Name));
+                        Include(VerificationState.Matches);
+                        // Said of a file that matches: one that differs is neither intact nor authentic.
+                        if (differed.Count == 0)
+                        {
+                            Text($"manifest signed by {r.Signer}, but {weak} can be forged", important: true);
+                            Note($"{Path.GetFileName(signature.Signature)} is a good signature by {r.Signer} over {Path.GetFileName(manifest)}, but that list names this file "
+                                 + $"by {weak} only, which can be forged: the file is intact, not proven authentic.");
+                        }
+                        continue;
+                    }
                     Include(r.State);
                     if (r.State == VerificationState.SignatureGood && differed.Count == 0) Text($"manifest signed by {r.Signer}");
                     else if (r.State != VerificationState.SignatureGood) Text("manifest " + Short(r), important: true);
                 }
-            if (!hasManifestSignature && differed.Count == 0)
-                Detail("A checksum beside its file shows that the file is intact; it proves nothing against tampering unless it is signed, or came from a place you trust.", important: true);
         }
         foreach (var signature in signatures)
         {
             var r = checkSignature(signature, ct);
+            signedByTrustedKey |= r.State == VerificationState.SignatureGood;
+            Keep(signatureChecks, importantSignatures, ref hiddenClaims, new SignatureCheck(signature, r), r.State != VerificationState.SignatureGood, maxDetails);
             Detail($"{Path.GetFileName(signature.Signature)}: {r.Text}.", important: r.State != VerificationState.SignatureGood);
             Include(r.State);
             Text(r.State == VerificationState.SignatureGood ? $"✓ signed by {r.Signer}" : Short(r), important: r.State != VerificationState.SignatureGood);
         }
+        // An unsigned checksum that matches proves no origin; a file a trusted key signed itself needs no such warning.
+        if (checksums.Count > 0 && !hasManifestSignature && differing == 0 && !signedByTrustedKey)
+            Note("A checksum beside its file shows that the file is intact; it proves nothing against tampering unless it is signed, or came from a place you trust.");
         if (state is null) return new VerificationResult(VerificationState.NotChecked, "", []);
         if (hiddenDetails > 0) details.Add($"{hiddenDetails:N0} more claims or signatures were checked; details not shown.");
         if (hiddenTexts > 0) texts.Add($"{hiddenTexts:N0} more results");
-        return new VerificationResult(state.Value, string.Join(" · ", texts), details);
+        if (hiddenClaims > 0) notes.Add($"{hiddenClaims:N0} more claims or signatures were checked and are not listed; those listed include every one that failed, up to {maxDetails - 1}.");
+        return new VerificationResult(state.Value, string.Join(" · ", texts), details)
+        {
+            Checksums = comparisons,
+            Signatures = signatureChecks,
+            Notes = notes,
+        };
     }
 
     private static int Strength(ChecksumKind kind) => kind switch
@@ -200,7 +251,8 @@ public static class Verifier
         _ => 5,
     };
 
-    private static string Short(SignatureResult r) => r.Short ?? r.State switch
+    /// <summary>A signature's result in a few words for a row ("✗ bad signature", "? signed by an unknown key").</summary>
+    internal static string Short(SignatureResult r) => r.Short ?? r.State switch
     {
         VerificationState.SignatureBad => "✗ bad signature",
         VerificationState.SignatureUnknownKey => "? signed by an unknown key",

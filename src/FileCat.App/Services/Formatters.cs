@@ -185,30 +185,61 @@ public static class Formatters
     }
 
     /// <summary>
-    /// Escapes control and bidirectional characters, and the Unicode line and paragraph separators (where a text engine
-    /// may break a one-line name, hiding its end), so a name cannot visually spoof another (§18.3).
+    /// Escapes control and bidirectional characters, the Unicode line and paragraph separators (where a text engine may break
+    /// a one-line name, hiding its end), and characters that show nothing (a zero-width space, a soft hyphen, a filler, a tag,
+    /// half a surrogate pair), so a name cannot visually spoof another (§18.3). Joiners and variation selectors stay where
+    /// they join or vary something (an emoji sequence, Persian or Indic text, a keycap), and tags where they spell a flag.
     /// </summary>
     public static string SafeName(string name)
     {
-        bool needs = false;
-        foreach (var c in name)
+        StringBuilder? escaped = null;
+        bool flag = false;
+        for (int i = 0; i < name.Length;)
         {
-            if (Escapes(c)) { needs = true; break; }
+            bool pair = char.IsHighSurrogate(name[i]) && i + 1 < name.Length && char.IsLowSurrogate(name[i + 1]);
+            int code = pair ? char.ConvertToUtf32(name[i], name[i + 1]) : name[i], width = pair ? 2 : 1;
+            if (Hidden(name, i, code, width, ref flag))
+            {
+                escaped ??= new StringBuilder(name.Length + 8).Append(name, 0, i);
+                escaped.Append(code > 0xFFFF ? $"{(char)92}U{code:X8}" : $"{(char)92}u{code:X4}");
+            }
+            else escaped?.Append(name, i, width);
+            i += width;
         }
-        if (!needs) return name;
-        var sb = new StringBuilder(name.Length + 8);
-        foreach (var c in name)
-        {
-            if (Escapes(c)) sb.Append($"\\u{(int)c:X4}");
-            else sb.Append(c);
-        }
-        return sb.ToString();
+        return escaped?.ToString() ?? name;
     }
 
-    private static bool Escapes(char c) => char.IsControl(c) || IsBidiControl(c) || c is (char)0x2028 or (char)0x2029;
+    /// <param name="flag">Inside a flag's tags (a black flag, then tags up to the cancel tag).</param>
+    private static bool Hidden(string name, int i, int code, int width, ref bool flag)
+    {
+        if (code is >= 0xE0000 and <= 0xE007F)
+        {
+            // Tags spell a subdivision's flag after a black flag; anywhere else they show nothing.
+            bool spells = flag && code >= 0xE0020;
+            flag = spells && code != 0xE007F;
+            return !spells;
+        }
+        flag = code == 0x1F3F4;
+        if (code <= 0xFFFF && (char.IsControl((char)code) || IsBidiControl((char)code) || char.IsSurrogate((char)code))) return true;
+        if (code is 0x200C or 0x200D or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF) return !Joins(name, i, width, code);
+        return code is 0x00AD or 0x034F or 0x115F or 0x1160 or 0x17B4 or 0x17B5 or >= 0x180B and <= 0x180F or 0x200B
+            or 0x2028 or 0x2029 or >= 0x2060 and <= 0x206F or 0x3164 or 0xFEFF or 0xFFA0 or >= 0xFFF0 and <= 0xFFF8
+            or >= 0x1BCA0 and <= 0x1BCA3 or >= 0x1D173 and <= 0x1D17A;
+    }
+
+    /// <summary>
+    /// A joiner between two characters beyond ASCII (an emoji sequence, a script that joins letters), or a variation selector
+    /// after one (an emoji's presentation) or in a keycap ("1", the selector, the enclosing keycap): there they show something.
+    /// </summary>
+    private static bool Joins(string name, int i, int width, int code)
+    {
+        char before = i > 0 ? name[i - 1] : (char)0, after = i + width < name.Length ? name[i + width] : (char)0;
+        if (code is 0x200C or 0x200D) return before > 0x7F && after > 0x7F;
+        return before > 0x7F || after == (char)0x20E3 && (char.IsAsciiDigit(before) || before is '#' or '*');
+    }
 
     private static bool IsBidiControl(char c) =>
-        c is >= '‪' and <= '‮' or >= '⁦' and <= '⁩' or '‎' or '‏' or '؜';
+        c is >= (char)0x202A and <= (char)0x202E or >= (char)0x2066 and <= (char)0x2069 or (char)0x200E or (char)0x200F or (char)0x061C;
 
     public static string Plural(int n, string singular, string plural) =>
         n.ToString("N0", CultureInfo.CurrentCulture) + " " + (n == 1 ? singular : plural);

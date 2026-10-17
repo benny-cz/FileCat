@@ -38,6 +38,12 @@ public partial class OperationsView : UserControl
         if (JobOf(sender) is { } j && Main is { } main) await main.RetryElevatedAsync(j.Job);
     }
 
+    private async void OnShowResults(object? sender, RoutedEventArgs e)
+    {
+        // The results of the check on this row (and of the check started with it), as they opened when it ended.
+        if (JobOf(sender) is { } j && Main is { } main) await main.ShowVerificationResultsAsync(j.Job);
+    }
+
     private void OnToggleDetails(object? sender, RoutedEventArgs e)
     {
         if (Center is { } c) c.IsOpen = !c.IsOpen;

@@ -38,12 +38,17 @@ public sealed class ChecksumManifestDialogTests
 
             vm.Execute(CommandIds.Checksum);
             await Click("Verify listed files");
+            // What is checked how is worked out first (off the UI thread), then the job starts.
+            for (int i = 0; i < 250 && services.Jobs.Jobs.Count == 0; i++) await Task.Delay(20, ct);
             var job = Assert.Single(services.Jobs.Jobs);
             for (int i = 0; i < 250 && !job.State.IsFinished(); i++) await Task.Delay(20, ct);
             Assert.Equal(JobState.CompletedWithIssues, job.State);
             Assert.Equal("1 match, 1 do not match", job.Summary);
 
-            await Click("Show 1 file in a panel");
+            // Its results open: the failure first, then the match.
+            for (int i = 0; i < 250 && !window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "1 of 2 files failed"); i++) await Task.Delay(20, ct);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "1 of 2 files failed");
+            await Click("Show 1 failed file in a panel");
             for (int i = 0; i < 250 && (dialogs.IsOpen || vm.ActiveTab?.Location?.Scheme != Schemes.ResultSet); i++) await Task.Delay(20, ct);
             var results = vm.ActiveTab!;
             Assert.Equal(Schemes.ResultSet, results.Location!.Scheme);

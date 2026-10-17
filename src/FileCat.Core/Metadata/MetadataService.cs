@@ -254,13 +254,35 @@ public sealed class MetadataService
     public void Forget(string fieldId, string path)
     {
         string prefix = fieldId + "|", suffix = "|" + path;
-        bool Matches(string key) => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal);
+        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal));
+    }
+
+    /// <summary>Forgets one field's values for many items (the files a job just checked) in one pass over what is kept.</summary>
+    public void Forget(string fieldId, IReadOnlyCollection<string> paths)
+    {
+        if (paths.Count == 0) return;
+        // A checksum file may spell a name in another letter case than the folder does: forgetting a namesake too only asks again.
+        var wanted = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        string prefix = fieldId + "|";
+        // A key is the field, the item's time and size (numbers), and its path: the path follows the third separator.
+        static string? PathOf(string key)
+        {
+            int at = -1;
+            for (int i = 0; i < 3; i++)
+                if ((at = key.IndexOf('|', at + 1)) < 0) return null;
+            return key[(at + 1)..];
+        }
+        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && PathOf(key) is { } path && wanted.Contains(path));
+    }
+
+    private void Forget(Func<string, bool> matches)
+    {
         lock (_publicationLock)
         {
             foreach (var production in _productions)
-                if (Matches(production.Key)) production.Current = false;
+                if (matches(production.Key)) production.Current = false;
             foreach (string key in _cache.Keys)
-                if (Matches(key))
+                if (matches(key))
                 {
                     _cache.TryRemove(key, out _);
                     _producedAt.TryRemove(key, out _);
@@ -269,7 +291,7 @@ public sealed class MetadataService
             // Publication holds this same lock, so one pass preserves the order of every unrelated cached value.
             int ordered = _order.Count;
             while (ordered-- > 0 && _order.TryDequeue(out var old))
-                if (!Matches(old)) _order.Enqueue(old);
+                if (!matches(old)) _order.Enqueue(old);
         }
         Notify();
     }

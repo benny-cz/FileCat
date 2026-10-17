@@ -42,8 +42,9 @@ public sealed class VerificationCache(string? file)
     /// <summary>
     /// A result's key: the file, the sidecars it depends on, and what vouches for its signers (key files, gpg's keyring).
     /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted; the
-    /// states were once ordered otherwise), version 3's ambiguous delimiter-based source names, and version 4's
-    /// metadata-only sidecars (an in-place rewrite can restore both size and mtime).
+    /// states were once ordered otherwise), version 3's ambiguous delimiter-based source names, version 4's
+    /// metadata-only sidecars (an in-place rewrite can restore both size and mtime), and version 5's authenticity through
+    /// a forgeable hash (a signed list naming the file only by MD5, SHA-1, or CRC-32).
     /// </summary>
     public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources) =>
         KeyOf(path, size, modified, sources.Select(s => (s.Name, s.Size, s.Modified, "")));
@@ -52,7 +53,7 @@ public sealed class VerificationCache(string? file)
     {
         // Names on Unix may contain the separators used by earlier cache keys. Length-prefix every untrusted
         // string so a single sidecar cannot masquerade as two different sidecars with the same metadata.
-        var key = new StringBuilder("5|");
+        var key = new StringBuilder("6|");
         static void Name(StringBuilder key, string value) => key.Append(value.Length).Append(':').Append(value);
         Name(key, path);
         key.Append('|').Append(size).Append('|').Append(modified);
@@ -356,24 +357,90 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>
     /// The check asked for (a command): no size limit, and nothing kept is trusted: the file is read and its signatures
     /// checked now (a file can be changed and its time set back, which a kept result keyed by that time would not see);
-    /// the new result and hashes are kept.
+    /// the new result and hashes are kept. Within a <paramref name="scope"/> (one job), each folder's checksum files and
+    /// signatures are read once, when the first of its files is checked.
     /// </summary>
-    public VerificationResult? OnRequest(string path, CancellationToken ct, Action<long>? progress = null) => Verify(path, automatic: false, ct, progress);
+    internal VerificationResult? OnRequest(string path, CancellationToken ct, Action<long>? progress = null, RequestScope? scope = null) =>
+        Verify(path, automatic: false, ct, progress, scope);
 
-    private VerificationResult? Verify(string path, bool automatic, CancellationToken ct, Action<long>? progress)
+    /// <summary>
+    /// One explicit check of many files (a job): each folder's checksum files and signatures are read once (a job goes folder
+    /// by folder, and the last few folders are kept), what vouches for signers at most every few seconds, and each signature
+    /// over a checksum file once, not for every file the list names.
+    /// </summary>
+    internal sealed class RequestScope
+    {
+        internal const int MaxFolders = 16;
+        private readonly Dictionary<string, FolderSidecars> _folders = new(StringComparer.Ordinal);
+        private readonly Queue<string> _order = new();
+        internal readonly Dictionary<(string Folder, bool Minisign, bool OpenPgp), (IReadOnlyList<(string Name, long Size, long Modified, string Fingerprint)> Trust, DateTime ReadAt)> Trust = [];
+        internal readonly Dictionary<ListSignature, (SignatureResult Result, bool HeldOff)> Signatures = [];
+        internal readonly Dictionary<(string Folder, string Trust), IReadOnlyList<Minisign.PublicKey>> Keys = [];
+
+        internal FolderSidecars SidecarsOf(VerificationService service, string folder, CancellationToken ct)
+        {
+            if (_folders.TryGetValue(folder, out var known)) return known;
+            var sidecars = service.SidecarsOf(folder, ct, forceRefresh: true);
+            while (_folders.Count >= MaxFolders && _order.TryDequeue(out string? oldest))
+            {
+                _folders.Remove(oldest);
+                foreach (var key in Trust.Keys.Where(k => k.Folder == oldest).ToList()) Trust.Remove(key);
+                foreach (var key in Keys.Keys.Where(k => k.Folder == oldest).ToList()) Keys.Remove(key);
+            }
+            _folders[folder] = sidecars;
+            _order.Enqueue(folder);
+            return sidecars;
+        }
+    }
+
+    /// <summary>
+    /// A signature over a checksum file as checked: the signature's and the list's fingerprints (the list's as its lines were
+    /// read), and what vouched for signers then. The same again gives the same answer.
+    /// </summary>
+    internal readonly record struct ListSignature(string Signature, string SignatureFingerprint, string Signed, string SignedFingerprint, string Trust);
+
+    private const int MaxListSignatures = 256;
+    private readonly object _listSignatureLock = new();
+    private readonly Dictionary<ListSignature, (SignatureResult Result, long Access)> _listSignatures = [];
+    private long _listSignatureAccess;
+
+    /// <summary>A list signature's answer for the rows shown: each file a signed list names would otherwise check it again.</summary>
+    private SignatureResult? Recall(ListSignature signature)
+    {
+        lock (_listSignatureLock)
+        {
+            if (!_listSignatures.TryGetValue(signature, out var known)) return null;
+            _listSignatures[signature] = known with { Access = ++_listSignatureAccess };
+            return known.Result;
+        }
+    }
+
+    /// <summary>Keeps a list signature's answer when it is one (good, bad, or by an unknown key), not one that could not be had.</summary>
+    private void Keep(ListSignature signature, SignatureResult result)
+    {
+        if (result.State is not (VerificationState.SignatureGood or VerificationState.SignatureBad or VerificationState.SignatureUnknownKey)) return;
+        lock (_listSignatureLock)
+        {
+            _listSignatures[signature] = (result, ++_listSignatureAccess);
+            if (_listSignatures.Count > MaxListSignatures) _listSignatures.Remove(_listSignatures.MinBy(pair => pair.Value.Access).Key);
+        }
+    }
+
+    private VerificationResult? Verify(string path, bool automatic, CancellationToken ct, Action<long>? progress, RequestScope? scope = null)
     {
         string? folder = Path.GetDirectoryName(path);
         if (folder is null) return null;
         string name = Path.GetFileName(path);
         // An explicit check promises to read the current claims. A writer can rewrite a checksum file
         // and restore both its own and its directory's timestamps inside the short scan-cache window.
-        var sidecars = SidecarsOf(folder, ct, forceRefresh: !automatic);
+        var sidecars = scope is null ? SidecarsOf(folder, ct, forceRefresh: !automatic) : scope.SidecarsOf(this, folder, ct);
         if (!sidecars.Covers(name))
             return SidecarNames.IsSidecar(name) && sidecars.Covered(name) is { Count: > 0 } covered ? Coverage(name, covered) : null;
         if (Stamp(path) is not { } stamp) return null;
         var checksums = sidecars.Checksums(name);
         var signatures = sidecars.Signatures(name);
-        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name, ct)));
+        var trust = TrustOf(sidecars, name, ct, scope);
+        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(trust));
         if (automatic && cache.Get(key) is { } cached) return cached;
         var known = automatic ? cache.HashesOf(path, stamp.Size, stamp.Modified) : new Dictionary<ChecksumKind, string>();
         // Signatures over the file read all of it; checksums only when their hashes are not known yet.
@@ -401,26 +468,125 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             foreach (var (kind, value) in read) all[kind] = value;
             return all;
         }
-        // Keys the user keeps in FileCat's keys folder are trusted; a key beside the file is not (it came from the same place).
-        IReadOnlyList<Minisign.PublicKey>? keys = null;
-        var trustedFolders = keyFolders();
-        bool heldOff = false;
-        SignatureResult Check(SignatureClaim claim, CancellationToken token)
-        {
-            if (claim.Kind == SignatureKind.Minisign)
-                return Minisign.Verify(claim.Signed, claim.Signature, keys ??= [.. Minisign.KeysIn(trustedFolders, trusted: true), .. Minisign.KeysIn([folder])], token, progress,
-                    trustedFolders.FirstOrDefault());
-            if (!SignatureToolsPaused) return OpenPgp.Verify(claim.Signature, claim.Signed, token);
-            heldOff = true;
-            return new SignatureResult(VerificationState.SignatureUnchecked, "not checked while FileCat recovers deleted files from the disk that holds GnuPG's folder (gpg writes there)");
-        }
-        var result = Verifier.Check(checksums, signatures, Hash, Check, sidecars.Signatures, ct);
+        var checker = new SignatureChecker(this, folder, progress, sidecars, scope, trust, recall: automatic);
+        var result = Verifier.Check(checksums, signatures, Hash, checker.Check, sidecars.Signatures, ct);
         if (result.State == VerificationState.Unreadable) return result;
         // Shown from now on without reading the file again: the row says when it was checked. A check held off is not kept.
         result = result with { CheckedUtc = DateTime.UtcNow };
-        if (!heldOff) cache.Put(key, result);
+        if (!checker.HeldOff) cache.Put(key, result);
         return result;
     }
+
+    /// <summary>
+    /// Checks signatures over a checksum file now (<paramref name="claims"/>, from <see cref="FolderSidecars.SignaturesOver"/>;
+    /// a signature over it vouches for the files it lists), over <paramref name="content"/>, the bytes its lines were read
+    /// from, in memory: never over the file read again. Nothing is kept.
+    /// </summary>
+    internal IReadOnlyList<SignatureCheck> CheckSignaturesOver(string path, IReadOnlyList<SignatureClaim> claims, byte[] content, CancellationToken ct)
+    {
+        string? folder = Path.GetDirectoryName(path);
+        if (folder is null || claims.Count == 0) return [];
+        string name = Path.GetFileName(path);
+        var checker = new SignatureChecker(this, folder, null, null, null, null, recall: false);
+        return [.. claims.Select(claim => new SignatureCheck(claim, checker.CheckContent(claim, content, ct), name))];
+    }
+
+    /// <summary>
+    /// Checks the signatures of one file's check: minisign against the keys the user keeps in FileCat's keys folder (a key
+    /// beside the file came from the same place, so its good signature is only "unsure"), OpenPGP through gpg unless held
+    /// off (<see cref="SignatureToolsPaused"/>; <see cref="HeldOff"/> then says the result must not be kept). A signature
+    /// over one of <c>sidecars</c>' checksum files is checked over the bytes its claims were read from.
+    /// </summary>
+    /// <param name="trust">What vouched for signers when the check began (<see cref="TrustOf"/>): a list signature's answer is kept with it.</param>
+    /// <param name="recall">A row's check: a list signature's answer had already is used (an explicit check checks it again).</param>
+    private sealed class SignatureChecker(VerificationService service, string folder, Action<long>? progress, FolderSidecars? sidecars, RequestScope? scope,
+        IReadOnlyList<(string Name, long Size, long Modified, string Fingerprint)>? trust, bool recall)
+    {
+        private readonly IReadOnlyList<string> _trusted = service.TrustedKeyFolders;
+        private IReadOnlyList<Minisign.PublicKey>? _keys;
+        private string? _trustKey;
+
+        public bool HeldOff { get; private set; }
+
+        /// <summary>What vouched for signers, as one value (each name length-prefixed, as cache keys are).</summary>
+        private string TrustKey => _trustKey ??= VerificationCache.KeyOf("", 0, 0, trust ?? []);
+
+        public SignatureResult Check(SignatureClaim claim, CancellationToken ct)
+        {
+            string signed = Path.GetFileName(claim.Signed);
+            if (sidecars is null || !SidecarNames.IsChecksumFile(signed) || !sidecars.SourceFingerprints.TryGetValue(signed, out var parsed)
+                || !parsed.StartsWith("sha256:", StringComparison.Ordinal))
+                return CheckFile(claim, ct);
+            // A list's signature is checked once for all the files it names (the bytes are the same): within one job, and for
+            // the rows shown until the list, its signature, or what vouches for signers changes. A job checks it again.
+            var memo = new ListSignature(claim.Signature, sidecars.SourceFingerprints.GetValueOrDefault(Path.GetFileName(claim.Signature), ""),
+                claim.Signed, parsed, TrustKey);
+            if (scope is not null && scope.Signatures.TryGetValue(memo, out var known))
+            {
+                HeldOff |= known.HeldOff;
+                return known.Result;
+            }
+            if (recall && service.Recall(memo) is { } recalled) return recalled;
+            bool heldBefore = HeldOff;
+            HeldOff = false;
+            var result = CheckList(claim, signed, parsed, ct);
+            scope?.Signatures.TryAdd(memo, (result, HeldOff));
+            if (!HeldOff) service.Keep(memo, result);
+            HeldOff |= heldBefore;
+            return result;
+        }
+
+        /// <summary>A signature over one of the folder's checksum files, checked over the bytes its claims were read from.</summary>
+        private SignatureResult CheckList(SignatureClaim claim, string signed, string parsed, CancellationToken ct)
+        {
+            // Read again, the checksum file must still be the bytes its claims came from (their fingerprint), and the
+            // signature is checked over those bytes, in memory: a file changed meanwhile, or a server that answers each read
+            // differently, cannot have one list's claims vouched for by another list's signature.
+            byte[]? bytes;
+            try { bytes = VerificationFileReader.ReadAll(claim.Signed, FolderSidecars.MaxChecksumFileBytes); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new SignatureResult(VerificationState.SignatureUnchecked, $"not checked: {signed} could not be read again: {ex.Message}");
+            }
+            if (bytes is null || !string.Equals(FolderSidecars.ContentFingerprint(bytes), parsed, StringComparison.Ordinal))
+                return new SignatureResult(VerificationState.SignatureUnchecked, $"not checked: {signed} changed after its lines were read; verify again",
+                    Short: "signature not checked: the list changed");
+            return CheckContent(claim, bytes, ct);
+        }
+
+        /// <summary>Checks a signature over the file as it is read now.</summary>
+        public SignatureResult CheckFile(SignatureClaim claim, CancellationToken ct) =>
+            claim.Kind == SignatureKind.Minisign
+                ? Minisign.Verify(claim.Signed, claim.Signature, Keys(), ct, progress, _trusted.FirstOrDefault())
+                : HoldOff() ?? OpenPgp.Verify(claim.Signature, claim.Signed, ct);
+
+        /// <summary>Checks a signature over <paramref name="content"/>, the bytes a checksum file's lines were read from.</summary>
+        public SignatureResult CheckContent(SignatureClaim claim, ReadOnlyMemory<byte> content, CancellationToken ct) =>
+            claim.Kind == SignatureKind.Minisign
+                ? Minisign.Verify(content, claim.Signature, Keys(), ct, _trusted.FirstOrDefault())
+                : HoldOff() ?? OpenPgp.Verify(claim.Signature, content, ct);
+
+        /// <summary>Null while gpg may run; while it is held off, the result that says so (one not to be kept).</summary>
+        private SignatureResult? HoldOff()
+        {
+            if (!service.SignatureToolsPaused) return null;
+            HeldOff = true;
+            return new SignatureResult(VerificationState.SignatureUnchecked, "not checked while FileCat recovers deleted files from the disk that holds GnuPG's folder (gpg writes there)");
+        }
+
+        /// <summary>The minisign keys the user trusts and those beside the file; within a job, read once per folder while they are unchanged.</summary>
+        private IReadOnlyList<Minisign.PublicKey> Keys()
+        {
+            if (_keys is not null) return _keys;
+            var memo = (folder, TrustKey);
+            if (scope is not null && trust is not null && scope.Keys.TryGetValue(memo, out var kept)) return _keys = kept;
+            _keys = [.. Minisign.KeysIn(_trusted, trusted: true), .. Minisign.KeysIn([folder])];
+            if (scope is not null && trust is not null) scope.Keys[memo] = _keys;
+            return _keys;
+        }
+    }
+
+    private IReadOnlyList<string> TrustedKeyFolders => keyFolders();
 
     /// <summary>A checksum file's or signature's own row: what it covers (each covered file shows its own result).</summary>
     private static VerificationResult Coverage(string sidecar, IReadOnlyList<string> covered)
@@ -469,14 +635,20 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>
     /// What vouches for a file's signers, as it is now: the minisign key files (trusted and beside the file) when a
     /// minisign signature is involved, gpg's keyring and trust database when an OpenPGP one is. A change checks it again.
+    /// Within a job it is read again after a few seconds, so a result is kept with what vouched for it when it was checked.
     /// </summary>
-    private IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> TrustOf(FolderSidecars sidecars, string name, CancellationToken ct)
+    private IReadOnlyList<(string Name, long Size, long Modified, string Fingerprint)> TrustOf(FolderSidecars sidecars, string name, CancellationToken ct, RequestScope? scope = null)
     {
         var signatures = sidecars.Signatures(name)
             .Concat(sidecars.Checksums(name).SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))))
             .Select(s => s.Kind).ToHashSet();
+        bool minisign = signatures.Contains(SignatureKind.Minisign), openPgp = signatures.Contains(SignatureKind.OpenPgp);
+        if (!minisign && !openPgp) return [];
+        // Within one job, what vouches for signers is not read for every file (a keyring can be megabytes, and a folder thousands of files).
+        var known = (sidecars.Folder, minisign, openPgp);
+        if (scope is not null && scope.Trust.TryGetValue(known, out var kept) && DateTime.UtcNow - kept.ReadAt < Fresh) return kept.Trust;
         var files = new List<FileInfo>();
-        if (signatures.Contains(SignatureKind.Minisign))
+        if (minisign)
             foreach (string folder in keyFolders().Append(sidecars.Folder))
             {
                 // Minisign.KeysIn ignores larger public-key files. Do not hash unrelated multi-MiB
@@ -484,8 +656,10 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
                 try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub").Where(f => f.Length <= 4096)); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
-        if (signatures.Contains(SignatureKind.OpenPgp)) files.AddRange(OpenPgp.KeyringFiles());
-        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks, FolderSidecars.Fingerprint(f, ct)));
+        if (openPgp) files.AddRange(OpenPgp.KeyringFiles());
+        var trust = files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks, FolderSidecars.Fingerprint(f, ct))).ToList();
+        if (scope is not null) scope.Trust[known] = (trust, DateTime.UtcNow);
+        return trust;
     }
 
     private static string Size(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1 << 20):0.#} MiB";

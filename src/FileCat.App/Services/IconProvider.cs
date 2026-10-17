@@ -57,6 +57,7 @@ public sealed class IconProvider
     private readonly ConcurrentDictionary<(IconKind, string), IImage> _vector = new();
     private readonly ConcurrentDictionary<(GitStatusKind, string), IImage> _gitOverlays = new();
     private readonly ConcurrentDictionary<(Core.Verification.VerificationState, string), IImage?> _verificationOverlays = new();
+    private readonly ConcurrentDictionary<(Core.Verification.VerificationState, string), IImage?> _verificationMarks = new();
     private readonly ConcurrentDictionary<(Core.FileSystem.CloudState, string), IImage?> _cloudOverlays = new();
 
     /// <summary>Optional native provider (Windows extension icons); returns null to fall back to vectors.</summary>
@@ -121,6 +122,7 @@ public sealed class IconProvider
         _vector.Clear();
         _gitOverlays.Clear();
         _verificationOverlays.Clear();
+        _verificationMarks.Clear();
         _cloudOverlays.Clear();
         _vectorOverlay = null;
         _tinted = new();
@@ -184,6 +186,10 @@ public sealed class IconProvider
     /// <summary>A file's check against the checksums and signatures beside it (D-57), at the upper right of its icon.</summary>
     internal IImage? VerificationOverlay(Core.Verification.VerificationState state) =>
         _verificationOverlays.GetOrAdd((state, ThemeManager.Current.Name), key => VectorIcons.VerificationOverlay(key.Item1));
+
+    /// <summary>The same mark on its own (the results of a check asked for list each file with it).</summary>
+    internal IImage? VerificationMark(Core.Verification.VerificationState state) =>
+        _verificationMarks.GetOrAdd((state, ThemeManager.Current.Name), key => VectorIcons.VerificationMark(key.Item1));
 
     /// <summary>A cloud provider's file (online only, on this computer, kept here always), at the upper left of its icon.</summary>
     internal IImage? CloudOverlay(Core.FileSystem.CloudState state) => state == Core.FileSystem.CloudState.None ? null
@@ -386,7 +392,12 @@ public static class VectorIcons
         return new DrawingImage(g);
     }
 
-    internal static IImage? VerificationOverlay(Core.Verification.VerificationState state)
+    internal static IImage? VerificationOverlay(Core.Verification.VerificationState state) => VerificationDrawing(state, centered: false);
+
+    /// <summary>The same mark on its own, centered: the results of a check asked for show it beside each file's name.</summary>
+    internal static IImage? VerificationMark(Core.Verification.VerificationState state) => VerificationDrawing(state, centered: true);
+
+    private static IImage? VerificationDrawing(Core.Verification.VerificationState state, bool centered)
     {
         var palette = ThemeManager.Current;
         (string? color, string mark) = state switch
@@ -405,23 +416,26 @@ public static class VectorIcons
         var ink = luminance > 0.55 ? Color.FromRgb(0x1C, 0x1C, 0x1C) : Colors.White;
         var g = new DrawingGroup();
         g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
+        // Drawn at the icon's upper right; on its own, moved to the middle of the same 16 by 16.
+        var shapes = new DrawingGroup { Transform = centered ? new TranslateTransform(-2.8, 2.8) : null };
         if (state == Core.Verification.VerificationState.SignatureGood)
         {
             // Authentic: a shield, ringed in the window's color like the discs.
             var shield = Geometry.Parse("M10.8,0.9 L14.6,2.3 L14.6,5.0 C14.6,7.5 13.0,9.1 10.8,9.9 C8.6,9.1 7.0,7.5 7.0,5.0 L7.0,2.3 Z");
-            g.Children.Add(new GeometryDrawing { Geometry = shield, Pen = new Pen(new SolidColorBrush(Color.Parse(palette.Window)), 2.0, lineJoin: PenLineJoin.Round) });
-            g.Children.Add(new GeometryDrawing { Geometry = shield, Brush = new SolidColorBrush(fill) });
+            shapes.Children.Add(new GeometryDrawing { Geometry = shield, Pen = new Pen(new SolidColorBrush(Color.Parse(palette.Window)), 2.0, lineJoin: PenLineJoin.Round) });
+            shapes.Children.Add(new GeometryDrawing { Geometry = shield, Brush = new SolidColorBrush(fill) });
         }
         else
         {
-            g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 0, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
-            g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
+            shapes.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 0, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
+            shapes.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
         }
-        g.Children.Add(new GeometryDrawing
+        shapes.Children.Add(new GeometryDrawing
         {
             Geometry = Geometry.Parse(mark),
             Pen = new Pen(new SolidColorBrush(ink), 1.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
         });
+        g.Children.Add(shapes);
         return new DrawingImage(g);
     }
 

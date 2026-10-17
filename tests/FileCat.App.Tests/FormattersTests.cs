@@ -34,6 +34,31 @@ public sealed class FormattersTests
         Assert.Equal("Ünïcode 名前 مرحبا.txt", Formatters.SafeName("Ünïcode 名前 مرحبا.txt"));
     }
 
+    /// <summary>
+    /// §18.3: a character that shows nothing cannot make "x.iso" pass for another "x.iso"; joiners, variation selectors, and
+    /// tags stay where they make something (an emoji sequence, Persian text, a keycap, a subdivision's flag).
+    /// </summary>
+    [Fact]
+    public void A_name_cannot_hide_characters_that_show_nothing()
+    {
+        static string Escaped(int code) => (char)92 + (code > 0xFFFF ? "U" + code.ToString("X8") : "u" + code.ToString("X4"));
+        const string iso = "x.iso";
+        Assert.Equal(iso + Escaped(0x200B), Formatters.SafeName(iso + (char)0x200B));                    // a zero-width space
+        Assert.Equal(iso + Escaped(0x200D), Formatters.SafeName(iso + (char)0x200D));                    // a joiner joining nothing
+        Assert.Equal("x" + Escaped(0x00AD) + ".iso", Formatters.SafeName("x" + (char)0x00AD + ".iso"));  // a soft hyphen
+        Assert.Equal(Escaped(0xFEFF) + iso, Formatters.SafeName((char)0xFEFF + iso));
+        Assert.Equal(iso + Escaped(0x3164), Formatters.SafeName(iso + (char)0x3164));                    // a Hangul filler
+        Assert.Equal(iso + Escaped(0xE0041), Formatters.SafeName(iso + char.ConvertFromUtf32(0xE0041))); // a tag on its own
+        Assert.Equal("a" + Escaped(0xD800) + "b", Formatters.SafeName("a" + (char)0xD800 + "b"));         // half a surrogate pair
+        string family = char.ConvertFromUtf32(0x1F468) + (char)0x200D + char.ConvertFromUtf32(0x1F469) + (char)0x200D + char.ConvertFromUtf32(0x1F467);
+        string persian = "می" + (char)0x200C + "خواهم";
+        string keycap = "1" + (char)0xFE0F + (char)0x20E3;
+        string heart = (char)0x2764 + "" + (char)0xFE0F;
+        string scotland = char.ConvertFromUtf32(0x1F3F4) + string.Concat(new[] { 0xE0067, 0xE0062, 0xE0073, 0xE0063, 0xE0074, 0xE007F }.Select(char.ConvertFromUtf32));
+        foreach (string name in new[] { family, persian, keycap, heart, scotland })
+            Assert.Equal(name + ".png", Formatters.SafeName(name + ".png"));
+    }
+
     /// <summary>Release issue I26: the time left reads naturally, as one value once certain, as a range while not.</summary>
     [Theory]
     [InlineData(4, 6, "a few seconds left")]

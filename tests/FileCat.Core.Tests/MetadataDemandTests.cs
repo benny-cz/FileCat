@@ -147,6 +147,33 @@ public sealed class MetadataDemandTests
     }
 
     [Fact]
+    public async Task Forgetting_the_files_a_check_read_asks_only_their_rows_again()
+    {
+        using var io = new DeviceIoScheduler();
+        var metadata = new MetadataService(io);
+        int calls = 0;
+        metadata.Register(new MetadataField("verified", "Verified", MetadataCost.Cheap, _ => true, (path, _) =>
+        {
+            Interlocked.Increment(ref calls);
+            return path;
+        }, value => (string)value!));
+        var entry = new EntryData("row.bin", EntryKind.File, 1, 1);
+        // A name on Unix may hold the key's separator.
+        string[] paths = ["/data/a.bin", "/data/b|c.bin", "/data/kept.bin"];
+        foreach (string path in paths) metadata.Get("verified", path, entry, "owned", false);
+        await WaitFor(() => paths.All(p => metadata.Get("verified", p, entry, "owned", false).State == MetadataState.Available));
+        Assert.Equal(3, Volatile.Read(ref calls));
+
+        // A checksum file may spell a name in another letter case: forgetting that one too only asks it again.
+        metadata.Forget("verified", ["/DATA/A.BIN", "/data/b|c.bin"]);
+        Assert.Equal(MetadataState.Pending, metadata.Get("verified", "/data/a.bin", entry, "owned", false).State);
+        Assert.Equal(MetadataState.Pending, metadata.Get("verified", "/data/b|c.bin", entry, "owned", false).State);
+        Assert.Equal(MetadataState.Available, metadata.Get("verified", "/data/kept.bin", entry, "owned", false).State);
+        await WaitFor(() => paths.All(p => metadata.Get("verified", p, entry, "owned", false).State == MetadataState.Available));
+        Assert.Equal(5, Volatile.Read(ref calls));
+    }
+
+    [Fact]
     public async Task Rapid_viewport_changes_drop_queued_rows_and_a_healthy_device_remains_available()
     {
         using var releaseA = new ManualResetEventSlim();

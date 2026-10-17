@@ -717,8 +717,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrEmpty(drive.RemoteName)) parts.Add(drive.RemoteName);
             return string.Join(" · ", parts);
         }
-        if (e.IsContainer) return e.Name;
-        return $"{e.Name} · {Formatters.ExactSize(e.Size)}";
+        // Escaped as the file list shows names (§18.3): a direction override must not turn the name around here either.
+        if (e.IsContainer) return Formatters.SafeName(e.Name);
+        return $"{Formatters.SafeName(e.Name)} · {Formatters.ExactSize(e.Size)}";
     }
 
     // ---- Cell helpers for special providers -------------------------------------------------------------

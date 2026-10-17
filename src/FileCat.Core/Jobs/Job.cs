@@ -225,6 +225,12 @@ public sealed class Job
     /// <summary>An executor's own wording of the outcome (verification says "12 verified, all match", not "12 done").</summary>
     internal void SetSummary(string summary) => _customSummary = summary;
 
+    /// <summary>What a verification job found for each file (D-57), shown when it ends; null for other jobs, and once released.</summary>
+    public Verification.VerificationReport? VerificationReport { get; internal set; }
+
+    /// <summary>Lets go of the verification results (a finished job is kept a while; its results need not be).</summary>
+    public void ReleaseVerificationReport() => VerificationReport = null;
+
     public string Summary
     {
         get

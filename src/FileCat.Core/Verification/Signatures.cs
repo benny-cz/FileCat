@@ -78,7 +78,30 @@ public static class Minisign
 
     /// <param name="trustedFolder">Where trusted keys go (FileCat's keys folder), named in the advice a result gives.</param>
     public static SignatureResult Verify(string file, string signaturePath, IReadOnlyList<PublicKey> keys, CancellationToken ct, Action<long>? progress = null,
-        string? trustedFolder = null)
+        string? trustedFolder = null) =>
+        Verify(signaturePath, keys, trustedFolder, prehashed =>
+        {
+            if (prehashed) return Blake2b(file, ct, progress);
+            byte[]? legacy = ReadLegacyMessage(file, ct);
+            if (legacy is not null) progress?.Invoke(legacy.Length);
+            return legacy;
+        });
+
+    /// <summary>
+    /// As <see cref="Verify(string, string, IReadOnlyList{PublicKey}, CancellationToken, Action{long}?, string?)"/>, over
+    /// <paramref name="content"/> in memory (the bytes a checksum file's lines were read from), never over a file read again.
+    /// </summary>
+    internal static SignatureResult Verify(ReadOnlyMemory<byte> content, string signaturePath, IReadOnlyList<PublicKey> keys, CancellationToken ct,
+        string? trustedFolder = null) =>
+        Verify(signaturePath, keys, trustedFolder, prehashed =>
+        {
+            ct.ThrowIfCancellationRequested();
+            if (prehashed) return Blake2b(content.Span);
+            return content.Length > MaxLegacyBytes ? null : content.ToArray();
+        });
+
+    /// <param name="message">What the signature signs: the file's BLAKE2b-512 hash (prehashed) or the whole file; null when it is too large.</param>
+    private static SignatureResult Verify(string signaturePath, IReadOnlyList<PublicKey> keys, string? trustedFolder, Func<bool, byte[]?> message)
     {
         string keysFolder = trustedFolder ?? "FileCat's keys folder";
         Signature? signature;
@@ -90,28 +113,22 @@ public static class Minisign
         if (key is null)
             return new SignatureResult(VerificationState.SignatureUnknownKey,
                 $"made with minisign key {signature.Id}, which is not among your trusted keys: once you have the publisher's .pub from a place you trust (their website, say), copy it into {keysFolder}");
-        byte[] message;
+        byte[] signed;
         try
         {
-            if (signature.Prehashed) message = Blake2b(file, ct, progress);
-            else
-            {
-                byte[]? legacyMessage = ReadLegacyMessage(file, ct);
-                if (legacyMessage is null)
-                    return new SignatureResult(VerificationState.SignatureUnchecked, $"its legacy form signs the whole file, which is larger than {MaxLegacyBytes >> 20} MiB");
-                message = legacyMessage;
-                progress?.Invoke(message.Length);
-            }
+            if (message(signature.Prehashed) is not { } read)
+                return new SignatureResult(VerificationState.SignatureUnchecked, $"its legacy form signs the whole file, which is larger than {MaxLegacyBytes >> 20} MiB");
+            signed = read;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return new SignatureResult(VerificationState.Unreadable, "the file could not be read: " + ex.Message);
         }
-        if (!Ed25519.Verify(signature.Value, 0, key.Key, 0, message, 0, message.Length))
+        if (!Ed25519.Verify(signature.Value, 0, key.Key, 0, signed, 0, signed.Length))
             return new SignatureResult(VerificationState.SignatureBad, $"the signature does not match the file (key {key.Id})");
         byte[] comment = Encoding.UTF8.GetBytes(signature.TrustedComment);
-        byte[] signed = [.. signature.Value, .. comment];
-        if (!Ed25519.Verify(signature.Global, 0, key.Key, 0, signed, 0, signed.Length))
+        byte[] global = [.. signature.Value, .. comment];
+        if (!Ed25519.Verify(signature.Global, 0, key.Key, 0, global, 0, global.Length))
             return new SignatureResult(VerificationState.SignatureBad, "the file matches, but its trusted comment was changed after signing");
         string signer = Path.GetFileNameWithoutExtension(key.Source);
         if (!key.Trusted)
@@ -126,7 +143,7 @@ public static class Minisign
 
     private static string? ReadBoundedText(string path)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = VerificationFileReader.OpenRead(path, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length > 4096) return null;
         byte[] bytes = new byte[4097];
         int length = stream.ReadAtLeast(bytes, bytes.Length, throwOnEndOfStream: false);
@@ -138,7 +155,7 @@ public static class Minisign
 
     private static byte[]? ReadLegacyMessage(string path, CancellationToken ct)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = VerificationFileReader.OpenRead(path, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length > MaxLegacyBytes) return null;
         byte[] bytes = new byte[checked((int)stream.Length)];
         int read = 0;
@@ -157,7 +174,7 @@ public static class Minisign
     public static byte[] Blake2b(string file, CancellationToken ct, Action<long>? progress = null)
     {
         var digest = new Blake2bDigest(512);
-        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+        using var stream = VerificationFileReader.OpenSequential(file);
         var buffer = new byte[Verifier.BlockSize];
         int n;
         while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
@@ -166,6 +183,15 @@ public static class Minisign
             digest.BlockUpdate(buffer, 0, n);
             progress?.Invoke(n);
         }
+        var hash = new byte[64];
+        digest.DoFinal(hash, 0);
+        return hash;
+    }
+
+    private static byte[] Blake2b(ReadOnlySpan<byte> content)
+    {
+        var digest = new Blake2bDigest(512);
+        digest.BlockUpdate(content);
         var hash = new byte[64];
         digest.DoFinal(hash, 0);
         return hash;
@@ -269,10 +295,34 @@ public static class OpenPgp
 
     public static SignatureResult Verify(string signature, string signed, CancellationToken ct, string? home = null)
     {
-        if (Tool is not { } gpg) return new SignatureResult(VerificationState.SignatureUnchecked, "OpenPGP signatures are checked with GnuPG, which is not installed here");
+        if (Tool is null) return NotInstalled;
         ct.ThrowIfCancellationRequested();
+        // gpg would wait on a pipe planted under the signed file's name until its minute runs out.
+        if (VerificationFileReader.IsSpecial(signed)) return new SignatureResult(VerificationState.Unreadable, "the file could not be read: it is not a regular file (a pipe or a device)");
+        return Run(signature, signed, null, ct, home);
+    }
+
+    /// <summary>
+    /// Checks a signature over <paramref name="content"/> in memory (the bytes a checksum file's lines were read from), which
+    /// gpg reads from its standard input: never a file read again, and no copy of it written anywhere.
+    /// </summary>
+    internal static SignatureResult Verify(string signature, ReadOnlyMemory<byte> content, CancellationToken ct, string? home = null)
+    {
+        if (Tool is null) return NotInstalled;
+        ct.ThrowIfCancellationRequested();
+        return Run(signature, "-", content, ct, home);
+    }
+
+    private static SignatureResult NotInstalled => new(VerificationState.SignatureUnchecked, "OpenPGP signatures are checked with GnuPG, which is not installed here");
+
+    /// <param name="signed">The signed file, or "-" for <paramref name="content"/> on gpg's standard input.</param>
+    private static SignatureResult Run(string signature, string signed, ReadOnlyMemory<byte>? content, CancellationToken ct, string? home)
+    {
+        if (Tool is not { } gpg) return NotInstalled;
+        if (VerificationFileReader.IsSpecial(signature)) return new SignatureResult(VerificationState.SignatureUnchecked, "it could not be read: it is not a regular file (a pipe or a device)");
         var start = new ProcessStartInfo(gpg)
         {
+            RedirectStandardInput = content is not null,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -292,10 +342,11 @@ public static class OpenPgp
             var output = ReadStatusAsync(process.StandardOutput, deadline.Token);
             var errors = process.StandardError.BaseStream.CopyToAsync(Stream.Null, deadline.Token);
             var exited = process.WaitForExitAsync(deadline.Token);
+            var pending = new List<Task> { exited, output, errors };
+            if (content is { } data) pending.Add(FeedAsync(process, data, deadline.Token));
             try
             {
                 // A full status budget must fail promptly even if the helper then blocks on its pipe.
-                var pending = new List<Task> { exited, output, errors };
                 while (pending.Count != 0)
                 {
                     Task completed = Task.WhenAny(pending).GetAwaiter().GetResult();
@@ -323,6 +374,23 @@ public static class OpenPgp
             return new SignatureResult(VerificationState.SignatureUnchecked, "gpg could not be run: " + ex.Message);
         }
         return Interpret(status);
+    }
+
+    /// <summary>Writes the signed bytes to gpg and closes its input; gpg may stop reading early (a signature it cannot use), which is its answer.</summary>
+    private static async Task FeedAsync(Process process, ReadOnlyMemory<byte> content, CancellationToken ct)
+    {
+        try
+        {
+            var input = process.StandardInput.BaseStream;
+            await input.WriteAsync(content, ct).ConfigureAwait(false);
+            await input.FlushAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException) { }
+        finally
+        {
+            try { process.StandardInput.Close(); }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
+        }
     }
 
     private static async Task<string> ReadStatusAsync(StreamReader reader, CancellationToken ct)

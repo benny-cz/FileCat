@@ -780,4 +780,441 @@ public sealed class VerificationTests : IDisposable
             VerificationService.Current = previous;
         }
     }
+
+    private JobManager Jobs()
+    {
+        var providers = new Resources.ProviderRegistry();
+        providers.Register(new FileSystem.LocalFileSystemProvider());
+        return new JobManager(new FileSystem.PortableFileOperations(), providers, Path.Combine(_dir, "journal"));
+    }
+
+    private static async Task<Job> RunAsync(JobManager jobs, JobKind kind, params string[] sources)
+    {
+        var job = jobs.Submit(new JobRequest { Kind = kind, Sources = [.. sources.Select(s => Resources.ItemRef.ForFileSystemPath(s, Resources.EntryKind.File))] });
+        // A job that does not end fails the test instead of holding up the run.
+        var deadline = DateTime.UtcNow.AddMinutes(1);
+        while (!job.State.IsFinished())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"{job.Title} did not end within a minute ({job.State}).");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        return job;
+    }
+
+    [Fact]
+    public void A_check_asked_for_keeps_each_claim_with_both_values_and_says_what_a_result_means()
+    {
+        Write("a.txt", "a");
+        Write("b.txt", "b");
+        string sums = Write("SHA256SUMS", $"{Sha256("a")}  a.txt\n{Sha256("not b")}  b.txt\n");
+        var a = Check("a.txt");
+        var match = Assert.Single(a.Checksums);
+        Assert.Equal((ChecksumKind.Sha256, Sha256("a"), sums, 1, Sha256("a"), true),
+            (match.Claim.Kind, match.Claim.Expected, match.Claim.Source, match.Claim.Line, match.Actual, match.Matches));
+        Assert.Contains(a.Notes, n => n.Contains("proves nothing against tampering", StringComparison.Ordinal));
+        var b = Check("b.txt");
+        var differs = Assert.Single(b.Checksums);
+        Assert.Equal((Sha256("not b"), Sha256("b"), 2, false), (differs.Claim.Expected, differs.Actual, differs.Claim.Line, differs.Matches));
+        Assert.Contains(b.Notes, n => n.StartsWith("It is not the file the checksum describes", StringComparison.Ordinal));
+        Assert.DoesNotContain(b.Notes, n => n.Contains("proves nothing against tampering", StringComparison.Ordinal));
+        // The row's tooltip says the same (the notes are among the details).
+        Assert.Contains(b.Details, d => d.StartsWith("It is not the file the checksum describes", StringComparison.Ordinal));
+        var entry = VerificationReport.Entry(Path.Combine(_dir, "b.txt"), "b.txt", b);
+        Assert.Equal((VerifiedOutcome.Failed, "✗ SHA-256 differs", false), (entry.Outcome, entry.Text, entry.Authentic));
+        Assert.Same(b.Checksums, entry.Checksums);
+    }
+
+    [Fact]
+    public async Task Verifying_files_on_request_reports_each_one_problems_first()
+    {
+        string good = Write("good.bin", "good"), bad = Write("bad.bin", "bad"), lonely = Write("lonely.txt", "alone");
+        Write("SHA256SUMS", $"{Sha256("good")}  good.bin\n{Sha256("not bad")}  bad.bin\n");
+        var previous = VerificationService.Current;
+        VerificationService.Current = Service();
+        try
+        {
+            var job = await RunAsync(Jobs(), JobKind.VerifyBeside, good, lonely, bad);
+            var report = job.VerificationReport!;
+            Assert.Equal(_dir, report.Folder);
+            // Problems first, then matches, then the files nothing was compared for.
+            Assert.Equal([("bad.bin", VerifiedOutcome.Failed), ("good.bin", VerifiedOutcome.Good), ("lonely.txt", VerifiedOutcome.NotChecked)],
+                report.Files.Select(f => (f.Name, f.Outcome)));
+            Assert.Equal((1, 1, 1, 3, 0), (report.Count(VerifiedOutcome.Failed), report.Count(VerifiedOutcome.Good), report.Count(VerifiedOutcome.NotChecked), report.Total, report.Unlisted));
+            var failed = Assert.Single(report.Files[0].Checksums);
+            Assert.Equal((Sha256("not bad"), Sha256("bad")), (failed.Claim.Expected, failed.Actual));
+            Assert.Equal(bad, report.Files[0].Path);
+            Assert.StartsWith("Nothing beside it says what it should be", Assert.Single(report.Files[2].Notes), StringComparison.Ordinal);
+            // The job's own counts agree with what is listed.
+            Assert.Equal("1 verified, 1 failed, 1 with nothing to check against", job.Summary);
+
+            // A file gone since it was chosen is reported as such.
+            File.Delete(lonely);
+            var gone = await RunAsync(Jobs(), JobKind.VerifyBeside, lonely);
+            Assert.Equal(VerifiedOutcome.Missing, Assert.Single(gone.VerificationReport!.Files).Outcome);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public async Task A_checksum_file_chosen_for_verification_has_its_own_signature_checked()
+    {
+        var key = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        string image = Write("image.iso", "disc image");
+        string sums = Write("SHA256SUMS", Sha256("disc image") + "  image.iso\n");
+        Write("SHA256SUMS.minisig", key.Sign(File.ReadAllBytes(sums), "release list"));
+        var previous = VerificationService.Current;
+        try
+        {
+            var jobs = Jobs();
+            // Signed by a key the user trusts: the files it lists are authentic.
+            VerificationService.Current = Service(keys: [keys]);
+            var signed = await RunAsync(jobs, JobKind.VerifyChecksums, sums);
+            Assert.Equal((JobState.Completed, "1 verified, all match, SHA256SUMS signed by publisher"), (signed.State, signed.Summary));
+            var file = Assert.Single(signed.VerificationReport!.Files);
+            Assert.Equal((VerifiedOutcome.Good, true, "image.iso", "✓ SHA-256 · manifest signed by publisher"), (file.Outcome, file.Authentic, file.Name, file.Text));
+            Assert.Equal(("SHA256SUMS", VerificationState.SignatureGood), (Assert.Single(file.Signatures).Manifest, file.Signatures[0].Result.State));
+            Assert.Contains(signed.VerificationReport.Notes, n => n.StartsWith("SHA256SUMS.minisig (over SHA256SUMS): good minisign signature", StringComparison.Ordinal));
+
+            // Without the key among the trusted ones, the list vouches for no more than its checksums: unsure, said once.
+            VerificationService.Current = Service();
+            var unsure = await RunAsync(jobs, JobKind.VerifyChecksums, sums);
+            Assert.Equal(JobState.CompletedWithIssues, unsure.State);
+            Assert.Equal(VerifiedOutcome.Unsure, Assert.Single(unsure.VerificationReport!.Files).Outcome);
+            Assert.Equal("1 verified, all match, SHA256SUMS: ? signed by an unknown key", unsure.Summary);
+            Assert.Single(unsure.Issues, i => i.Severity == IssueSeverity.Warning);
+
+            // A list changed after it was signed fails every file it lists, although their checksums match it.
+            VerificationService.Current = Service(keys: [keys]);
+            File.AppendAllText(sums, "# added later\n");
+            var bad = await RunAsync(jobs, JobKind.VerifyChecksums, sums);
+            Assert.Equal(JobState.Failed, bad.State);
+            Assert.Equal("1 match, SHA256SUMS: ✗ bad signature", bad.Summary);
+            var failed = Assert.Single(bad.VerificationReport!.Files);
+            Assert.Equal((VerifiedOutcome.Failed, true), (failed.Outcome, Assert.Single(failed.Checksums).Matches));
+            Assert.Contains(bad.Issues, i => i.Path == image && i.Cause == VerifyChecksumsExecutor.SignatureCause);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void A_full_list_still_shows_a_mismatch_and_an_unsure_file_before_any_missing_one()
+    {
+        // A list of hundreds of thousands of files, most of them missing (planned first) and a few corrupt (read last).
+        var report = new VerificationReport(_dir);
+        static VerifiedFile Entry(string name, VerifiedOutcome outcome) => new(null, name, outcome, "");
+        for (int i = 0; i < VerificationReport.MaxListed; i++) report.Add(Entry($"missing{i}", VerifiedOutcome.Missing));
+        report.Add(Entry("nothing", VerifiedOutcome.NotChecked)); // worth less than everything listed: counted, not listed
+        report.Add(Entry("unsure", VerifiedOutcome.Unsure));      // worth more: takes the place of the last missing one
+        report.Add(Entry("corrupt", VerifiedOutcome.Failed));     // so does a mismatch, and it is shown first
+        Assert.Equal(["corrupt", "unsure"], report.Files.Take(2).Select(f => f.Name));
+        Assert.Equal(VerificationReport.MaxListed, report.Files.Count);
+        Assert.DoesNotContain(report.Files, f => f.Name == "nothing");
+        Assert.Equal((1, 1, VerificationReport.MaxListed, 3),
+            (report.Count(VerifiedOutcome.Failed), report.Count(VerifiedOutcome.Unsure), report.Count(VerifiedOutcome.Missing), report.Unlisted));
+    }
+
+    [Fact]
+    public void Every_outcome_has_its_place_in_the_list()
+    {
+        // An outcome missing from the order would be worth less than nothing, and crowd out failures.
+        Assert.Equal(Enum.GetValues<VerifiedOutcome>().Order(), VerificationReport.Shown.Order());
+        Assert.Equal(VerifiedOutcome.Failed, VerificationReport.Shown[0]);
+    }
+
+    [Fact]
+    public async Task A_signed_list_makes_files_authentic_only_through_a_hash_that_cannot_be_forged()
+    {
+        var key = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        // CRC-32 is forged by appending four bytes; MD5 by chosen-prefix collisions: a good signature over such a list
+        // shows the list is the publisher's, not that a file with a matching value is.
+        Write("track.flac", "music");
+        string sfv = Write("album.sfv", $"track.flac {Crc32.Append(0, Encoding.UTF8.GetBytes("music")):x8}\n");
+        Write("album.sfv.minisig", key.Sign(File.ReadAllBytes(sfv), "album"));
+        Write("tool.exe", "tool");
+        string md5 = Write("MD5SUMS", Convert.ToHexStringLower(MD5.HashData("tool"u8)) + "  tool.exe\n");
+        Write("MD5SUMS.minisig", key.Sign(File.ReadAllBytes(md5), "tools"));
+        var service = Service(keys: [keys]);
+        foreach (string file in new[] { "track.flac", "tool.exe" })
+        {
+            var result = Check(file, service);
+            Assert.Equal(VerificationState.Matches, result.State);
+            Assert.Contains("can be forged", result.Text, StringComparison.Ordinal);
+            Assert.Contains(result.Notes, n => n.EndsWith("the file is intact, not proven authentic.", StringComparison.Ordinal));
+            Assert.Equal(VerificationState.SignatureGood, Assert.Single(result.Signatures).Result.State); // the list itself is the publisher's
+            Assert.False(VerificationReport.Entry(Path.Combine(_dir, file), file, result).Authentic);
+        }
+        // The same through the checksum file chosen on its own.
+        var previous = VerificationService.Current;
+        VerificationService.Current = service;
+        try
+        {
+            var entry = Assert.Single((await RunAsync(Jobs(), JobKind.VerifyChecksums, sfv)).VerificationReport!.Files);
+            Assert.Equal((VerifiedOutcome.Good, false), (entry.Outcome, entry.Authentic));
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void A_list_changed_after_its_lines_were_read_is_not_vouched_for_by_its_signature()
+    {
+        var key = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        Write("image.iso", "disc image");
+        string sums = Write("SHA256SUMS", Sha256("disc image") + "  image.iso\n");
+        Write("SHA256SUMS.minisig", key.Sign(File.ReadAllBytes(sums), "release"));
+        // (Another service: one that has checked the signature already answers from what it found.)
+        Assert.Equal(VerificationState.SignatureGood, Service(keys: [keys]).Automatic(Path.Combine(_dir, "image.iso"), TestContext.Current.CancellationToken)!.State);
+        var service = Service(keys: [keys]);
+
+        // Its lines are read (the scan is kept a few seconds); then the list is rewritten in place, which leaves the folder's
+        // own time alone. Its signature is checked over the bytes the lines came from, which are gone: not vouched for.
+        service.SidecarsOf(_dir, TestContext.Current.CancellationToken, forceRefresh: true);
+        File.WriteAllText(sums, Sha256("disc image") + "  image.iso\n# appended later\n");
+        File.WriteAllText(Path.Combine(_dir, "image.iso"), "disc image"); // a new time: the kept result does not answer
+        var result = service.Automatic(Path.Combine(_dir, "image.iso"), TestContext.Current.CancellationToken)!;
+        Assert.Equal(VerificationState.SignatureUnchecked, result.State);
+        Assert.Contains("changed after its lines were read", Assert.Single(result.Signatures).Result.Text, StringComparison.Ordinal);
+
+        // Read again, the list's new bytes are what its signature is checked over: it no longer matches them.
+        Assert.Equal(VerificationState.SignatureBad, Check("image.iso", service).State);
+    }
+
+    [Fact]
+    public async Task Each_checksum_file_in_one_job_is_vouched_for_by_its_own_signature()
+    {
+        var key = new MinisignKey();
+        var stranger = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        Write("one.bin", "one");
+        Write("two.bin", "two");
+        Write("three.bin", "three");
+        string signed = Write("SHA256SUMS", Sha256("one") + "  one.bin\n");
+        Write("SHA256SUMS.minisig", key.Sign(File.ReadAllBytes(signed), "release"));
+        string other = Write("other.sha256", Sha256("two") + "  two.bin\n");
+        Write("other.sha256.minisig", stranger.Sign(File.ReadAllBytes(other), "someone"));
+        string plain = Write("plain.sha256", Sha256("three") + "  three.bin\n");
+        var previous = VerificationService.Current;
+        VerificationService.Current = Service(keys: [keys]);
+        try
+        {
+            var job = await RunAsync(Jobs(), JobKind.VerifyChecksums, signed, other, plain);
+            var files = job.VerificationReport!.Files.ToDictionary(f => f.Name);
+            Assert.Equal((VerifiedOutcome.Good, true), (files["one.bin"].Outcome, files["one.bin"].Authentic));
+            Assert.Equal(VerifiedOutcome.Unsure, files["two.bin"].Outcome);
+            Assert.Equal((VerifiedOutcome.Good, false), (files["three.bin"].Outcome, files["three.bin"].Authentic));
+            Assert.Contains("SHA256SUMS signed by publisher", job.Summary, StringComparison.Ordinal);
+            Assert.Contains("other.sha256: ? signed by an unknown key", job.Summary, StringComparison.Ordinal);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public async Task While_gpg_is_held_off_a_list_it_signs_vouches_for_nothing()
+    {
+        Write("release.tar", "release");
+        string sums = Write("SHA256SUMS", Sha256("release") + "  release.tar\n");
+        Write("SHA256SUMS.asc", "-----BEGIN PGP SIGNATURE-----\nnot really\n-----END PGP SIGNATURE-----\n");
+        var service = Service();
+        service.SignatureToolsPaused = true;
+        var previous = VerificationService.Current;
+        VerificationService.Current = service;
+        try
+        {
+            var job = await RunAsync(Jobs(), JobKind.VerifyChecksums, sums);
+            var entry = Assert.Single(job.VerificationReport!.Files);
+            Assert.Equal(VerifiedOutcome.Unsure, entry.Outcome);
+            Assert.Contains("recovers deleted files", Assert.Single(entry.Signatures).Result.Text, StringComparison.Ordinal);
+            Assert.Equal(JobState.CompletedWithIssues, job.State);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void A_checksum_files_signatures_are_found_by_name_and_names_match_by_the_folders_rule()
+    {
+        string sums = Write("SUMS", "x");
+        Write("SUMS.ASC", "signature");         // any letter case of the extension
+        Write("SUMS.minisig", "signature");
+        Write("SUMSX.asc", "signature");        // signs another file
+        Write("SUMS.txt", "not a signature");
+        var claims = FolderSidecars.SignaturesOver(sums)!;
+        Assert.Equal([("SUMS.ASC", SignatureKind.OpenPgp), ("SUMS.minisig", SignatureKind.Minisign)],
+            claims.Select(c => (Path.GetFileName(c.Signature), c.Kind)).Order());
+        Assert.All(claims, c => Assert.Equal(sums, c.Signed));
+
+        // A bare checksum is known as such from the scan; a list is not.
+        Write("disc.iso", "disc");
+        Write("disc.iso.sha256", Sha256("disc") + "\n");
+        Write("SHA256SUMS", Sha256("disc") + "  disc.iso\n");
+        var sidecars = FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken);
+        Assert.True(sidecars.IsBare("disc.iso.sha256"));
+        Assert.False(sidecars.IsBare("SHA256SUMS"));
+
+        // Ubuntu signs SHA256SUMS as SHA256SUMS.gpg; any other .gpg is more likely an encrypted file than a signature.
+        Assert.True(SidecarNames.IsSignatureFile("SHA256SUMS.gpg"));
+        Assert.False(SidecarNames.IsSignatureFile("backup.tar.gpg"));
+        Write("SHA256SUMS.gpg", "signature");
+        Write("disc.iso.gpg", "encrypted");
+        var gpg = Assert.Single(FolderSidecars.SignaturesOver(Path.Combine(_dir, "SHA256SUMS"))!);
+        Assert.Equal(("SHA256SUMS.gpg", SignatureKind.OpenPgp), (Path.GetFileName(gpg.Signature), gpg.Kind));
+        Assert.Empty(FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken).Signatures("disc.iso"));
+    }
+
+    [Fact]
+    public void A_checksum_files_signatures_are_found_whatever_its_name_holds()
+    {
+        // A name is compared, not matched as a pattern: wildcards and (on Unix) a backslash are only characters in it.
+        string name = OperatingSystem.IsWindows() ? "rel[1] (x).sha256" : "rel" + (char)92 + "b*?[1].sha256";
+        string sums = Write(name, Sha256("x") + "  x\n");
+        Write(name + ".asc", "signature");
+        Write("relXb.sha256.asc", "another file's");
+        Assert.Equal(name + ".asc", Path.GetFileName(Assert.Single(FolderSidecars.SignaturesOver(sums)!).Signature));
+    }
+
+    [Fact]
+    public void A_one_line_list_naming_no_file_here_is_no_bare_checksum_and_breaks_nothing()
+    {
+        // SHA256SUMS of one line for a file not downloaded yet (or in a subfolder): once, the scan failed on such a name.
+        Write("other.txt", "other");
+        Write("SHA256SUMS", Sha256("disc") + "  disc.iso\n");
+        Write("MD5SUMS", Convert.ToHexStringLower(MD5.HashData("x"u8)) + "  sub/x\n");
+        var sidecars = FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken);
+        Assert.False(sidecars.Covers("other.txt"));
+        Assert.Empty(sidecars.Covered("SHA256SUMS"));
+        Assert.Empty(sidecars.Covered("MD5SUMS"));
+
+        // "X.iso.sha256.txt" holding a bare value checks "X.iso", as "X.iso.sha256" does.
+        Write("image.iso", "image");
+        Write("image.iso.sha256.txt", Sha256("image") + "\n");
+        Assert.Equal(Sha256("image"), Assert.Single(FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken).Checksums("image.iso")).Expected);
+    }
+
+    [Fact]
+    public void A_minisign_signature_is_checked_over_bytes_in_memory()
+    {
+        // The bytes a list's lines were read from: no copy is written anywhere, and the file read again plays no part.
+        var key = new MinisignKey();
+        byte[] list = Encoding.UTF8.GetBytes(Sha256("disc") + "  disc.iso\r\n");
+        string signature = Write("SHA256SUMS.minisig", key.Sign(list, "release"));
+        string folder = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(folder, "publisher.pub"), key.PublicFile);
+        var keys = Minisign.KeysIn([folder], trusted: true);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Equal(VerificationState.SignatureGood, Minisign.Verify(list, signature, keys, ct).State);
+        Assert.Equal(VerificationState.SignatureBad, Minisign.Verify(list.Append((byte)'x').ToArray(), signature, keys, ct).State);
+        // The legacy form signs the bytes themselves.
+        string legacy = Write("legacy.minisig", key.Sign(list, "old", prehashed: false));
+        Assert.Equal(VerificationState.SignatureGood, Minisign.Verify(list, legacy, keys, ct).State);
+    }
+
+    [Fact]
+    public async Task Files_one_signed_list_names_are_each_authentic_in_one_job()
+    {
+        // In one job the list is read once and its signature checked once: every file it names still gets that result.
+        var key = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        var names = Enumerable.Range(0, 12).Select(i => $"part{i:00}.bin").ToList();
+        foreach (string name in names) Write(name, name);
+        string sums = Write("SHA256SUMS", string.Concat(names.Select(n => $"{Sha256(n)}  {n}\n")));
+        Write("SHA256SUMS.minisig", key.Sign(File.ReadAllBytes(sums), "release"));
+        var previous = VerificationService.Current;
+        VerificationService.Current = Service(keys: [keys]);
+        try
+        {
+            var job = await RunAsync(Jobs(), JobKind.VerifyBeside, [.. names.Select(n => Path.Combine(_dir, n))]);
+            Assert.Equal((12, 12), (job.VerificationReport!.Total, job.VerificationReport.Authentic));
+            Assert.Equal("12 verified, all good", job.Summary);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void Results_list_problems_before_matches_and_count_what_they_cannot_list()
+    {
+        var report = new VerificationReport(_dir);
+        static VerifiedFile Entry(string name, VerifiedOutcome outcome) => new(null, name, outcome, "");
+        for (int i = 0; i < VerificationReport.MaxListed; i++) report.Add(Entry($"f{i}", i % 2 == 0 ? VerifiedOutcome.Good : VerifiedOutcome.NotChecked));
+        report.Add(Entry("failed", VerifiedOutcome.Failed));        // takes the place of a file nothing was compared for
+        report.Add(Entry("good", VerifiedOutcome.Good));            // so does a match
+        report.Add(Entry("unchecked", VerifiedOutcome.NotChecked)); // not listed: everything listed is worth more
+        Assert.Equal((VerificationReport.MaxListed + 3, 3, VerificationReport.MaxListed), (report.Total, report.Unlisted, report.Files.Count));
+        Assert.Equal("failed", report.Files[0].Name);
+        Assert.Contains(report.Files, f => f.Name == "good");
+        Assert.DoesNotContain(report.Files, f => f.Name == "unchecked");
+        Assert.Equal((VerificationReport.MaxListed / 2 + 1, VerificationReport.MaxListed / 2 + 1), (report.Count(VerifiedOutcome.Good), report.Count(VerifiedOutcome.NotChecked)));
+
+        // The results of checks one command started, as one: counts add up, and problems still come first.
+        var other = new VerificationReport(_dir);
+        other.Add(Entry("gone", VerifiedOutcome.Missing));
+        other.Note("a note");
+        var all = VerificationReport.Combine([report, other]);
+        Assert.Equal((report.Total + 1, 1), (all.Total, all.Count(VerifiedOutcome.Missing)));
+        Assert.Equal(["failed", "gone"], all.Files.Take(2).Select(f => f.Name));
+        Assert.Equal(["a note"], all.Notes);
+        // Always a report of its own: what the dialog adds to it is not added to the job's.
+        var alone = VerificationReport.Combine([other]);
+        Assert.NotSame(other, alone);
+        Assert.Equal((1, 0, 0), (alone.Total, alone.Unlisted, alone.Authentic));
+    }
+
+    [Fact]
+    public void Checks_started_together_show_each_file_once_with_every_claim_on_it()
+    {
+        string iso = Path.Combine(_dir, "disc.iso"), other = Path.Combine(_dir, "other.bin");
+        var claimHere = new ChecksumComparison(new ChecksumClaim(ChecksumKind.Sha256, Sha256("disc"), Path.Combine(_dir, "disc.iso.sha256"), 1), Sha256("disc"));
+        var claimThere = new ChecksumComparison(new ChecksumClaim(ChecksumKind.Sha256, Sha256("old disc"), Path.Combine(_dir, "up", "SHA256SUMS"), 3), Sha256("disc"));
+        // The check beside the files found it intact (and found nothing for another file); a list elsewhere says it differs.
+        var beside = new VerificationReport(_dir);
+        beside.Add(new VerifiedFile(iso, "disc.iso", VerifiedOutcome.Good, "intact") { Checksums = [claimHere], Notes = ["unsigned"] });
+        beside.Add(new VerifiedFile(other, "other.bin", VerifiedOutcome.NotChecked, "nothing to check against") { Notes = ["Nothing beside it says what it should be."] });
+        beside.IsComplete = true;
+        var lists = new VerificationReport(_dir);
+        // Listed in another spelling: on Windows the same file (an ordinary folder ignores letter case), elsewhere exactly as named.
+        lists.Add(new VerifiedFile(OperatingSystem.IsWindows() ? Path.Combine(_dir, "DISC.ISO") : iso, "DISC.ISO", VerifiedOutcome.Failed, "differs")
+        {
+            Checksums = [claimThere],
+        });
+        lists.Add(new VerifiedFile(other, "other.bin", VerifiedOutcome.Good, "intact") { Authentic = true });
+        lists.IsComplete = true;
+
+        var all = VerificationReport.Combine([beside, lists]);
+        // Each file once: the worse result wins, and keeps every claim; why nothing was compared is moot once something was.
+        Assert.Equal([("disc.iso", VerifiedOutcome.Failed), ("other.bin", VerifiedOutcome.Good)], all.Files.Select(f => (f.Name, f.Outcome)));
+        Assert.Equal([claimThere, claimHere], all.Files[0].Checksums);
+        Assert.Equal(["unsigned"], all.Files[0].Notes);
+        Assert.Empty(all.Files[1].Notes);
+        Assert.Equal((2, 1, 1, 0, 1), (all.Total, all.Count(VerifiedOutcome.Failed), all.Count(VerifiedOutcome.Good), all.Count(VerifiedOutcome.NotChecked), all.Authentic));
+        Assert.True(all.IsComplete);
+
+        // A file elsewhere with the same name is another file; one check that did not end leaves the whole incomplete.
+        var elsewhere = new VerificationReport(_dir);
+        elsewhere.Add(new VerifiedFile(Path.Combine(_dir, "sub", "disc.iso"), "sub/disc.iso", VerifiedOutcome.Good, "intact"));
+        var three = VerificationReport.Combine([beside, lists, elsewhere]);
+        Assert.Equal((3, false), (three.Total, three.IsComplete));
+    }
 }

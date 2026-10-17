@@ -46,6 +46,34 @@ public sealed class ChecksumManifestBoundedInputTests
     }
 
     [Fact]
+    public void Verification_inputs_that_are_pipes_or_devices_are_refused_at_once()
+    {
+        // A FIFO on Linux and macOS (an extracted archive can plant one under any name), a device on Windows: hashing it,
+        // or reading it as a key, would wait or read forever.
+        string root = Directory.CreateTempSubdirectory("filecat-verify-special-").FullName;
+        try
+        {
+            string special = OperatingSystem.IsWindows() ? @"\\.\NUL" : Path.Combine(root, "image.iso");
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(0, MakeFifo(special, 384));
+                Assert.Equal(0, MakeFifo(Path.Combine(root, "planted.pub"), 384));
+            }
+            var ct = TestContext.Current.CancellationToken;
+            var clock = Stopwatch.StartNew();
+            Assert.True(VerificationFileReader.IsSpecial(special));
+            Assert.ThrowsAny<IOException>(() => Verifier.Hash(special, [ChecksumKind.Sha256], ct));
+            Assert.ThrowsAny<IOException>(() => Checksums.Compute(special, ChecksumKind.Sha256, ct));
+            Assert.ThrowsAny<IOException>(() => Minisign.Blake2b(special, ct));
+            Assert.Empty(Minisign.KeysIn([root]));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Refusing took {clock.Elapsed}.");
+            // What cannot be opened at all is no pipe: whoever reads it says why.
+            Assert.False(VerificationFileReader.IsSpecial(Path.Combine(root, "absent")));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Bare_checksum_fallback_does_not_materialize_an_oversized_file()
     {
         string root = Directory.CreateTempSubdirectory("filecat-bare-sum-budget-").FullName;
@@ -53,14 +81,18 @@ public sealed class ChecksumManifestBoundedInputTests
         {
             string path = Path.Combine(root, "target.bin.sha256");
             string hash = new string('a', 64);
+            File.WriteAllText(Path.Combine(root, "target.bin"), "owned");
             File.WriteAllText(path, hash + "\n");
-            Assert.Equal(hash, FolderSidecars.BareChecksum(path, ChecksumKind.Sha256));
+            var ct = TestContext.Current.CancellationToken;
+            Assert.Equal(hash, Assert.Single(FolderSidecars.Scan(root, ct).Checksums("target.bin")).Expected);
 
+            // The bare value is read from the bytes the scan read once, within its budget: an oversized file is not read at all.
             File.WriteAllText(path, new string('x', (int)FolderSidecars.MaxChecksumFileBytes + 1));
             long before = GC.GetAllocatedBytesForCurrentThread();
-            Assert.Null(FolderSidecars.BareChecksum(path, ChecksumKind.Sha256));
+            Assert.Null(VerificationFileReader.ReadAll(path, FolderSidecars.MaxChecksumFileBytes));
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
             Assert.True(allocated < 1_000_000, $"Bare sidecar fallback allocated {allocated:N0} bytes.");
+            Assert.Empty(FolderSidecars.Scan(root, ct).Checksums("target.bin"));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

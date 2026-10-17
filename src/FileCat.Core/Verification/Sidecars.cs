@@ -1,4 +1,6 @@
+using System.IO.Enumeration;
 using System.Security.Cryptography;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 
@@ -19,10 +21,14 @@ public static class SidecarNames
     public static bool IsChecksumFile(string name) =>
         ChecksumManifests.IsManifestName(name) || name.StartsWith("CHECKSUMS", StringComparison.OrdinalIgnoreCase) && !IsSignatureFile(name);
 
-    /// <summary>A detached signature: minisign's <c>.minisig</c>, OpenPGP's <c>.sig</c> and <c>.asc</c>.</summary>
+    /// <summary>
+    /// A detached signature: minisign's <c>.minisig</c>, OpenPGP's <c>.sig</c> and <c>.asc</c>, and OpenPGP's <c>.gpg</c> over a
+    /// checksum file (<c>SHA256SUMS.gpg</c>); another <c>.gpg</c> is more likely an encrypted file than a signature.
+    /// </summary>
     public static bool IsSignatureFile(string name) =>
         name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".sig", StringComparison.OrdinalIgnoreCase)
-        || name.EndsWith(".asc", StringComparison.OrdinalIgnoreCase);
+        || name.EndsWith(".asc", StringComparison.OrdinalIgnoreCase)
+        || name.Length > 4 && name.EndsWith(".gpg", StringComparison.OrdinalIgnoreCase) && IsChecksumFile(name[..^4]);
 
     public static bool IsSidecar(string name) => IsChecksumFile(name) || IsSignatureFile(name);
 
@@ -43,6 +49,7 @@ public sealed class FolderSidecars
     private readonly Dictionary<string, List<SignatureClaim>> _signatures;
     private readonly Dictionary<string, List<string>> _covers;
     private readonly Dictionary<string, HashSet<string>> _coveredNames;
+    private readonly HashSet<string> _bare;
     private readonly StringComparer _names;
     private long _retainedClaims;
     private long _retainedCoveredNames;
@@ -70,7 +77,11 @@ public sealed class FolderSidecars
         _signatures = new(names);
         _covers = new(names);
         _coveredNames = new(names);
+        _bare = new(names);
     }
+
+    /// <summary>Whether a checksum file holds a bare checksum (no list form) for the file it is named after, read as such.</summary>
+    public bool IsBare(string sidecar) => _bare.Contains(sidecar);
 
     public IReadOnlyList<ChecksumClaim> Checksums(string name) => _checksums.TryGetValue(name, out var list) ? list : [];
 
@@ -98,15 +109,72 @@ public sealed class FolderSidecars
         {
             if (!SidecarNames.IsSidecar(name)) continue;
             // A cloud placeholder is not read (reading it would download it): its claims wait until it is on this computer.
-            if ((info.Attributes & FileAttributes.Offline) != 0 || ((uint)info.Attributes & 0x440000u) != 0) continue;
+            if (IsPlaceholder(info)) continue;
             ct.ThrowIfCancellationRequested();
             sources[name] = (info.Length, info.LastWriteTimeUtc.Ticks);
-            if (SidecarNames.IsSignatureFile(name)) result.AddSignature(name, info, files);
-            else if (info.Length <= MaxChecksumFileBytes) result.AddChecksums(name, info, files);
-            fingerprints[name] = Fingerprint(info, ct);
+            string? parsed = null;
+            try
+            {
+                if (SidecarNames.IsSignatureFile(name)) result.AddSignature(name, info, files);
+                else if (info.Length <= MaxChecksumFileBytes) parsed = result.AddChecksums(name, info, files);
+            }
+            // One sidecar FileCat cannot make sense of leaves the folder's others standing (and is still fingerprinted: a change is seen).
+            catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
+            {
+                AppLog.Warn($"A checksum file or signature could not be read: {Path.Combine(folder, name)}", ex);
+            }
+            // A checksum file's fingerprint is that of the very bytes its claims were read from: a signature over it is
+            // checked over bytes with this fingerprint, so a file changed between the two reads cannot pass for the other.
+            fingerprints[name] = parsed ?? Fingerprint(info, ct);
         }
         return result;
     }
+
+    /// <summary>The fingerprint of bounded content, as <see cref="SourceFingerprints"/> keeps it.</summary>
+    internal static string ContentFingerprint(ReadOnlySpan<byte> content) => "sha256:" + Convert.ToHexString(SHA256.HashData(content));
+
+    /// <summary>
+    /// The detached signatures over one file (<c>X.minisig</c>, <c>X.sig</c>, <c>X.asc</c> beside <c>X</c>, the extension in
+    /// any letter case), found without reading the rest of the folder, by the rules <see cref="Scan"/> follows (a cloud
+    /// placeholder is left out). Null when the folder could not be listed: then it is not known whether anything signs it.
+    /// </summary>
+    internal static IReadOnlyList<SignatureClaim>? SignaturesOver(string path)
+    {
+        string? folder = Path.GetDirectoryName(path);
+        if (folder is null) return [];
+        string name = Path.GetFileName(path);
+        var names = WindowsCaseSensitivity.NamesIn(folder);
+        var claims = new List<SignatureClaim>();
+        try
+        {
+            // Names are compared, not matched as a pattern (a name may hold the pattern's own wildcards and escapes).
+            var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
+            var candidates = new FileSystemEnumerable<FileInfo>(folder, (ref FileSystemEntry entry) => (FileInfo)entry.ToFileSystemInfo(), options)
+            {
+                ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Length > name.Length + 1
+                    && entry.FileName.StartsWith(name, StringComparison.OrdinalIgnoreCase) && entry.FileName[name.Length] == '.',
+            };
+            foreach (var info in candidates)
+            {
+                if (!SidecarNames.IsSignatureFile(info.Name) || IsPlaceholder(info)) continue;
+                string signed = SidecarNames.Signed(info.Name);
+                // As Scan finds what a signature signs: the folder's own rule for letter case, and a Mac volume's alias only
+                // when the two spellings name the same file.
+                bool same = names.Equals(signed, name) || OperatingSystem.IsMacOS() && string.Equals(signed, name, StringComparison.OrdinalIgnoreCase)
+                    && UnixFiles.Stat(Path.Combine(folder, signed)) is { } a && UnixFiles.Stat(path) is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink;
+                if (!same) continue;
+                var kind = info.Name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) ? SignatureKind.Minisign : SignatureKind.OpenPgp;
+                claims.Add(new SignatureClaim(kind, info.FullName, path));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        return claims;
+    }
+
+    private static bool IsPlaceholder(FileInfo info) => (info.Attributes & FileAttributes.Offline) != 0 || ((uint)info.Attributes & 0x440000u) != 0;
+
+    /// <summary>Whether a checksum file's lines count for the files beside it (<see cref="Scan"/> reads it): on this computer, and not too large.</summary>
+    public static bool ReadsChecksumFile(FileInfo info) => info.Exists && !IsPlaceholder(info) && info.Length <= MaxChecksumFileBytes;
 
     internal static string Fingerprint(FileInfo info, CancellationToken ct)
     {
@@ -146,11 +214,14 @@ public sealed class FolderSidecars
         AddCovered(name, target.Name);
     }
 
-    private void AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files)
+    /// <summary>Reads a checksum file's claims; the fingerprint of the bytes they were read from, or null when it could not be read.</summary>
+    private string? AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files)
     {
         ChecksumManifest manifest;
-        try { manifest = ChecksumManifests.Load(sidecar.FullName, MaxChecksumFileBytes); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return; }
+        byte[] content;
+        try { manifest = ChecksumManifests.Load(sidecar.FullName, MaxChecksumFileBytes, out content); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return null; }
+        string fingerprint = ContentFingerprint(content);
         bool any = false;
         foreach (var entry in manifest.Entries)
         {
@@ -162,20 +233,25 @@ public sealed class FolderSidecars
             AddCovered(name, coveredFile.Name);
             any = true;
         }
-        if (any) return;
-        // A bare checksum (with nothing after it, or only a name) in a file named after the one it checks.
-        if (ChecksumManifests.KindFromName(name) is not { } kind || BareChecksum(sidecar.FullName, kind) is not { } expected) return;
+        if (any) return fingerprint;
+        // A bare checksum (with nothing after it, or only a name) in a file named after the one it checks: from the same bytes.
+        if (ChecksumManifests.KindFromName(name) is not { } kind || BareChecksum(content, kind) is not { } expected) return fingerprint;
         string? target = TargetOf(name, files, sidecar.DirectoryName!);
-        if (target is null) return;
+        if (target is null) return fingerprint;
         AddClaim(_checksums, target, new ChecksumClaim(kind, expected, sidecar.FullName, 1));
         AddCovered(name, target);
+        _bare.Add(name);
+        return fingerprint;
     }
 
-    /// <summary>"X.iso.sha256" checks "X.iso"; "X.sha256" checks the one file named "X.something" there is.</summary>
+    /// <summary>"X.iso.sha256" checks "X.iso"; "X.sha256" checks the one file named "X.something" there is; "SHA256SUMS" none.</summary>
     private static string? TargetOf(string sidecar, Dictionary<string, FileInfo> files, string folder)
     {
-        string stem = sidecar[..sidecar.LastIndexOf('.')];
-        if (stem.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) stem = stem[..^4];
+        // "X.iso.sha256.txt" is read as "X.iso.sha256" (as ChecksumManifests.KindFromName reads it).
+        string stem = sidecar.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? sidecar[..^4] : sidecar;
+        int dot = stem.LastIndexOf('.');
+        if (dot <= 0) return null;
+        stem = stem[..dot];
         if (FindFile(files, stem, folder) is { } exactOrAlias) return exactOrAlias.Name;
         var namesakes = files.Keys.Where(n => !SidecarNames.IsSidecar(n) && string.Equals(Path.GetFileNameWithoutExtension(n), stem, StringComparison.OrdinalIgnoreCase)).ToList();
         return namesakes.Count == 1 ? namesakes[0] : null;
@@ -194,29 +270,13 @@ public sealed class FolderSidecars
         return requested is { } a && listed is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink ? candidates[0] : null;
     }
 
-    internal static string? BareChecksum(string path, ChecksumKind kind)
+    /// <summary>A bare checksum (the value alone, or followed by a name) in bounded content, or null.</summary>
+    internal static string? BareChecksum(ReadOnlySpan<byte> content, ChecksumKind kind)
     {
-        string text;
-        try
-        {
-            // The manifest parser above has its own opened-byte budget. A bare checksum fallback reopens the
-            // path, so that earlier check cannot authorize an unbounded second read after a file changes.
-            using var input = VerificationFileReader.OpenRead(path, FileShare.ReadWrite | FileShare.Delete);
-            if (input.CanSeek && input.Length > MaxChecksumFileBytes) return null;
-            using var bytes = new MemoryStream();
-            byte[] buffer = new byte[64 * 1024];
-            while (true)
-            {
-                int count = input.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, MaxChecksumFileBytes + 1 - bytes.Length)));
-                if (count == 0) break;
-                if (bytes.Length + count > MaxChecksumFileBytes) return null;
-                bytes.Write(buffer, 0, count);
-            }
-            text = System.Text.Encoding.UTF8.GetString(bytes.GetBuffer(), 0, (int)bytes.Length);
-            if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
-            text = text.Trim();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
+        if (content.Length > MaxChecksumFileBytes) return null;
+        string text = System.Text.Encoding.UTF8.GetString(content);
+        if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+        text = text.Trim();
         if (text.Contains('\n')) return null;
         string first = text.Split((char[])[' ', '\t'], 2)[0].TrimStart('\\');
         return first.Length == Operations.Checksums.HexLength(kind) && first.All(Uri.IsHexDigit) ? first.ToLowerInvariant() : null;

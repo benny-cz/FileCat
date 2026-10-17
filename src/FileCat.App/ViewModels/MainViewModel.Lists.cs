@@ -479,6 +479,13 @@ public sealed partial class MainViewModel
     internal void RunFromSearch(string id)
     {
         if (GetAvailability(id).Enabled) RememberCommand(id);
+        // Verifying, chosen here with nothing marked, is about the folder (D-57): a file alone is checked from its context
+        // menu, or marked.
+        if (id == CommandIds.VerifyChecksums && ActiveTab is { Listing.HasMarks: false, Location.IsFileSystem: true })
+        {
+            VerifyFolder();
+            return;
+        }
         Execute(id);
     }
 

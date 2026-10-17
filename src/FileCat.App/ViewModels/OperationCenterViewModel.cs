@@ -62,6 +62,8 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _canResume;
     [ObservableProperty] private bool _canUndo;
     [ObservableProperty] private bool _canRetryElevated;
+    /// <summary>A finished check of checksums and signatures whose results are still kept (D-57): they can be shown again.</summary>
+    [ObservableProperty] private bool _canShowResults;
     [ObservableProperty] private bool _hasIssues;
     [ObservableProperty] private bool _needsDecision;
     [ObservableProperty] private string _severity = "info";
@@ -94,7 +96,8 @@ public sealed partial class JobViewModel : ObservableObject
     public void Refresh()
     {
         var j = Job;
-        Title = j.Title;
+        // A title and a summary name files (a verification's names its checksum file and who signed it): escaped as names are (§18.3).
+        Title = Formatters.SafeName(j.Title);
         IsFinished = j.State.IsFinished();
         IsActive = j.State.IsActive();
         NeedsDecision = j.State == JobState.AwaitingDecision;
@@ -102,6 +105,7 @@ public sealed partial class JobViewModel : ObservableObject
         CanResume = j.IsPaused || j.State is JobState.Paused or JobState.Pausing;
         CanUndo = j.CanUndo;
         CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
+        CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
         int issues = j.IssueCount;
         HasIssues = issues > 0;
         Severity = j.State == JobState.Failed || j.ItemsFailed > 0 ? "error" : j.State == JobState.CompletedWithIssues ? "warning" : j.State == JobState.Completed ? "ok" : "info";
@@ -150,8 +154,8 @@ public sealed partial class JobViewModel : ObservableObject
             if (bd > 0) parts.Add(Formatters.SizeWithUnit(bd));
             if (j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
         }
-        DetailText = string.Join(" · ", parts);
-        CurrentItem = j.CurrentItem is { } c ? Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c : string.Empty;
+        DetailText = Formatters.SafeName(string.Join(" · ", parts));
+        CurrentItem = j.CurrentItem is { } c ? Formatters.SafeName(Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c) : string.Empty;
         Describe(j, estimate, bd, bt, id, it);
     }
 
@@ -286,6 +290,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public JobManager Manager { get; }
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
+
+    /// <summary>Shows a job's row as the job is now (a finished verification let go of its results: its Results button goes).</summary>
+    public void Refresh(Job job)
+    {
+        if (_map.TryGetValue(job, out var vm)) vm.Refresh();
+    }
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
 
     [ObservableProperty] private bool _isOpen;
