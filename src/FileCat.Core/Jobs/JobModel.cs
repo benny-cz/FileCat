@@ -203,9 +203,10 @@ public sealed class JobRequest
     /// <summary>
     /// For <see cref="JobKind.VerifyChecksums"/>: the checksum lines that the check of the same files against everything beside
     /// them (it ran first, for the same command) compared, as it read them: the checksum file, the line, the algorithm, the
-    /// value. Those lines are left out here (each file is shown once); a line that reads otherwise now is checked.
+    /// value, and the file the line named. Those lines are left out here (each file is shown once); a line that reads
+    /// otherwise now, or names another file, is checked. The job lets go of them when it ends.
     /// </summary>
-    public IReadOnlySet<Verification.ChecksumClaim>? ComparedBeside { get; init; }
+    public Verification.ComparedLines? ComparedBeside { get; init; }
     /// <summary>
     /// For <see cref="JobKind.VerifyChecksums"/>: a line for a file that is not there is left out, not reported missing (the
     /// checksum files were found in a folder being checked, not chosen; as sha256sum's --ignore-missing).

@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
     /// <summary>Checksum files to check after the files beside them: the lines that check compared are left out.</summary>
     private sealed record PendingLists(List<ItemRef> Sources, bool IgnoreMissing, string? Description)
     {
-        public JobRequest Request(IReadOnlySet<ChecksumClaim>? compared) => new()
+        public JobRequest Request(ComparedLines? compared) => new()
         {
             Kind = JobKind.VerifyChecksums,
             Sources = Sources,
@@ -99,10 +99,14 @@ public sealed partial class MainViewModel
             if (wholeFolder)
             {
                 if (origin is not { Location.IsFileSystem: true }) return;
-                // Checked in part, a folder still being listed would have its verdict speak for all of it.
-                if (origin.Listing.State == ListingState.Loading)
+                // The results speak for the whole folder: checked in part (still listing, or a listing that broke off or was
+                // stopped), it would say "all intact" of files it never saw.
+                var shownNow = origin.Listing;
+                if (!shownNow.IsWhole)
                 {
-                    Notify("This folder is still being listed: verify it once all its files are shown.", true);
+                    Notify(shownNow.State == ListingState.Failed ? $"This folder could not be listed: {Formatters.SafeName(shownNow.Error ?? "")}"
+                        : shownNow.IsPartial ? "Only part of this folder is listed (its listing broke off or was stopped): reread it to verify every file, or mark the files to check."
+                        : "This folder is still being listed: verify it once all its files are shown.", true);
                     return;
                 }
                 if (origin.Listing.CaptureShownFiles() is not { } shown) return;
@@ -135,6 +139,8 @@ public sealed partial class MainViewModel
                 Notify("Nothing in this folder says what its files should be: no checksum file (SHA256SUMS, name.sha256, .md5, .sfv…) "
                        + "or signature (name.asc, .sig, .minisig) here names a file that is here. To compare with a checksum from a web page, "
                        + "use File → Calculate checksums and paste it there.", true);
+            else if (plan.NotOnDisk)
+                Notify("Checksums and signatures are verified for files on a disk: copy these out of the archive or off the server first.", true);
             else if (plan.OnlyFolders)
                 Notify("Verifying checks files, not folders: to check every file in a folder, open it and choose Verify with nothing marked "
                        + "from the command search (or with the cursor on \"..\"); or mark the files to check.", true);
@@ -198,7 +204,8 @@ public sealed partial class MainViewModel
     /// <param name="Probe">The one chosen file, nothing names it, is to be tried as a list of checksums (it is the one in <paramref name="Lists"/>).</param>
     /// <param name="Unread">Why a folder's checksum files and signatures could not be read, when one could not.</param>
     /// <param name="OnlyFolders">Only folders were chosen.</param>
-    private sealed record VerificationPlan(List<ItemRef> Beside, List<ItemRef> Lists, bool Probe, string? Unread, bool OnlyFolders);
+    /// <param name="NotOnDisk">Only files not on a disk were chosen (in an archive, on a server).</param>
+    private sealed record VerificationPlan(List<ItemRef> Beside, List<ItemRef> Lists, bool Probe, string? Unread, bool OnlyFolders, bool NotOnDisk);
 
     /// <summary>
     /// Splits what is chosen (D-57) so each file is checked once and no claim is left out: a signature stands for the file it
@@ -236,19 +243,19 @@ public sealed partial class MainViewModel
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
             }
             // One key per file however its path is spelled in its folder: a case-sensitive folder may hold "a.iso" and "A.ISO".
-            var rules = new Dictionary<string, StringComparer>(StringComparer.Ordinal);
-            string KeyOf(string path)
-            {
-                string folder = Path.GetDirectoryName(path) ?? "", name = Path.GetFileName(path);
-                if (!rules.TryGetValue(folder, out var rule)) rules[folder] = rule = WindowsCaseSensitivity.NamesIn(folder);
-                return folder + "\0" + (ReferenceEquals(rule, StringComparer.OrdinalIgnoreCase) ? name.ToUpperInvariant() : name);
-            }
+            var fileKeys = new SameFileKeys();
+            string KeyOf(string path) => fileKeys.Of(path) ?? path;
             var keys = new HashSet<string>(StringComparer.Ordinal);
             var files = new List<ItemRef>();
-            bool anyFile = false;
+            bool anyFile = false, elsewhere = false;
             foreach (var item in chosen)
             {
-                if (item.IsContainer || item.FileSystemPath is not { } path) continue;
+                if (item.IsContainer) continue;
+                if (item.FileSystemPath is not { } path)
+                {
+                    elsewhere = true;
+                    continue;
+                }
                 anyFile = true;
                 // A signature stands for the file it signs.
                 var file = SidecarNames.IsSignatureFile(item.Name) && SidecarNames.Signed(path) is var signed && Exists(signed)
@@ -281,11 +288,11 @@ public sealed partial class MainViewModel
             // A chosen signature whose file is not here says so in the results (outside a whole folder, where it is one file of many).
             bool orphan = !wholeFolder && unnamed.Any(f => SidecarNames.IsSignatureFile(f.Name));
             // A single file nothing names, whatever its name (a signature aside): perhaps a list of checksums.
-            if (!wholeFolder && files.Count == 1 && unnamed.Count == 1 && !orphan) return new VerificationPlan([], unnamed, Probe: true, unread, OnlyFolders: false);
+            if (!wholeFolder && files.Count == 1 && unnamed.Count == 1 && !orphan) return new VerificationPlan([], unnamed, Probe: true, unread, OnlyFolders: false, NotOnDisk: false);
             // Files nothing names are listed too ("nothing to check against"; a chosen checksum file may still check them), when
             // anything is checked at all.
             if (beside.Count > 0 || lists.Count > 0 || orphan) beside.AddRange(unnamed);
-            return new VerificationPlan(beside, lists, Probe: false, unread, OnlyFolders: !anyFile);
+            return new VerificationPlan(beside, lists, Probe: false, unread, OnlyFolders: !anyFile && !elsewhere, NotOnDisk: !anyFile && elsewhere);
         });
     }
 
@@ -309,13 +316,14 @@ public sealed partial class MainViewModel
                 group.Jobs.Add(job);
             }
             group.Ended++;
+            var compared = report?.TakeCompared();
             if (group.Then is { } lists)
             {
                 group.Then = null;
                 // Canceled, the check is over: the checksum files are not started after all.
                 if (job.State != JobState.Canceled)
                 {
-                    StartCheck(group, lists.Request(report?.TakeCompared()));
+                    StartCheck(group, lists.Request(compared));
                     return;
                 }
                 group.Notes.Add(lists.Sources.Count == 1
@@ -334,8 +342,15 @@ public sealed partial class MainViewModel
                 }
                 _finishedChecks.RemoveAt(0);
             }
-            // A check that took a while may end while the user does something else: keys pressed for that do not close it.
+            // A check that took a while may end while the user does something else: keys pressed for that do not close it, and
+            // while they type (a rename, a path) the results wait: a dialog would take the keyboard and end what they type.
             bool unexpected = DateTime.UtcNow - group.Jobs.Min(j => j.CreatedUtc) > VerifyKeysGuardedAfter;
+            if (unexpected && Typing())
+            {
+                Notify("The check has ended: its results open once you are done typing (Results in the operations strip shows them now).");
+                while (Typing()) await Task.Delay(250);
+                if (!_finishedChecks.Contains(group) || group.Jobs.All(j => j.VerificationReport is null)) return;
+            }
             await ShowVerificationAsync(group, unexpected);
         }
         catch (Exception ex)
@@ -344,6 +359,9 @@ public sealed partial class MainViewModel
             Notify($"{Formatters.SafeName(job.Title)}: {Formatters.SafeName(job.Summary)}. The results could not be shown: {ex.Message}", true);
         }
     }
+
+    /// <summary>The keyboard is in a text box (a rename, the path, the command search) or in a dialog.</summary>
+    private bool Typing() => Dialogs.IsOpen || View.TopLevel?.FocusManager?.GetFocusedElement() is Avalonia.Controls.TextBox;
 
     /// <summary>Shows a finished check's results again (the operations strip's Results), while they are kept.</summary>
     internal async Task ShowVerificationResultsAsync(Job job)
@@ -365,6 +383,8 @@ public sealed partial class MainViewModel
     private async Task ShowVerificationAsync(VerifyGroup group, bool guardKeys)
     {
         var reports = group.Jobs.Select(j => j.VerificationReport).OfType<VerificationReport>().ToList();
+        // Canceled while it waited its turn: nothing was read, which the results say (and what that left unchecked).
+        if (reports.Count == 0 && group.Jobs.All(j => j.State == JobState.Canceled)) reports.Add(new VerificationReport(""));
         if (reports.Count == 0)
         {
             // It ended before it began (not set up, say): what went wrong is among its issues.

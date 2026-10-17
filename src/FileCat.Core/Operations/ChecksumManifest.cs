@@ -394,6 +394,9 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
         }
         long bytes = 0;
         bool completed = false;
+        // Each folder's signatures, listed once for all its checksum files; its minisign keys read once too.
+        var signaturesIn = new Dictionary<string, FolderSidecars.SignatureIndex?>(StringComparer.Ordinal);
+        var scope = new Verification.VerificationService.RequestScope();
         try
         {
             for (int i = 0; i < Job.Request.Sources.Count; i++)
@@ -402,16 +405,10 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                 var source = Job.Request.Sources[i];
                 string manifestPath = source.FileSystemPath ?? throw new NotSupportedException("Checksum manifests are verified only on disk.");
                 string manifestName = Shown(manifestPath);
-                // What signs it is found first: then a signature is checked over the very bytes whose lines are verified.
-                var claims = FolderSidecars.SignaturesOver(manifestPath);
                 ChecksumManifest manifest;
-                byte[] content = [];
-                try
-                {
-                    manifest = claims is { Count: > 0 }
-                        ? ChecksumManifests.Load(manifestPath, ChecksumManifests.MaxManifestBytes, out content)
-                        : ChecksumManifests.Load(manifestPath);
-                }
+                byte[] content;
+                // Read once: its lines are verified, and a signature over it is checked, over these very bytes.
+                try { manifest = ChecksumManifests.Load(manifestPath, ChecksumManifests.MaxManifestBytes, out content); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                 {
                     string why = $"{manifestName} could not be read: {ErrorText.Describe(ex)}";
@@ -421,6 +418,8 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                     Job.RootFailed(i);
                     continue;
                 }
+                // Only a bare value ("X.iso.sha256" downloaded before "X.iso"): a line for the file it is named after.
+                if (manifest.Verifiable == 0 && Bare(manifestPath, content) is { } bare) manifest = manifest with { Entries = [bare] };
                 if (manifest.Entries.Count == 0)
                 {
                     Issue(IssueSeverity.Error, manifestPath, "No checksum lines were found in this file.", StepOutcome.Failed);
@@ -431,27 +430,37 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                     Job.RootFailed(i);
                     continue;
                 }
-                // Checked once, before the files it lists are read: what the signature says holds for each of them.
-                var signatures = SignaturesOver(manifestPath, manifestName, claims, content, report, signed, out string? unvouched);
-                if (manifest.ClearSigned)
-                {
-                    string inline = $"{manifestName} carries its own OpenPGP signature (it is clearsigned), which FileCat does not check: what it lists is " +
-                                    $"at most intact, not proven authentic. gpg --verify {manifestName} checks that signature.";
-                    Issue(IssueSeverity.Info, manifestPath, inline, StepOutcome.Committed);
-                    report.Note(inline);
-                }
-                // The lines the check beside the files compared are keyed by the checksum file as that check found it.
+                // Lines compared beside their files already (by the check this one followed), exactly as they read here and
+                // naming the same file, are left out: that file is shown there, with the line among its claims.
                 string listed = System.IO.Path.GetFullPath(manifestPath);
-                int notHere = 0;
+                var lines = new List<ManifestEntry>(manifest.Entries.Count);
                 foreach (var e in manifest.Entries)
                 {
-                    // Compared beside its file already (by the check this one followed), exactly as it reads here: that file is
-                    // shown there, with this line among its claims.
-                    if (compared is not null && e.Problem is null && compared.Contains(new ChecksumClaim(e.Kind, e.Expected, listed, e.Line)))
-                    {
+                    if (compared is not null && e is { Problem: null, Path: { } named } && compared.Contains(new ChecksumClaim(e.Kind, e.Expected, listed, e.Line), named))
                         leftBeside++;
-                        continue;
+                    else lines.Add(e);
+                }
+                // A list whose every checksum was compared there had its signatures checked there too, over the same bytes.
+                IReadOnlyList<SignatureCheck> signatures = [];
+                string? unvouched = null;
+                if (lines.Any(e => e.Problem is null))
+                {
+                    string folder = System.IO.Path.GetDirectoryName(manifestPath) ?? "";
+                    if (!signaturesIn.TryGetValue(folder, out var index)) signaturesIn[folder] = index = FolderSidecars.IndexSignatures(folder);
+                    var claims = index is null ? null : FolderSidecars.SignaturesOver(manifestPath, index);
+                    // Checked once, before the files it lists are read: what the signature says holds for each of them.
+                    signatures = SignaturesOver(manifestPath, manifestName, claims, content, report, signed, scope, out unvouched);
+                    if (manifest.ClearSigned)
+                    {
+                        string inline = $"{manifestName} carries its own OpenPGP signature (it is clearsigned), which FileCat does not check: what it lists is " +
+                                        $"at most intact, not proven authentic. gpg --verify {manifestName} checks that signature.";
+                        Issue(IssueSeverity.Info, manifestPath, inline, StepOutcome.Committed);
+                        report.Note(inline);
                     }
+                }
+                int notHere = 0;
+                foreach (var e in lines)
+                {
                     if (e.Problem is not null)
                     {
                         skipped++;
@@ -606,9 +615,25 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
             if (skipped > 0 && matched + mismatched + missing + unreadable > 0) parts.Add($"{skipped:N0} lines not verified");
             if (absent > 0 && any) parts.Add($"{absent:N0} not here, not looked for");
             if (leftBeside > 0 && any) parts.Add($"{leftBeside:N0} checked beside them");
-            parts.AddRange(signed);
+            if (signed.Count <= 3) parts.AddRange(signed);
+            else
+                parts.Add($"{_goodSignatures + _badSignatures + _otherSignatures:N0} signatures over checksum files: {_goodSignatures:N0} good"
+                          + (_badSignatures > 0 ? $", {_badSignatures:N0} bad" : "") + (_otherSignatures > 0 ? $", {_otherSignatures:N0} could not vouch" : ""));
             Job.SetSummary(string.Join(", ", parts));
+            compared?.Release();
         }
+    }
+
+    private int _goodSignatures, _badSignatures, _otherSignatures;
+
+    /// <summary>A checksum file holding only a bare value: a line for the file it is named after (there or not), or null.</summary>
+    private static ManifestEntry? Bare(string manifestPath, byte[] content)
+    {
+        string name = System.IO.Path.GetFileName(manifestPath);
+        if (ChecksumManifests.KindFromName(name) is not { } kind || FolderSidecars.BareChecksum(content, kind) is not { } value
+            || FolderSidecars.BareTarget(manifestPath) is not { } target) return null;
+        string full = System.IO.Path.GetFullPath(target);
+        return new ManifestEntry(1, System.IO.Path.GetFileName(full), full, kind, value, null);
     }
 
     /// <summary>
@@ -618,7 +643,7 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
     /// whether anything signs it could not be found out (its folder could not be listed) or the signatures not checked.
     /// </summary>
     private IReadOnlyList<SignatureCheck> SignaturesOver(string manifestPath, string name, IReadOnlyList<SignatureClaim>? claims, byte[] content,
-        VerificationReport report, List<string> summary, out string? unvouched)
+        VerificationReport report, List<string> summary, Verification.VerificationService.RequestScope scope, out string? unvouched)
     {
         unvouched = null;
         if (claims is { Count: 0 }) return [];
@@ -632,7 +657,7 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
             summary.Add($"{name}: signatures not checked");
             return [];
         }
-        var checks = service.CheckSignaturesOver(manifestPath, claims, content, Job.Token);
+        var checks = service.CheckSignaturesOver(manifestPath, claims, content, Job.Token, scope);
         foreach (var check in checks)
         {
             string text = $"{System.IO.Path.GetFileName(check.Claim.Signature)} (over {name}): {check.Result.Text}.";
@@ -640,13 +665,16 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
             switch (check.Result.State)
             {
                 case VerificationState.SignatureGood:
+                    _goodSignatures++;
                     summary.Add($"{name} signed by {check.Result.Signer}");
                     break;
                 case VerificationState.SignatureBad:
+                    _badSignatures++;
                     summary.Add($"{name}: {Verifier.Short(check.Result)}");
                     Issue(IssueSeverity.Error, manifestPath, text, StepOutcome.Failed, SignatureCause);
                     break;
                 default:
+                    _otherSignatures++;
                     summary.Add($"{name}: {Verifier.Short(check.Result)}");
                     Issue(IssueSeverity.Warning, manifestPath, text, StepOutcome.Committed);
                     break;

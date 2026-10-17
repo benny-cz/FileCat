@@ -113,6 +113,15 @@ public sealed class ListingModel : IDisposable
     public Exception? LoadError { get; private set; }
     public IReadOnlyList<string> Issues => _issues;
 
+    /// <summary>Only part of the location is shown: its listing broke off on an error or was stopped (<see cref="Issues"/> says which).</summary>
+    public bool IsPartial { get; private set; }
+
+    /// <summary>
+    /// Every entry of the location is listed: its load ended whole, and no refresh is still adding rows to the view it took
+    /// over (one still running behind the shown rows leaves them as they were).
+    /// </summary>
+    public bool IsWhole => State == ListingState.Complete && !IsPartial && (_refreshing is null || _pendingRefresh is not null);
+
     /// <summary>Why the last reread failed (its rows were kept), or null; the folder may have gone, say.</summary>
     public Exception? LastRefreshError { get; private set; }
     public bool HasParentRow { get; private set; }
@@ -388,6 +397,7 @@ public sealed class ListingModel : IDisposable
         _marks = new MarkSet();
         _statsCache = null;
         _issues.Clear();
+        IsPartial = false;
         LastRefreshError = null;
         _focusStore = HasParentRow ? 0 : -1;
         _focusVisibleHint = 0;
@@ -459,6 +469,7 @@ public sealed class ListingModel : IDisposable
         if (State == ListingState.Loading)
         {
             State = ListingState.Complete;
+            IsPartial = true;
             _issues.Add("Listing was stopped before it finished; only part of this location is shown.");
         }
         Raise(ListingChange.State);
@@ -599,6 +610,7 @@ public sealed class ListingModel : IDisposable
         _statsCache = null;
         _appliedCount = 0;
         _issues.Clear();
+        IsPartial = false;
         LastRefreshError = null;
         _pendingMarks = marked.Count > 0 ? marked : null;
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
@@ -707,11 +719,13 @@ public sealed class ListingModel : IDisposable
                 Error = DescribeError(r.Error);
                 LoadError = r.Error;
                 State = VisibleCount > (HasParentRow ? 1 : 0) ? ListingState.Complete : ListingState.Failed;
-                if (State == ListingState.Complete) _issues.Add($"Listing incomplete: {Error}");
+                IsPartial = State == ListingState.Complete;
+                if (IsPartial) _issues.Add($"Listing incomplete: {Error}");
             }
             else if (r.Canceled)
             {
                 State = ListingState.Complete;
+                IsPartial = true;
                 _issues.Add("Listing was stopped before it finished; only part of this location is shown.");
             }
             else

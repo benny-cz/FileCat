@@ -149,32 +149,67 @@ public sealed class ChecksumManifestTests : IDisposable
     [Fact]
     public async Task Lines_the_check_beside_the_files_compared_are_left_out_and_no_others()
     {
-        _dir.File("good.txt", "good");
+        string good = _dir.File("good.txt", "good");
         _dir.File("sub/x.txt", "x");
         string manifest = _dir.File("files.sha256", $"{Sha256("good")}  good.txt\n{Sha256("x")}  sub/x.txt\n");
-        // As the check of the files against everything beside them read the line: the checksum file, the line, the value.
+        // As the check of the files against everything beside them read the line: the checksum file, the line, the value,
+        // and the file the line named.
         ChecksumClaim Line(string list, int line, string expected) => new(ChecksumKind.Sha256, expected, Path.GetFullPath(list), line);
-        async Task<Job> VerifyAfterBesideAsync(string list, params ChecksumClaim[] compared) => await FinishedAsync(_jobs.Submit(new JobRequest
+        ComparedLines Compared(params (ChecksumClaim Claim, string File)[] lines)
+        {
+            var compared = new ComparedLines();
+            foreach (var (claim, file) in lines) compared.Add(claim, Path.GetFullPath(file));
+            return compared;
+        }
+        async Task<Job> VerifyAfterBesideAsync(string list, ComparedLines compared) => await FinishedAsync(_jobs.Submit(new JobRequest
         {
             Kind = JobKind.VerifyChecksums,
             Sources = [ItemRef.ForFileSystemPath(list, EntryKind.File)],
-            ComparedBeside = new HashSet<ChecksumClaim>(compared),
+            ComparedBeside = compared,
         }));
 
-        // Compared already: left out. Not compared (a file in another folder): checked here.
-        var job = await VerifyAfterBesideAsync(manifest, Line(manifest, 1, Sha256("good")));
+        // Compared already: left out. Not compared (a file in another folder): checked here. The lines are let go of after.
+        var compared = Compared((Line(manifest, 1, Sha256("good")), good));
+        var job = await VerifyAfterBesideAsync(manifest, compared);
         Assert.Equal("sub/x.txt", Assert.Single(job.VerificationReport!.Files).Name);
         Assert.Equal("1 verified, all match, 1 checked beside them", job.Summary);
+        Assert.Equal(0, compared.Count);
 
         // The list changed since that check read it: a line that reads otherwise now is checked, not taken as compared.
-        var changed = await VerifyAfterBesideAsync(manifest, Line(manifest, 1, Sha256("an older value")), Line(manifest, 2, Sha256("x")));
+        var changed = await VerifyAfterBesideAsync(manifest, Compared((Line(manifest, 1, Sha256("an older value")), good), (Line(manifest, 2, Sha256("x")), Path.Combine(_dir.Path, "sub", "x.txt"))));
         Assert.Equal("good.txt", Assert.Single(changed.VerificationReport!.Files).Name);
+        // So is one that now names another file with the same value (a mirror renamed what it lists).
+        string renamed = _dir.File("renamed.txt", "good");
+        string mirror = _dir.File("mirror.sha256", $"{Sha256("good")}  renamed.txt\n");
+        var moved = await VerifyAfterBesideAsync(mirror, Compared((Line(mirror, 1, Sha256("good")), good)));
+        Assert.Equal(("renamed.txt", VerifiedOutcome.Good), (Assert.Single(moved.VerificationReport!.Files).Name, moved.VerificationReport.Files[0].Outcome));
+        Assert.True(File.Exists(renamed));
 
         // Every line compared already: it says so, not that it verified nothing.
         string mine = _dir.File("mine.sha256", $"{Sha256("good")}  good.txt\n");
-        var left = await VerifyAfterBesideAsync(mine, Line(mine, 1, Sha256("good")));
+        var left = await VerifyAfterBesideAsync(mine, Compared((Line(mine, 1, Sha256("good")), good)));
         Assert.Empty(left.VerificationReport!.Files);
         Assert.Equal("the files it lists were checked beside them", left.Summary);
+    }
+
+    [Fact]
+    public async Task A_bare_checksum_file_names_the_file_it_is_for_even_before_that_file_is_here()
+    {
+        // "ubuntu.iso.sha256" downloaded first: it holds only a value, for the file it is named after.
+        string sidecar = _dir.File("ubuntu.iso.sha256", Sha256("the image") + "\n");
+        var job = await VerifyAsync(sidecar);
+        var missing = Assert.Single(job.VerificationReport!.Files);
+        Assert.Equal(("ubuntu.iso", VerifiedOutcome.Missing, Path.Combine(_dir.Path, "ubuntu.iso")), (missing.Name, missing.Outcome, missing.Path));
+        Assert.Equal("Missing: ubuntu.iso.sha256 lists it (line 1), but it is not there.", Assert.Single(missing.Notes));
+        // Once it is: checked against that value.
+        _dir.File("ubuntu.iso", "the image");
+        var found = Assert.Single((await VerifyAsync(sidecar)).VerificationReport!.Files);
+        Assert.Equal(("ubuntu.iso", VerifiedOutcome.Good), (found.Name, found.Outcome));
+        Assert.Equal(Sha256("the image"), Assert.Single(found.Checksums).Claim.Expected);
+        // A line that is no checksum, in a file named like a checksum file, is a line that names no file.
+        string notes = _dir.File("notes.md5", "see the website\n");
+        var line = Assert.Single((await VerifyAsync(notes)).VerificationReport!.Files);
+        Assert.Equal((VerifiedOutcome.NotChecked, true), (line.Outcome, line.IsLine));
     }
 
     [Fact]

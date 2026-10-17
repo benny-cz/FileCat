@@ -1,4 +1,3 @@
-using System.IO.Enumeration;
 using System.Security.Cryptography;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
@@ -17,9 +16,14 @@ public sealed record SignatureClaim(SignatureKind Kind, string Signature, string
 /// <summary>The names that carry verification beside files (D-57): checksum files and manifests, and detached signatures.</summary>
 public static class SidecarNames
 {
-    /// <summary>A checksum file or manifest: <c>X.sha256</c>, <c>SHA256SUMS</c>, <c>X.sfv</c>, <c>CHECKSUMS.txt</c>, and the like.</summary>
+    /// <summary>
+    /// A checksum file or manifest: <c>X.sha256</c>, <c>SHA256SUMS</c>, <c>X.sfv</c>, <c>CHECKSUMS.txt</c>, and the lists Fedora and
+    /// CentOS publish (<c>Fedora-Workstation-40-1.14-x86_64-CHECKSUM</c>, <c>CHECKSUM</c>), whose lines name their algorithm.
+    /// </summary>
     public static bool IsChecksumFile(string name) =>
-        ChecksumManifests.IsManifestName(name) || name.StartsWith("CHECKSUMS", StringComparison.OrdinalIgnoreCase) && !IsSignatureFile(name);
+        ChecksumManifests.IsManifestName(name)
+        || (name.StartsWith("CHECKSUMS", StringComparison.OrdinalIgnoreCase) || name.Equals("CHECKSUM", StringComparison.OrdinalIgnoreCase)
+            || name.EndsWith("-CHECKSUM", StringComparison.OrdinalIgnoreCase)) && !IsSignatureFile(name);
 
     /// <summary>
     /// A detached signature: minisign's <c>.minisig</c>, OpenPGP's <c>.sig</c> and <c>.asc</c>, and OpenPGP's <c>.gpg</c> over a
@@ -133,48 +137,83 @@ public sealed class FolderSidecars
     /// <summary>The fingerprint of bounded content, as <see cref="SourceFingerprints"/> keeps it.</summary>
     internal static string ContentFingerprint(ReadOnlySpan<byte> content) => "sha256:" + Convert.ToHexString(SHA256.HashData(content));
 
+    /// <summary>A folder's detached signatures by the name each signs, in any letter case, and the folder's own rule for names.</summary>
+    internal sealed record SignatureIndex(string Folder, StringComparer Names, Dictionary<string, List<FileInfo>> BySigned);
+
     /// <summary>
-    /// The detached signatures over one file (<c>X.minisig</c>, <c>X.sig</c>, <c>X.asc</c> beside <c>X</c>, the extension in
-    /// any letter case), found without reading the rest of the folder, by the rules <see cref="Scan"/> follows (a cloud
-    /// placeholder is left out). Null when the folder could not be listed: then it is not known whether anything signs it.
+    /// The folder's detached signatures, listed once for many of its files (a check of a folder's checksum files); null when
+    /// the folder could not be listed. A cloud placeholder is left out, as <see cref="Scan"/> leaves it out.
     /// </summary>
-    internal static IReadOnlyList<SignatureClaim>? SignaturesOver(string path)
+    internal static SignatureIndex? IndexSignatures(string folder)
     {
-        string? folder = Path.GetDirectoryName(path);
-        if (folder is null) return [];
-        string name = Path.GetFileName(path);
-        var names = WindowsCaseSensitivity.NamesIn(folder);
-        var claims = new List<SignatureClaim>();
         try
         {
-            // Names are compared, not matched as a pattern (a name may hold the pattern's own wildcards and escapes).
             var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
-            var candidates = new FileSystemEnumerable<FileInfo>(folder, (ref FileSystemEntry entry) => (FileInfo)entry.ToFileSystemInfo(), options)
-            {
-                ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Length > name.Length + 1
-                    && entry.FileName.StartsWith(name, StringComparison.OrdinalIgnoreCase) && entry.FileName[name.Length] == '.',
-            };
-            foreach (var info in candidates)
+            var bySigned = new Dictionary<string, List<FileInfo>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var info in new DirectoryInfo(folder).EnumerateFiles("*", options))
             {
                 if (!SidecarNames.IsSignatureFile(info.Name) || IsPlaceholder(info)) continue;
                 string signed = SidecarNames.Signed(info.Name);
-                // As Scan finds what a signature signs: the folder's own rule for letter case, and a Mac volume's alias only
-                // when the two spellings name the same file.
-                bool same = names.Equals(signed, name) || OperatingSystem.IsMacOS() && string.Equals(signed, name, StringComparison.OrdinalIgnoreCase)
-                    && UnixFiles.Stat(Path.Combine(folder, signed)) is { } a && UnixFiles.Stat(path) is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink;
-                if (!same) continue;
-                var kind = info.Name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) ? SignatureKind.Minisign : SignatureKind.OpenPgp;
-                claims.Add(new SignatureClaim(kind, info.FullName, path));
+                if (!bySigned.TryGetValue(signed, out var found)) bySigned[signed] = found = [];
+                found.Add(info);
             }
+            return new SignatureIndex(folder, WindowsCaseSensitivity.NamesIn(folder), bySigned);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    /// <summary>
+    /// The detached signatures over one file (<c>X.minisig</c>, <c>X.sig</c>, <c>X.asc</c> beside <c>X</c>, the extension in
+    /// any letter case), by the rules <see cref="Scan"/> follows: the folder's own rule for letter case, and a Mac volume's
+    /// alias only when both spellings name the same file. From <paramref name="index"/> when the folder was listed already.
+    /// Null when the folder could not be listed: then it is not known whether anything signs it.
+    /// </summary>
+    internal static IReadOnlyList<SignatureClaim>? SignaturesOver(string path, SignatureIndex? index = null)
+    {
+        string? folder = Path.GetDirectoryName(path);
+        if (folder is null) return [];
+        index ??= IndexSignatures(folder);
+        if (index is null) return null;
+        string name = Path.GetFileName(path);
+        var claims = new List<SignatureClaim>();
+        if (!index.BySigned.TryGetValue(name, out var candidates)) return claims;
+        foreach (var info in candidates)
+        {
+            string signed = SidecarNames.Signed(info.Name);
+            bool same = index.Names.Equals(signed, name) || OperatingSystem.IsMacOS() && string.Equals(signed, name, StringComparison.OrdinalIgnoreCase)
+                && UnixFiles.Stat(Path.Combine(folder, signed)) is { } a && UnixFiles.Stat(path) is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink;
+            if (!same) continue;
+            var kind = info.Name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) ? SignatureKind.Minisign : SignatureKind.OpenPgp;
+            claims.Add(new SignatureClaim(kind, info.FullName, path));
+        }
         return claims;
     }
 
-    private static bool IsPlaceholder(FileInfo info) => (info.Attributes & FileAttributes.Offline) != 0 || ((uint)info.Attributes & 0x440000u) != 0;
+    /// <summary>
+    /// The file a checksum file holding only a bare value checks, by its name, there or not: "X.iso.sha256" (or
+    /// "X.iso.sha256.txt") checks "X.iso"; "X.sha256" checks "X", or the one "X.something" there is. Null when its name
+    /// names no file ("SHA256SUMS") or several fit.
+    /// </summary>
+    internal static string? BareTarget(string sidecarPath)
+    {
+        string folder = Path.GetDirectoryName(sidecarPath) ?? "", name = Path.GetFileName(sidecarPath);
+        string stem = name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+        int dot = stem.LastIndexOf('.');
+        if (dot <= 0) return null;
+        stem = stem[..dot];
+        string exact = Path.Combine(folder, stem);
+        if (stem.Contains('.') || File.Exists(exact)) return exact;
+        try
+        {
+            var namesakes = new DirectoryInfo(folder).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = false })
+                .Where(f => !SidecarNames.IsSidecar(f.Name) && string.Equals(Path.GetFileNameWithoutExtension(f.Name), stem, StringComparison.OrdinalIgnoreCase))
+                .Take(2).ToList();
+            return namesakes.Count == 1 ? namesakes[0].FullName : namesakes.Count == 0 ? exact : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
 
-    /// <summary>Whether a checksum file's lines count for the files beside it (<see cref="Scan"/> reads it): on this computer, and not too large.</summary>
-    public static bool ReadsChecksumFile(FileInfo info) => info.Exists && !IsPlaceholder(info) && info.Length <= MaxChecksumFileBytes;
+    private static bool IsPlaceholder(FileInfo info) => (info.Attributes & FileAttributes.Offline) != 0 || ((uint)info.Attributes & 0x440000u) != 0;
 
     internal static string Fingerprint(FileInfo info, CancellationToken ct)
     {

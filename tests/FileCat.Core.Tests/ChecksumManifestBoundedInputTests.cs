@@ -65,7 +65,8 @@ public sealed class ChecksumManifestBoundedInputTests
             Assert.ThrowsAny<IOException>(() => Verifier.Hash(special, [ChecksumKind.Sha256], ct));
             Assert.ThrowsAny<IOException>(() => Checksums.Compute(special, ChecksumKind.Sha256, ct));
             Assert.ThrowsAny<IOException>(() => Minisign.Blake2b(special, ct));
-            Assert.Empty(Minisign.KeysIn([root]));
+            // A pipe named like a key is passed over (Windows cannot hold one under a file's name).
+            if (!OperatingSystem.IsWindows()) Assert.Empty(Minisign.KeysIn([root]));
             Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Refusing took {clock.Elapsed}.");
             // What cannot be opened at all is no pipe: whoever reads it says why.
             Assert.False(VerificationFileReader.IsSpecial(Path.Combine(root, "absent")));

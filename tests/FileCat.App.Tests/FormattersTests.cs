@@ -57,6 +57,16 @@ public sealed class FormattersTests
         string scotland = char.ConvertFromUtf32(0x1F3F4) + string.Concat(new[] { 0xE0067, 0xE0062, 0xE0073, 0xE0063, 0xE0074, 0xE007F }.Select(char.ConvertFromUtf32));
         foreach (string name in new[] { family, persian, keycap, heart, scotland })
             Assert.Equal(name + ".png", Formatters.SafeName(name + ".png"));
+        // Where they make nothing, they show: a joiner in a script that does not join, a selector after a letter, a flag's tags left open.
+        Assert.Equal("от" + Escaped(0x200D) + "чёт.pdf", Formatters.SafeName("от" + (char)0x200D + "чёт.pdf"));
+        Assert.Equal("報" + Escaped(0x200C) + "告.txt", Formatters.SafeName("報" + (char)0x200C + "告.txt"));
+        Assert.Equal("отчёт" + Escaped(0xFE0F) + ".pdf", Formatters.SafeName("отчёт" + (char)0xFE0F + ".pdf"));
+        Assert.Equal("1" + Escaped(0xFE0F) + ".txt", Formatters.SafeName("1" + (char)0xFE0F + ".txt"));
+        string blackFlag = char.ConvertFromUtf32(0x1F3F4);
+        Assert.Equal(blackFlag + Escaped(0xE0041) + ".txt", Formatters.SafeName(blackFlag + char.ConvertFromUtf32(0xE0041) + ".txt"));
+        // Escaped once is escaped for good: the escape is plain text.
+        string escaped = Formatters.SafeName("от" + (char)0x200D + "чёт" + (char)0x202E + ".pdf");
+        Assert.Equal(escaped, Formatters.SafeName(escaped));
     }
 
     /// <summary>Release issue I26: the time left reads naturally, as one value once certain, as a range while not.</summary>

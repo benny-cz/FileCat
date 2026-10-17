@@ -1082,6 +1082,23 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Fedora_and_CentOS_lists_are_read_as_checksum_files()
+    {
+        // Named "…-CHECKSUM" (Fedora) or "CHECKSUM" (CentOS), clearsigned, with BSD-tagged lines that name their algorithm.
+        const string iso = "Fedora-Workstation-Live-x86_64-40-1.14.iso";
+        Write(iso, "fedora");
+        Write("Fedora-Workstation-40-1.14-x86_64-CHECKSUM", "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\n" +
+            $"# {iso}: 6 bytes\nSHA256 ({iso}) = {Sha256("fedora")}\n-----BEGIN PGP SIGNATURE-----\n\niQIz\n=AbCd\n-----END PGP SIGNATURE-----\n");
+        Assert.True(SidecarNames.IsChecksumFile("Fedora-Workstation-40-1.14-x86_64-CHECKSUM"));
+        Assert.True(SidecarNames.IsChecksumFile("CHECKSUM"));
+        Assert.False(SidecarNames.IsChecksumFile("CHECKSUM.asc"));
+        Assert.True(SidecarNames.IsSignatureFile("CHECKSUM.asc"));
+        var sidecars = FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken);
+        Assert.Equal(Sha256("fedora"), Assert.Single(sidecars.Checksums(iso)).Expected);
+        Assert.Equal(VerificationState.Matches, Check(iso).State);
+    }
+
+    [Fact]
     public void A_checksum_files_signatures_are_found_whatever_its_name_holds()
     {
         // A name is compared, not matched as a pattern: wildcards and (on Unix) a backslash are only characters in it.

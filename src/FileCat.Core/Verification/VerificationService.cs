@@ -375,7 +375,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         private readonly Queue<string> _order = new();
         internal readonly Dictionary<(string Folder, bool Minisign, bool OpenPgp), (IReadOnlyList<(string Name, long Size, long Modified, string Fingerprint)> Trust, DateTime ReadAt)> Trust = [];
         internal readonly Dictionary<ListSignature, (SignatureResult Result, bool HeldOff)> Signatures = [];
-        internal readonly Dictionary<(string Folder, string Trust), IReadOnlyList<Minisign.PublicKey>> Keys = [];
+        internal readonly Dictionary<(string Folder, string Trust), (IReadOnlyList<Minisign.PublicKey> Keys, DateTime ReadAt)> Keys = [];
 
         internal FolderSidecars SidecarsOf(VerificationService service, string folder, CancellationToken ct)
         {
@@ -482,12 +482,14 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// a signature over it vouches for the files it lists), over <paramref name="content"/>, the bytes its lines were read
     /// from, in memory: never over the file read again. Nothing is kept.
     /// </summary>
-    internal IReadOnlyList<SignatureCheck> CheckSignaturesOver(string path, IReadOnlyList<SignatureClaim> claims, byte[] content, CancellationToken ct)
+    /// <param name="scope">One job's: the minisign keys of a folder are read once for all its checksum files.</param>
+    internal IReadOnlyList<SignatureCheck> CheckSignaturesOver(string path, IReadOnlyList<SignatureClaim> claims, byte[] content, CancellationToken ct,
+        RequestScope? scope = null)
     {
         string? folder = Path.GetDirectoryName(path);
         if (folder is null || claims.Count == 0) return [];
         string name = Path.GetFileName(path);
-        var checker = new SignatureChecker(this, folder, null, null, null, null, recall: false);
+        var checker = new SignatureChecker(this, folder, null, null, scope, null, recall: false);
         return [.. claims.Select(claim => new SignatureCheck(claim, checker.CheckContent(claim, content, ct), name))];
     }
 
@@ -555,10 +557,17 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         }
 
         /// <summary>Checks a signature over the file as it is read now.</summary>
-        public SignatureResult CheckFile(SignatureClaim claim, CancellationToken ct) =>
-            claim.Kind == SignatureKind.Minisign
-                ? Minisign.Verify(claim.Signed, claim.Signature, Keys(), ct, progress, _trusted.FirstOrDefault())
-                : HoldOff() ?? OpenPgp.Verify(claim.Signature, claim.Signed, ct);
+        public SignatureResult CheckFile(SignatureClaim claim, CancellationToken ct)
+        {
+            if (claim.Kind == SignatureKind.Minisign) return Minisign.Verify(claim.Signed, claim.Signature, Keys(), ct, progress, _trusted.FirstOrDefault());
+            if (HoldOff() is { } held) return held;
+            var result = OpenPgp.Verify(claim.Signature, claim.Signed, ct);
+            // gpg reads the file itself and says nothing while it does: once it has an answer about it, the file was read.
+            if (result.State is VerificationState.SignatureGood or VerificationState.SignatureBad or VerificationState.SignatureUnknownKey
+                && Stamp(claim.Signed) is { } read)
+                progress?.Invoke(read.Size);
+            return result;
+        }
 
         /// <summary>Checks a signature over <paramref name="content"/>, the bytes a checksum file's lines were read from.</summary>
         public SignatureResult CheckContent(SignatureClaim claim, ReadOnlyMemory<byte> content, CancellationToken ct) =>
@@ -574,14 +583,17 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             return new SignatureResult(VerificationState.SignatureUnchecked, "not checked while FileCat recovers deleted files from the disk that holds GnuPG's folder (gpg writes there)");
         }
 
-        /// <summary>The minisign keys the user trusts and those beside the file; within a job, read once per folder while they are unchanged.</summary>
+        /// <summary>
+        /// The minisign keys the user trusts and those beside the file; within a job, read once per folder while what vouches
+        /// for signers is unchanged, and again after a few seconds.
+        /// </summary>
         private IReadOnlyList<Minisign.PublicKey> Keys()
         {
             if (_keys is not null) return _keys;
             var memo = (folder, TrustKey);
-            if (scope is not null && trust is not null && scope.Keys.TryGetValue(memo, out var kept)) return _keys = kept;
+            if (scope is not null && scope.Keys.TryGetValue(memo, out var kept) && DateTime.UtcNow - kept.ReadAt < Fresh) return _keys = kept.Keys;
             _keys = [.. Minisign.KeysIn(_trusted, trusted: true), .. Minisign.KeysIn([folder])];
-            if (scope is not null && trust is not null) scope.Keys[memo] = _keys;
+            if (scope is not null) scope.Keys[memo] = (_keys, DateTime.UtcNow);
             return _keys;
         }
     }

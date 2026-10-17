@@ -125,6 +125,90 @@ public sealed class OpenPgpContentTests : IDisposable
     }
 
     [Fact]
+    public async Task A_checksum_file_left_whole_to_the_check_beside_its_files_is_not_checked_again()
+    {
+        // Its lines were compared beside their files, and its signature checked there over the same bytes.
+        Write("disc.iso", "disc");
+        string sums = Write("SHA256SUMS", $"{Sha256("disc")}  disc.iso\n");
+        Write("SHA256SUMS.asc", "-----BEGIN PGP SIGNATURE-----\nstub\n-----END PGP SIGNATURE-----\n");
+        OpenPgp.UseTool(StubGpg());
+        var previous = VerificationService.Current;
+        VerificationService.Current = new VerificationService(new VerificationCache(null), () => 256L << 20, () => []) { Settle = TimeSpan.Zero };
+        try
+        {
+            var compared = new ComparedLines();
+            compared.Add(new ChecksumClaim(Operations.ChecksumKind.Sha256, Sha256("disc"), Path.GetFullPath(sums), 1), Path.GetFullPath(Path.Combine(_root, "disc.iso")));
+            var job = Jobs().Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = [Resources.ItemRef.ForFileSystemPath(sums, Resources.EntryKind.File)], ComparedBeside = compared });
+            var deadline = DateTime.UtcNow.AddMinutes(1);
+            while (!job.State.IsFinished())
+            {
+                Assert.True(DateTime.UtcNow < deadline, $"{job.Title} did not end within a minute ({job.State}).");
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.Equal("the files it lists were checked beside them", job.Summary);
+            Assert.Equal(0, Calls);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public async Task Many_signed_checksum_files_are_summed_up_and_their_folder_listed_once()
+    {
+        // Twelve per-file checksum files, each signed: one summary part for all, not twelve.
+        var lists = new List<string>();
+        for (int i = 0; i < 12; i++)
+        {
+            Write($"part{i:00}.bin", $"part {i}");
+            lists.Add(Write($"part{i:00}.bin.sha256", $"{Sha256($"part {i}")}  part{i:00}.bin\n"));
+            Write($"part{i:00}.bin.sha256.asc", "-----BEGIN PGP SIGNATURE-----\nstub\n-----END PGP SIGNATURE-----\n");
+        }
+        OpenPgp.UseTool(StubGpg());
+        var previous = VerificationService.Current;
+        VerificationService.Current = new VerificationService(new VerificationCache(null), () => 256L << 20, () => []) { Settle = TimeSpan.Zero };
+        try
+        {
+            var job = Jobs().Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = [.. lists.Select(l => Resources.ItemRef.ForFileSystemPath(l, Resources.EntryKind.File))] });
+            var deadline = DateTime.UtcNow.AddMinutes(1);
+            while (!job.State.IsFinished())
+            {
+                Assert.True(DateTime.UtcNow < deadline, $"{job.Title} did not end within a minute ({job.State}).");
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.Equal("12 verified, all match, 12 signatures over checksum files: 12 good", job.Summary);
+            Assert.Equal((12, 12), (job.VerificationReport!.Total, job.VerificationReport.Authentic));
+            Assert.Equal(12, Calls);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
+    public async Task A_file_gpg_reads_for_its_signature_counts_as_read()
+    {
+        // gpg reads the file itself and says nothing meanwhile: once it has an answer, the results count the file as read.
+        string image = Write("image.iso", new string('x', 70_000));
+        Write("image.iso.asc", "-----BEGIN PGP SIGNATURE-----\nstub\n-----END PGP SIGNATURE-----\n");
+        OpenPgp.UseTool(StubGpg());
+        var previous = VerificationService.Current;
+        VerificationService.Current = new VerificationService(new VerificationCache(null), () => 256L << 20, () => []) { Settle = TimeSpan.Zero };
+        try
+        {
+            var job = await RunAsync(Jobs(), [image]);
+            Assert.Equal((VerifiedOutcome.Good, true), (Assert.Single(job.VerificationReport!.Files).Outcome, job.VerificationReport.Files[0].Authentic));
+            Assert.Equal(new FileInfo(image).Length, job.DataBytesProcessed);
+        }
+        finally
+        {
+            VerificationService.Current = previous;
+        }
+    }
+
+    [Fact]
     public void Gpg_checks_a_signature_over_the_bytes_it_is_given_not_a_file()
     {
         if (OpenPgp.Tool is not { } gpg)

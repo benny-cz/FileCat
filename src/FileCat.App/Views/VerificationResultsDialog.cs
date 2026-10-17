@@ -33,7 +33,7 @@ internal static class VerificationResultsDialog
     public const string ShowFailed = "show";
     private static readonly FontFamily Mono = new("Cascadia Mono,Consolas,Menlo,monospace");
     /// <summary>How long Enter and Esc wait when the results open by themselves (a long check ends while the user types elsewhere).</summary>
-    private static readonly TimeSpan KeyGuard = TimeSpan.FromMilliseconds(700);
+    internal static TimeSpan KeyGuard { get; set; } = TimeSpan.FromMilliseconds(700);
     /// <summary>The notes about the check as a whole show this high at most, and scroll: the files and the buttons stay on screen.</summary>
     private const double NotesHeight = 84;
 
@@ -70,7 +70,8 @@ internal static class VerificationResultsDialog
         body.Children.Add(verdictBox);
         // One file's verdict says it all; more are counted.
         if (counts.Length > 0) body.Children.Add(Muted(counts));
-        body.Children.Add(Muted(HowRead(jobs)));
+        string howRead = HowRead(jobs);
+        body.Children.Add(Muted(howRead));
         var general = GeneralNotes(jobs, report, notes).ToList();
         if (general.Count > 0)
         {
@@ -131,7 +132,7 @@ internal static class VerificationResultsDialog
         ToolTip.SetTip(copy, "Every file listed here with its checksums (expected and computed), signatures, and notes, as text");
         copy.Click += (_, _) =>
         {
-            vm.CopyTextToClipboard(ReportText(jobs, report, title, notes));
+            vm.CopyTextToClipboard(ReportText(report, title, headline, counts.Length > 0 ? counts : Counts(report), howRead, general));
             copy.Content = "Report copied";
             AutomationProperties.SetName(copy, "Report copied");
         };
@@ -309,7 +310,7 @@ internal static class VerificationResultsDialog
             return (how + Also(withFailed: true), worst);
         }
         if (report.Total == 0) return ("Nothing was verified", null);
-        if (files == 0) return ($"Nothing was checked: {(lines == 1 ? "the line read names" : $"none of the {lines:N0} lines read names")} a file to check", null);
+        if (files == 0) return ($"Nothing was checked: {(lines == 1 ? "the one line read names no file" : $"none of the {lines:N0} lines read names a file")} to check", null);
         // One file: said of it by name.
         if (files == 1 && report.Files.Where(f => !f.IsLine).ToList() is [var only]) return (Describe(only), MarkOf(only));
         string all = Formatters.Plural(files, "file", "files");
@@ -457,14 +458,17 @@ internal static class VerificationResultsDialog
     private static string SignatureLine(SignatureCheck s) =>
         Path.GetFileName(s.Claim.Signature) + (s.Manifest is { } manifest ? $" (over {manifest})" : "") + ": " + s.Result.Text;
 
-    /// <summary>The results as text for the clipboard: every file listed, each claim with both values in full.</summary>
-    private static string ReportText(IReadOnlyList<Job> jobs, VerificationReport report, string title, IReadOnlyList<string> notes)
+    /// <summary>
+    /// The results as text for the clipboard, as the dialog says them (<paramref name="title"/> escaped already): every file
+    /// listed, each claim with both values in full.
+    /// </summary>
+    private static string ReportText(VerificationReport report, string title, string verdict, string counts, string howRead, IReadOnlyList<string> notes)
     {
         var text = new StringBuilder();
-        text.AppendLine($"{Formatters.SafeName(title)}: {Verdict(jobs, report).Text}");
-        if (Counts(report) is { Length: > 0 } counts) text.AppendLine(counts);
-        text.AppendLine(HowRead(jobs));
-        foreach (string note in GeneralNotes(jobs, report, notes)) text.AppendLine(Formatters.SafeName(note));
+        text.AppendLine($"{title}: {verdict}");
+        if (counts.Length > 0) text.AppendLine(counts);
+        text.AppendLine(howRead);
+        foreach (string note in notes) text.AppendLine(Formatters.SafeName(note));
         foreach (var f in report.Files)
         {
             text.AppendLine();

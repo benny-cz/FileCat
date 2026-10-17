@@ -14,6 +14,9 @@ internal static class VerificationFileReader
     [DllImport("libc", EntryPoint = "open", SetLastError = true)]
     private static extern int OpenUnixReadOnly(string path, int flags);
 
+    [DllImport("libc", EntryPoint = "posix_fadvise")]
+    private static extern int AdviseLinux(int fd, long offset, long length, int advice);
+
     internal static FileStream OpenRead(string path, FileShare share = FileShare.Read) => Open(path, share, bufferSize: 4096, FileOptions.None);
 
     /// <summary>As <see cref="OpenRead"/>, for reading a file through once (hashing it): no buffer of its own, read ahead.</summary>
@@ -82,6 +85,10 @@ internal static class VerificationFileReader
         {
             if (UnixFiles.Stat(handle) is not { IsRegular: true })
                 throw new NotAFileException("It is not a regular file (a pipe, a socket, or a device).");
+            // Read through once (hashing): Linux may read ahead, as Windows does for FileOptions.SequentialScan (macOS does anyway).
+            if ((options & FileOptions.SequentialScan) != 0 && OperatingSystem.IsLinux())
+                try { _ = AdviseLinux(fd, 0, 0, 2 /* POSIX_FADV_SEQUENTIAL */); }
+                catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException) { }
             return new FileStream(handle, FileAccess.Read, bufferSize);
         }
         catch

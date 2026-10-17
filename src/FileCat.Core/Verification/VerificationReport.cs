@@ -11,6 +11,33 @@ public sealed record ChecksumComparison(ChecksumClaim Claim, string Actual)
 /// <summary>A signature checked: over the file itself, or over the checksum file named <see cref="Manifest"/>, which lists the file.</summary>
 public sealed record SignatureCheck(SignatureClaim Claim, SignatureResult Result, string? Manifest = null);
 
+/// <summary>A checksum line compared with the file it named: what the line says, and that file's full path.</summary>
+public readonly record struct ComparedLine(ChecksumClaim Claim, string File);
+
+/// <summary>
+/// The checksum lines a check against everything beside the files compared, each with the file it named
+/// (<see cref="VerificationReport.TakeCompared"/>), for the check of the chosen checksum files that follows it: those lines are
+/// left out there. At most <see cref="Max"/> are kept (past them a line is checked again); let go of once used.
+/// </summary>
+public sealed class ComparedLines
+{
+    public const int Max = 100_000;
+    private HashSet<ComparedLine>? _lines = [];
+
+    public int Count => _lines?.Count ?? 0;
+
+    /// <summary>Whether this line was compared with this file (its full path).</summary>
+    public bool Contains(ChecksumClaim claim, string file) => _lines?.Contains(new ComparedLine(claim, file)) == true;
+
+    internal void Add(ChecksumClaim claim, string file)
+    {
+        if (_lines is { Count: < Max } lines) lines.Add(new ComparedLine(claim, file));
+    }
+
+    /// <summary>Lets go of the lines: the check that used them has ended.</summary>
+    public void Release() => _lines = null;
+}
+
 /// <summary>How one file's explicit check ended. The results list them problems first (<see cref="VerificationReport.Files"/>).</summary>
 public enum VerifiedOutcome
 {
@@ -82,9 +109,7 @@ public sealed class VerificationReport(string folder)
     private readonly int[] _counts = new int[Enum.GetValues<VerifiedOutcome>().Length];
     private int _authentic, _lines;
     private bool _complete;
-    /// <summary>The most checksum lines noted as compared (<see cref="TakeCompared"/>); past them a line is checked again, not left out.</summary>
-    private const int MaxCompared = 100_000;
-    private HashSet<ChecksumClaim>? _compared;
+    private ComparedLines? _compared;
 
     /// <summary>The folder the check started from (the chosen files' or the checksum file's): names are shown from there.</summary>
     public string Folder => folder;
@@ -158,10 +183,10 @@ public sealed class VerificationReport(string folder)
         }
         var merged = new List<VerifiedFile>(files.Count);
         var at = new Dictionary<string, int>(StringComparer.Ordinal);
-        var names = new Dictionary<string, StringComparer>(StringComparer.Ordinal);
+        var keys = new SameFileKeys();
         foreach (var file in files)
         {
-            if (file.Path is not { } path || SameFileKey(path, names) is not { } key)
+            if (file.Path is not { } path || keys.Of(path) is not { } key)
             {
                 merged.Add(file);
                 continue;
@@ -188,15 +213,6 @@ public sealed class VerificationReport(string folder)
         return all;
     }
 
-    /// <summary>A key one file has however its path is spelled in its folder (the folder's own rule for letter case); null for no folder.</summary>
-    private static string? SameFileKey(string path, Dictionary<string, StringComparer> names)
-    {
-        if (System.IO.Path.GetDirectoryName(path) is not { } folder) return null;
-        if (!names.TryGetValue(folder, out var rule)) names[folder] = rule = WindowsCaseSensitivity.NamesIn(folder);
-        string name = System.IO.Path.GetFileName(path);
-        return folder + "\0" + (ReferenceEquals(rule, StringComparer.OrdinalIgnoreCase) ? name.ToUpperInvariant() : name);
-    }
-
     /// <summary>One file's two entries as one: the worse outcome and its words, every claim, signature, and note.</summary>
     private static VerifiedFile Merge(VerifiedFile a, VerifiedFile b)
     {
@@ -214,14 +230,14 @@ public sealed class VerificationReport(string folder)
         };
     }
 
-    /// <summary>Notes the checksum lines a file was compared against, for a check of the chosen checksum files that follows this one.</summary>
-    internal void Compared(IEnumerable<ChecksumComparison> comparisons)
+    /// <summary>Notes the checksum lines <paramref name="file"/> was compared against, for a check of the chosen checksum files that follows this one.</summary>
+    internal void Compared(string file, IEnumerable<ChecksumComparison> comparisons)
     {
+        string full = System.IO.Path.GetFullPath(file);
         lock (_lock)
         {
-            _compared ??= [];
-            foreach (var comparison in comparisons)
-                if (_compared.Count < MaxCompared) _compared.Add(comparison.Claim);
+            _compared ??= new ComparedLines();
+            foreach (var comparison in comparisons) _compared.Add(comparison.Claim, full);
         }
     }
 
@@ -229,7 +245,7 @@ public sealed class VerificationReport(string folder)
     /// The checksum lines this check compared, as <see cref="Jobs.JobRequest.ComparedBeside"/> takes them: given once, then let
     /// go of (null when it compared none).
     /// </summary>
-    public IReadOnlySet<ChecksumClaim>? TakeCompared()
+    public ComparedLines? TakeCompared()
     {
         lock (_lock)
         {

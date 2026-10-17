@@ -457,6 +457,21 @@ public sealed class VerificationUiTests
             await Until(() => Shows("SHA256SUMS was not checked: the check was canceled first."), "SHA256SUMS was not checked: the check was canceled first.");
             Assert.Equal(before + 1, services.Jobs.Jobs.Count);
             services.Jobs.JobAdded -= Stop;
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await Until(() => !dialogs.IsOpen, "the results close");
+
+            // Canceled while it still waited its turn (nothing ran, nothing was reported): the results say the same.
+            static void CancelQueued(Job job)
+            {
+                if (job.Kind == JobKind.VerifyBeside) job.Cancel();
+            }
+            services.Jobs.JobAdded += CancelQueued;
+            Choose("a.txt", "SHA256SUMS");
+            vm.Execute(CommandIds.VerifyChecksums);
+            await Until(() => dialogs.IsOpen, "the results of a check canceled before it ran open");
+            await Until(() => Shows("Canceled before any file was read"), "Canceled before any file was read, again");
+            await Until(() => Shows("SHA256SUMS was not checked: the check was canceled first."), "what it left unchecked");
+            services.Jobs.JobAdded -= CancelQueued;
         }
         finally
         {
@@ -487,8 +502,11 @@ public sealed class VerificationUiTests
                 window.CaptureRenderedFrame();
                 Assert.True(done(), what);
             }
-            // Every check counts as one that took a while: its results open while keys may be meant for something else.
+            // Every check counts as one that took a while: its results open while keys may be meant for something else. The
+            // moment they hold Enter and Esc off is long here, so the keys below fall in it however busy the machine is.
             vm.VerifyKeysGuardedAfter = TimeSpan.Zero;
+            VerificationResultsDialog.KeyGuard = TimeSpan.FromSeconds(3);
+            window.GetVisualDescendants().OfType<FileCat.App.Controls.FileListControl>().First(c => c.IsEffectivelyVisible).Focus();
             listing.SetFocus(Enumerable.Range(0, listing.VisibleCount).First(i => listing.GetVisible(i).Name == "a.txt"));
             vm.Execute(CommandIds.VerifyChecksums);
             var dialogs = (OverlayDialogService)vm.Dialogs;
@@ -504,6 +522,53 @@ public sealed class VerificationUiTests
             await Until(() => Focused() is { } f && f.FindAncestorOfType<ListBox>(includeSelf: true) is not null, "the list takes the keyboard");
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await Until(() => !dialogs.IsOpen, "the results close");
+        }
+        finally
+        {
+            VerificationResultsDialog.KeyGuard = TimeSpan.FromMilliseconds(700);
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Results_that_open_by_themselves_wait_while_the_user_types()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string folder = Path.Combine(root, "files"); // a.txt ("alpha") and b.txt ("beta")
+            File.WriteAllText(Path.Combine(folder, "SHA256SUMS"), Convert.ToHexStringLower(SHA256.HashData("alpha"u8)) + "  a.txt\n");
+            var tab = vm.ActiveTab!;
+            tab.Refresh();
+            var listing = tab.Listing;
+            for (int i = 0; i < 250 && !(listing.State == ListingState.Complete && listing.VisibleCount == 4); i++) await Task.Delay(20, ct);
+            async Task Until(Func<bool> done, string what)
+            {
+                for (int i = 0; i < 500 && !done(); i++)
+                {
+                    window.CaptureRenderedFrame();
+                    await Task.Delay(20, ct);
+                }
+                window.CaptureRenderedFrame();
+                Assert.True(done(), what);
+            }
+            // A check that ends while the user types (a rename, a path): a dialog would take the keyboard and end what they type.
+            vm.VerifyKeysGuardedAfter = TimeSpan.Zero;
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.IsEffectivelyEnabled);
+            box.Focus();
+            await Until(() => ReferenceEquals(window.FocusManager?.GetFocusedElement(), box), "a box has the keyboard");
+            listing.SetFocus(Enumerable.Range(0, listing.VisibleCount).First(i => listing.GetVisible(i).Name == "a.txt"));
+            vm.ClearNotification();
+            vm.Execute(CommandIds.VerifyChecksums);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            await Until(() => vm.Notification?.StartsWith("The check has ended: its results open once you are done typing", StringComparison.Ordinal) == true,
+                "it says the results wait");
+            Assert.False(dialogs.IsOpen);
+            Assert.True(ReferenceEquals(window.FocusManager?.GetFocusedElement(), box));
+            // Done typing: the keyboard is back on the files, and the results open.
+            window.GetVisualDescendants().OfType<FileCat.App.Controls.FileListControl>().First(c => c.IsEffectivelyVisible).Focus();
+            await Until(() => dialogs.IsOpen, "the results open once the typing is done");
         }
         finally
         {
@@ -589,6 +654,21 @@ public sealed class VerificationUiTests
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen, "the results open");
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "gone.iso.asc: signs a file that is not here");
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+
+            // A checksum file whose one line is no checksum: nothing was checked, and the line named no file.
+            File.WriteAllText(Path.Combine(root, "files", "notes.md5"), "see the website\n");
+            tab.Refresh();
+            for (int i = 0; i < 250 && !(listing.State == ListingState.Complete && listing.VisibleCount == 5); i++) await Task.Delay(20, ct);
+            listing.SetFocus(Enumerable.Range(0, listing.VisibleCount).First(i => listing.GetVisible(i).Name == "notes.md5"));
+            vm.Execute(CommandIds.VerifyChecksums);
+            for (int i = 0; i < 250 && !(dialogs.IsOpen && window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text?.StartsWith("Nothing was checked", StringComparison.Ordinal) == true)); i++)
+            {
+                window.CaptureRenderedFrame();
+                await Task.Delay(20, ct);
+            }
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "Nothing was checked: the one line read names no file to check");
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
         }
         finally

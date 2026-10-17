@@ -290,12 +290,6 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public JobManager Manager { get; }
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
-
-    /// <summary>Shows a job's row as the job is now (a finished verification let go of its results: its Results button goes).</summary>
-    public void Refresh(Job job)
-    {
-        if (_map.TryGetValue(job, out var vm)) vm.Refresh();
-    }
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
 
     [ObservableProperty] private bool _isOpen;
@@ -318,6 +312,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     partial void OnIsOpenChanged(bool value)
     {
         if (value && Selected is null) Selected = Primary ?? Jobs.FirstOrDefault();
+    }
+
+    /// <summary>Shows a job's row as the job is now (a finished verification let go of its results: its Results button goes).</summary>
+    public void Refresh(Job job)
+    {
+        if (_map.TryGetValue(job, out var vm)) vm.Refresh();
     }
 
     private void Add(JobViewModel vm)

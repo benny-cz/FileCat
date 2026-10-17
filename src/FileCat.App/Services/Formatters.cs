@@ -187,18 +187,18 @@ public static class Formatters
     /// <summary>
     /// Escapes control and bidirectional characters, the Unicode line and paragraph separators (where a text engine may break
     /// a one-line name, hiding its end), and characters that show nothing (a zero-width space, a soft hyphen, a filler, a tag,
-    /// half a surrogate pair), so a name cannot visually spoof another (§18.3). Joiners and variation selectors stay where
-    /// they join or vary something (an emoji sequence, Persian or Indic text, a keycap), and tags where they spell a flag.
+    /// half a surrogate pair), so a name cannot visually spoof another (§18.3). Joiners, variation selectors, and tags stay
+    /// only where they make something: an emoji sequence, a script that joins its letters (Arabic, Persian, the Indic
+    /// scripts), an emoji's presentation or a keycap, an ideograph's variant, a subdivision's flag.
     /// </summary>
     public static string SafeName(string name)
     {
         StringBuilder? escaped = null;
-        bool flag = false;
+        int tagsEnd = -1;
         for (int i = 0; i < name.Length;)
         {
-            bool pair = char.IsHighSurrogate(name[i]) && i + 1 < name.Length && char.IsLowSurrogate(name[i + 1]);
-            int code = pair ? char.ConvertToUtf32(name[i], name[i + 1]) : name[i], width = pair ? 2 : 1;
-            if (Hidden(name, i, code, width, ref flag))
+            int code = CodeAt(name, i), width = code > 0xFFFF ? 2 : 1;
+            if (Hidden(name, i, code, width, ref tagsEnd))
             {
                 escaped ??= new StringBuilder(name.Length + 8).Append(name, 0, i);
                 escaped.Append(code > 0xFFFF ? $"{(char)92}U{code:X8}" : $"{(char)92}u{code:X4}");
@@ -209,34 +209,77 @@ public static class Formatters
         return escaped?.ToString() ?? name;
     }
 
-    /// <param name="flag">Inside a flag's tags (a black flag, then tags up to the cancel tag).</param>
-    private static bool Hidden(string name, int i, int code, int width, ref bool flag)
+    /// <param name="tagsEnd">Where the tags that spell a flag end (a black flag, tag letters, the cancel tag), or -1.</param>
+    private static bool Hidden(string name, int i, int code, int width, ref int tagsEnd)
     {
-        if (code is >= 0xE0000 and <= 0xE007F)
-        {
-            // Tags spell a subdivision's flag after a black flag; anywhere else they show nothing.
-            bool spells = flag && code >= 0xE0020;
-            flag = spells && code != 0xE007F;
-            return !spells;
-        }
-        flag = code == 0x1F3F4;
+        // Tags spell a subdivision's flag after a black flag, closed by the cancel tag; anywhere else they show nothing.
+        if (code is >= 0xE0000 and <= 0xE007F) return i >= tagsEnd;
+        if (code == 0x1F3F4) tagsEnd = FlagTagsEnd(name, i + width);
         if (code <= 0xFFFF && (char.IsControl((char)code) || IsBidiControl((char)code) || char.IsSurrogate((char)code))) return true;
-        if (code is 0x200C or 0x200D or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF) return !Joins(name, i, width, code);
+        if (code is 0x200C or 0x200D) return !Joins(name, i, code);
+        if (code is >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF) return !Varies(name, i, code, width);
         return code is 0x00AD or 0x034F or 0x115F or 0x1160 or 0x17B4 or 0x17B5 or >= 0x180B and <= 0x180F or 0x200B
             or 0x2028 or 0x2029 or >= 0x2060 and <= 0x206F or 0x3164 or 0xFEFF or 0xFFA0 or >= 0xFFF0 and <= 0xFFF8
             or >= 0x1BCA0 and <= 0x1BCA3 or >= 0x1D173 and <= 0x1D17A;
     }
 
-    /// <summary>
-    /// A joiner between two characters beyond ASCII (an emoji sequence, a script that joins letters), or a variation selector
-    /// after one (an emoji's presentation) or in a keycap ("1", the selector, the enclosing keycap): there they show something.
-    /// </summary>
-    private static bool Joins(string name, int i, int width, int code)
+    /// <summary>Where a run of tag letters closed by the cancel tag ends (after a black flag it spells a flag), or -1.</summary>
+    private static int FlagTagsEnd(string name, int at)
     {
-        char before = i > 0 ? name[i - 1] : (char)0, after = i + width < name.Length ? name[i + width] : (char)0;
-        if (code is 0x200C or 0x200D) return before > 0x7F && after > 0x7F;
-        return before > 0x7F || after == (char)0x20E3 && (char.IsAsciiDigit(before) || before is '#' or '*');
+        int letters = 0;
+        while (CodeAt(name, at) is >= 0xE0020 and <= 0xE007E)
+        {
+            letters++;
+            at += 2;
+        }
+        return letters > 0 && CodeAt(name, at) == 0xE007F ? at + 2 : -1;
     }
+
+    /// <summary>
+    /// A joiner where it joins: either one between letters of a script that joins them, or a zero-width joiner between two
+    /// emoji (an emoji's presentation selector or skin tone may come before it).
+    /// </summary>
+    private static bool Joins(string name, int i, int code)
+    {
+        int before = CodeBefore(name, i), after = CodeAt(name, i + 1);
+        if (JoiningScript(before) && JoiningScript(after)) return true;
+        if (code == 0x200C) return false;
+        for (int at = i; before is 0xFE0F or >= 0x1F3FB and <= 0x1F3FF && at > 0; before = CodeBefore(name, at))
+            at -= before > 0xFFFF ? 2 : 1;
+        return CanBeEmoji(before) && CanBeEmoji(after);
+    }
+
+    /// <summary>
+    /// A variation selector where it varies something: an emoji's presentation (text or emoji style) or a keycap ("1", the
+    /// selector, the enclosing keycap), an ideograph's registered variant, or a math symbol's or a Myanmar letter's form.
+    /// </summary>
+    private static bool Varies(string name, int i, int code, int width)
+    {
+        int before = CodeBefore(name, i);
+        if (code is 0xFE0E or 0xFE0F)
+            return CanBeEmoji(before) || CodeAt(name, i + width) == 0x20E3 && before is >= '0' and <= '9' or '#' or '*';
+        return Ideograph(before) || code <= 0xFE0D && before is >= 0x2200 and <= 0x22FF or >= 0x2A00 and <= 0x2AFF or >= 0x1000 and <= 0x109F;
+    }
+
+    /// <summary>The code point starting at <paramref name="i"/> (a surrogate pair as one), or 0 past the end.</summary>
+    private static int CodeAt(string s, int i) =>
+        i >= s.Length ? 0 : i + 1 < s.Length && char.IsHighSurrogate(s[i]) && char.IsLowSurrogate(s[i + 1]) ? char.ConvertToUtf32(s[i], s[i + 1]) : s[i];
+
+    /// <summary>The code point ending just before <paramref name="i"/> (a surrogate pair as one), or 0 at the start.</summary>
+    private static int CodeBefore(string s, int i) =>
+        i <= 0 ? 0 : i >= 2 && char.IsLowSurrogate(s[i - 1]) && char.IsHighSurrogate(s[i - 2]) ? char.ConvertToUtf32(s[i - 2], s[i - 1]) : s[i - 1];
+
+    /// <summary>Letters of the scripts that join them, where ZWJ and ZWNJ choose a form: Arabic and Persian, Syriac, Thaana, the Indic scripts, Tibetan, Myanmar, Khmer, Mongolian.</summary>
+    private static bool JoiningScript(int code) => code is >= 0x0600 and <= 0x08FF or >= 0x0900 and <= 0x0DFF or >= 0x0F00 and <= 0x109F
+        or >= 0x1780 and <= 0x18AF or >= 0xA8E0 and <= 0xA8FF or >= 0xFB50 and <= 0xFDFF or >= 0xFE70 and <= 0xFEFC;
+
+    /// <summary>What can show as an emoji: pictographs and emoticons (with skin tones and flags' letters), symbols, dingbats, arrows, and a few others.</summary>
+    private static bool CanBeEmoji(int code) => code is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or >= 0x2300 and <= 0x23FF
+        or >= 0x2B00 and <= 0x2BFF or >= 0x2190 and <= 0x21FF or >= 0x25A0 and <= 0x25FF or >= 0x2900 and <= 0x297F
+        or 0x00A9 or 0x00AE or 0x203C or 0x2049 or 0x2122 or 0x2139 or 0x24C2 or 0x3030 or 0x303D or 0x3297 or 0x3299;
+
+    private static bool Ideograph(int code) => code is >= 0x3400 and <= 0x4DBF or >= 0x4E00 and <= 0x9FFF or >= 0xF900 and <= 0xFAFF
+        or >= 0x20000 and <= 0x323AF;
 
     private static bool IsBidiControl(char c) =>
         c is >= (char)0x202A and <= (char)0x202E or >= (char)0x2066 and <= (char)0x2069 or (char)0x200E or (char)0x200F or (char)0x061C;

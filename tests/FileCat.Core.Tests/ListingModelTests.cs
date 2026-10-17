@@ -375,6 +375,55 @@ public sealed class ListingModelTests : IDisposable
     }
 
 
+    /// <summary>
+    /// Only a listing that ended whole speaks for its location: one stopped while it listed, or broken off by an error after
+    /// some rows, is partial (a check of "every file here" refuses it) until it is listed again in full.
+    /// </summary>
+    [Fact]
+    public async Task A_listing_stopped_or_broken_off_is_partial_until_listed_again()
+    {
+        var provider = new GatedProvider();
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        try
+        {
+            await _ui.WaitUntilAsync(() => model.VisibleCount == 1);
+            Assert.False(await _ui.InvokeAsync(() => model.IsWhole));
+            await _ui.InvokeAsync(model.CancelLoading);
+            Assert.Equal((ListingState.Complete, true, false), await _ui.InvokeAsync(() => (model.State, model.IsPartial, model.IsWhole)));
+        }
+        finally { provider.Release(); }
+
+        _providers.Register(new BreakingProvider());
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => model.State != ListingState.Loading);
+        Assert.Equal((ListingState.Complete, true, false), await _ui.InvokeAsync(() => (model.State, model.IsPartial, model.IsWhole)));
+        Assert.Contains(await _ui.InvokeAsync(() => model.Issues.ToList()), i => i.StartsWith("Listing incomplete", StringComparison.Ordinal));
+
+        _providers.Register(new LocalFileSystemProvider());
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.Equal((false, true), await _ui.InvokeAsync(() => (model.IsPartial, model.IsWhole)));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    /// <summary>Lists a row, then the share goes away.</summary>
+    private sealed class BreakingProvider : ResourceProvider
+    {
+        public override string Scheme => Schemes.FileSystem;
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+        public override async Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            sink.AddBatch([new EntryData("first.txt", EntryKind.File)]);
+            await Task.Yield();
+            throw new IOException("The network name is no longer available.");
+        }
+    }
+
     [Theory]
     [InlineData(false, "alpha.txt")]
     [InlineData(true, "zeta.txt")]

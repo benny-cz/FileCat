@@ -107,7 +107,7 @@ internal sealed class VerifyBesideExecutor(Job job, IFileSystemOperations fs, Jo
                 // The job's counts and the results shown when it ends come from the same outcome.
                 var entry = VerificationReport.Entry(path, NameOf(path), result);
                 report.Add(entry);
-                report.Compared(result.Checksums);
+                report.Compared(path, result.Checksums);
                 string details = string.Join(" ", result.Details);
                 switch (entry.Outcome)
                 {
