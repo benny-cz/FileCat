@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.Core.Search;
 
@@ -122,7 +123,6 @@ internal static class FindDialogs
         var body = new StackPanel
         {
             Spacing = 4,
-            MaxWidth = 640,
             Children =
             {
                 Heading("Attributes"), attributeRow,
@@ -137,7 +137,7 @@ internal static class FindDialogs
         };
         var answer = await dialogs.ShowCustomAsync("Advanced criteria", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)],
-            attributes[0].Box, canConfirm: () => Read(out _) is not null);
+            attributes[0].Box, canConfirm: () => Read(out _) is not null, resizable: true);
         return answer as string == "ok" ? Read(out _) : null;
     }
 
@@ -268,7 +268,6 @@ internal static class FindDialogs
         {
             Classes = { "choices" },
             MinHeight = 120,
-            MaxHeight = 280,
             ItemsSource = entries,
             ItemTemplate = new FuncDataTemplate<IgnoredFolderEntry>((entry, _) =>
             {
@@ -281,7 +280,7 @@ internal static class FindDialogs
             }),
         };
         Name(list, "Ignored folders");
-        var add = new TextBox { PlaceholderText = "node_modules, \\build, or a full path", MinWidth = 360 };
+        var add = new TextBox { PlaceholderText = "node_modules, \\build, or a full path" };
         Name(add, "Folder to skip");
         var addButton = new Button { Content = "Add" };
         var remove = new Button { Content = "Remove" };
@@ -303,19 +302,16 @@ internal static class FindDialogs
         {
             if (list.SelectedItem is IgnoredFolderEntry selected) entries.Remove(selected);
         };
-        var body = new StackPanel
-        {
-            Spacing = 6,
-            MaxWidth = 620,
-            Children =
-            {
-                Muted("Find does not search inside these folders; the log lists each one it skipped. A name skips every folder of that name, a path starting with a separator skips that folder in each searched folder, and a full path skips one folder."),
-                list,
-                new DockPanel { Children = { new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, [DockPanel.DockProperty] = Dock.Right, Children = { addButton, remove } }, add } },
-            },
-        };
+        var body = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"), RowSpacing = 6 };
+        var guidance = Muted("Find does not search inside these folders; the log lists each one it skipped. A name skips every folder of that name, a path starting with a separator skips that folder in each searched folder, and a full path skips one folder.");
+        body.Children.Add(guidance);
+        Grid.SetRow(list, 1); body.Children.Add(list);
+        Grid.SetRow(add, 2); body.Children.Add(add);
+        var actions = DialogLayout.Actions(addButton, remove);
+        actions.HorizontalAlignment = HorizontalAlignment.Right;
+        Grid.SetRow(actions, 3); body.Children.Add(actions);
         var answer = await dialogs.ShowCustomAsync("Ignored folders", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)], add);
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)], add, resizable: true);
         return answer as string == "ok" ? [.. entries] : null;
     }
 

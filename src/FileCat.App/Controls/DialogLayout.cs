@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -17,11 +18,16 @@ namespace FileCat.App.Controls;
 internal sealed class DialogCard : Border
 {
     private readonly Border _bodyBorder;
+    private readonly Control _body;
     private readonly WidthConstrainedContent _content;
+    private readonly Grid _layout;
     private double _lastAvailableWidth = double.NaN;
+    private Size _requestedSize;
+    private bool _resizable;
 
     internal DialogCard(string title, Control body, Control? buttons, double maxWidth)
     {
+        _body = body;
         Classes.Add("card");
         MaxWidth = maxWidth;
         ClipToBounds = true;
@@ -53,21 +59,76 @@ internal sealed class DialogCard : Border
         // legacy/custom child that genuinely cannot shrink. Scrollbars themselves consume viewport space.
         scroll.PropertyChanged += (_, e) =>
         {
-            if (e.Property == ScrollViewer.ViewportProperty && scroll.Viewport.Width > 0)
-                _content.ConstrainWidth(scroll.Viewport.Width);
+            if (e.Property == ScrollViewer.ViewportProperty)
+            {
+                if (scroll.Viewport.Width > 0) _content.ConstrainWidth(scroll.Viewport.Width);
+                if (_resizable && scroll.Viewport.Height > 0) _body.MinHeight = scroll.Viewport.Height;
+            }
         };
         _bodyBorder = new Border { Classes = { "dialogBody" }, Child = scroll };
-        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
-        grid.Children.Add(new Border { Classes = { "dialogHeader" }, Child = titleLine });
+        _layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        _layout.Children.Add(new Border { Classes = { "dialogHeader" }, Child = titleLine });
         Grid.SetRow(_bodyBorder, 1);
-        grid.Children.Add(_bodyBorder);
+        _layout.Children.Add(_bodyBorder);
         if (buttons is not null)
         {
             var footer = new Border { Classes = { "dialogFooter" }, Child = buttons };
             Grid.SetRow(footer, 2);
-            grid.Children.Add(footer);
+            _layout.Children.Add(footer);
         }
-        Child = grid;
+        Child = _layout;
+    }
+
+    /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>
+    internal void EnableResizing(Panel host)
+    {
+        _resizable = true;
+        MaxWidth = double.PositiveInfinity;
+        _requestedSize = new Size(700, 560);
+        _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        var gripRow = new Grid { Height = 24 };
+        var thumb = new Thumb { Name = "DialogResizeGrip", Width = 32, Height = 24,
+            HorizontalAlignment = HorizontalAlignment.Right, Focusable = true, Background = Brushes.Transparent,
+            Template = new FuncControlTemplate<Thumb>((_, _) => new Border { Background = Brushes.Transparent }) };
+        AutomationProperties.SetName(thumb, "Resize dialog");
+        AutomationProperties.SetHelpText(thumb, "Drag to resize, or use arrow keys. Hold Shift for larger steps.");
+        ToolTip.SetTip(thumb, "Drag or use arrow keys to resize · Shift for larger steps");
+        gripRow.Children.Add(new TextBlock { Text = "◢", FontSize = 18, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0), IsHitTestVisible = false });
+        gripRow.Children.Add(thumb);
+        Grid.SetRow(gripRow, 3);
+        _layout.Children.Add(gripRow);
+
+        void ClampSize()
+        {
+            double maxWidth = Math.Max(1, host.Bounds.Width - 48);
+            double maxHeight = Math.Max(1, host.Bounds.Height - 48);
+            Width = Math.Clamp(_requestedSize.Width, Math.Min(400, maxWidth), maxWidth);
+            Height = Math.Clamp(_requestedSize.Height, Math.Min(280, maxHeight), maxHeight);
+        }
+        void Resize(double dx, double dy)
+        {
+            if (!double.IsFinite(dx) || !double.IsFinite(dy)) return;
+            _requestedSize = new Size(Math.Max(1, Width + dx), Math.Max(1, Height + dy));
+            ClampSize();
+        }
+        thumb.DragDelta += (_, e) => Resize(e.Vector.X, e.Vector.Y);
+        thumb.KeyDown += (_, e) =>
+        {
+            double step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 48 : 16;
+            (double x, double y) = e.Key switch
+            {
+                Key.Left => (-step, 0d), Key.Right => (step, 0d),
+                Key.Up => (0d, -step), Key.Down => (0d, step), _ => (0d, 0d),
+            };
+            if (x == 0 && y == 0) return;
+            Resize(x, y);
+            e.Handled = true;
+        };
+        host.SizeChanged += OnHostSizeChanged;
+        DetachedFromVisualTree += (_, _) => host.SizeChanged -= OnHostSizeChanged;
+        void OnHostSizeChanged(object? _, SizeChangedEventArgs __) => ClampSize();
+        ClampSize();
     }
 
     protected override Type StyleKeyOverride => typeof(Border);

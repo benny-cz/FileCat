@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -51,7 +52,7 @@ public sealed class RegistrySearchOwnershipTests
             await Wait(() => dialog.IsCompleted || main.GetVisualDescendants().OfType<TextBox>().Any(b => b.PlaceholderText == "Name or stored data"));
             if (dialog.IsCompleted) await dialog;
             var term = main.GetVisualDescendants().OfType<TextBox>().Single(b => b.PlaceholderText == "Name or stored data");
-            var list = main.GetVisualDescendants().OfType<ListBox>().Single(b => b.Height == 240);
+            var list = main.GetVisualDescendants().OfType<ListBox>().Single(b => AutomationProperties.GetName(b) == "Registry search results");
             term.Text = "Needle";
             int searches = outcome is "replace" or "show" ? 3 : 1;
             var checkpoints = new List<object>();

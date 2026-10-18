@@ -119,6 +119,15 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         host.IsVisible = true;
         _open++;
         _sessions.Add(session);
+        // A headless or partially themed host can have no backdrop brush. Keep the
+        // modal layer in the pointer hit tree after styles have had a layout pass.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_sessions.Contains(session) && session.Layer.Background is null)
+                session.Layer.Background = Brushes.Transparent;
+            if (_sessions.Contains(session) && card is Border border && border.Background is null)
+                border.Background = Brushes.Transparent;
+        }, DispatcherPriority.Loaded);
         long revision = ++_focusRevision;
         // A list takes focus through its selected item, so its arrow keys work at once.
         Dispatcher.UIThread.Post(() =>
@@ -193,7 +202,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }, DispatcherPriority.Input);
     }
 
-    private static Border Card(string title, Control body, Control? buttons, double maxWidth = 560) =>
+    private static DialogCard Card(string title, Control body, Control? buttons, double maxWidth = 560) =>
         new DialogCard(title, body, buttons, maxWidth);
 
     private static WrapPanel ButtonRow(params Button[] buttons)
@@ -373,7 +382,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     }
 
     public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-        Func<bool>? canConfirm = null, DialogCloser? closer = null)
+        Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
@@ -414,6 +423,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             requery.Start();
         }
         var card = Card(title, content, ButtonRow(btns), 760);
+        if (resizable) card.EnableResizing(host);
         // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
         // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
         // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter

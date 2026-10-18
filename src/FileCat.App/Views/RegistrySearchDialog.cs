@@ -31,8 +31,8 @@ public static class RegistrySearchDialog
 
     public static async Task<SearchDialogResult> ShowAsync(MainViewModel vm, FileCat.Core.Resources.Location root)
     {
-        var term = new TextBox { MinWidth = 520, PlaceholderText = "Name or stored data" };
-        var rawText = new TextBox { MinWidth = 520, PlaceholderText = "Optional hex bytes, e.g. DE AD BE EF" };
+        var term = new TextBox { PlaceholderText = "Name or stored data" };
+        var rawText = new TextBox { PlaceholderText = "Optional hex bytes, e.g. DE AD BE EF" };
         var keyNames = new CheckBox { Content = "Key names", IsChecked = true };
         var valueNames = new CheckBox { Content = "Value names", IsChecked = true };
         var typed = new CheckBox { Content = "Stored text and numbers" };
@@ -46,7 +46,7 @@ public static class RegistrySearchDialog
         var shown = new AvaloniaList<Row>();
         var results = new ListBox
         {
-            Height = 240, MinWidth = 540, ItemsSource = shown, Classes = { "choices" },
+            MinHeight = 240, ItemsSource = shown, Classes = { "choices" },
             ItemTemplate = new FuncDataTemplate<Row>((row, _) =>
             {
                 var line = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,2*,3*") };
@@ -66,12 +66,16 @@ public static class RegistrySearchDialog
         var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         controls.Children.Add(stop);
         controls.Children.Add(start);
-        var body = new StackPanel { Spacing = 8, Children =
-        {
-            new TextBlock { Text = $"Search below {vm.Services.Providers.Display(root)}. Registry links are listed by name but their targets are not searched.", TextWrapping = TextWrapping.Wrap },
-            term, fields, rawText, controls, status, error, results,
-            new TextBlock { Text = "The dialog displays the first 300 matches; Show in panel keeps the complete result set. Limits: 100,000 keys, 250,000 values, 100,000 matches.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap },
-        } };
+        var body = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"), RowSpacing = 8 };
+        void Add(Control control, int row) { Grid.SetRow(control, row); body.Children.Add(control); }
+        Add(new TextBlock { Text = $"Search below {vm.Services.Providers.Display(root)}. Registry links are listed by name but their targets are not searched.", TextWrapping = TextWrapping.Wrap }, 0);
+        Add(term, 1);
+        Add(fields, 2);
+        Add(rawText, 3);
+        Add(controls, 4);
+        Add(new StackPanel { Spacing = 4, Children = { status, error } }, 5);
+        Add(results, 6);
+        Add(new TextBlock { Text = "The dialog displays the first 300 matches; Show in panel keeps the complete result set. Limits: 100,000 keys, 250,000 values, 100,000 matches.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap }, 7);
         ResultSet? set = null;
         CancellationTokenSource? running = null;
         Task? searchTask = null;
@@ -147,7 +151,7 @@ public static class RegistrySearchDialog
                 new DialogButton("Close", "close", IsCancel: true),
                 new DialogButton("Go to selected", "go") { IsAvailable = () => results.SelectedItem is Row },
                 new DialogButton("Show in panel", "show") { IsAvailable = () => set is not null },
-            ], term, closer: closer);
+            ], term, closer: closer, resizable: true);
         if (result as string == "go" && results.SelectedItem is Row selected)
         {
             running?.Cancel();

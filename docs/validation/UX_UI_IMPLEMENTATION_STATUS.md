@@ -2,13 +2,14 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** UXBUG-006 refreshes the parent file's Streams/Attributes
-metadata after deleting a side stream, including partial failures. A physical
-Delete-key regression checks the visible count before and after deletion; the
-related App selection passes 89 cases with 16 skips. UXBUG-005 viewer size
-passes two focused and 27 related App cases. FCUX-047's complete App Release
-run passes 2,238 with 63 skips. The complete Core Release suite passes with
-16 workers (4,420 passed, 150 skipped). Resizable search dialogs are next.
+**Current work:** UXBUG-007 makes Registry search, Advanced criteria, and
+Ignored folders dialogs resizable by pointer and keyboard, with responsive
+results and host bounds. Its 72 related App tests pass. The full App suite and
+native pointer/scaling acceptance remain open. UXBUG-006's Delete-key regression
+and 89 related App cases pass, as do UXBUG-005's viewer-size tests. FCUX-047's
+complete App Release run passes 2,238 with 63 skips. The complete Core Release
+suite passes with 16 workers (4,420 passed, 150 skipped). Visible viewer Find
+results and navigation controls are next.
 FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
@@ -160,6 +161,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-047 — fractional scroll and one-row paging | Accumulate precision-wheel fractions into whole rows in file list, text, hex and binary comparison; reset them at source/layout/navigation changes and list boundaries. Keep PageUp/PageDown moving with one visible row and retain list rename alignment. | Fifteen focused App cases and 117 nearby viewer/list regressions pass. The complete App Release run passes 2,238 with 63 skips. | Native conventional-wheel, precision touchpad and inertial-input acceptance remains open. |
 | UXBUG-005 — viewer window size | Remember a deliberate normal viewer size in profile settings and restore it for text, Markdown, PE Info, hex and picture modes. Clamp invalid or oversized values to the active display; an older untouched viewer cannot overwrite a newer size. | Two `ViewerWindowSizeTests` cases cover validation, screen bounds, reopen across viewer modes, restart persistence and concurrent windows. The related 27-case viewer selection and 17 Core state cases pass. | Native multi-monitor, DPI, minimize/maximize and restart acceptance remains open. |
 | UXBUG-006 — stale Streams count after deletion | After confirmed Delete removes a stream or attribute, retire only the parent file's cached `hidden` metadata before refreshing the side-data list. Requery the provider when the parent row appears; partial failures also requery so the count reflects actual remaining data. | `HiddenDataUiTests` primes and reads the Streams/Attributes cell, presses Delete, confirms the side item is gone and file contents survive, then checks the parent row's count decreases by one. The related 105-case App selection has 89 passes and 16 skips. | Native NTFS stream and Unix attribute acceptance remains open. |
+| UXBUG-007 — resizable search dialogs | Registry search, Advanced criteria, and Ignored folders dialogs expose a visible drag grip with keyboard arrows and larger Shift steps. Criteria and results fit the available width; lists gain height when expanded. Host shrink clamps the card and later expansion restores its requested size. | `SearchDialogResizeTests` covers drag events, keyboard resize, host shrink/expand, reopening, Registry results and narrow layout, ignored-folder results, and the Advanced grip. Seventy-two related App cases pass. | Native pointer dragging, scaling, and assistive-technology acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

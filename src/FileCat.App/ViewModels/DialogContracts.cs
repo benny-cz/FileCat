@@ -107,7 +107,7 @@ public interface IDialogService
     /// <paramref name="closer"/> lets the content end the dialog itself.
     /// </summary>
     Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-        Func<bool>? canConfirm = null, DialogCloser? closer = null);
+        Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false);
     bool IsOpen { get; }
 }
 

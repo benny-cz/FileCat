@@ -42,7 +42,9 @@ with 16 workers (4,420 passed, 150 skipped). FCUX-047 then passed its complete
 App rerun (2,238 passed, 63 skipped). UXBUG-005 viewer geometry persistence
 passes two focused and 27 related App cases, plus 17 Core state cases.
 UXBUG-006 then passes its real Delete-key and parent-column regression, plus
-the related 89-pass, 16-skip App selection. UXBUG-007 follows.
+the related 89-pass, 16-skip App selection. UXBUG-007 resizable Registry,
+Advanced criteria, and Ignored folders dialogs pass 72 related App cases.
+Its native pointer and scaling acceptance remains open. UXBUG-008 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -61,9 +63,10 @@ the related 89-pass, 16-skip App selection. UXBUG-007 follows.
 | 13 | UXBUG-005 — viewer window size | Deliberate normal-size changes persist across restart and viewer modes; saved dimensions are validated and display-clamped. Two focused and 27 related App cases pass; native display/DPI acceptance remains open. |
 | 14 | UXBUG-006 — Streams count after deletion | Targeted metadata retirement makes the parent row requery its actual Streams/Attributes count after Delete, including partial failures. The physical-key App regression and 89 related cases pass; native acceptance remains open. |
 | 15 | FCUX-045 — Find completion | Visible completion and qualification, plus search-specific empty states, are implemented; 98 related Release tests pass. Full App and native acceptance remain open. |
-| 16 | UXBUG-007 — resizable search windows | Make Find in Registry and comparable search windows expandable and shrinkable, with usable minimum bounds and responsive criteria, results, and action layouts. Cover resize and reopen behavior. |
+| 16 | UXBUG-007 — resizable search windows | Registry, Advanced criteria, and Ignored folders dialogs have a visible pointer/keyboard resize grip, responsive content, host bounds, and reopen behavior. Seventy-two related tests pass; native pointer and scaling acceptance remains open. |
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
+| 19 | UXBUG-008 — visible viewer Find results | In Markdown and every other viewer mode that supports Find, show a clear match count and visible Previous/Next actions alongside F3 and Shift+F3. Keep the count honest while searching or when the result set is incomplete; cover zero, one, many, wrap, mode changes, and keyboard/button parity. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

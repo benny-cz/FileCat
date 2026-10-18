@@ -184,6 +184,6 @@ public sealed class WorkspaceSaveSafetyTests
         public Task<ChoiceResult> ChooseAsync(ChoiceOptions options) => throw new NotSupportedException();
         public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false) => throw new NotSupportedException();
         public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-            Func<bool>? canConfirm = null, DialogCloser? closer = null) => throw new NotSupportedException();
+            Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false) => throw new NotSupportedException();
     }
 }
