@@ -438,11 +438,17 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         ReconcileSelectedIssues();
     }
 
-    /// <summary>Opened, the details show the operation that matters now rather than an empty half (release issue I30).</summary>
+    /// <summary>Opening Details follows active work; selection inside an open drawer remains the user's choice.</summary>
     partial void OnIsOpenChanged(bool value)
     {
-        if (value && Selected is null) Selected = Primary ?? Jobs.FirstOrDefault();
-        else if (value) ReconcileSelectedIssues();
+        if (!value) return;
+        UpdateSummary();
+        if (Selected is null)
+            Selected = Primary ?? Jobs.FirstOrDefault();
+        else if (Selected.Job.State.IsFinished() && Primary is { } primary && !primary.Job.State.IsFinished())
+            Selected = primary;
+        else
+            ReconcileSelectedIssues();
     }
 
     private void QueueIssueRefresh()

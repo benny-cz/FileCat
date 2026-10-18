@@ -46,8 +46,10 @@ the related 89-pass, 16-skip App selection. UXBUG-007 resizable Registry,
 Advanced criteria, and Ignored folders dialogs pass 72 related App cases and
 the full App suite passes 2,242 with 63 skips. Its native pointer and scaling
 acceptance remains open. UXBUG-008 viewer Find controls and bounded counts
-pass 240 related App and 111 related Core cases. Its native acceptance and
-exact Page-mode total remain open. UXBUG-009 follows.
+pass 240 related App and 111 related Core cases. Its full Core rerun passes
+4,427 with 150 skips using 16 workers. Native acceptance and the exact
+Page-mode total remain open. UXBUG-009's selected active job and visible row
+pass 44 related App cases. Its native acceptance remains open; FCUX-048 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -70,7 +72,7 @@ exact Page-mode total remain open. UXBUG-009 follows.
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
 | 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts; Page exposes the same navigation and a truthful lower bound because native engines do not return totals. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity. Native acceptance and an exact Page total remain open. |
-| 20 | UXBUG-009 — Details selects the active operation | When completed operations already occupy the drawer and a newer operation is in progress, Details selects and reveals the running job. Cover multiple finished jobs, a new active job, and deliberate user selection so automatic focus does not steal a later choice. |
+| 20 | UXBUG-009 — Details selects the active operation | Reopening Details selects and reveals active work over a retained finished selection; open-drawer choices remain stable as jobs arrive. The eight-finished-job regression and 44 related App cases pass. Native pointer, keyboard, and screen-reader acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

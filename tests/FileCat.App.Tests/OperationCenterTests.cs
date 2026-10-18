@@ -1,7 +1,10 @@
 using System.Collections.Specialized;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.Core.FileSystem;
@@ -14,6 +17,81 @@ namespace FileCat.App.Tests;
 /// <summary>The operations panel's count of finished jobs and "Clear finished" agree (CI run 36931084621).</summary>
 public sealed class OperationCenterTests
 {
+    [AvaloniaFact]
+    public async Task Reopening_details_reveals_running_operation_without_stealing_open_drawer_selection()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 600);
+        try
+        {
+            var center = vm.Operations;
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            for (int i = 0; i < 8; i++)
+            {
+                var finished = services.Jobs.Submit(new JobRequest
+                {
+                    Kind = JobKind.Copy,
+                    Sources = [ItemRef.ForFileSystemPath(Path.Combine(root, $"missing-{i}.txt"), EntryKind.File)],
+                    Destination = Location.FileSystem(target),
+                });
+                await Until(() => finished.State.IsFinished() && center.Jobs.Any(j => j.Job == finished));
+            }
+            center.IsOpen = true;
+            var oldest = center.Jobs[^1];
+            center.Selected = oldest;
+            window.UpdateLayout();
+            var history = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(list => AutomationProperties.GetName(list) == "Operations history");
+            var scroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
+            scroll.Offset = new Avalonia.Vector(0, scroll.Extent.Height);
+            window.UpdateLayout();
+            Assert.True(scroll.Offset.Y > 0, "The history must have a previous scroll position to reveal a new job.");
+            center.IsOpen = false;
+
+            string source = Path.Combine(root, "conflict.txt");
+            File.WriteAllText(source, "new");
+            File.WriteAllText(Path.Combine(target, "conflict.txt"), "old");
+            var running = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Destination = Location.FileSystem(target),
+            });
+            await Until(() => running.State == JobState.AwaitingDecision && center.Jobs.Count == 9);
+            Assert.Same(oldest, center.Selected);
+
+            window.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Content as string == "Details (Ctrl+J)")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => center.IsOpen && ReferenceEquals(center.Selected?.Job, running));
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Same(center.Selected, history.SelectedItem);
+            Assert.Equal(0, history.SelectedIndex);
+            var activeRow = history.ContainerFromIndex(0);
+            var rowPosition = activeRow?.TranslatePoint(new Avalonia.Point(0, 0), history);
+            Assert.True(rowPosition is { } pos && pos.Y < history.Bounds.Height &&
+                        pos.Y + activeRow!.Bounds.Height > 0,
+                $"Opening Details should reveal the running row (scroll {scroll.Offset.Y}, list {history.Bounds.Height}, row {rowPosition}).");
+
+            // A later progress tick or new queued job must not override a deliberate history choice.
+            center.Selected = oldest;
+            center.UpdateSummary();
+            Assert.Same(oldest, center.Selected);
+            var later = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Destination = Location.FileSystem(target),
+            });
+            await Until(() => center.Jobs.Any(j => j.Job == later));
+            Assert.Same(oldest, center.Selected);
+            center.IsOpen = false;
+            center.IsOpen = true;
+            Assert.Same(running, center.Selected?.Job);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Removing_a_failed_report_requires_review_and_cancel_keeps_the_evidence()
     {

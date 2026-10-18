@@ -28,6 +28,16 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        DetailsDrawer.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != Visual.IsVisibleProperty || !DetailsDrawer.IsVisible) return;
+            // Wait until the reopened drawer has measured its list before revealing the selected job.
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (Center is { IsOpen: true, Selected: not null } && HistoryList.SelectedIndex >= 0)
+                    HistoryList.ScrollIntoView(HistoryList.SelectedIndex);
+            }, DispatcherPriority.Loaded);
+        };
         DrawerResizeHandle.PointerPressed += (_, e) =>
         {
             if (_drawerOwner is null || !e.GetCurrentPoint(DrawerResizeHandle).Properties.IsLeftButtonPressed) return;

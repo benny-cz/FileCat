@@ -159,7 +159,7 @@
           <!-- Nothing yet: say what will appear here. -->
           <TextBlock Text="No operations yet. Copies, moves, deletions, and other jobs show their progress and reports here."
                      Classes="small muted" TextWrapping="Wrap" Margin="10,6" IsVisible="{Binding !Jobs.Count}" />
-          <ListBox ItemsSource="{Binding Jobs}" SelectedItem="{Binding Selected}" Classes="choices"
+          <ListBox x:Name="HistoryList" ItemsSource="{Binding Jobs}" SelectedItem="{Binding Selected}" Classes="choices"
                    AutomationProperties.Name="Operations history">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:JobViewModel">
