@@ -29,11 +29,6 @@ public sealed class HexCompareView : Control
     private const double Gutter = 10;
     private const double Divider = 9;
     private const double RightMargin = 4;
-    private static readonly IBrush ChangedFill = Tint(0xE0, 0xB0, 0x30, 0x50), ChangedCurrent = Tint(0xE0, 0xB0, 0x30, 0x9C);
-    private static readonly IBrush LeftFill = Tint(0xE0, 0x40, 0x40, 0x48), LeftCurrent = Tint(0xE0, 0x40, 0x40, 0x90);
-    private static readonly IBrush RightFill = Tint(0x40, 0xC0, 0x40, 0x48), RightCurrent = Tint(0x40, 0xC0, 0x40, 0x90);
-    private static readonly IBrush UnalignedFill = Tint(0x90, 0x90, 0xA0, 0x40), UnalignedCurrent = Tint(0x90, 0x90, 0xA0, 0x80);
-    private static readonly IBrush GapFill = Tint(0x90, 0x90, 0xA0, 0x1C);
 
     private readonly ScrollBar _vbar;
     private readonly Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
@@ -52,7 +47,12 @@ public sealed class HexCompareView : Control
     private int _selectionSide = -1;
     private long _anchor, _caret;
     private bool _pendingInvalidate, _dragging;
-    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _accent = Brushes.Blue, _bg = Brushes.White, _divider = Brushes.Gray;
+    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _selectionText = Brushes.Black, _accent = Brushes.Blue, _bg = Brushes.White, _divider = Brushes.Gray;
+    private IBrush _gapFill = Brushes.LightGray;
+    private readonly IBrush[] _diffFill = [Brushes.Transparent, Brushes.LightGray, Brushes.LightGray, Brushes.LightGray, Brushes.LightGray];
+    private readonly IBrush[] _diffCurrentFill = [Brushes.Transparent, Brushes.Gray, Brushes.Gray, Brushes.Gray, Brushes.Gray];
+    private readonly IBrush[] _diffText = [Brushes.Black, Brushes.Black, Brushes.Black, Brushes.Black, Brushes.Black];
+    private readonly IBrush[] _diffCurrentText = [Brushes.Black, Brushes.Black, Brushes.Black, Brushes.Black, Brushes.Black];
     private string _status = "";
     private long _contentGeneration, _selectionGeneration, _copyRequest;
     private CancellationTokenSource? _copyStop;
@@ -226,16 +226,25 @@ public sealed class HexCompareView : Control
         _text = B("FcText", Brushes.Black);
         _muted = B("FcTextMuted", Brushes.Gray);
         _selection = B("FcFocusBackground", Brushes.LightBlue);
+        _selectionText = B("FcFocusText", Brushes.Black);
         _accent = B("FcActiveAccent", Brushes.Blue);
         _bg = B("FcPanel", Brushes.White);
         _divider = B("FcBorder", Brushes.Gray);
+        _gapFill = B("FcDiffGapFill", Brushes.LightGray);
+        string[] names = ["", "Changed", "Left", "Right", "Unaligned"];
+        for (int i = 1; i < names.Length; i++)
+        {
+            _diffFill[i] = B("FcDiff" + names[i] + "Fill", _bg);
+            _diffCurrentFill[i] = B("FcDiff" + names[i] + "CurrentFill", _diffFill[i]);
+            _diffText[i] = B("FcOnDiff" + names[i], _text);
+            _diffCurrentText[i] = B("FcOnDiff" + names[i] + "Current", _diffText[i]);
+        }
         if (ContextMenu is { } menu)
             foreach (var item in menu.Items.OfType<MenuItem>())
                 if (item.Tag is string icon) item.Icon = MenuIcon(icon);
         InvalidateVisual();
     }
 
-    private static SolidColorBrush Tint(byte r, byte g, byte b, byte a) => new(Color.FromArgb(a, r, g, b));
 
     private long MaxLength => Math.Max(_left?.Length ?? 0, _right?.Length ?? 0);
     private int OffsetDigits => MaxLength <= 0xFFFFFFFFL ? 8 : MaxLength <= 0xFFFFFFFFFFFFL ? 12 : 16;
@@ -395,14 +404,11 @@ public sealed class HexCompareView : Control
         return (kind, current, selected);
     }
 
-    private static IBrush? Fill(int kind, bool current) => kind switch
-    {
-        1 => current ? ChangedCurrent : ChangedFill,
-        2 => current ? LeftCurrent : LeftFill,
-        3 => current ? RightCurrent : RightFill,
-        4 => current ? UnalignedCurrent : UnalignedFill,
-        _ => null,
-    };
+    private IBrush? Fill(int kind, bool current) => kind is >= 1 and <= 4
+        ? current ? _diffCurrentFill[kind] : _diffFill[kind] : null;
+
+    private IBrush? DiffForeground(int kind, bool current, bool selected) => selected ? _selectionText
+        : kind is >= 1 and <= 4 ? current ? _diffCurrentText[kind] : _diffText[kind] : null;
 
     private void DrawSide(DrawingContext dc, double x0, double y, AlignedRange stretch, RowSide mine, RowSide other)
     {
@@ -410,13 +416,12 @@ public sealed class HexCompareView : Control
         if (mine.Count == 0)
         {
             // Bytes the other side has and this one lacks.
-            if (other.Count > 0) dc.FillRectangle(GapFill, new Rect(x0 + Gutter / 2, y, pane - Gutter / 2, _rowHeight));
+            if (other.Count > 0) dc.FillRectangle(_gapFill, new Rect(x0 + Gutter / 2, y, pane - Gutter / 2, _rowHeight));
             return;
         }
         double cw = _charWidth;
         double xHex = x0 + HexX, xText = x0 + TextX;
         bool anyCurrent = false;
-        var underline = new Pen(_text, 1);
         for (int i = 0; i < mine.Count;)
         {
             var mark = Mark(stretch, mine, other, i);
@@ -433,6 +438,7 @@ public sealed class HexCompareView : Control
             if (mark.Kind != 0)
             {
                 // Not by color alone (plan PI-04): differing bytes are underlined in both columns.
+                var underline = new Pen(DiffForeground(mark.Kind, mark.Current, mark.Selected) ?? _text, 1);
                 double uy = y + _rowHeight - 1.5;
                 dc.DrawLine(underline, new Point(hx0 + 2, uy), new Point(hx1 - 2, uy));
                 dc.DrawLine(underline, new Point(tx0, uy), new Point(tx1, uy));
@@ -466,8 +472,21 @@ public sealed class HexCompareView : Control
         }
         var brush = mine.Read < mine.Count ? _muted : _text;
         DrawText(dc, mine.Offset.ToString("X" + OffsetDigits, CultureInfo.InvariantCulture), x0 + Gutter, y, _muted);
-        DrawText(dc, hex.ToString(), xHex, y, brush);
-        DrawText(dc, text.ToString(), xText, y, brush);
+        string hexLine = hex.ToString(), textLine = text.ToString();
+        DrawText(dc, hexLine, xHex, y, brush);
+        DrawText(dc, textLine, xText, y, brush);
+        for (int i = 0; i < mine.Count;)
+        {
+            var mark = Mark(stretch, mine, other, i);
+            var foreground = DiffForeground(mark.Kind, mark.Current, mark.Selected);
+            if (foreground is null) { i++; continue; }
+            int end = i + 1;
+            while (end < mine.Count && Mark(stretch, mine, other, end) == mark) end++;
+            int firstColumn = HexColumn(i), lastColumn = HexColumn(end - 1) + 2;
+            DrawText(dc, hexLine.Substring(firstColumn, lastColumn - firstColumn), xHex + firstColumn * cw, y, foreground);
+            DrawText(dc, textLine.Substring(i, end - i), xText + i * cw, y, foreground);
+            i = end;
+        }
     }
 
     internal static char Printable(byte b) => b is >= 0x20 and < 0x7F ? (char)b : b >= 0xA0 ? (char)b : '.';

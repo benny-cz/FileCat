@@ -535,7 +535,7 @@ public sealed class FileListControl : Control
         _header = B("FcHeader", Brushes.LightGray);
         _text = B("FcText", Brushes.Black);
         _muted = B("FcTextMuted", Brushes.Gray);
-        _dim = B("FcTextDim", Brushes.Gray);
+        _dim = B("FcActionableDimText", _text);
         _dir = B("FcTextDirectory", _text);
         _archive = B("FcTextArchive", _text);
         _exec = B("FcTextExecutable", _text);
@@ -859,7 +859,7 @@ public sealed class FileListControl : Control
                 if (icon is not null)
                 {
                     var iconRect = new Rect(iconX, y + (_rowHeight - IconSize) / 2, IconSize, IconSize);
-                    bool dimIcon = e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.Unavailable);
+                    bool dimIcon = e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) || e.Has(EntryFlags.Unavailable);
                     using (dimIcon ? dc.PushOpacity(0.5) : default(DrawingContext.PushedState?))
                     {
                         dc.DrawImage(icon, iconRect);

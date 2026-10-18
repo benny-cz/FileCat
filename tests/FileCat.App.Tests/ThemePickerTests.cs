@@ -122,6 +122,106 @@ public sealed class ThemePickerTests
     }
 
     [AvaloniaFact]
+    public void Actionable_text_and_custom_viewer_states_meet_text_contrast_in_every_palette()
+    {
+        static Avalonia.Media.Color ColorOf(string key) =>
+            Avalonia.Application.Current!.TryGetResource(key, null, out var value) && value is Avalonia.Media.ISolidColorBrush brush
+                ? brush.Color : throw new KeyNotFoundException(key);
+        string before = ThemeManager.RequestedName;
+        try
+        {
+            // System resolves to one of these same palettes according to light, dark and
+            // high-contrast settings; include the currently resolved System state as well.
+            foreach (var name in ThemeManager.Names)
+            {
+                ThemeManager.Apply(name);
+                var panel = ThemeManager.Opaque(ColorOf("FcPanel"), ColorOf("FcWindow"));
+                foreach (var (foreground, background, under) in new[]
+                {
+                    ("FcText", "FcPanel", "FcWindow"),
+                    ("FcTextMuted", "FcPanel", "FcWindow"),
+                    ("FcActionableDimText", "FcPanel", "FcWindow"),
+                    ("FcFocusText", "FcFocusBackground", "FcPanel"),
+                    ("FcOnSearchHit", "FcSearchHit", "FcPanel"),
+                    ("FcOnChangedByte", "FcChangedByte", "FcPanel"),
+                    ("FcOnAccent", "FcAccentFill", "FcPanel"),
+                    ("FcOnDanger", "FcDangerFill", "FcPanel"),
+                    ("FcOnDiffChanged", "FcDiffChangedFill", "FcPanel"),
+                    ("FcOnDiffChangedCurrent", "FcDiffChangedCurrentFill", "FcPanel"),
+                    ("FcOnDiffLeft", "FcDiffLeftFill", "FcPanel"),
+                    ("FcOnDiffLeftCurrent", "FcDiffLeftCurrentFill", "FcPanel"),
+                    ("FcOnDiffRight", "FcDiffRightFill", "FcPanel"),
+                    ("FcOnDiffRightCurrent", "FcDiffRightCurrentFill", "FcPanel"),
+                    ("FcOnDiffUnaligned", "FcDiffUnalignedFill", "FcPanel"),
+                    ("FcOnDiffUnalignedCurrent", "FcDiffUnalignedCurrentFill", "FcPanel"),
+                })
+                {
+                    var baseColor = under == "FcWindow" ? ColorOf(under) : panel;
+                    var fill = ThemeManager.Opaque(ColorOf(background), baseColor);
+                    var ink = ThemeManager.Opaque(ColorOf(foreground), fill);
+                    double ratio = ThemeManager.Contrast(ink, fill);
+                    Assert.True(ratio >= 4.5, $"{name}: {foreground} on {background} is {ratio:0.00}:1");
+                }
+                var focus = ThemeManager.Opaque(ColorOf("FcFocusBorder"), panel);
+                Assert.True(ThemeManager.Contrast(focus, panel) >= 3,
+                    $"{name}: focus boundary lacks 3:1 non-text contrast");
+                Assert.NotSame(
+                    Avalonia.Application.Current!.FindResource("FcError"),
+                    Avalonia.Application.Current!.FindResource("FcDangerFill"));
+            }
+        }
+        finally { ThemeManager.Apply(before); }
+    }
+
+    [AvaloniaFact]
+    public void Danger_button_uses_the_semantic_text_and_fill_pair()
+    {
+        var button = new Button
+        {
+            Content = "Delete", Classes = { "danger" }, Width = 140, Height = 44,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+        var window = new Window { Content = button, Width = 240, Height = 100 };
+        string before = ThemeManager.RequestedName;
+        try
+        {
+            window.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://FileCat.App.Tests/"))
+            {
+                Source = new Uri("avares://FileCat/Themes/Styles.axaml"),
+            });
+            window.Show();
+            foreach (var name in ThemeManager.Names.Where(n => n != "System"))
+            {
+                ThemeManager.Apply(name);
+                window.CaptureRenderedFrame()?.Dispose();
+                void AssertColors()
+                {
+                    Assert.Equal(Avalonia.Application.Current!.FindResource("FcDangerFill"), button.Background);
+                    Assert.Equal(Avalonia.Application.Current!.FindResource("FcOnDanger"), button.Foreground);
+                    var presenter = button.GetVisualDescendants()
+                        .OfType<Avalonia.Controls.Presenters.ContentPresenter>()
+                        .Single(child => child.Name == "PART_ContentPresenter");
+                    Assert.Equal(button.Background, presenter.Background);
+                    Assert.Equal(button.Foreground, presenter.Foreground);
+                }
+                AssertColors();
+                var center = new Avalonia.Point(120, 50);
+                window.MouseMove(center);
+                Assert.True(button.IsPointerOver);
+                AssertColors();
+                window.MouseDown(center, Avalonia.Input.MouseButton.Left);
+                AssertColors();
+                window.MouseUp(center, Avalonia.Input.MouseButton.Left);
+                button.Focus();
+                AssertColors();
+                window.MouseMove(new Avalonia.Point(4, 4));
+            }
+        }
+        finally { window.Close(); ThemeManager.Apply(before); }
+    }
+
+    [AvaloniaFact]
     public async Task Themes_are_previewed_live_then_kept_or_undone()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

@@ -53,20 +53,25 @@ public sealed class TextViewer : Control
     private double _fontSize = 13, _charWidth = 8, _rowHeight = 18;
     private string? _highlight;
     private bool _highlightCase;
-    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _bg = Brushes.White, _hit = Brushes.Yellow, _sel = Brushes.LightBlue;
+    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _bg = Brushes.White, _hit = Brushes.Yellow, _hitText = Brushes.Black, _sel = Brushes.LightBlue, _selectionText = Brushes.Black;
     private IBrush _accent = Brushes.SteelBlue, _warning = Brushes.DarkOrange;
     private TextViewerAutomationPeer? _automationPeer;
     private string _semanticValue = "No content", _semanticStatus = "No content";
     private bool _reportStyle, _fontsResolved;
 
-    private sealed record SegmentLayout(TextSourceSegment Segment, TextLayout Layout, string? ReadError);
+    private sealed record SegmentLayout(TextSourceSegment Segment, TextLayout Layout, string? ReadError)
+    {
+        internal TextLayout? SelectionLayout { get; set; }
+        internal TextLayout? HighlightLayout { get; set; }
+        internal void Dispose() { Layout.Dispose(); SelectionLayout?.Dispose(); HighlightLayout?.Dispose(); }
+    }
     internal int ShapedSegmentCount { get; private set; }
     internal int DecorationGeometryBuildCount { get; private set; }
     internal int DecorationCharactersMeasured { get; private set; }
     internal int CachedTextRunCount => _segmentLayouts.Values.Sum(cached => cached.Layout.TextLines.Sum(line => line.TextRuns.Count));
     internal int CachedTextLineCount => _segmentLayouts.Values.Sum(cached => cached.Layout.TextLines.Count);
 
-    private sealed record Row(TextSourceSegment Segment, TextLine Line, int Sub)
+    private sealed record Row(TextSourceSegment Segment, TextLine Line, int Sub, SegmentLayout Cached)
     {
         internal int First => Line.FirstTextSourceIndex;
         internal int End => Math.Min(Segment.Display.Length, First + Line.Length - Line.NewLineLength);
@@ -214,7 +219,9 @@ public sealed class TextViewer : Control
         IBrush B(string k, IBrush f) => this.TryFindResource(k, ActualThemeVariant, out var v) && v is IBrush b ? b : f;
         _text = B("FcText", Brushes.Black); _muted = B("FcTextMuted", Brushes.Gray);
         _bg = B("FcPanel", Brushes.White); _hit = B("FcSearchHit", Brushes.Yellow);
-        _sel = B("FcFocusBackground", Brushes.LightBlue); _accent = B("FcActiveAccent", Brushes.SteelBlue);
+        _hitText = B("FcOnSearchHit", Brushes.Black);
+        _sel = B("FcFocusBackground", Brushes.LightBlue); _selectionText = B("FcFocusText", Brushes.Black);
+        _accent = B("FcActiveAccent", Brushes.SteelBlue);
         if (_accent is ISolidColorBrush a && _text is ISolidColorBrush t && Math.Sqrt(Math.Pow(a.Color.R - t.Color.R, 2) + Math.Pow(a.Color.G - t.Color.G, 2) + Math.Pow(a.Color.B - t.Color.B, 2)) < 160)
             _accent = B("FcHeaderText", _accent);
         _warning = B("FcWarning", Brushes.DarkOrange); _layoutFormat++; CommitLayout();
@@ -352,11 +359,11 @@ public sealed class TextViewer : Control
         return true;
     }
 
-    private TextLayout Shape(TextSourceSegment segment)
+    private TextLayout Shape(TextSourceSegment segment, IBrush? foreground = null)
     {
-        ShapedSegmentCount++;
+        if (foreground is null) ShapedSegmentCount++;
         var (brush, face) = ReportStyle && segment.Display.Length > 0 ? StyleOf(segment.Display) : (_text, _typeface);
-        return new TextLayout(segment.Display, face, _fontSize, brush, textWrapping: _wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
+        return new TextLayout(segment.Display, face, _fontSize, foreground ?? brush, textWrapping: _wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             maxWidth: _wrap ? TextWidth : double.PositiveInfinity, lineHeight: _rowHeight);
     }
 
@@ -385,7 +392,7 @@ public sealed class TextViewer : Control
             _highlightRanges.Clear();
             if (_layoutFormat != _cachedFormat || _wrap && Math.Abs(_cachedWrapWidth - TextWidth) > .5)
             {
-                foreach (var cached in _segmentLayouts.Values) cached.Layout.Dispose();
+                foreach (var cached in _segmentLayouts.Values) cached.Dispose();
                 _segmentLayouts.Clear();
                 _cachedFormat = _layoutFormat; _cachedWrapWidth = TextWidth;
             }
@@ -425,7 +432,11 @@ public sealed class TextViewer : Control
                     continue;
                 }
                 var layout = cached?.Layout ?? Shape(segment);
-                if (cached is null) _segmentLayouts.Add(key, new SegmentLayout(segment, layout, _layoutError));
+                if (cached is null)
+                {
+                    cached = new SegmentLayout(segment, layout, _layoutError);
+                    _segmentLayouts.Add(key, cached);
+                }
                 _layouts.Add(layout);
                 var lines = layout.TextLines;
                 if (reveal is { } offset && offset >= pos && offset <= segment.ContentEnd)
@@ -437,7 +448,7 @@ public sealed class TextViewer : Control
                     _topLine = pos; _topSub = skip;
                 }
                 for (int i = Math.Min(skip, Math.Max(0, lines.Count - 1)); i < lines.Count && _rows.Count < VisibleRows + 1; i++)
-                    _rows.Add(new Row(segment, lines[i], i));
+                    _rows.Add(new Row(segment, lines[i], i, cached));
                 skip = 0; column = segment.Ending.Length > 0 ? 0 : segment.FinalColumn; pos = segment.Next;
             }
             UpdateScroll();
@@ -454,7 +465,7 @@ public sealed class TextViewer : Control
             // toolbar/result-panel changes; release every layout that is no longer represented.
             foreach (var key in _segmentLayouts.Where(pair => !_layouts.Contains(pair.Value.Layout)).Select(pair => pair.Key).ToArray())
             {
-                _segmentLayouts[key].Layout.Dispose();
+                _segmentLayouts[key].Dispose();
                 _segmentLayouts.Remove(key);
             }
             _committing = false;
@@ -497,6 +508,7 @@ public sealed class TextViewer : Control
         for (int i = 0; i < _rows.Count; i++)
         {
             var row = _rows[i]; double y = i * _rowHeight;
+            int selectionBefore = _selectionGeometry.Count, highlightBefore = _highlightGeometry.Count;
             foreach (var (left, right) in VisibleTextRanges(row))
             {
                 if (HasSelection)
@@ -513,6 +525,10 @@ public sealed class TextViewer : Control
                         AddRangeGeometry(_highlightGeometry, row, Math.Max(left, ranges[r].Start), Math.Min(right, ranges[r].End), y);
                 }
             }
+            if (_selectionGeometry.Count > selectionBefore)
+                row.Cached.SelectionLayout ??= Shape(row.Segment, _selectionText);
+            if (_highlightGeometry.Count > highlightBefore)
+                row.Cached.HighlightLayout ??= Shape(row.Segment, _hitText);
         }
     }
 
@@ -555,10 +571,32 @@ public sealed class TextViewer : Control
     {
         dc.FillRectangle(_bg, new Rect(Bounds.Size));
         using var clip = dc.PushClip(ContentViewport);
-        foreach (var rect in _selectionGeometry) dc.FillRectangle(_sel, rect);
         foreach (var rect in _highlightGeometry) dc.FillRectangle(_hit, rect);
+        foreach (var rect in _selectionGeometry) dc.FillRectangle(_sel, rect);
         for (int i = 0; i < _rows.Count; i++)
-            _rows[i].Line.Draw(dc, new Point(Gutter - _horizontalOffset, i * _rowHeight));
+        {
+            var row = _rows[i];
+            var origin = new Point(Gutter - _horizontalOffset, i * _rowHeight);
+            row.Line.Draw(dc, origin);
+            foreach (var rect in _highlightGeometry)
+            {
+                if (rect.Y >= (i + 1) * _rowHeight || rect.Bottom <= i * _rowHeight) continue;
+                var highlighted = row.Cached.HighlightLayout;
+                if (highlighted is null) continue;
+                using var hitClip = dc.PushClip(rect);
+                highlighted.TextLines[row.Sub].Draw(dc, origin);
+            }
+            // Shape a paired foreground only for selected visible segments. The same
+            // source, font and wrap width keep glyph positions identical for RTL text.
+            foreach (var rect in _selectionGeometry)
+            {
+                if (rect.Y >= (i + 1) * _rowHeight || rect.Bottom <= i * _rowHeight) continue;
+                var selected = row.Cached.SelectionLayout;
+                if (selected is null) continue;
+                using var selectedClip = dc.PushClip(rect);
+                selected.TextLines[row.Sub].Draw(dc, origin);
+            }
+        }
         string? notice = _layoutError ?? (_layoutIncomplete ? "Loading…" : _reader is { Length: 0 } ? "The file is empty." : null);
         if (notice is not null && _rows.Count < VisibleRows)
         {

@@ -289,6 +289,12 @@ public static class ThemeManager
         Add("Text", p.Text);
         Add("TextMuted", p.TextMuted);
         Add("TextDim", p.TextDim);
+        // Hidden and unavailable entries remain actionable. Choose a readable muted color
+        // against the actual panel, including palettes with a translucent panel.
+        var panel = Opaque(Color.Parse(p.Panel), Color.Parse(p.Window));
+        string actionableDim = new[] { p.TextDim, p.TextMuted, p.Text }
+            .First(c => Contrast(Opaque(Color.Parse(c), panel), panel) >= 4.5);
+        Add("ActionableDimText", actionableDim);
         Add("TextDirectory", p.TextDirectory);
         Add("TextArchive", p.TextArchive);
         Add("TextExecutable", p.TextExecutable);
@@ -309,6 +315,10 @@ public static class ThemeManager
         Add("StatusBackground", p.StatusBackground);
         Add("Warning", p.Warning);
         Add("Error", p.Error);
+        // Error is also used as text on cards. Destructive controls need their own
+        // stable foreground/fill pair throughout pointer and keyboard states.
+        Add("DangerFill", p.Error);
+        Add("OnDanger", OnColor(p.Error));
         Add("Success", p.Success);
         Add("Progress", p.Progress);
         Add("Card", p.Card);
@@ -330,6 +340,24 @@ public static class ThemeManager
         Add("CodeIcon", p.CodeIcon);
         Add("ChangedByte", p.ChangedByte);
         Add("SearchHit", p.SearchHit);
+        Add("OnChangedByte", OnColor(Opaque(Color.Parse(p.ChangedByte), panel).ToString()));
+        Add("OnSearchHit", OnColor(Opaque(Color.Parse(p.SearchHit), panel).ToString()));
+        void AddDiff(string name, string source)
+        {
+            var color = Color.Parse(source);
+            var normal = Color.FromArgb(0x50, color.R, color.G, color.B);
+            var current = Color.FromArgb(0x9C, color.R, color.G, color.B);
+            Add("Diff" + name + "Fill", normal.ToString());
+            Add("Diff" + name + "CurrentFill", current.ToString());
+            Add("OnDiff" + name, OnColor(Opaque(normal, panel).ToString()));
+            Add("OnDiff" + name + "Current", OnColor(Opaque(current, panel).ToString()));
+        }
+        AddDiff("Changed", p.Warning);
+        AddDiff("Left", p.Error);
+        AddDiff("Right", p.Success);
+        AddDiff("Unaligned", p.Border);
+        var gap = Color.Parse(p.Border);
+        Add("DiffGapFill", Color.FromArgb(0x1C, gap.R, gap.G, gap.B).ToString());
         Add("MenuBackground", p.MenuBackground);
         // Text on an accent (primary buttons, the target badge): white, unless black reads clearly better (a yellow or a
         // bright green accent).

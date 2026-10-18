@@ -32,7 +32,7 @@ public sealed class HexView : Control
     private Action? _pageLoaded;
     private long _readerGeneration;
     private string _committedValue = "No content", _editingState = "Read-only inspection";
-    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _cursorBrush = Brushes.Blue, _bg = Brushes.White, _hit = Brushes.Yellow, _modified = Brushes.Orange;
+    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _selectionText = Brushes.Black, _hitText = Brushes.Black, _modifiedText = Brushes.Black, _cursorBrush = Brushes.Blue, _bg = Brushes.White, _hit = Brushes.Yellow, _modified = Brushes.Orange;
     private (long Start, long Length)? _highlight;
 
     public HexView()
@@ -235,10 +235,13 @@ public sealed class HexView : Control
         _text = B("FcText", Brushes.Black);
         _muted = B("FcTextMuted", Brushes.Gray);
         _selection = B("FcFocusBackground", Brushes.LightBlue);
+        _selectionText = B("FcFocusText", Brushes.Black);
         _cursorBrush = B("FcFocusBorder", Brushes.Blue);
         _bg = B("FcPanel", Brushes.White);
         _hit = B("FcSearchHit", Brushes.Yellow);
+        _hitText = B("FcOnSearchHit", Brushes.Black);
         _modified = B("FcChangedByte", Brushes.Orange);
+        _modifiedText = B("FcOnChangedByte", Brushes.Black);
         InvalidateVisual();
     }
 
@@ -310,6 +313,7 @@ public sealed class HexView : Control
         double xText = TextColumnX - _horizontalOffset;
         var sel = Selection;
         var buffer = new byte[BytesPerRow];
+        Span<byte> fillState = stackalloc byte[BytesPerRow];
         long len = _reader.Length;
         for (int r = 0; r <= VisibleRows; r++)
         {
@@ -322,6 +326,7 @@ public sealed class HexView : Control
             DrawText(dc, offset.ToString("X" + digits, CultureInfo.InvariantCulture), Gutter - _horizontalOffset, y, _muted);
             var hex = new StringBuilder(BytesPerRow * 3 + 2);
             var text = new StringBuilder(BytesPerRow);
+            fillState.Clear();
             for (int i = 0; i < BytesPerRow; i++)
             {
                 long pos = offset + i;
@@ -335,9 +340,10 @@ public sealed class HexView : Control
                 double bx = xHex + (i * 3 + (i >= 8 ? 1 : 0)) * _charWidth;
                 double tx = xText + i * _charWidth;
                 bool modified = IsModified?.Invoke(pos) == true;
+                fillState[i] = inSel ? (byte)1 : isHit ? (byte)2 : modified ? (byte)3 : (byte)0;
                 if (inSel || isHit || modified)
                 {
-                    var brush = isHit ? _hit : inSel ? _selection : _modified;
+                    var brush = inSel ? _selection : isHit ? _hit : _modified;
                     dc.FillRectangle(brush, new Rect(bx - 1, y, _charWidth * 2 + 2, _rowHeight));
                     dc.FillRectangle(brush, new Rect(tx, y, _charWidth, _rowHeight));
                 }
@@ -372,8 +378,25 @@ public sealed class HexView : Control
                 }
                 if (i == 7) hex.Append(' ');
             }
-            DrawText(dc, hex.ToString(), xHex, y, ok ? _text : _muted);
-            DrawText(dc, text.ToString(), xText, y, ok ? _text : _muted);
+            string hexLine = hex.ToString(), textLine = text.ToString();
+            DrawText(dc, hexLine, xHex, y, ok ? _text : _muted);
+            DrawText(dc, textLine, xText, y, ok ? _text : _muted);
+            // Paint selected glyphs in the paired foreground. Clipping or recoloring the
+            // entire row would also change neighboring, unselected bytes.
+            for (int i = 0; i < textLine.Length; i++)
+            {
+                var foreground = fillState[i] switch
+                {
+                    1 => _selectionText,
+                    2 => _hitText,
+                    3 => _modifiedText,
+                    _ => null,
+                };
+                if (foreground is null) continue;
+                int column = i * 3 + (i >= 8 ? 1 : 0);
+                DrawText(dc, hexLine.Substring(column, 2), xHex + column * _charWidth, y, foreground);
+                DrawText(dc, textLine.Substring(i, 1), xText + i * _charWidth, y, foreground);
+            }
         }
     }
 
