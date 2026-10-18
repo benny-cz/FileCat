@@ -33,8 +33,8 @@ S2 order; its permanent IDs are references, not a numeric priority sort. The
 FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
 native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
-fix on the supplied Windows EXE. After FCUX-042, address the newly reported
-Markdown resize behavior, then continue the audit's physical S2 order.
+fix on the supplied Windows EXE. FCUX-042 and the newly reported Markdown
+resize correction are implemented; continue with FCUX-043.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Markdown resize behavior, then continue the audit's physical S2 order.
 | 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; complete App regression and native network/focus acceptance remain open. |
 | 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Thumb seeks are coalesced and Info line counting is cached. Portable drag/value tests and a local headless check pass; the user confirmed native Windows thumb dragging on SignalSetup.exe works. |
 | 9 | FCUX-042 — operations drawer layout | Bounded, persisted vertical resize; scrolling selected recovery review; full-window report entry; responsive graph and actions. Focused tests pass; native scaled desktop acceptance remains open. |
-| 10 | UXBUG-004 — Markdown prose width on resize | Tables expand with the Page window while prose remains at the old reading width. Match prose width to available space without sacrificing readable line length, then test wide/narrow transitions. |
+| 10 | UXBUG-004 — Markdown prose width on resize | Prose and tables now share available Page width. Forty-eight Markdown tests pass; a rendered Chrome check measured both at 505 px narrow and 1,441 px wide. Native WebView2 desktop acceptance remains open. |
 | 11 | FCUX-043 — recovery preparation state | Expose busy/cancel ownership through review and admitted-work transitions. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
@@ -83,15 +83,15 @@ an explicit file import/export route for Advanced text, remain open for FCUX-036
 
 ### UXBUG-001 implementation record
 
-Markdown Page tables now use the viewer's available width, while direct prose
-blocks retain an 880 px reading measure. A keyboard-focusable table region
+Markdown Page tables now use the viewer's available width. A keyboard-focusable table region
 scrolls horizontally when a table's content needs more width. A headless Chrome
 geometry check of `UX_UI_IMPLEMENTATION_STATUS.md` at a 1,536 px viewport found
 the four columns visible in a 1,457 px table region with no inner overflow; at
 600 px, the 521 px region contained a 916 px table and horizontal scrolling,
 without expanding the page's horizontal extent. Markdown renderer regressions
-cover the safe region markup and stylesheet contract. Native WebView2 desktop
-acceptance remains open.
+cover the safe region markup and stylesheet contract. UXBUG-004 subsequently
+removed the fixed prose measure so prose grows with the page. Native WebView2
+desktop acceptance remains open.
 
 ### UXBUG-002 implementation record
 
@@ -169,8 +169,8 @@ cancels queued probes and retires late results. Cancel does not wait for a
 blocked filesystem probe. Four focused UI cases cover unsupported providers,
 both buttons, retained options, an existing-parent rename mapping, correction,
 and held-probe cancellation. Existing operation and recovery tests now wait for
-the form's validated submission state. The complete App regression gate is in
-progress; native network-path, focus, screen-reader and execution-time-change
+the form's validated submission state. A complete App attempt stalled and was
+stopped; the gate remains open. Native network-path, focus, screen-reader and execution-time-change
 checks remain open.
 
 ### UXBUG-003 implementation record
@@ -203,6 +203,17 @@ diagnostic width. `OperationsDrawerLayoutTests` covers 1/5/20 interruptions,
 small/wide geometry, pointer and keyboard resize, settings persistence, and
 window shrink/expansion. Native scaling and screen-reader acceptance remain
 open.
+
+### UXBUG-004 implementation record
+
+The Page stylesheet previously capped every non-table block at 880 px and
+centered it. That made prose stay narrow after the viewer grew, while tables
+used the new width. Direct prose blocks now use the available article width;
+the article keeps its 32 px side padding and table overflow behavior. The
+48-case `MarkdownTests` selection passes. A local headless Chrome check of the
+rendered implementation-status page measured prose and table regions at
+505 px in a narrow window and 1,441 px in a wide window, with no page-level
+horizontal overflow. Native WebView2 desktop resize acceptance remains open.
 
 ### FCUX-033 implementation record
 

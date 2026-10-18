@@ -857,7 +857,7 @@ public static partial class Markdown
         html { background: var(--bg); color: var(--fg); }
         body { margin: 0; font: 16px/1.6 -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
         article { box-sizing: border-box; width: 100%; margin: 0 auto; padding: 24px 32px 48px; overflow-wrap: break-word; }
-        article > :not(.table-region) { max-width: 880px; margin-left: auto; margin-right: auto; }
+        article > :not(.table-region) { max-width: 100%; }
         h1, h2, h3, h4, h5, h6 { margin: 1.4em 0 0.6em; line-height: 1.25; font-weight: 600; }
         h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
         h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }

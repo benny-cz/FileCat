@@ -69,11 +69,12 @@ public sealed class MarkdownTests
     }
 
     [Fact]
-    public void Tables_can_use_the_viewport_while_prose_stays_readable()
+    public void Tables_and_prose_share_the_available_viewport_width()
     {
         string page = Markdown.ToPage("# Report\n\nIntro text.\n\n| Finding | Work | Coverage | Acceptance |\n| --- | --- | --- | --- |\n| A | B | C | D |", "report.md");
         Assert.Contains("article { box-sizing: border-box; width: 100%;", page);
-        Assert.Contains("article > :not(.table-region) { max-width: 880px;", page);
+        Assert.Contains("article > :not(.table-region) { max-width: 100%; }", page);
+        Assert.DoesNotContain("max-width: 880px", page);
         Assert.Contains(".table-region { max-width: 100%; margin: 0 0 1em; overflow-x: auto; }", page);
         Assert.Contains("table { border-collapse: collapse; width: 100%; }", page);
         Assert.Contains("<h1 id=\"report\">Report</h1>", page);

@@ -2,9 +2,9 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-042 operations drawer layout has focused coverage;
-the complete App regression gate remains open. The next queued correction is
-UXBUG-004, Markdown prose width on window resize. FCUX-036 native acceptance and Advanced
+**Current work:** FCUX-042 operations drawer layout and UXBUG-004 Markdown
+resize behavior have focused coverage; the complete App regression gate remains
+open. FCUX-043 is next in the audit. FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
@@ -62,9 +62,9 @@ confirmed the Windows desktop scrollbar drag on that EXE now works.
 FCUX-042 keeps the operations drawer resizable without losing the file panels,
 scrolls recovery notices and shows actions for one selected interruption. At
 640 × 420, a complete operation row and Open report remain visible. The speed
-graph expands on demand. The user also reported UXBUG-004: after widening a
-Markdown Page window, tables use the added width but prose stays at its earlier
-measure. That correction is queued next.
+graph expands on demand. UXBUG-004 removes the old fixed prose width, so
+Markdown text and tables both use the added space when the Page window grows.
+A rendered browser check measured both at 505 px narrow and 1,441 px wide.
 
 ## Changes and verification map
 
@@ -126,6 +126,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-041 — transfer destination validation | Show destination errors beside the field and keep the form, options, and scope intact. Start and Queue use the same asynchronous resolver and captured folder/new-name mapping. Device-scheduled filesystem probes cannot block editing or Cancel; stale results cannot authorize submission. | `TransferDestinationValidationTests` covers unsupported providers, retained options, both buttons, a single-item rename mapping, a held probe, correction, and cancellation. Existing operation and interrupted-transfer tests wait for destination validation before submission. Focused cases pass; a complete App attempt remained idle and was stopped, so that gate is open. | Native network path, focus, screen-reader, and execution-time destination-change acceptance remain open. |
 | UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values, repeated pointer moves down/up through the thumb, and stale seek retirement. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. The 66-case related viewer suite passes. | The user manually confirmed the Windows desktop drag on the supplied EXE works. |
 | FCUX-042 — operations drawer layout | Persist a vertically resizable drawer while preserving usable workspace; bound and scroll recovery review with one selected item, keep a complete operation row and Open report action at 640 × 420, wrap controls, and collapse the graph until requested. | `OperationsDrawerLayoutTests` covers 1/5/20 interruptions, keyboard navigation, small/wide windows, a selected operation and report entry, pointer/keyboard resize, saved height and shrink/expand restoration. Nine focused cases pass. | Native high-DPI, pointer, keyboard and screen-reader acceptance remains open. |
+| UXBUG-004 — Markdown prose width on resize | Let prose blocks use the article's available width, matching table regions as the Page window changes size; retain article padding and table-local horizontal scrolling. | Forty-eight `MarkdownTests` cases pass. Headless Chrome measured prose and table regions at 505 px in a narrow window and 1,441 px in a wide window, with no page-level horizontal overflow. | Native WebView2 desktop resize acceptance remains open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),
