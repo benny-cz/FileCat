@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
+using FileCat.App.Services;
 using FileCat.Core.Content;
 
 namespace FileCat.App.Controls;
@@ -252,7 +253,14 @@ public sealed class HexView : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        ThemeManager.ThemeChanged += ResolveBrushes;
         ResolveBrushes();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ThemeManager.ThemeChanged -= ResolveBrushes;
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void Measure()

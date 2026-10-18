@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
+using FileCat.App.Services;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
 
@@ -251,7 +252,16 @@ public sealed class TextViewer : Control
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnAttachedToVisualTree(e); MeasureFont(); ResolveBrushes();
+        base.OnAttachedToVisualTree(e);
+        ThemeManager.ThemeChanged += ResolveBrushes;
+        MeasureFont();
+        ResolveBrushes();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ThemeManager.ThemeChanged -= ResolveBrushes;
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void MeasureFont()

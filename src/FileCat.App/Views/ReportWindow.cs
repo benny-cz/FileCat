@@ -110,7 +110,6 @@ public sealed class ReportWindow : Window
             }
         };
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
-        ThemeManager.ThemeChanged += OnThemeChanged;
         Opened += async (_, _) =>
         {
             _view.Focus();
@@ -118,7 +117,6 @@ public sealed class ReportWindow : Window
         };
         Closed += (_, _) =>
         {
-            ThemeManager.ThemeChanged -= OnThemeChanged;
             _closing.Cancel();
             _reading?.Cancel();
             _searching?.Cancel();
@@ -144,7 +142,6 @@ public sealed class ReportWindow : Window
     /// <summary>The reading in progress, if any (tests wait for it).</summary>
     internal Task? Reading { get; private set; }
 
-    private void OnThemeChanged() => _view.ResolveBrushes();
 
     private Task ReadAsync() => Reading = ReadCoreAsync();
 
