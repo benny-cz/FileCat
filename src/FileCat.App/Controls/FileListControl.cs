@@ -456,7 +456,6 @@ public sealed class FileListControl : Control
         InvalidateVisual();
     }
 
-    private void OnPaletteTick() => InvalidateVisual();
 
     private void OnThemeChanged()
     {
@@ -475,7 +474,6 @@ public sealed class FileListControl : Control
         if (_focusWindow is not null) _focusWindow.Deactivated += OnWindowDeactivated;
         // Static events: subscribed while shown, so a closed list is not kept alive by them.
         ThemeManager.ThemeChanged += OnThemeChanged;
-        ThemeManager.PaletteTick += OnPaletteTick;
         Formatters.DateFormatChanged += OnDateFormatChanged;
         UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
@@ -492,7 +490,6 @@ public sealed class FileListControl : Control
         if (_focusWindow is not null) _focusWindow.Deactivated -= OnWindowDeactivated;
         _focusWindow = null;
         ThemeManager.ThemeChanged -= OnThemeChanged;
-        ThemeManager.PaletteTick -= OnPaletteTick;
         Formatters.DateFormatChanged -= OnDateFormatChanged;
         _gitStatusGeneration++;
         _gitStatusCancel?.Cancel();

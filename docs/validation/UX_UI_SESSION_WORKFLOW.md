@@ -53,7 +53,10 @@ pass 44 related App cases. Its native acceptance remains open. FCUX-048's
 folder-background menu passes five focused and 63 related App cases with one
 platform skip. Native location-menu acceptance remains open. FCUX-049's open
 viewer palette and event-lifetime correction passes two focused and 116 related
-App cases; native acceptance remains open. FCUX-050 follows.
+App cases; native acceptance remains open. FCUX-050's opaque functional
+surfaces, removed content overlay and frozen disabled clock pass three focused
+and 54 related App cases. Native animation, contrast and reduced-motion checks
+remain open; FCUX-051 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -86,6 +89,7 @@ in progress; do not count the earlier run as a passing complete suite.
 | 20 | UXBUG-009 — Details selects the active operation | Reopening Details selects and reveals active work over a retained finished selection; open-drawer choices remain stable as jobs arrive. The eight-finished-job regression and 44 related App cases pass. Native pointer, keyboard, and screen-reader acceptance remain open. |
 | 21 | FCUX-048 — listing background context menu | Whitespace right-click opens captured-location actions without targeting marked or focused files. Five focused and 63 related App cases pass with one platform skip. Native location-provider, pointer and keyboard acceptance remain open. |
 | 22 | FCUX-049 — live viewer theme changes | Attached text and hex controls re-resolve semantic brushes on theme change and release static subscriptions on detach. Two focused and 116 related App cases pass; native theme and high-contrast acceptance remain open. |
+| 23 | FCUX-050 — Psychedelic effect boundaries | The menu and work surfaces are opaque, decoration stays below content, focus/grid brushes stay fixed, and disabled animation freezes visual time. Three focused and 54 related App cases pass; native cycle/contrast/motion acceptance remains open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

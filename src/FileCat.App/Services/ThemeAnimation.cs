@@ -4,17 +4,15 @@ using Avalonia.Threading;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// The clock of animated themes (psychedelic light, shifting edges and glitches). It runs only while such a theme is on,
+/// The clock of animated themes (psychedelic backdrop light). It runs only while such a theme is on,
 /// animations are allowed (FileCat's setting, and the system's reduce-motion preference), and a FileCat window is active;
-/// otherwise nothing redraws. Frames come at the rate the current effect needs, and glitches are scheduled here.
+/// otherwise the visual time freezes so invalidation cannot move decorative light.
 /// </summary>
 public static class ThemeAnimation
 {
     private static readonly DispatcherTimer Timer = new(DispatcherPriority.Background);
-    private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
-    private static readonly Random Random = new();
+    private static readonly System.Diagnostics.Stopwatch Clock = new();
     private static bool _allowed = true, _active = true;
-    private static double _nextGlitch = 20;
 
     static ThemeAnimation()
     {
@@ -22,11 +20,8 @@ public static class ThemeAnimation
         ThemeManager.ThemeChanged += Update;
     }
 
-    /// <summary>Seconds since FileCat started: every animation is a function of this.</summary>
+    /// <summary>Seconds of enabled, active effect time. Frozen whenever animation is off.</summary>
     public static double Seconds => Clock.Elapsed.TotalSeconds;
-
-    /// <summary>A glitch in progress: when it started and how long it lasts; null between glitches.</summary>
-    public static (double Start, double Length, int Seed)? Glitch { get; private set; }
 
     /// <summary>Raised on the UI thread for each frame of an animated theme.</summary>
     public static event Action? Frame;
@@ -54,38 +49,20 @@ public static class ThemeAnimation
         if (!animated || !_allowed || !_active)
         {
             if (Timer.IsEnabled) Timer.Stop();
-            Glitch = null;
+            Clock.Stop();
             Frame?.Invoke();
             return;
         }
-        // Drifting light uses 12 frames a second, and glitches 30 while they last.
+        // Drifting light uses 12 frames a second and resumes from its frozen phase.
         Timer.Interval = TimeSpan.FromMilliseconds(83);
+        Clock.Start();
         if (!Timer.IsEnabled) Timer.Start();
     }
 
     private static void Tick()
     {
-        double now = Seconds;
-        if (ThemeManager.Current.Effect == ThemeEffect.Psychedelic)
-        {
-            if (Glitch is { } g && now > g.Start + g.Length)
-            {
-                Glitch = null;
-                _nextGlitch = now + 18 + Random.NextDouble() * 17;
-                Timer.Interval = TimeSpan.FromMilliseconds(83);
-            }
-            else if (Glitch is null && now >= _nextGlitch)
-            {
-                Glitch = (now, 0.10 + Random.NextDouble() * 0.08, Random.Next());
-                Timer.Interval = TimeSpan.FromMilliseconds(33);
-            }
-            ThemeManager.Drift(now);
-        }
         Frame?.Invoke();
     }
-
-    /// <summary>Starts a glitch now (the psychedelic theme's are otherwise seconds apart); for previews and screenshots.</summary>
-    public static void TriggerGlitch() => _nextGlitch = 0;
 
     /// <summary>The system's reduce-motion preference (Windows: "Animation effects" off).</summary>
     public static bool SystemPrefersReducedMotion()

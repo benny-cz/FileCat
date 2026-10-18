@@ -2,10 +2,13 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-049 makes open text and hex surfaces resolve their
-brushes on theme changes and release event subscriptions on detach. Two focused
-and 116 related App cases pass; native high-contrast and theme-transition
-acceptance remain open. FCUX-048's five focused and 63 related App tests pass
+**Current work:** FCUX-050 keeps Psychedelic motion in the decorative backdrop.
+Menus and work surfaces now have opaque colors, focus/grid brushes stay fixed,
+and no content-sampling glitch overlay sits above files or viewers. The visual
+clock freezes when effects are disabled. Three focused and 54 related App cases
+pass; native color-cycle, scaling and reduced-motion acceptance remain open.
+FCUX-049's two focused and 116 related App cases pass; native high-contrast
+and theme-transition acceptance remain open. FCUX-048's five focused and 63 related App tests pass
 with one platform-specific skip; native pointer, clipboard and provider
 acceptance remain open. UXBUG-009's
 focused and 44 related App cases pass. The first complete App run after
@@ -178,6 +181,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-009 — Details selects active operation | Reopening the operations drawer selects the current active job when the retained selection has finished, then scrolls the selected row into view. While the drawer stays open, progress refreshes and newly added work preserve a deliberate history selection. | `OperationCenterTests` reproduces eight finished jobs, a scrolled history, a new waiting job, Details click, row visibility, and selection preservation after another job arrives. The focused and 44 related App cases pass. | Native pointer, keyboard, and screen-reader acceptance remain open. |
 | FCUX-048 — listing background context menu | Right-clicking empty listing space opens location actions without changing Commander marks or the focused row. The menu uses a captured tab and location for Paste and New folder even if another panel becomes active, refuses stale tab navigation, rechecks capabilities, and shows disabled reasons on unsupported locations. The Windows item shell menu remains limited to item requests. | `BackgroundContextMenuTests` exercises empty and nonempty pointer routes, dismissal, menu contents, actual Paste and New folder destinations, another active panel, stale navigation, and disabled location feedback. Five focused and 63 related App cases pass with one platform skip. | Native pointer placement, clipboard interoperability, read-only archive/Registry/working-set/disconnected providers, keyboard route and assistive-technology acceptance remain open. |
 | FCUX-049 — live viewer theme changes | TextViewer and HexView own theme subscriptions only while attached. Applying a new palette re-resolves semantic text, background, selection, search and edit brushes in the existing controls. ReportWindow no longer duplicates TextViewer's theme notification. | `ViewerThemeLifecycleTests` switches open controls through Classic, Dark, High Contrast, DOS and back while checking brush resources, selection and position; attach/detach checks verify static-event release. Two focused and 116 related App cases pass. | Native theme transition, system high-contrast, quick-view, editor and screen-reader acceptance remain open. |
+| FCUX-050 — Psychedelic effect boundaries | Use opaque Psychedelic menu, panel, card and functional bar colors. Keep movement in the backdrop behind content; remove the overlay that copied and shifted rendered text/picture slices. Focus, grid and border brushes no longer animate. Pause the effect clock with the theme animation preference or inactive app so repainting stays static. | `PsychedelicSurfaceTests` checks functional alpha and menu contrast, samples 13 moving backdrop phases, verifies decoration stays below content and the disabled clock freezes, and switches themes back to Psychedelic. Three focused and 54 related App cases pass. | Native full-cycle menu/icon contrast, transparent picture content, system reduced-motion, window scaling and assistive-technology acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

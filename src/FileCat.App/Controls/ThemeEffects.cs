@@ -12,7 +12,7 @@ namespace FileCat.App.Controls;
 /// <summary>
 /// What a theme draws behind the window's content (panels are translucent over it): quiet circuitry, psychedelic light,
 /// or riveted steampunk iron with a stained-glass canopy. Drawn with Skia on the render thread;
-/// the UI thread only asks for a new frame.
+/// the UI thread only asks for a new frame. Decorative drawing never covers file content.
 /// </summary>
 public sealed class ThemeBackdrop : Control
 {
@@ -87,9 +87,7 @@ public sealed class ThemeBackdrop : Control
 
 /// <summary>
 /// The theme's backdrop under a window that is not the main one (release issue I31: viewers, comparisons, Find, and the
-/// others took the theme's colors but none of its effects). As in the main window, the tool and status strips show the
-/// backdrop through their translucent colors, and the glitches pass over everything; text, bytes, lists, and pictures
-/// sit on the theme's card color, which stays readable over any backdrop.
+/// others took the theme's colors but none of its effects). Text, bytes, lists, and pictures sit on an opaque card.
 /// </summary>
 public static class ThemeLayers
 {
@@ -106,58 +104,7 @@ public static class ThemeLayers
                 case Avalonia.Controls.Primitives.TemplatedControl templated: templated[!Avalonia.Controls.Primitives.TemplatedControl.BackgroundProperty] = card; break;
             }
         }
-        return new Grid { Children = { new ThemeBackdrop(), content, new ThemeGlitchOverlay() } };
-    }
-}
-
-/// <summary>
-/// Glitches over the content (psychedelic theme): occasional short, translucent slices and small color flecks.
-/// Nothing is drawn between glitches.
-/// </summary>
-public sealed class ThemeGlitchOverlay : Control
-{
-    private bool _wasGlitching;
-
-    public ThemeGlitchOverlay() => IsHitTestVisible = false;
-
-    private void OnFrame()
-    {
-        bool glitching = ThemeAnimation.Glitch is not null;
-        if (glitching || _wasGlitching) InvalidateVisual();
-        _wasGlitching = glitching;
-    }
-
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        ThemeAnimation.Frame += OnFrame;
-    }
-
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnDetachedFromVisualTree(e);
-        ThemeAnimation.Frame -= OnFrame;
-    }
-
-    public override void Render(DrawingContext context)
-    {
-        if (ThemeAnimation.Glitch is not { } glitch || Bounds.Width < 1 || Bounds.Height < 1) return;
-        context.Custom(new Glitch(new Rect(Bounds.Size), glitch.Seed, (ThemeAnimation.Seconds - glitch.Start) / glitch.Length));
-    }
-
-    private sealed class Glitch(Rect bounds, int seed, double progress) : ICustomDrawOperation
-    {
-        public Rect Bounds => bounds;
-        public bool HitTest(Point p) => false;
-        public bool Equals(ICustomDrawOperation? other) => false;
-        public void Dispose() { }
-
-        public void Render(ImmediateDrawingContext context)
-        {
-            if (context.TryGetFeature<ISkiaSharpApiLeaseFeature>() is not { } feature) return;
-            using var lease = feature.Lease();
-            EffectArt.Glitch(lease.SkCanvas, lease.SkSurface, new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height), seed, progress);
-        }
+        return new Grid { Children = { new ThemeBackdrop(), content } };
     }
 }
 
@@ -219,44 +166,6 @@ internal static class EffectArt
             float wave = (float)Math.Sin(y * 0.021 + t * 0.9) * 0.5f + 0.5f;
             paint.Color = new SKColor(255, 255, 255, (byte)(wave * 16));
             canvas.DrawRect(r.Left, y, r.Width, 3, paint);
-        }
-    }
-
-    public static void Glitch(SKCanvas canvas, SKSurface? surface, SKRect r, int seed, double progress)
-    {
-        var random = new Random(seed + (int)(progress * 6));
-        var device = canvas.TotalMatrix.MapRect(r);
-        using var paint = new SKPaint();
-        // A couple of shallow translucent slices move a few pixels; text remains visible beneath them.
-        if (surface is not null && device.Width >= 1 && device.Height >= 1)
-        {
-            var area = SKRectI.Round(device);
-            using var snapshot = surface.Snapshot(area);
-            if (snapshot is not null)
-            {
-                canvas.Save();
-                canvas.ResetMatrix();
-                int slices = 1 + random.Next(2);
-                for (int i = 0; i < slices; i++)
-                {
-                    float top = (float)(random.NextDouble() * area.Height);
-                    float height = 2 + (float)(random.NextDouble() * Math.Min(10, area.Height / 30.0));
-                    float shift = (float)((random.NextDouble() - 0.5) * 12);
-                    var source = new SKRect(0, top, area.Width, Math.Min(area.Height, top + height));
-                    var target = new SKRect(area.Left + shift, area.Top + top, area.Left + shift + area.Width, area.Top + source.Bottom);
-                    paint.Color = new SKColor(255, 255, 255, 90);
-                    canvas.DrawImage(snapshot, source, target, paint);
-                }
-                canvas.Restore();
-            }
-        }
-        // Tiny color flecks suggest a signal fault without obscuring commands or rows.
-        for (int i = 0; i < 2 + random.Next(3); i++)
-        {
-            var color = Neon[random.Next(Neon.Length)];
-            paint.Color = color.WithAlpha((byte)(32 + random.Next(35)));
-            float w = 8 + (float)random.NextDouble() * 44, h = 1 + (float)random.NextDouble() * 3;
-            canvas.DrawRect((float)random.NextDouble() * r.Width, (float)random.NextDouble() * r.Height, w, h, paint);
         }
     }
 

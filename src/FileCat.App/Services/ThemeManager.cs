@@ -6,13 +6,13 @@ using Avalonia.Styling;
 
 namespace FileCat.App.Services;
 
-/// <summary>What a theme draws besides its colors (behind the panels, and for glitches over them).</summary>
+/// <summary>What a theme draws behind functional surfaces.</summary>
 public enum ThemeEffect
 {
     None,
     /// <summary>Quiet circuitry and crisp green edges.</summary>
     Cyberpunk,
-    /// <summary>Lava-lamp light, slowly drifting colors, and rare glitches.</summary>
+    /// <summary>Lava-lamp light and slowly drifting colors in decorative regions.</summary>
     Psychedelic,
     /// <summary>Riveted, rusty iron with gears, and stained glass above and below.</summary>
     Steampunk,
@@ -99,19 +99,20 @@ public sealed record ThemePalette(
     };
 
     public static readonly ThemePalette Psychedelic = new("Psychedelic", true,
-        "#170D29", "#A61F1235", "#B31B1030", "#C22A1A46", "#F7EEFF", "#C7B2E2", "#9580B3",
+        "#170D29", "#1F1235", "#1B1030", "#2A1A46", "#F7EEFF", "#C7B2E2", "#9580B3",
         "#FFD166", "#FF9F1C", "#06D6A0", "#4CC9F0",
         "#FF5DA2", "#3D1747", "#40297A", "#FFFFFF", "#FFD166", "#6A4F92",
         "#F72585", "#06D6A0", "#2E1E4A", "#E2CFFF",
-        "#CC130A22", "#FFD166", "#F7EEFF", "#CC130A22",
+        "#130A22", "#FFD166", "#F7EEFF", "#130A22",
         "#FF9F1C", "#FF5C8A", "#06D6A0", "#F72585",
-        "#F028183F", "#4A3470", "#99000000",
+        "#28183F", "#4A3470", "#99000000",
         "#FFD166", "#C7B2E2", "#FF9F1C", "#4CC9F0", "#06D6A0", "#F72585", "#B388FF",
         "#6A2358", "#4A4A1A")
     {
         DisplayName = "Psychedelic",
-        Description = "Soft neon light, slowly shifting edge colors, and brief signal glitches.",
+        Description = "Soft neon light around stable, readable work surfaces.",
         Effect = ThemeEffect.Psychedelic,
+        MenuBackground = "#170D29",
     };
 
     public static readonly ThemePalette Steampunk = new("Steampunk", true,
@@ -177,8 +178,6 @@ public sealed record ThemePalette(
 public static class ThemeManager
 {
     private static ResourceDictionary? _current;
-    // The accents a drifting theme recolors in place (same brush objects, new colors).
-    private static readonly List<(SolidColorBrush Brush, Color Base)> Drifting = [];
 
     public static ThemePalette Current { get; private set; } = ThemePalette.Classic;
 
@@ -186,8 +185,6 @@ public static class ThemeManager
 
     public static event Action? ThemeChanged;
 
-    /// <summary>Raised when a drifting theme recolored its accents (custom-drawn controls repaint).</summary>
-    public static event Action? PaletteTick;
 
     /// <summary>"System" and every theme's name, in picker order.</summary>
     public static IReadOnlyList<string> Names { get; } = ["System", .. ThemePalette.All.Select(p => p.Name)];
@@ -245,21 +242,6 @@ public static class ThemeManager
         return Names[((i + step) % Names.Count + Names.Count) % Names.Count];
     }
 
-    /// <summary>Move decorative colors slowly while keeping text and semantic state colors stable.</summary>
-    public static void Drift(double seconds)
-    {
-        if (Current.Effect != ThemeEffect.Psychedelic || Drifting.Count == 0) return;
-        double turn = seconds / 120.0 * 360.0;
-        foreach (var (brush, color) in Drifting) brush.Color = RotateHue(color, turn);
-        PaletteTick?.Invoke();
-    }
-
-    private static Color RotateHue(Color color, double degrees)
-    {
-        var hsl = color.ToHsl();
-        return HslColor.ToRgb((hsl.H + degrees) % 360.0, hsl.S, hsl.L, hsl.A);
-    }
-
     private static ThemePalette Resolve(string name, IPlatformSettings? settings)
     {
         var colors = settings?.GetColorValues();
@@ -273,14 +255,12 @@ public static class ThemeManager
     private static ResourceDictionary Build(ThemePalette p)
     {
         var d = new ResourceDictionary();
-        Drifting.Clear();
-        void Add(string key, string hex, bool edge = false)
+        void Add(string key, string hex)
         {
             var c = Color.Parse(hex);
             var brush = new SolidColorBrush(c);
             d["Fc" + key + "Color"] = c;
             d["Fc" + key] = brush;
-            if (p.Effect == ThemeEffect.Psychedelic && edge) Drifting.Add((brush, c));
         }
         Add("Window", p.Window);
         Add("Panel", p.Panel);
@@ -303,11 +283,11 @@ public static class ThemeManager
         Add("MarkedBackground", p.MarkedBackground);
         Add("FocusBackground", p.FocusBackground);
         Add("FocusText", p.FocusText);
-        Add("FocusBorder", p.FocusBorder, edge: true);
+        Add("FocusBorder", p.FocusBorder);
         Add("FocusInactiveBorder", p.FocusInactiveBorder);
-        Add("ActiveAccent", p.ActiveAccent, edge: true);
-        Add("TargetAccent", p.TargetAccent, edge: true);
-        Add("GridLine", p.GridLine, edge: true);
+        Add("ActiveAccent", p.ActiveAccent);
+        Add("TargetAccent", p.TargetAccent);
+        Add("GridLine", p.GridLine);
         Add("HeaderText", p.HeaderText);
         Add("KeyBarBackground", p.KeyBarBackground);
         Add("KeyBarKey", p.KeyBarKey);
@@ -329,7 +309,7 @@ public static class ThemeManager
         // A tooltip's key in the accent color where that reads as text does (WCAG's 4.5:1), else in the text color.
         var key = Opaque(Color.Parse(p.ActiveAccent), tip);
         d["FcTipKey"] = new SolidColorBrush(Contrast(key, tip) >= 4.5 ? key : Color.Parse(p.Text));
-        Add("Border", p.Border, edge: true);
+        Add("Border", p.Border);
         Add("Backdrop", p.Backdrop);
         Add("FolderIcon", p.FolderIcon);
         Add("FileIcon", p.FileIcon);
@@ -363,8 +343,8 @@ public static class ThemeManager
         // bright green accent).
         Add("OnAccent", OnColor(p.ActiveAccent));
         Add("OnTarget", OnColor(p.TargetAccent));
-        // Fills with text on them keep still: the psychedelic theme's drifting accents pass through colors (a bright
-        // yellow, say) that the text chosen for the accent cannot be read on. Only edges and lines drift.
+        // Fills with text on them stay fixed; the decorative backdrop provides motion without
+        // recoloring focus borders, byte grids or other functional marks.
         d["FcAccentFill"] = new SolidColorBrush(Color.Parse(p.ActiveAccent));
         d["FcTargetFill"] = new SolidColorBrush(Color.Parse(p.TargetAccent));
         // Fluent's selection controls otherwise keep the operating system's blue accent inside every custom theme.
