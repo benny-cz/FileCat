@@ -33,8 +33,9 @@ S2 order; its permanent IDs are references, not a numeric priority sort. The
 FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
 native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
-fix on the supplied Windows EXE. FCUX-042 and the newly reported Markdown
-resize correction are implemented; continue with FCUX-043.
+fix on the supplied Windows EXE. FCUX-042, the newly reported Markdown resize
+correction, and FCUX-043 are implemented; continue with FCUX-044 after the
+complete App regression gate.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -44,11 +45,12 @@ resize correction are implemented; continue with FCUX-043.
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
 | 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
 | 6 | FCUX-040 — counter field validation | Exact field validation and focused App/Core tests pass; native acceptance remains open. |
-| 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; complete App regression and native network/focus acceptance remain open. |
+| 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; the complete App Release gate is running. Native network/focus acceptance remains open. |
 | 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Thumb seeks are coalesced and Info line counting is cached. Portable drag/value tests and a local headless check pass; the user confirmed native Windows thumb dragging on SignalSetup.exe works. |
 | 9 | FCUX-042 — operations drawer layout | Bounded, persisted vertical resize; scrolling selected recovery review; full-window report entry; responsive graph and actions. Focused tests pass; native scaled desktop acceptance remains open. |
 | 10 | UXBUG-004 — Markdown prose width on resize | Prose and tables now share available Page width. Forty-eight Markdown tests pass; a rendered Chrome check measured both at 505 px narrow and 1,441 px wide. Native WebView2 desktop acceptance remains open. |
-| 11 | FCUX-043 — recovery preparation state | Expose busy/cancel ownership through review and admitted-work transitions. |
+| 11 | FCUX-043 — recovery preparation state | Reviewing, Awaiting approval, Applying and Submitted are visible. Stop before approval preserves the journal; Stop after a cleanup effect retains a report. Six focused cases pass; full App and native delayed-device acceptance remain open. |
+| 12 | FCUX-044 — Find scope | Make unsupported provider scopes explicit and require deliberate local selection. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

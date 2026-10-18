@@ -389,6 +389,12 @@ public partial class OperationsView : UserControl
         c.UpdateSummary();
     }
 
+    private void OnStopInterruptedReview(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is InterruptedJobViewModel item && Main is { } main)
+            main.StopInterruptedReview(item.Job);
+    }
+
     private async void OnRunAgainInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;

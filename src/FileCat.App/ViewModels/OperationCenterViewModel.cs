@@ -283,6 +283,8 @@ public sealed partial class JobViewModel : ObservableObject
     }
 }
 
+public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, Submitted }
+
 public sealed partial class InterruptedJobViewModel(InterruptedJob job) : ObservableObject
 {
     public InterruptedJob Job { get; } = job;
@@ -303,6 +305,27 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
     public string ContinueLabel => Job.Kind == nameof(JobKind.Move) ? "Continue move…" : "Continue copy…";
     public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
         RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
+
+    private RecoveryActionPhase _actionPhase;
+    private string _actionStatus = string.Empty;
+    public RecoveryActionPhase ActionPhase => _actionPhase;
+    public string ActionStatus => _actionStatus;
+    public bool HasActionStatus => _actionStatus.Length > 0;
+    public bool IsActionBusy => _actionPhase != RecoveryActionPhase.Idle;
+    public bool CanStopReview => _actionPhase is RecoveryActionPhase.Reviewing or RecoveryActionPhase.AwaitingApproval or RecoveryActionPhase.Applying;
+    public string StopReviewLabel => _actionPhase == RecoveryActionPhase.Applying ? "Stop after this step" : "Stop review";
+
+    internal void SetActionPhase(RecoveryActionPhase phase, string status)
+    {
+        _actionPhase = phase;
+        _actionStatus = status;
+        OnPropertyChanged(nameof(ActionPhase));
+        OnPropertyChanged(nameof(ActionStatus));
+        OnPropertyChanged(nameof(HasActionStatus));
+        OnPropertyChanged(nameof(IsActionBusy));
+        OnPropertyChanged(nameof(CanStopReview));
+        OnPropertyChanged(nameof(StopReviewLabel));
+    }
 }
 
 public sealed class SyncGroupViewModel(SyncGroup group) : ObservableObject

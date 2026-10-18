@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -21,6 +22,147 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedDemandTests(ITestOutputHelper output)
 {
+    [AvaloniaTheory]
+    [InlineData("open")]
+    [InlineData("read")]
+    public async Task Stopping_a_held_review_keeps_its_owner_until_io_returns_and_leaves_the_journal_open(string held)
+    {
+        using var f = await Fixture.Create(held);
+        var row = f.SelectInterrupted();
+        var run = f.Vm.RunInterruptedAgainAsync(f.Interrupted);
+        try
+        {
+            await Wait(() => f.Provider.Active > 0);
+            Assert.Equal(RecoveryActionPhase.Reviewing, row.ActionPhase);
+            Assert.True(row.IsActionBusy);
+            Assert.True(row.CanStopReview);
+            Dispatcher.UIThread.RunJobs();
+            var rowButtons = f.Window.GetVisualDescendants().OfType<Button>().Where(b => ReferenceEquals(b.Tag, row)).ToArray();
+            Assert.Contains(rowButtons, b => b.Content as string == "Stop review" && b.IsVisible);
+            Assert.All(rowButtons.Where(b => b.Content as string != "Stop review"), b => Assert.False(b.IsEnabled));
+            Assert.False(await f.Vm.RunInterruptedAgainAsync(f.Interrupted));
+            f.Vm.StopInterruptedReview(f.Interrupted);
+            Assert.True(row.ActionStatus.Contains("Stopping review", StringComparison.Ordinal));
+            Assert.False(run.IsCompleted);
+            Assert.Equal(0, f.Provider.Disposals);
+            f.Provider.Release.Set();
+            await f.Drain(run);
+            Assert.False(await run);
+            Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+            Assert.True(File.Exists(f.Staged));
+            Assert.False(f.Ended);
+            Assert.Single(f.Services.Jobs.Jobs);
+            Assert.False(f.HasDialog);
+            Workers(f);
+        }
+        finally { f.Provider.Release.Set(); await f.Drain(run); }
+    }
+
+    [AvaloniaFact]
+    public async Task Stopping_at_approval_closes_only_that_prompt_without_admitting_a_job()
+    {
+        using var f = await Fixture.Create();
+        var row = f.SelectInterrupted();
+        var run = f.Vm.RunInterruptedAgainAsync(f.Interrupted);
+        await Wait(() => f.HasDialog);
+        Assert.Equal(RecoveryActionPhase.AwaitingApproval, row.ActionPhase);
+        Assert.True(row.IsActionBusy);
+        f.Vm.StopInterruptedReview(f.Interrupted);
+        await f.Drain(run);
+        Assert.False(await run);
+        Assert.False(f.HasDialog);
+        Assert.True(File.Exists(f.Staged));
+        Assert.False(f.Ended);
+        Assert.Single(f.Services.Jobs.Jobs);
+        Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+    }
+
+    [AvaloniaFact]
+    public async Task Stopping_after_one_approved_deletion_retains_a_report_and_the_open_journal()
+    {
+        using var f = await Fixture.Create("open");
+        string second = Path.Join(f.Destination, Path.GetFileName(f.Staged).Replace("owned", "second", StringComparison.Ordinal));
+        File.WriteAllText(second, "second stage");
+        f.Provider.ReviewPath = second;
+        f.Provider.HoldOnCall = 2; // First open reviews this file; the second rechecks it for deletion.
+        var job = f.Interrupted with
+        {
+            StagingDirectories = [],
+            OpenIntents = [f.Interrupted.OpenIntents[0], f.Interrupted.OpenIntents[0] with { Staged = second }]
+        };
+        var row = f.SelectInterrupted();
+        var run = f.Vm.CleanupInterruptedAsync(job);
+        try
+        {
+            await Wait(() => f.HasDialog);
+            Assert.Equal(RecoveryActionPhase.AwaitingApproval, row.ActionPhase);
+            f.Click("Delete partial files");
+            await Wait(() => !File.Exists(f.Staged) && f.Provider.Active > 0);
+            Assert.Equal(RecoveryActionPhase.Applying, row.ActionPhase);
+            Assert.Equal("Stop after this step", row.StopReviewLabel);
+            f.Vm.StopInterruptedReview(job);
+            Assert.True(row.ActionStatus.Contains("current safe step", StringComparison.Ordinal));
+            f.Provider.Release.Set();
+            await f.Drain(run);
+            Assert.False(await run);
+            Assert.False(File.Exists(f.Staged));
+            Assert.True(File.Exists(second));
+            Assert.False(f.Ended);
+            var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
+            Assert.False(record.ClosureConfirmed);
+            Assert.Contains("Deleted by cleanup", record.Report);
+            Assert.Contains(JsonSerializer.Serialize(f.Staged), record.Report);
+            Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+        }
+        finally { f.Provider.Release.Set(); await f.Drain(run); }
+    }
+
+    [AvaloniaFact]
+    public async Task Stopping_the_new_transfer_form_does_not_submit_or_close_the_old_journal()
+    {
+        using var f = await Fixture.Create();
+        var job = f.Interrupted with { TransferIntent = null, TransferIntentProblem = "Options unavailable" };
+        var row = f.SelectInterrupted();
+        var run = f.Vm.ReviewNewInterruptedTransferAsync(job);
+        await Wait(() => f.HasDialog);
+        Assert.Equal(RecoveryActionPhase.AwaitingApproval, row.ActionPhase);
+        f.Vm.StopInterruptedReview(job);
+        await f.Drain(run);
+        Assert.False(await run);
+        Assert.False(f.HasDialog);
+        Assert.True(File.Exists(f.Staged));
+        Assert.False(f.Ended);
+        Assert.Single(f.Services.Jobs.Jobs);
+    }
+
+    [AvaloniaFact]
+    public async Task Stop_arriving_at_job_admission_does_not_revoke_the_independent_new_job()
+    {
+        using var f = await Fixture.Create();
+        var row = f.SelectInterrupted();
+        Job? admitted = null;
+        void OnAdded(Job job)
+        {
+            admitted = job;
+            f.Vm.StopInterruptedReview(f.Interrupted);
+        }
+        f.Services.Jobs.JobAdded += OnAdded;
+        try
+        {
+            var run = f.Vm.RunInterruptedAgainAsync(f.Interrupted);
+            await Wait(() => f.HasDialog);
+            f.Click("Continue copy");
+            await f.Drain(run);
+            Assert.True(await run);
+            Assert.NotNull(admitted);
+            Assert.Contains(admitted, f.Services.Jobs.Jobs);
+            Assert.Equal(2, f.Services.Jobs.Jobs.Count);
+            Assert.True(f.Ended);
+            Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+        }
+        finally { f.Services.Jobs.JobAdded -= OnAdded; }
+    }
+
     [AvaloniaTheory]
     [InlineData("changed")]
     [InlineData("same-length-time")]
@@ -215,6 +357,20 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
             return new Fixture { Services = services, Vm = vm, Window = window, Root = root, SourceFolder = src, Destination = dst, Staged = staged, Interrupted = interrupted, Provider = provider };
         }
         public bool Ended => !JournalRecovery.Scan(Services.Paths.JournalDirectory).Any(j => j.JournalPath == Interrupted.JournalPath);
+        public InterruptedJobViewModel SelectInterrupted()
+        {
+            var row = new InterruptedJobViewModel(Interrupted);
+            Vm.Operations.Interrupted.Add(row);
+            Vm.Operations.IsOpen = true;
+            Dispatcher.UIThread.RunJobs();
+            var view = Assert.Single(Window.GetVisualDescendants().OfType<OperationsView>());
+            var expander = Assert.Single(view.GetVisualDescendants().OfType<Expander>(),
+                e => AutomationProperties.GetName(e) == "Interrupted operations needing review");
+            expander.IsExpanded = true;
+            Window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            return row;
+        }
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public bool HasDialog => Window.GetVisualDescendants().OfType<Border>().Any(b => b.Classes.Contains("backdrop"));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
@@ -235,13 +391,15 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     }
     private sealed class Provider(ResourceProvider inner, string path, string? held, string outcome) : ResourceProvider
     {
-        public readonly ManualResetEventSlim Release = new(held is null); public readonly ConcurrentQueue<Call> Calls = new(); private int _active; public int Active => Volatile.Read(ref _active); public int Disposals; public bool DisposedDuringRead;
+        public readonly ManualResetEventSlim Release = new(held is null); public readonly ConcurrentQueue<Call> Calls = new(); private int _active, _holdCalls; public int Active => Volatile.Read(ref _active); public int Disposals; public bool DisposedDuringRead;
+        public string ReviewPath { get; set; } = path;
+        public int HoldOnCall { get; set; } = 1;
         public override string Scheme => Schemes.FileSystem; public override string GetDeviceKey(Location l) => "owned-interrupted-demand";
         public override string GetDisplayPath(Location l) => inner.GetDisplayPath(l); public override Location? GetParent(Location l) => inner.GetParent(l); public override Location? GetChildLocation(Location l, in EntryData e) => inner.GetChildLocation(l, e); public override LocationCapabilities GetCapabilities(Location l) => inner.GetCapabilities(l); public override Task EnumerateAsync(Location l, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(l, sink, ct);
-        private void Invoke(string op) { Calls.Enqueue(new(op, Dispatcher.UIThread.CheckAccess(), Thread.CurrentThread.Name ?? "")); if (op != held) return; Interlocked.Increment(ref _active); try { if (!Release.Wait(TimeSpan.FromSeconds(12))) throw new IOException("Owned interruption hold expired."); } finally { Interlocked.Decrement(ref _active); } }
+        private void Invoke(string op) { Calls.Enqueue(new(op, Dispatcher.UIThread.CheckAccess(), Thread.CurrentThread.Name ?? "")); if (op != held || Interlocked.Increment(ref _holdCalls) != HoldOnCall) return; Interlocked.Increment(ref _active); try { if (!Release.Wait(TimeSpan.FromSeconds(12))) throw new IOException("Owned interruption hold expired."); } finally { Interlocked.Decrement(ref _active); } }
         public override IContentSource? OpenContent(ItemRef item)
         {
-            if (item.FileSystemPath != path) return inner.OpenContent(item); Invoke("open"); if (outcome == "io") throw new IOException("Owned stage failure"); if (outcome == "access") throw new UnauthorizedAccessException("Owned stage denied"); return new Source(inner.OpenContent(item)!, this, outcome);
+            if (item.FileSystemPath != ReviewPath) return inner.OpenContent(item); Invoke("open"); if (outcome == "io") throw new IOException("Owned stage failure"); if (outcome == "access") throw new UnauthorizedAccessException("Owned stage denied"); return new Source(inner.OpenContent(item)!, this, outcome);
         }
         private sealed class Source(IContentSource inner, Provider owner, string outcome) : IContentSource, IPartialContent
         {

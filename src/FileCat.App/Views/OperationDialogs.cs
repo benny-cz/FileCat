@@ -62,8 +62,9 @@ public static class OperationDialogs
 
     // ---- Copy / move ------------------------------------------------------------------------------------
 
-    public static async Task<TransferDialogResult?> ShowTransferAsync(MainViewModel vm, TransferDialogInput input)
+    public static async Task<TransferDialogResult?> ShowTransferAsync(MainViewModel vm, TransferDialogInput input, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         string verb = input.Kind == JobKind.Move ? "Move" : "Copy";
         var body = new StackPanel { Spacing = 6 };
         if (input.RecoveryReviewNotice is { } recoveryNotice) body.Children.Add(Text(recoveryNotice));
@@ -224,10 +225,13 @@ public static class OperationDialogs
 
         while (true)
         {
+            var closer = new DialogCloser();
+            using var stopRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null), DispatcherPriority.Input));
             var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body,
                 [new DialogButton("Cancel", "cancel", IsCancel: true),
                  new DialogButton("Queue", "queue") { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } },
-                 new DialogButton(verb, "start", IsDefault: true) { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } }], dest);
+                 new DialogButton(verb, "start", IsDefault: true) { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } }], dest, closer: closer);
+            if (cancellationToken.IsCancellationRequested) result = null;
             if (result is not ("start" or "queue"))
             {
                 destinationOpen = false;

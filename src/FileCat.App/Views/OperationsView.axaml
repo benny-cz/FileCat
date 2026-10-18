@@ -103,18 +103,27 @@
                   <Border Classes="banner">
                     <StackPanel Spacing="4">
                       <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}" Classes="small" TextWrapping="Wrap"
+                                 AutomationProperties.LiveSetting="Polite" />
                       <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
                         <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
+                                IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy" />
                         <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
+                                IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
-                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
+                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" />
                         <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
+                                IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
                         <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
+                                IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
                         <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
+                                IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged" />
+                        <Button Content="{Binding StopReviewLabel}" Tag="{Binding}" Click="OnStopInterruptedReview" IsVisible="{Binding CanStopReview}"
+                                AutomationProperties.HelpText="Stops recovery preparation before approval, or after the current safe cleanup step" />
                       </WrapPanel>
                     </StackPanel>
                   </Border>

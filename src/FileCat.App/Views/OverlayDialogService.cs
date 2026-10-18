@@ -283,8 +283,16 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
-    public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
+    public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel") =>
+        ConfirmCoreAsync(title, message, confirmText, danger, cancelText, CancellationToken.None);
+
+    /// <summary>Closes only this confirmation when its owning review is stopped.</summary>
+    public Task<bool> ConfirmWithCancellationAsync(string title, string message, string confirmText, bool danger, CancellationToken cancellationToken) =>
+        ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken);
+
+    private async Task<bool> ConfirmCoreAsync(string title, string message, string confirmText, bool danger, string cancelText, CancellationToken cancellationToken)
     {
+        if (cancellationToken.IsCancellationRequested) return false;
         message = OneLineBreak(message);
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = !danger, Classes = { danger ? "danger" : "primary" } };
@@ -309,7 +317,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }
         };
         session = Show(card, danger ? cancel : ok, top: false, () => Finish(false));
-        return tcs.Task;
+        using var registration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() => Finish(false), DispatcherPriority.Input));
+        return await tcs.Task;
     }
 
     /// <summary>
