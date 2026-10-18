@@ -28,19 +28,33 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-024**. Follow
+After resolving any outstanding validation failure, resume **FCUX-025**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-024 — workspace saving | Suggest an unused name, validate backing identity, and require an explicit review before replacing an existing workspace. |
+| 1 | FCUX-025 — workspace restoration | Save the complete prior arrangement before loading a named workspace, and restore it without depending on the recently closed tab limit. |
 
-Then continue FCUX-025 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-026 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-024 implementation record
+
+Save workspace as suggests an unused Project name and validates display names
+before using them as filenames. Unsupported characters, trailing aliases and
+device names are refused, so distinct accepted names cannot silently sanitize
+to one record. Choosing an existing name shows its saved and replacement panel
+and tab counts and asks explicitly before replacing it. Cancel leaves both the
+main and backup files alone. New saves publish without replacing an occupied
+name; approved replacements compare the reviewed file immediately before
+publication and retain the existing atomic backup behavior. A failed save
+reopens the same draft for correction. Focused Core/App tests cover these paths,
+including case-only aliases and concurrent changes. Native keyboard, layout
+and multi-process replacement acceptance remain open.
 
 ### FCUX-023 implementation record
 

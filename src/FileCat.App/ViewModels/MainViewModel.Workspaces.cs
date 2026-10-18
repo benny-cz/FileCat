@@ -1,7 +1,10 @@
 using FileCat.App.Services;
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.FileSystem;
 using FileCat.Core.State;
+using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace FileCat.App.ViewModels;
 
@@ -12,10 +15,62 @@ namespace FileCat.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private string WorkspacePath(string name) =>
-        Path.Combine(Services.Paths.WorkspacesDirectory, SanitizeName(name) + ".json");
+        Path.Combine(Services.Paths.WorkspacesDirectory, name + ".json");
 
-    private static string SanitizeName(string name) =>
-        new(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
+    internal static string? WorkspaceNameProblem(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "Enter a name.";
+        if (name != name.Trim() || name.EndsWith('.')) return "Remove leading/trailing spaces and trailing dots.";
+        if (name.Length > 100) return "Use at most 100 characters.";
+        if (name.Any(c => c < ' ' || "<>:\"/\\|?*".Contains(c) || Path.GetInvalidFileNameChars().Contains(c)))
+            return "The name cannot contain file-path separators or special filename characters.";
+        if (Formatters.DescribeHiddenNameCharacters(name) is not null)
+            return "Remove invisible or direction-control characters from the name.";
+        string stem = name.Split('.')[0];
+        if (stem.Equals("CON", StringComparison.OrdinalIgnoreCase) || stem.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("AUX", StringComparison.OrdinalIgnoreCase) || stem.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
+            stem.Length == 4 && (stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase) || stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) && stem[3] is >= '1' and <= '9')
+            return "Choose a name other than a reserved device name.";
+        return null;
+    }
+
+    private string SuggestedWorkspaceName()
+    {
+        for (int i = 1; i < int.MaxValue; i++)
+        {
+            string name = i == 1 ? "Project" : $"Project {i}";
+            if (!File.Exists(WorkspacePath(name))) return name;
+        }
+        throw new IOException("No unused workspace name is available.");
+    }
+
+    private string ExistingWorkspaceName(string submitted) =>
+        NamedWorkspaces().FirstOrDefault(name =>
+            string.Equals(name, submitted, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) ?? submitted;
+
+    private sealed record WorkspaceTarget(byte[] Contents, string Digest);
+
+    private static WorkspaceTarget? ReadWorkspaceTarget(string path)
+    {
+        if (!File.Exists(path)) return null;
+        if (OperatingSystem.IsWindows() && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("The saved workspace is a link, not a regular file.");
+        using var stream = OperatingSystem.IsWindows()
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read);
+        if (stream.Length > 8 * 1024 * 1024) throw new IOException("The saved workspace exceeds the supported size limit.");
+        byte[] contents = new byte[(int)stream.Length];
+        stream.ReadExactly(contents);
+        if (stream.ReadByte() != -1) throw new IOException("The saved workspace changed while being read.");
+        return new WorkspaceTarget(contents, Convert.ToHexString(SHA256.HashData(contents)));
+    }
+
+    private static bool SameWorkspaceTarget(string path, WorkspaceTarget expected)
+    {
+        try { return ReadWorkspaceTarget(path)?.Digest == expected.Digest; }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
 
     public IReadOnlyList<string> NamedWorkspaces()
     {
@@ -25,28 +80,65 @@ public sealed partial class MainViewModel
                 .Select(Path.GetFileNameWithoutExtension).Where(n => n is not null).Cast<string>().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
         catch (IOException) { return []; }
+        catch (UnauthorizedAccessException) { return []; }
     }
 
-    private async Task SaveNamedWorkspaceAsync()
+    internal async Task SaveNamedWorkspaceAsync()
     {
-        var r = await Dialogs.PromptAsync(new PromptOptions("Save workspace", "Name for the current panels, tabs, and targets:")
+        string draft;
+        try { draft = SuggestedWorkspaceName(); }
+        catch (IOException ex) { Notify("Could not suggest a workspace name: " + ex.Message, true); return; }
+        while (true)
         {
-            Text = NamedWorkspaces().FirstOrDefault() ?? "Project",
-            Validate = n => string.IsNullOrWhiteSpace(n) ? "Enter a name." : null,
-            ConfirmText = "Save",
-            Hint = "Workspaces never store running operations or credentials",
-        });
-        if (r is null) return;
-        var state = Workspace.ToState(LastPlacement);
-        state.Name = r.Text.Trim();
-        try
-        {
-            JsonFileStore.Save(WorkspacePath(state.Name), state, StateJsonContext.Default.WorkspaceState);
-            Notify($"Workspace \"{state.Name}\" saved.");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Notify("Could not save the workspace: " + ex.Message, true);
+            var r = await Dialogs.PromptAsync(new PromptOptions("Save workspace as", "Name for the current panels, tabs, and targets:")
+            {
+                Text = draft,
+                Validate = WorkspaceNameProblem,
+                ConfirmText = "Save as",
+                Hint = "Workspaces never store running operations or credentials",
+            });
+            if (r is null) return;
+            draft = r.Text;
+            if (WorkspaceNameProblem(draft) is { } problem) { Notify(problem, true); continue; }
+            string path = WorkspacePath(draft);
+            try
+            {
+                var before = await Task.Run(() => ReadWorkspaceTarget(path));
+                var state = Workspace.ToState(LastPlacement);
+                state.Name = draft;
+                if (before is not null)
+                {
+                    string existingName = ExistingWorkspaceName(draft);
+                    path = WorkspacePath(existingName);
+                    state.Name = existingName;
+                    string savedSize;
+                    try
+                    {
+                        var saved = JsonSerializer.Deserialize(before.Contents, StateJsonContext.Default.WorkspaceState);
+                        savedSize = saved is null ? "Saved arrangement cannot be previewed." :
+                            $"Saved: {saved.Panels.Count} panels, {saved.Panels.Sum(p => p.Tabs.Count)} tabs.";
+                    }
+                    catch (JsonException) { savedSize = "Saved arrangement cannot be previewed."; }
+                    string currentSize = $"Current: {state.Panels.Count} panels, {state.Panels.Sum(p => p.Tabs.Count)} tabs.";
+                    if (!await Dialogs.ConfirmAsync("Replace saved workspace",
+                        $"Replace \"{existingName}\"?\n{savedSize}\n{currentSize}\nThe previous version is kept as a backup.",
+                        "Replace saved workspace", danger: true)) return;
+                    if (!await Task.Run(() => SameWorkspaceTarget(path, before)))
+                    {
+                        Notify("The saved workspace changed while you were reviewing it. Review it again before replacing.", true);
+                        continue;
+                    }
+                    await Task.Run(() => JsonFileStore.Save(path, state, StateJsonContext.Default.WorkspaceState,
+                        () => SameWorkspaceTarget(path, before)));
+                }
+                else await Task.Run(() => JsonFileStore.SaveNew(path, state, StateJsonContext.Default.WorkspaceState));
+                Notify($"Workspace \"{state.Name}\" saved.");
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Notify("Could not save the workspace: " + ex.Message, true);
+            }
         }
     }
 

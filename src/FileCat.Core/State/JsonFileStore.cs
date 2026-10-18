@@ -114,7 +114,14 @@ public static class JsonFileStore
     }
 
     /// <summary>Writes to a temporary sibling, flushes, then replaces the target keeping the previous version as .bak.</summary>
-    public static void Save<T>(string path, T value, JsonTypeInfo<T> typeInfo)
+    public static void Save<T>(string path, T value, JsonTypeInfo<T> typeInfo, Func<bool>? mayReplace = null) =>
+        SaveCore(path, value, typeInfo, createNew: false, mayReplace);
+
+    /// <summary>Publishes a new state file atomically; a newly occupied name is never replaced.</summary>
+    public static void SaveNew<T>(string path, T value, JsonTypeInfo<T> typeInfo) =>
+        SaveCore(path, value, typeInfo, createNew: true, mayReplace: null);
+
+    private static void SaveCore<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool createNew, Func<bool>? mayReplace)
     {
         var dir = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(dir);
@@ -146,6 +153,13 @@ public static class JsonFileStore
             }
             if (writtenBytes > MaxStateBytes)
                 throw new IOException($"State exceeds the {MaxStateBytes}-byte read and write limit.");
+            if (createNew)
+            {
+                File.Move(tmp, path, overwrite: false);
+                return;
+            }
+            if (mayReplace is not null && !mayReplace())
+                throw new IOException("The saved state changed before it could be replaced.");
             if (File.Exists(path))
             {
                 try
