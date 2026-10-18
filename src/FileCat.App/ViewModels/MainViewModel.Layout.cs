@@ -18,8 +18,8 @@ public sealed partial class MainViewModel
                 CommandAvailability.No("There is only one panel. Panels → Add panel adds another."),
             CommandIds.PanelSwapPlaces when Workspace.ActiveTarget is null =>
                 CommandAvailability.No(panels < 2 ? "There is only one panel." : "This panel has no target panel; Shift+F12 chooses one."),
-            CommandIds.AddPanelBelow when panels >= WorkspaceViewModel.MaxPanels =>
-                CommandAvailability.No($"At most {WorkspaceViewModel.MaxPanels} panels fit a usable layout."),
+            CommandIds.AddPanel => PanelAdditionAvailability(Workspace.ActivePanel, DockSide.Right),
+            CommandIds.AddPanelBelow => PanelAdditionAvailability(Workspace.ActivePanel, DockSide.Bottom),
             _ => null,
         };
     }
@@ -85,13 +85,23 @@ public sealed partial class MainViewModel
     /// </summary>
     private bool RoomForPanel(PanelViewModel panel, DockSide side)
     {
-        if (View.TopLevel is not { } top) return true;
-        // The panels get the window less its menu, command line, and key bar.
-        var room = (Width: top.Bounds.Width - 8, Height: top.Bounds.Height - 130);
-        var tree = PanelLayout.Insert(Workspace.LayoutTree, "new panel", panel.Id, side);
-        if (PanelLayout.Fits(tree, room.Width, room.Height)) return true;
-        Notify($"There is no room for another panel there: each keeps at least {PanelLayout.PanelMinWidth:0} × {PanelLayout.PanelMinHeight:0} pixels. "
-               + "Enlarge the window, add it elsewhere, or close a panel.");
+        var availability = PanelAdditionAvailability(panel, side);
+        if (availability.Enabled) return true;
+        Notify(availability.Reason!);
         return false;
+    }
+
+    private CommandAvailability PanelAdditionAvailability(PanelViewModel? panel, DockSide side)
+    {
+        if (panel is null) return CommandAvailability.No("Choose a panel before adding another.");
+        if (Workspace.Panels.Count >= WorkspaceViewModel.MaxPanels)
+            return CommandAvailability.No($"At most {WorkspaceViewModel.MaxPanels} panels fit a usable layout.");
+        if (_view is not IWorkspaceViewportProvider { WorkspaceViewport: { } room })
+            return CommandAvailability.No("The workspace is still measuring. Try adding the panel after the window appears.");
+        var tree = PanelLayout.Insert(Workspace.LayoutTree, "new panel", panel.Id, side);
+        return PanelLayout.Fits(tree, room.Width, room.Height)
+            ? CommandAvailability.Yes
+            : CommandAvailability.No($"There is no room for another panel there: each keeps at least {PanelLayout.PanelMinWidth:0} × {PanelLayout.PanelMinHeight:0} pixels. "
+                + "Enlarge the window, hide chrome, add it elsewhere, or close a panel. F11 shows one panel whole.");
     }
 }

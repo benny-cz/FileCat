@@ -129,3 +129,9 @@ public interface IViewActions
     Avalonia.Input.Platform.IClipboard? Clipboard { get; }
     TopLevel? TopLevel { get; }
 }
+
+/// <summary>The measured panel host, excluding variable menu, toolbar, operations, command-line and key-bar chrome.</summary>
+public interface IWorkspaceViewportProvider
+{
+    Avalonia.Size? WorkspaceViewport { get; }
+}

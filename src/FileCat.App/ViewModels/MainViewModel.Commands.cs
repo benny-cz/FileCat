@@ -128,8 +128,6 @@ public sealed partial class MainViewModel
                 return CanRestorePreviousWorkspace ? CommandAvailability.Yes : CommandAvailability.No("No previous workspace to restore.");
             case CommandIds.ClosePanel:
                 return Workspace.Panels.Count > 1 ? CommandAvailability.Yes : CommandAvailability.No("The last panel cannot be closed.");
-            case CommandIds.AddPanel:
-                return Workspace.Panels.Count < WorkspaceViewModel.MaxPanels ? CommandAvailability.Yes : CommandAvailability.No($"At most {WorkspaceViewModel.MaxPanels} panels fit a usable layout.");
             case CommandIds.CloseTab:
                 return Workspace.ActivePanel?.Tabs.Count > 1 ? CommandAvailability.Yes : CommandAvailability.No("A panel always keeps one tab.");
         }

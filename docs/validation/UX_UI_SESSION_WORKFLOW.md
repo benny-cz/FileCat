@@ -28,19 +28,34 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-030**. Follow
+After resolving any outstanding validation failure, resume **FCUX-031**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-030 — measured panel layout | Base panel admission and cramped-state feedback on the actual workspace viewport. |
+| 1 | FCUX-031 — keyboard panel resizing | Give nested splitters an explicit, accessible keyboard resize interaction with bounded proportions and saved results. |
 
-Then continue FCUX-031 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-032 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-030 implementation record
+
+Panel admission and drag previews now use the measured workspace host, the
+same rectangle used by the cramped-layout strip. Before the first measurement,
+an add-panel command explains why it is temporarily unavailable. Changing
+toolbar, command-line or key-bar visibility immediately changes admission.
+The compact address row keeps the location and target on top and moves free
+space and filter entry below them; the role button keeps its full accessible
+name and tooltip. The panel minimum is 260 × 240 DIPs, verified with at least
+two visible file rows at that size. A restored or subsequently cramped tree
+shows the reversible F11 route, with a one-panel warning when even that panel
+needs more room. Host-aware admission, narrow and wide address geometry,
+cramped recovery, core tree math and docking tests pass. Native 100%, 150% and
+200% scaling and screen-reader acceptance remain open.
 
 ### FCUX-029 implementation record
 
@@ -48,7 +63,7 @@ Main-window notifications now publish text, severity, action and repeat count
 as one state. Notices get six seconds; errors stay until explicitly dismissed.
 The timer defers while a user hovers or focuses the banner. Identical messages
 within thirty seconds share a history row and visible occurrence count without
-changing live message text. The banner offers Copy, History and Close controls;
+changing live message text. The banner offers Copy text, History and Dismiss controls;
 its selectable text no longer dismisses on click. Polite and assertive live
 regions carry notices and errors. Tools and command search open a selectable,
 bounded recent history even after a notification disappears. Escape still

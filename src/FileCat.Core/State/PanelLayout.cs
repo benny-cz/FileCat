@@ -54,7 +54,8 @@ public readonly record struct UnitRect(double X, double Y, double Width, double 
 public static class PanelLayout
 {
     public const double PanelMinWidth = 260;
-    public const double PanelMinHeight = 140;
+    // The compact two-row address, tab, place and status chrome leave at least two actual file rows at this height.
+    public const double PanelMinHeight = 240;
     public const double Splitter = 5;
 
     /// <summary>The panels in one split, side by side or stacked, with their sizes (P2's flat layouts).</summary>

@@ -131,7 +131,7 @@ public sealed class DockingTests
         {
             var ct = TestContext.Current.CancellationToken;
             window.Width = 900;
-            window.Height = 420; // the least height: room for two panels stacked, not three
+            window.Height = 720; // room for two panels stacked, not three at the new usable-list minimum
             var ws = vm.Workspace;
             var (top, bottom) = (ws.Panels[0], ws.Panels[1]);
             ws.Activate(bottom);
@@ -145,7 +145,7 @@ public sealed class DockingTests
             var below = window.DropAt(third, new Point(target.Center.X, target.Bottom - 8));
             Assert.Equal(DockSide.Bottom, below.Side);
             Assert.False(below.Allowed, $"host {host.Bounds}");
-            Assert.StartsWith("No room: every panel keeps at least 260 × 140 pixels", below.Preview);
+            Assert.StartsWith("No room: every panel keeps at least 260 × 240 pixels", below.Preview);
         }
         finally
         {

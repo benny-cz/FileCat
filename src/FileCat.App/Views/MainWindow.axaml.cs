@@ -19,7 +19,7 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Views;
 
-public partial class MainWindow : Window, IViewActions
+public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider
 {
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();

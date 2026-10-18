@@ -42,7 +42,7 @@
       </Border>
 
       <!-- Address row -->
-      <Grid x:Name="AddressRow" DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" Background="{DynamicResource FcPanel}">
+      <Grid x:Name="AddressRow" DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto" Background="{DynamicResource FcPanel}">
         <!-- The panel's number is also its handle: drag it onto another panel to move this one (ADR-18). -->
         <Border x:Name="NumberBadge" Margin="4,2,0,2" CornerRadius="3" Padding="5,0" VerticalAlignment="Center" Cursor="SizeAll"
                 Background="{Binding IsActive, Converter={x:Static vm:Converters.ActiveAccent}}"
@@ -52,15 +52,15 @@
         </Border>
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <!-- The path: its folders are links (PathLine) until it is edited in the box beneath (a click on its last part). -->
-        <Panel Grid.Column="2">
+        <Panel x:Name="PathCell" Grid.Column="2">
           <TextBox x:Name="PathBox" Classes="path linked" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                    AutomationProperties.Name="Location" />
           <ctl:PathLine x:Name="PathLinks" Margin="6,0" AutomationProperties.Name="Path" />
         </Panel>
         <!-- This belongs to the displayed file-system volume; archives and virtual locations do not show stale space. -->
-        <TextBlock Grid.Column="3" Text="{Binding ActiveTab.FreeSpaceText}" Classes="small muted" Margin="8,0" VerticalAlignment="Center"
+        <TextBlock x:Name="FreeSpaceLabel" Grid.Column="3" Text="{Binding ActiveTab.FreeSpaceText}" Classes="small muted" Margin="8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                    IsVisible="{Binding ActiveTab.FreeSpaceText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   ToolTip.Tip="Available space on this volume" />
+                   ToolTip.Tip="{Binding ActiveTab.FreeSpaceText}" />
         <!-- Which items show: a mask such as *.txt;*.log, applied on Enter ("*.*" or "*" shows everything). -->
         <TextBox x:Name="FilterBox" Grid.Column="4" Classes="path filter" Width="96"
                  AutomationProperties.Name="Filter"
@@ -75,8 +75,10 @@
                    AutomationProperties.LiveSetting="Assertive" />
         <!-- TARGET, "Set as target" on the other panels, or the active panel's own target (plan §4.2). -->
         <Button x:Name="RoleButton" Grid.Column="5" Classes="role" Classes.target="{Binding IsTarget}" Classes.offer="{Binding OffersTarget}"
-                Content="{Binding RoleLabel}" ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
-                IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
+                IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding RoleLabel}" MaxWidth="80" TextTrimming="CharacterEllipsis" />
+        </Button>
       </Grid>
 
       <!-- Status -->

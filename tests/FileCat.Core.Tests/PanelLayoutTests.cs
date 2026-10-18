@@ -87,9 +87,9 @@ public sealed class PanelLayoutTests
         Assert.Null(PanelLayout.Neighbor(layout, "a", DockSide.Left));
         Assert.Null(PanelLayout.Neighbor(layout, "b", DockSide.Top));
 
-        Assert.Equal((525.0, 285.0), PanelLayout.MinimumSize(Cols(P("a"), Rows(P("b"), P("c")))));
-        Assert.True(PanelLayout.Fits(layout, 600, 300));
-        Assert.False(PanelLayout.Fits(layout, 500, 300));
-        Assert.False(PanelLayout.Fits(layout, 600, 280));
+        Assert.Equal((525.0, 485.0), PanelLayout.MinimumSize(Cols(P("a"), Rows(P("b"), P("c")))));
+        Assert.True(PanelLayout.Fits(layout, 600, 500));
+        Assert.False(PanelLayout.Fits(layout, 500, 500));
+        Assert.False(PanelLayout.Fits(layout, 600, 480));
     }
 }

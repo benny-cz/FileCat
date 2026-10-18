@@ -33,6 +33,9 @@ public partial class MainWindow
     /// <summary>Until the window has drawn its first frame, panels wait (see the constructor's Opened handler).</summary>
     private bool _panelsDeferred = true;
 
+    public Size? WorkspaceViewport => WorkspaceHost.Bounds.Width > 0 && WorkspaceHost.Bounds.Height > 0
+        ? WorkspaceHost.Bounds.Size : null;
+
     private void RebuildPanels()
     {
         if (_panelsDeferred) return;
@@ -79,12 +82,18 @@ public partial class MainWindow
         {
             var target = ws.GetTarget(m);
             MaximizedText.Text = $"Panel {m.Number} maximized · F11 restores" + (target is null ? " · no target panel" : $" · target: panel {target.Number} ({target.ActiveTab?.DisplayPath})");
+            if (WorkspaceViewport is { } small && !PanelLayout.Fits(PanelLayoutNode.Panel(m.Id), small.Width, small.Height))
+                MaximizedText.Text += " · hide chrome or enlarge the window for a usable list";
             MaximizedStrip.IsVisible = true;
             return;
         }
-        bool cramped = WorkspaceHost.Bounds.Width > 0 && ws.Panels.Count > 1
-            && !PanelLayout.Fits(ws.LayoutTree, WorkspaceHost.Bounds.Width, WorkspaceHost.Bounds.Height);
-        MaximizedText.Text = cramped ? "The window is too small for every panel · F11 shows the active one whole" : string.Empty;
+        bool cramped = WorkspaceViewport is { } viewport
+            && !PanelLayout.Fits(ws.LayoutTree, viewport.Width, viewport.Height);
+        MaximizedText.Text = cramped
+            ? ws.Panels.Count > 1
+                ? "The window is too small for every panel · F11 shows the active one whole"
+                : "The window is too small for a usable list · hide chrome or enlarge it"
+            : string.Empty;
         MaximizedStrip.IsVisible = cramped;
     }
 
@@ -211,7 +220,7 @@ public partial class MainWindow
             drag.Target = panel;
             drag.Side = distance <= 0.25 ? side : null;
             var tree = _vm.Workspace.PreviewDock(drag.Panel, panel, drag.Side);
-            drag.Allowed = PanelLayout.Fits(tree, WorkspaceHost.Bounds.Width, WorkspaceHost.Bounds.Height);
+            drag.Allowed = WorkspaceViewport is { } viewport && PanelLayout.Fits(tree, viewport.Width, viewport.Height);
             var zone = drag.Side switch
             {
                 DockSide.Left => rect.WithWidth(rect.Width / 2),

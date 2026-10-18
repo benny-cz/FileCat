@@ -12,6 +12,7 @@ namespace FileCat.App.Views;
 
 public partial class PanelView : UserControl
 {
+    private bool _addressCompact;
     private static ContextMenu? _openItemMenu;
     private static long _menuRequest;
     private static bool _nativeMenuWarningShown;
@@ -19,6 +20,7 @@ public partial class PanelView : UserControl
     public PanelView()
     {
         InitializeComponent();
+        AddressRow.SizeChanged += (_, _) => UpdateAddressDensity();
         StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
         List.ActivateRequested += (_, _) => Activated?.Invoke();
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
@@ -112,6 +114,20 @@ public partial class PanelView : UserControl
         AddHandler(PointerPressedEvent, OnHistoryButton, RoutingStrategies.Tunnel, handledEventsToo: true);
         // A press anywhere in a panel makes it the source (and, with two panels, the other one the target).
         AddHandler(PointerPressedEvent, OnAnyPress, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    private void UpdateAddressDensity()
+    {
+        bool compact = AddressRow.Bounds.Width < 480;
+        if (_addressCompact == compact) return;
+        _addressCompact = compact;
+        // The location uses the whole middle span when secondary details move below it.
+        Grid.SetColumnSpan(PathCell, compact ? 3 : 1);
+        Grid.SetRow(FreeSpaceLabel, compact ? 1 : 0);
+        Grid.SetColumn(FreeSpaceLabel, compact ? 2 : 3);
+        Grid.SetRow(FilterBox, compact ? 1 : 0);
+        Grid.SetRow(FilterError, compact ? 2 : 1);
+        FreeSpaceLabel.MaxWidth = compact ? 130 : 170;
     }
 
     private void OnPlacesChanged() => BuildPlaceButtons();
