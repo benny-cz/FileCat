@@ -1128,7 +1128,7 @@ Code signing is release-critical: Smart App Control blocks unsigned applications
 
 Every shipped executable is signed, including helpers, the broker, and workers. Third-party native DLLs are inventoried with their signature status and tested under Smart App Control enforcement (TV-13).
 
-There is no updater, so servicing is explicit. FileCat publishes a security release within a defined window after relevant .NET Patch Tuesday fixes. An opt-in update check only notifies; it never downloads or installs. With the check off, FileCat makes no network requests (PI-08). Automatic updating stays deferred.
+There is no updater, so servicing is explicit. FileCat publishes a security release within a defined window after relevant .NET Patch Tuesday fixes. An opt-in automatic update check only notifies; it never downloads or installs update packages. With the setting off, scheduled release checks stop; explicit Help checks and requested network locations can still connect (PI-08). Automatic updating stays deferred.
 
 Choose an installer tool with acceptable redistribution/build terms. MSIX is an alternative requiring validation of Registry visibility, elevation, shell integration, and virtualization; it is not assumed suitable merely because the UI is a desktop application. Portable mode must not write recovery/state into read-only installation paths. Manual replacement upgrades binaries while preserving versioned user state.
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FileCat.App.Services;
+using FileCat.Core.State;
 
 namespace FileCat.App.Tests;
 
@@ -9,6 +10,18 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class UpdateCheckTests
 {
+    [Fact]
+    public async Task Scheduled_check_respects_the_automatic_preference_and_daily_gate_without_network()
+    {
+        int saves = 0;
+        var settings = new AppSettings { CheckForUpdates = false };
+        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++));
+        settings.CheckForUpdates = true;
+        settings.LastUpdateCheckUtc = DateTime.UtcNow;
+        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++));
+        Assert.Equal(0, saves);
+    }
+
     private static byte[] Answer(string tag, string url) =>
         JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["tag_name"] = tag, ["html_url"] = url });
 

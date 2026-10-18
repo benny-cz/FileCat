@@ -10,6 +10,41 @@ namespace FileCat.App.Tests;
 
 public sealed class SettingsDialogTests
 {
+    [AvaloniaFact]
+    public async Task Privacy_setting_names_only_automatic_release_checks_and_explains_requested_connections()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.CheckForUpdates = false;
+            vm.Execute(CommandIds.Settings);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
+            tabs.SelectedIndex = tabs.Items.OfType<TabItem>().ToList().FindIndex(t => t.Header as string == "Privacy");
+            window.UpdateLayout();
+            var updates = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(c => c.Content as string == "Automatically check for updates");
+            Assert.False(updates.IsChecked);
+            var note = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => t.Text?.StartsWith("At most once a day at startup", StringComparison.Ordinal) == true);
+            Assert.Contains("does not download or install update packages", note.Text);
+            Assert.Contains("Help → Check for updates", note.Text);
+            Assert.Contains("network locations still connect", note.Text);
+            Assert.DoesNotContain("no network requests", note.Text, StringComparison.OrdinalIgnoreCase);
+            updates.IsChecked = true;
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(services.Settings.CheckForUpdates);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     /// <summary>Settings names the default verification as the copy dialog does, and stores what was chosen.</summary>
     [AvaloniaFact]
     public async Task Default_copy_verification_is_chosen_by_the_names_the_copy_dialog_uses()

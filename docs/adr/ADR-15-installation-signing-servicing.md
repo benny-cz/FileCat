@@ -13,8 +13,10 @@
   explicitly labeled, unsigned preview release comes first.
 - **Servicing** is explicit, with no updater. A security release follows within 14 days after relevant .NET Patch Tuesday fixes
   ([SERVICING.md](../SERVICING.md)).
-- **Update check.** It is opt-in and notify-only: at most one request a day to the GitHub releases API when enabled,
-  or on Help → Check for updates. With it off, FileCat makes no network requests (PI-08).
+- **Update check.** Automatic checks are opt-in and notify-only: at most one request a day to the GitHub releases API
+  at startup when enabled. Help → Check for updates works on explicit request even when automatic checks are off.
+  FileCat never downloads or installs update packages. Requested network locations and optional network services
+  can also connect; the update preference does not control them.
 
 ## Consequences
 

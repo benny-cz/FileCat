@@ -305,7 +305,8 @@ public static class SettingsDialog
 
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
-        var updates = new CheckBox { Content = "Check for new versions (only notifies; never downloads). Off means FileCat makes no network requests.", IsChecked = s.CheckForUpdates };
+        var updates = new CheckBox { Content = "Automatically check for updates", IsChecked = s.CheckForUpdates };
+        var updateNote = Note("At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
         bool helper = vm.Services.ShellPictures is not null;
         var shellPictures = new CheckBox
         {
@@ -324,7 +325,7 @@ public static class SettingsDialog
               (vm.Services.ShellPictures?.DisabledReason is { } off ? " " + off : string.Empty)
             : "This build has no Shell helper, so icons come from file types only.");
         var paths = new SelectableTextBlock { Text = $"Settings: {vm.Services.Paths.SettingsDirectory}\nLocal data: {vm.Services.Paths.LocalDirectory}{(vm.Services.Paths.IsPortable ? "\n(portable mode)" : string.Empty)}", TextWrapping = TextWrapping.Wrap };
-        tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
+        tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", updateNote), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         // Search the actual labels and explanations in every tab, including tabs not yet selected.

@@ -8,8 +8,8 @@ using FileCat.Core.State;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// Opt-in update check (plan §19.3, PI-08): it only notifies and never downloads or installs. With the setting
-/// off FileCat makes no network request, except when the user explicitly runs Help → Check for updates.
+/// Opt-in automatic update check (plan §19.3, PI-08): it only notifies and never downloads or installs.
+/// Disabling it stops scheduled release checks. Explicit Help checks and requested remote locations can still connect.
 /// The request carries no identifier beyond the product version in the User-Agent.
 /// </summary>
 public static class UpdateCheck
