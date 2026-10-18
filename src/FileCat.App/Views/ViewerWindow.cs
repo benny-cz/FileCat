@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.Core.Content;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -31,6 +32,8 @@ public sealed class ViewerWindow : Window
     private PagedReader _reader;
     private readonly Func<CancellationToken, Task<IContentSource?>>? _reopen;
     private readonly TextViewer _text = new();
+    private readonly Panel _dialogHost = new() { IsVisible = false };
+    private readonly OverlayDialogService _dialogs;
     private readonly HexView _hex = new();
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _encodingInfo = new() { Classes = { "small", "muted" }, VerticalAlignment = VerticalAlignment.Center };
@@ -295,7 +298,8 @@ public sealed class ViewerWindow : Window
         DockPanel.SetDock(_copyNotice, Dock.Bottom);
         root.Children.Add(_copyNotice);
         root.Children.Add(content);
-        Content = ThemeLayers.Over(root, content);
+        Content = new Grid { Children = { ThemeLayers.Over(root, content), _dialogHost } };
+        _dialogs = new OverlayDialogService(_dialogHost, () => _isHex ? _hex : _isInfo ? _info : _text);
 
         _modeText.Click += (_, _) => SetMode(false);
         _modeHex.Click += (_, _) => SetMode(true);
@@ -388,6 +392,7 @@ public sealed class ViewerWindow : Window
         };
         Closed += (_, _) =>
         {
+            _dialogs.CancelAll();
             _changeTimer.Stop();
             _refreshCts?.Cancel();
             _searchCts?.Cancel();
@@ -629,6 +634,7 @@ public sealed class ViewerWindow : Window
     /// </summary>
     private bool OnPageKey(Key key, KeyModifiers modifiers)
     {
+        if (_dialogs.IsOpen) return false;
         Action? act = (key, modifiers) switch
         {
             (Key.Escape, KeyModifiers.None) when _searchCts is not null => () => _searchCts?.Cancel(),
@@ -1138,6 +1144,7 @@ public sealed class ViewerWindow : Window
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_dialogs.IsOpen) return;
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var focused = FocusManager?.GetFocusedElement();
@@ -1338,7 +1345,7 @@ public sealed class ViewerWindow : Window
         _searchCts = null;
         if (_pageGeneration != _sourceGeneration)
         {
-            _pageSearchStatus = "The file changed; reopen the viewer to search this page.";
+            _pageSearchStatus = "The file changed; Refresh (F5) before searching this page.";
             _pageFindUnavailable = true;
             UpdateMatchControls();
             UpdateStatus();
@@ -1529,60 +1536,81 @@ public sealed class ViewerWindow : Window
 
     private async Task GoToAsync()
     {
-        var box = new TextBox { PlaceholderText = "0x1F00, 7936, 50%, or L1200 (line)" };
-        var dialog = new Window
+        if (_closing.IsCancellationRequested) return;
+        if (_isPage || _isPicture || _isInfo)
         {
-            Title = "Go to",
-            Width = 360,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(16),
-                Spacing = 8,
-                Children = { new TextBlock { Text = "Offset (hex with 0x, decimal), percentage, or line (L1200):" }, box },
-            },
-        };
-        string? result = null;
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter) { result = box.Text; dialog.Close(); }
-            else if (e.Key == Key.Escape) dialog.Close();
-        };
-        dialog.Opened += (_, _) => box.Focus();
-        await dialog.ShowDialog(this);
-        if (string.IsNullOrWhiteSpace(result)) return;
-        var t = result.Trim();
-        if (TryParseLine(t, out long line))
-        {
-            await GoToLineAsync(line);
+            _status.Text = "Go to applies to Text or Hex. Switch to one of those views first.";
             return;
         }
-        long len = _reader.Length;
-        long offset;
-        if (t.EndsWith('%') && double.TryParse(t[..^1], NumberStyles.Float, CultureInfo.CurrentCulture, out var pct)) offset = (long)(len * Math.Clamp(pct, 0, 100) / 100);
-        else if (t.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && long.TryParse(t[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexVal)) offset = hexVal;
-        else if (long.TryParse(t.Replace(" ", "").Replace(" ", ""), NumberStyles.Integer, CultureInfo.CurrentCulture, out var dec)) offset = dec;
+        if (_reader.Length == 0)
+        {
+            _status.Text = "This file is empty; there is no position to go to.";
+            return;
+        }
+        string initial = _isHex ? "0x" + _hex.CursorOffset.ToString("X", CultureInfo.InvariantCulture)
+            : _text.TopOffset.ToString(CultureInfo.CurrentCulture);
+        var result = await _dialogs.PromptAsync(new PromptOptions("Go to", "Byte offset (0x1F00 or 7936), percentage (50%), or line (L1200):")
+        {
+            Text = initial,
+            ConfirmText = "Go",
+            Hint = "Line navigation may scan the file; Esc stops a running scan.",
+            Validate = text => ValidateGoTo(text, _reader.Length, _reader.Source.CanSeek, out _),
+        });
+        if (result is null || _closing.IsCancellationRequested) return;
+        string? error = ValidateGoTo(result.Text, _reader.Length, _reader.Source.CanSeek, out var target);
+        if (error is not null) { _status.Text = error; return; }
+        if (target.IsLine) await GoToLineAsync(target.Value);
         else
         {
-            _status.Text = $"\"{t}\" is not an offset.";
-            return;
+            if (_isHex) _hex.GoTo(target.Value);
+            else _text.ScrollToOffset(target.Value);
+            UpdateStatus();
         }
-        if (_isHex) _hex.GoTo(offset);
-        else _text.ScrollToOffset(offset);
-        UpdateStatus();
     }
 
-    /// <summary>"L1200", "line 1200", or ":1200".</summary>
-    private static bool TryParseLine(string text, out long line)
+    internal readonly record struct GoToTarget(bool IsLine, long Value);
+
+    /// <summary>Pure validation for the shared prompt: keep a repairable draft in place until its target is valid.</summary>
+    internal static string? ValidateGoTo(string text, long length, bool canSeek, out GoToTarget target)
     {
-        line = 0;
+        target = default;
         var t = text.Trim();
-        if (t.StartsWith("line", StringComparison.OrdinalIgnoreCase)) t = t[4..];
-        else if (t.StartsWith('L') || t.StartsWith('l') || t.StartsWith(':')) t = t[1..];
-        else return false;
-        return long.TryParse(t.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out line) && line > 0;
+        if (length <= 0) return "This file is empty; there is no position to go to.";
+        if (t.Length == 0) return "Enter a byte offset, percentage, or line number.";
+        bool linePrefix = t.StartsWith("line", StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith('L') || t.StartsWith('l') || t.StartsWith(':');
+        if (linePrefix)
+        {
+            var number = t.StartsWith("line", StringComparison.OrdinalIgnoreCase) ? t[4..] : t[1..];
+            if (!long.TryParse(number.Trim(), NumberStyles.None, CultureInfo.CurrentCulture, out long line) || line < 1)
+                return "Enter a positive line number, such as L1200 or line 1200.";
+            if (!canSeek) return "Line navigation needs a seekable source; this provider cannot scan to a line.";
+            target = new GoToTarget(true, line);
+            return null;
+        }
+        long offset;
+        if (t.EndsWith('%'))
+        {
+            if (!double.TryParse(t[..^1].Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out double percent) ||
+                !double.IsFinite(percent) || percent is < 0 or > 100)
+                return "Enter a percentage from 0% to 100%.";
+            double scaled = length * (percent / 100);
+            offset = scaled >= length - 1 ? length - 1 : (long)Math.Floor(scaled);
+        }
+        else if (t.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!ulong.TryParse(t[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong hex) ||
+                hex > long.MaxValue)
+                return "Enter hexadecimal bytes after 0x, such as 0x1F00.";
+            offset = (long)hex;
+        }
+        else if (!long.TryParse(t.Replace(" ", "", StringComparison.Ordinal),
+                     NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out offset))
+            return "Enter a decimal byte offset, such as 7936.";
+        if (offset < 0 || offset >= length)
+            return $"Enter an offset from 0 to {length - 1:N0} (0x{length - 1:X}).";
+        target = new GoToTarget(false, offset);
+        return null;
     }
 
     /// <summary>
@@ -1871,7 +1899,7 @@ public sealed class ViewerWindow : Window
                 _reader.WithSource(source => { after = source.GetRevision(); finalLength = source.Length; });
                 ct.ThrowIfCancellationRequested();
                 if (before != after || initialLength != finalLength)
-                    throw new IOException("The source changed while computing the checksum. No checksum is published for the mixed content; reopen the viewer and compute again.");
+                    throw new IOException("The source changed while computing the checksum. No checksum is published for the mixed content; Refresh (F5) and compute again.");
                 return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start, Revision: before);
             }, ct);
             if (ct.IsCancellationRequested || !ReferenceEquals(_checksumCts, cts) || generation != _sourceGeneration) return;

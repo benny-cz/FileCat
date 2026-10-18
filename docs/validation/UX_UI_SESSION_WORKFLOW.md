@@ -69,7 +69,10 @@ FCUX-053 adds a selection-owned loading state after debounce, Cancel/Retry,
 visible full-viewer action, and explicit empty, unavailable, permission, size
 and picture-decode explanations. Fourteen focused and 68 related cases pass.
 Native Shell, remote and assistive-technology acceptance
-remain open. FCUX-054 follows.
+remain open. FCUX-054 replaces the Viewer Go to window with the shared inline-
+validated dialog. Four focused and 338 related cases pass, with 12 platform
+skips in the related set. Native layout, input and remote capability acceptance remain open.
+FCUX-056 follows (FCUX-055 was completed as a Refresh prerequisite).
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -108,6 +111,7 @@ still need a complete App run.
 | 25 | FCUX-055 — picture zoom state | Fit and 100% are separate controls; custom 50%, 125% and 200% display their percentage with neither mode checked. A small image keeps Fit and 100% distinct even when both render at the same scale. Twelve focused and 74 related App cases pass, with 12 platform skips. Native scale and assistive-technology acceptance remain open. This is a prerequisite for preserving zoom through FCUX-052 refresh. |
 | 26 | FCUX-052 — refresh changed viewer content | Refresh/F5 reopens the original provider item and stages new Text, Info, Picture or Page content before retiring the old source. Stale and failed refresh states remain visible; zoom, scroll and safe selections survive. Nine focused and 326 related App cases pass, with 12 platform skips in the related set. Native archive/remote/WebView2 and assistive-technology acceptance remain open. |
 | 27 | FCUX-053 — quick-view loading and fallback | Loading appears after a 140 ms debounce and 180 ms no-flicker interval with Cancel/Retry. A visible button opens the full viewer. Empty, denied, unsupported, oversized and failed picture states explain themselves while Hex remains available. Automatic picture pixels respond to pane size within a 1,024 physical-pixel cap. Fourteen focused and 68 related App cases pass. Native Shell and remote acceptance remain open. |
+| 28 | FCUX-054 — Viewer Go to dialog | A bounded shared prompt keeps invalid drafts open with inline errors and visible Go/Cancel. Offset, percentage and line parsing rejects invalid or unsupported targets before action. Four focused and 338 related App cases pass, with 12 platform skips in the related set. Native scaling, remote and assistive-technology acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

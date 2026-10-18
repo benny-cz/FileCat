@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Platform.Windows.Shell;
@@ -53,12 +54,18 @@ public sealed class ShellPictureUiTests(ITestOutputHelper output)
             // Every panel has a quick view pane; the target panel's is the one in use.
             Image? Thumbnail() => window.GetVisualDescendants().OfType<Image>()
                 .Where(i => AutomationProperties.GetName(i) == "Thumbnail").OrderByDescending(i => i.IsVisible).FirstOrDefault();
+            int RequestedSize()
+            {
+                var pane = Assert.Single(window.GetVisualDescendants().OfType<QuickViewPane>(), p => p.IsVisible);
+                return (int)typeof(QuickViewPane).GetMethod("PreviewSide", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)!.Invoke(pane, [])!;
+            }
             for (int i = 0; i < 1500 && Thumbnail() is not { IsVisible: true, Source: not null }; i++)
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             if (Thumbnail() is not { IsVisible: true })
             {
-                // What quick view was answered (its request: 256 pixels at the headless scale of 1), before asking again.
-                bool answered = services.ShellPictures.TryGetCached(ShellImageKind.Thumbnail, picture, File.GetLastWriteTimeUtc(picture).Ticks, 256, out var first);
+                // Check the pane-sized request before asking the helper again.
+                bool answered = services.ShellPictures.TryGetCached(ShellImageKind.Thumbnail, picture, File.GetLastWriteTimeUtc(picture).Ticks, RequestedSize(), out var first);
                 string quickView = !answered ? "quick view's request has no answer yet" : first is null ? "quick view's request was answered with no picture" : "quick view's request was answered with a picture";
                 // Distinguish "no handler on this machine" from a broken quick view.
                 var direct = services.ShellPictures.Client.Get(ShellImageKind.Thumbnail, picture, 64, TimeSpan.FromSeconds(30));
@@ -68,7 +75,7 @@ public sealed class ShellPictureUiTests(ITestOutputHelper output)
             // Other Shell requests and contained handler failures may replace a helper. Verify this picture's
             // actual answer and UI binding; helper reuse/containment has separate native client tests.
             Assert.True(services.ShellPictures.TryGetCached(ShellImageKind.Thumbnail, picture,
-                File.GetLastWriteTimeUtc(picture).Ticks, 256, out var cached));
+                File.GetLastWriteTimeUtc(picture).Ticks, RequestedSize(), out var cached));
             Assert.NotNull(cached);
             var shown = Assert.IsType<WriteableBitmap>(Thumbnail()!.Source);
             Assert.Equal(cached.Width, shown.PixelSize.Width);
