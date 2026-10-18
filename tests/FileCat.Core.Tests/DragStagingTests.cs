@@ -17,9 +17,11 @@ public sealed class DragStagingTests : IDisposable
     {
         public Dictionary<string, string> Marks { get; } = new(StringComparer.OrdinalIgnoreCase);
         public bool RejectWrites { get; set; }
+        public bool ThrowOnWrite { get; set; }
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
         public override bool WriteOriginMark(string path, string mark)
         {
+            if (ThrowOnWrite) throw new ApplicationException("origin mark provider failed");
             if (RejectWrites) return false;
             Marks[path] = mark;
             return true;
@@ -125,5 +127,35 @@ public sealed class DragStagingTests : IDisposable
         Directory.SetCreationTimeUtc(folder, DateTime.UtcNow.AddDays(-2));
         DragStaging.Sweep(_dir.Path, TimeSpan.FromDays(1));
         Assert.False(Directory.Exists(folder));
+    }
+
+    [Fact]
+    public void Discard_removes_only_the_own_complete_staging_folder()
+    {
+        string zip = Zip(("a.txt", "alpha"), ("b.txt", "beta"));
+        var (paths, refusal) = DragStaging.Stage(Members(zip), _providers, _ops, _dir.Path, TestContext.Current.CancellationToken);
+        Assert.Null(refusal);
+        string folder = Path.GetDirectoryName(paths![0])!;
+        string outside = _dir.File("keep.txt", "keep");
+        DragStaging.Discard([outside], _dir.Path);
+        Assert.True(File.Exists(outside));
+        Assert.True(Directory.Exists(folder));
+        DragStaging.Discard([paths[0], outside], _dir.Path);
+        Assert.True(Directory.Exists(folder));
+        DragStaging.Discard(paths, _dir.Path);
+        Assert.False(Directory.Exists(folder));
+        Assert.True(File.Exists(outside));
+    }
+
+    [Fact]
+    public void Unexpected_provider_failure_retires_partially_staged_files()
+    {
+        string zip = Zip(("a.txt", "alpha"));
+        _ops.Marks[zip] = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        _ops.ThrowOnWrite = true;
+        Assert.Throws<ApplicationException>(() => DragStaging.Stage(Members(zip), _providers, _ops,
+            _dir.Path, TestContext.Current.CancellationToken));
+        Assert.Empty(Directory.EnumerateDirectories(Path.Combine(_dir.Path, "drag")));
+        Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", _ops.Marks[zip]);
     }
 }

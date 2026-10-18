@@ -198,8 +198,6 @@ public partial class MainWindow : Window, IViewActions
         { if (_vm.EditSessionsActive) _vm.Notify($"Cannot review interrupted work: {ex.Message}", true); }
     }
 
-    private const int MaxDragItems = 5000;
-
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
         DragDrop.SetAllowDrop(view, true);
@@ -223,38 +221,51 @@ public partial class MainWindow : Window, IViewActions
             var tab = panel.ActiveTab;
             if (tab is null) return;
             var sel = tab.Listing.GetSelection();
-            if (sel.Count > MaxDragItems)
+            DragExport.Prepared? prepared;
+            string? refusal;
+            try
             {
-                // Other applications cannot take a huge list well, and building it would stall the UI.
-                ItemSources.Release(sel);
-                _vm.Notify($"Too many items to drag ({sel.Count:N0}). Copy or move them with F5 or F6 instead.");
+                async Task<IStorageItem?> Convert(string path, bool folder) => folder
+                    ? await StorageProvider.TryGetFolderFromPathAsync(path)
+                    : await StorageProvider.TryGetFileFromPathAsync(path);
+                (prepared, refusal) = await DragExport.PrepareAsync(sel, _vm.Services.Providers,
+                    _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, Convert, CancellationToken.None);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+            {
+                _vm.Notify("The complete selection could not be prepared for dragging: " + Formatters.SafeName(ex.Message), true);
                 return;
             }
-            var paths = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList();
-            if (paths.Count == 0)
+            finally
             {
-                // Archive members and files in disk images are copied into a private folder first (plan §4.2); the rest is
-                // explained. Staging is capped so it finishes while the button is still down.
-                var (staged, refusal) = await Task.Run(() => Core.Operations.DragStaging.Stage(sel, _vm.Services.Providers,
-                    _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, CancellationToken.None));
                 ItemSources.Release(sel);
+            }
+            if (prepared is null)
+            {
                 if (refusal is not null) _vm.Notify(refusal, true);
-                if (staged is null) return;
-                paths = [.. staged];
+                return;
             }
-            else
+            using (prepared)
             {
-                ItemSources.Release(sel);
+                if (!ReferenceEquals(panel.ActiveTab, tab) || tab.Listing.IsDisposed)
+                {
+                    _vm.Notify("The source tab changed before dragging began. Select the complete scope again.");
+                    return;
+                }
+                try
+                {
+                    var transfer = new DataTransfer();
+                    foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
+                    var effect = await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
+                    if (effect != DragDropEffects.None) prepared.Handoff();
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+                {
+                    _vm.Notify("Dragging could not start: " + Formatters.SafeName(ex.Message), true);
+                }
             }
-            var transfer = new DataTransfer();
-            foreach (var p in paths)
-            {
-                Avalonia.Platform.Storage.IStorageItem? item = Directory.Exists(p)
-                    ? await StorageProvider.TryGetFolderFromPathAsync(p)
-                    : await StorageProvider.TryGetFileFromPathAsync(p);
-                if (item is not null) transfer.Add(DataTransferItem.CreateFile(item));
-            }
-            await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
         };
     }
 

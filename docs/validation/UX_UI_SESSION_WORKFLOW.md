@@ -28,22 +28,32 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-071**. Follow
+After resolving any outstanding validation failure, resume **FCUX-075**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-071 — remaining drag-export branch | Preflight and account for the complete captured selection; never begin a silently incomplete mixed-provider drag. Clipboard publication is already corrected. |
-| 2 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
-| 3 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
+| 1 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
+| 2 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
 
 Then continue FCUX-016, FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-071 implementation record
+
+Clipboard and drag now account for every captured item before publication.
+The drag path refuses mixed local/provider scopes as a whole, stages eligible
+archive-only files within the existing item/byte limits, and validates each
+storage identity before beginning a native transfer. Refusal, cancellation,
+source-tab change and conversion errors retire unhanded staging. Tests use
+actual local and ZIP content, hidden marks, origin marks, conversion failures,
+unexpected provider errors and scope limits. Native interapplication drag and
+clipboard acceptance remain open.
 
 ### FCUX-014 implementation record
 

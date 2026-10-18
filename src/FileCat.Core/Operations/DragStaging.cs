@@ -87,6 +87,11 @@ public static class DragStaging
             Remove(folder);
             throw;
         }
+        catch
+        {
+            Remove(folder);
+            throw;
+        }
     }
 
     /// <summary>Removes staged folders older than <paramref name="age"/> (at startup: other programs have long taken them).</summary>
@@ -102,6 +107,26 @@ public static class DragStaging
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+    }
+
+    /// <summary>Discard one unhanded staged drag. Only a direct child of this private staging root may be removed.</summary>
+    public static void Discard(IReadOnlyList<string> paths, string tempRoot)
+    {
+        if (paths.Count == 0) return;
+        string root = PathUtil.NormalizeForCompare(Path.Combine(tempRoot, Folder));
+        string? directory;
+        try { directory = Path.GetDirectoryName(Path.GetFullPath(paths[0])); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return; }
+        if (directory is null ||
+            !string.Equals(Path.GetDirectoryName(directory), root, PathUtil.SafetyComparison)) return;
+        foreach (string path in paths)
+        {
+            string? parent;
+            try { parent = Path.GetDirectoryName(Path.GetFullPath(path)); }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return; }
+            if (!string.Equals(parent, directory, PathUtil.SafetyComparison)) return;
+        }
+        if (Directory.Exists(directory)) Remove(directory);
     }
 
     private static (IReadOnlyList<string>?, string?) Fail(string folder, string reason)
