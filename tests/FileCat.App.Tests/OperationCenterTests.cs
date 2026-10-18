@@ -1,14 +1,123 @@
+using System.Collections.Specialized;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
 /// <summary>The operations panel's count of finished jobs and "Clear finished" agree (CI run 36931084621).</summary>
 public sealed class OperationCenterTests
 {
+    [AvaloniaFact]
+    public async Task Selected_issue_list_appends_two_live_outcomes_without_reselection_or_reset()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string source = Directory.CreateDirectory(Path.Combine(root, "report-source")).FullName;
+            string target = Directory.CreateDirectory(Path.Combine(root, "report-target")).FullName;
+            foreach (string name in new[] { "one.txt", "two.txt" })
+            {
+                File.WriteAllText(Path.Combine(source, name), "new " + name);
+                File.WriteAllText(Path.Combine(target, name), "old " + name);
+            }
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(Path.Combine(source, "one.txt"), EntryKind.File),
+                    ItemRef.ForFileSystemPath(Path.Combine(source, "two.txt"), EntryKind.File)],
+                Destination = Location.FileSystem(target),
+            });
+            await Until(() => job.State == JobState.AwaitingDecision && center.Jobs.Count == 1);
+            center.Selected = center.Jobs[0];
+            var selected = center.Selected;
+            window.UpdateLayout();
+            var issueList = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(list => ReferenceEquals(list.ItemsSource, center.SelectedIssues));
+            Assert.Empty(center.SelectedIssues);
+
+            job.Decision!.Resolve(new Decision(DecisionAction.Skip));
+            await Until(() => job.IssueCount == 1 && job.State == JobState.AwaitingDecision && center.SelectedIssues.Count == 1);
+            var first = center.SelectedIssues[0];
+            issueList.SelectedItem = first;
+            var changes = new List<NotifyCollectionChangedAction>();
+            center.SelectedIssues.CollectionChanged += (_, e) => changes.Add(e.Action);
+            for (int i = 0; i < 20; i++) center.Refresh(job); // progress refreshes do not rebuild the report
+            Assert.Empty(changes);
+
+            job.Decision!.Resolve(new Decision(DecisionAction.Skip));
+            await Until(() => job.State.IsFinished() && center.SelectedIssues.Count == 2);
+            Assert.Equal(job.IssueCount, center.SelectedIssues.Count);
+            Assert.Same(selected, center.Selected);
+            Assert.Same(center.SelectedIssues, issueList.ItemsSource);
+            Assert.Same(first, issueList.SelectedItem);
+            Assert.Equal([NotifyCollectionChangedAction.Add], changes);
+            center.IsOpen = false;
+            center.IsOpen = true;
+            Assert.Equal(2, center.SelectedIssues.Count);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Opening_a_completed_large_report_loads_bounded_batches_until_counts_match()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string source = Directory.CreateDirectory(Path.Combine(root, "many-source")).FullName;
+            string target = Directory.CreateDirectory(Path.Combine(root, "many-target")).FullName;
+            var items = new List<ItemRef>();
+            for (int i = 0; i < 270; i++)
+            {
+                string name = $"item-{i:D3}.txt";
+                File.WriteAllText(Path.Combine(source, name), "new");
+                File.WriteAllText(Path.Combine(target, name), "old");
+                items.Add(ItemRef.ForFileSystemPath(Path.Combine(source, name), EntryKind.File));
+            }
+            var center = vm.Operations;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = items,
+                Destination = Location.FileSystem(target),
+                Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
+            });
+            await Until(() => job.State.IsFinished() && center.Jobs.Count == 1);
+            Assert.Equal(270, job.IssueCount);
+            center.IsOpen = true; // selects the row and reads only the first bounded slice synchronously
+            Assert.Equal(256, center.SelectedIssues.Count);
+            window.UpdateLayout();
+            var issueList = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(list => ReferenceEquals(list.ItemsSource, center.SelectedIssues));
+            var scroll = issueList.GetVisualDescendants().OfType<ScrollViewer>().First();
+            scroll.Offset = new Avalonia.Vector(0, 500);
+            window.UpdateLayout();
+            double scrollBefore = scroll.Offset.Y;
+            Assert.True(scrollBefore > 0);
+            await Until(() => center.SelectedIssues.Count == job.IssueCount);
+            window.UpdateLayout();
+            Assert.Equal(scrollBefore, scroll.Offset.Y, 1);
+            Assert.Equal("item-000.txt", Path.GetFileName(center.SelectedIssues[0].Path));
+            Assert.Equal("item-269.txt", Path.GetFileName(center.SelectedIssues[^1].Path));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static async Task Until(Func<bool> condition)
+    {
+        for (int i = 0; i < 250 && !condition(); i++)
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        Assert.True(condition());
+    }
+
     /// <summary>
     /// A job ends on its own thread; its row learns of it from a refresh queued on the window's thread. In between, the
     /// summary already counted the job as finished (it reads the job's state), so "Clear finished" was offered, and

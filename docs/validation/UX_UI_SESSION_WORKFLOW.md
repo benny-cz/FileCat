@@ -28,20 +28,30 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-015**. Follow
+After resolving any outstanding validation failure, resume **FCUX-016**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
+| 1 | FCUX-016 — operation status wording | Distinguish requested Pause from effective Paused state and keep canceled/failed work from claiming 100% completion. |
 
-Then continue FCUX-016, FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
+Then continue FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-015 implementation record
+
+The selected operation now binds one observable issue list. Newly retained
+issues append in bounded slices, while ordinary progress refreshes check only
+the count and do not reset the report. Job change dispatches coalesce. The
+actual drawer list updates twice after selection without changing jobs, keeps
+its selected issue, and retains scroll position as a 270-issue report completes
+its second batch. Final counts reconcile on completion and reopen. Native
+rendering and assistive-technology acceptance remain open.
 
 ### FCUX-075 implementation record
 

@@ -152,6 +152,18 @@ public sealed partial class Job
         }
     }
 
+    /// <summary>A bounded, thread-safe slice for a live report; progress ticks never copy the whole retained list.</summary>
+    public IReadOnlyList<JobIssue> ReadIssues(int start, int maximum)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximum);
+        lock (_lock)
+        {
+            if (start >= _issues.Count) return [];
+            return _issues.GetRange(start, Math.Min(maximum, _issues.Count - start));
+        }
+    }
+
     /// <summary>Positions in <see cref="JobRequest.Sources"/> of roots whose whole operation committed.</summary>
     public IReadOnlyList<int> CompletedRootIndices
     {

@@ -282,8 +282,13 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
 /// <summary>User-facing operation history and control (plan §19.2): not a dump of technical logs.</summary>
 public sealed partial class OperationCenterViewModel : ObservableObject
 {
+    private const int IssueBatchSize = 256;
     private readonly Dictionary<Job, JobViewModel> _map = new();
     private readonly DispatcherTimer _timer;
+    private readonly object _changedLock = new();
+    private readonly HashSet<Job> _pendingChanges = [];
+    private Job? _selectedIssueJob;
+    private bool _issueRefreshQueued;
 
     private readonly Func<Location, string>? _display;
 
@@ -298,11 +303,18 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             RetireRow(job);
             UpdateSummary();
         });
-        manager.JobChanged += job => Dispatcher.UIThread.Post(() =>
+        manager.JobChanged += job =>
         {
-            if (_map.TryGetValue(job, out var vm)) vm.Refresh();
-            UpdateSummary();
-        });
+            lock (_changedLock)
+                if (!_pendingChanges.Add(job)) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                lock (_changedLock) _pendingChanges.Remove(job);
+                if (_map.TryGetValue(job, out var vm)) vm.Refresh();
+                if (ReferenceEquals(Selected?.Job, job)) QueueIssueRefresh();
+                UpdateSummary();
+            });
+        };
     }
 
     public JobManager Manager { get; }
@@ -321,20 +333,53 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     [ObservableProperty] private TaskbarProgressState _taskbarState;
     [ObservableProperty] private double _taskbarFraction;
 
-    public IReadOnlyList<JobIssue> SelectedIssues => Selected?.Job.Issues ?? [];
+    /// <summary>Stable item source: new issues append without resetting issue selection or scroll.</summary>
+    public ObservableCollection<JobIssue> SelectedIssues { get; } = [];
 
-    partial void OnSelectedChanged(JobViewModel? value) => OnPropertyChanged(nameof(SelectedIssues));
+    partial void OnSelectedChanged(JobViewModel? value)
+    {
+        _selectedIssueJob = value?.Job;
+        SelectedIssues.Clear();
+        ReconcileSelectedIssues();
+    }
 
     /// <summary>Opened, the details show the operation that matters now rather than an empty half (release issue I30).</summary>
     partial void OnIsOpenChanged(bool value)
     {
         if (value && Selected is null) Selected = Primary ?? Jobs.FirstOrDefault();
+        else if (value) ReconcileSelectedIssues();
+    }
+
+    private void QueueIssueRefresh()
+    {
+        if (Selected is not { } selected || _issueRefreshQueued || selected.Job.IssueCount == SelectedIssues.Count) return;
+        _issueRefreshQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _issueRefreshQueued = false;
+            ReconcileSelectedIssues();
+        }, DispatcherPriority.Background);
+    }
+
+    private void ReconcileSelectedIssues()
+    {
+        var job = Selected?.Job;
+        if (!ReferenceEquals(job, _selectedIssueJob))
+        {
+            _selectedIssueJob = job;
+            SelectedIssues.Clear();
+        }
+        if (job is null) return;
+        var next = job.ReadIssues(SelectedIssues.Count, IssueBatchSize);
+        foreach (var issue in next) SelectedIssues.Add(issue);
+        if (SelectedIssues.Count < job.IssueCount) QueueIssueRefresh();
     }
 
     /// <summary>Shows a job's row as the job is now (a finished verification let go of its results: its Results button goes).</summary>
     public void Refresh(Job job)
     {
         if (_map.TryGetValue(job, out var vm)) vm.Refresh();
+        if (ReferenceEquals(Selected?.Job, job)) QueueIssueRefresh();
     }
 
     private void Add(JobViewModel vm)
@@ -365,6 +410,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
                 any |= !vm.IsFinished;
             }
         }
+        if (Selected is not null) QueueIssueRefresh();
         UpdateSummary();
         if (!any) _timer.Stop();
     }
