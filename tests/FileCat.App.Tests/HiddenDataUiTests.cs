@@ -27,8 +27,10 @@ public sealed class HiddenDataUiTests
 
     private static async Task Click(Window window, string text)
     {
-        await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == text && b.IsEffectivelyEnabled), $"a {text} button");
-        window.GetVisualDescendants().OfType<Button>().First(b => b.Content as string == text && b.IsEffectivelyEnabled).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var overlay = window.FindControl<Panel>("OverlayHost")!;
+        await Until(() => overlay.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == text && b.IsEffectivelyEnabled), $"a {text} button");
+        overlay.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text && b.IsEffectivelyEnabled)
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 
     [AvaloniaFact]

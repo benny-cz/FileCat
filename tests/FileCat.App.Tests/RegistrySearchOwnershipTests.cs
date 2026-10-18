@@ -106,7 +106,8 @@ public sealed class RegistrySearchOwnershipTests
     private static Dictionary<string, ResultSet> Registered(ResultSetProvider provider) =>
         ((ConcurrentDictionary<string, ResultSet>)typeof(ResultSetProvider).GetField("_sets", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(provider)!).ToDictionary();
-    private static Button Button(Window main, string title) => main.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == title);
+    private static Button Button(Window main, string title) => main.FindControl<Panel>("OverlayHost")!
+        .GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == title);
     private static void Click(Window main, string title) => Button(main, title).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
     private static async Task Wait(Func<bool> done)
     {

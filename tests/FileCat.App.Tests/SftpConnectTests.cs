@@ -21,9 +21,11 @@ public sealed class SftpConnectTests
     private static async Task Click(Window window, string text)
     {
         var ct = TestContext.Current.CancellationToken;
-        for (int i = 0; i < 250 && !window.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == text && b.IsEffectivelyEnabled); i++)
+        var overlay = window.FindControl<Panel>("OverlayHost")!;
+        for (int i = 0; i < 250 && !overlay.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == text && b.IsEffectivelyEnabled); i++)
             await Task.Delay(20, ct);
-        window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        overlay.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text && b.IsEffectivelyEnabled)
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 
     private static async Task WaitAsync(Func<bool> condition, int attempts = 250)

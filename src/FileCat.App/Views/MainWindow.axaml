@@ -103,9 +103,9 @@
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Button x:Name="RestoreWorkspaceNotificationButton" Content="Restore previous workspace"
                   IsVisible="{Binding NotificationRestoreWorkspace}" Click="OnNotificationRestoreWorkspaceClicked" />
-          <Button x:Name="NotificationCopyButton" Content="Copy" Click="OnNotificationCopyClicked" AutomationProperties.Name="Copy notification" />
+          <Button x:Name="NotificationCopyButton" Content="Copy text" Click="OnNotificationCopyClicked" AutomationProperties.Name="Copy notification" />
           <Button x:Name="NotificationHistoryButton" Content="History" Click="OnNotificationHistoryClicked" AutomationProperties.Name="Recent notifications" />
-          <Button x:Name="NotificationCloseButton" Content="Close" Click="OnNotificationCloseClicked" AutomationProperties.Name="Dismiss notification" />
+          <Button x:Name="NotificationCloseButton" Content="Dismiss" Click="OnNotificationCloseClicked" AutomationProperties.Name="Dismiss notification" />
         </StackPanel>
       </StackPanel>
     </Border>
