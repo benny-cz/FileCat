@@ -98,9 +98,38 @@ public sealed partial class MainViewModel : ObservableObject
     private IViewActions _view = null!;
 
     [ObservableProperty] private string _commandLineText = string.Empty;
-    [ObservableProperty] private string? _notification;
-    [ObservableProperty] private bool _notificationIsError;
-    [ObservableProperty] private bool _notificationRestoreWorkspace;
+    private const int MaxRecentNotifications = 100;
+    private static readonly TimeSpan RepeatWindow = TimeSpan.FromSeconds(30);
+    private readonly List<UserNotification> _recentNotifications = [];
+    private long _nextNotificationId;
+    private UserNotification? _currentNotification;
+
+    public UserNotification? CurrentNotification
+    {
+        get => _currentNotification;
+        private set
+        {
+            var previous = _currentNotification;
+            if (!SetProperty(ref _currentNotification, value)) return;
+            if (!string.Equals(previous?.Message, value?.Message, StringComparison.Ordinal))
+                OnPropertyChanged(nameof(Notification));
+            if (previous?.IsError != value?.IsError)
+            {
+                OnPropertyChanged(nameof(NotificationIsError));
+                OnPropertyChanged(nameof(NotificationIsInfo));
+            }
+            if (previous?.ActionCommandId != value?.ActionCommandId)
+                OnPropertyChanged(nameof(NotificationRestoreWorkspace));
+            OnPropertyChanged(nameof(NotificationRepeatText));
+        }
+    }
+
+    public string? Notification => CurrentNotification?.Message;
+    public bool NotificationIsError => CurrentNotification?.IsError == true;
+    public bool NotificationIsInfo => CurrentNotification is { IsError: false };
+    public bool NotificationRestoreWorkspace => CurrentNotification?.ActionCommandId == CommandIds.RestorePreviousWorkspace;
+    public string? NotificationRepeatText => CurrentNotification is { Occurrences: > 1 } current ? current.OccurrenceLabel : null;
+    public IReadOnlyList<UserNotification> RecentNotifications => _recentNotifications.ToArray();
     [ObservableProperty] private bool _showKeyBar = true;
     [ObservableProperty] private bool _showCommandLine = true;
     [ObservableProperty] private bool _showToolbar = true;
@@ -157,8 +186,20 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    public void Notify(string message, bool isError = false)
+    public void Notify(string message, bool isError = false, string? actionCommandId = null)
     {
+        var now = DateTimeOffset.UtcNow;
+        int previous = _recentNotifications.FindLastIndex(item => item.Message == message && item.IsError == isError &&
+            item.ActionCommandId == actionCommandId && now - item.LastAt <= RepeatWindow);
+        UserNotification current;
+        if (previous >= 0)
+        {
+            current = _recentNotifications[previous] with { LastAt = now, Occurrences = _recentNotifications[previous].Occurrences + 1 };
+            _recentNotifications.RemoveAt(previous);
+        }
+        else current = new UserNotification(++_nextNotificationId, message, isError, actionCommandId, now, now);
+        _recentNotifications.Add(current);
+        if (_recentNotifications.Count > MaxRecentNotifications) _recentNotifications.RemoveAt(0);
         if (Scope?.View is { } scoped)
         {
             // A command in a Find window reports there.
@@ -166,16 +207,13 @@ public sealed partial class MainViewModel : ObservableObject
             if (isError) AppLog.Warn("User notification: " + message);
             return;
         }
-        Notification = message;
-        NotificationIsError = isError;
-        NotificationRestoreWorkspace = false;
+        CurrentNotification = current;
         if (isError) AppLog.Warn("User notification: " + message);
     }
 
-    public void ClearNotification()
+    public void ClearNotification(long? expectedId = null)
     {
-        Notification = null;
-        NotificationRestoreWorkspace = false;
+        if (expectedId is null || CurrentNotification?.Id == expectedId) CurrentNotification = null;
     }
 
     /// <summary>

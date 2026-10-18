@@ -221,8 +221,8 @@ public sealed partial class MainViewModel
         }
         SetPreviousWorkspace(previous);
         AppLog.Info("Opened a named workspace");
-        Notify($"Workspace \"{name}\" opened. Restore the previous panels, tabs, layout and targets with Restore previous workspace.");
-        NotificationRestoreWorkspace = true;
+        Notify($"Workspace \"{name}\" opened. Restore the previous panels, tabs, layout and targets with Restore previous workspace.",
+            actionCommandId: CommandIds.RestorePreviousWorkspace);
         View.FocusActivePanel();
     }
 
@@ -248,8 +248,8 @@ public sealed partial class MainViewModel
             return;
         }
         SetPreviousWorkspace(current);
-        Notify("Previous workspace restored. The workspace you left can be restored again.");
-        NotificationRestoreWorkspace = true;
+        Notify("Previous workspace restored. The workspace you left can be restored again.",
+            actionCommandId: CommandIds.RestorePreviousWorkspace);
         View.FocusActivePanel();
     }
 

@@ -44,12 +44,13 @@ public partial class MainWindow : Window, IViewActions
         AddHandler(KeyDownEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
-        _notificationTimer.Tick += (_, _) =>
-        {
-            _notificationTimer.Stop();
-            vm.ClearNotification();
-        };
+        _notificationTimer.Tick += (_, _) => TryExpireNotification();
         vm.PropertyChanged += OnViewModelPropertyChanged;
+        if (vm.CurrentNotification is { IsError: false })
+        {
+            _notificationTimer.Interval = TimeSpan.FromSeconds(6);
+            _notificationTimer.Start();
+        }
         vm.Workspace.LayoutChanged += RebuildPanels;
         vm.Workspace.Panels.CollectionChanged += (_, _) => RebuildPanels();
         vm.Workspace.PropertyChanged += (_, e) =>
@@ -313,19 +314,54 @@ public partial class MainWindow : Window, IViewActions
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.Notification) && _vm.Notification is not null)
+        if (e.PropertyName == nameof(MainViewModel.CurrentNotification))
         {
             _notificationTimer.Stop();
-            _notificationTimer.Interval = TimeSpan.FromSeconds(_vm.NotificationIsError ? 12 : 6);
-            _notificationTimer.Start();
+            if (_vm.CurrentNotification is { IsError: false })
+            {
+                _notificationTimer.Interval = TimeSpan.FromSeconds(6);
+                _notificationTimer.Start();
+            }
         }
     }
 
-    private void OnNotificationPressed(object? sender, PointerPressedEventArgs e)
+    internal bool NotificationTimerEnabled => _notificationTimer.IsEnabled;
+    internal TimeSpan NotificationTimerInterval => _notificationTimer.Interval;
+
+    internal void TryExpireNotification(DateTimeOffset? now = null)
     {
-        if (e.Source is Button || e.Source is Visual visual && visual.GetVisualAncestors().OfType<Button>().Any()) return;
-        _vm.ClearNotification();
+        _notificationTimer.Stop();
+        if (_vm.CurrentNotification is not { IsError: false } current) return;
+        if (NotificationBorder.IsPointerOver || NotificationBorder.IsKeyboardFocusWithin || _dialogs.IsOpen)
+        {
+            _notificationTimer.Interval = TimeSpan.FromSeconds(6);
+            _notificationTimer.Start();
+            return;
+        }
+        var remaining = current.LastAt.AddSeconds(6) - (now ?? DateTimeOffset.UtcNow);
+        if (remaining > TimeSpan.Zero)
+        {
+            _notificationTimer.Interval = remaining;
+            _notificationTimer.Start();
+            return;
+        }
+        _vm.ClearNotification(current.Id);
     }
+
+    private void OnNotificationCloseClicked(object? sender, RoutedEventArgs e) => _vm.ClearNotification();
+
+    private async void OnNotificationCopyClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.Notification is not { } message || Clipboard is not { } clipboard) return;
+        try { await clipboard.SetTextAsync(message); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _vm.Notify("The notification could not be copied: " + ex.Message, true);
+        }
+    }
+
+    private void OnNotificationHistoryClicked(object? sender, RoutedEventArgs e) =>
+        _vm.Execute(CommandIds.RecentNotifications);
 
     private void OnNotificationRestoreWorkspaceClicked(object? sender, RoutedEventArgs e) =>
         _vm.Execute(CommandIds.RestorePreviousWorkspace);
@@ -550,7 +586,6 @@ public partial class MainWindow : Window, IViewActions
         // With Alt held, after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
         AltChords.Handle(this, e);
         _suppressTextInput = true;
-        _vm.ClearNotification();
         _vm.Execute(id);
     }
 
@@ -616,12 +651,12 @@ public partial class MainWindow : Window, IViewActions
 
     private bool HandleEscape(TabViewModel? tab)
     {
-        if (tab is null) return false;
         if (_vm.Notification is not null)
         {
             _vm.ClearNotification();
             return true;
         }
+        if (tab is null) return false;
         if (tab.CancelAnalysis()) return true;
         if (_vm.CancelSizing(tab)) return true;
         if (tab.CancelPendingNavigation()) return true;

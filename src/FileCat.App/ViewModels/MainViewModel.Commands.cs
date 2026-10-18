@@ -445,6 +445,9 @@ public sealed partial class MainViewModel
                 // The search box in the menu bar; the same search in a dialog where there is no box.
                 if (!View.FocusCommandSearch()) await ShowPaletteAsync();
                 break;
+            case CommandIds.RecentNotifications:
+                await ShowRecentNotificationsAsync();
+                break;
             case CommandIds.Help:
                 await ShowKeyboardReferenceAsync();
                 break;

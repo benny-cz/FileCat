@@ -28,19 +28,34 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-029**. Follow
+After resolving any outstanding validation failure, resume **FCUX-030**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-029 — notification review | Give each notification coherent severity, accessible review and deliberate dismissal. |
+| 1 | FCUX-030 — measured panel layout | Base panel admission and cramped-state feedback on the actual workspace viewport. |
 
-Then continue FCUX-030 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-031 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-029 implementation record
+
+Main-window notifications now publish text, severity, action and repeat count
+as one state. Notices get six seconds; errors stay until explicitly dismissed.
+The timer defers while a user hovers or focuses the banner. Identical messages
+within thirty seconds share a history row and visible occurrence count without
+changing live message text. The banner offers Copy, History and Close controls;
+its selectable text no longer dismisses on click. Polite and assertive live
+regions carry notices and errors. Tools and command search open a selectable,
+bounded recent history even after a notification disappears. Escape still
+dismisses first; ordinary commands keep the current message. Headless tests
+cover severity transitions, repeats, focus/hover, copy, history, command
+continuity and the 100-row bound. Native screen-reader, clipboard and scaled
+layout acceptance remain open.
 
 ### FCUX-028 implementation record
 

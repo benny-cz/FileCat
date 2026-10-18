@@ -181,6 +181,7 @@ public static class CommandIds
 
     public const string Palette = "app.palette";
     public const string Operations = "app.operations";
+    public const string RecentNotifications = "app.recentNotifications";
     public const string UserMenu = "app.userMenu";
     public const string Menu = "app.menu";
     public const string Settings = "app.settings";
@@ -411,6 +412,7 @@ public sealed class CommandRegistry
 
         Add(CommandIds.Palette, "Search commands…", A, null, CommandContext.Global, "Ctrl+Shift+P");
         Add(CommandIds.Operations, "Operations", A, null, CommandContext.Global, "Ctrl+J");
+        Add(CommandIds.RecentNotifications, "Recent notifications…", A, null, CommandContext.Global);
         Add(CommandIds.UserMenu, "User commands…", A, "User", CommandContext.Panel, "F9");
         Add(CommandIds.Menu, "Menu bar", A, "Menu", CommandContext.Global, "F10");
         Add(CommandIds.Settings, "Settings…", A, null, CommandContext.Global, "Ctrl+Comma");

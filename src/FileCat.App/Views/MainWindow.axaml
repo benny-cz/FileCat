@@ -86,12 +86,27 @@
 
     <Border x:Name="NotificationBorder" Grid.Row="1" Classes="notification" Classes.error="{Binding NotificationIsError}"
             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,22" MaxWidth="900"
-            IsVisible="{Binding Notification, Converter={x:Static ObjectConverters.IsNotNull}}"
-            PointerPressed="OnNotificationPressed">
+            IsVisible="{Binding Notification, Converter={x:Static ObjectConverters.IsNotNull}}">
       <StackPanel Spacing="6">
-        <TextBlock Text="{Binding Notification}" TextWrapping="Wrap" />
-        <Button x:Name="RestoreWorkspaceNotificationButton" Content="Restore previous workspace" HorizontalAlignment="Left"
-                IsVisible="{Binding NotificationRestoreWorkspace}" Click="OnNotificationRestoreWorkspaceClicked" />
+        <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <Grid>
+            <SelectableTextBlock x:Name="NotificationInfoText" Text="{Binding Notification}" TextWrapping="Wrap"
+                                 IsVisible="{Binding NotificationIsInfo}" IsTabStop="False"
+                                 AutomationProperties.LiveSetting="Polite" />
+            <SelectableTextBlock x:Name="NotificationErrorText" Text="{Binding Notification}" TextWrapping="Wrap"
+                                 IsVisible="{Binding NotificationIsError}" IsTabStop="False"
+                                 AutomationProperties.LiveSetting="Assertive" />
+          </Grid>
+        </ScrollViewer>
+        <TextBlock Classes="small" Text="{Binding NotificationRepeatText}"
+                   IsVisible="{Binding NotificationRepeatText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="RestoreWorkspaceNotificationButton" Content="Restore previous workspace"
+                  IsVisible="{Binding NotificationRestoreWorkspace}" Click="OnNotificationRestoreWorkspaceClicked" />
+          <Button x:Name="NotificationCopyButton" Content="Copy" Click="OnNotificationCopyClicked" AutomationProperties.Name="Copy notification" />
+          <Button x:Name="NotificationHistoryButton" Content="History" Click="OnNotificationHistoryClicked" AutomationProperties.Name="Recent notifications" />
+          <Button x:Name="NotificationCloseButton" Content="Close" Click="OnNotificationCloseClicked" AutomationProperties.Name="Dismiss notification" />
+        </StackPanel>
       </StackPanel>
     </Border>
 

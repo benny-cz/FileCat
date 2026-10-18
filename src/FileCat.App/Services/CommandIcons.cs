@@ -206,6 +206,7 @@ public static class CommandIcons
         // Tools
         [CommandIds.FindDeleted] = [new(Trash, "TextMuted"), new("M8,12.5 L8,7 M6,9 L8,7 L10,9", "Success")],
         [CommandIds.Operations] = [new("M1.5,3.5 L14.5,3.5 M1.5,8 L14.5,8 M1.5,12.5 L14.5,12.5", "TextMuted"), new("M1.5,3.5 L10,3.5 M1.5,8 L5.5,8", "Progress")],
+        [CommandIds.RecentNotifications] = [new("M3,11.5 L4.5,9.5 L4.5,6.5 C4.5,4.4 5.8,3 8,3 C10.2,3 11.5,4.4 11.5,6.5 L11.5,9.5 L13,11.5 Z M6.5,13 L9.5,13", "TextMuted")],
         [CommandIds.Palette] = [new(Magnifier, "TextMuted"), new("M4.5,5 L6.5,6.5 L4.5,8", "ActiveAccent")],
         [CommandIds.Settings] = [new("M8,5 C9.7,5 11,6.3 11,8 C11,9.7 9.7,11 8,11 C6.3,11 5,9.7 5,8 C5,6.3 6.3,5 8,5 Z"),
             new("M8,1.5 L8,3.5 M8,12.5 L8,14.5 M1.5,8 L3.5,8 M12.5,8 L14.5,8 M3.4,3.4 L4.8,4.8 M11.2,11.2 L12.6,12.6 M3.4,12.6 L4.8,11.2 M11.2,4.8 L12.6,3.4", "ActiveAccent")],
