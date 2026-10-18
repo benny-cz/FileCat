@@ -59,7 +59,13 @@ and 54 related App cases. Native animation, contrast and reduced-motion checks
 remain open. FCUX-051 adds Windows, macOS and GNOME preference probes,
 three-second active-theme refresh, and accurate unsupported-desktop wording.
 Thirty-two related theme and Settings App cases pass; native cross-platform
-preference acceptance remains open. FCUX-052 follows.
+preference acceptance remains open. FCUX-052 adds provider-aware Refresh/F5 for
+the viewer, preserves the old snapshot until a replacement is ready, and keeps
+the changed-file banner and error visible if reopening or Page loading fails.
+Its nine focused App cases and 326 related viewer cases pass, with 12 platform
+skips in the related set. Its complete App rerun is in progress. The complete App run through FCUX-055 passes 2,276 cases
+with 63 platform skips. Native provider and page-engine acceptance remain open.
+FCUX-053 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -96,6 +102,7 @@ still need a complete App run.
 | 23 | FCUX-050 — Psychedelic effect boundaries | The menu and work surfaces are opaque, decoration stays below content, focus/grid brushes stay fixed, and disabled animation freezes visual time. Three focused and 54 related App cases pass; native cycle/contrast/motion acceptance remains open. |
 | 24 | FCUX-051 — desktop motion preference | Windows, macOS and GNOME motion probes refresh while an animated theme is active; startup/reactivation wait for the first preference read. Thirty-two related App cases pass. Native platform toggles, fallback and screen-reader acceptance remain open. |
 | 25 | FCUX-055 — picture zoom state | Fit and 100% are separate controls; custom 50%, 125% and 200% display their percentage with neither mode checked. A small image keeps Fit and 100% distinct even when both render at the same scale. Twelve focused and 74 related App cases pass, with 12 platform skips. Native scale and assistive-technology acceptance remain open. This is a prerequisite for preserving zoom through FCUX-052 refresh. |
+| 26 | FCUX-052 — refresh changed viewer content | Refresh/F5 reopens the original provider item and stages new Text, Info, Picture or Page content before retiring the old source. Stale and failed refresh states remain visible; zoom, scroll and safe selections survive. Nine focused and 326 related App cases pass, with 12 platform skips in the related set. Native archive/remote/WebView2 and assistive-technology acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

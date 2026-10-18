@@ -2,7 +2,15 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-055 separates Fit, 100% and custom picture zoom states.
+**Current work:** FCUX-052 adds explicit viewer Refresh/F5 and a persistent
+changed-file banner. Refresh reopens the original provider item, prepares the
+replacement before retiring the old source, and keeps the old snapshot with a
+readable error if preparation or native Page loading fails. Text, Info, Picture
+and Page refresh regressions plus provider cancellation and source-lifetime
+cases pass in the focused nine-case selection. The related viewer suite passes
+326 cases with 12 platform skips. A complete App rerun is in progress; native archive, remote, page-engine,
+scaling and assistive-technology acceptance remain open. FCUX-053 follows.
+FCUX-055 separates Fit, 100% and custom picture zoom states.
 Twelve focused and 74 related App cases pass, with 12 platform skips in the
 related set. This supplies the zoom state needed for FCUX-052 snapshot refresh;
 native scaling and assistive-technology acceptance remain open. FCUX-051 reads
@@ -29,15 +37,16 @@ interrupted-review button bindings settled. That test passes in isolation; its
 accessibility assertion now waits for Loaded bindings and still fails if names
 remain empty. The 59-case related rerun passes. The complete App rerun through
 FCUX-049 passes with 2,254 passes, 63 skips and no failures. Subsequent
-FCUX-050/051/055 changes still need a complete rerun.
+FCUX-050/051/055 changes pass a complete App rerun with 2,276 passes, 63 skips
+and no failures. FCUX-052 still needs a complete rerun.
 UXBUG-008's
 240 related App and 111 related Core cases pass, and the full Core Release suite
 passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance
 and an exact Page-mode Find total remain open. UXBUG-007's
 72 related App cases and complete App Release suite pass (2,242 passed,
 63 skipped); native pointer/scaling acceptance remains open. UXBUG-005/006
-focused regressions and FCUX-047's complete App run also pass. FCUX-052 is the
-next audit finding after FCUX-051.
+focused regressions and FCUX-047's complete App run also pass. FCUX-053 is the
+next audit finding after FCUX-052.
 FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
@@ -197,6 +206,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-050 — Psychedelic effect boundaries | Use opaque Psychedelic menu, panel, card and functional bar colors. Keep movement in the backdrop behind content; remove the overlay that copied and shifted rendered text/picture slices. Focus, grid and border brushes no longer animate. Pause the effect clock with the theme animation preference or inactive app so repainting stays static. | `PsychedelicSurfaceTests` checks functional alpha and menu contrast, samples 13 moving backdrop phases, verifies decoration stays below content and the disabled clock freezes, and switches themes back to Psychedelic. Three focused and 54 related App cases pass. | Native full-cycle menu/icon contrast, transparent picture content, system reduced-motion, window scaling and assistive-technology acceptance remain open. |
 | FCUX-051 — desktop motion preference | Query Windows client-area animation, macOS accessibility reduced motion, and GNOME `enable-animations` through a bounded, absolute-path system tool. Probe while an animated theme is active and recheck on reactivation; hold motion still until the first read. The app checkbox off and inactive-window pause always win. Unsupported or failed providers leave the explicit app control authoritative. Settings and capability text state the supported desktops and correct Psychedelic effect description. | `MotionPreferenceTests` covers the policy matrix, GNOME desktop/value parsing, live preference transitions, the disabled/inactive clock and the Windows native API read. Thirty-two related theme and Settings App cases pass. | Native Windows/macOS/GNOME preference toggles, unavailable provider behavior, high contrast and assistive-technology acceptance remain open. The poll can lag a change by one interval plus its bounded provider read. |
 | FCUX-055 — picture zoom state | Separate Fit and 100% buttons with a visible zoom percentage. A custom 50%, 125% or 200% scale leaves both modes unselected. The 100% command returns to original-scale dimensions; Fit remains a distinct mode even when a small image happens to display at 100%. Keyboard Z retains the Fit/100% toggle. | `PictureViewerTests` exercises buttons, zoom text, custom levels and small-image equality; picture revision checks stay green. Twelve focused and 74 related App cases pass, with 12 platform skips in the related set. | Native pointer, scaling at 100/150/200%, decoder-cap labeling and assistive-technology acceptance remain open. |
+| FCUX-052 — refresh changed viewer content | Refresh/F5 reopens the exact provider item, stages new bytes and mode-specific decoding, then replaces Text, Info, Picture or Page in the same window. A persistent banner marks stale snapshots; failures retain the last valid view and show the reason. Picture zoom and approximate pan, text/Info scroll, and selections on an identical revision are preserved. Page waits for native load before committing; cancellation and late provider results retire their sources safely. | `ViewerRefreshTests` covers text, Info, Picture, Page, provider-only sources, failed reopen/load, selection and scroll, close during open, and close during metadata admission. `ViewerProviderAdmissionTests` verifies the original item/device worker and late-source disposal. Nine focused cases pass; related viewer suite passes 326 cases with 12 platform skips. | Native archive/remote reopen and capability behavior, WebView2 page-load rollback, scaling and assistive-technology acceptance remain open. Providers without revision evidence require explicit Refresh to detect a change. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

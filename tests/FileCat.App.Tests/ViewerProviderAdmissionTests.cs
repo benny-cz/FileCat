@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Button = Avalonia.Controls.Button;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FileCat.App.Services;
@@ -17,6 +18,67 @@ namespace FileCat.App.Tests;
 
 public sealed class ViewerProviderAdmissionTests(ITestOutputHelper output)
 {
+    [AvaloniaFact]
+    public async Task Refresh_reopens_the_same_provider_item_on_its_device_worker()
+    {
+        using var fixture = new Fixture("content");
+        fixture.Provider.Release.Set();
+        var before = ViewerWindow.OpenWindows.ToHashSet();
+        try
+        {
+            await fixture.Open().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            var viewer = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w));
+            await WaitFor(() => ((Button)typeof(ViewerWindow).GetField("_refresh", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(viewer)!).IsEnabled);
+            await viewer.RefreshAsync();
+            Assert.Equal(2, fixture.Provider.Calls.Count);
+            Assert.All(fixture.Provider.Calls, call =>
+            {
+                Assert.False(call.OnUiThread);
+                Assert.StartsWith("FileCat I/O ", call.ThreadName);
+            });
+            var sources = fixture.Provider.Sources.ToArray();
+            Assert.Equal(2, sources.Length);
+            Assert.Equal(1, sources[0].Disposals);
+            Assert.Equal(0, sources[1].Disposals);
+            viewer.Close();
+            await WaitFor(() => sources[1].Disposals == 1);
+        }
+        finally
+        {
+            foreach (var window in ViewerWindow.OpenWindows.Where(w => !before.Contains(w)).ToArray()) window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_during_a_provider_refresh_disposes_the_late_opened_source()
+    {
+        using var fixture = new Fixture("content");
+        fixture.Provider.Release.Set();
+        var before = ViewerWindow.OpenWindows.ToHashSet();
+        try
+        {
+            await fixture.Open().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            var viewer = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w));
+            await WaitFor(() => ((Button)typeof(ViewerWindow).GetField("_refresh", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(viewer)!).IsEnabled);
+            fixture.Provider.Release.Reset();
+            Task refreshing = viewer.RefreshAsync();
+            await WaitFor(() => fixture.Provider.Calls.Count == 2 && fixture.Provider.Sources.Count == 2);
+            var late = fixture.Provider.Sources.ToArray()[1];
+            viewer.Close();
+            await refreshing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Equal(0, late.Disposals);
+            fixture.Provider.Release.Set();
+            await WaitFor(() => late.Disposals == 1);
+        }
+        finally
+        {
+            fixture.Provider.Release.Set();
+            foreach (var window in ViewerWindow.OpenWindows.Where(w => !before.Contains(w)).ToArray()) window.Close();
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("content")]
     [InlineData("null")]

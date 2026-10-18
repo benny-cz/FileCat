@@ -81,16 +81,16 @@ public sealed class InfoRevisionStatusTests(ITestOutputHelper output)
             if (oldSnapshot)
             {
                 Assert.Contains("The file changed", infoStatus, StringComparison.Ordinal);
-                Assert.Contains("reopen", infoStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("Refresh (F5)", infoStatus, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("showing its current content", infoStatus, StringComparison.Ordinal);
                 Assert.Contains("The file changed", afterUpdateStatus, StringComparison.Ordinal);
-                Assert.Contains("reopen", afterUpdateStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("Refresh (F5)", afterUpdateStatus, StringComparison.OrdinalIgnoreCase);
                 if (mode == "visible") Assert.DoesNotContain("showing its current content", refreshStatus, StringComparison.Ordinal);
             }
             else
             {
-                Assert.DoesNotContain("reopen", infoStatus, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("reopen", afterUpdateStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Refresh (F5)", infoStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Refresh (F5)", afterUpdateStatus, StringComparison.OrdinalIgnoreCase);
             }
             if (changed)
             {

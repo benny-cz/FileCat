@@ -84,6 +84,24 @@ public sealed class PictureView : Border
         old?.Bitmap.Dispose();
     }
 
+    /// <summary>Keep Fit, or the numeric zoom and approximate pan center, when a refreshed picture replaces this one.</summary>
+    public void ReplacePreservingView(DecodedPicture picture)
+    {
+        if (Picture is null) { Show(picture); return; }
+        bool fit = _fit;
+        double zoom = Zoom;
+        var oldPixels = Picture.Bitmap.PixelSize;
+        double centerX = oldPixels.Width > 0 && _scale > 0 ? (Center.X - _offset.X) / (oldPixels.Width * _scale) : 0.5;
+        double centerY = oldPixels.Height > 0 && _scale > 0 ? (Center.Y - _offset.Y) / (oldPixels.Height * _scale) : 0.5;
+        Show(picture);
+        if (fit) return;
+        ZoomTo(zoom, Center);
+        _offset = new Point(Center.X - centerX * picture.Bitmap.PixelSize.Width * _scale,
+            Center.Y - centerY * picture.Bitmap.PixelSize.Height * _scale);
+        Clamp();
+        Changed();
+    }
+
     public void ShowMessage(string text)
     {
         _message.Text = text;

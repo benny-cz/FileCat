@@ -104,10 +104,10 @@ public sealed class PageRevisionStatusTests(ITestOutputHelper output)
                 if (oldSnapshot)
                 {
                     Assert.Contains("The file changed", status, StringComparison.Ordinal);
-                    Assert.Contains("reopen", status, StringComparison.OrdinalIgnoreCase);
+                    Assert.Contains("Refresh (F5)", status, StringComparison.OrdinalIgnoreCase);
                     Assert.DoesNotContain("showing its current content", status, StringComparison.Ordinal);
                 }
-                else Assert.DoesNotContain("reopen", status, StringComparison.OrdinalIgnoreCase);
+                else Assert.DoesNotContain("Refresh (F5)", status, StringComparison.OrdinalIgnoreCase);
             }
             if (changed)
             {

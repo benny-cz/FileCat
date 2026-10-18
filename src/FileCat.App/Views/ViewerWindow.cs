@@ -28,7 +28,8 @@ public sealed class ViewerWindow : Window
 {
     private readonly AppServices _services;
     private readonly string _deviceKey;
-    private readonly PagedReader _reader;
+    private PagedReader _reader;
+    private readonly Func<CancellationToken, Task<IContentSource?>>? _reopen;
     private readonly TextViewer _text = new();
     private readonly HexView _hex = new();
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
@@ -41,6 +42,12 @@ public sealed class ViewerWindow : Window
     private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly Button _stopCount = new() { Content = "Stop count", IsVisible = false };
+    private readonly Button _refresh = new() { Content = "Refresh" };
+    private readonly Border _staleBanner = new() { IsVisible = false, Padding = new Thickness(8, 4), Classes = { "banner" } };
+    private readonly TextBlock _staleText = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private string? _refreshFailure;
+    private bool _refreshing;
+    private CancellationTokenSource? _refreshCts;
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
@@ -117,6 +124,7 @@ public sealed class ViewerWindow : Window
     private Size _initialWindowSize;
     private Size _lastNormalWindowSize;
     private bool _windowOpened, _userSizedWindow;
+    private bool _readyForRefresh;
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
     public static IReadOnlyList<ViewerWindow> OpenWindows => s_open;
@@ -125,9 +133,10 @@ public sealed class ViewerWindow : Window
     public string DisplayName => _displayName;
 
     public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey = null)
-        : this(services, source, displayName, hex, deviceKey, null) { }
+        : this(services, source, displayName, hex, deviceKey, null, null) { }
 
-    internal ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey, PagedReader? preparedReader)
+    internal ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey,
+        PagedReader? preparedReader, Func<CancellationToken, Task<IContentSource?>>? reopen = null)
     {
         _services = services;
         _deviceKey = deviceKey ?? "viewer-content";
@@ -140,6 +149,9 @@ public sealed class ViewerWindow : Window
         _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
         Closed += (_, _) => s_open.Remove(this);
         _reader = preparedReader ?? new PagedReader(source, services.Io, _deviceKey);
+        _reopen = reopen ?? (source.LocalPath is { } localPath
+            ? ct => ViewerLauncher.ReopenSourceAsync(services, _deviceKey, () => new FileContentSource(localPath), ct)
+            : null);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
         Size usable = ViewerWorkingArea();
         Size restored = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, usable);
@@ -225,6 +237,11 @@ public sealed class ViewerWindow : Window
         ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
         _stopCount.Click += (_, _) => _countCts?.Cancel();
         toolbar.Children.Add(_stopCount);
+        ToolTip.SetTip(_refresh, _reopen is null ? "This source cannot be reopened from this viewer"
+            : "Reopen this source and refresh the current view (F5)");
+        Avalonia.Automation.AutomationProperties.SetName(_refresh, "Refresh viewer content");
+        _refresh.Click += async (_, _) => await RefreshAsync();
+        toolbar.Children.Add(_refresh);
         toolbar.Children.Add(goTo);
         UpdateMatchControls();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc). Other navigation remains available.");
@@ -267,6 +284,9 @@ public sealed class ViewerWindow : Window
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
+        _staleBanner.Child = _staleText;
+        DockPanel.SetDock(_staleBanner, Dock.Top);
+        root.Children.Add(_staleBanner);
         if (lostNotice is not null) root.Children.Add(lostNotice);
         root.Children.Add(statusBar);
         BuildChecksumPanel();
@@ -285,6 +305,12 @@ public sealed class ViewerWindow : Window
         _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
         _pageView.Failed += why =>
         {
+            if (_refreshing && _isPage)
+            {
+                _refreshFailure = why;
+                UpdateRefreshFeedback();
+                return;
+            }
             // Without an engine the page's source is what can be shown.
             _pageUnavailable = why;
             if (!_isPage) return;
@@ -343,10 +369,7 @@ public sealed class ViewerWindow : Window
         _info.ContentChanged += UpdateCopyActions;
         _hex.CursorMoved += UpdateCopyActions;
         // Damage found while reading (an archive member, part way) shows in the status line as soon as it is known.
-        _reader.PageLoaded += () =>
-        {
-            if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
-        };
+        _reader.PageLoaded += OnContentPageLoaded;
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         // The interval/callback constructor starts immediately. Poll only after initial encoding
         // detection has finished, so a refresh cannot race the reader's opening request.
@@ -359,11 +382,14 @@ public sealed class ViewerWindow : Window
             await DetectEncodingAsync(forceHexIfBinary: !hex);
             if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
             _changeTimer.Start();
+            _readyForRefresh = true;
+            UpdateRefreshFeedback();
             FocusContent();
         };
         Closed += (_, _) =>
         {
             _changeTimer.Stop();
+            _refreshCts?.Cancel();
             _searchCts?.Cancel();
             _countCts?.Cancel();
             _closing.Cancel();
@@ -384,6 +410,11 @@ public sealed class ViewerWindow : Window
         double width = screen.WorkingArea.Width / scale, height = screen.WorkingArea.Height / scale;
         return new Size(double.IsFinite(width) && width > 0 ? width : 3840,
             double.IsFinite(height) && height > 0 ? height : 2160);
+    }
+
+    private void OnContentPageLoaded()
+    {
+        if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
     }
 
     internal static Size RestoreViewerSize(double? width, double? height, Size usableArea)
@@ -517,12 +548,13 @@ public sealed class ViewerWindow : Window
 
     private async Task LoadPictureAsync()
     {
+        var reader = _reader;
         _pictureGeneration = _sourceGeneration;
         _picture.ShowMessage("Decoding the picture…");
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(_reader, _services.Io, _deviceKey, PictureSide, _closing.Token);
-            if (_closing.IsCancellationRequested)
+            var picture = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, _closing.Token);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(reader, _reader))
             {
                 picture.Bitmap.Dispose();
                 return;
@@ -533,11 +565,16 @@ public sealed class ViewerWindow : Window
         {
             return; // the window closed meanwhile
         }
+        catch (Exception) when (!ReferenceEquals(reader, _reader))
+        {
+            return; // a newer source owns the picture view
+        }
         catch (Exception ex) when (ex is InvalidDataException or IOException or TimeoutException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            _picture.ShowMessage($"This picture cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers.");
+            if (ReferenceEquals(reader, _reader))
+                _picture.ShowMessage($"This picture cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers.");
         }
-        UpdateStatus();
+        if (ReferenceEquals(reader, _reader)) UpdateStatus();
     }
 
     /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
@@ -600,6 +637,7 @@ public sealed class ViewerWindow : Window
             (Key.F, KeyModifiers.Control) or (Key.F7, KeyModifiers.None) => () => { _search.Focus(); _search.SelectAll(); },
             (Key.F3, KeyModifiers.None) => () => _ = FindAsync(forward: true),
             (Key.F3, KeyModifiers.Shift) => () => _ = FindAsync(forward: false),
+            (Key.F5, KeyModifiers.None) => () => _ = RefreshAsync(),
             (Key.I, KeyModifiers.Control) => () => _ = ShowInfoAsync(),
             (Key.K, KeyModifiers.Control) => ShowChecksum,
             _ => null,
@@ -665,6 +703,7 @@ public sealed class ViewerWindow : Window
 
     private async Task LoadInfoAsync()
     {
+        var reader = _reader;
         _infoGeneration = _sourceGeneration;
         ShowInfoText("Reading the file's structure…");
         try
@@ -672,7 +711,7 @@ public sealed class ViewerWindow : Window
             var text = await Task.Run(() =>
             {
                 string result = "";
-                _reader.WithSource(source =>
+                reader.WithSource(source =>
                 {
                     _closing.Token.ThrowIfCancellationRequested();
                     var report = FileCat.Core.Inspect.Inspectors.Inspect(new InspectionSource(source, _closing.Token), _closing.Token);
@@ -681,7 +720,7 @@ public sealed class ViewerWindow : Window
                 });
                 return result;
             }, _closing.Token);
-            if (_closing.IsCancellationRequested) return;
+            if (_closing.IsCancellationRequested || !ReferenceEquals(reader, _reader)) return;
             ShowInfoText(text);
         }
         catch (Exception) when (_closing.IsCancellationRequested)
@@ -691,9 +730,9 @@ public sealed class ViewerWindow : Window
         catch (Exception ex)
         {
             // Inspectors report damage as warnings; anything else is shown here rather than ending the application.
-            ShowInfoText("The file's structure could not be read: " + ex.Message);
+            if (ReferenceEquals(reader, _reader)) ShowInfoText("The file's structure could not be read: " + ex.Message);
         }
-        UpdateStatus();
+        if (ReferenceEquals(reader, _reader)) UpdateStatus();
     }
 
     // A borrowed inspector source observes close between calls, including an inspector's short-read loop.
@@ -795,6 +834,7 @@ public sealed class ViewerWindow : Window
 
     private void UpdateStatus()
     {
+        UpdateRefreshFeedback();
         if (_isPicture)
         {
             _status.Text = _picture.Picture is { } p
@@ -804,14 +844,14 @@ public sealed class ViewerWindow : Window
                   $" · {Formatters.ExactSize(_reader.Length)}"
                 : Formatters.ExactSize(_reader.Length);
             if (_pictureGeneration != _sourceGeneration)
-                _status.Text = "The file changed; reopen the viewer to refresh this picture. " + _status.Text;
+                _status.Text = "The file changed; Refresh (F5) to update this picture. " + _status.Text;
             return;
         }
         if (_isInfo)
         {
             _status.Text = $"The file's structure: {_infoLineCount.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
             if (_infoGeneration != _sourceGeneration)
-                _status.Text = "The file changed; reopen the viewer to refresh this structure report. " + _status.Text;
+                _status.Text = "The file changed; Refresh (F5) to update this structure report. " + _status.Text;
             return;
         }
         if (_isPage)
@@ -824,7 +864,7 @@ public sealed class ViewerWindow : Window
                            (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
                            $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
             if (_pageGeneration != _sourceGeneration)
-                _status.Text = "The file changed; reopen the viewer to refresh this page. " + _status.Text;
+                _status.Text = "The file changed; Refresh (F5) to update this page. " + _status.Text;
             else if (_pageSearchStatus is { } searchStatus)
                 _status.Text = searchStatus + " · " + _status.Text;
             return;
@@ -840,13 +880,14 @@ public sealed class ViewerWindow : Window
 
     private async Task CheckForChanges()
     {
-        if (_closing.IsCancellationRequested || _checkingChanges) return;
+        if (_closing.IsCancellationRequested || _checkingChanges || _refreshing) return;
         _checkingChanges = true;
+        var reader = _reader;
         try
         {
             bool changed = await _services.Io.Run(_deviceKey, IoPriority.Background,
-                ct => _reader.Refresh(ct), _closing.Token);
-            if (_closing.IsCancellationRequested || !changed) return;
+                ct => reader.Refresh(ct), _closing.Token);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(reader, _reader) || !changed) return;
             _sourceGeneration++;
             _copyCts?.Cancel();
             InvalidateSearch();
@@ -878,6 +919,223 @@ public sealed class ViewerWindow : Window
         }
     }
 
+    private void UpdateRefreshFeedback()
+    {
+        bool stale = _isPicture ? _pictureGeneration != _sourceGeneration
+            : _isInfo ? _infoGeneration != _sourceGeneration
+            : _isPage && _pageGeneration != _sourceGeneration;
+        _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing &&
+            (!_isPage || _pageView.PageLoaded);
+        _staleBanner.IsVisible = stale || _refreshFailure is not null;
+        _staleText.Text = _refreshFailure is { } failure
+            ? $"Refresh failed: {failure}. The previous view remains available{(stale ? " and is still stale" : "")}."
+            : stale ? "File changed — Refresh (F5) to show the new version." : string.Empty;
+    }
+
+    /// <summary>Reopens the exact provider item and prepares its visible snapshot before retiring the old source.</summary>
+    internal async Task RefreshAsync()
+    {
+        if (_reopen is null)
+        {
+            _status.Text = "This source cannot be reopened here; open it again from its provider to refresh.";
+            return;
+        }
+        if (!_readyForRefresh || _refreshing || _closing.IsCancellationRequested) return;
+        _refreshing = true;
+        _refreshFailure = null;
+        UpdateRefreshFeedback();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _refreshCts = cts;
+        var ct = cts.Token;
+        var oldReader = _reader;
+        long oldGeneration = _sourceGeneration;
+        bool pictureMode = _isPicture, infoMode = _isInfo, pageMode = _isPage, hexMode = _isHex;
+        IContentSource? opened = null;
+        PagedReader? prepared = null;
+        DecodedPicture? decoded = null;
+        bool replacementPageShown = false;
+        HtmlPage? previousPage = _htmlPage;
+        try
+        {
+            if (pageMode && !_pageView.PageLoaded)
+                throw new InvalidOperationException("Wait for the current page to finish loading before refreshing");
+            opened = await _reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
+            // Provider metadata may touch a remote device. Keep it off the UI thread and await
+            // completion even after close, so the source cannot be disposed under an active call.
+            var admitted = opened;
+            prepared = await Task.Run(() => new PagedReader(admitted, _services.Io, _deviceKey), CancellationToken.None);
+            opened = null; // the reader now owns it
+            var reader = prepared;
+            byte[] prefix = await _services.Io.Run(_deviceKey, IoPriority.Interactive, _ =>
+            {
+                var buffer = new byte[PagedReader.PageSize];
+                int count = 0;
+                reader.WithSource(source => count = source.Read(0, buffer));
+                return buffer[..count];
+            }, ct);
+            EncodingGuess guess = TextDecoding.Detect(prefix);
+            string? report = null;
+            HtmlPage? page = null;
+            if (pictureMode)
+            {
+                if (PictureDecoder.Recognize(prefix) is null)
+                    throw new InvalidDataException("The new version is not a supported picture");
+                decoded = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, ct);
+            }
+            else if (infoMode)
+            {
+                report = await Task.Run(() =>
+                {
+                    string result = "";
+                    reader.WithSource(source =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var inspection = FileCat.Core.Inspect.Inspectors.Inspect(new InspectionSource(source, ct), ct);
+                        result = inspection?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {source.Length:N0} bytes\nContent: {(guess.LooksBinary ? "binary" : "text, " + guess.Encoding.WebName + " (" + guess.Evidence + ")")}";
+                    });
+                    return result;
+                }, ct);
+            }
+            else if (pageMode)
+            {
+                if (!Markdown.IsMarkdown(_displayName) && !HtmlPage.IsHtml(_displayName, prefix))
+                    throw new InvalidDataException("The new version is not an HTML or Markdown page");
+                page = Markdown.IsMarkdown(_displayName)
+                    ? HtmlPage.ForMarkdown(reader, _displayName, ct)
+                    : new HtmlPage(reader, _displayName, ct);
+                var nextPage = page;
+                if (await Task.Run(() => nextPage.Resolve("/" + nextPage.Name), ct) is null)
+                    throw new IOException("The new page could not be read within the page-size limit");
+            }
+            if (await _services.Io.Run(_deviceKey, IoPriority.Interactive, token => reader.Refresh(token), ct))
+                throw new IOException("The item changed again while the new view was being prepared");
+            ct.ThrowIfCancellationRequested();
+            if (!ReferenceEquals(oldReader, _reader) || oldGeneration != _sourceGeneration ||
+                pictureMode != _isPicture || infoMode != _isInfo || pageMode != _isPage || hexMode != _isHex)
+                throw new OperationCanceledException("The viewer changed while Refresh was preparing", ct);
+
+            if (page is not null)
+            {
+                await LoadReplacementPageAsync(page, ct);
+                replacementPageShown = true;
+            }
+            ct.ThrowIfCancellationRequested();
+            if (page is not null && await _services.Io.Run(_deviceKey, IoPriority.Interactive, token => reader.Refresh(token), ct))
+                throw new IOException("The page changed again while it was loading");
+
+            long textTop = _text.TopOffset, infoTop = _info.TopOffset, hexCursor = _hex.CursorOffset;
+            var textSelection = _text.HasSelection ? _text.Selection : (Start: 0L, Length: 0L);
+            var infoSelection = _info.HasSelection ? _info.Selection : (Start: 0L, Length: 0L);
+            var hexSelection = _hex.Selection;
+            bool sameRevision = oldReader.Revision is { } revision && revision == reader.Revision &&
+                oldReader.Length == reader.Length;
+            bool sameReport = report is not null && string.Equals(report, _infoText, StringComparison.Ordinal);
+            _copyCts?.Cancel();
+            _checksumCts?.Cancel();
+            _lineCts?.Cancel();
+            _lines = null;
+            InvalidateSearch();
+            oldReader.PageLoaded -= OnContentPageLoaded;
+            _reader = reader;
+            prepared = null;
+            _reader.PageLoaded += OnContentPageLoaded;
+            _sourceGeneration++;
+            var previousGuess = _guess;
+            var chosenEncoding = _text.Encoding.WebName == previousGuess.Encoding.WebName ? guess.Encoding : _text.Encoding;
+            _guess = guess;
+            _text.SetReader(reader, chosenEncoding,
+                chosenEncoding.WebName == guess.Encoding.WebName ? guess.PreambleLength : 0);
+            int encodingIndex = Array.FindIndex(TextDecoding.Choices.ToArray(), choice => choice.Get().WebName == chosenEncoding.WebName);
+            if (encodingIndex >= 0) _encodingBox.SelectedIndex = encodingIndex;
+            _encodingInfo.Text = chosenEncoding.WebName == guess.Encoding.WebName
+                ? $"{chosenEncoding.WebName}: {guess.Evidence}"
+                : $"{chosenEncoding.WebName}: chosen manually (detected: {guess.Evidence})";
+            _text.ScrollToOffset(textTop);
+            if (sameRevision && textSelection.Length > 0)
+                _text.SetSelection(textSelection.Start, textSelection.Start + textSelection.Length);
+            _hex.SetReader(reader);
+            if (sameRevision && hexSelection.Length > 0)
+                _hex.GoTo(hexSelection.Start, select: true, length: hexSelection.Length);
+            else _hex.GoTo(hexCursor);
+            _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+            _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
+            if (pictureMode && decoded is not null)
+            {
+                _picture.ReplacePreservingView(decoded);
+                decoded = null;
+                _pictureGeneration = _sourceGeneration;
+                _pictureLoad = Task.CompletedTask;
+            }
+            else
+            {
+                _picture.Clear();
+                _pictureLoad = null;
+            }
+            if (infoMode && report is not null)
+            {
+                ShowInfoText(report);
+                _info.ScrollToOffset(infoTop);
+                if (sameReport && infoSelection.Length > 0)
+                    _info.SetSelection(infoSelection.Start, infoSelection.Start + infoSelection.Length);
+                _infoLoaded = true;
+                _infoGeneration = _sourceGeneration;
+            }
+            else
+            {
+                ShowInfoText("");
+                _infoLoaded = false;
+            }
+            _htmlPage = page;
+            if (page is not null) _pageGeneration = _sourceGeneration;
+            _refreshFailure = null;
+            replacementPageShown = false;
+            oldReader.Dispose(); // active source calls retire through PagedReader's ownership gate
+            UpdateStatus();
+            FocusContent();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested || _closing.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or
+                                   NotSupportedException or InvalidOperationException or OperationCanceledException or TimeoutException)
+        {
+            if (!_closing.IsCancellationRequested)
+            {
+                _refreshFailure = ex.Message;
+                UpdateRefreshFeedback();
+            }
+        }
+        finally
+        {
+            if (replacementPageShown && prepared is not null && previousPage is not null && !_closing.IsCancellationRequested)
+                _pageView.Show(previousPage);
+            decoded?.Bitmap.Dispose();
+            prepared?.Dispose();
+            opened?.Dispose();
+            if (ReferenceEquals(_refreshCts, cts)) _refreshCts = null;
+            _refreshing = false;
+            UpdateRefreshFeedback();
+        }
+    }
+
+    private async Task LoadReplacementPageAsync(HtmlPage next, CancellationToken ct)
+    {
+        var previous = _htmlPage ?? throw new InvalidOperationException("The current page is not ready");
+        var completion = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Completed(bool ok, string? why) => completion.TrySetResult((ok, why));
+        _pageView.LoadCompleted += Completed;
+        try
+        {
+            _pageView.Show(next);
+            var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(15), ct);
+            if (!result.Ok) throw new IOException("The new page could not be drawn: " + (result.Why ?? "unknown error"));
+        }
+        catch
+        {
+            if (!_closing.IsCancellationRequested) _pageView.Show(previous);
+            throw;
+        }
+        finally { _pageView.LoadCompleted -= Completed; }
+    }
+
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
@@ -893,7 +1151,7 @@ public sealed class ViewerWindow : Window
             e.Handled = true;
             return;
         }
-        if (focused is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
+        if (focused is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F5 or Key.F8 or Key.F10)) return;
         switch (e.Key)
         {
             case Key.Escape when _searchCts is not null:
@@ -940,6 +1198,9 @@ public sealed class ViewerWindow : Window
                 break;
             case Key.F3:
                 await FindAsync(!shift);
+                break;
+            case Key.F5 when e.KeyModifiers == KeyModifiers.None:
+                await RefreshAsync();
                 break;
             case Key.G when ctrl && !_isInfo:
                 await GoToAsync();
@@ -1670,7 +1931,9 @@ public static class ViewerLauncher
             string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
             reader = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new PagedReader(source, services.Io, deviceKey));
             if (services.Io.IsStopped) throw new OperationCanceledException("Viewer admission stopped.");
-            window = new ViewerWindow(services, source, name, hex, deviceKey, reader);
+            var provider = services.Providers.For(item.Parent);
+            Task<IContentSource?> Reopen(CancellationToken ct) => ReopenProviderAsync(services, provider, item, deviceKey, ct);
+            window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen);
             window.Show();
             transferred = true;
         }
@@ -1683,6 +1946,55 @@ public static class ViewerLauncher
                 else source.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Keep ownership of a late provider result even when cancellation or scheduler shutdown completes
+    /// the admission task before its synchronous source open returns.
+    /// </summary>
+    private static Task<IContentSource?> ReopenProviderAsync(AppServices services, FileCat.Core.Resources.ResourceProvider provider,
+        ItemRef item, string deviceKey, CancellationToken ct) =>
+        ReopenSourceAsync(services, deviceKey, () => provider.OpenContent(item), ct);
+
+    internal static async Task<IContentSource?> ReopenSourceAsync(AppServices services, string deviceKey,
+        Func<IContentSource?> open, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var result = new TaskCompletionSource<IContentSource?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = ct.Register(() => result.TrySetCanceled(ct));
+        var admission = services.Io.Run(deviceKey, IoPriority.Interactive, _ =>
+        {
+            IContentSource? source = null;
+            try
+            {
+                source = open();
+                if (!result.TrySetResult(source))
+                {
+                    try { source?.Dispose(); }
+                    catch (Exception) { } // the late source has no remaining owner or UI to report to
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!result.TrySetException(ex) && source is not null)
+                {
+                    try { source.Dispose(); }
+                    catch (Exception) { }
+                }
+            }
+        });
+        _ = admission.ContinueWith(task =>
+        {
+            if (task.IsCanceled) result.TrySetCanceled();
+            else if (task.IsFaulted) result.TrySetException(task.Exception!.InnerException ?? task.Exception);
+        }, TaskScheduler.Default);
+        IContentSource? opened = await result.Task;
+        if (ct.IsCancellationRequested)
+        {
+            opened?.Dispose();
+            ct.ThrowIfCancellationRequested();
+        }
+        return opened;
     }
 
     public static async Task OpenPath(AppServices services, string path)

@@ -84,15 +84,15 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
             if (oldSnapshot)
             {
                 Assert.Contains("The file changed", pictureStatus, StringComparison.Ordinal);
-                Assert.Contains("reopen", pictureStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("Refresh (F5)", pictureStatus, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("showing its current content", pictureStatus, StringComparison.Ordinal);
                 Assert.Contains("The file changed", afterZoomStatus, StringComparison.Ordinal);
-                Assert.Contains("reopen", afterZoomStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("Refresh (F5)", afterZoomStatus, StringComparison.OrdinalIgnoreCase);
             }
             else
             {
-                Assert.DoesNotContain("reopen", pictureStatus, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("reopen", afterZoomStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Refresh (F5)", pictureStatus, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Refresh (F5)", afterZoomStatus, StringComparison.OrdinalIgnoreCase);
             }
             if (changed)
             {

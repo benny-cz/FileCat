@@ -30,6 +30,9 @@ public sealed class PageView : NativeControlHost
     /// <summary>Loading finished, a request was refused, or the title changed: the status line says it anew.</summary>
     public event Action? Changed;
 
+    /// <summary>The current navigation completed; used to keep an older viewer snapshot until replacement loads.</summary>
+    public event Action<bool, string?>? LoadCompleted;
+
     /// <summary>Keys the page would otherwise keep (Esc, function keys, Ctrl and Alt combinations): whether the viewer took one.</summary>
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
@@ -76,17 +79,30 @@ public sealed class PageView : NativeControlHost
             Dispatcher.UIThread.Post(() => Failed?.Invoke("The web engine could not start: " + ex.Message));
             return base.CreateNativeControlCore(parent);
         }
-        _engine.Changed += () => Dispatcher.UIThread.Post(() => Changed?.Invoke());
-        _engine.Loaded += (ok, why) => Dispatcher.UIThread.Post(() =>
-        {
-            PageLoaded = ok;
-            if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
-            Changed?.Invoke();
-        });
-        _engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
+        ConnectEngine(_engine);
         Resize();
         if (_page is { } page) _engine.Show(page);
         return _engine.Handle;
+    }
+
+    internal void InstallEngineForTests(IPageEngine engine)
+    {
+        _engine = engine;
+        ConnectEngine(engine);
+        if (_page is { } page) engine.Show(page);
+    }
+
+    private void ConnectEngine(IPageEngine engine)
+    {
+        engine.Changed += () => Dispatcher.UIThread.Post(() => Changed?.Invoke());
+        engine.Loaded += (ok, why) => Dispatcher.UIThread.Post(() =>
+        {
+            PageLoaded = ok;
+            LoadCompleted?.Invoke(ok, why);
+            if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
+            Changed?.Invoke();
+        });
+        engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
     }
 
     protected override void DestroyNativeControlCore(IPlatformHandle control)
