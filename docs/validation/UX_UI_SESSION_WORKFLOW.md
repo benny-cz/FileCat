@@ -28,7 +28,7 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, finish **FCUX-036** acceptance and implement **UXBUG-002**. Follow
+After resolving any outstanding validation failure, finish **FCUX-036** acceptance and the native **UXBUG-002** checks. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
@@ -36,7 +36,8 @@ their native acceptance gates open.
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
-| 2 | UXBUG-002 — Markdown Page search | Make Markdown Page text searchable with the same find/next/previous/stop experience as the text viewer. Preserve source and surface ownership across Page/Text switches and file replacement; keep untrusted page scripts disabled. Test matches, no match, navigation, cancellation and stale results. |
+| 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
+| 3 | FCUX-037 — toolbar availability | Follow the audit's S2 order after the Settings and Page search gates. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After UXBUG-002, continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -80,6 +81,20 @@ the four columns visible in a 1,457 px table region with no inner overflow; at
 without expanding the page's horizontal extent. Markdown renderer regressions
 cover the safe region markup and stylesheet contract. Native WebView2 desktop
 acceptance remains open.
+
+### UXBUG-002 implementation record
+
+Markdown and HTML Page modes now expose the viewer's Find and case controls.
+Ctrl+F/F7, F3 and Shift+F3 route from the native page to the viewer; Esc and
+Stop search cancel pending work. Page results are owned by the current engine,
+page object, source generation and active mode. Windows WebView2 uses a
+host-controlled find operation while page-authored scripts remain disabled;
+Linux WebKitGTK and macOS WKWebView use their native find facilities.
+`ViewerPageSearchTests` covers match, no match, direction, cancellation and
+stale mode/source results. The real Windows WebView2 test covers rendered
+Markdown, repeated and backward find, absent and quote-bearing text, and
+script-disabled title behavior. Linux's native test and the macOS smoke test
+are source/build checked here but require their respective platforms to run.
 
 ### FCUX-033 implementation record
 

@@ -15,7 +15,7 @@ namespace FileCat.App.Controls;
 /// scripts are off; every other request goes to a proxy that refuses it, and is counted; navigating away, new
 /// windows, downloads, and permission prompts are refused. The web context is ephemeral: nothing is kept.
 /// </summary>
-internal sealed unsafe class LinuxPageEngine : IPageEngine
+internal sealed unsafe partial class LinuxPageEngine : IPageEngine
 {
     private const string Scheme = "filecat";
     private static readonly ConcurrentDictionary<nint, LinuxPageEngine> Live = new();
@@ -24,6 +24,11 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
 
     private readonly nint _id;
     private nint _context, _view, _window;
+    private nint _findController;
+    private readonly SemaphoreSlim _findSerial = new(1, 1);
+    private volatile TaskCompletionSource<bool?>? _findPending;
+    private string? _findPattern;
+    private bool _findCase;
     private volatile HtmlPage? _page;
     private volatile string? _title;
     private int _blocked;
@@ -79,6 +84,7 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
     public void Show(HtmlPage page)
     {
         _page = page;
+        ClearFind();
         string address = $"{Scheme}://page/{Uri.EscapeDataString(page.Name)}";
         _ = OnGtk(() =>
         {
@@ -100,16 +106,61 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
         return 0;
     });
 
+    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+        FindCoreAsync(text, matchCase, forward, ct);
+
+    private int BeginFindOnGtk(string text, bool matchCase, bool forward, TaskCompletionSource<bool?> done)
+    {
+        if (_disposed != 0 || _findController == 0) { done.TrySetResult(null); return 0; }
+        _findPending = done;
+        if (_findPattern == text && _findCase == matchCase)
+        {
+            if (forward) Native.webkit_find_controller_search_next(_findController);
+            else Native.webkit_find_controller_search_previous(_findController);
+        }
+        else
+        {
+            _findPattern = text;
+            _findCase = matchCase;
+            uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u);
+            fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, 1024);
+        }
+        return 0;
+    }
+
+    private int CancelFindOnGtk(TaskCompletionSource<bool?> done)
+    {
+        if (ReferenceEquals(_findPending, done))
+        {
+            _findPending = null;
+            _findPattern = null;
+            if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
+        }
+        return 0;
+    }
+
+    public void ClearFind() => _ = OnGtk(() =>
+    {
+        if (_disposed != 0) return 0;
+        _findPending?.TrySetResult(null);
+        _findPending = null;
+        _findPattern = null;
+        if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
+        return 0;
+    });
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Live.TryRemove(_id, out _);
+        _findPending?.TrySetResult(null);
         _ = OnGtk(() =>
         {
             if (_view != 0) Native.webkit_web_view_stop_loading(_view);
+            if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
             if (_window != 0) Native.gtk_widget_destroy(_window);
             if (_context != 0) Native.g_object_unref(_context);
-            _window = _view = _context = 0;
+            _window = _view = _context = _findController = 0;
             return 0;
         });
     }
@@ -132,6 +183,9 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
 
         _view = Native.webkit_web_view_new_with_context(_context);
         Native.TurnOffScripts(Native.webkit_web_view_get_settings(_view));
+        _findController = Native.webkit_web_view_get_find_controller(_view);
+        Connect(_findController, "found-text", (nint)(delegate* unmanaged[Cdecl]<nint, uint, nint, void>)&OnFoundText);
+        Connect(_findController, "failed-to-find-text", (nint)(delegate* unmanaged[Cdecl]<nint, nint, void>)&OnFindFailed);
         Connect(_view, "decide-policy", (nint)(delegate* unmanaged[Cdecl]<nint, nint, int, nint, int>)&OnDecidePolicy);
         Connect(_view, "resource-load-started", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, nint, void>)&OnResourceStarted);
         Connect(_view, "notify::title", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, void>)&OnTitle);
@@ -152,6 +206,20 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
     }
 
     private static LinuxPageEngine? Of(nint data) => Live.TryGetValue(data, out var engine) && engine._disposed == 0 ? engine : null;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnFoundText(nint controller, uint count, nint data)
+    {
+        try { Of(data)?._findPending?.TrySetResult(true); }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnFindFailed(nint controller, nint data)
+    {
+        try { Of(data)?._findPending?.TrySetResult(false); }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
+    }
 
     /// <summary>A request for filecat://page/…: answered off the GTK thread (a page in an archive is read), then finished on it.</summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -388,6 +456,11 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, int, nint, void> webkit_web_context_set_network_proxy_settings;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_new_with_context;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_get_settings;
+        public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_get_find_controller;
+        public static delegate* unmanaged[Cdecl]<nint, byte*, uint, uint, void> webkit_find_controller_search;
+        public static delegate* unmanaged[Cdecl]<nint, void> webkit_find_controller_search_next;
+        public static delegate* unmanaged[Cdecl]<nint, void> webkit_find_controller_search_previous;
+        public static delegate* unmanaged[Cdecl]<nint, void> webkit_find_controller_search_finish;
         public static delegate* unmanaged[Cdecl]<nint, byte*, void> webkit_web_view_load_uri;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_get_title;
         public static delegate* unmanaged[Cdecl]<nint, void> webkit_web_view_stop_loading;
@@ -470,6 +543,11 @@ internal sealed unsafe class LinuxPageEngine : IPageEngine
                 webkit_network_proxy_settings_free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_network_proxy_settings_free");
                 webkit_web_view_new_with_context = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_new_with_context");
                 webkit_web_view_get_settings = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_get_settings");
+                webkit_web_view_get_find_controller = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_get_find_controller");
+                webkit_find_controller_search = (delegate* unmanaged[Cdecl]<nint, byte*, uint, uint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search");
+                webkit_find_controller_search_next = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search_next");
+                webkit_find_controller_search_previous = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search_previous");
+                webkit_find_controller_search_finish = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search_finish");
                 webkit_web_view_load_uri = (delegate* unmanaged[Cdecl]<nint, byte*, void>)NativeLibrary.GetExport(webkit, "webkit_web_view_load_uri");
                 webkit_web_view_get_title = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_get_title");
                 webkit_web_view_stop_loading = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_web_view_stop_loading");

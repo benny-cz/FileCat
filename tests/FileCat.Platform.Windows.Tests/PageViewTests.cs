@@ -263,6 +263,42 @@ public sealed class PageViewTests : IDisposable
         Assert.DoesNotContain(served, s => s.Path.Contains("pixel", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Markdown_page_search_uses_rendered_text_with_page_scripts_disabled()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "search")).FullName;
+        string path = Path.Combine(site, "search.md");
+        File.WriteAllText(path, "# Search\n\nAlpha first. Alpha second.\n\n`\");document.title='pwn'//`\n<script>document.title='page script ran'</script>\n");
+        bool? first = null, second = null, previous = null, absent = null, quoted = null;
+        string? title = null;
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var source = new FileContentSource(path);
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-search"));
+            var done = new TaskCompletionSource<bool>();
+            view.Loaded += (ok, _) => done.TrySetResult(ok);
+            view.SetSize(800, 600);
+            view.Show(HtmlPage.ForMarkdown(source, path));
+            Assert.True(await done.Task);
+            first = await view.FindAsync("Alpha", true, true, CancellationToken.None);
+            second = await view.FindAsync("Alpha", true, true, CancellationToken.None);
+            previous = await view.FindAsync("Alpha", true, false, CancellationToken.None);
+            absent = await view.FindAsync("not present", false, true, CancellationToken.None);
+            quoted = await view.FindAsync("\");document.title='pwn'//", true, true, CancellationToken.None);
+            title = view.Title;
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(60));
+        Assert.True(first);
+        Assert.True(second);
+        Assert.True(previous);
+        Assert.False(absent);
+        Assert.True(quoted);
+        Assert.Equal("search.md", title);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

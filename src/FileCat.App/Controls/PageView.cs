@@ -114,6 +114,19 @@ public sealed class PageView : NativeControlHost
 
     /// <summary>The keyboard to the page.</summary>
     public void FocusPage() => _engine?.Focus();
+
+    /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
+    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    {
+        var engine = _engine;
+        var page = _page;
+        if (!PageLoaded || engine is null || page is null) return null;
+        var found = await engine.FindAsync(text, matchCase, forward, ct);
+        ct.ThrowIfCancellationRequested();
+        return ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded ? found : null;
+    }
+
+    public void ClearFind() => _engine?.ClearFind();
 }
 
 /// <summary>One platform's web engine behind <see cref="PageView"/>.</summary>
@@ -128,6 +141,8 @@ internal interface IPageEngine : IDisposable
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
+    Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) => Task.FromResult<bool?>(null);
+    void ClearFind() { }
 }
 
 internal static class PageEngines
@@ -189,6 +204,9 @@ internal sealed class WindowsPageEngine : IPageEngine
     public void Show(HtmlPage page) => _view.Show(page);
     public void SetSize(int width, int height) => _view.SetSize(width, height);
     public void Focus() => _view.Focus();
+    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+        _view.FindAsync(text, matchCase, forward, ct);
+    public void ClearFind() => _view.ClearFind();
     public void Dispose() => _view.Dispose();
 
     /// <summary>The keys the viewer acts on: Esc, the function keys, and letters (with Ctrl or Alt).</summary>

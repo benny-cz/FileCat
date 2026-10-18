@@ -47,6 +47,7 @@ public sealed class ViewerWindow : Window
     private readonly PageView _pageView;
     private HtmlPage? _htmlPage;
     private bool _isPage;
+    private string? _pageSearchStatus;
     /// <summary>Why pages cannot be drawn here, once that is known.</summary>
     private string? _pageUnavailable;
     private readonly ToggleButton _actualSize = new() { Content = "Actual size", IsVisible = false };
@@ -462,7 +463,7 @@ public sealed class ViewerWindow : Window
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
         _modePage.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
-        foreach (var part in _textOnly) part.IsVisible = false;
+        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase;
         if (_htmlPage is null)
         {
             _pageGeneration = _sourceGeneration;
@@ -481,6 +482,7 @@ public sealed class ViewerWindow : Window
 
     private void LeavePage()
     {
+        if (_isPage) InvalidateSearch();
         _isPage = false;
         _pageView.IsVisible = false;
         _modePage.IsChecked = false;
@@ -494,8 +496,12 @@ public sealed class ViewerWindow : Window
     {
         Action? act = (key, modifiers) switch
         {
+            (Key.Escape, KeyModifiers.None) when _searchCts is not null => () => _searchCts?.Cancel(),
             (Key.Escape or Key.F10, KeyModifiers.None) => Close,
             (Key.F4, KeyModifiers.None) => () => SetMode(false),
+            (Key.F, KeyModifiers.Control) or (Key.F7, KeyModifiers.None) => () => { _search.Focus(); _search.SelectAll(); },
+            (Key.F3, KeyModifiers.None) => () => _ = FindAsync(forward: true),
+            (Key.F3, KeyModifiers.Shift) => () => _ = FindAsync(forward: false),
             (Key.I, KeyModifiers.Control) => () => _ = ShowInfoAsync(),
             (Key.K, KeyModifiers.Control) => ShowChecksum,
             _ => null,
@@ -672,6 +678,7 @@ public sealed class ViewerWindow : Window
     private void FocusContent()
     {
         if (_isPicture) _picture.Focus();
+        else if (_isPage) _pageView.FocusPage();
         else if (_isInfo) _info.Focus();
         else if (_isHex) _hex.Focus();
         else _text.Focus();
@@ -710,6 +717,8 @@ public sealed class ViewerWindow : Window
                            $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
             if (_pageGeneration != _sourceGeneration)
                 _status.Text = "The file changed; reopen the viewer to refresh this page. " + _status.Text;
+            else if (_pageSearchStatus is { } searchStatus)
+                _status.Text = searchStatus + " · " + _status.Text;
             return;
         }
         long len = _reader.Length;
@@ -865,6 +874,11 @@ public sealed class ViewerWindow : Window
             _search.Focus();
             return;
         }
+        if (_isPage)
+        {
+            await FindPageAsync(pattern, forward);
+            return;
+        }
         _searchCts?.Cancel();
         _searchCts = null;
         // In Info mode Find searches the report, as text.
@@ -938,13 +952,58 @@ public sealed class ViewerWindow : Window
         }
     }
 
+    private async Task FindPageAsync(string pattern, bool forward)
+    {
+        _searchCts?.Cancel();
+        _searchCts = null;
+        if (_pageGeneration != _sourceGeneration)
+        {
+            _pageSearchStatus = "The file changed; reopen the viewer to search this page.";
+            UpdateStatus();
+            return;
+        }
+        var page = _htmlPage;
+        long generation = _sourceGeneration;
+        using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _stopSearch.IsVisible = true;
+        _pageSearchStatus = $"Searching page {(forward ? "forward" : "backward")}… (Esc stops)";
+        UpdateStatus();
+        try
+        {
+            bool? found = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward, cts.Token);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts) || !_isPage ||
+                !ReferenceEquals(page, _htmlPage) || generation != _sourceGeneration) return;
+            _pageSearchStatus = found switch
+            {
+                true => $"Found \"{pattern}\" in the page.",
+                false => $"\"{pattern}\" was not found in this page.",
+                null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
+            };
+            UpdateStatus();
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts) && _isPage)
+            {
+                _pageSearchStatus = "Page search canceled.";
+                UpdateStatus();
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchCts, cts)) { _searchCts = null; _stopSearch.IsVisible = false; }
+        }
+    }
+
     private void InvalidateSearch()
     {
+        if (_isPage) _pageView.ClearFind();
         _searchCts?.Cancel();
         _searchCts = null;
         _stopSearch.IsVisible = false;
         _lastHit = -1;
         _lastSearch = null;
+        _pageSearchStatus = null;
     }
 
     private void SearchPositionChanged(Control source)

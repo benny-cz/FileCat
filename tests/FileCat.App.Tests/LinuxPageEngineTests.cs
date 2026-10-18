@@ -113,6 +113,43 @@ public sealed class LinuxPageEngineTests
         }
     }
 
+    [Fact]
+    public async Task WebKitGTK_finds_rendered_markdown_text_without_enabling_page_scripts()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("WebKitGTK is Linux's."); return; }
+        bool required = Environment.GetEnvironmentVariable("FILECAT_REQUIRE_WEBKIT") == "1";
+        if (!required && Environment.GetEnvironmentVariable("DISPLAY") is null) { Assert.Skip("No X display."); return; }
+        if (LinuxPageEngine.Unavailable is { } why)
+        {
+            if (required) Assert.Fail(why);
+            Assert.Skip(why);
+            return;
+        }
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-page-search", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string path = Path.Combine(root, "README.md");
+            File.WriteAllText(path, "# Search\n\nAlpha one. Alpha two.\n<script>document.title='SCRIPT RAN'</script>\n");
+            using var source = new FileContentSource(path);
+            using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
+            Assert.NotNull(engine);
+            var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.Loaded += (ok, _) => loaded.TrySetResult(ok);
+            engine.Show(HtmlPage.ForMarkdown(source, path));
+            Assert.True(await loaded.Task.WaitAsync(TimeSpan.FromSeconds(60), ct));
+            Assert.True(await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.True(await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.True(await engine.FindAsync("Alpha", true, false, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.False(await engine.FindAsync("absent phrase", false, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal("README.md", engine.Title);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
     /// <summary>A 1×1 PNG.</summary>
     private const string Png ="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 }

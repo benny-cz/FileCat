@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using FileCat.Core.Content;
 using Microsoft.Web.WebView2.Core;
 
@@ -18,6 +19,7 @@ public sealed class WebView2Page : IDisposable
     private HtmlPage? _page;
     private (int Width, int Height) _size = (1, 1);
     private bool _disposed;
+    private long _navigationGeneration;
 
     /// <summary>The installed WebView2 runtime's version, or null when there is none (the view is then unavailable).</summary>
     public static string? RuntimeVersion
@@ -150,6 +152,34 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The keyboard to the page (after a click elsewhere in the viewer).</summary>
     public void Focus() => _controller?.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
 
+    /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>
+    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    {
+        if (_disposed || _controller is not { } controller) return null;
+        long navigation = _navigationGeneration;
+        ct.ThrowIfCancellationRequested();
+        // JSON encoding keeps even quotes, backslashes and line breaks inside one string literal.
+        string script = $"window.find({JsonSerializer.Serialize(text)}, {JsonSerializer.Serialize(matchCase)}, {JsonSerializer.Serialize(!forward)}, false, false, false, false)";
+        string result;
+        try { result = await controller.CoreWebView2.ExecuteScriptAsync(script); }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return null; }
+        ct.ThrowIfCancellationRequested();
+        if (_disposed || navigation != _navigationGeneration) return null;
+        return result == "true" ? true : result == "false" ? false : null;
+    }
+
+    public void ClearFind()
+    {
+        if (_disposed || _controller is not { } controller) return;
+        _ = ClearFindAsync(controller);
+    }
+
+    private static async Task ClearFindAsync(CoreWebView2Controller controller)
+    {
+        try { await controller.CoreWebView2.ExecuteScriptAsync("window.getSelection().removeAllRanges()"); }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { }
+    }
+
     private bool OurAddress(string uri) =>
         Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && parsed.Scheme == Uri.UriSchemeHttps && string.Equals(parsed.Host, HtmlPage.Host, StringComparison.OrdinalIgnoreCase);
 
@@ -195,7 +225,7 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The page may go to other pages in its folder (a link, an anchor); anywhere else is refused.</summary>
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        if (OurAddress(e.Uri)) return;
+        if (OurAddress(e.Uri)) { _navigationGeneration++; return; }
         e.Cancel = true;
         Refuse(e.Uri);
     }

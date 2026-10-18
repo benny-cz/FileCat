@@ -29,6 +29,13 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private static nint s_rules;
     private static string? s_rulesFailed;
     private static bool s_rulesCompiling;
+    private sealed record FindRequest(MacPageEngine Engine, string Text, bool MatchCase, bool Forward,
+        long Generation, TaskCompletionSource<bool?> Done)
+    {
+        public CancellationTokenRegistration Cancellation { get; set; }
+    }
+    private static readonly Queue<FindRequest> FindQueue = new();
+    private static FindRequest? s_activeFind;
     private static readonly Lazy<string?> s_missing = new(() => ObjC.Load());
 
     private nint _view, _handler, _delegate;
@@ -37,6 +44,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private string? _title;
     private int _blocked;
     private bool _disposed, _observingTitle;
+    private long _findGeneration;
     /// <summary>URL scheme tasks being answered, each with a token: a stopped task is never answered.</summary>
     private readonly Dictionary<nint, object> _tasks = [];
 
@@ -127,6 +135,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     public void Show(HtmlPage page)
     {
         _page = page;
+        _findGeneration++;
         if (s_rulesFailed is { } why)
         {
             Loaded?.Invoke(false, why);
@@ -143,6 +152,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private void Load()
     {
         if (_page is not { } page || _view == 0) return;
+        _findGeneration++;
         nint url = ObjC.Send(ObjC.Class("NSURL"), "URLWithString:", ObjC.String($"{Scheme}://page/{Uri.EscapeDataString(page.Name)}"));
         ObjC.Send(_view, "loadRequest:", ObjC.Send(ObjC.Class("NSURLRequest"), "requestWithURL:", url));
     }
@@ -159,10 +169,67 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         if (window != 0) ObjC.Send(window, "makeFirstResponder:", _view);
     }
 
+    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    {
+        if (_disposed || _view == 0 || !ObjC.Responds(_view, "findString:withConfiguration:completionHandler:"))
+            return Task.FromResult<bool?>(null);
+        var done = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (ct.IsCancellationRequested) { done.SetCanceled(ct); return done.Task; }
+        var request = new FindRequest(this, text, matchCase, forward, _findGeneration, done);
+        request.Cancellation = ct.Register(() => done.TrySetCanceled(ct));
+        FindQueue.Enqueue(request);
+        StartNextFind();
+        return done.Task;
+    }
+
+    private static void StartNextFind()
+    {
+        if (s_activeFind is not null) return;
+        while (FindQueue.TryDequeue(out var request))
+        {
+            if (request.Done.Task.IsCompleted || request.Engine._disposed || request.Generation != request.Engine._findGeneration)
+            {
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(null);
+                continue;
+            }
+            s_activeFind = request;
+            try { ObjC.BeginFind(request.Engine._view, request.Text, request.MatchCase, request.Forward); }
+            catch (Exception ex)
+            {
+                Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message);
+                s_activeFind = null;
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(null);
+                continue;
+            }
+            return;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void FindBlock(nint block, nint result)
+    {
+        try
+        {
+            var request = s_activeFind;
+            s_activeFind = null;
+            if (request is not null)
+            {
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(request.Engine._disposed || request.Generation != request.Engine._findGeneration
+                    ? null : result != 0 && ObjC.SendReturnsBool(result, "matchFound"));
+            }
+            StartNextFind();
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _findGeneration++;
         AwaitingRules.Remove(this);
         foreach (var key in new[] { _view, _handler, _delegate }) ByObject.Remove(key);
         foreach (var task in _tasks.Keys) ObjC.Release(task);
@@ -273,7 +340,11 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         {
             string uri = ObjC.ToString(ObjC.Send(ObjC.Send(ObjC.Send(action, "request"), "URL"), "absoluteString")) ?? "";
             bool newWindow = ObjC.Send(action, "targetFrame") == 0;
-            if (!newWindow && IsOwn(uri)) policy = Allow;
+            if (!newWindow && IsOwn(uri))
+            {
+                policy = Allow;
+                if (Of(self) is { } owner) owner._findGeneration++;
+            }
             else Of(self)?.Refused();
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
@@ -410,7 +481,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         private const string LibObjC = "/usr/lib/libobjc.A.dylib";
         private static nint s_msgSend, s_msgSendSuper;
         public static nint HandlerClass, DelegateClass, ViewClass;
-        private static nint s_mainQueue, s_globalBlock;
+        private static nint s_mainQueue, s_globalBlock, s_findBlock;
         private static delegate* unmanaged[Cdecl]<nint, nint, delegate* unmanaged[Cdecl]<nint, void>, void> s_dispatchAsync;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -596,6 +667,33 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             if (block == 0) return;
             var invoke = (delegate* unmanaged[Cdecl]<nint, long, void>)((Block*)block)->Invoke;
             invoke(block, value);
+        }
+
+        /// <summary>A single app-owned completion block; page searches are serialized across views.</summary>
+        public static void BeginFind(nint view, string text, bool matchCase, bool forward)
+        {
+            if (Class("WKFindConfiguration") == 0) throw new InvalidOperationException("This WebKit has no page find configuration.");
+            if (s_findBlock == 0)
+            {
+                var descriptor = (BlockDescriptor*)NativeMemory.AllocZeroed((nuint)sizeof(BlockDescriptor));
+                descriptor->Size = (nuint)sizeof(Block);
+                var block = (Block*)NativeMemory.AllocZeroed((nuint)sizeof(Block));
+                block->Isa = s_globalBlock;
+                block->Flags = 1 << 28; // BLOCK_IS_GLOBAL; one block for the process lifetime
+                block->Invoke = (nint)(delegate* unmanaged[Cdecl]<nint, nint, void>)&FindBlock;
+                block->Descriptor = (nint)descriptor;
+                s_findBlock = (nint)block;
+            }
+            nint configuration = New("WKFindConfiguration");
+            try
+            {
+                SendBool(configuration, "setBackwards:", !forward);
+                SendBool(configuration, "setCaseSensitive:", matchCase);
+                SendBool(configuration, "setWraps:", false);
+                ((delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, void>)s_msgSend)(view,
+                    sel_registerName("findString:withConfiguration:completionHandler:"), String(text), configuration, s_findBlock);
+            }
+            finally { Release(configuration); }
         }
 
         /// <summary>Compiles the content rule list into a store of FileCat's own; <see cref="RulesCompiled"/> gets it.</summary>

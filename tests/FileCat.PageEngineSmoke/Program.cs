@@ -53,7 +53,7 @@ try
     // Release issue I25: a Markdown file drawn (its title is the file's name, its script text), the picture beside it
     // loaded, and the picture on the web never requested.
     string readme = Path.Combine(site, "README.md");
-    File.WriteAllText(readme, "# Notes\n\n![local](pic.png) ![remote](https://example.com/remote.png)\n\n<script>document.title = 'SCRIPT RAN';</script>\n");
+    File.WriteAllText(readme, "# Notes\n\nAlpha one. Alpha two.\n\n![local](pic.png) ![remote](https://example.com/remote.png)\n\n<script>document.title = 'SCRIPT RAN';</script>\n");
     var markdown = MacPageEngine.Create(Path.Combine(root, "data-md"), out unavailable);
     if (markdown is null)
     {
@@ -70,6 +70,19 @@ try
     while (settle.Elapsed < TimeSpan.FromSeconds(2) || string.IsNullOrEmpty(markdown.Title) && settle.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
     Console.WriteLine($"markdown loaded: {loaded} ({reason}); title: {markdown.Title}; refused: {markdown.BlockedCount}");
     passed &= loaded == true && markdown.Title == "README.md" && markdown.BlockedCount == 0;
+    async Task<bool?> FindMarkdown(string pattern, bool forward)
+    {
+        var find = markdown.FindAsync(pattern, matchCase: true, forward, CancellationToken.None);
+        var deadline = Stopwatch.StartNew();
+        while (!find.IsCompleted && deadline.Elapsed < TimeSpan.FromSeconds(15)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+        return find.IsCompleted ? await find : null;
+    }
+    var firstFind = await FindMarkdown("Alpha", true);
+    var secondFind = await FindMarkdown("Alpha", true);
+    var previousFind = await FindMarkdown("Alpha", false);
+    var absentFind = await FindMarkdown("absent phrase", true);
+    Console.WriteLine($"markdown find: {firstFind}, {secondFind}, {previousFind}, absent {absentFind}");
+    passed &= firstFind == true && secondFind == true && previousFind == true && absentFind == false && markdown.Title == "README.md";
     markdown.Dispose();
 
     // Release plan §6.3 (I12): the title once came late and was missed (CI run 36711390817); the fix observes it. Many

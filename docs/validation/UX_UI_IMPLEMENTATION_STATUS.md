@@ -17,8 +17,10 @@ table-width bug is fixed: tables use available viewer width and scroll within
 their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
 records the wide/narrow geometry check and remaining native acceptance.
 
-Markdown Page search is queued as UXBUG-002 in the session workflow, using the
-text viewer's find behavior as the reference.
+Markdown Page search is implemented as UXBUG-002 with the text viewer's
+find/next/previous/stop controls. Windows WebView2 and headless viewer tests
+pass; native Linux and macOS search acceptance remains open in the
+[session workflow](UX_UI_SESSION_WORKFLOW.md).
 
 ## Changes and verification map
 
