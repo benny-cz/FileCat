@@ -61,14 +61,7 @@ public static class SettingsDialog
         var sizeOnSpace = new CheckBox { Content = "Space computes the size of a marked folder", IsChecked = s.SizeFolderOnSpace };
         var sizeSlow = new CheckBox { Content = "…also on network, removable, and cloud locations", IsChecked = s.SizeFolderOnSlowLocations };
         var anywhere = new CheckBox { Content = "Quick search matches anywhere in the name (instead of the beginning)", IsChecked = s.QuickSearchMatchAnywhere };
-        var savedFilters = new TextBox
-        {
-            AcceptsReturn = true,
-            MinHeight = 80,
-            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
-            Text = string.Join(Environment.NewLine, s.SavedFilters.Select(f => $"{f.Name} = {f.Mask}")),
-            PlaceholderText = "images = *.png;*.jpg;*.gif\ncode = *.cs;*.axaml|*.g.cs",
-        };
+        var filtersEditor = new SavedFiltersEditor(s.SavedFilters);
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
         // Named as the copy dialog names them (stored as Native and ReadBack).
@@ -78,8 +71,8 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
             ("Verify automatically up to", verifyUpTo),
             ("", Note("Files next to a checksum file or signature (SHA256SUMS, name.sha256, .minisig, .asc…) are checked when shown up to this size; larger ones, and files on the network, on request: File → Verify checksums and signatures. 0 checks only on request.")),
-            ("Saved filters", savedFilters),
-            ("", Note("One per line: name = mask. Use them as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
+            ("Saved filters", filtersEditor.View),
+            ("", Note("Use filters as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
         // ---- Tools
         var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable };
@@ -338,12 +331,12 @@ public static class SettingsDialog
             parsedArguments = s.Editor?.Arguments ?? ["{files}"];
             parsedExecutable = s.Editor?.Executable ?? "";
             error.IsVisible = false;
-            foreach (var field in new[] { bindings, savedFilters, editorExe, editorArgs, userCommands, associations })
+            foreach (var field in new[] { bindings, editorExe, editorArgs, userCommands, associations })
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
             if (bindingError is not null) return Fail("Custom bindings", bindingError, bindings, 4);
-            parsedFilters = ParseSavedFilters(savedFilters.Text, out var filterError);
-            if (filterError is not null) return Fail("Saved filters", filterError, savedFilters, 1);
+            if (!filtersEditor.TryGet(out parsedFilters, out var filterError, out var filterField))
+                return Fail("Saved filters", filterError!, filterField, 1);
             if (editorExe.Text != originalExecutable && !ToolTextGrammar.TryParseField(editorExe.Text, out parsedExecutable, out var executableError))
                 return Fail("Editor program", executableError!, editorExe, 2);
             if (editorArgs.Text != originalArguments && !ToolTextGrammar.TryParseArguments(editorArgs.Text, out parsedArguments, out var argumentError))
@@ -427,7 +420,7 @@ public static class SettingsDialog
     private static Control Form(params (string Label, Control Control)[] rows) => new DialogForm(rows) { Margin = new Thickness(8) };
 
     /// <summary>"name = mask" lines; every mask must parse, including references between saved filters.</summary>
-    private static List<SavedFilter> ParseSavedFilters(string? text, out string? error)
+    internal static List<SavedFilter> ParseSavedFilters(string? text, out string? error)
     {
         error = null;
         var list = new List<SavedFilter>();

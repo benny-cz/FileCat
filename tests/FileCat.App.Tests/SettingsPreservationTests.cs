@@ -148,6 +148,108 @@ public sealed class SettingsPreservationTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Saved_filter_editor_adds_exclusion_masks_and_reorders_typed_drafts()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.SavedFilters = [new() { Name = "images", Mask = "*.png" }, new() { Name = "code", Mask = "*.cs" }];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Behavior");
+            Assert.Equal(2, Field<ListBox>(window, "Saved filter list").ItemCount);
+            Assert.False(BodyButton(window, "Move filter up").IsEnabled);
+            Assert.True(BodyButton(window, "Move filter down").IsEnabled);
+            BodyButton(window, "Add filter").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(BodyButton(window, "Move filter down").IsEnabled);
+            Field<TextBox>(window, "Selected filter name").Text = "sources";
+            Field<TextBox>(window, "Selected filter mask").Text = "*.cs|*.g.cs";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Contains("sources", Field<ListBox>(window, "Saved filter list").ItemsSource!.Cast<string>().Last());
+            BodyButton(window, "Move filter up").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(1, Field<ListBox>(window, "Saved filter list").SelectedIndex);
+            BodyButton(window, "Duplicate filter").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(4, Field<ListBox>(window, "Saved filter list").ItemCount);
+            Assert.Contains("sources-copy", Field<ListBox>(window, "Saved filter list").ItemsSource!.Cast<string>().ElementAt(2));
+            BodyButton(window, "Remove filter").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(3, Field<ListBox>(window, "Saved filter list").ItemCount);
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(["images", "sources", "code"], services.Settings.SavedFilters.Select(f => f.Name));
+            Assert.Equal("*.cs|*.g.cs", services.Settings.SavedFilters[1].Mask);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Saved_filter_raw_text_reports_errors_and_cancel_discards_a_valid_round_trip()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.SavedFilters = [new() { Name = "code", Mask = "*.cs" }];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Behavior");
+            var advanced = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(c => Equals(c.Content, "Edit filter definitions as text"));
+            advanced.IsChecked = true;
+            var raw = Field<TextBox>(window, "Saved filters advanced text");
+            raw.Text = "broken line";
+            advanced.IsChecked = false;
+            Assert.True(advanced.IsChecked);
+            Click(window, "OK");
+            Assert.False(showing.IsCompleted);
+            Assert.Contains("Saved filters:", AutomationProperties.GetHelpText(raw));
+            Assert.Equal("code", Assert.Single(services.Settings.SavedFilters).Name);
+
+            raw.Text = "code = *.cs\nsource = *.cs|*.g.cs";
+            advanced.IsChecked = false;
+            Assert.False(advanced.IsChecked);
+            Assert.Equal(2, Field<ListBox>(window, "Saved filter list").ItemCount);
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("code", Assert.Single(services.Settings.SavedFilters).Name);
+
+            showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Behavior");
+            advanced = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(c => Equals(c.Content, "Edit filter definitions as text"));
+            advanced.IsChecked = true;
+            Field<TextBox>(window, "Saved filters advanced text").Text = "code = *.cs\nsource = *.cs|*.g.cs";
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(["code", "source"], services.Settings.SavedFilters.Select(f => f.Name));
+            Assert.Equal("*.cs|*.g.cs", services.Settings.SavedFilters[1].Mask);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Saved_filter_mask_error_keeps_the_named_item_in_the_draft_until_corrected()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.SavedFilters = [new() { Name = "code", Mask = "*.cs" }];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Behavior");
+            var mask = Field<TextBox>(window, "Selected filter mask");
+            mask.Text = "@missing";
+            Dispatcher.UIThread.RunJobs();
+            Click(window, "OK");
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(showing.IsCompleted);
+            Assert.Contains("code", AutomationProperties.GetHelpText(mask));
+            Assert.Equal("*.cs", Assert.Single(services.Settings.SavedFilters).Mask);
+            mask.Text = "*.cs|*.g.cs";
+            Dispatcher.UIThread.RunJobs();
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("*.cs|*.g.cs", Assert.Single(services.Settings.SavedFilters).Mask);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("Editor arguments", "--profile \"unterminated", "Editor arguments:")]
     [InlineData("User commands (F9)", "Valid | tool | x\nBroken | tool | x | shell | ignored", "Line 2:")]
@@ -296,6 +398,8 @@ public sealed class SettingsPreservationTests
         .Single(b => b.Content as string == text && b.IsEffectivelyEnabled &&
             b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("dialogFooter")))
         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    private static Button BodyButton(Window window, string text) => window.GetVisualDescendants().OfType<Button>()
+        .Single(b => Equals(b.Content, text));
     private static void SelectPage(Window window, string name)
     {
         Dispatcher.UIThread.RunJobs();

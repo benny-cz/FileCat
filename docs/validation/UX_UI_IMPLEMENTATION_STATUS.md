@@ -4,7 +4,8 @@ Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_U
 
 **Current work:** FCUX-036 is in progress. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
-regressions. Structured Settings editors remain open. The reported Markdown Page
+regressions. The saved-filter list/detail editor and Advanced text route are now
+implemented; command and association editors remain open. The reported Markdown Page
 table-width bug is fixed: tables use available viewer width and scroll within
 their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
 records the wide/narrow geometry check and remaining native acceptance.

@@ -50,7 +50,10 @@ an explicit batch shell-interpretation choice and a sample invocation preview.
 The preview resolves the executable and displays
 each argument boundary without launching a process or creating a list file;
 changed inputs retire the old preview. The Settings draft still commits only
-after OK. Structured filter, command and association editors, ordering controls,
+after OK. A structured saved-filter editor with ordering controls and an
+Advanced text route is implemented. Focused headless Settings regressions cover
+exclusion masks, ordering, item-level errors, raw-text repair, save and Cancel.
+Structured command and association editors, first-match preview, complete
 raw/structured round trips, keyboard remapping access and Settings search remain
 open for FCUX-036.
 
