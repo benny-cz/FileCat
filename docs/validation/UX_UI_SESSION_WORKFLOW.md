@@ -84,7 +84,8 @@ orientation, neighboring panels and current percentage, while normal Tab
 navigation skips splitters. Keyboard resizing shares the pointer's minimum-size
 policy and saved layout model. Four headless interaction tests, command-search
 coverage and the 35-case focused layout selection pass; the full App suite is
-running. Native keyboard, screen-reader and scaling acceptance remains open.
+passed (2,155 passed, 62 platform skips). Native keyboard, screen-reader and
+scaling acceptance remains open.
 
 ### FCUX-030 implementation record
 
