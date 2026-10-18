@@ -37,7 +37,7 @@
           <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
                   ToolTip.Tip="Review this operation's waiting decision; background work does not interrupt your typing" />
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
-          <Button Classes="flat" Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
+          <Button Classes="flat" Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
           <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
           <Button Classes="flat" Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
@@ -114,7 +114,7 @@
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
             <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
-            <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
+            <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
             <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
             <TextBlock Text="{Binding UndoStatus}" VerticalAlignment="Center" Classes="small muted" />

@@ -28,20 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-016**. Follow
+After resolving any outstanding validation failure, resume **FCUX-017**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-016 — operation status wording | Distinguish requested Pause from effective Paused state and keep canceled/failed work from claiming 100% completion. |
+| 1 | FCUX-017 — complete operation evidence | Expose full selectable issue paths, reasons and a complete retained report with truthful omission counts and useful remediation actions. |
 
-Then continue FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
+Then continue FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-016 implementation record
+
+A requested pause now says “Pausing — waiting for a safe point” until the
+worker acknowledges it, and the action says “Keep running” while the pause is
+pending. Canceled, failed and interrupted work no longer displays a success
+percentage; completion with issues keeps explicit counts. Terminal summaries
+distinguish planned bytes accounted for from actual copied/read data, so skips
+and same-volume moves do not create a false transfer claim. Deterministic
+state tests and the existing verified-copy progress route pass; native worker
+timing, taskbar and scaling checks remain open.
 
 ### FCUX-015 implementation record
 

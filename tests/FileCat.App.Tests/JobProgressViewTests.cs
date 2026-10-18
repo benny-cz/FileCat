@@ -8,6 +8,107 @@ namespace FileCat.App.Tests;
 /// <summary>Release issues I26 and I30: what the Operations view shows while a job works.</summary>
 public sealed class JobProgressViewTests
 {
+    private static Job DisplayJob(JobKind kind = JobKind.Copy) => new(new JobRequest { Kind = kind }, kind.ToString(), "local", [], []);
+
+    [Fact]
+    public void Requested_pause_stays_pausing_until_the_worker_acknowledges_it()
+    {
+        var job = DisplayJob();
+        job.SetState(JobState.Running);
+        job.AddTotals(4, 400);
+        var view = new JobViewModel(job);
+        job.Pause();
+        Assert.Equal(JobState.Pausing, job.State);
+        view.Refresh();
+        Assert.Equal("Pausing — waiting for a safe point", view.StateText);
+        Assert.Equal("Pausing — waiting for a safe point", view.PhaseText);
+        Assert.Equal("Keep running", view.ResumeLabel);
+        Assert.True(view.CanResume);
+        Assert.False(view.CanPause);
+        Assert.Equal(Platform.Windows.TaskbarProgressState.Normal, OperationCenterViewModel.TaskbarFor(view, view).State);
+
+        job.SetState(JobState.Paused); // worker reached its safe checkpoint
+        view.Refresh();
+        Assert.Equal("Paused", view.PhaseText);
+        Assert.Equal("Resume", view.ResumeLabel);
+        Assert.Equal(Platform.Windows.TaskbarProgressState.Paused, OperationCenterViewModel.TaskbarFor(view, view).State);
+        job.Resume();
+        view.Refresh();
+        Assert.Equal(JobState.Running, job.State);
+        Assert.True(view.CanPause);
+    }
+
+    [Theory]
+    [InlineData(JobState.Canceled)]
+    [InlineData(JobState.Failed)]
+    [InlineData(JobState.Interrupted)]
+    public void Stopped_jobs_keep_the_settled_fraction_and_name_unprocessed_work(JobState final)
+    {
+        var job = DisplayJob();
+        job.SetState(JobState.Running);
+        job.AddTotals(4, 400);
+        job.AddBytes(100); // logical credit is not proof that bytes were copied
+        job.ItemDone();
+        job.ItemFailed();
+        job.TotalsFinal = final != JobState.Canceled;
+        job.SetState(final);
+        var view = new JobViewModel(job);
+        view.Refresh();
+
+        Assert.True(view.Percent < 100);
+        Assert.Equal(string.Empty, view.PercentText);
+        Assert.Contains("1 done, 0 skipped, 1 failed", view.DetailText);
+        Assert.Contains(final == JobState.Canceled ? "remaining scope not fully counted" : "2 not processed", view.DetailText);
+        Assert.Contains("planned bytes accounted for", view.DataText);
+        Assert.DoesNotContain("copied or read", view.DataText);
+        Assert.Contains(final == JobState.Canceled ? "4+ items" : "4 items", view.ItemsText);
+        Assert.True(OperationCenterViewModel.TaskbarFor(null, view).Fraction < 1);
+    }
+
+    [Fact]
+    public void Completed_with_issues_shows_outcome_counts_without_a_success_percentage_claim()
+    {
+        var job = DisplayJob();
+        job.SetState(JobState.Running);
+        job.AddTotals(2, 20);
+        job.AddBytes(20); // logical skip credit must not imply physical transfer
+        job.ItemDone();
+        job.ItemSkipped();
+        job.TotalsFinal = true;
+        job.SetState(JobState.CompletedWithIssues);
+        var view = new JobViewModel(job);
+        view.Refresh();
+
+        Assert.Equal(100, view.Percent); // all planned work was settled
+        Assert.Equal(string.Empty, view.PercentText);
+        Assert.Equal("Completed with issues", view.PhaseText);
+        Assert.Contains("1 done, 1 skipped", view.DetailText);
+        Assert.Contains("1 skipped", view.ItemsText);
+        Assert.Contains("planned bytes accounted for", view.DataText);
+        Assert.DoesNotContain("copied or read", view.DataText);
+        Assert.False(view.HasSpeedHistory);
+    }
+
+    [Fact]
+    public void Same_volume_move_credit_is_accounted_for_without_claiming_copied_data_or_speed()
+    {
+        var job = DisplayJob(JobKind.Move);
+        job.SetState(JobState.Running);
+        job.AddTotals(1, 1024);
+        job.AddBytes(1024); // one rename can settle logical work without transferring data
+        job.ItemDone();
+        job.TotalsFinal = true;
+        job.SetState(JobState.Completed);
+        var view = new JobViewModel(job);
+        view.Refresh();
+
+        Assert.Equal("100%", view.PercentText);
+        Assert.Contains("planned bytes accounted for", view.DetailText);
+        Assert.Contains("planned bytes accounted for", view.DataText);
+        Assert.DoesNotContain("copied or read", view.DataText);
+        Assert.False(view.HasSpeedHistory);
+    }
+
     [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task Opening_the_details_shows_the_running_operation()
     {

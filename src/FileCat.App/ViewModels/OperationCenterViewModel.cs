@@ -61,6 +61,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _isFinished;
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canResume;
+    [ObservableProperty] private string _resumeLabel = "Resume";
     [ObservableProperty] private bool _canUndo;
     [ObservableProperty] private bool _canShowUndoReport;
     [ObservableProperty] private string _undoStatus = string.Empty;
@@ -106,6 +107,7 @@ public sealed partial class JobViewModel : ObservableObject
         NeedsDecision = j.State == JobState.AwaitingDecision;
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
         CanResume = j.IsPaused || j.State is JobState.Paused or JobState.Pausing;
+        ResumeLabel = j.State == JobState.Pausing ? "Keep running" : "Resume";
         CanUndo = j.CanUndo;
         CanShowUndoReport = IsFinished && j.UndoReport is not null;
         UndoStatus = j.UndoState switch
@@ -123,14 +125,17 @@ public sealed partial class JobViewModel : ObservableObject
 
         long bt = j.BytesTotal, bd = j.BytesDone, it = j.ItemsTotal, id = j.ItemsDone + j.ItemsSkipped + j.ItemsFailed;
         IsIndeterminate = IsActive && !j.TotalsFinal && bt == 0 && it == 0;
-        // All the work counts (copying, reading back to verify, what settled); 100% only once the job has ended.
+        // The fraction tracks settled work, including skips, not physically copied bytes or a successful outcome.
         var estimate = _progress.Update(new ProgressSample(System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart),
             j.WorkBytesDone, j.WorkBytesTotal, id, it, j.TotalsFinal, j.State == JobState.Running && !j.IsPaused));
-        Percent = IsFinished ? 100 : 100 * estimate.Fraction;
+        Percent = j.State is JobState.Completed or JobState.CompletedWithIssues
+            ? 100 : Math.Min(99.9, 100 * estimate.Fraction);
         string state = j.State switch
         {
             JobState.Queued when j.WaitReason is not null => j.WaitReason,
+            JobState.Pausing => "Pausing — waiting for a safe point",
             JobState.Paused => "Paused",
+            JobState.Stopping => "Stopping — waiting for a safe point",
             JobState.AwaitingDecision => "Waiting for your decision",
             _ => j.State.Describe(),
         };
@@ -158,11 +163,18 @@ public sealed partial class JobViewModel : ObservableObject
             }
             if (j.RateLimit > 0) parts.Add($"limited to {Formatters.Size(j.RateLimit)}/s");
         }
-        if (IsFinished)
+        if (j.State is JobState.Canceled or JobState.Failed or JobState.Interrupted)
+        {
+            parts.Clear();
+            parts.Add($"{j.ItemsDone:N0} done, {j.ItemsSkipped:N0} skipped, {j.ItemsFailed:N0} failed");
+            if (!j.TotalsFinal) parts.Add("remaining scope not fully counted");
+            else if (it > id) parts.Add($"{it - id:N0} not processed");
+        }
+        else if (IsFinished)
         {
             // Done as asked: how much, and nothing more (the title says what). Counts matter when some items were not.
             parts.Clear();
-            if (bd > 0) parts.Add(Formatters.SizeWithUnit(bd));
+            if (bd > 0) parts.Add($"{Formatters.SizeWithUnit(bd)} planned bytes accounted for");
             if (j.Kind == JobKind.Undo || j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
         }
         DetailText = Formatters.SafeName(string.Join(" · ", parts));
@@ -175,11 +187,14 @@ public sealed partial class JobViewModel : ObservableObject
     {
         bool running = j.State == JobState.Running && !j.IsPaused;
         bool verifying = j.CurrentItem?.EndsWith("(verifying)", StringComparison.Ordinal) == true;
-        PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%" : IsFinished ? "100%" : string.Empty;
+        PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
+            : j.State == JobState.Completed ? "100%" : string.Empty;
         PhaseText = j.State switch
         {
             JobState.Queued => j.WaitReason ?? "Waiting for its turn",
-            JobState.Paused or JobState.Pausing => "Paused",
+            JobState.Pausing => "Pausing — waiting for a safe point",
+            JobState.Paused => "Paused",
+            JobState.Stopping => "Stopping — waiting for a safe point",
             JobState.AwaitingDecision => "Waiting for your decision",
             JobState.Running when j.IsPaused => "Pausing",
             JobState.Running when verifying => "Verifying",
@@ -229,9 +244,11 @@ public sealed partial class JobViewModel : ObservableObject
             : string.Join(" · ", new[] { TimeLeftText.Length > 0 ? "Time left: " + TimeLeftText : "", ElapsedText.Length > 0 ? "running for " + ElapsedText : "" }.Where(t => t.Length > 0));
         ItemsText = it > 0 || id > 0
             ? $"{id:N0} of {it:N0}{(j.TotalsFinal ? "" : "+")} items" + (j.ItemsSkipped > 0 ? $" · {j.ItemsSkipped:N0} skipped" : "") + (j.ItemsFailed > 0 ? $" · {j.ItemsFailed:N0} failed" : "")
-            : string.Empty;
+            : (j.State is JobState.Canceled or JobState.Failed or JobState.Interrupted) && !j.TotalsFinal
+                ? "Remaining item scope was not fully counted" : string.Empty;
         DataText = bt > 0 || bd > 0
-            ? $"{Formatters.SizeWithUnit(bd)} of {Formatters.SizeWithUnit(bt)}{(j.TotalsFinal ? "" : "+")}" +
+            ? $"{Formatters.SizeWithUnit(bd)} of {Formatters.SizeWithUnit(bt)}{(j.TotalsFinal ? "" : "+")} planned bytes accounted for" +
+              (j.DataBytesProcessed > 0 ? $" · {Formatters.SizeWithUnit(j.DataBytesProcessed)} data bytes copied or read" : "") +
               (j.VerifyBytesTotal > 0 ? $" · verified {Formatters.SizeWithUnit(j.VerifyBytesDone / 2)} of {Formatters.SizeWithUnit(j.VerifyBytesTotal / 2)}" : "")
             : string.Empty;
         // The pace, once a second and over the last 90 seconds. Logical byte credit for a same-volume rename or a
@@ -430,14 +447,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         // The taskbar button (Windows): the running operation's bar; yellow while it is paused or waits for an answer,
         // red for a moment after one failed (release issue I30).
         var shown = active.FirstOrDefault(j => j.NeedsDecision) ?? active.FirstOrDefault(j => j.IsActive);
-        (TaskbarState, TaskbarFraction) = shown switch
-        {
-            { NeedsDecision: true } or { CanResume: true } => (TaskbarProgressState.Paused, shown.Percent / 100),
-            { IsIndeterminate: true } => (TaskbarProgressState.Indeterminate, 0),
-            not null => (TaskbarProgressState.Normal, shown.Percent / 100),
-            null when Primary is { IsFinished: true, Severity: "error" } => (TaskbarProgressState.Error, 1),
-            _ => (TaskbarProgressState.None, 0),
-        };
+        (TaskbarState, TaskbarFraction) = TaskbarFor(shown, Primary);
         Summary = active.Count switch
         {
             0 => Interrupted.Count > 0 ? Formatters.Plural(Interrupted.Count, "interrupted operation needs", "interrupted operations need") + " attention" : string.Empty,
@@ -445,6 +455,16 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             _ => $"+{active.Count - 1} more",
         };
     }
+
+    internal static (TaskbarProgressState State, double Fraction) TaskbarFor(JobViewModel? shown, JobViewModel? primary) =>
+        shown switch
+        {
+            { NeedsDecision: true } or { Job: { State: JobState.Paused } } => (TaskbarProgressState.Paused, shown.Percent / 100),
+            { IsIndeterminate: true } => (TaskbarProgressState.Indeterminate, 0),
+            not null => (TaskbarProgressState.Normal, shown.Percent / 100),
+            null when primary is { IsFinished: true, Severity: "error" } => (TaskbarProgressState.Error, Math.Min(0.999, primary.Percent / 100)),
+            _ => (TaskbarProgressState.None, 0),
+        };
 
     public void LoadInterrupted(IEnumerable<InterruptedJob> jobs)
     {
