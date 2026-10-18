@@ -28,19 +28,35 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-033**. Follow
+After resolving any outstanding validation failure, resume **FCUX-036**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-033 — long breadcrumb presentation | Keep the current folder identifiable and make the full safe path inspectable in narrow panes. |
+| 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
 
-Then continue FCUX-034 onward in the audit's S2 order. Active Undo ownership, full synchronization
+FCUX-034/035 were completed within the earlier Settings preservation work.
+Then continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-033 implementation record
+
+When a root, a long final folder, or a one-part path exceeds the breadcrumb
+width, the path now keeps a bounded root cue, one non-actionable ellipsis and
+the distinguishing tail of the current name. Display cutting follows Unicode
+graphemes and treats each escaped hidden character as one unit. Pointer hit
+tests and underlines use only visible, contiguous fragments; hidden segments
+cannot be clicked through the ellipsis. Hover, the static accessible name and
+the Alt+Up ancestor menu expose the complete safe-display path, while Copy
+retains the exact raw spelling. Headless tests cover 120/240/480 DIP widths,
+one/two/many parts, long UNC and provider-style roots, emoji and combining
+marks, bidi/control escapes, full inspection and mapped hit targets. The
+complete Core suite passes 4,413 cases with 150 platform/fixture skips. Native
+font, screen-reader, touch and scaling acceptance remains open.
 
 ### FCUX-032 implementation record
 
