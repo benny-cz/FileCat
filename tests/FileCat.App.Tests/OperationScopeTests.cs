@@ -55,6 +55,8 @@ public sealed class OperationScopeTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen);
+            for (int i = 0; i < 250 && !Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Button>()
+                     .Any(b => b.Content as string == "Copy" && b.IsEnabled); i++) await Task.Delay(20, ct);
             window.KeyPress(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.None, Avalonia.Input.PhysicalKey.Enter, null);
             Job? job = null;
             for (int i = 0; i < 500 && (job = services.Jobs.Jobs.FirstOrDefault()) is not { State: JobState.AwaitingDecision }; i++) await Task.Delay(20, ct);
@@ -126,6 +128,8 @@ public sealed class OperationScopeTests
                 .Single(box => (box.Content as string)?.StartsWith("Include 1 marked item hidden by the filter", StringComparison.Ordinal) == true);
             Assert.True(hidden.IsChecked);
             if (!include) hidden.IsChecked = false;
+            for (int i = 0; i < 250 && !Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Button>()
+                     .Any(b => b.Content as string == "Copy" && b.IsEnabled); i++) await Task.Delay(20, ct);
             window.KeyPress(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.None, Avalonia.Input.PhysicalKey.Enter, null);
             Job? job = null;
             for (int i = 0; i < 500 && (job = services.Jobs.Jobs.FirstOrDefault()) is not { } || job is { } j && !j.State.IsFinished(); i++) await Task.Delay(20, ct);

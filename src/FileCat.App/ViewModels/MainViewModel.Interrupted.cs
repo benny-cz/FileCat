@@ -131,18 +131,17 @@ public sealed partial class MainViewModel
                 var draft = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(kind, sources, SizeSummary(sources), initialDestination,
                     "recorded destination", 0, false)
                 {
+                    BaseLocation = destination,
+                    InitialLocation = destination,
                     RecoveryReviewNotice = (job.TransferIntentProblem ?? "The original transfer options are incomplete.") +
                         " This is a new transfer. The available recorded source paths are prefilled; original relative-folder mappings and filtering cannot be assumed. Choose the destination, matching rules, verification and conflict policy below. Selected roots will go directly into the destination. Timestamps and attributes will be preserved.",
                 });
                 CheckSessionAction();
                 if (draft is null) return false;
-                // Relative edits are interpreted against the captured destination, independent of a later active tab.
-                if (!Services.Providers.TryParse(draft.Destination, destination, out var parsed) || parsed is not { IsFileSystem: true })
+                if (draft.ResolvedDestination is not { IsFileSystem: true } newDestination)
                 { Notify("Choose a local destination for this reviewed transfer.", true); return false; }
-                string destinationText = parsed.Path + (draft.Destination.EndsWith('/') || draft.Destination.EndsWith('\\') ? Path.DirectorySeparatorChar.ToString() : "");
-                if (!ResolveDestination(destinationText, sources, out var newDestination, out newName, out var error) || newDestination is not { IsFileSystem: true })
-                { Notify(error ?? "Choose a local destination for this reviewed transfer.", true); return false; }
                 destination = newDestination;
+                newName = draft.NewName;
                 options = draft.Options;
                 mode = draft.Queue ? QueueMode.Queue : QueueMode.Start;
             }

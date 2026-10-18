@@ -53,6 +53,7 @@ public sealed class InterruptedTransferIntentUiTests
             await Fixture.Wait(() => f.Window.GetVisualDescendants().OfType<ComboBox>().Any(IsConflict));
             var conflict = Assert.Single(f.Window.GetVisualDescendants().OfType<ComboBox>(), IsConflict);
             conflict.SelectedIndex = policy;
+            await Fixture.Wait(() => f.Button("Copy")?.IsEnabled == true);
             f.Click("Copy");
         }
         string action = flow switch { "move" => "Continue move", "cleanup" => "Delete partial files", "new-copy" => "Start new copy", _ => "Continue copy" };
@@ -189,6 +190,7 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Contains(f.Window.GetVisualDescendants().OfType<Expander>(), e => e.Header as string == "Options" && e.IsExpanded);
         var destination = Assert.Single(f.Window.GetVisualDescendants().OfType<TextBox>(), t => AutomationProperties.GetName(t) == "Destination");
         Assert.Equal(target, destination.Text);
+        await Fixture.Wait(() => f.Button("Copy")?.IsEnabled == true);
         f.Click("Copy");
         await f.WaitButton("Start new copy");
         Assert.True(JournalRecovery.IsInterrupted(interrupted));

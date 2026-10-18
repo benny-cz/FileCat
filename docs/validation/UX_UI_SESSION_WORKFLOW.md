@@ -28,10 +28,12 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, finish **FCUX-036** acceptance and the native **UXBUG-002** checks. Follow
-the audit's physical S2 order; its permanent IDs are references, not a numeric
-priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
-their native acceptance gates open.
+After resolving any outstanding validation failure, follow the audit's physical
+S2 order; its permanent IDs are references, not a numeric priority sort. The
+FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
+FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
+native acceptance gates open. Investigate the newly reported PE viewer
+scrollbar-drag freeze after the current transfer-form regression gate.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -41,7 +43,9 @@ their native acceptance gates open.
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
 | 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
 | 6 | FCUX-040 — counter field validation | Exact field validation and focused App/Core tests pass; native acceptance remains open. |
-| 7 | FCUX-041 — transfer destination validation | Keep deterministic destination errors within the transfer form. |
+| 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; complete App regression and native network/focus acceptance remain open. |
+| 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Reproduce with affected EXE files by dragging the scrollbar thumb down and back up with the mouse, find the blocking scroll/layout path, and add a bounded regression that verifies the viewer stays responsive. Mouse-wheel scrolling is not the reported trigger. |
+| 9 | FCUX-042 — operations drawer layout | Make recovery rows, reports and controls reachable at the audit's narrow and scaled window sizes. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -149,6 +153,22 @@ text gets neutral guidance while editing. Negative steps count down and zero
 repeats the counter value; the pure planner catches overflow at each affected
 row instead of wrapping. Eight focused App field cases and eight Core planner
 cases pass. Native focus, screen-reader and scaled-layout checks remain open.
+
+### FCUX-041 implementation record
+
+The transfer form validates its destination before either Start or Queue can
+submit. Parser and provider-capability refusals appear beside the destination
+field with accessible help, while the filter, verification, rate, conflict and
+selection choices remain in place. One captured asynchronous result supplies
+both the inline folder/new-name interpretation and the eventual request.
+Filesystem existence probes run on the device IO scheduler; changed text
+cancels queued probes and retires late results. Cancel does not wait for a
+blocked filesystem probe. Four focused UI cases cover unsupported providers,
+both buttons, retained options, an existing-parent rename mapping, correction,
+and held-probe cancellation. Existing operation and recovery tests now wait for
+the form's validated submission state. The complete App regression gate is in
+progress; native network-path, focus, screen-reader and execution-time-change
+checks remain open.
 
 ### FCUX-033 implementation record
 

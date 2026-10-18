@@ -11,8 +11,14 @@ using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 using FileCat.Core.Tools;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.ViewModels;
+
+internal readonly record struct TransferDestinationResolution(Location? Destination, string? NewName, string? Error, string Description)
+{
+    public bool Valid => Destination is not null && Error is null;
+}
 
 /// <summary>
 /// File operations (plan §4.3–4.4, §9): every mutation goes through the job engine (AI-02). The destination
@@ -21,6 +27,7 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
+    internal Func<string, bool> TransferDestinationDirectoryExists { get; set; } = Directory.Exists;
     private readonly Dictionary<Job, (TabViewModel Tab, Location Location)> _jobOrigins = new();
     private bool _showingDecision;
     private OperationCenterViewModel? _operations;
@@ -184,21 +191,12 @@ public sealed partial class MainViewModel
             var summary = explicitItems is null ? sel!.Value.Summary : SizeSummary(items);
             var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(
                 kind, items, summary, destText, target is null ? null : $"panel {target.Number}",
-                sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet, explicitDestination is null ? PanelDestinations(tab) : null));
+                sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet, explicitDestination is null ? PanelDestinations(tab) : null)
+            { InitialLocation = destination, BaseLocation = source });
             if (request is null) return;
-            Location? destLocation;
-            string? newName = null;
-            if (destination is { IsFileSystem: false } && request.Destination == destText)
-            {
-                // An unchanged non-folder destination (an archive folder, say) is used as shown: re-parsing its display
-                // text could name a different kind of location (an archive root's text is the archive file's path).
-                destLocation = destination;
-            }
-            else if (!ResolveDestination(request.Destination, items, out destLocation, out newName, out var error))
-            {
-                Notify(error!, true);
-                return;
-            }
+            Location? destLocation = request.ResolvedDestination;
+            string? newName = request.NewName;
+            if (destLocation is null) { Notify("The destination changed before this transfer was submitted. Review it again.", true); return; }
             // Hidden marks are excluded only when there are some and the user did not include them.
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
             if (destLocation?.Scheme == Schemes.Zip)
@@ -262,60 +260,62 @@ public sealed partial class MainViewModel
     private static string AppendSeparator(string path) =>
         path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
 
-    /// <summary>
-    /// Destination text → location + optional new name: an existing folder receives the items; a path ending
-    /// in a separator (or several items) names a folder to create; one item to a non-existing path is renamed.
-    /// </summary>
-    private bool ResolveDestination(string text, IReadOnlyList<ItemRef> items, out Location? destination, out string? newName, out string? error)
+    /// <summary>The transfer form and its submission use this same captured interpretation. Filesystem probes stay on a device worker.</summary>
+    internal async Task<TransferDestinationResolution> ResolveTransferDestinationAsync(string text, IReadOnlyList<ItemRef> items,
+        Location? context, Location? unchangedLocation = null, string? unchangedText = null, CancellationToken cancellationToken = default)
     {
-        destination = null;
-        newName = null;
-        error = null;
-        var cur = ActiveTab?.Location;
-        var t = text.Trim();
-        if (t.Length == 0)
+        string t = text.Trim();
+        if (t.Length == 0) return new(null, null, "Enter a destination folder.", string.Empty);
+        if (unchangedLocation is { IsFileSystem: false } original && t == unchangedText)
         {
-            error = "Enter a destination.";
-            return false;
+            var originalProvider = Services.Providers.For(original);
+            if ((originalProvider.GetCapabilities(original) & LocationCapabilities.TransferTarget) == 0)
+                return new(null, null, originalProvider.ExplainUnavailable(original, LocationCapabilities.TransferTarget), string.Empty);
+            return new(original, null, null, "→ " + Services.Providers.Display(original));
         }
-        if (!Services.Providers.TryParse(t, cur, out var loc) || loc is null)
+        Location? loc;
+        try
         {
-            error = $"\"{t}\" is not a location FileCat can copy to.";
-            return false;
+            if (!Services.Providers.TryParse(t, context, out loc) || loc is null)
+                return new(null, null, "This is not a recognized destination location.", string.Empty);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return new(null, null, "This destination cannot be parsed: " + Formatters.SafeName(ex.Message), string.Empty);
         }
         if (!loc.IsFileSystem)
         {
-            var caps = Services.Providers.For(loc).GetCapabilities(loc);
-            if ((caps & LocationCapabilities.TransferTarget) == 0)
-            {
-                error = Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.TransferTarget);
-                return false;
-            }
-            destination = loc;
-            return true;
+            var provider = Services.Providers.For(loc);
+            if ((provider.GetCapabilities(loc) & LocationCapabilities.TransferTarget) == 0)
+                return new(null, null, provider.ExplainUnavailable(loc, LocationCapabilities.TransferTarget), string.Empty);
+            return new(loc, null, null, "→ " + Services.Providers.Display(loc));
         }
-        var path = loc.Path;
+        string path = loc.Path;
+        string root = Path.GetPathRoot(path) ?? string.Empty;
+        foreach (var component in path[root.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+            if (PathUtil.ValidateNewName(component) is { } bad)
+                return new(null, null, $"The destination path component “{Formatters.SafeName(component)}” is invalid: {bad}", string.Empty);
         bool endsWithSep = t.EndsWith('\\') || t.EndsWith('/');
-        if (Directory.Exists(path) || endsWithSep || items.Count > 1)
+        return await Services.Io.Run(PathUtil.GetDeviceKey(path), IoPriority.Interactive, ct =>
         {
-            destination = loc;
-            return true;
-        }
-        var parent = Path.GetDirectoryName(path);
-        if (parent is null || !Directory.Exists(parent))
-        {
-            destination = loc;
-            return true;
-        }
-        var name = Path.GetFileName(path);
-        if (PathUtil.ValidateNewName(name) is { } bad)
-        {
-            error = bad;
-            return false;
-        }
-        destination = Location.FileSystem(parent);
-        newName = name;
-        return true;
+            ct.ThrowIfCancellationRequested();
+            if (TransferDestinationDirectoryExists(path))
+                return new TransferDestinationResolution(loc, null, null, "→ into the folder " + Formatters.SafeName(path));
+            if (!endsWithSep && items.Count == 1)
+            {
+                string? parent = Path.GetDirectoryName(path);
+                ct.ThrowIfCancellationRequested();
+                if (parent is not null && TransferDestinationDirectoryExists(parent))
+                {
+                    string name = Path.GetFileName(path);
+                    if (PathUtil.ValidateNewName(name) is { } bad)
+                        return new TransferDestinationResolution(null, null, bad, string.Empty);
+                    return new TransferDestinationResolution(Location.FileSystem(parent), name, null,
+                        $"→ as “{Formatters.SafeName(name)}” in {Formatters.SafeName(parent)}");
+                }
+            }
+            return new TransferDestinationResolution(loc, null, null, "→ the folder " + Formatters.SafeName(path) + " will be created");
+        }, cancellationToken);
     }
 
     private void Track(Job job, TabViewModel tab)
@@ -903,13 +903,12 @@ public sealed partial class MainViewModel
             return;
         }
         var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(move ? JobKind.Move : JobKind.Copy, items, SizeSummary(items),
-            AppendSeparator(dest.Path), $"panel {panel.Number} (drop target)", 0, false));
+            AppendSeparator(dest.Path), $"panel {panel.Number} (drop target)", 0, false)
+        { BaseLocation = dest, InitialLocation = dest });
         if (request is null) return;
-        if (!ResolveDestination(request.Destination, items, out var destLocation, out var newName, out var error))
-        {
-            Notify(error!, true);
-            return;
-        }
+        var destLocation = request.ResolvedDestination;
+        var newName = request.NewName;
+        if (destLocation is null) { Notify("The destination changed before this transfer was submitted. Review it again.", true); return; }
         Services.Jobs.Submit(new JobRequest { Kind = move ? JobKind.Move : JobKind.Copy, Sources = items, Destination = destLocation, NewName = newName, Options = request.Options, Mode = request.Queue ? QueueMode.Queue : QueueMode.Start });
     }
 

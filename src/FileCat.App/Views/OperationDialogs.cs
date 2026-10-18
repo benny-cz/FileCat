@@ -14,6 +14,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 using FileCat.Core.Operations;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Views;
 
@@ -23,12 +24,18 @@ public sealed record TransferDialogInput(JobKind Kind, IReadOnlyList<ItemRef> It
 {
     /// <summary>A legacy recovery is an explicitly new transfer; show its missing intent beside the editable options.</summary>
     public string? RecoveryReviewNotice { get; init; }
+    public Location? BaseLocation { get; init; }
+    public Location? InitialLocation { get; init; }
 }
 
 /// <summary>A panel's folder as a destination: its number, a short name, and the text that goes in the destination box.</summary>
 public sealed record PanelDestination(int Number, string Name, string Destination);
 
-public sealed record TransferDialogResult(string Destination, TransferOptions Options, bool Queue, bool IncludeHidden);
+public sealed record TransferDialogResult(string Destination, TransferOptions Options, bool Queue, bool IncludeHidden)
+{
+    public Location? ResolvedDestination { get; init; }
+    public string? NewName { get; init; }
+}
 
 /// <param name="Unrecyclable">Examples (bounded); <paramref name="UnrecyclableCount"/> is the full count.</param>
 public sealed record DeleteDialogInput(IReadOnlyList<ItemRef> Items, string Summary, bool Permanent, int HiddenMarked, IReadOnlyList<(string Name, string Why)> Unrecyclable, bool FromResultSet, int UnrecyclableCount = 0)
@@ -115,6 +122,11 @@ public static class OperationDialogs
         };
         var interpretation = Muted(string.Empty);
         body.Children.Add(interpretation);
+        var baseLocation = input.BaseLocation ?? vm.ActiveTab?.Location;
+        var destinationError = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        AutomationProperties.SetName(destinationError, "Destination validation error");
+        AutomationProperties.SetLiveSetting(destinationError, AutomationLiveSetting.Assertive);
+        body.Children.Add(destinationError);
 
         var conflicts = new ComboBox
         {
@@ -143,38 +155,58 @@ public static class OperationDialogs
         body.Children.Add(error);
         body.Children.Add(Muted("Enter starts now · Queue waits for other operations on the same drive · the destination is fixed once started"));
 
-        void Interpret()
+        int destinationRevision = 0;
+        bool destinationOpen = true;
+        string? validatedText = null;
+        TransferDestinationResolution? resolved = null;
+        CancellationTokenSource? destinationCancellation = null;
+        var destinationDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        bool CanSubmit() => resolved is { Valid: true } && validatedText == (dest.Text ?? string.Empty).Trim();
+        async Task ValidateDestinationAsync(int mine, string text)
         {
-            var t = (dest.Text ?? string.Empty).Trim();
-            if (t.Length == 0)
+            using var cancellation = new CancellationTokenSource();
+            destinationCancellation = cancellation;
+            TransferDestinationResolution result;
+            try
             {
-                interpretation.Text = "Enter a destination folder.";
-                return;
+                result = await vm.ResolveTransferDestinationAsync(text, input.Items,
+                    baseLocation, input.InitialLocation, input.Destination, cancellation.Token);
             }
-            if (!vm.Services.Providers.TryParse(t, vm.ActiveTab?.Location, out var loc) || loc is null)
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                interpretation.Text = "Not a recognized location.";
-                return;
+                result = new(null, null, "Cannot check the destination: " + Formatters.SafeName(ex.Message), string.Empty);
             }
-            if (!loc.IsFileSystem)
-            {
-                interpretation.Text = "→ " + vm.Services.Providers.Display(loc);
-                return;
-            }
-            bool sep = t.EndsWith('\\') || t.EndsWith('/');
-            // Asking a server about a folder can take long, and this runs as you type: network paths are checked when
-            // the operation starts.
-            if (IsNetworkPath(loc.Path))
-            {
-                interpretation.Text = $"→ {loc.Path} (on the network: checked when the operation starts)";
-                return;
-            }
-            if (Directory.Exists(loc.Path)) interpretation.Text = $"→ into the folder {loc.Path}";
-            else if (!sep && input.Items.Count == 1 && Directory.Exists(Path.GetDirectoryName(loc.Path) ?? ""))
-                interpretation.Text = $"→ as \"{Path.GetFileName(loc.Path)}\" in {Path.GetDirectoryName(loc.Path)}";
-            else interpretation.Text = $"→ the folder {loc.Path} will be created";
+            finally { if (ReferenceEquals(destinationCancellation, cancellation)) destinationCancellation = null; }
+            if (!destinationOpen || mine != destinationRevision) return;
+            resolved = result;
+            validatedText = text.Trim();
+            interpretation.Text = result.Description;
+            destinationError.Text = result.Error is null ? null : "Destination: " + result.Error;
+            destinationError.IsVisible = result.Error is not null;
+            AutomationProperties.SetHelpText(dest, destinationError.Text ?? result.Description);
         }
-        dest.TextChanged += (_, _) => Interpret();
+        void StartDestinationValidation()
+        {
+            int mine = destinationRevision;
+            string text = dest.Text ?? string.Empty;
+            _ = ValidateDestinationAsync(mine, text);
+        }
+        destinationDebounce.Tick += (_, _) => { destinationDebounce.Stop(); StartDestinationValidation(); };
+        void DestinationChanged()
+        {
+            if (!destinationOpen) return;
+            destinationRevision++;
+            destinationCancellation?.Cancel();
+            destinationDebounce.Stop();
+            resolved = null;
+            validatedText = null;
+            destinationError.IsVisible = false;
+            interpretation.Text = string.IsNullOrWhiteSpace(dest.Text) ? "Enter a destination folder." : "Checking destination…";
+            AutomationProperties.SetHelpText(dest, interpretation.Text);
+            destinationDebounce.Start();
+        }
+        dest.TextChanged += (_, _) => DestinationChanged();
         int historyIndex = -1;
         dest.KeyDown += (_, e) =>
         {
@@ -187,13 +219,23 @@ public static class OperationDialogs
             dest.CaretIndex = dest.Text.Length;
             e.Handled = true;
         };
-        Interpret();
+        DestinationChanged();
         Dispatcher.UIThread.Post(() => dest.SelectAll(), DispatcherPriority.Input);
 
         while (true)
         {
-            var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Queue", "queue"), new DialogButton(verb, "start", IsDefault: true)], dest);
-            if (result is not ("start" or "queue")) return null;
+            var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body,
+                [new DialogButton("Cancel", "cancel", IsCancel: true),
+                 new DialogButton("Queue", "queue") { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } },
+                 new DialogButton(verb, "start", IsDefault: true) { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } }], dest);
+            if (result is not ("start" or "queue"))
+            {
+                destinationOpen = false;
+                destinationRevision++;
+                destinationCancellation?.Cancel();
+                destinationDebounce.Stop();
+                return null;
+            }
             Mask? mask = null;
             if (!string.IsNullOrWhiteSpace(filter.Text))
             {
@@ -216,12 +258,7 @@ public static class OperationDialogs
                 }
                 rate = (long)(mb * 1024 * 1024);
             }
-            if (string.IsNullOrWhiteSpace(dest.Text))
-            {
-                error.Text = "Enter a destination.";
-                error.IsVisible = true;
-                continue;
-            }
+            if (!CanSubmit() || resolved is not { Valid: true } destinationResult) { dest.Focus(); continue; }
             var options = new TransferOptions
             {
                 Conflicts = conflicts.SelectedIndex switch
@@ -238,7 +275,15 @@ public static class OperationDialogs
                 RateLimit = rate,
                 Flatten = flatten.IsChecked == true,
             };
-            return new TransferDialogResult(dest.Text!.Trim(), options, result as string == "queue", includeHidden?.IsChecked != false);
+            destinationOpen = false;
+            destinationRevision++;
+            destinationCancellation?.Cancel();
+            destinationDebounce.Stop();
+            return new TransferDialogResult(dest.Text!.Trim(), options, result as string == "queue", includeHidden?.IsChecked != false)
+            {
+                ResolvedDestination = destinationResult.Destination,
+                NewName = destinationResult.NewName,
+            };
         }
     }
 
