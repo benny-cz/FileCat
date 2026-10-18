@@ -28,19 +28,29 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-022**. Follow
+After resolving any outstanding validation failure, resume **FCUX-023**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-022 — navigation intent | Prevent an older asynchronous navigation from replacing a newer destination; cover tab closure and delayed provider work. |
+| 1 | FCUX-023 — free-space feedback | Refresh capacity after explicit refresh and operations; query the actual mounted filesystem without changing scheduler device grouping. |
 
-Then continue FCUX-023 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-024 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-022 implementation record
+
+Navigation intent now belongs to one tab generation and one cancellable pending
+preparation. A current prepared location commits under that generation; Back,
+Forward, Escape and tab closure cancel or supersede it. Late provider success,
+failure and SFTP connection errors cannot change a newer destination's listing,
+banner, marks, focus or history. Held provider and connector tests cover a
+noncooperative late completion, plus the current successful and failed routes.
+Native network-mount, keyboard and connection-pool acceptance remain open.
 
 ### FCUX-021 implementation record
 

@@ -28,6 +28,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private SortSpec? _sortOutsideJournal;
     private string? _freeBytesDevice;
     private bool _disposed;
+    private CancellationTokenSource? _pendingNavigation;
+    private string? _bannerBeforePendingNavigation;
 
     public TabViewModel(AppServices services, PanelViewModel panel)
     {
@@ -279,6 +281,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (_leaving) return;
         _leaving = true;
+        long intent = NavigationGeneration;
         _ = Task.Run(() =>
         {
             if (MainViewModel.DriveRootOf(gone) is not { } root || !Directory.Exists(root)) return null;
@@ -288,7 +291,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }).ContinueWith(t => Services.Ui.Post(() =>
         {
             _leaving = false;
-            if (_disposed || Location != gone || !t.IsCompletedSuccessfully || t.Result is not { } parent) return;
+            if (!OwnsNavigation(intent) || Location != gone || !t.IsCompletedSuccessfully || t.Result is not { } parent) return;
             string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(gone.Path));
             Navigate(Location.FileSystem(LocalFileSystemProvider.NormalizeUserPath(parent)));
             Banner = $"“{name}” is no longer there: another program deleted or moved it. This is the nearest folder that still exists.";
@@ -304,7 +307,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Navigate(Location location, string? focusName = null, bool record = true)
     {
         if (_disposed) return;
-        NavigationGeneration++;
+        long intent = BeginNavigationIntent();
+        if (!OwnsNavigation(intent)) return;
         // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
         if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
         {
@@ -316,16 +320,87 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _ = ConnectThenNavigateAsync(location, focusName, record);
+                if (!OwnsNavigation(intent)) return;
+                var connection = new CancellationTokenSource();
+                BeginPendingNavigation(connection, $"Connecting to {Formatters.SafeName(Services.Providers.Display(location))}…");
+                _ = ConnectThenNavigateAsync(location, focusName, record, intent, connection);
                 return;
             }
         }
         // A location reached only after some work (a network share mounted first, D-54): that work, then the location it gives.
-        if (Services.Providers.IsRegistered(location.Scheme) && Services.Providers.For(location).PrepareAsync(location, CancellationToken.None) is { } preparing)
+        if (Services.Providers.IsRegistered(location.Scheme))
         {
-            _ = PrepareThenNavigateAsync(location, preparing, focusName, record);
-            return;
+            var preparation = new CancellationTokenSource();
+            Task<Location>? preparing;
+            try { preparing = Services.Providers.For(location).PrepareAsync(location, preparation.Token); }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                preparation.Dispose();
+                if (OwnsNavigation(intent))
+                    Banner = $"{Formatters.SafeName(Services.Providers.Display(location))} could not be opened: {Formatters.SafeName(ex.Message)}";
+                return;
+            }
+            if (preparing is not null)
+            {
+                if (!OwnsNavigation(intent))
+                {
+                    preparation.Cancel();
+                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                    return;
+                }
+                BeginPendingNavigation(preparation, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
+                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                return;
+            }
+            preparation.Dispose();
         }
+        CommitNavigation(location, focusName, record, intent);
+    }
+
+    private long BeginNavigationIntent()
+    {
+        NavigationGeneration++;
+        var old = _pendingNavigation;
+        _pendingNavigation = null;
+        _bannerBeforePendingNavigation = null;
+        old?.Cancel();
+        return NavigationGeneration;
+    }
+
+    private bool OwnsNavigation(long intent, CancellationTokenSource? pending = null) =>
+        !_disposed && NavigationGeneration == intent &&
+        (pending is null || ReferenceEquals(_pendingNavigation, pending) && !pending.IsCancellationRequested);
+
+    private void BeginPendingNavigation(CancellationTokenSource pending, string message)
+    {
+        _bannerBeforePendingNavigation = Banner;
+        _pendingNavigation = pending;
+        Banner = message;
+    }
+
+    private void FinishPendingNavigation(CancellationTokenSource pending)
+    {
+        if (ReferenceEquals(_pendingNavigation, pending))
+        {
+            _pendingNavigation = null;
+            _bannerBeforePendingNavigation = null;
+        }
+        pending.Dispose();
+    }
+
+    /// <summary>Escape abandons a slow destination without changing the current listing or its history.</summary>
+    public bool CancelPendingNavigation()
+    {
+        if (_disposed || _pendingNavigation is null) return false;
+        string? previousBanner = _bannerBeforePendingNavigation;
+        long intent = BeginNavigationIntent();
+        if (OwnsNavigation(intent)) Banner = previousBanner;
+        return true;
+    }
+
+    private void CommitNavigation(Location location, string? focusName, bool record, long intent)
+    {
+        if (!OwnsNavigation(intent)) return;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
             Panel.OpenTab(location, focusName, activate: true);
@@ -370,11 +445,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void ShowLinkTarget(LinkListingRefusedException refused)
     {
         var link = Location;
+        long intent = NavigationGeneration;
         string? focus = _navigatedFocus is { } f && f.At == link ? f.Name : null;
         // Posted: the listing is still reporting the refusal.
         Services.Ui.Post(() =>
         {
-            if (_disposed || link is null || Location != link || Listing.LoadError != refused) return;
+            if (!OwnsNavigation(intent) || link is null || Location != link || Listing.LoadError != refused) return;
             EndQuickSearch();
             ComparisonLabel = null;
             _navigatedFocus = (refused.Target, focus);
@@ -389,40 +465,46 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
-    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record)
+    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record,
+        long intent, CancellationTokenSource pending)
     {
-        string what = Services.Providers.Display(requested);
-        Banner = $"Opening {what}…";
-        Location ready;
+        string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
         {
-            ready = await preparing;
+            Location ready = await preparing;
+            if (OwnsNavigation(intent, pending)) CommitNavigation(ready, focusName, record, intent);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException or TimeoutException or InvalidOperationException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (!_disposed) Banner = ex is OperationCanceledException ? null : $"{what} could not be opened: {ex.Message}";
-            return;
+            if (OwnsNavigation(intent, pending))
+                Banner = ex is OperationCanceledException ? _bannerBeforePendingNavigation : $"{what} could not be opened: {Formatters.SafeName(ex.Message)}";
         }
-        if (!_disposed) Navigate(ready, focusName, record);
+        finally { FinishPendingNavigation(pending); }
     }
 
-    private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record)
+    private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record,
+        long intent, CancellationTokenSource pending)
     {
         try
         {
             await Task.Run(() =>
             {
-                using var lease = Services.SftpProvider.Lease(location, CancellationToken.None);
-            });
+                using var lease = Services.SftpProvider.Lease(location, pending.Token);
+            }, pending.Token);
+            if (!OwnsNavigation(intent, pending)) return;
+            string resolved = Services.SftpProvider.Resolve(location);
+            if (OwnsNavigation(intent, pending) && !resolved.StartsWith('~'))
+                CommitNavigation(location.WithPath(resolved), focusName, record, intent);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Services.Ui.Post(() => Banner = $"Not connected: {(ex is OperationCanceledException ? "canceled." : ex.Message)}");
-            return;
+            if (OwnsNavigation(intent, pending))
+                Services.Ui.Post(() =>
+                {
+                    if (OwnsNavigation(intent)) Banner = $"Not connected: {(ex is OperationCanceledException ? "canceled." : Formatters.SafeName(ex.Message))}";
+                });
         }
-        string resolved = Services.SftpProvider.Resolve(location);
-        // The tab may have been closed while it connected.
-        if (!_disposed && !resolved.StartsWith('~')) Navigate(location.WithPath(resolved), focusName, record);
+        finally { FinishPendingNavigation(pending); }
     }
 
     public bool CanGoBack => _back.Count > 0;
@@ -430,25 +512,29 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void GoBack()
     {
-        if (_back.Count == 0 || Location is null) return;
+        if (_back.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
+        long intent = BeginNavigationIntent();
+        if (!OwnsNavigation(intent)) return;
         var target = _back[^1];
         _back.RemoveAt(_back.Count - 1);
         _forward.Add(Location);
-        NavigateHistory(target);
+        NavigateHistory(target, intent);
     }
 
     public void GoForward()
     {
-        if (_forward.Count == 0 || Location is null) return;
+        if (_forward.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
+        long intent = BeginNavigationIntent();
+        if (!OwnsNavigation(intent)) return;
         var target = _forward[^1];
         _forward.RemoveAt(_forward.Count - 1);
         _back.Add(Location);
-        NavigateHistory(target);
+        NavigateHistory(target, intent);
     }
 
-    private void NavigateHistory(Location target)
+    private void NavigateHistory(Location target, long intent)
     {
-        NavigationGeneration++;
+        if (!OwnsNavigation(intent)) return;
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(target);
@@ -931,6 +1017,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         EndQuickSearch();
         _disposed = true;
+        NavigationGeneration++;
+        _pendingNavigation?.Cancel();
+        _pendingNavigation = null;
+        _bannerBeforePendingNavigation = null;
         Closed?.Invoke();
         Closed = null;
         StopWatching();

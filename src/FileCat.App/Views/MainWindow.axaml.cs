@@ -616,6 +616,7 @@ public partial class MainWindow : Window, IViewActions
         }
         if (tab.CancelAnalysis()) return true;
         if (_vm.CancelSizing(tab)) return true;
+        if (tab.CancelPendingNavigation()) return true;
         if (tab.Listing.State == ListingState.Loading || tab.Listing.IsRefreshing)
         {
             tab.Listing.CancelLoading();
