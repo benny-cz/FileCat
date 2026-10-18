@@ -78,6 +78,12 @@
   <Style Selector="TextBox.path:focus">
     <Setter Property="Background" Value="{DynamicResource FcCard}" />
   </Style>
+  <Style Selector="GridSplitter.panelResize:focus">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBorder}" />
+  </Style>
+  <Style Selector="GridSplitter.panelResize.resizeActive">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBorder}" />
+  </Style>
   <Style Selector="TextBox.path:focus /template/ Border#PART_BorderElement">
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />

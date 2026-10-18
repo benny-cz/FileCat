@@ -135,3 +135,9 @@ public interface IWorkspaceViewportProvider
 {
     Avalonia.Size? WorkspaceViewport { get; }
 }
+
+/// <summary>Focuses the measured splitter next to the active panel for explicit keyboard resizing.</summary>
+public interface IPanelResizeActions
+{
+    bool BeginPanelResize(PanelViewModel panel);
+}

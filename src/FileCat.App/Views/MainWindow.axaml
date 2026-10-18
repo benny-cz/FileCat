@@ -52,6 +52,11 @@
             Classes="notification" Margin="0,4,12,0" IsVisible="False">
       <TextBlock x:Name="MaximizedText" Classes="small" />
     </Border>
+    <Border x:Name="ResizeStrip" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Center"
+            Classes="notification" Margin="12,4" MaxWidth="520" IsHitTestVisible="False" IsVisible="False">
+      <TextBlock x:Name="ResizeText" Classes="small" TextWrapping="Wrap"
+                 AutomationProperties.LiveSetting="Polite" />
+    </Border>
 
     <local:OperationsView x:Name="OperationsPane" Grid.Row="2" DataContext="{Binding Operations}" />
 

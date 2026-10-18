@@ -14,8 +14,15 @@ public sealed partial class MainViewModel
         return id switch
         {
             CommandIds.PanelMoveLeft or CommandIds.PanelMoveRight or CommandIds.PanelMoveUp or CommandIds.PanelMoveDown
-                or CommandIds.RotatePanels or CommandIds.EqualizePanels when panels < 2 =>
+                or CommandIds.RotatePanels or CommandIds.EqualizePanels or CommandIds.ResizePanel when panels < 2 =>
                 CommandAvailability.No("There is only one panel. Panels → Add panel adds another."),
+            CommandIds.ResizePanel when Workspace.MaximizedPanel is not null =>
+                CommandAvailability.No("Restore the full panel layout with F11 before resizing a boundary."),
+            CommandIds.ResizePanel when _view is not IWorkspaceViewportProvider { WorkspaceViewport: { } } =>
+                CommandAvailability.No("The workspace is still measuring. Try resizing after the window appears."),
+            CommandIds.ResizePanel when _view is IWorkspaceViewportProvider { WorkspaceViewport: { } room }
+                && !PanelLayout.Fits(Workspace.LayoutTree, room.Width, room.Height) =>
+                CommandAvailability.No("The workspace is cramped. Enlarge the window or hide chrome before resizing a boundary."),
             CommandIds.PanelSwapPlaces when Workspace.ActiveTarget is null =>
                 CommandAvailability.No(panels < 2 ? "There is only one panel." : "This panel has no target panel; Shift+F12 chooses one."),
             CommandIds.AddPanel => PanelAdditionAvailability(Workspace.ActivePanel, DockSide.Right),
@@ -49,6 +56,10 @@ public sealed partial class MainViewModel
             case CommandIds.EqualizePanels:
                 Workspace.EqualizeSizes();
                 View.FocusActivePanel();
+                return true;
+            case CommandIds.ResizePanel:
+                if (_view is not IPanelResizeActions resize || !resize.BeginPanelResize(panel))
+                    Notify("No measurable boundary is beside this panel. Restore the layout or enlarge the window, then try again.");
                 return true;
             case CommandIds.AddPanelBelow:
                 if (!RoomForPanel(panel, DockSide.Bottom)) return true;

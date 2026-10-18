@@ -121,6 +121,7 @@ public static class CommandIds
     public const string PanelSwapPlaces = "panel.swapPlaces";
     public const string AddPanelBelow = "panel.addBelow";
     public const string EqualizePanels = "panel.equalize";
+    public const string ResizePanel = "panel.resize";
     public const string RotatePanels = "panel.rotate";
 
     public const string NewTab = "tab.new";
@@ -351,6 +352,7 @@ public sealed class CommandRegistry
         Add(CommandIds.PanelSwapPlaces, "Swap places with the target panel", P);
         Add(CommandIds.RotatePanels, "Turn panels side by side or stacked", P);
         Add(CommandIds.EqualizePanels, "Equalize panel sizes", P);
+        Add(CommandIds.ResizePanel, "Resize panel boundary…", P);
 
         Add(CommandIds.NewTab, "New tab", T, null, CommandContext.Panel, "Ctrl+T");
         Add(CommandIds.CloseTab, "Close tab", T, null, CommandContext.Panel, "Ctrl+W");
@@ -530,6 +532,7 @@ public sealed class CommandRegistry
         K(CommandIds.PanelSwapPlaces, "exchange panels", "switch places", "dock", "layout", "arrange");
         K(CommandIds.RotatePanels, "vertical", "horizontal", "stacked", "side by side", "orientation", "rotate", "layout");
         K(CommandIds.EqualizePanels, "same size", "even", "balance", "reset sizes", "layout");
+        K(CommandIds.ResizePanel, "splitter", "panel width", "panel height", "proportion", "keyboard resize", "layout");
         K(CommandIds.ClosePanel, "remove panel");
         K(CommandIds.QuickView, "preview pane", "thumbnail");
         K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");

@@ -19,7 +19,7 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Views;
 
-public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider
+public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider, IPanelResizeActions
 {
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
@@ -113,6 +113,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
         Deactivated += (_, _) =>
         {
+            EndPanelResize(restore: false, returnFocus: false);
             _vm.UpdateKeyBar(KeyMods.None);
             ThemeAnimation.SetActive(false);
         };
@@ -548,6 +549,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             e.Handled = true;
             return;
         }
+        if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
             _vm.UpdateKeyBar(KeyMapper.ToMods(e.KeyModifiers));

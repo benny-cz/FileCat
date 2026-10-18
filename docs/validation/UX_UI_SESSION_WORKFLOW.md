@@ -28,19 +28,33 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-031**. Follow
+After resolving any outstanding validation failure, resume **FCUX-032**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-031 — keyboard panel resizing | Give nested splitters an explicit, accessible keyboard resize interaction with bounded proportions and saved results. |
+| 1 | FCUX-032 — breadcrumb accessibility | Give every breadcrumb action a complete keyboard and accessible route. |
 
-Then continue FCUX-032 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-033 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-031 implementation record
+
+Panels → Arrange and command search expose Resize panel boundary. The command
+focuses the closest measured splitter to the active panel; Tab chooses another
+boundary, arrows change its size by eight DIPs, Shift+arrows by 32. Enter saves
+the proportion and Escape restores its starting values while that tree is still
+current. A new layout, workspace replacement, deactivation or focus departure
+retires the old interaction. The splitter and temporary visual strip name its
+orientation, neighboring panels and current percentage, while normal Tab
+navigation skips splitters. Keyboard resizing shares the pointer's minimum-size
+policy and saved layout model. Four headless interaction tests, command-search
+coverage and the 35-case focused layout selection pass; the full App suite is
+running. Native keyboard, screen-reader and scaling acceptance remains open.
 
 ### FCUX-030 implementation record
 

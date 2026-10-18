@@ -174,6 +174,7 @@ public static class CommandIcons
         [CommandIds.PanelSwapPlaces] = [new(Panes, "TextMuted"), new("M3,6 L13,6 M11,4 L13,6 L11,8 M13,10 L3,10 M5,8 L3,10 L5,12", "ActiveAccent")],
         [CommandIds.RotatePanels] = [new("M3,6 C4,3.5 7,2.5 9.5,3.5 M8,1.8 L9.8,3.5 L8.3,5.2 M13,10 C12,12.5 9,13.5 6.5,12.5 M8,14.2 L6.2,12.5 L7.7,10.8")],
         [CommandIds.EqualizePanels] = [new("M2,3 L2,13 M14,3 L14,13", "TextMuted"), new("M4,8 L12,8 M6,6 L4,8 L6,10 M10,6 L12,8 L10,10", "ActiveAccent")],
+        [CommandIds.ResizePanel] = [new("M2,3 L2,13 M8,3 L8,13 M14,3 L14,13", "TextMuted"), new("M5.5,8 L7,8 M6.5,6.5 L8,8 L6.5,9.5 M10.5,8 L9,8 M9.5,6.5 L8,8 L9.5,9.5", "ActiveAccent")],
         [CommandIds.MaximizePanel] = [new(Box, "TextMuted"), new("M5,11 L11,5 M7.5,5 L11,5 L11,8.5", "ActiveAccent")],
         [CommandIds.NewTab] = [new(Tab), new("M8,7.5 L8,11.5 M6,9.5 L10,9.5", "Success")],
         [CommandIds.CloseTab] = [new(Tab), new("M6.5,8 L9.5,11 M9.5,8 L6.5,11", "Error")],

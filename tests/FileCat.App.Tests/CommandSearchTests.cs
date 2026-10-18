@@ -45,6 +45,7 @@ public sealed class CommandSearchTests
     [InlineData("dark mode", CommandIds.ThemePick)]
     [InlineData("symlink", CommandIds.CreateLink)]
     [InlineData("sha256", CommandIds.Checksum)]
+    [InlineData("keyboard resize", CommandIds.ResizePanel)]
     public void Finds_commands_by_title_synonym_misspelling_and_shortcut(string query, string expected)
     {
         Assert.Equal(expected, First(query));
@@ -57,6 +58,7 @@ public sealed class CommandSearchTests
         Assert.Empty(CommandSearch.Rank("zip xyzzy", Entries, []));
         // "registry" is the File › Registry submenu of the export command.
         Assert.Equal("File › Registry", MainMenuModel.PathOf(CommandIds.RegistryExport));
+        Assert.Equal("Panels › Arrange", MainMenuModel.PathOf(CommandIds.ResizePanel));
         Assert.Contains(CommandSearch.Rank("registry export", Entries, []), e => e.Id == CommandIds.RegistryExport);
         Assert.Null(MainMenuModel.PathOf(CommandIds.BookmarkGoPrefix + "1"));
     }
