@@ -22,6 +22,13 @@ find/next/previous/stop controls. Windows WebView2 and headless viewer tests
 pass; native Linux and macOS search acceptance remains open in the
 [session workflow](UX_UI_SESSION_WORKFLOW.md).
 
+FCUX-037 toolbar commands now use the same availability and refusal reasons as
+menus, the function-key bar and command search. Active listing changes are
+coalesced, while tab-history changes update Back and Forward. Disabled buttons
+retain a hoverable explanation and accessible help text. Focused toolbar and
+related accessibility regressions pass; native screen-reader and large-listing
+latency acceptance remains open.
+
 ## Changes and verification map
 
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
@@ -75,6 +82,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-076 — Copy representation and completeness | Separate source text from displayed text, preserve original decoded tabs and logical line endings, and capture explicit selection/visible scope. Show retained selectable evidence for the one-MiB budget, partial/short reads and failures. Serialize owned clipboard publications, reject changed-source evidence and keep cancellation limits truthful. Preserve the report's complete original Copy all route. | `ViewerSourceCopyTests` and source-mapping/geometry cases cover multibyte boundaries, giant-line continuations, control characters, caps, short reads, delayed writes, cancellation, source revisions and explicit scope transitions. Native clipboard interoperability remains open. |
 | FCUX-072 — binary comparison byte ranges | Alt+B and a labelled action select an exact left or right source interval from decimal or hexadecimal offset and decimal count. Invalid, overflowing, out-of-range and stale requests keep the draft or retire; aligned gaps never become bytes. A bounded selectable preview and read-only document value expose side, source, offset, extent and copied representation. Copy belongs to its current source/selection, checks available revisions, serializes clipboard publication, and keeps the existing 4 MiB spaced-hex/text contract. | `HexCompareRangeTests` and existing comparison/accessibility tests: 79 Windows cases pass together, including 24 focused comparison cases. Native screen-reader, clipboard and 640 × 320 DIP scaling acceptance remain open. |
 | FCUX-073 — viewer semantics | Publish semantic values after the current content state commits. Include source-selection extent, loading/read failures, Hex position/column and actual editing state. Retire old request/source ownership and avoid synchronous source I/O from peer queries. | `ViewerGeometryAndSemanticsTests`, `HexEditorSemanticsTests` and existing accessibility/lifetime coverage. The descriptive value stays read-only rather than promising an unsupported binary SetValue API. Native automation/screen-reader bridges remain open. |
+| FCUX-037 — toolbar availability | Refresh toolbar buttons from the same `GetAvailability` admission used by menus, key bar and command search. Track active-tab history, focus, marks, location and switch state. Disabled buttons expose the current refusal in a hoverable wrapper and automation help text; execution still rechecks admission. | `ToolbarAvailabilityTests` covers active-tab Back/Forward, item and provider changes, key-bar/palette agreement, reason exposure and stale invocation. The related 35-case toolbar, tooltip, key-bar, search and accessibility selection passes. Full App Debug 2,170 passed/62 skipped began before the Page-search and toolbar changes; full Core Release 4,417 passed/150 skipped. | Native screen-reader, pointer tooltip and rapid large-listing/remote-provider acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

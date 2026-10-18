@@ -29,6 +29,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private bool _forceClose;
     private Task? _interruptedStartup;
     private readonly CommandSearchBar _commandSearch;
+    private bool _toolbarRefreshPending;
+    private sealed record ToolbarPresentationState(CommandAvailability Availability, string Title, bool Checked);
 
     public MainWindow() : this(null!, null) { }
 
@@ -46,6 +48,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _notificationTimer.Tick += (_, _) => TryExpireNotification();
         vm.PropertyChanged += OnViewModelPropertyChanged;
+        vm.CommandAvailabilityChanged += OnCommandAvailabilityChanged;
         if (vm.CurrentNotification is { IsError: false })
         {
             _notificationTimer.Interval = TimeSpan.FromSeconds(6);
@@ -67,18 +70,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         MenuInteractionTrace.Install(this, MainMenu);
         // A new theme draws the menus' and the toolbar's icons in its colors.
         ThemeManager.ThemeChanged += OnThemeChanged;
-        Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
-        // Switches the keyboard flips too (Ctrl+H) show their state on the toolbar.
-        vm.PropertyChanged += (_, e) =>
+        Closed += (_, _) =>
         {
-            if (e.PropertyName is nameof(MainViewModel.ShowHiddenItems) or nameof(MainViewModel.ShowToolbar) or nameof(MainViewModel.ShowDriveButtons))
-                foreach (var button in Toolbar.Children.OfType<Button>())
-                    if (button.Tag is string id && CheckedState(id) is { } on)
-                    {
-                        button.Classes.Set("checked", on);
-                        SetToolbarTip(button, id);
-                        Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id));
-                    }
+            ThemeManager.ThemeChanged -= OnThemeChanged;
+            vm.CommandAvailabilityChanged -= OnCommandAvailabilityChanged;
+            vm.PropertyChanged -= OnViewModelPropertyChanged;
         };
         _commandSearch = new CommandSearchBar(CommandSearchBox, MenuRow, vm.CommandSearchEntries, () => vm.Services.History.RecentCommands,
             id =>
@@ -315,6 +311,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(MainViewModel.ShowHiddenItems) or nameof(MainViewModel.ShowToolbar) or nameof(MainViewModel.ShowDriveButtons))
+            ScheduleToolbarRefresh();
         if (e.PropertyName == nameof(MainViewModel.CurrentNotification))
         {
             _notificationTimer.Stop();
@@ -324,6 +322,22 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 _notificationTimer.Start();
             }
         }
+    }
+
+    private void OnCommandAvailabilityChanged(object? sender, EventArgs e) => ScheduleToolbarRefresh();
+
+    private void ScheduleToolbarRefresh()
+    {
+        if (_toolbarRefreshPending) return;
+        _toolbarRefreshPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _toolbarRefreshPending = false;
+            if (!IsVisible) return;
+            foreach (var wrapper in Toolbar.Children.OfType<Border>())
+                if (wrapper.Child is Button button && button.Tag is string id)
+                    UpdateToolbarButton(button, wrapper, id);
+        });
     }
 
     internal bool NotificationTimerEnabled => _notificationTimer.IsEnabled;
@@ -853,19 +867,31 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     };
 
     /// <summary>A toolbar button's tooltip: what it does now and its key, then what it takes and where its result goes.</summary>
-    private Controls.RichTip ToolbarTip(string id)
+    private Controls.RichTip ToolbarTip(string id, CommandAvailability availability)
     {
         var def = _vm.Services.Commands.Get(id);
         var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-        return new Controls.RichTip(TitleOf(id, def?.Title ?? id), chord.Key is null ? null : chord.ToString(), def?.Description);
+        return new Controls.RichTip(TitleOf(id, def?.Title ?? id), chord.Key is null ? null : chord.ToString(), def?.Description,
+            availability.Enabled ? null : ["Unavailable here: " + (availability.Reason ?? "This command is not available in the current context.")]);
     }
 
-    /// <summary>A toolbar button's tooltip, and the same in words for screen readers.</summary>
-    private void SetToolbarTip(Button button, string id)
+    /// <summary>The wrapper remains hoverable when its button is disabled; the button exposes the reason to assistive technology.</summary>
+    private void UpdateToolbarButton(Button button, Border wrapper, string id)
     {
-        var tip = ToolbarTip(id);
+        var availability = _vm.GetAvailability(id);
+        string title = TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id);
+        var state = new ToolbarPresentationState(availability, title, CheckedState(id) == true);
+        if (Equals(wrapper.Tag, state)) return;
+        wrapper.Tag = state;
+        button.IsEnabled = availability.Enabled;
+        button.Classes.Set("checked", state.Checked);
+        Avalonia.Automation.AutomationProperties.SetName(button, title);
+        var tip = ToolbarTip(id, availability);
         ToolTip.SetTip(button, tip);
+        // A disabled child may not receive hover events. Give its enabled parent a separate visual instance.
+        ToolTip.SetTip(wrapper, availability.Enabled ? null : ToolbarTip(id, availability));
         Avalonia.Automation.AutomationProperties.SetHelpText(button, tip.Text);
+        Avalonia.Automation.AutomationProperties.SetHelpText(wrapper, tip.Text);
     }
 
     /// <summary>Commands that switch something on and off: their toolbar buttons show the state, and their titles say what choosing them does.</summary>
@@ -891,18 +917,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 Toolbar.Children.Add(new Border { Classes = { "toolbarSeparator" } });
                 continue;
             }
-            if (_vm.Services.Commands.Get(id) is not { } def || CommandIcons.Get(id) is not { } icon) continue;
+            if (_vm.Services.Commands.Get(id) is null || CommandIcons.Get(id) is not { } icon) continue;
             var button = new Button { Classes = { "toolbar" }, Content = new Image { Source = icon, Width = 16, Height = 16 }, Tag = id };
-            SetToolbarTip(button, id);
-            Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, def.Title));
-            if (CheckedState(id) == true) button.Classes.Add("checked");
             button.Click += (_, _) =>
             {
                 FocusActivePanel();
                 _vm.RememberCommand(id);
                 _vm.Execute(id);
             };
-            Toolbar.Children.Add(button);
+            var wrapper = new Border { Child = button, Background = Avalonia.Media.Brushes.Transparent };
+            Toolbar.Children.Add(wrapper);
+            UpdateToolbarButton(button, wrapper, id);
         }
     }
 

@@ -37,10 +37,11 @@ their native acceptance gates open.
 | --- | --- | --- |
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
 | 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
-| 3 | FCUX-037 — toolbar availability | Follow the audit's S2 order after the Settings and Page search gates. |
+| 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
+| 4 | FCUX-038 — bulk rename review | Expose every accepted row and make blocking problems reachable. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-After UXBUG-002, continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
+After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
@@ -95,6 +96,19 @@ stale mode/source results. The real Windows WebView2 test covers rendered
 Markdown, repeated and backward find, absent and quote-bearing text, and
 script-disabled title behavior. Linux's native test and the macOS smoke test
 are source/build checked here but require their respective platforms to run.
+
+### FCUX-037 implementation record
+
+The toolbar now refreshes command admission from `GetAvailability` when the
+active tab, listing, history or relevant switches change. Listing bursts use
+the existing posted coalescing path, and unchanged command presentations avoid
+rebuilding their tooltip visuals. A disabled button keeps its accessible name,
+adds the refusal reason to automation help text and gives its enabled wrapper
+a hoverable explanation. `ToolbarAvailabilityTests` covers Back/Forward across
+tabs, focus and provider changes, key-bar and command-search agreement, the
+refusal reason and execution's second admission check. The related 35 App tests
+pass. Native tooltip/screen-reader behavior and rapid-focus latency on a large
+listing or remote provider still need desktop acceptance.
 
 ### FCUX-033 implementation record
 

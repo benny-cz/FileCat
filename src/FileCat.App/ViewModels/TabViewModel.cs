@@ -431,6 +431,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _back.Add(Location);
             if (_back.Count > MaxHistory) _back.RemoveAt(0);
             _forward.Clear();
+            NotifyHistoryChanged();
         }
         EndQuickSearch();
         ComparisonLabel = null;
@@ -531,6 +532,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public bool CanGoBack => _back.Count > 0;
     public bool CanGoForward => _forward.Count > 0;
 
+    private void NotifyHistoryChanged()
+    {
+        OnPropertyChanged(nameof(CanGoBack));
+        OnPropertyChanged(nameof(CanGoForward));
+    }
+
     public void GoBack()
     {
         if (_back.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
@@ -539,6 +546,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var target = _back[^1];
         _back.RemoveAt(_back.Count - 1);
         _forward.Add(Location);
+        NotifyHistoryChanged();
         NavigateHistory(target, intent);
     }
 
@@ -550,6 +558,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var target = _forward[^1];
         _forward.RemoveAt(_forward.Count - 1);
         _back.Add(Location);
+        NotifyHistoryChanged();
         NavigateHistory(target, intent);
     }
 
@@ -1091,6 +1100,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();
         _back.AddRange(s.BackHistory);
+        NotifyHistoryChanged();
     }
 
     /// <summary>Raised once, as the tab is closed (work started for it, such as folder counts, stops).</summary>

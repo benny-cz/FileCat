@@ -47,7 +47,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private Core.Listing.ListingModel? _keyBarListing;
+    private TabViewModel? _availabilityTab;
     private bool _keyBarPending;
+
+    /// <summary>Signals that command presentations should refresh from the current, cached context.</summary>
+    public event EventHandler? CommandAvailabilityChanged;
 
     /// <summary>
     /// The key bar follows the active listing: F3, F5, F8 and the rest apply only to a focused or marked item, so their
@@ -55,11 +59,21 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     private void FollowActiveListing()
     {
-        var listing = Workspace.ActiveTab?.Listing;
-        if (ReferenceEquals(listing, _keyBarListing)) return;
+        var tab = Workspace.ActiveTab;
+        var listing = tab?.Listing;
+        if (ReferenceEquals(listing, _keyBarListing) && ReferenceEquals(tab, _availabilityTab)) return;
         if (_keyBarListing is not null) _keyBarListing.Changed -= OnActiveListingChanged;
+        if (_availabilityTab is not null) _availabilityTab.PropertyChanged -= OnAvailabilityTabChanged;
         _keyBarListing = listing;
+        _availabilityTab = tab;
         if (listing is not null) listing.Changed += OnActiveListingChanged;
+        if (tab is not null) tab.PropertyChanged += OnAvailabilityTabChanged;
+    }
+
+    private void OnAvailabilityTabChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TabViewModel.CanGoBack) or nameof(TabViewModel.CanGoForward))
+            UpdateKeyBar(_mods);
     }
 
     private void OnActiveListingChanged(object? sender, Core.Listing.ListingChange change)
@@ -184,6 +198,7 @@ public sealed partial class MainViewModel : ObservableObject
             KeyBar[i].CommandId = bar[i].CommandId;
             KeyBar[i].IsEnabled = bar[i].CommandId is not null && GetAvailability(bar[i].CommandId!).Enabled;
         }
+        CommandAvailabilityChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void Notify(string message, bool isError = false, string? actionCommandId = null)
