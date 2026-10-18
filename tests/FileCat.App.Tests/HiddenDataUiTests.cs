@@ -1,13 +1,16 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.Core.Commands;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
+using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
 
@@ -37,6 +40,7 @@ public sealed class HiddenDataUiTests
     public async Task A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        var previousHiddenSource = BuiltInFields.HiddenDataSource;
         try
         {
             string folder = Path.Combine(root, "files");
@@ -53,7 +57,9 @@ public sealed class HiddenDataUiTests
                     .SetValue(services.Jobs, new FileCat.Platform.Windows.WindowsFileOperations());
                 Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(
                     typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(services.Jobs));
-                services.Providers.Register(new HiddenDataProvider(new FileCat.Platform.Windows.WindowsHiddenData()));
+                var nativeStreams = new FileCat.Platform.Windows.WindowsHiddenData();
+                services.Providers.Register(new HiddenDataProvider(nativeStreams));
+                BuiltInFields.HiddenDataSource = nativeStreams;
                 File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
                 File.WriteAllText(file + ":payload", "hidden payload");
                 (mark, payload) = ("Zone.Identifier", "payload");
@@ -75,8 +81,16 @@ public sealed class HiddenDataUiTests
             var tab = panels[0].ActiveTab!;
             tab.Refresh();
             await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(e => e.Name == "tool.bin"), "the file is listed");
+            var fileEntry = Assert.Single(Rows(tab), e => e.Name == "tool.bin");
+            services.Metadata.Forget("hidden", file);
+            await Until(() => services.Metadata.Get("hidden", file, fileEntry, "local", false).State == MetadataState.Available,
+                "the Streams/Attributes count is available");
+            int initialCount = Assert.IsType<int>(services.Metadata.Peek("hidden", file, fileEntry).Value);
+            Assert.True(initialCount >= 2);
             vm.Workspace.Activate(panels[0]);
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == "tool.bin") + (tab.Listing.HasParentRow ? 1 : 0));
+            Assert.Equal(initialCount.ToString(System.Globalization.CultureInfo.CurrentCulture),
+                tab.GetMetadataText(fileEntry, tab.Listing.FocusedStoreIndex, "hidden", out _));
 
             // Alt+Shift+Enter: its streams and attributes, each with what it says.
             vm.Execute(CommandIds.HiddenData);
@@ -94,25 +108,32 @@ public sealed class HiddenDataUiTests
             Assert.Equal(JobState.Completed, services.Jobs.Jobs[^1].State);
             Assert.Equal("hidden payload", File.ReadAllText(Path.Combine(outFolder, payload)));
 
-            // F8: deleted after one confirmation; the file's contents untouched.
+            // Delete key: deleted after one confirmation; the file's contents untouched.
             await Until(() => !((FileCat.App.Views.OverlayDialogService)vm.Dialogs).IsOpen, "the copy dialog closed");
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
-            vm.Execute(CommandIds.Delete);
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
             await Click(window, "Delete");
             await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && Rows(tab).All(e => e.Name != payload),
                 () => $"the payload is gone (FileCat said: {vm.Notification ?? "nothing"}; listed: {string.Join(", ", Rows(tab).Select(e => e.Name))}; " +
                       $"on disk: {string.Join(", ", (OperatingSystem.IsWindows() ? (IHiddenData)new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData()).List(file).Select(i => i.Name))})");
             Assert.Contains(Rows(tab), e => e.Name == mark);
             Assert.Equal("contents", File.ReadAllText(file));
+            Assert.Equal(MetadataState.NotRequested, services.Metadata.Peek("hidden", file, fileEntry).State);
 
             // Up: the folder, with the file under the cursor.
             tab.GoUp();
             await Until(() => tab.Location?.IsFileSystem == true && tab.Listing.State == ListingState.Complete, "back in the folder");
             Assert.True(tab.Listing.TryGetFocused(out var focused));
             Assert.Equal("tool.bin", focused.Name);
+            await Until(() => services.Metadata.Get("hidden", file, focused, "local", false).State == MetadataState.Available,
+                "the parent file's Streams/Attributes count refreshes");
+            Assert.Equal(initialCount - 1, Assert.IsType<int>(services.Metadata.Peek("hidden", file, focused).Value));
+            Assert.Equal((initialCount - 1).ToString(System.Globalization.CultureInfo.CurrentCulture),
+                tab.GetMetadataText(focused, tab.Listing.FocusedStoreIndex, "hidden", out _));
         }
         finally
         {
+            BuiltInFields.HiddenDataSource = previousHiddenSource;
             AccessibilityTests.Close(services, window, root);
         }
     }

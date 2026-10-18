@@ -55,6 +55,10 @@ public sealed partial class MainViewModel
                 }
             }
         });
+        // The parent file's Streams/Attributes cell is cached by its own revision, which
+        // need not change when a side stream is removed. Retire it even after a partial
+        // failure so the next visible row reads the provider's actual current count.
+        Services.Metadata.Forget("hidden", file);
         tab.Refresh();
         if (failures.Count > 0) Notify("Not deleted: " + string.Join("; ", failures), true);
         else Notify(items.Count == 1 ? $"Deleted “{items[0].Name}”." : $"Deleted {items.Count} streams and attributes.");
