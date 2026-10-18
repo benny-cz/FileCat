@@ -56,9 +56,14 @@ Advanced text route is implemented. Focused headless Settings regressions cover
 exclusion masks, ordering, item-level errors, raw-text repair, save and Cancel.
 The association list/detail editor now supports reordering and a nonexecuting
 first-match preview, including filters added in the same Settings draft. Its
-Advanced text route and field validation have focused tests. Structured user
-commands, complete raw/structured round trips, keyboard remapping access and
-Settings search remain open for FCUX-036.
+Advanced text route and field validation have focused tests. F9 commands now
+have a tree-aware list/detail editor with menu insertion, sibling reordering,
+program Browse, item-level errors and a lossless Advanced text route. Settings
+search finds labels and explanations across tabs and navigates to the result.
+Focused Settings tests cover command editing, nested ordering, malformed input,
+raw/structured round trips, Cancel and cross-tab search. Direct keyboard
+remapping in Settings, and argument token/preview support for command and
+association rows, remain open for FCUX-036.
 
 ### UXBUG-001 implementation record
 

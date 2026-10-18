@@ -6,6 +6,7 @@ using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.Input;
 using System.Text;
 using System.Text.Json;
 using FileCat.Core.Tools;
@@ -208,14 +209,7 @@ public static class SettingsDialog
         };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
-        var userCommands = new TextBox
-        {
-            AcceptsReturn = true,
-            MinHeight = 120,
-            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
-            Text = Core.Tools.UserCommandsText.Format(s.UserCommands),
-            PlaceholderText = OperatingSystem.IsWindows() ? "Edit in Notepad | notepad.exe | {file} | key=Ctrl+Alt+N" : "Edit in gedit | gedit | {file} | key=Ctrl+Alt+N",
-        };
+        var userCommandsEditor = new UserCommandsEditor(s.UserCommands);
         var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot);
         tabs.Items.Add(new TabItem
         {
@@ -226,7 +220,7 @@ public static class SettingsDialog
                 ("Preview file (sample only)", previewFile), ("", previewButton), ("", previewResult),
                 ("", editorShellMode),
                 ("", Note("Batch programs normally reject selected names with shell characters such as &, | or >. Enable this only if you trust both the batch program and the names it receives; a normal executable is safer.")),
-                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommands),
+                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommandsEditor.View),
                 ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
                 ("Associations", associationsEditor.View),
                 ("", Note("F3, F4, and Enter use the first matching association for that action; Alt+F3 always opens the internal viewer."))),
@@ -272,7 +266,62 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
-        var body = new StackPanel { Spacing = 6, Children = { tabs, error } };
+        // Search the actual labels and explanations in every tab, including tabs not yet selected.
+        var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220 };
+        Avalonia.Automation.AutomationProperties.SetName(search, "Search settings");
+        var results = new ListBox { MaxHeight = 190, IsVisible = false };
+        Avalonia.Automation.AutomationProperties.SetName(results, "Matching settings");
+        var resultHint = new TextBlock { Classes = { "muted", "small" }, IsVisible = false };
+        var goToResult = new Button { Content = "Go to setting", IsVisible = false };
+        var searchEntries = tabs.Items.OfType<TabItem>().SelectMany((tab, index) =>
+            (tab.Content as Control)?.GetLogicalDescendants().OfType<Control>()
+                .Select(control => (Tab: index, Control: control, Text: control switch
+                {
+                    SelectableTextBlock selectable => selectable.Text,
+                    TextBlock label => label.Text,
+                    CheckBox check => check.Content as string,
+                    Button button => button.Content as string,
+                    _ => Avalonia.Automation.AutomationProperties.GetName(control),
+                }))
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.Text))
+                .Select(entry => (entry.Tab, entry.Control, Text: entry.Text!, TabName: tab.Header as string ?? "Settings"))
+            ?? []).ToList();
+        List<(int Tab, Control Control, string Text, string TabName)> matches = [];
+        void UpdateSearch()
+        {
+            var terms = (search.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            results.IsVisible = resultHint.IsVisible = goToResult.IsVisible = terms.Length > 0;
+            matches = terms.Length == 0 ? [] : searchEntries
+                .Where(entry => terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .Take(40).ToList();
+            results.ItemsSource = matches.Select(entry => entry.TabName + " · " +
+                (entry.Text.Length <= 110 ? entry.Text : entry.Text[..107] + "…")).ToArray();
+            results.SelectedIndex = matches.Count > 0 ? 0 : -1;
+            resultHint.Text = matches.Count == 0 ? "No settings match." :
+                matches.Count == 40 ? "Showing the first 40 matches." : $"{matches.Count} matching settings.";
+            goToResult.IsEnabled = matches.Count > 0;
+        }
+        void GoToSetting()
+        {
+            int index = results.SelectedIndex;
+            if (index < 0 || index >= matches.Count) return;
+            var entry = matches[index];
+            tabs.SelectedIndex = entry.Tab;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (TopLevel.GetTopLevel(entry.Control) is null) return;
+                entry.Control.BringIntoView();
+                if (entry.Control.Focusable && entry.Control.IsEffectivelyEnabled) entry.Control.Focus();
+            }, DispatcherPriority.Loaded);
+        }
+        search.TextChanged += (_, _) => UpdateSearch();
+        search.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter && matches.Count > 0) { e.Handled = true; GoToSetting(); }
+        };
+        results.DoubleTapped += (_, _) => GoToSetting();
+        goToResult.Click += (_, _) => GoToSetting();
+        var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs, error } };
         if (vm.Services.SettingsReadOnly)
         {
             // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
@@ -294,7 +343,6 @@ public static class SettingsDialog
         }
 
         string originalExecutable = editorExe.Text ?? "", originalArguments = editorArgs.Text ?? "";
-        string originalCommands = userCommands.Text ?? "";
         var parsedBindings = s.KeyBindings;
         var parsedFilters = s.SavedFilters;
         var parsedCommands = s.UserCommands;
@@ -324,7 +372,7 @@ public static class SettingsDialog
             parsedArguments = s.Editor?.Arguments ?? ["{files}"];
             parsedExecutable = s.Editor?.Executable ?? "";
             error.IsVisible = false;
-            foreach (var field in new[] { bindings, editorExe, editorArgs, userCommands })
+            foreach (var field in new[] { bindings, editorExe, editorArgs })
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
             if (bindingError is not null) return Fail("Custom bindings", bindingError, bindings, 4);
@@ -334,12 +382,8 @@ public static class SettingsDialog
                 return Fail("Editor program", executableError!, editorExe, 2);
             if (editorArgs.Text != originalArguments && !ToolTextGrammar.TryParseArguments(editorArgs.Text, out parsedArguments, out var argumentError))
                 return Fail("Editor arguments", argumentError!, editorArgs, 2);
-            if (userCommands.Text != originalCommands)
-            {
-                parsedCommands = UserCommandsText.Parse(userCommands.Text, out var commandError);
-                if (commandError is not null) return Fail("User commands", commandError, userCommands, 2);
-            }
-            else parsedCommands = s.UserCommands;
+            if (!userCommandsEditor.TryGet(out parsedCommands, out var commandError, out var commandField))
+                return Fail("User commands", commandError!, commandField, 2);
             if (!associationsEditor.TryGet(out parsedAssociations, out var associationError, out var associationField))
                 return Fail("Associations", associationError!, associationField, 2);
             return true;

@@ -6,8 +6,11 @@ Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_U
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
 implemented. Association ordering, per-field validation, an Advanced text route,
-and a nonexecuting first-match preview are implemented with focused regressions;
-the user-command editor and other FCUX-036 scope remain open. The reported Markdown Page
+and a nonexecuting first-match preview are implemented with focused regressions.
+F9 user commands have a structured nested-menu editor and a lossless Advanced
+route; Settings search navigates among labels and explanations across tabs.
+Direct keyboard remapping in Settings and token/preview controls for command and
+association arguments remain open. The reported Markdown Page
 table-width bug is fixed: tables use available viewer width and scroll within
 their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
 records the wide/narrow geometry check and remaining native acceptance.

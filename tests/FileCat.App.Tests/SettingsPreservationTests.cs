@@ -251,6 +251,133 @@ public sealed class SettingsPreservationTests
     }
 
     [AvaloniaFact]
+    public async Task User_command_editor_preserves_nested_menus_and_reorders_siblings()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.UserCommands =
+            [
+                new() { Name = "Tools", Children = [new() { Name = "First", Executable = "first", Arguments = ["{file}"] }] },
+                new() { Name = "Outside", Executable = "outside", Arguments = ["{file}"] },
+            ];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var list = Field<ListBox>(window, "User command and menu list");
+            Assert.Equal(3, list.ItemCount);
+            list.SelectedIndex = 0;
+            BodyButton(window, "Add command").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Field<TextBox>(window, "Selected command or menu name").Text = "Second";
+            Field<TextBox>(window, "Selected command program").Text = "C:\\Program Files\\Editor\\editor.exe";
+            Field<TextBox>(window, "Selected command arguments").Text = "--profile \"two words\" {file}";
+            Field<TextBox>(window, "Selected command working directory").Text = "{dir}";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Contains("Second", list.ItemsSource!.Cast<string>().ElementAt(2));
+            BodyButton(window, "Move command or menu up").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(1, list.SelectedIndex);
+            BodyButton(window, "Duplicate command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(5, list.ItemCount);
+            BodyButton(window, "Remove command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(4, list.ItemCount);
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(["Second", "First"], services.Settings.UserCommands[0].Children!.Select(c => c.Name));
+            Assert.Equal("Outside", services.Settings.UserCommands[1].Name);
+            Assert.Equal(["--profile", "two words", "{file}"], services.Settings.UserCommands[0].Children![0].Arguments);
+            Assert.Equal("C:\\Program Files\\Editor\\editor.exe", services.Settings.UserCommands[0].Children![0].Executable);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task User_command_editor_reports_per_item_errors_without_committing_then_accepts_correction()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.UserCommands = [new() { Name = "Run", Executable = "runner", Arguments = ["{file}"] }];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var arguments = Field<TextBox>(window, "Selected command arguments");
+            arguments.Text = "\"unterminated";
+            Dispatcher.UIThread.RunJobs();
+            Click(window, "OK");
+            Assert.False(showing.IsCompleted);
+            Assert.Contains("arguments", AutomationProperties.GetHelpText(arguments));
+            Assert.Equal(["{file}"], Assert.Single(services.Settings.UserCommands).Arguments);
+            arguments.Text = "\"two words\" {file}";
+            Dispatcher.UIThread.RunJobs();
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(["two words", "{file}"], Assert.Single(services.Settings.UserCommands).Arguments);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task User_command_raw_and_structured_round_trip_preserves_complex_definitions_and_cancel_discards_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.UserCommands =
+            [
+                new() { Name = "Empty menu", Children = [] },
+                new() { Name = "Other", Executable = "runner", Arguments = ["line\nbreak", ""], Mask = "*.txt", Intent = "open", Hotkey = "" },
+            ];
+            string before = JsonSerializer.Serialize(services.Settings.UserCommands);
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var advanced = window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Edit user commands as text"));
+            advanced.IsChecked = true;
+            Assert.StartsWith("@tools:", Field<TextBox>(window, "User commands advanced text").Text);
+            advanced.IsChecked = false;
+            Assert.Equal(2, Field<ListBox>(window, "User command and menu list").ItemCount);
+            advanced.IsChecked = true;
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, JsonSerializer.Serialize(services.Settings.UserCommands));
+
+            showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            BodyButton(window, "Add menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, JsonSerializer.Serialize(services.Settings.UserCommands));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Settings_search_finds_labels_in_other_tabs_and_navigates_without_applying_changes()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string before = JsonSerializer.Serialize(services.Settings);
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            var search = Field<TextBox>(window, "Search settings");
+            search.Text = "copy verification";
+            Dispatcher.UIThread.RunJobs();
+            var matches = Field<ListBox>(window, "Matching settings");
+            Assert.True(matches.IsVisible);
+            Assert.Contains(matches.ItemsSource!.Cast<string>(), item => item.Contains("Behavior · Default copy verification", StringComparison.Ordinal));
+            BodyButton(window, "Go to setting").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Behavior", (window.GetVisualDescendants().OfType<TabControl>().Single().SelectedItem as TabItem)?.Header);
+            search.Text = "no such preference xyz";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, matches.ItemCount);
+            Assert.False(BodyButton(window, "Go to setting").IsEnabled);
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, JsonSerializer.Serialize(services.Settings));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Association_priority_controls_change_the_first_match_without_launching_a_program()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -351,7 +478,7 @@ public sealed class SettingsPreservationTests
 
     [AvaloniaTheory]
     [InlineData("Editor arguments", "--profile \"unterminated", "Editor arguments:")]
-    [InlineData("User commands (F9)", "Valid | tool | x\nBroken | tool | x | shell | ignored", "Line 2:")]
+    [InlineData("User commands advanced text", "Valid | tool | x\nBroken | tool | x | shell | ignored", "Line 2:")]
     [InlineData("Associations advanced text", "*.txt | view | tool | \"unterminated", "Line 1:")]
     public async Task Invalid_fields_keep_the_same_draft_session_and_focus_without_a_partial_commit(string fieldName, string draft, string message)
     {
@@ -364,6 +491,8 @@ public sealed class SettingsPreservationTests
             SelectPage(window, "Tools");
             if (fieldName == "Associations advanced text")
                 window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Edit associations as text")).IsChecked = true;
+            if (fieldName == "User commands advanced text")
+                window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Edit user commands as text")).IsChecked = true;
             var field = Field<TextBox>(window, fieldName);
             field.Text = draft;
             field.CaretIndex = Math.Min(5, draft.Length);
@@ -395,7 +524,8 @@ public sealed class SettingsPreservationTests
             SelectPage(window, "Tools");
             var args = Field<TextBox>(window, "Editor arguments");
             var exe = Field<TextBox>(window, "Editor (F4) program");
-            var commands = Field<TextBox>(window, "User commands (F9)");
+            window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Edit user commands as text")).IsChecked = true;
+            var commands = Field<TextBox>(window, "User commands advanced text");
             string originalArguments = args.Text!, originalCommands = commands.Text!;
             args.Text = "valid-but-reverted";
             commands.Text = "broken";
