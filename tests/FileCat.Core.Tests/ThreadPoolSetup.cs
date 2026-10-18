@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 
+[assembly: CollectionBehavior(MaxParallelThreads = 16)]
+
 namespace FileCat.Core.Tests;
 
 internal static class ThreadPoolSetup

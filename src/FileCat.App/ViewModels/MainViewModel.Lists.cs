@@ -520,7 +520,9 @@ public sealed partial class MainViewModel
             {
                 var availability = GetAvailability(d.Id);
                 return new KeyboardHelpEntry(d.Id, d.Title, d.Category,
-                    Services.Keymap.GetGestureText(d.Id), d.Description, availability.Enabled, availability.Reason);
+                    Services.Keymap.GetGestureText(d.Id), d.Description, availability.Enabled, availability.Reason,
+                    CommandContextNames.Display(d.Context),
+                    d.DefaultGestures.Length == 0 ? "unbound" : string.Join(", ", d.DefaultGestures));
             })
             .ToArray();
     }

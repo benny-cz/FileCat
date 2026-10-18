@@ -2,13 +2,12 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-045 Find completion and zero-result feedback are implemented.
-The related Release Find suite passes (98 tests). The complete Core Release suite
-passed (4,419 passed, 150 skipped). Two complete App Release attempts aborted on
-the same drop-admission test after 124 and 1,014 passes respectively, without
-assertion failures. Its early Enter raced asynchronous destination validation;
-the test now waits for the enabled Copy action and passes with its class (5 tests).
-A complete App rerun is still required. FCUX-046 is next. FCUX-036 native acceptance and Advanced
+**Current work:** FCUX-046 Find shortcuts now use the context-aware keymap with
+their established defaults. The complete Core Release suite passes with 16
+workers (4,420 passed, 150 skipped). A complete App run reached 2,226 passes
+and 63 skips; two interrupted-rename UI tests found that the review section
+opened collapsed. It now opens expanded, and the related 56-case UI selection
+passes. A fresh complete App rerun is in progress. FCUX-047 is next. FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
@@ -155,6 +154,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` adds six focused cases for held open/read calls, approval, new-transfer form, an already deleted partial, and Stop in the job-admission callback. All six pass, with existing demand tests passing in the same class. Two complete App attempts stopped at the same drop test; its early-Enter race is corrected and its five-case class passes. | Full App rerun and native delayed-device, keyboard/screen-reader status, and shutdown timing acceptance remain open. |
 | FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. The related 47-case Find/Registry selection passes. | Native provider navigation, assistive announcement, and full App acceptance remain open. |
 | FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. The 98-case Release Find selection passes. | Complete App rerun after the drop-test timing correction; native narrow-window, keyboard, and screen-reader acceptance. |
+| FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | New Core keymap and App Find/Settings cases pass. The related 56-case App selection passes; the complete Core Release run passes 4,420 with 150 skips using 16 workers. | Complete App rerun in progress; native keyboard and shortcut editor acceptance remains open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

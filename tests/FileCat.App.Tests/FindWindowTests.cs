@@ -53,6 +53,7 @@ public sealed class FindWindowTests
         try
         {
             var ct = TestContext.Current.CancellationToken;
+            Assert.Contains("Open Find", vm.GetAvailability(CommandIds.FindSubtract).Reason);
             var find = await OpenFindAsync(vm, ct);
             Assert.Empty(AccessibilityTests.Unnamed(find));
             // A word without wildcards finds the names that contain it.
@@ -102,6 +103,101 @@ public sealed class FindWindowTests
             Assert.Equal(["c.log"], find.Found);
             await SearchAsync(find, "*", ct); // a plain search starts over
             Assert.Equal(["a.txt", "b.txt", "c.log"], find.Found.Order());
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Remapped_and_unbound_Find_shortcuts_update_dispatch_menus_and_intro_text()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "*.txt", ct);
+            Assert.Equal(["a.txt", "b.txt"], find.Found.Order());
+            services.Settings.KeyBindings[CommandIds.FindSubtract] = ["Ctrl+Shift+S"];
+            services.Settings.KeyBindings[CommandIds.FindAppend] = [];
+            vm.ApplySettings();
+
+            Assert.Contains("Ctrl+Shift+S", find.IntroText);
+            Assert.DoesNotContain("Ctrl+W", find.IntroText);
+            var findMenu = find.FindMenu.Items.OfType<MenuItem>().Single(item => item.Header as string == "F_ind");
+            var remove = findMenu.ItemsSource!.Cast<Control>().OfType<MenuItem>()
+                .Single(item => item.Header as string == "Remove items found again");
+            Assert.Equal("Ctrl+Shift+S", remove.InputGesture?.ToString());
+
+            find.NamesBox.Text = "a";
+            find.List.Focus();
+            find.KeyPress(Key.S, RawInputModifiers.Control, PhysicalKey.S, null);
+            Assert.Equal(["a.txt", "b.txt"], find.Found.Order());
+            find.NamesBox.Focus();
+            find.KeyPress(Key.S, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.S, null);
+            await WaitFor(() => find.IsIdle, ct);
+            Assert.Equal(["b.txt"], find.Found);
+
+            find.OpenAdvanced();
+            await WaitFor(() => find.Dialogs.IsOpen, ct);
+            find.KeyPress(Key.S, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.S, null);
+            Assert.True(find.Dialogs.IsOpen);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Native_text_editing_wins_in_criteria_while_the_same_chord_runs_Find_on_results()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            services.Settings.KeyBindings[CommandIds.FindSubtract] = ["Ctrl+C"];
+            services.ReloadKeymap();
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "*.txt", ct);
+            find.NamesBox.Text = "a";
+            find.NamesBox.Focus();
+            find.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
+            Assert.Equal(["a.txt", "b.txt"], find.Found.Order());
+
+            find.List.Focus();
+            find.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
+            await WaitFor(() => find.IsIdle, ct);
+            Assert.Equal(["b.txt"], find.Found);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Path_suggestion_Enter_chooses_the_folder_before_Find_dispatch()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string folder = Directory.CreateDirectory(Path.Combine(root, "files", "suggested-folder")).FullName;
+            var find = await OpenFindAsync(vm, ct);
+            find.LookInBox.Focus();
+            find.LookInBox.Text = Path.Combine(root, "files", "suggested-");
+            await WaitFor(() => find.CompletionSuggestionCount > 0, ct);
+            Assert.True(find.CompletionSuggestionCount > 0);
+            find.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Assert.Null(find.Session);
+            Assert.Equal(folder, find.Criteria.LookIn);
         }
         finally
         {

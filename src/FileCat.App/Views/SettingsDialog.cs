@@ -242,6 +242,31 @@ public static class SettingsDialog
         var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Easier: in the keyboard reference (F1), select a command and press F2, then the new keys. Command ids are listed there.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
         var chooseShortcut = new Button { Content = "Find and change a shortcut…" };
         var shortcutStatus = Note("Changes here stay in this Settings draft until OK.");
+        var contextPreview = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+        Avalonia.Automation.AutomationProperties.SetName(contextPreview, "Find shortcut context preview");
+        void UpdateContextPreview()
+        {
+            var draft = ParseBindings(bindings.Text, vm.Services.Commands, out var parseError);
+            if (parseError is not null) { contextPreview.Text = parseError; return; }
+            var map = new Keymap(vm.Services.Commands, draft);
+            if (map.Conflicts.Count > 0)
+            {
+                contextPreview.Text = "Shortcut conflicts in one context: " + string.Join(" ", map.Conflicts);
+                return;
+            }
+            var overlaps = vm.Services.Commands.All
+                .Where(def => def.Context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
+                .SelectMany(def => map.GetChords(def.Id).Select(chord => (def, chord)))
+                .SelectMany(use => map.Uses(use.chord)
+                    .Where(other => other.Context == CommandContext.Panel)
+                    .Select(other => $"{use.chord.ToDisplayString()}: {use.def.Title} in {CommandContextNames.Display(use.def.Context)}; {other.Title} in file panels."))
+                .Distinct()
+                .ToArray();
+            contextPreview.Text = overlaps.Length == 0 ? "No Find/panel shortcuts overlap."
+                : "Context overlaps keep both bindings; Find uses its own action while open. " + string.Join(" ", overlaps);
+        }
+        bindings.TextChanged += (_, _) => UpdateContextPreview();
+        UpdateContextPreview();
         chooseShortcut.Click += async (_, _) =>
         {
             var draft = ParseBindings(bindings.Text, vm.Services.Commands, out var parseError);
@@ -262,7 +287,9 @@ public static class SettingsDialog
                         && !def.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
                     .Select(def => new KeyboardHelpEntry(def.Id, def.Title, def.Category,
-                        keymap.GetGestureText(def.Id), def.Description, true, null)).ToArray();
+                        keymap.GetGestureText(def.Id), def.Description, true, null,
+                        CommandContextNames.Display(def.Context),
+                        def.DefaultGestures.Length == 0 ? "unbound" : string.Join(", ", def.DefaultGestures))).ToArray();
                 var choice = await vm.Dialogs.KeyboardReferenceAsync(entries, selected, remapOnly: true);
                 if (choice is null) return;
                 selected = choice.CommandId;
@@ -274,7 +301,7 @@ public static class SettingsDialog
                 shortcutStatus.Text = result.Message + " Save Settings to keep this change.";
             }
         };
-        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", chooseShortcut), ("", shortcutStatus), ("", reference)) });
+        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", chooseShortcut), ("", shortcutStatus), ("", contextPreview), ("", reference)) });
 
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
@@ -410,6 +437,8 @@ public static class SettingsDialog
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
             if (bindingError is not null) return Fail("Custom bindings", bindingError, bindings, 4);
+            var bindingConflicts = new Keymap(vm.Services.Commands, parsedBindings).Conflicts;
+            if (bindingConflicts.Count > 0) return Fail("Custom bindings", string.Join(" ", bindingConflicts), bindings, 4);
             if (!filtersEditor.TryGet(out parsedFilters, out var filterError, out var filterField))
                 return Fail("Saved filters", filterError!, filterField, 1);
             if (editorExe.Text != originalExecutable && !ToolTextGrammar.TryParseField(editorExe.Text, out parsedExecutable, out var executableError))

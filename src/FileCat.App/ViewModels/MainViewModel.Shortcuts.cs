@@ -66,9 +66,15 @@ public sealed partial class MainViewModel
             pressed = chord;
             keys.Text = chord.ToDisplayString();
             taker = ShortcutOwner(chord, def, keymap);
+            var otherContexts = keymap.Uses(chord)
+                .Where(other => other.Id != def.Id && other.Id != taker)
+                .Select(other => $"\"{other.Title}\" in {CommandContextNames.Display(other.Context)}")
+                .ToArray();
             status.Text = now.Contains(chord) ? "Already this command's shortcut."
-                : taker is null ? "Free: no other command uses it here."
-                : $"Used by \"{Services.Commands.Get(taker)?.Title}\": assigning takes it from there.";
+                : taker is not null ? $"Used by \"{Services.Commands.Get(taker)?.Title}\" here; assigning takes it from there."
+                : "No command in this context must give up the shortcut.";
+            if (otherContexts.Length > 0)
+                status.Text += " It also runs " + string.Join(" and ", otherContexts) + "; those contextual bindings remain.";
             status.Classes.Set("warning", taker is not null);
         }, RoutingStrategies.Tunnel);
         string currentText = now.Count == 0 ? "no shortcut" : string.Join(", ", now.Select(c => c.ToDisplayString()));
@@ -77,7 +83,8 @@ public sealed partial class MainViewModel
             Spacing = 8,
             Children =
             {
-                new TextBlock { Text = $"\"{def.Title}\" · now {currentText}", TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = $"\"{def.Title}\" · {CommandContextNames.Display(def.Context)} · now {currentText} · default " +
+                    (def.DefaultGestures.Length == 0 ? "unbound" : string.Join(", ", def.DefaultGestures)), TextWrapping = TextWrapping.Wrap },
                 capture,
                 status,
             },

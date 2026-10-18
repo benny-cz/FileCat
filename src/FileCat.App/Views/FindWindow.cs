@@ -47,9 +47,6 @@ public sealed class FindWindow : Window, IViewActions
         CommandIds.SortSize, CommandIds.SortNone, CommandIds.Refresh,
     ];
 
-    /// <summary>Keys the window handles before the panels' commands (<see cref="OnPreviewKeyDown"/>).</summary>
-    private static readonly HashSet<string> OwnKeys = ["Ctrl+I", "Ctrl+S", "Ctrl+W", "Ctrl+D", "Ctrl+H"];
-
     private readonly MainViewModel _vm;
     private readonly AppServices _services;
     private readonly Location? _origin;
@@ -60,6 +57,7 @@ public sealed class FindWindow : Window, IViewActions
     private bool _loadedSearchHasScope;
     private readonly OverlayDialogService _dialogs;
     private readonly Panel _overlay = new() { IsVisible = false };
+    private readonly Menu _menu = new();
     // The found items live in a tab of a panel outside the workspace, so the panels' commands work on them.
     private readonly PanelViewModel _panel;
     private readonly FileListControl _list = new() { IsActivePanel = true };
@@ -186,9 +184,9 @@ public sealed class FindWindow : Window, IViewActions
 
         var root_ = new Grid();
         var dock = new DockPanel();
-        var menu = BuildMenu();
-        DockPanel.SetDock(menu, Dock.Top);
-        dock.Children.Add(menu);
+        BuildMenu();
+        DockPanel.SetDock(_menu, Dock.Top);
+        dock.Children.Add(_menu);
         var criteria = BuildCriteria();
         _lookIn.PropertyChanged += (_, change) =>
         {
@@ -340,7 +338,6 @@ public sealed class FindWindow : Window, IViewActions
         ToolTip.SetTip(_wholeWords, "No letter, digit, or underscore right before or after the text");
         if (_within is not null) _subfolders.IsEnabled = false;
         Row(string.Empty, options);
-        ToolTip.SetTip(_advancedButton, "Attributes, size, and modification or creation times (Ctrl+D)");
         ToolTip.SetTip(_advancedReset, "Clears the advanced criteria");
         Row("Advanced:", _advancedSummary, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _advancedButton, _advancedReset } });
         _advancedButton.Click += (_, _) => _ = EditAdvancedAsync();
@@ -348,8 +345,6 @@ public sealed class FindWindow : Window, IViewActions
         SetAdvanced(_advanced);
         var actions = new StackPanel { Margin = new Thickness(10, 6, 10, 0), Spacing = 4 };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _find, _stop, _skip } };
-        ToolTip.SetTip(_find, "Enter · Ctrl+I keeps only items found again · Ctrl+S removes them · Ctrl+W adds the new finds");
-        ToolTip.SetTip(_stop, "Esc");
         actions.Children.Add(buttons);
         var headline = new DockPanel();
         DockPanel.SetDock(_logButton, Dock.Right);
@@ -430,34 +425,34 @@ public sealed class FindWindow : Window, IViewActions
 
     // ---- Menus -------------------------------------------------------------------------------------------------
 
-    private Menu BuildMenu()
+    private void BuildMenu()
     {
-        var menu = new Menu();
-        menu.Items.Add(Submenu("_Files", FileItems()));
-        menu.Items.Add(Submenu("_Edit", [
+        _menu.Items.Clear();
+        _menu.Items.Add(Submenu("_Files", FileItems()));
+        _menu.Items.Add(Submenu("_Edit", [
             CommandItem(CommandIds.MarkAll, "Select all"), CommandItem(CommandIds.MarkNone, "Unselect all"),
             CommandItem(CommandIds.MarkInvert, "Invert selection"), CommandItem(CommandIds.MarkSelectMask, "Select…"),
             CommandItem(CommandIds.MarkUnselectMask, "Unselect…"), CommandItem(CommandIds.ReviewMarks, "Review marked items…"), new Separator(),
-            ActionItem("Hide selected items", "Ctrl+H", HideSelected, () => _tab is not null, "find.hideSelected"),
+            FindActionItem(CommandIds.FindHideSelected, "Hide selected items", HideSelected, () => _tab is not null, "find.hideSelected"),
             ActionItem("Hide duplicate names", null, HideDuplicateNames, () => _tab is not null, "find.hideDuplicates"),
             new Separator(),
             ActionItem("Select all but one in each group", null, SelectAllButOnePerGroup, () => _groups.Count > 0, "find.allButOne"),
         ]));
-        menu.Items.Add(Submenu("F_ind", [
-            ActionItem("Find", "Enter", () => StartSearch(RefineMode.Replace), icon: "find.run"),
-            ActionItem("Keep only items found again", "Ctrl+I", () => StartSearch(RefineMode.Intersect), () => _set is not null, "find.keepAgain"),
-            ActionItem("Remove items found again", "Ctrl+S", () => StartSearch(RefineMode.Subtract), () => _set is not null, "find.removeAgain"),
-            ActionItem("Add new finds", "Ctrl+W", () => StartSearch(RefineMode.Append), () => _set is not null, "find.addNew"),
+        _menu.Items.Add(Submenu("F_ind", [
+            FindActionItem(CommandIds.FindRun, "Find", () => StartSearch(RefineMode.Replace), icon: "find.run"),
+            FindActionItem(CommandIds.FindIntersect, "Keep only items found again", () => StartSearch(RefineMode.Intersect), () => _set is not null, "find.keepAgain"),
+            FindActionItem(CommandIds.FindSubtract, "Remove items found again", () => StartSearch(RefineMode.Subtract), () => _set is not null, "find.removeAgain"),
+            FindActionItem(CommandIds.FindAppend, "Add new finds", () => StartSearch(RefineMode.Append), () => _set is not null, "find.addNew"),
             new Separator(),
-            ActionItem("Stop", "Escape", Stop, () => IsSearching, "find.stop"),
-            ActionItem("Skip current folder", null, () => _session?.SkipCurrentFolder(), () => IsSearching, "find.skipFolder"),
+            FindActionItem(CommandIds.FindStopOrClose, "Stop", Stop, () => IsSearching, "find.stop"),
+            FindActionItem(CommandIds.FindSkipCurrent, "Skip current folder", () => _session?.SkipCurrentFolder(), () => IsSearching, "find.skipFolder"),
             new Separator(),
             ActionItem("Find duplicates…", null, () => _ = FindDuplicatesAsync(), icon: "find.duplicates"),
             new Separator(),
             ActionItem("Show in panel", null, ShowInPanel, () => _set is not null, CommandIds.OpenInTarget),
             ActionItem("Search log…", null, () => _ = ShowLogAsync(), () => _session?.Log.Count > 0, "find.log"),
         ]));
-        menu.Items.Add(Submenu("_View", [
+        _menu.Items.Add(Submenu("_View", [
             CommandItem(CommandIds.SortName), ActionItem("Sort by folder", null, () => _tab?.SortByMetadata(ColumnSpec.FolderSortKey), () => _tab is not null, "find.sortFolder"),
             CommandItem(CommandIds.SortExtension), CommandItem(CommandIds.SortTime),
             CommandItem(CommandIds.SortSize), CommandItem(CommandIds.SortNone), new Separator(), CommandItem(CommandIds.Refresh, "Check the items again"),
@@ -474,8 +469,8 @@ public sealed class FindWindow : Window, IViewActions
             logOnErrors.IsChecked = _services.Settings.SearchLogOnErrors;
             _services.SaveSettings();
         };
-        menu.Items.Add(Submenu("_Options", [
-            ActionItem("Advanced criteria…", "Ctrl+D", () => _ = EditAdvancedAsync(), icon: CommandIds.QuickFilter),
+        _menu.Items.Add(Submenu("_Options", [
+            FindActionItem(CommandIds.FindAdvanced, "Advanced criteria…", () => _ = EditAdvancedAsync(), icon: CommandIds.QuickFilter),
             ActionItem("Ignored folders…", null, () => _ = EditIgnoredFoldersAsync(), icon: "find.ignored"),
             new Separator(),
             ActionItem("Save search…", null, () => _ = SaveSearchAsync(), icon: CommandIds.SaveWorkspace),
@@ -483,13 +478,13 @@ public sealed class FindWindow : Window, IViewActions
             new Separator(),
             logOnErrors,
         ]));
-        return menu;
+        UpdateShortcutHints();
     }
 
     private List<Control> FileItems() =>
     [
-        ActionItem("Open", "Enter", OpenFocused, () => _tab is not null, CommandIds.Open),
-        ActionItem("Show in the active panel", "Space", () => FocusInPanel(enter: false), () => _tab is not null, CommandIds.GoTo),
+        FindActionItem(CommandIds.FindOpen, "Open", OpenFocused, () => _tab is not null, CommandIds.Open),
+        FindActionItem(CommandIds.FindShowInPanel, "Show in the active panel", () => FocusInPanel(enter: false), () => _tab is not null, CommandIds.GoTo),
         CommandItem(CommandIds.View), CommandItem(CommandIds.ViewAlternate), CommandItem(CommandIds.Edit), new Separator(),
         CommandItem(CommandIds.Copy), CommandItem(CommandIds.Move), CommandItem(CommandIds.Delete), CommandItem(CommandIds.DeletePermanent),
         new Separator(),
@@ -524,13 +519,35 @@ public sealed class FindWindow : Window, IViewActions
         return item;
     }
 
+    private MenuItem FindActionItem(string id, string header, Action run, Func<bool>? available = null, string? icon = null)
+    {
+        var item = ActionItem(header, null, run, available, icon);
+        var chord = _services.Keymap.GetChords(id).FirstOrDefault();
+        if (chord.Key is not null) item.InputGesture = KeyMapper.ToGesture(chord);
+        return item;
+    }
+
+    private void UpdateShortcutHints()
+    {
+        string Hint(string id) => _services.Keymap.GetGestureText(id) is { Length: > 0 } gesture ? gesture : "the Find menu";
+        _placeholder.Text = $"Found items appear here. {Hint(CommandIds.FindRun)} searches; " +
+            $"{Hint(CommandIds.FindIntersect)} keeps only items found again, " +
+            $"{Hint(CommandIds.FindSubtract)} removes them from the list, and " +
+            $"{Hint(CommandIds.FindAppend)} adds new finds.";
+        ToolTip.SetTip(_find, $"{Hint(CommandIds.FindRun)} searches · {Hint(CommandIds.FindIntersect)} keeps matching results · " +
+            $"{Hint(CommandIds.FindSubtract)} removes matching results · {Hint(CommandIds.FindAppend)} adds new finds");
+        ToolTip.SetTip(_stop, Hint(CommandIds.FindStopOrClose));
+        ToolTip.SetTip(_advancedButton, $"Attributes, size, and times ({Hint(CommandIds.FindAdvanced)})");
+    }
+
     private MenuItem CommandItem(string id, string? header = null)
     {
         var def = _services.Commands.Get(id);
         var item = new MenuItem { Header = header ?? def?.Title ?? id, Icon = MenuIcon(id) };
         var chord = _services.Keymap.GetChords(id).FirstOrDefault();
-        // A key this window uses itself (Ctrl+I keeps only items found again here) is not the command's key here.
-        if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } gesture && !OwnKeys.Contains(gesture.ToString())) item.InputGesture = gesture;
+        // Find's effective binding wins over the inherited panel gesture in this window.
+        if (chord.Key is not null && !IsFindCommand(_services.Keymap.Resolve(chord, CommandContext.FindResults, CommandContext.Find))
+            && KeyMapper.ToGesture(chord) is { } gesture) item.InputGesture = gesture;
         item.Click += (_, _) => Run(id);
         item.Tag = new Func<(bool, string?)>(() =>
         {
@@ -546,7 +563,7 @@ public sealed class FindWindow : Window, IViewActions
 
     private void ShowListMenu(Point point)
     {
-        var menu = new ContextMenu { ItemsSource = FileItems().Concat([new Separator(), ActionItem("Hide selected items", "Ctrl+H", HideSelected, icon: "find.hideSelected")]).ToList() };
+        var menu = new ContextMenu { ItemsSource = FileItems().Concat([new Separator(), FindActionItem(CommandIds.FindHideSelected, "Hide selected items", HideSelected, icon: "find.hideSelected")]).ToList() };
         foreach (var item in menu.Items.OfType<MenuItem>())
             if (item.Tag is Func<(bool Enabled, string? Reason)> state) item.IsEnabled = state().Enabled;
         menu.Open(_list);
@@ -1156,70 +1173,47 @@ public sealed class FindWindow : Window, IViewActions
     {
         if (_dialogs.IsOpen || KeyMapper.IsModifierKey(e.Key)) return;
         if (_completion.Shown.Count > 0 && e.Key is Key.Escape or Key.Enter or Key.Up or Key.Down or Key.Tab) return;
-        var mods = e.KeyModifiers;
-        if (mods == KeyModifiers.Control)
-        {
-            var refine = e.Key switch
-            {
-                Key.I => RefineMode.Intersect,
-                Key.S => RefineMode.Subtract,
-                Key.W => RefineMode.Append,
-                _ => (RefineMode?)null,
-            };
-            if (e.Key == Key.D)
-            {
-                e.Handled = true;
-                _ = EditAdvancedAsync();
-                return;
-            }
-            if (refine is { } mode)
-            {
-                e.Handled = true;
-                StartSearch(mode);
-                return;
-            }
-        }
-        if (e.Key == Key.Escape && mods == KeyModifiers.None)
-        {
-            e.Handled = true;
-            // Esc stops a search (or the comparing of duplicates); with none running, it closes the window.
-            if (IsSearching || _comparing) Stop();
-            else Close();
-            return;
-        }
         bool inList = _tab is not null && (_list.IsFocused || _list.IsKeyboardFocusWithin);
-        if (!inList)
-        {
-            // Let a focused action button activate itself; Enter in the criteria searches.
-            if (FocusManager?.GetFocusedElement() is Button) return;
-            if (e.Key == Key.Enter && mods == KeyModifiers.None)
-            {
-                e.Handled = true;
-                StartSearch(RefineMode.Replace);
-            }
-            return;
-        }
-        switch (e.Key)
-        {
-            case Key.Enter when mods == KeyModifiers.None:
-                e.Handled = true;
-                OpenFocused();
-                return;
-            case Key.Space when mods == KeyModifiers.None:
-                e.Handled = true;
-                FocusInPanel(enter: false);
-                return;
-            case Key.H when mods == KeyModifiers.Control:
-                e.Handled = true;
-                HideSelected();
-                return;
-        }
-        if (KeyMapper.ToChord(e.Key, mods) is not { } chord) return;
-        var id = _services.Keymap.Resolve(chord, CommandContext.Panel);
+        if (!inList && e.Key == Key.Enter && FocusManager?.GetFocusedElement() is Button) return;
+        // Native editing keys keep working in the criteria even if a Find action is mapped to one.
+        if (!inList && FocusManager?.GetFocusedElement() is TextBox && e.KeyModifiers == KeyModifiers.Control &&
+            e.Key is (Key.A or Key.C or Key.V or Key.X or Key.Y or Key.Z)) return;
+        if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
+        var id = inList
+            ? _services.Keymap.Resolve(chord, CommandContext.FindResults, CommandContext.Find, CommandContext.Panel)
+            : _services.Keymap.Resolve(chord, CommandContext.FindCriteria, CommandContext.Find);
+        if (ExecuteFindCommand(id)) { e.Handled = true; return; }
+        if (!inList) return;
         if (id is null || !ListCommands.Contains(id)) return;
         // With Alt held (Alt+Enter), after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
         Controls.AltChords.Handle(this, e);
         Run(id);
+    }
+
+    private static bool IsFindCommand(string? id) => id is
+        CommandIds.FindRun or CommandIds.FindIntersect or CommandIds.FindSubtract or CommandIds.FindAppend or
+        CommandIds.FindAdvanced or CommandIds.FindHideSelected or CommandIds.FindOpen or CommandIds.FindShowInPanel or
+        CommandIds.FindStopOrClose or CommandIds.FindSkipCurrent;
+
+    private bool ExecuteFindCommand(string? id)
+    {
+        switch (id)
+        {
+            case CommandIds.FindRun: StartSearch(RefineMode.Replace); return true;
+            case CommandIds.FindIntersect: StartSearch(RefineMode.Intersect); return true;
+            case CommandIds.FindSubtract: StartSearch(RefineMode.Subtract); return true;
+            case CommandIds.FindAppend: StartSearch(RefineMode.Append); return true;
+            case CommandIds.FindAdvanced: _ = EditAdvancedAsync(); return true;
+            case CommandIds.FindHideSelected: HideSelected(); return true;
+            case CommandIds.FindOpen: OpenFocused(); return true;
+            case CommandIds.FindShowInPanel: FocusInPanel(enter: false); return true;
+            case CommandIds.FindStopOrClose:
+                if (IsSearching || _comparing) Stop();
+                else Close();
+                return true;
+            case CommandIds.FindSkipCurrent: _session?.SkipCurrentFolder(); return true;
+            default: return false;
+        }
     }
 
     // ---- IViewActions: commands run for the found items report and ask here ------------------------------------
@@ -1250,7 +1244,7 @@ public sealed class FindWindow : Window, IViewActions
         _message.Classes.Set("error", isError);
     }
 
-    public void ReloadChrome() { }
+    public void ReloadChrome() => BuildMenu();
 
     IClipboard? IViewActions.Clipboard => Clipboard;
 
@@ -1273,6 +1267,14 @@ public sealed class FindWindow : Window, IViewActions
     internal bool IsIdle => _session is null || _session.Finished && !_timer.IsEnabled;
 
     internal TextBox NamesBox => _names;
+
+    internal TextBox LookInBox => _lookIn;
+
+    internal int CompletionSuggestionCount => _completion.Shown.Count;
+
+    internal Menu FindMenu => _menu;
+
+    internal string IntroText => _placeholder.Text ?? string.Empty;
 
     internal string Error => _error.IsVisible ? _error.Text ?? string.Empty : string.Empty;
 

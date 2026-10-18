@@ -37,7 +37,8 @@ public sealed record ChoiceResult(int Index, bool Alternate, IReadOnlyList<int> 
     public IReadOnlyList<int> PinToggled { get; init; } = [];
 }
 
-public sealed record KeyboardHelpEntry(string Id, string Title, string Category, string? Gestures, string? Description, bool Enabled = true, string? UnavailableReason = null);
+public sealed record KeyboardHelpEntry(string Id, string Title, string Category, string? Gestures, string? Description,
+    bool Enabled = true, string? UnavailableReason = null, string? ContextLabel = null, string? DefaultGestures = null);
 
 /// <summary>What the keyboard reference was left with: a command to run, or one whose shortcut to change.</summary>
 public sealed record KeyboardReferenceChoice(string CommandId, bool ChangeShortcut);

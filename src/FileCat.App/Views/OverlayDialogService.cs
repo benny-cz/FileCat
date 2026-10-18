@@ -457,7 +457,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 2) };
                 var left = new StackPanel();
                 left.Children.Add(new TextBlock { Text = item?.Title, TextTrimming = TextTrimming.CharacterEllipsis });
-                left.Children.Add(new TextBlock { Text = item?.Category + " · " + item?.Id + (item?.Enabled == false ? " · unavailable" : string.Empty), Classes = { "muted", "small" }, TextTrimming = TextTrimming.CharacterEllipsis });
+                left.Children.Add(new TextBlock { Text = item?.Category +
+                    (item?.ContextLabel is null ? string.Empty : " · " + item.ContextLabel) + " · " + item?.Id +
+                    (item?.Enabled == false ? " · unavailable" : string.Empty), Classes = { "muted", "small" }, TextTrimming = TextTrimming.CharacterEllipsis });
                 row.Children.Add(left);
                 var keys = new TextBlock { Text = string.IsNullOrEmpty(item?.Gestures) ? "Unbound" : item.Gestures, Classes = { "muted" }, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(keys, 1);
@@ -526,8 +528,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             var item = list.SelectedItem as KeyboardHelpEntry;
             detail.Text = item is null ? "No matching command." :
-                !item.Enabled ? "Unavailable: " + (item.UnavailableReason ?? "not available here") :
-                string.IsNullOrWhiteSpace(item.Description) ? item.Title : item.Description;
+                (item.ContextLabel is null ? string.Empty : "Context: " + item.ContextLabel + ". ") +
+                (item.DefaultGestures is null ? string.Empty : "Default: " + item.DefaultGestures + ". ") +
+                (!item.Enabled ? "Unavailable: " + (item.UnavailableReason ?? "not available here") :
+                    string.IsNullOrWhiteSpace(item.Description) ? item.Title : item.Description);
             run.IsEnabled = item?.Enabled == true;
             change.IsEnabled = item is not null;
         };

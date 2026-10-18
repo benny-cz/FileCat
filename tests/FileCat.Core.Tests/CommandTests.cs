@@ -63,6 +63,32 @@ public class CommandTests
     }
 
     [Fact]
+    public void Find_bindings_are_contextual_and_can_be_remapped_or_cleared()
+    {
+        var registry = CommandRegistry.CreateDefault();
+        var defaults = new Keymap(registry);
+        Assert.Equal(CommandIds.FindRun, defaults.Resolve(KeyChord.Parse("Enter"), CommandContext.FindCriteria, CommandContext.Find));
+        Assert.Equal(CommandIds.FindOpen, defaults.Resolve(KeyChord.Parse("Enter"), CommandContext.FindResults, CommandContext.Find, CommandContext.Panel));
+        Assert.Equal(CommandIds.FindSubtract, defaults.Resolve(KeyChord.Parse("Ctrl+S"), CommandContext.FindCriteria, CommandContext.Find));
+        Assert.Equal(CommandIds.FindHideSelected, defaults.Resolve(KeyChord.Parse("Ctrl+H"), CommandContext.FindResults, CommandContext.Find, CommandContext.Panel));
+        Assert.Equal(CommandIds.FindAppend, defaults.Resolve(KeyChord.Parse("Ctrl+W"), CommandContext.FindResults, CommandContext.Find, CommandContext.Panel));
+        Assert.Equal(CommandIds.CloseTab, defaults.Resolve(KeyChord.Parse("Ctrl+W"), CommandContext.Panel));
+        Assert.Contains(defaults.Uses(KeyChord.Parse("Ctrl+W")), use => use.Id == CommandIds.FindAppend);
+        Assert.Contains(defaults.Uses(KeyChord.Parse("Ctrl+W")), use => use.Id == CommandIds.CloseTab);
+
+        var changed = new Keymap(registry, new Dictionary<string, string[]>
+        {
+            [CommandIds.FindSubtract] = ["Ctrl+Shift+S"],
+            [CommandIds.FindAppend] = [],
+        });
+        Assert.Null(changed.Resolve(KeyChord.Parse("Ctrl+S"), CommandContext.FindCriteria, CommandContext.Find));
+        Assert.Equal(CommandIds.FindSubtract, changed.Resolve(KeyChord.Parse("Ctrl+Shift+S"), CommandContext.FindResults, CommandContext.Find));
+        Assert.Null(changed.GetGestureText(CommandIds.FindAppend));
+        Assert.Equal(CommandIds.CloseTab, changed.Resolve(KeyChord.Parse("Ctrl+W"), CommandContext.FindResults, CommandContext.Find, CommandContext.Panel));
+        Assert.Empty(changed.Conflicts);
+    }
+
+    [Fact]
     public void The_old_default_shell_becomes_automatic_once_and_a_later_choice_stays()
     {
         // Settings saved before "auto" existed: cmd was the default, not a choice.

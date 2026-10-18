@@ -86,7 +86,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-        <Expander Header="{Binding InterruptedCount, StringFormat='Needs review ({0})'}" IsVisible="{Binding HasInterrupted}" Margin="8,4"
+        <Expander Header="{Binding InterruptedCount, StringFormat='Needs review ({0})'}" IsVisible="{Binding HasInterrupted}" IsExpanded="True" Margin="8,4"
                   AutomationProperties.Name="Interrupted operations needing review">
           <StackPanel Spacing="4">
             <ListBox ItemsSource="{Binding Interrupted}" SelectedItem="{Binding SelectedInterrupted, Mode=TwoWay}" MaxHeight="78" Classes="choices"

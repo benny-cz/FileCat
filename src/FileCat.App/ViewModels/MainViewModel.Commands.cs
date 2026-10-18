@@ -25,6 +25,8 @@ public sealed partial class MainViewModel
 {
     public CommandAvailability GetAvailability(string id)
     {
+        if (Services.Commands.Get(id)?.Context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
+            return CommandAvailability.No("Open Find to use this action; its shortcut can be changed in the keyboard reference.");
         var tab = ActiveTab;
         var loc = tab?.Location;
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);

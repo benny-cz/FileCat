@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using FileCat.App.Services;
+using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Listing;
@@ -36,6 +37,7 @@ public sealed partial class MainViewModel
         Services.ReloadKeymap();
         foreach (var c in Services.Keymap.Conflicts) Notify("Key binding: " + c, true);
         View.ReloadChrome();
+        foreach (var find in FindWindow.OpenWindows) find.ReloadChrome();
         UpdateKeyBar(KeyMods.None);
         Services.SaveSettings();
     }

@@ -8,6 +8,25 @@ public enum CommandContext
     QuickSearch,
     CommandLine,
     Viewer,
+    Find,
+    FindCriteria,
+    FindResults,
+}
+
+public static class CommandContextNames
+{
+    public static string Display(CommandContext context) => context switch
+    {
+        CommandContext.Find => "Find criteria and results",
+        CommandContext.FindCriteria => "Find criteria",
+        CommandContext.FindResults => "Find results",
+        CommandContext.Panel => "file panels",
+        CommandContext.Global => "everywhere",
+        CommandContext.Viewer => "viewers",
+        CommandContext.QuickSearch => "quick search",
+        CommandContext.CommandLine => "command line",
+        _ => context.ToString(),
+    };
 }
 
 /// <summary>
@@ -150,6 +169,16 @@ public static class CommandIds
     public const string AnalyzeFolder = "view.analyze";
 
     public const string FindFiles = "search.find";
+    public const string FindRun = "find.search";
+    public const string FindIntersect = "find.keepAgain";
+    public const string FindSubtract = "find.removeAgain";
+    public const string FindAppend = "find.addNew";
+    public const string FindAdvanced = "find.advanced";
+    public const string FindHideSelected = "find.hideSelected";
+    public const string FindOpen = "find.open";
+    public const string FindShowInPanel = "find.showInPanel";
+    public const string FindStopOrClose = "find.stopOrClose";
+    public const string FindSkipCurrent = "find.skipCurrent";
     public const string RegistryExport = "registry.export";
     public const string RegistryImport = "registry.import";
     public const string RegistryWritable = "registry.writable";
@@ -385,6 +414,17 @@ public sealed class CommandRegistry
         Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
+        const string FindCategory = "Find";
+        Add(CommandIds.FindRun, "Search with current criteria", FindCategory, null, CommandContext.FindCriteria, "Enter");
+        Add(CommandIds.FindIntersect, "Keep only items found again", FindCategory, null, CommandContext.Find, "Ctrl+I");
+        Add(CommandIds.FindSubtract, "Remove items found again", FindCategory, null, CommandContext.Find, "Ctrl+S");
+        Add(CommandIds.FindAppend, "Add new finds", FindCategory, null, CommandContext.Find, "Ctrl+W");
+        Add(CommandIds.FindAdvanced, "Advanced criteria", FindCategory, null, CommandContext.Find, "Ctrl+D");
+        Add(CommandIds.FindHideSelected, "Hide selected result items", FindCategory, null, CommandContext.FindResults, "Ctrl+H");
+        Add(CommandIds.FindOpen, "Open focused result", FindCategory, null, CommandContext.FindResults, "Enter");
+        Add(CommandIds.FindShowInPanel, "Show focused result in panel", FindCategory, null, CommandContext.FindResults, "Space");
+        Add(CommandIds.FindStopOrClose, "Stop search or close Find", FindCategory, null, CommandContext.Find, "Escape");
+        Add(CommandIds.FindSkipCurrent, "Skip current search folder", FindCategory, null, CommandContext.Find);
         Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
         Add(CommandIds.RegistryImport, "Import .reg into selected Registry scope…", F);
         Add(CommandIds.RegistryWritable, "Open writable Registry location…", F);
@@ -480,6 +520,16 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MarkInvert, "Marks the files that are not marked, and unmarks those that are.");
         r.Describe(CommandIds.MarkAll, "Marks every item in the list.");
         r.Describe(CommandIds.FindFiles, "Searches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching.");
+        r.Describe(CommandIds.FindRun, "In Find criteria: search using the visible fields. Does not affect the current panel.");
+        r.Describe(CommandIds.FindIntersect, "In Find criteria or results: keep only results matching a new search. Original files are not deleted.");
+        r.Describe(CommandIds.FindSubtract, "In Find criteria or results: remove new matches from this result list. Original files are not deleted.");
+        r.Describe(CommandIds.FindAppend, "In Find criteria or results: add new matches to this result list.");
+        r.Describe(CommandIds.FindAdvanced, "In Find: edit size, date, attribute and other advanced criteria.");
+        r.Describe(CommandIds.FindHideSelected, "In Find results: hide selected entries from this list without deleting their files.");
+        r.Describe(CommandIds.FindOpen, "In Find results: open the focused item.");
+        r.Describe(CommandIds.FindShowInPanel, "In Find results: show the focused item in the active file panel.");
+        r.Describe(CommandIds.FindStopOrClose, "In Find: stop a running search, or close an idle Find window. An open dialog handles Escape first.");
+        r.Describe(CommandIds.FindSkipCurrent, "In Find: skip the folder being searched now.");
         r.Describe(CommandIds.QuickView, "The target panel shows the file under the cursor as you move through the list.");
         r.Describe(CommandIds.OpenTerminal, "Opens a terminal in this panel's folder.");
         r.Describe(CommandIds.ToggleHidden, "Shows or hides hidden and system items in every panel.");
@@ -632,6 +682,12 @@ public sealed class Keymap
 
     public string? GetGestureText(string commandId) =>
         _byCommand.TryGetValue(commandId, out var l) && l.Count > 0 ? l[0].ToDisplayString() : null;
+
+    /// <summary>Effective owners of one chord in each context, including contextual overlaps that are intentional.</summary>
+    public IReadOnlyList<CommandDefinition> Uses(KeyChord chord) => _map
+        .Where(entry => entry.Key.Item2 == chord)
+        .Select(entry => Registry.Get(entry.Value)!)
+        .ToArray();
 
     /// <summary>Function-key bar labels for one modifier combination (FAR-style per-modifier sets).</summary>
     public IReadOnlyList<(int Number, string? CommandId, string Label)> GetFunctionKeyBar(KeyMods mods, CommandContext context)

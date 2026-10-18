@@ -39,4 +39,46 @@ public sealed class SettingsDialogTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Keyboard_settings_explain_Find_context_overlaps_and_reject_same_context_conflicts()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            vm.Execute(CommandIds.Settings);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            window.UpdateLayout();
+            var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
+            tabs.SelectedIndex = tabs.Items.OfType<TabItem>().ToList().FindIndex(t => t.Header as string == "Keyboard");
+            window.UpdateLayout();
+            var bindings = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => t.PlaceholderText == "command.id = Ctrl+Shift+X, F12");
+            TextBlock Preview() => window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => AutomationProperties.GetName(t) == "Find shortcut context preview");
+            Assert.Contains("Ctrl+W", Preview().Text);
+            Assert.Contains("Find", Preview().Text);
+            Assert.Contains("file panels", Preview().Text);
+
+            bindings.Text = $"{CommandIds.FindIntersect} = Ctrl+S";
+            for (int i = 0; i < 100 && !(Preview().Text?.Contains("Shortcut conflicts in one context") ?? false); i++)
+                await Task.Delay(20, ct);
+            Assert.Contains("Shortcut conflicts in one context", Preview().Text);
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(dialogs.IsOpen);
+            Assert.False(services.Settings.KeyBindings.ContainsKey(CommandIds.FindIntersect));
+
+            bindings.Text = $"{CommandIds.FindSubtract} = Ctrl+Shift+S";
+            for (int i = 0; i < 100 && (Preview().Text?.Contains("Shortcut conflicts") ?? false); i++)
+                await Task.Delay(20, ct);
+            Assert.DoesNotContain("Shortcut conflicts", Preview().Text);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }
