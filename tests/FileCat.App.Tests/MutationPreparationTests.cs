@@ -99,7 +99,11 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         using var f = new Fixture("info"); await f.Load(operation is "delete" or "folder"); var task = f.StartArchive(operation);
         try
         {
-            if (operation == "pack") { await Wait(() => f.Button("Pack") is not null); f.PathBox("Archive path").Text = f.Archive; f.Click("Pack"); }
+            if (operation == "pack")
+            {
+                await Wait(() => f.Button("Pack") is not null);
+                f.PathBox("Archive path").Text = f.Archive; f.Click("Pack");
+            }
             await Wait(() => f.Gate.Active > 0 || task.IsCompleted || f.Button("Cancel") is not null);
             AssertWorkers(f.Gate, "info"); Assert.Equal(1, f.Gate.Active); f.Services.Io.Dispose(); await Task.Delay(40, TestContext.Current.CancellationToken);
             Assert.False(task.IsCompleted); Assert.Empty(f.Services.Jobs.Jobs); f.Gate.Release.Set(); await task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -151,7 +155,7 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
     {
         using var f = new Fixture(); await f.Load(true);
         var task = f.StartArchive(operation); await Wait(() => f.Button(operation == "delete" ? "Delete" : "Create") is not null);
-        if (operation == "folder") f.Window.GetVisualDescendants().OfType<TextBox>().Single(t => t.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop"))).Text = "new-folder";
+        if (operation == "folder") f.PathBox($"Folder name in {Path.GetFileName(f.Archive)} (use / for nested folders):").Text = "new-folder";
         if (action is "changed" or "same-metadata") f.ReplaceArchive(action == "same-metadata");
         var approvedHash = f.Hash(); var approvedBaseline = ArchiveBaseline.Of(f.Archive);
         if (action == "shutdown") f.Services.Io.Dispose();
@@ -184,7 +188,11 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
     {
         using var f = new Fixture(outcome: outcome); await f.Load(operation is "delete" or "folder");
         var task = f.StartArchive(operation);
-        if (operation == "pack") { await Wait(() => f.Button("Pack") is not null); f.PathBox("Archive path").Text = f.Archive; f.Click("Pack"); }
+        if (operation == "pack")
+        {
+            await Wait(() => f.Button("Pack") is not null);
+            f.PathBox("Archive path").Text = f.Archive; f.Click("Pack");
+        }
         await Wait(() => task.IsCompleted || f.Button(operation == "delete" ? "Delete" : "Create") is not null);
         bool shown = !task.IsCompleted; if (shown) f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));
         foreach (var completed in f.Services.Jobs.Jobs) await Wait(() => completed.State.IsFinished());
@@ -369,7 +377,13 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         }
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        public TextBox PathBox(string name) => Window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == name);
+        public TextBox PathBox(string name)
+        {
+            Window.UpdateLayout(); // A ready footer can precede its scrollable Pack or Link fields.
+            var box = Window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == name);
+            Assert.True(box.IsArrangeValid && box.Bounds.Width > 0 && box.Bounds.Height > 0);
+            return box;
+        }
         public Task StartArchive(string operation) => operation switch
         {
             "delete" => Vm.ExecuteAsync(CommandIds.Delete), "folder" => Vm.ExecuteAsync(CommandIds.MakeDirectory), "pack" => Vm.ExecuteAsync(CommandIds.Pack),

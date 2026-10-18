@@ -12,6 +12,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Search;
 
 namespace FileCat.App.Controls;
 
@@ -60,7 +61,13 @@ public sealed class FileListControl : Control
     private Typeface _boldTypeface;
     // Cached row text belongs to one store instance: a refresh swaps stores, so identity (not generation) keys it.
     private EntryStore? _cachedStore;
-    private int _anchorRow = -1;
+    // A visible row number is not an identity: sorting, filtering and streaming can move it.
+    // Store indexes stay stable only within one EntryStore. Refresh intentionally starts a new anchor.
+    private EntryStore? _anchorStore;
+    private PanelViewModel? _identityPanel;
+    private Window? _focusWindow;
+    private bool _viewEventsAttached;
+    private int _anchorStoreIndex = -1;
     private bool? _extendState;
     private int _resizingColumn = -1;
     private double _resizeStartX;
@@ -138,6 +145,7 @@ public sealed class FileListControl : Control
                     _topRow = top;
                     if (_refreshTopRow.HasValue) _refreshTopRow = top;
                     if (IsRenaming) InvalidateArrange();
+                    _automationPeer?.QueueUpdate(ListingChange.Rows);
                     InvalidateVisual();
                 }
             }
@@ -168,7 +176,11 @@ public sealed class FileListControl : Control
         };
         VisualChildren.Add(_renameErrorBox);
         LogicalChildren.Add(_renameErrorBox);
-        _metadataHandler = () => Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
+        _metadataHandler = () => Dispatcher.UIThread.Post(() =>
+        {
+            InvalidateVisual();
+            _automationPeer?.QueueUpdate(ListingChange.State);
+        }, DispatcherPriority.Background);
         UpdateTypefaces();
     }
 
@@ -328,11 +340,14 @@ public sealed class FileListControl : Control
         if (change.Property == TabProperty)
         {
             FinishRename(null, restoreFocus: false);
+            ResetSelectionGesture();
             if (change.OldValue is TabViewModel oldTab)
             {
                 oldTab.Listing.Changed -= OnListingChanged;
                 oldTab.ColumnsChanged -= OnColumnsChanged;
             }
+            if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
+            _identityPanel = null;
             _listing = null;
             if (change.NewValue is TabViewModel tab)
             {
@@ -342,22 +357,32 @@ public sealed class FileListControl : Control
                 {
                     if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
                     _metadataSource = tab.Services.Metadata;
-                    _metadataSource.ValuesChanged += _metadataHandler;
+                    if (_viewEventsAttached) _metadataSource.ValuesChanged += _metadataHandler;
                 }
                 tab.ColumnsChanged += OnColumnsChanged;
+                _identityPanel = tab.Panel;
+                if (_viewEventsAttached) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
                 _columns = tab.Columns;
+            }
+            else if (_metadataSource is not null)
+            {
+                _metadataSource.ValuesChanged -= _metadataHandler;
+                _metadataSource = null;
             }
             _widthOverrides.Clear();
             ClearTextCache();
+            _cachedStore = _listing?.Store;
             _topRow = 0;
             _refreshTopRow = null;
             EnsureFocusVisible();
             RefreshGitStatuses();
+            _automationPeer?.QueueUpdate(ListingChange.Reset);
             InvalidateMeasure();
             InvalidateVisual();
         }
         else if (change.Property == IsActivePanelProperty)
         {
+            _automationPeer?.QueueUpdate(ListingChange.State);
             InvalidateVisual();
         }
         else if (change.Property == FontFamilyProperty || change.Property == FontSizeProperty)
@@ -371,7 +396,14 @@ public sealed class FileListControl : Control
             // Resizing the panel changes its row capacity, not the user's chosen scroll position.
             ClampTop();
             UpdateScrollBar();
+            _automationPeer?.QueueUpdate(ListingChange.Rows);
         }
+    }
+
+    private void OnPanelIdentityChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PanelViewModel.Number) or nameof(PanelViewModel.IsActive) or nameof(PanelViewModel.IsTarget))
+            _automationPeer?.QueueUpdate(ListingChange.State);
     }
 
     private void OnColumnsChanged(object? sender, EventArgs e)
@@ -396,6 +428,11 @@ public sealed class FileListControl : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        _viewEventsAttached = true;
+        if (_metadataSource is not null) _metadataSource.ValuesChanged += _metadataHandler;
+        if (_identityPanel is not null) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
+        _focusWindow = TopLevel.GetTopLevel(this) as Window;
+        if (_focusWindow is not null) _focusWindow.Deactivated += OnWindowDeactivated;
         // Static events: subscribed while shown, so a closed list is not kept alive by them.
         ThemeManager.ThemeChanged += OnThemeChanged;
         ThemeManager.PaletteTick += OnPaletteTick;
@@ -403,11 +440,17 @@ public sealed class FileListControl : Control
         UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
         RefreshGitStatuses();
+        _automationPeer?.QueueUpdate(ListingChange.Rows | ListingChange.Focus | ListingChange.Marks);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _viewEventsAttached = false;
+        if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
+        if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
+        if (_focusWindow is not null) _focusWindow.Deactivated -= OnWindowDeactivated;
+        _focusWindow = null;
         ThemeManager.ThemeChanged -= OnThemeChanged;
         ThemeManager.PaletteTick -= OnPaletteTick;
         Formatters.DateFormatChanged -= OnDateFormatChanged;
@@ -417,7 +460,9 @@ public sealed class FileListControl : Control
         _gitStatuses = null;
         _gitStatusFolder = null;
         _loadingHintTimer?.Stop();
+        ResetSelectionGesture();
         FinishRename(null, restoreFocus: false);
+        _automationPeer?.QueueUpdate(ListingChange.Rows | ListingChange.Focus | ListingChange.Marks);
     }
 
     private void UpdateTypefaces()
@@ -512,8 +557,16 @@ public sealed class FileListControl : Control
     private void OnListingChanged(object? sender, ListingChange change)
     {
         if (!ReferenceEquals(sender, _listing)) return;
-        // Screen readers follow the focused item through the list peer's name.
-        if ((change & (ListingChange.Focus | ListingChange.Marks | ListingChange.Reset)) != 0) _automationPeer?.AnnounceFocus();
+        if ((change & ListingChange.Reset) != 0 ||
+            _anchorStore is not null && !ReferenceEquals(_anchorStore, _listing!.Store))
+            ResetSelectionGesture();
+        else if (_anchorStoreIndex >= 0 && _listing!.GetVisibleIndex(_anchorStoreIndex) < 0)
+        {
+            // Once filtered/deleted, the old anchor must not come back when that row is revealed again.
+            // A subsequent Shift-click starts from the current visible focus instead.
+            _anchorStore = null;
+            _anchorStoreIndex = -1;
+        }
         if (IsRenaming)
         {
             if ((change & ListingChange.Reset) != 0 || _listing!.GetVisibleIndex(_renameStoreIndex) < 0)
@@ -526,7 +579,6 @@ public sealed class FileListControl : Control
             ClearTextCache();
             _topRow = 0;
             _refreshTopRow = null;
-            _anchorRow = -1;
             _cachedStore = _listing!.Store;
             _showLoadingHint = false;
             _loadingHintTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) =>
@@ -553,6 +605,7 @@ public sealed class FileListControl : Control
         }
         if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
         UpdateScrollBar();
+        _automationPeer?.QueueUpdate(change);
         InvalidateVisual();
     }
 
@@ -561,6 +614,7 @@ public sealed class FileListControl : Control
         if (_listing is not null && !ReferenceEquals(_listing.Store, _cachedStore))
         {
             ClearTextCache();
+            ResetSelectionGesture();
             _cachedStore = _listing.Store;
         }
     }
@@ -596,7 +650,7 @@ public sealed class FileListControl : Control
                     if (generation != _gitStatusGeneration || Tab?.Location?.Path != folder) return;
                     _gitStatuses = snapshot;
                     InvalidateVisual();
-                    _automationPeer?.AnnounceFocus();
+                    _automationPeer?.QueueUpdate(ListingChange.State);
                 }, DispatcherPriority.Background);
             }
             catch (OperationCanceledException) { }
@@ -622,6 +676,7 @@ public sealed class FileListControl : Control
         else if (f >= _topRow + cap) _topRow = f - cap + 1;
         ClampTop();
         UpdateScrollBar();
+        _automationPeer?.QueueUpdate(ListingChange.Rows);
     }
 
     private void ClampTop()
@@ -979,6 +1034,59 @@ public sealed class FileListControl : Control
         if (e.Key is Key.LeftShift or Key.RightShift) _extendState = null;
     }
 
+    protected override void OnLostFocus(FocusChangedEventArgs e)
+    {
+        base.OnLostFocus(e);
+        // KeyUp may go to another control/window; never continue its mark/unmark intent on return.
+        EndInputGesture();
+        _automationPeer?.QueueUpdate(ListingChange.Focus);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e) => EndInputGesture();
+
+    private void EndInputGesture()
+    {
+        // Some platforms retain the window's focused control while another native window is active.
+        _extendState = null;
+        _dragStart = null;
+        _pressArgs = null;
+        _pressedRow = -1;
+    }
+
+    protected override void OnGotFocus(FocusChangedEventArgs e)
+    {
+        base.OnGotFocus(e);
+        _automationPeer?.QueueUpdate(ListingChange.Focus);
+    }
+
+    private void ResetSelectionGesture()
+    {
+        _anchorStore = null;
+        _anchorStoreIndex = -1;
+        _extendState = null;
+        _dragStart = null;
+        _pressArgs = null;
+        _pressedRow = -1;
+    }
+
+    private int ResolveRangeAnchor()
+    {
+        if (_listing is null) return -1;
+        int row = ReferenceEquals(_anchorStore, _listing.Store)
+            ? _listing.GetVisibleIndex(_anchorStoreIndex) : -1;
+        if (row >= 0) return row;
+        // Capture the fallback identity once so repeated Shift-clicks extend from the same item.
+        row = _listing.FocusedIndex;
+        if (row >= 0) SetRangeAnchor(row);
+        return row;
+    }
+
+    private void SetRangeAnchor(int row)
+    {
+        _anchorStore = _listing!.Store;
+        _anchorStoreIndex = _listing.GetStoreIndex(row);
+    }
+
     // ---- Pointer --------------------------------------------------------------------------------------------------
 
     private int RowAt(Point p)
@@ -1030,6 +1138,7 @@ public sealed class FileListControl : Control
         var point = e.GetCurrentPoint(this);
         var pos = point.Position;
         if (_listing is null) return;
+        _extendState = null; // A pointer gesture does not inherit a keyboard range's mark/unmark choice.
 
         int edge = ResizeTargetAt(pos, out bool inverse);
         if (edge >= 0 && point.Properties.IsLeftButtonPressed)
@@ -1082,14 +1191,15 @@ public sealed class FileListControl : Control
         }
         else if ((mods & KeyModifiers.Shift) != 0)
         {
-            int from = _anchorRow >= 0 ? _anchorRow : Math.Max(0, _listing.FocusedIndex);
+            int from = ResolveRangeAnchor();
+            if (from < 0) from = row;
             _listing.SetMarkRange(from, row, true);
             _listing.SetFocus(row);
         }
         else
         {
             _listing.SetFocus(row);
-            _anchorRow = row;
+            SetRangeAnchor(row);
             if (e.ClickCount >= 2)
             {
                 OpenRequested?.Invoke(this, EventArgs.Empty);
@@ -1181,6 +1291,7 @@ public sealed class FileListControl : Control
         if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         UpdateScrollBar();
         if (IsRenaming) InvalidateArrange();
+        _automationPeer?.QueueUpdate(ListingChange.Rows);
         InvalidateVisual();
         e.Handled = true;
     }
@@ -1191,17 +1302,166 @@ public sealed class FileListControl : Control
 
     protected override AutomationPeer OnCreateAutomationPeer() => _automationPeer = new FileListAutomationPeer(this);
 
+    internal ListingModel? AutomationListing => _viewEventsAttached && _listing is { IsDisposed: false } ? _listing : null;
+    internal int TopRow => _topRow;
+
+    internal Rect VisibleRowBounds(int row)
+    {
+        if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount) return default;
+        var viewport = new Rect(0, _headerHeight, Math.Max(0, Bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0)), Math.Max(0, Bounds.Height - _headerHeight));
+        return GetRowBounds(row).Intersect(viewport);
+    }
+
+    internal void ScrollToRow(int row)
+    {
+        if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount)
+            throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
+        int cap = VisibleRowCapacity;
+        if (row < _topRow) _topRow = row;
+        else if (row >= _topRow + cap) _topRow = row - cap + 1;
+        ScrollToTopRow(_topRow);
+    }
+
+    internal void ScrollToTopRow(int row)
+    {
+        _topRow = row;
+        ClampTop();
+        if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
+        UpdateScrollBar();
+        if (IsRenaming) InvalidateArrange();
+        InvalidateVisual();
+        _automationPeer?.QueueUpdate(ListingChange.Rows);
+    }
+
+    internal void FocusAutomationItem(int row, bool invoke = false)
+    {
+        if (IsRenaming) throw new InvalidOperationException("Finish renaming before opening another item.");
+        var listing = AutomationListing;
+        if (listing is null || (uint)row >= (uint)listing.VisibleCount)
+            throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
+        var store = listing.Store;
+        int item = listing.GetStoreIndex(row);
+        var tab = Tab;
+        void CheckOwner()
+        {
+            if (!ReferenceEquals(listing, AutomationListing) || !ReferenceEquals(store, listing.Store) || !ReferenceEquals(tab, Tab))
+                throw new InvalidOperationException("The listing changed while activating this item. Review the current items again.");
+        }
+        ScrollToRow(row);
+        ActivateRequested?.Invoke(this, EventArgs.Empty);
+        CheckOwner();
+        Focus();
+        CheckOwner();
+        int currentRow = listing.GetVisibleIndex(item);
+        if (currentRow < 0) throw new InvalidOperationException("This item became hidden while activating it. Review marked items to inspect hidden marks.");
+        listing.SetFocus(currentRow);
+        CheckOwner();
+        tab?.OnUserMovedFocus();
+        CheckOwner();
+        if (invoke)
+        {
+            if (listing.FocusedStoreIndex != item) throw new InvalidOperationException("Focus changed while activating this item. Review the current focus before opening it.");
+            OpenRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>Right border of a laid-out column (tests and automation).</summary>
     internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column];
 
     internal string DescribeFocus()
     {
-        if (_listing is null || !_listing.TryGetFocused(out var e)) return "Empty list";
-        int i = _listing.FocusedIndex + 1;
-        var kind = e.Kind == EntryKind.Parent ? "parent folder" : e.IsContainer ? "folder" : "file";
+        if (AutomationListing is not { } listing) return "No location loaded";
+        if (!listing.TryGetFocused(out _)) return DescribeListingState();
+        return DescribeItem(listing.FocusedStoreIndex);
+    }
+
+    internal string DescribeListName()
+    {
+        if (Tab is not { } tab) return "File list, no location loaded";
+        var panel = tab.Panel;
+        var role = panel.IsActive ? "source" : panel.IsTarget ? "target" : "panel";
+        return $"Panel {panel.Number}, {role}, {Formatters.SafeName(tab.DisplayPath)}";
+    }
+
+    internal string DescribeListingState()
+    {
+        if (AutomationListing is not { } listing) return "No location loaded";
+        if (listing.State == ListingState.Failed) return "Not available. " + Formatters.SafeName(listing.Error ?? "The location could not be read.") + " Use Refresh to try again or edit Location.";
+        if (listing.State == ListingState.Loading) return "Loading. " + Formatters.SafeName(listing.LoadingProgress ?? "Items are still arriving.") + " Escape stops listing.";
+        if (listing.IsPartial) return "Listing incomplete. " + Formatters.SafeName(listing.Issues.LastOrDefault() ?? "Only part of this location is shown.") + " Use Refresh to try again.";
+        if (listing.IsRefreshing) return "Refreshing. " + Formatters.SafeName(listing.LoadingProgress ?? "Current items remain available.");
+        if (listing.LastRefreshError is { } error) return "Refresh failed. " + Formatters.SafeName(ListingModel.DescribeError(error)) + " Previously listed items are shown. Use Refresh to try again.";
+        if (listing.VisibleCount <= (listing.HasParentRow ? 1 : 0))
+            return listing.Filter is not null ? "No items match the filter. Clear the filter to show other items."
+                : !listing.ShowHidden && listing.TotalCount > 0 ? "All items are hidden. Enable Show hidden items to display them."
+                : "Empty location.";
+        return $"{listing.VisibleCount:N0} visible rows, {listing.TotalCount:N0} items.";
+    }
+
+    internal string DescribeListHelp()
+    {
+        if (AutomationListing is not { } listing) return DescribeListingState();
+        // Tab status already maintains and caches complete mark statistics; this read performs no provider I/O.
+        var marks = listing.GetMarkStats();
+        string selection = marks.Count == 0 ? "No marked items. Commands use the focused item."
+            : $"{marks.Count:N0} marked items, {marks.HiddenByFilter:N0} hidden by filtering or Show hidden items.";
+        string filter = listing.Filter is { } mask ? " Filter: " + Formatters.SafeName(mask.Text) + "." : " No filter.";
+        return DescribeListingState() + " " + selection + filter + $" Sort: {listing.Sort.Field}, {(listing.Sort.Descending ? "descending" : "ascending")}. " +
+            "The Review marked items command opens the complete selection, including hidden and offscreen marks. " +
+            "Arrow keys move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.";
+    }
+
+    internal static string ItemKind(in EntryData e) => e.Kind switch
+    {
+        EntryKind.Parent => "parent navigation",
+        EntryKind.Directory => "folder",
+        EntryKind.Drive => "drive",
+        EntryKind.Server => "server",
+        EntryKind.Share => "share",
+        EntryKind.RegistryKey => "Registry key",
+        EntryKind.RegistryValue => "Registry value",
+        _ => e.Tag is IDisplayDetails details && details.KindText.Length > 0 ? Formatters.SafeName(details.KindText) : "file",
+    };
+
+    internal static string ItemName(in EntryData e) => e.Kind == EntryKind.Parent ? "Go to parent location" :
+        e.Kind == EntryKind.RegistryValue && e.Name.Length == 0 ? "(Default)" : Formatters.SafeName(e.Name);
+
+    /// <summary>Cached original identity for result sets; never resolves an item or asks a provider to read it.</summary>
+    internal static string ItemLocation(TabViewModel tab, in EntryData e)
+    {
+        if (e.Tag is not ResultTag result) return Formatters.SafeName(tab.DisplayPath);
+        var parent = result.Parent;
+        string location = Formatters.SafeName(result.Folder is { Length: > 0 } folder ? folder :
+            parent.IsFileSystem ? parent.Path : parent.ToString());
+        // ToString omits session qualifiers. Equal paths can belong to distinct remote profiles,
+        // Registry views or nested archive owners; retaining these qualifiers prevents false identity.
+        for (var owner = parent; owner is not null; owner = owner.Container)
+            if (owner.Session is { Length: > 0 } session)
+                location += $" ({Formatters.SafeName(owner.Scheme)} view: {Formatters.SafeName(session)})";
+        if (result.Ordinal > 0) location += $", archive occurrence {(long)result.Ordinal + 1:N0}";
+        return location;
+    }
+
+    internal static string ItemWarnings(in EntryData e)
+    {
+        string details = string.Empty;
+        if (e.Has(EntryFlags.Offline)) details += ", cloud placeholder or offline; opening may download content";
+        if (e.Has(EntryFlags.Unavailable)) details += ", unavailable";
+        if (e.Has(EntryFlags.Protected)) details += ", protected content";
+        if (e.Has(EntryFlags.Link)) details += ", link";
+        if (e.Tag is IDisplayDetails display && display.DetailsText.Length > 0) details += ", " + Formatters.SafeName(display.DetailsText);
+        return details;
+    }
+
+    internal string DescribeItem(int storeIndex)
+    {
+        if (AutomationListing is not { } listing || (uint)storeIndex >= (uint)listing.Store.Count) return "Item no longer available";
+        var e = listing.Store[storeIndex];
+        int row = listing.GetVisibleIndex(storeIndex);
+        var kind = ItemKind(e);
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e);
-        var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
+        var marked = listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
         var git = _gitStatuses?.ForName(e.Name) switch
         {
             GitStatusKind.Clean => ", Git clean",
@@ -1211,30 +1471,13 @@ public sealed class FileListControl : Control
             GitStatusKind.Conflict => ", Git conflict",
             _ => string.Empty,
         };
-        var spokenName = e.Kind == EntryKind.RegistryValue && e.Name.Length == 0 ? "(Default)" : e.Name;
-        return $"{spokenName}, {kind}{details}{marked}{git}, {i} of {_listing.VisibleCount}";
+        details += ItemWarnings(e);
+        if (Tab is { } owner && e.Tag is ResultTag) details += ", location: " + ItemLocation(owner, e);
+        // Inspection may only read cached verification; asking an offscreen peer must not start file reads.
+        if (Tab is { HasSidecars: true, Location.IsFileSystem: true } tab && e.Kind == EntryKind.File &&
+            tab.Services.Metadata.Peek("verified", Path.Join(tab.Location.Path, e.Name), e).Value is Core.Verification.VerificationResult verification && verification.Text.Length > 0)
+            details += ", verification: " + Formatters.SafeName(verification.Text);
+        string position = row < 0 ? "hidden by filtering or Show hidden items" : $"{row + 1} of {listing.VisibleCount}";
+        return $"{ItemName(e)}, {kind}{details}{marked}{git}, {position}";
     }
-}
-
-/// <summary>Summarized accessibility: exposes the list and its focused item without millions of nodes (§18.3).</summary>
-internal sealed class FileListAutomationPeer(FileListControl owner) : ControlAutomationPeer(owner)
-{
-    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.List;
-
-    protected override string GetClassNameCore() => "FileList";
-
-    protected override string? GetNameCore() => owner.DescribeFocus();
-
-    private string? _announced;
-
-    /// <summary>Raises a name change when the focused item (or its mark) changed, so assistive technology speaks it.</summary>
-    public void AnnounceFocus()
-    {
-        var name = owner.DescribeFocus();
-        if (name == _announced) return;
-        RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, _announced, name);
-        _announced = name;
-    }
-
-    protected override bool IsKeyboardFocusableCore() => true;
 }

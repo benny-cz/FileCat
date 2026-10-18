@@ -20,6 +20,7 @@ public sealed class WindowsLocalCopyStagingOwnershipTests(ITestOutputHelper outp
     [MemberData(nameof(Cases))]
     public async Task Failed_local_copy_leaves_unowned_staging_bytes_and_cleans_its_own_partial(string moment, bool collision)
     {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native CopyFile2 staging ownership and cancellation require Windows.");
         using var root = new TempDir();
         using var fixtureReady = new ManualResetEventSlim(false);
         string source = root.File("source/copy.bin"), destination = root.Dir("destination"), target = Path.Combine(destination, "copy.bin"), staged = "";

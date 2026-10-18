@@ -28,6 +28,7 @@ public sealed class ApplyCommandDialogTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying visual controls.
             var command = window.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == "Command");
             var shell = window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Run through the shell", StringComparison.Ordinal) == true);
             Button Run() => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Run");

@@ -46,6 +46,7 @@ public sealed class HexEditorWindow : Window
     private readonly Button _replace = new() { Content = "Replace bytes…" };
     private readonly Button _goTo = new() { Content = "Go to…" };
     private readonly Button _stopCopy = new() { Content = "Stop", IsVisible = false, Classes = { "danger" } };
+    private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200 };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
@@ -59,8 +60,12 @@ public sealed class HexEditorWindow : Window
     private long _lastCursor = -1;
     private bool _saving, _allowClose, _closed, _saveConfirmed;
     private CancellationTokenSource? _copyStop, _searchCts, _clipboardCts;
+    private readonly ContentCopyNotice _clipboardNotice = new();
+    private readonly SemaphoreSlim _clipboardWrites = new(1, 1);
     private long _lastHit = -1;
     private int _lastHitLength;
+    private (string Pattern, bool HexBytes, bool MatchCase, PagedReader Reader)? _lastSearch;
+    private bool _revealingSearch;
 
     private HexEditorWindow(AppServices services, ProtectedHexFile file)
     {
@@ -84,7 +89,7 @@ public sealed class HexEditorWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 6), ItemSpacing = 6, LineSpacing = 4 };
-        foreach (var c in new Control[] { _save, _saveAs, _stopCopy, _exportPatch, _applyPatch, Separator(), _undo, _redo, _replace, _goTo, Separator(), _search, _hexSearch, _matchCase })
+        foreach (var c in new Control[] { _save, _saveAs, _stopCopy, _exportPatch, _applyPatch, Separator(), _undo, _redo, _replace, _goTo, Separator(), _search, _hexSearch, _matchCase, _stopSearch })
             toolbar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
@@ -100,7 +105,7 @@ public sealed class HexEditorWindow : Window
         var hint = new TextBlock
         {
             Classes = { "small", "muted" },
-            Text = "Type hex digits to overwrite bytes · Tab switches between the hex and text columns · the file length never changes · modified bytes are underlined"
+            Text = "Type hex digits to overwrite bytes · Tab switches the hex/text column · F6 reaches toolbar/recovery actions and returns · Ctrl+C copies hex or displayed ASCII · the file length never changes · modified bytes are underlined"
                 + (ProtectedHexFile.ExcludesWriters ? string.Empty : " · other programs can still write this file here, so each save first checks that the bytes it replaces are unchanged"),
             Margin = new Thickness(8, 0, 8, 4),
             TextWrapping = TextWrapping.Wrap,
@@ -117,6 +122,9 @@ public sealed class HexEditorWindow : Window
         main.Children.Add(_recoveryBar);
         main.Children.Add(hint);
         main.Children.Add(footer);
+        DockPanel.SetDock(_clipboardNotice, Dock.Bottom);
+        main.Children.Add(_clipboardNotice);
+        _clipboardNotice.StopRequested += () => _clipboardCts?.Cancel();
         var hexSurface = new Border { Child = _hex };
         main.Children.Add(hexSurface);
         var overlayHost = new Panel { IsVisible = false };
@@ -128,6 +136,11 @@ public sealed class HexEditorWindow : Window
         _exportPatch.Click += async (_, _) => await ExportPatchAsync();
         _applyPatch.Click += async (_, _) => await ApplyPatchAsync();
         _stopCopy.Click += (_, _) => _copyStop?.Cancel();
+        ToolTip.SetTip(_stopSearch, "Stop the current search (Esc).");
+        _stopSearch.Click += (_, _) => _searchCts?.Cancel();
+        _search.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) InvalidateSearch(); };
+        _hexSearch.IsCheckedChanged += (_, _) => InvalidateSearch();
+        _matchCase.IsCheckedChanged += (_, _) => InvalidateSearch();
         _replace.Click += async (_, _) => await ReplaceBytesAsync();
         _undo.Click += (_, _) => UndoRedo(redo: false);
         _redo.Click += (_, _) => UndoRedo(redo: true);
@@ -139,6 +152,7 @@ public sealed class HexEditorWindow : Window
         };
         _hex.CursorMoved += () =>
         {
+            if (!_revealingSearch) InvalidateSearch();
             if (_hex.CursorOffset != _lastCursor)
             {
                 _hex.PendingNibble = -1;
@@ -157,6 +171,7 @@ public sealed class HexEditorWindow : Window
             _copyStop?.Cancel();
             _searchCts?.Cancel();
             _clipboardCts?.Cancel();
+            _hex.SetReader(null);
             s_open.Remove(this);
             _reader.Dispose();
             UnsavedStateChanged?.Invoke();
@@ -223,6 +238,7 @@ public sealed class HexEditorWindow : Window
     /// <summary>Connects the view to the current file, overlay, and reader (after opening or Save As).</summary>
     private void Attach()
     {
+        InvalidateSearch();
         _clipboardCts?.Cancel();
         _hex.SetReader(_reader);
         _hex.IsModified = _overlay.IsModified;
@@ -236,8 +252,10 @@ public sealed class HexEditorWindow : Window
         void Apply()
         {
             if (_closed || !ReferenceEquals(overlay, _overlay)) return;
+            InvalidateSearch();
             if (change.Bytes is { } bytes) _reader.Overwrite(change.Offset, bytes);
-            _hex.InvalidateVisual();
+            _clipboardCts?.Cancel();
+            _hex.ContentChanged();
             UpdateStatus();
             UnsavedStateChanged?.Invoke();
         }
@@ -278,13 +296,16 @@ public sealed class HexEditorWindow : Window
         _status.Text = sb.ToString();
 
         int dirty = _overlay.DirtyBytes;
+        string protection = ProtectedHexFile.ExcludesWriters ? "other programs cannot write this file while it is open"
+            : "advisory lock; other programs may still write this file";
         _state.Text = _saving ? "Saving…"
             : _interrupted is not null ? "Interrupted save: choose Finish or Restore above"
-            : dirty > 0 ? $"{Formatters.Plural(dirty, "byte", "bytes")} modified (unsaved) · other programs cannot write this file while it is open"
-            : "No unsaved changes · other programs cannot write this file while it is open";
+            : dirty > 0 ? $"{Formatters.Plural(dirty, "byte", "bytes")} modified (unsaved) · {protection}"
+            : $"No unsaved changes · {protection}";
         if (_overlay.TouchedBytes > HexPatchOverlay.MaxTouchedBytes / 2)
             _state.Text += $" · edit budget {100.0 * _overlay.TouchedBytes / HexPatchOverlay.MaxTouchedBytes:0}% used";
         bool idle = CanEdit;
+        _hex.SetEditingState(idle, dirty, _saving ? "A save is running" : _interrupted is not null ? "An interrupted save must be finished or restored" : null);
         _save.IsEnabled = idle && dirty > 0;
         _saveAs.IsEnabled = idle;
         _exportPatch.IsEnabled = idle && dirty > 0;
@@ -303,6 +324,20 @@ public sealed class HexEditorWindow : Window
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         bool alt = (e.KeyModifiers & KeyModifiers.Alt) != 0;
         var focused = FocusManager?.GetFocusedElement();
+        if (e.Key == Key.Escape && _clipboardCts is not null)
+        {
+            e.Handled = true; _clipboardCts.Cancel(); return;
+        }
+        if (e.Key == Key.F6 && !ctrl && !alt)
+        {
+            e.Handled = true;
+            if (focused != _hex) _hex.Focus();
+            else if (_recoveryBar.IsVisible)
+                Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_recoveryBar).OfType<Button>().FirstOrDefault(b => b.IsEffectivelyVisible && b.IsEnabled)?.Focus();
+            else if (_save.IsEnabled) _save.Focus();
+            else _saveAs.Focus();
+            return;
+        }
         if (focused is TextBox)
         {
             // Text boxes keep their own editing keys; only search-next and save pass through.
@@ -334,6 +369,9 @@ public sealed class HexEditorWindow : Window
                 e.Handled = true;
                 _hex.PendingNibble = -1;
                 _hex.TextColumnActive = !_hex.TextColumnActive;
+                break;
+            case Key.Escape when _searchCts is not null:
+                _searchCts.Cancel();
                 break;
             case Key.Escape:
                 e.Handled = true;
@@ -453,29 +491,59 @@ public sealed class HexEditorWindow : Window
         var ct = cts.Token;
         var reader = _reader;
         var (start, length) = _hex.Selection;
-        int count = (int)Math.Min(Math.Max(1, length), 1024 * 1024);
+        if (length == 0) length = reader.Length > 0 ? 1 : 0;
         bool asText = _hex.TextColumnActive;
+        bool publicationStarted = false;
+        bool Current() => !_closed && !ct.IsCancellationRequested && ReferenceEquals(_clipboardCts, cts) && ReferenceEquals(_reader, reader);
         try
         {
+            _clipboardNotice.Show($"Reading the captured range: {length:N0} bytes from offset {start:N0}…", running: true);
+            // Keyboard edits update cached bytes in place, while PagedReader's metadata revision can
+            // still describe the older overlay. Freeze the actual in-memory edit model, then reconcile
+            // its cache on the worker before reading; a later overlay revision must still fail Copy.
+            var revision = _overlay.GetRevision();
             var result = await Task.Run(() =>
             {
-                var bytes = new byte[count];
-                int n = reader.Read(start, bytes, ct);
-                ct.ThrowIfCancellationRequested();
-                string text = asText
-                    ? new string(bytes.Take(n).Select(b => b is >= 0x20 and < 0x7F ? (char)b : '.').ToArray())
-                    : string.Join(' ', bytes.Take(n).Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
-                return (Text: text, Count: n);
+                reader.Refresh(ct);
+                return ContentCopy.Read(reader, start, length, asText ? ContentCopyRepresentation.PrintableBytes : ContentCopyRepresentation.HexBytes,
+                    null, 0, revision, ct);
             }, ct);
-            if (_closed || ct.IsCancellationRequested || !ReferenceEquals(_clipboardCts, cts) || !ReferenceEquals(_reader, reader)) return;
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, result.Text);
-            if (!_closed && !ct.IsCancellationRequested && ReferenceEquals(_clipboardCts, cts) && ReferenceEquals(_reader, reader))
-                Status($"Copied {Formatters.Plural(result.Count, "byte", "bytes")} as {(asText ? "text" : "hex")}{(length > count ? " (the first 1 MiB)" : "")}.");
+            if (!Current()) return;
+            if (result.CanPublish)
+            {
+                string value = asText || result.Text.Length == 0 ? result.Text : string.Create(result.Text.Length / 2 * 3 - 1, result.Text, (span, hex) =>
+                {
+                    for (int i = 0, j = 0; i < hex.Length; i += 2)
+                    {
+                        if (i > 0) span[j++] = ' ';
+                        span[j++] = hex[i]; span[j++] = hex[i + 1];
+                    }
+                });
+                await _clipboardWrites.WaitAsync(ct);
+                try { if (!Current()) return; publicationStarted = true; await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, value); }
+                finally { _clipboardWrites.Release(); }
+            }
+            if (Current())
+            {
+                string message = result.Describe();
+                _clipboardNotice.Show(message); Status(message);
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (!_closed && ReferenceEquals(_clipboardCts, cts)) _clipboardNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.ExternalException)
+        {
+            if (Current()) _clipboardNotice.Show("Copy could not finish: " + ex.Message);
+        }
         finally
         {
-            if (ReferenceEquals(_clipboardCts, cts)) _clipboardCts = null;
+            if (ReferenceEquals(_clipboardCts, cts))
+            {
+                if (ct.IsCancellationRequested && !_closed) _clipboardNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+                _clipboardCts = null;
+            }
         }
     }
 
@@ -575,12 +643,14 @@ public sealed class HexEditorWindow : Window
         using var cts = _searchCts = new CancellationTokenSource();
         var ct = cts.Token;
         var sel = _hex.Selection;
+        var identity = (pattern, _hexSearch.IsChecked == true, _matchCase.IsChecked == true, _reader);
         // F3 again continues after (or before) the match that is still selected; otherwise the search starts at the cursor.
-        bool continuing = _lastHit >= 0 && sel.Start == _lastHit && sel.Length == _lastHitLength;
+        bool continuing = _lastHit >= 0 && _lastSearch == identity && sel.Start == _lastHit && sel.Length == _lastHitLength;
         long from = continuing ? (forward ? _lastHit + 1 : _lastHit) : _hex.CursorOffset;
         bool matchCase = _matchCase.IsChecked == true;
         var reader = _reader;
-        Status("Searching…");
+        _stopSearch.IsVisible = true;
+        Status($"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)");
         try
         {
             long found = await Task.Run(() =>
@@ -588,15 +658,7 @@ public sealed class HexEditorWindow : Window
                 if (bytes is not null)
                     return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
                 if (forward) return ContentSearch.FindText(reader, s_latin1, from, pattern, matchCase, ct);
-                long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
-                while (true)
-                {
-                    long hit = ContentSearch.FindText(reader, s_latin1, p, pattern, matchCase, ct);
-                    if (hit < 0 || hit >= from) break;
-                    last = hit;
-                    p = hit + 1;
-                }
-                return last;
+                return ContentSearch.FindTextBackward(reader, s_latin1, from, pattern, matchCase, ct);
             }, ct);
             if (_closed || !ReferenceEquals(_searchCts, cts) || !ReferenceEquals(reader, _reader)) return;
             ct.ThrowIfCancellationRequested();
@@ -606,8 +668,11 @@ public sealed class HexEditorWindow : Window
                 return;
             }
             _lastHit = found;
+            _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
-            _hex.GoTo(found, select: true, _lastHitLength);
+            _revealingSearch = true;
+            try { _hex.GoTo(found, select: true, _lastHitLength); }
+            finally { _revealingSearch = false; }
             _hex.Focus();
             Status($"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
         }
@@ -615,10 +680,23 @@ public sealed class HexEditorWindow : Window
         {
             if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader)) Status("Search stopped.");
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+        {
+            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader)) Status("Search could not finish: " + ex.Message);
+        }
         finally
         {
-            if (ReferenceEquals(_searchCts, cts)) _searchCts = null;
+            if (ReferenceEquals(_searchCts, cts)) { _searchCts = null; _stopSearch.IsVisible = false; }
         }
+    }
+
+    private void InvalidateSearch()
+    {
+        _searchCts?.Cancel();
+        _searchCts = null;
+        _stopSearch.IsVisible = false;
+        _lastHit = -1;
+        _lastSearch = null;
     }
 
     // ---- Saving ----------------------------------------------------------------------------------------------------

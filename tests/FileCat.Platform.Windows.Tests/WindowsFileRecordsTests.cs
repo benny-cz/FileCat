@@ -38,7 +38,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public unsafe void A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -93,7 +93,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void The_record_lists_the_files_streams_with_what_they_say()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -113,7 +113,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void Without_administrator_rights_the_report_says_first_what_it_leaves_out()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -233,7 +233,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void A_junction_names_its_target_and_a_sparse_file_its_stored_ranges()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -268,7 +268,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void An_object_ID_says_when_its_birth_ID_was_made()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -292,7 +292,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void A_folder_says_where_each_permission_applies()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         string dir = NewFolder();
         try
         {
@@ -318,7 +318,7 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void Security_descriptors_are_compared_part_by_part_not_as_text()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows file records and security descriptors require Windows.");
         static byte[] Binary(string sddl)
         {
             var descriptor = new System.Security.AccessControl.RawSecurityDescriptor(sddl);

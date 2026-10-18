@@ -10,6 +10,7 @@ namespace FileCat.App.Controls;
 /// </summary>
 internal sealed class TextViewerAutomationPeer(TextViewer owner) : ControlAutomationPeer(owner), IValueProvider
 {
+    private string? _announced = owner.SemanticValue, _status = owner.SemanticStatus;
     protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
 
     protected override string GetClassNameCore() => "TextViewer";
@@ -20,17 +21,34 @@ internal sealed class TextViewerAutomationPeer(TextViewer owner) : ControlAutoma
 
     public bool IsReadOnly => true;
 
-    public string? Value => owner.GetSelectedOrVisibleText();
+    public string? Value => owner.SemanticValue;
+    protected override string? GetHelpTextCore() => owner.SemanticStatus;
+    protected override string? GetItemStatusCore() => owner.SemanticStatus;
 
     public void SetValue(string? value) => throw new InvalidOperationException("The viewer is read-only.");
 
-    public void AnnounceContent() => RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, null, Value);
+    public void AnnounceContent()
+    {
+        var value = Value;
+        var status = owner.SemanticStatus;
+        var previousValue = _announced;
+        var previousStatus = _status;
+        _announced = value; _status = status;
+        if (value != previousValue) RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, previousValue, value);
+        if (Value != value || owner.SemanticStatus != status) return;
+        if (status != previousStatus)
+        {
+            RaisePropertyChangedEvent(AutomationElementIdentifiers.HelpTextProperty, previousStatus, status);
+            if (Value != value || owner.SemanticStatus != status) return;
+            RaisePropertyChangedEvent(AutomationElementIdentifiers.ItemStatusProperty, previousStatus, status);
+        }
+    }
 }
 
 /// <summary>The hex view as a read-only document whose value describes the cursor byte and its row.</summary>
 internal sealed class HexViewAutomationPeer(HexView owner) : ControlAutomationPeer(owner), IValueProvider
 {
-    private string? _announced;
+    private string? _announced = owner.DescribeCursor(), _status = owner.SemanticStatus;
 
     protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
 
@@ -43,14 +61,25 @@ internal sealed class HexViewAutomationPeer(HexView owner) : ControlAutomationPe
     public bool IsReadOnly => true;
 
     public string? Value => owner.DescribeCursor();
+    protected override string? GetHelpTextCore() => owner.SemanticStatus;
+    protected override string? GetItemStatusCore() => owner.SemanticStatus;
 
     public void SetValue(string? value) => throw new InvalidOperationException("The hex view is read-only.");
 
     public void AnnounceCursor()
     {
         var value = Value;
-        if (value == _announced) return;
-        RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, _announced, value);
-        _announced = value;
+        var status = owner.SemanticStatus;
+        var previousValue = _announced;
+        var previousStatus = _status;
+        _announced = value; _status = status;
+        if (value != previousValue) RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, previousValue, value);
+        if (Value != value || owner.SemanticStatus != status) return;
+        if (status != previousStatus)
+        {
+            RaisePropertyChangedEvent(AutomationElementIdentifiers.HelpTextProperty, previousStatus, status);
+            if (Value != value || owner.SemanticStatus != status) return;
+            RaisePropertyChangedEvent(AutomationElementIdentifiers.ItemStatusProperty, previousStatus, status);
+        }
     }
 }

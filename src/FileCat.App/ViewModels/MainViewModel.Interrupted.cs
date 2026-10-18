@@ -72,7 +72,9 @@ public sealed partial class MainViewModel
         return (deleted, kept.Distinct(PathUtil.SafetyComparer).ToList());
     }
 
-    private async Task<bool> RunInterruptedOwnedAsync(InterruptedJob job)
+    public Task<bool> ReviewNewInterruptedTransferAsync(InterruptedJob job) => RunInterruptedOwnedAsync(job, newTransfer: true);
+
+    private async Task<bool> RunInterruptedOwnedAsync(InterruptedJob job, bool newTransfer = false)
     {
         if (!EditSessionsActive || !_interruptedActions.Add(job.JournalPath)) return false;
         bool submitted = false;
@@ -80,20 +82,32 @@ public sealed partial class MainViewModel
         {
             CheckSessionAction();
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction)) return false;
+            if (job.Kind is not (nameof(JobKind.Copy) or nameof(JobKind.Move))) return false;
+            if (!newTransfer && !job.CanContinueTransfer)
+            { Notify(job.TransferIntentProblem ?? "The original transfer options are incomplete. Choose Review a new transfer to decide its scope and options again.", true); return false; }
             var kind = job.Kind == nameof(JobKind.Move) ? JobKind.Move : JobKind.Copy;
-            if (Location.Deserialize(job.Destination) is not { IsFileSystem: true } destination)
+            if (RecoverableTransferIntent.LocalDestination(job.Destination) is not { } destination)
             { Notify("The local destination of this operation is not recorded; select the items and the destination again."); return false; }
+            if (job.SourceCount is <= 0 or > RecoverableTransferIntent.RootLimit)
+            { Notify("The source selection exceeds the complete recovery review limit. Select the sources again to review a new transfer; cleanup remains available.", true); return false; }
             var paths = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), CheckSessionAction);
             if (paths is null) { Notify("Not all source items of this operation are recorded; select them again to repeat it."); return false; }
+            if (paths.Any(path => !RecoverableTransferIntent.ValidPath(path)))
+            { Notify("A recorded source path is invalid. Select the sources again to review a new transfer.", true); return false; }
+            var intent = newTransfer ? null : job.TransferIntent;
+            if (intent is not null && !intent.MatchesSources(paths))
+            { Notify("The source manifest no longer matches the recorded transfer mapping. Select the sources again; the old journal is kept.", true); return false; }
             var sources = new List<ItemRef>(); var sourceReviews = new Dictionary<ItemRef, SourcePathReview>();
             var sourceTrees = new Dictionary<ItemRef, ReviewedSourceTree>();
             long sourceBytes = JournalRecovery.StagedReviewByteLimit; int sourceItems = 1000;
-            foreach (var path in paths)
+            for (int index = 0; index < paths.Count; index++)
             {
+                string path = paths[index];
                 var version = await MutationIoAsync(path, () => SourcePathReview.Capture(path, Services.Jobs.FileOperations, CheckSessionAction), CheckSessionAction);
                 if (version is not null)
                 {
-                    var item = ItemRef.ForFileSystemPath(path, version.Info.IsDirectory ? EntryKind.Directory : EntryKind.File);
+                    var local = ItemRef.ForFileSystemPath(path, version.Info.IsDirectory ? EntryKind.Directory : EntryKind.File);
+                    var item = new ItemRef(local.Parent, local.Name, local.Kind) { RelativeFolder = intent?.Roots[index].RelativeFolder };
                     var provider = Services.Providers.For(Location.FileSystem(path));
                     var tree = await MutationIoAsync(path, () => FileTreeReview.Capture(path, Services.Jobs.FileOperations, provider, CheckSessionAction, sourceBytes, sourceItems, allowLinks: true), CheckSessionAction);
                     if (tree is null || !tree.Items.First(i => i.Path == path).Version.Equals(version))
@@ -103,23 +117,54 @@ public sealed partial class MainViewModel
                 }
             }
             if (sources.Count == 0) { Notify("None of the source items could be found and checked. Select the sources again to decide what to " + (kind == JobKind.Move ? "move." : "copy.")); return false; }
+            string? newName = intent?.NewName;
+            var options = intent?.RecoveryOptions() ?? new TransferOptions { Conflicts = ConflictPolicy.Skip };
+            var mode = intent?.Mode ?? QueueMode.Start;
+            if (newTransfer)
+            {
+                string initialDestination = job.SourceCount == 1 && job.NewName is { Length: > 0 } oldName && PathUtil.ValidateNewName(oldName) is null
+                    ? Path.Combine(destination.Path, oldName) : AppendSeparator(destination.Path);
+                var draft = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(kind, sources, SizeSummary(sources), initialDestination,
+                    "recorded destination", 0, false)
+                {
+                    RecoveryReviewNotice = (job.TransferIntentProblem ?? "The original transfer options are incomplete.") +
+                        " This is a new transfer. The available recorded source paths are prefilled; original relative-folder mappings and filtering cannot be assumed. Choose the destination, matching rules, verification and conflict policy below. Selected roots will go directly into the destination. Timestamps and attributes will be preserved.",
+                });
+                CheckSessionAction();
+                if (draft is null) return false;
+                // Relative edits are interpreted against the captured destination, independent of a later active tab.
+                if (!Services.Providers.TryParse(draft.Destination, destination, out var parsed) || parsed is not { IsFileSystem: true })
+                { Notify("Choose a local destination for this reviewed transfer.", true); return false; }
+                string destinationText = parsed.Path + (draft.Destination.EndsWith('/') || draft.Destination.EndsWith('\\') ? Path.DirectorySeparatorChar.ToString() : "");
+                if (!ResolveDestination(destinationText, sources, out var newDestination, out newName, out var error) || newDestination is not { IsFileSystem: true })
+                { Notify(error ?? "Choose a local destination for this reviewed transfer.", true); return false; }
+                destination = newDestination;
+                options = draft.Options;
+                mode = draft.Queue ? QueueMode.Queue : QueueMode.Start;
+            }
             var review = await ReviewInterruptedAsync(job);
             var partial = review.Staged.Select(s => s.Path).Concat(review.Copies.Incomplete.Select(i => i.Path)).ToList();
-            var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items are available for review. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {(kind == JobKind.Move ? "moved" : "copied")}."
+            var message = $"{Formatters.SafeName(job.Title)}: {sources.Count:N0} of {job.SourceCount:N0} recorded source roots are available for this review. Unavailable roots are omitted."
+                + (newTransfer ? " The source-to-destination mapping and options below describe the new transfer you selected." : " The original name mapping, matching rules, folder layout and verification choices are preserved.")
+                + InterruptedJobText.TransferReview(kind, destination, sources, newName, options, mode, continuing: !newTransfer)
                 + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : "")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
-            if (!await Dialogs.ConfirmAsync("Run again", message, kind == JobKind.Move ? "Move the rest" : "Copy the rest")) return false;
+            string action = (newTransfer ? "Start new " : "Continue ") + (kind == JobKind.Move ? "move" : "copy");
+            bool consequential = kind == JobKind.Move || partial.Count > 0 || options.Conflicts is
+                ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer or ConflictPolicy.KeepBothRenameExisting;
+            if (!await Dialogs.ConfirmAsync(action, message, action, danger: consequential)) return false;
             if (!await InterruptedSourcesStillReviewedAsync(sourceReviews, sourceTrees)) return false;
             CheckSessionAction(); var result = await DeleteInterruptedPartialsAsync(review);
             if (result.Kept.Count > 0)
-                await Dialogs.AlertAsync("Run again", "These files were kept because they changed or could not be completely reviewed. The new operation skips existing destination files:\n" + InterruptedJobText.Bullets(result.Kept));
+                await Dialogs.AlertAsync(action, "These files were kept because they changed or could not be completely reviewed. The new operation uses the conflict policy shown in your review:\n" + InterruptedJobText.Bullets(result.Kept));
             CheckSessionAction();
             if (!await InterruptedSourcesStillReviewedAsync(sourceReviews, sourceTrees)) return false;
             // Submission is the UI admission boundary. The old journal stays open through every approval/alert.
-            Services.Jobs.Submit(new JobRequest { Kind = kind, Sources = sources, Destination = destination, ExpectedSources = sourceReviews, ExpectedSourceTrees = sourceTrees,
-                Options = new TransferOptions { Conflicts = ConflictPolicy.Skip, Verify = Enum.TryParse<VerifyMode>(Services.Settings.DefaultVerify, out var verify) ? verify : VerifyMode.Native } });
+            Services.Jobs.Submit(new JobRequest { Kind = kind, Sources = sources, Destination = destination, NewName = newName,
+                ExpectedSources = sourceReviews, ExpectedSourceTrees = sourceTrees, Options = options, Mode = mode });
             submitted = true;
-            bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job, $"Continued by a new operation; {result.Deleted} partial file(s) deleted."), CheckSessionAction);
+            bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job,
+                $"{(newTransfer ? "Replaced by an explicitly reviewed new transfer" : "Continued with recorded transfer intent and recovery Skip policy")}; {result.Deleted} partial file(s) deleted."), CheckSessionAction);
             if (!closed) Notify("The new operation started, but the old journal could not be closed. It is kept for review.", true);
             return true;
         }
@@ -168,7 +213,7 @@ public sealed partial class MainViewModel
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => "OK" };
-            if (!await Dialogs.ConfirmAsync("Interrupted operation", message, action)) return false;
+            if (!await Dialogs.ConfirmAsync("Interrupted operation", message, action, danger: partial.Count > 0 || renames.Count > 0)) return false;
             CheckSessionAction(); var result = await DeleteInterruptedPartialsAsync(review);
             int renamed = 0; var notRenamed = new List<string>(); bool unresolvedRenames = renameLimited || unreviewedRenames.Count > 0;
             foreach (var rename in renames)

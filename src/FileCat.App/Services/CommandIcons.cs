@@ -102,6 +102,7 @@ public static class CommandIcons
         // Mark
         [CommandIds.MarkToggleDown] = [new(Box), new("M5,8 L7.2,10.2 L11.2,5.8", "TextMarked")],
         [CommandIds.MarkToggle] = [new(Box), new("M5,8 L7.2,10.2 L11.2,5.8", "TextMarked")],
+        [CommandIds.ReviewMarks] = [new(Eye), new(Pupil, "TextMarked", Fill: true)],
         // A folder with bars growing inside: its size, counted.
         [CommandIds.CountFolderSizes] = [new(Folder, "FolderIcon", Opacity: 0.8), new("M5,11.5 L5,10 M8,11.5 L8,8.5 M11,11.5 L11,7", "ActiveAccent")],
         [CommandIds.MarkSelectMask] = [new(Box, "TextMuted"), new("M8,4.5 L8,11.5 M4.5,8 L11.5,8", "TextMarked")],

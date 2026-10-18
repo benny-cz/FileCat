@@ -39,6 +39,8 @@ public sealed class SyncWindow : Window
     private readonly CheckBox _permanent = new() { Content = "Delete permanently: the target has no Recycle Bin", IsVisible = false };
     private readonly TextBlock _warning = new() { Classes = { "warning" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly TextBox _sourcePath = EndpointBox();
+    private readonly TextBox _targetPath = EndpointBox();
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
     private readonly Button _run = new() { Content = "Synchronize", Classes = { "primary" } };
     private List<SyncItem> _items = [];
@@ -53,7 +55,7 @@ public sealed class SyncWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_direction, "Direction");
         Avalonia.Automation.AutomationProperties.SetName(_mode, "Mode");
         Avalonia.Automation.AutomationProperties.SetName(_list, "Synchronization steps");
-        _direction.ItemsSource = new[] { $"Left to right: {Short(context.LeftName)} → {Short(context.RightName)}", $"Right to left: {Short(context.RightName)} → {Short(context.LeftName)}" };
+        _direction.ItemsSource = new[] { "Left → right", "Right → left" };
         _direction.SelectedIndex = context.RightWritable || !context.LeftWritable ? 0 : 1;
         _mode.ItemsSource = new[] { "Update: copy new and newer items", "Mirror: make the target like the source" };
         _mode.SelectedIndex = 0;
@@ -81,6 +83,15 @@ public sealed class SyncWindow : Window
             Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6),
             Children = { _direction, _mode, _showAll },
         };
+        var endpoints = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowDefinitions = new RowDefinitions("Auto,Auto"), Margin = new Thickness(8, 0, 8, 6) };
+        void Endpoint(int row, string role, TextBox path)
+        {
+            var label = new TextBlock { Text = role, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+            Grid.SetRow(label, row); endpoints.Children.Add(label);
+            Grid.SetRow(path, row); Grid.SetColumn(path, 1); endpoints.Children.Add(path);
+        }
+        Endpoint(0, "Source", _sourcePath);
+        Endpoint(1, "Target", _targetPath);
         var info = new StackPanel { Margin = new Thickness(8, 0, 8, 6), Spacing = 4, Children = { _warning, _permanent, _summary } };
         var buttons = new StackPanel
         {
@@ -89,9 +100,11 @@ public sealed class SyncWindow : Window
         };
         var root = new DockPanel();
         DockPanel.SetDock(options, Dock.Top);
+        DockPanel.SetDock(endpoints, Dock.Top);
         DockPanel.SetDock(info, Dock.Top);
         DockPanel.SetDock(buttons, Dock.Bottom);
         root.Children.Add(options);
+        root.Children.Add(endpoints);
         root.Children.Add(info);
         root.Children.Add(buttons);
         root.Children.Add(_list);
@@ -156,12 +169,21 @@ public sealed class SyncWindow : Window
 
     private void UpdateSummary()
     {
+        string source = SourceIsLeft ? _context.LeftName : _context.RightName;
+        string target = SourceIsLeft ? _context.RightName : _context.LeftName;
+        _sourcePath.Text = source;
+        _targetPath.Text = target;
+        Avalonia.Automation.AutomationProperties.SetName(_sourcePath, "Source folder: " + source);
+        Avalonia.Automation.AutomationProperties.SetName(_targetPath, "Target folder: " + target);
+        Avalonia.Automation.AutomationProperties.SetName(_direction, $"Synchronization direction: from {source} to {target}");
+        ToolTip.SetTip(_sourcePath, source);
+        ToolTip.SetTip(_targetPath, target);
         var whyNot = _context.WhyNotTarget(!SourceIsLeft);
         bool removals = _items.Any(i => i.Include && i.Action == SyncAction.Remove);
         _permanent.IsVisible = removals && !TargetRecycles;
         var warnings = new List<string>();
         if (Mode == SyncMode.Mirror)
-            warnings.Add("Mirror is not two-way synchronization: items only in the target are removed" + (TargetRecycles ? " (to the Recycle Bin)" : "") +
+            warnings.Add($"Mirror changes the target \"{target}\": items only in this target are removed" + (TargetRecycles ? " (to the Recycle Bin)" : "") +
                          ", and differing files are replaced by the source's.");
         if (removals && !TargetRecycles && _permanent.IsChecked != true)
             warnings.Add("The target has no Recycle Bin: removals run only if you choose to delete permanently.");
@@ -177,6 +199,7 @@ public sealed class SyncWindow : Window
                         " Nothing changes until you press Synchronize; Space includes or excludes the selected steps.";
         _run.IsEnabled = whyNot is null && plan != "nothing to do";
         _run.Content = plan == "nothing to do" ? "Synchronize" : "Synchronize: " + plan;
+        Avalonia.Automation.AutomationProperties.SetName(_run, $"Synchronize from {source} to {target}: {plan}");
     }
 
     /// <summary>Included steps that may run: removals only to a Recycle Bin or with permanent deletion chosen.</summary>
@@ -189,7 +212,12 @@ public sealed class SyncWindow : Window
         if (_context.Submit(RunnableItems(), SourceIsLeft, !TargetRecycles && _permanent.IsChecked == true)) Close();
     }
 
-    private static string Short(string path) => Path.GetFileName(path.TrimEnd('\\', '/')) is { Length: > 0 } name ? name : path;
+    private static TextBox EndpointBox()
+    {
+        var box = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.NoWrap, Margin = new Thickness(0, 2), MinWidth = 0 };
+        ScrollViewer.SetHorizontalScrollBarVisibility(box, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        return box;
+    }
 
     private static string Verb(SyncAction action) => action switch
     {

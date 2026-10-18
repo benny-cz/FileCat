@@ -36,6 +36,7 @@ public sealed class ViewerWindow : Window
     private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
@@ -75,9 +76,24 @@ public sealed class ViewerWindow : Window
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _checksumCts;
+    private readonly Border _checksumPanel = new() { IsVisible = false, Padding = new Thickness(10), Classes = { "banner" } };
+    private readonly ComboBox _checksumScope = new() { MinWidth = 230 };
+    private readonly TextBox _checksumResult = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 190 };
+    private readonly Button _computeChecksum = new() { Content = "Compute" };
+    private readonly Button _copyChecksum = new() { Content = "Copy results", IsEnabled = false };
+    private readonly Button _stopChecksum = new() { Content = "Stop checksum", IsVisible = false };
+    private (long Start, long Length)? _checksumSelectedRange;
+    private long _checksumScopeGeneration, _checksumWholeLength;
     private CancellationTokenSource? _copyCts;
+    private readonly SemaphoreSlim _copyWrites = new(1, 1);
+    private readonly ContentCopyNotice _copyNotice = new();
+    private readonly Button _copySource = new() { Content = "Copy visible source text" };
+    private readonly Button _copyDisplayed = new() { Content = "Copy displayed text" };
     private long _lastHit = -1;
     private int _lastHitLength;
+    private SearchIdentity? _lastSearch;
+    private bool _revealingSearch;
+    private sealed record SearchIdentity(string Pattern, bool HexBytes, int Encoding, bool MatchCase, PagedReader Reader, bool HexView);
     private LineIndex? _lines;
     private CancellationTokenSource? _lineCts;
     private readonly CancellationTokenSource _closing = new();
@@ -141,9 +157,19 @@ public sealed class ViewerWindow : Window
         goTo.Click += async (_, _) => await GoToAsync();
         _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo, _encodingInfo]);
         foreach (var part in _textOnly.Take(8)) toolbar.Children.Add(part);
+        ToolTip.SetTip(_stopSearch, "Stop the current search (Esc). Other navigation remains available.");
+        _stopSearch.Click += (_, _) => _searchCts?.Cancel();
+        toolbar.Children.Add(_stopSearch);
         var checksum = new Button { Content = "Checksum…" };
-        checksum.Click += async (_, _) => await ChecksumAsync();
+        checksum.Click += (_, _) => ShowChecksum();
         toolbar.Children.Add(checksum);
+        _copySource.Click += async (_, _) => await CopyContentAsync(displayed: false, explicitVisible: true);
+        _copyDisplayed.Click += async (_, _) => await CopyContentAsync(displayed: true, explicitVisible: true);
+        ToolTip.SetTip(_copySource, "Copy the selected source characters, or the captured visible lines. Original tabs and logical line endings are preserved. Ctrl+C; bounded to 1 MiB of source bytes.");
+        ToolTip.SetTip(_copyDisplayed, "Copy the same text range using expanded tabs and visible control symbols. Ctrl+Shift+C. Wrapping and bounded segments do not add line endings.");
+        toolbar.Children.Add(_copySource);
+        toolbar.Children.Add(_copyDisplayed);
+        _copyNotice.StopRequested += () => _copyCts?.Cancel();
         if (source.LocalPath is not null && OperatingSystem.IsWindows())
         {
             var editBytes = new Button { Content = "Edit bytes…" };
@@ -173,6 +199,11 @@ public sealed class ViewerWindow : Window
         root.Children.Add(toolbar);
         if (lostNotice is not null) root.Children.Add(lostNotice);
         root.Children.Add(statusBar);
+        BuildChecksumPanel();
+        DockPanel.SetDock(_checksumPanel, Dock.Bottom);
+        root.Children.Add(_checksumPanel);
+        DockPanel.SetDock(_copyNotice, Dock.Bottom);
+        root.Children.Add(_copyNotice);
         root.Children.Add(content);
         Content = ThemeLayers.Over(root, content);
 
@@ -205,11 +236,18 @@ public sealed class ViewerWindow : Window
         };
         _wrap.IsCheckedChanged += (_, _) =>
         {
-            _text.Wrap = _wrap.IsChecked == true;
-            _services.Settings.ViewerWrap = _text.Wrap;
+            if (_isInfo) _info.Wrap = _wrap.IsChecked == true;
+            else
+            {
+                _text.Wrap = _wrap.IsChecked == true;
+                _services.Settings.ViewerWrap = _text.Wrap;
+            }
         };
-        _encodingBox.SelectionChanged += (_, _) =>
+        _encodingBox.PropertyChanged += (_, e) =>
         {
+            if (e.Property != ComboBox.SelectedIndexProperty) return;
+            InvalidateSearch();
+            _copyCts?.Cancel();
             if (_encodingBox.SelectedIndex < 0) return;
             var enc = TextDecoding.Choices[_encodingBox.SelectedIndex].Get();
             bool bomMatches = _guess.PreambleLength > 0 && enc.WebName == _guess.Encoding.WebName;
@@ -230,21 +268,33 @@ public sealed class ViewerWindow : Window
                 FocusContent();
             }
         };
-        _text.PositionChanged += UpdateStatus;
-        _hex.CursorMoved += UpdateStatus;
+        // TextChanged is routed later by Avalonia. PropertyChanged invalidates synchronously, so a
+        // queued notification for the text just searched cannot cancel the new Enter/F3 request.
+        _search.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) InvalidateSearch(); };
+        _matchCase.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
+        _hexSearch.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
+        _text.PositionChanged += () => SearchPositionChanged(_text);
+        _info.PositionChanged += () => SearchPositionChanged(_info);
+        _hex.CursorMoved += () => SearchPositionChanged(_hex);
+        _text.ContentChanged += UpdateCopyActions;
+        _info.ContentChanged += UpdateCopyActions;
+        _hex.CursorMoved += UpdateCopyActions;
         // Damage found while reading (an archive member, part way) shows in the status line as soon as it is known.
         _reader.PageLoaded += () =>
         {
             if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
         };
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
-        _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => { _ = CheckForChanges(); });
+        // The interval/callback constructor starts immediately. Poll only after initial encoding
+        // detection has finished, so a refresh cannot race the reader's opening request.
+        _changeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1.5) };
+        _changeTimer.Tick += (_, _) => { _ = CheckForChanges(); };
         Opened += async (_, _) =>
         {
             if (!s_open.Contains(this)) s_open.Add(this);
             SetMode(hex);
             await DetectEncodingAsync(forceHexIfBinary: !hex);
-            if (_closing.IsCancellationRequested) return;
+            if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
             _changeTimer.Start();
             FocusContent();
         };
@@ -253,32 +303,68 @@ public sealed class ViewerWindow : Window
             _changeTimer.Stop();
             _searchCts?.Cancel();
             _closing.Cancel();
+            _text.SetReader(null, _text.Encoding, 0);
+            _hex.SetReader(null);
+            _info.SetReader(null, _info.Encoding, 0);
             _picture.Clear();
             _reader.Dispose();
             _infoReader?.Dispose();
         };
     }
 
+    private async Task<byte[]> ReadOpeningPrefixAsync()
+    {
+        var ct = _closing.Token;
+        var buffer = new byte[PagedReader.PageSize];
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (_services.Io.IsStopped) throw new OperationCanceledException("Viewer admission stopped.");
+            var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void PageLoaded() => loaded.TrySetResult();
+            // A surface, including the initially hidden hex surface's cached semantic snapshot,
+            // may already have requested this page. Subscribe before checking the cache so fast
+            // completion cannot be lost; awaiting the notification occupies no device worker.
+            _reader.PageLoaded += PageLoaded;
+            try
+            {
+                bool complete = _reader.TryRead(0, buffer, out int count);
+                ct.ThrowIfCancellationRequested();
+                if (_services.Io.IsStopped) throw new OperationCanceledException("Viewer admission stopped.");
+                if (complete) return buffer[..count];
+                // PageLoaded also signals a failed read or canceled queued demand. The next
+                // cache check preserves the reader's read-error state, or retires after stop.
+                await loaded.Task.WaitAsync(ct);
+            }
+            finally { _reader.PageLoaded -= PageLoaded; }
+        }
+    }
+
     private async Task DetectEncodingAsync(bool forceHexIfBinary)
     {
         byte[] prefix;
-        try
+        try { prefix = await ReadOpeningPrefixAsync(); }
+        catch (OperationCanceledException) when (_closing.IsCancellationRequested || _services.Io.IsStopped)
         {
-            prefix = await _services.Io.Run(_deviceKey, IoPriority.Interactive, ct =>
+            if (!_closing.IsCancellationRequested)
             {
-                ct.ThrowIfCancellationRequested();
-                var buf = new byte[64 * 1024];
-                int n = _reader.Read(0, buf);
-                ct.ThrowIfCancellationRequested();
-                return buf[..n];
-            }, _closing.Token);
+                _encodingInfo.Text = "Opening stopped.";
+                if (_closing.IsCancellationRequested) return;
+                _status.Text = "Opening stopped before the file could be examined.";
+                // Global scheduler shutdown cancels queued pages. Retire the surfaces too,
+                // otherwise their PageLoaded callbacks could request the canceled page again.
+                Close();
+            }
+            return;
         }
-        catch (OperationCanceledException) when (_closing.IsCancellationRequested) { return; }
-        if (_closing.IsCancellationRequested) return;
+        if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
         _guess = TextDecoding.Detect(prefix);
         int index = Array.FindIndex(TextDecoding.Choices.ToArray(), c => c.Get().WebName == _guess.Encoding.WebName);
         _text.SetEncoding(_guess.Encoding, _guess.PreambleLength);
+        // Content/automation subscribers can close the window during a source-state commit.
+        if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
         _encodingBox.SelectedIndex = index >= 0 ? index : 0;
+        if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
         _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
@@ -309,6 +395,8 @@ public sealed class ViewerWindow : Window
     public void ShowPicture()
     {
         if (!_modePicture.IsVisible) return;
+        InvalidateSearch();
+        _copyCts?.Cancel();
         LeavePage();
         _isPicture = true;
         _isInfo = false;
@@ -322,6 +410,7 @@ public sealed class ViewerWindow : Window
         _picture.Focus();
         _pictureLoad ??= LoadPictureAsync();
         UpdateStatus();
+        UpdateCopyActions();
     }
 
     /// <summary>The picture once it has loaded (tests).</summary>
@@ -358,6 +447,8 @@ public sealed class ViewerWindow : Window
     public void ShowPage()
     {
         if (_closing.IsCancellationRequested || !_modePage.IsVisible) return;
+        InvalidateSearch();
+        _copyCts?.Cancel();
         if (_pageUnavailable is { } why)
         {
             SetMode(false);
@@ -380,6 +471,7 @@ public sealed class ViewerWindow : Window
         }
         _pageView.FocusPage();
         UpdateStatus();
+        UpdateCopyActions();
     }
 
     /// <summary>Whether the page mode is shown (tests).</summary>
@@ -405,7 +497,7 @@ public sealed class ViewerWindow : Window
             (Key.Escape or Key.F10, KeyModifiers.None) => Close,
             (Key.F4, KeyModifiers.None) => () => SetMode(false),
             (Key.I, KeyModifiers.Control) => () => _ = ShowInfoAsync(),
-            (Key.K, KeyModifiers.Control) => () => _ = ChecksumAsync(),
+            (Key.K, KeyModifiers.Control) => ShowChecksum,
             _ => null,
         };
         if (act is null) return false;
@@ -427,6 +519,8 @@ public sealed class ViewerWindow : Window
     public async Task ShowInfoAsync()
     {
         if (_closing.IsCancellationRequested) return;
+        InvalidateSearch();
+        _copyCts?.Cancel();
         LeavePicture();
         if (!_isInfo) _lastHit = -1;
         _isInfo = true;
@@ -435,7 +529,10 @@ public sealed class ViewerWindow : Window
         _modeInfo.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = false;
         // Find works in the report; the text-only settings do not apply to it.
-        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase;
+        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase || part == _wrap;
+        _wrap.IsEnabled = true;
+        _wrap.IsChecked = _info.Wrap;
+        UpdateCopyActions();
         _info.Focus();
         UpdateStatus();
         // Shown again while the structure is still being read (a program opens on Info by itself): wait for the same reading.
@@ -529,6 +626,8 @@ public sealed class ViewerWindow : Window
 
     private void ShowInfoText(string text)
     {
+        InvalidateSearch();
+        if (_isInfo) _copyCts?.Cancel();
         _infoText = text;
         var old = _infoReader;
         _infoReader = new PagedReader(new MemoryContentSource("Info", Encoding.UTF8.GetBytes(text)));
@@ -549,6 +648,8 @@ public sealed class ViewerWindow : Window
 
     private void SetMode(bool hex)
     {
+        InvalidateSearch();
+        _copyCts?.Cancel();
         LeavePicture();
         if (_isInfo) _lastHit = -1;
         _isInfo = false;
@@ -560,10 +661,12 @@ public sealed class ViewerWindow : Window
         _modeHex.IsChecked = hex;
         _modeText.IsChecked = !hex;
         _wrap.IsEnabled = !hex;
+        _wrap.IsChecked = _text.Wrap;
         if (hex) _hex.GoTo(_text.TopOffset);
         else _text.ScrollToOffset(_hex.CursorOffset);
         FocusContent();
         UpdateStatus();
+        UpdateCopyActions();
     }
 
     private void FocusContent()
@@ -628,9 +731,16 @@ public sealed class ViewerWindow : Window
                 ct => _reader.Refresh(ct), _closing.Token);
             if (_closing.IsCancellationRequested || !changed) return;
             _sourceGeneration++;
+            _copyCts?.Cancel();
+            InvalidateSearch();
             _checksumCts?.Cancel(); // A hash in progress belongs to the source revision before this refresh.
-            _text.InvalidateVisual();
-            _hex.InvalidateVisual();
+            if (_checksumPanel.IsVisible)
+            {
+                _copyChecksum.IsEnabled = false;
+                _checksumResult.Text = "The file changed. Open Checksum again to review the current scope before computing.";
+            }
+            _text.SourceChanged();
+            _hex.SourceChanged();
             if (_follow.IsChecked == true)
             {
                 if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
@@ -656,9 +766,23 @@ public sealed class ViewerWindow : Window
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var focused = FocusManager?.GetFocusedElement();
+        if (e.Key == Key.Escape && (_searchCts is not null || _checksumCts is not null || _copyCts is not null))
+        {
+            if (_searchCts is not null) _searchCts.Cancel();
+            else if (_checksumCts is not null) _checksumCts.Cancel();
+            else _copyCts?.Cancel();
+            e.Handled = true;
+            return;
+        }
         if (focused is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
         switch (e.Key)
         {
+            case Key.Escape when _searchCts is not null:
+                _searchCts.Cancel();
+                break;
+            case Key.Escape when _checksumCts is not null:
+                _checksumCts.Cancel();
+                break;
             case Key.Escape when _lineCts is not null:
                 // Esc first stops a running "go to line" scan.
                 _lineCts.Cancel();
@@ -686,7 +810,7 @@ public sealed class ViewerWindow : Window
             case Key.F8:
                 _encodingBox.SelectedIndex = (_encodingBox.SelectedIndex + 1) % TextDecoding.Choices.Count;
                 break;
-            case Key.F2 when !_isHex && !_isInfo:
+            case Key.F2 when (!_isHex || _isInfo) && !_isPicture && !_isPage:
                 _wrap.IsChecked = !_wrap.IsChecked;
                 break;
             case Key.F when ctrl:
@@ -701,10 +825,11 @@ public sealed class ViewerWindow : Window
                 await GoToAsync();
                 break;
             case Key.C when ctrl:
-                await CopyAsync();
+                if (shift) await CopyContentAsync(displayed: true, explicitVisible: false);
+                else await CopyAsync();
                 break;
             case Key.K when ctrl:
-                await ChecksumAsync();
+                ShowChecksum();
                 break;
             case Key.OemPlus when ctrl:
             case Key.Add when ctrl:
@@ -746,7 +871,6 @@ public sealed class ViewerWindow : Window
         bool info = _isInfo && _infoReader is not null;
         var reader = info ? _infoReader! : _reader;
         var view = info ? _info : _text;
-        long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : info ? _info.TopOffset : _isHex ? _hex.CursorOffset : _text.TopOffset;
         bool hexMode = _hexSearch.IsChecked == true && !info;
         byte[]? bytes = hexMode ? ContentSearch.ParseHex(pattern) : null;
         if (hexMode && bytes is null)
@@ -756,9 +880,14 @@ public sealed class ViewerWindow : Window
         }
         var enc = info ? new UTF8Encoding(false) : _text.Encoding;
         bool matchCase = _matchCase.IsChecked == true;
+        var identity = new SearchIdentity(pattern, hexMode, enc.CodePage, matchCase, reader, _isHex && !info);
+        bool continuing = _lastHit >= 0 && _lastSearch == identity;
+        long from = continuing ? (forward ? _lastHit + (hexMode ? 1 : TextDecoding.UnitSize(enc)) : _lastHit)
+            : info ? _info.TopOffset : _isHex ? _hex.CursorOffset : _text.TopOffset;
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
-        _status.Text = "Searching…";
+        _stopSearch.IsVisible = true;
+        _status.Text = $"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)";
         long found;
         try
         {
@@ -766,19 +895,7 @@ public sealed class ViewerWindow : Window
             {
                 if (bytes is not null)
                     return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
-                if (!forward)
-                {
-                    // Backward text search: search forward from a window before the position and keep the last hit.
-                    long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
-                    while (true)
-                    {
-                        long hit = ContentSearch.FindText(reader, enc, p, pattern, matchCase, ct);
-                        if (hit < 0 || hit >= from) break;
-                        last = hit;
-                        p = hit + 1;
-                    }
-                    return last;
-                }
+                if (!forward) return ContentSearch.FindTextBackward(reader, enc, from, pattern, matchCase, ct);
                 return ContentSearch.FindText(reader, enc, from, pattern, matchCase, ct);
             }, ct);
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts)) return;
@@ -789,17 +906,20 @@ public sealed class ViewerWindow : Window
                 return;
             }
             _lastHit = found;
+            _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
             view.SetHighlight(bytes is null ? pattern : null, matchCase);
-            if (info)
+            _revealingSearch = true;
+            try
             {
-                _info.ScrollToOffset(found);
-                UpdateStatus();
-                return;
+                if (info) _info.ScrollToOffset(found);
+                else
+                {
+                    if (!_isHex) _text.ScrollToOffset(found);
+                    _hex.GoTo(found, select: true, _lastHitLength);
+                }
             }
-            if (_isHex) _hex.GoTo(found, select: true, _lastHitLength);
-            else _text.ScrollToOffset(found);
-            _hex.GoTo(found, select: true, _lastHitLength);
+            finally { _revealingSearch = false; }
             UpdateStatus();
         }
         catch (OperationCanceledException)
@@ -807,10 +927,34 @@ public sealed class ViewerWindow : Window
             if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
                 _status.Text = "Search canceled.";
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
+                _status.Text = "Search could not finish: " + ex.Message;
+        }
         finally
         {
-            if (ReferenceEquals(_searchCts, cts)) _searchCts = null;
+            if (ReferenceEquals(_searchCts, cts)) { _searchCts = null; _stopSearch.IsVisible = false; }
         }
+    }
+
+    private void InvalidateSearch()
+    {
+        _searchCts?.Cancel();
+        _searchCts = null;
+        _stopSearch.IsVisible = false;
+        _lastHit = -1;
+        _lastSearch = null;
+    }
+
+    private void SearchPositionChanged(Control source)
+    {
+        // Inactive controls also adjust their scroll bars during layout/reader setup. Those are not
+        // navigation in the searched surface and cannot cancel its request or replace its status.
+        Control active = _isInfo ? _info : _isHex ? _hex : _text;
+        if (_isPicture || _isPage || source != active) return;
+        if (!_revealingSearch) InvalidateSearch();
+        UpdateStatus();
     }
 
     private async Task GoToAsync()
@@ -933,89 +1077,273 @@ public sealed class ViewerWindow : Window
         }
     }
 
-    private async Task CopyAsync()
+    private Task CopyAsync() => CopyContentAsync(displayed: false, explicitVisible: false);
+
+    private void UpdateCopyActions()
     {
-        if (_closing.IsCancellationRequested || Clipboard is not { } clipboard) return;
+        bool hex = _isHex && !_isInfo;
+        var view = _isInfo ? _info : _text;
+        _copySource.IsVisible = !_isPicture && !_isPage;
+        _copyDisplayed.IsVisible = !_isPicture && !_isPage && !hex;
+        _copySource.Content = hex ? (_hex.Selection.Length > 0 ? "Copy selected hex bytes" : "Copy cursor byte")
+            : view.HasSelection ? "Copy source selection" : "Copy visible source text";
+        if (view.SelectionEnded is { } ended && !hex && !_closing.IsCancellationRequested)
+            _copyNotice.Show(ended);
+    }
+
+    internal async Task CopyContentAsync(bool displayed, bool explicitVisible, Avalonia.Input.Platform.IClipboard? targetClipboard = null)
+    {
+        if (_closing.IsCancellationRequested || _isPicture || _isPage || (targetClipboard ?? Clipboard) is not { } clipboard) return;
         _copyCts?.Cancel();
         using var cts = _copyCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         bool hex = _isHex && !_isInfo;
+        bool info = _isInfo;
+        long sourceGeneration = _sourceGeneration;
+        var view = info ? _info : _text;
+        var scope = hex ? null : view.CaptureCopyScope(explicitVisible);
+        var reader = hex ? _reader : scope?.Reader;
+        var (start, length) = hex ? _hex.Selection : scope is not null ? (scope.Start, scope.Length) : (0L, 0L);
+        if (hex && length == 0) length = _reader.Length > 0 ? 1 : 0;
+        bool selected = hex || scope?.Selected == true;
+        bool publicationStarted = false;
+        bool Current() => !ct.IsCancellationRequested && ReferenceEquals(_copyCts, cts) && sourceGeneration == _sourceGeneration && info == _isInfo
+            && hex == (_isHex && !_isInfo) && !_isPicture && !_isPage
+            && (hex || scope is not null && ReferenceEquals(scope.Reader, view.Reader) && scope.Generation == view.SourceGeneration);
         try
         {
-            string text;
-            int copiedBytes = 0;
-            if (hex)
+            if (reader is null)
             {
-                var (start, length) = _hex.Selection;
-                if (length == 0) length = 1;
-                var result = await Task.Run(() =>
-                {
-                    var bytes = new byte[(int)Math.Min(length, 1024 * 1024)];
-                    int n = _reader.Read(start, bytes, ct);
-                    ct.ThrowIfCancellationRequested();
-                    return (Text: Convert.ToHexString(bytes.AsSpan(0, n)), Count: n);
-                }, ct);
-                text = result.Text;
-                copiedBytes = result.Count;
+                _copyNotice.Show(view.SelectionEnded ?? "The current text is still loading. Wait for it to appear before copying.");
+                return;
             }
-            else text = (_isInfo ? _info : _text).GetSelectedOrVisibleText();
-            if (ct.IsCancellationRequested || !ReferenceEquals(_copyCts, cts)) return;
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
-            if (!ct.IsCancellationRequested && ReferenceEquals(_copyCts, cts))
-                _status.Text = hex ? $"Copied {copiedBytes:N0} bytes as hex." : "Copied text.";
+            var representation = hex ? ContentCopyRepresentation.HexBytes : displayed ? ContentCopyRepresentation.DisplayedText : ContentCopyRepresentation.SourceText;
+            _copyNotice.Show($"Reading the captured {(selected ? "selection" : "visible lines")}: {length:N0} source bytes from offset {start:N0}…", running: true);
+            var revision = hex ? reader.Revision : scope!.Revision;
+            var result = await Task.Run(() => ContentCopy.Read(reader, start, length, representation, scope?.Encoding,
+                scope?.DisplayColumn ?? 0, revision, ct), ct);
+            if (!Current()) return;
+            if (result.CanPublish)
+            {
+                await _copyWrites.WaitAsync(ct);
+                try
+                {
+                    if (!Current()) return;
+                    publicationStarted = true;
+                    await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, result.Text);
+                }
+                finally { _copyWrites.Release(); }
+            }
+            if (Current())
+            {
+                string message = result.Describe(selected);
+                _copyNotice.Show(message);
+                _status.Text = message;
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_copyCts, cts)) _copyNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.ExternalException)
+        {
+            if (Current()) _copyNotice.Show("Copy could not finish: " + ex.Message);
+        }
         finally
         {
-            if (ReferenceEquals(_copyCts, cts)) _copyCts = null;
+            if (ReferenceEquals(_copyCts, cts))
+            {
+                if (ct.IsCancellationRequested && !_closing.IsCancellationRequested) _copyNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+                _copyCts = null;
+            }
+        }
+    }
+
+    private void BuildChecksumPanel()
+    {
+        Avalonia.Automation.AutomationProperties.SetName(_checksumScope, "Checksum scope");
+        Avalonia.Automation.AutomationProperties.SetName(_checksumResult, "Checksum results");
+        var close = new Button { Content = "Close checksums" };
+        close.Click += (_, _) =>
+        {
+            _checksumCts?.Cancel();
+            _checksumCts = null;
+            _checksumPanel.IsVisible = false;
+            FocusContent();
+        };
+        _computeChecksum.Click += async (_, _) => await ChecksumAsync();
+        _copyChecksum.Click += async (_, _) => await CopyChecksumAsync();
+        _stopChecksum.Click += (_, _) => _checksumCts?.Cancel();
+        _checksumScope.SelectionChanged += (_, _) =>
+        {
+            _checksumCts?.Cancel();
+            _checksumCts = null;
+            _stopChecksum.IsVisible = false;
+            _copyChecksum.IsEnabled = false;
+            _checksumResult.Text = "Choose the scope, then Compute. Results stay here until you change the scope or close this panel.";
+        };
+        var controls = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { _checksumScope, _computeChecksum, _stopChecksum, _copyChecksum, close } };
+        var sourceName = new TextBlock { Text = Formatters.SafeName(_displayName), TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2 };
+        ToolTip.SetTip(sourceName, Formatters.SafeName(_displayName));
+        _checksumPanel.Child = new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock { Text = "Checksums", FontWeight = FontWeight.SemiBold },
+                sourceName,
+                controls,
+                _checksumResult,
+            },
+        };
+    }
+
+    /// <summary>The panel captures the selected range and exposes whole file as an explicit alternative.</summary>
+    private void ShowChecksum()
+    {
+        if (_closing.IsCancellationRequested) return;
+        _checksumCts?.Cancel();
+        _checksumCts = null;
+        _stopChecksum.IsVisible = false;
+        _checksumSelectedRange = _isHex && !_isInfo && _hex.Selection.Length > 0 ? _hex.Selection : null;
+        _checksumWholeLength = _reader.Length;
+        _checksumScopeGeneration = _sourceGeneration;
+        _checksumScope.Items.Clear();
+        _checksumScope.Items.Add($"Whole file · {_checksumWholeLength:N0} bytes");
+        if (_checksumSelectedRange is { } selected)
+            _checksumScope.Items.Add($"Selected range · {selected.Length:N0} bytes at 0x{selected.Start:X}");
+        _checksumScope.SelectedIndex = _checksumSelectedRange is null ? 0 : 1;
+        _checksumPanel.IsVisible = true;
+        _checksumScope.Focus();
+    }
+
+    internal string ChecksumResultText => _checksumResult.Text ?? "";
+
+    private Task CopyChecksumAsync() => CopyChecksumToAsync(Clipboard);
+
+    internal async Task CopyChecksumToAsync(Avalonia.Input.Platform.IClipboard? clipboard)
+    {
+        if (!_copyChecksum.IsEnabled || clipboard is null || _closing.IsCancellationRequested) return;
+        string text = ChecksumResultText;
+        try
+        {
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
+            if (!_closing.IsCancellationRequested) _status.Text = "Checksum results copied.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidOperationException)
+        {
+            if (!_closing.IsCancellationRequested) _status.Text = "Checksum results could not be copied: " + ex.Message;
         }
     }
 
     private async Task ChecksumAsync()
     {
         if (_closing.IsCancellationRequested) return;
+        if (!_checksumPanel.IsVisible) ShowChecksum();
+        if (_checksumScopeGeneration != _sourceGeneration)
+        {
+            _checksumResult.Text = "The file changed. Open Checksum again to review the current scope before computing.";
+            return;
+        }
         _checksumCts?.Cancel();
         using var cts = _checksumCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
-        var (start, length) = _isHex && _hex.Selection.Length > 1 ? _hex.Selection : (0L, _reader.Length);
+        long generation = _sourceGeneration;
+        long expectedSourceLength = _checksumWholeLength;
+        bool selected = _checksumScope.SelectedIndex == 1 && _checksumSelectedRange is not null;
+        var (start, length) = selected ? _checksumSelectedRange!.Value : (0L, _checksumWholeLength);
+        string scope = selected ? $"selected range 0x{start:X}–0x{start + length - 1:X}" : "whole file";
+        _copyChecksum.IsEnabled = false;
+        _stopChecksum.IsVisible = true;
+        _checksumResult.Text = $"Computing {scope}, {length:N0} bytes… (Esc stops)";
         _status.Text = "Computing checksums…";
         try
         {
             var result = await Task.Run(() =>
             {
+                ct.ThrowIfCancellationRequested();
+                ContentRevision? before = null;
+                long initialLength = -1;
+                _reader.WithSource(source => { before = source.GetRevision(); initialLength = source.Length; });
+                ct.ThrowIfCancellationRequested();
+                if (initialLength < 0)
+                    throw new IOException("The source length is unavailable. Its checksum scope cannot be established.");
+                if (initialLength != expectedSourceLength)
+                    throw new IOException("The source length changed after the scope was reviewed. Reopen the viewer and review the current scope.");
+                if (before is not null && before != _reader.Revision)
+                    throw new IOException("The source changed before the checksum started. Reopen the viewer to read its current content.");
                 using var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
                 uint crc = 0;
-                var buf = new byte[1024 * 1024];
-                long pos = start, end = start + length;
+                var buffer = new byte[1024 * 1024];
+                long pos = start, end = checked(start + length);
+                var progressClock = System.Diagnostics.Stopwatch.StartNew();
                 while (pos < end)
                 {
-                    int n = _reader.Read(pos, buf.AsSpan(0, (int)Math.Min(buf.Length, end - pos)), ct);
+                    int n = _reader.Read(pos, buffer.AsSpan(0, (int)Math.Min(buffer.Length, end - pos)), ct);
                     if (n <= 0) break;
-                    sha.AppendData(buf, 0, n);
-                    crc = Crc32.Append(crc, buf.AsSpan(0, n));
+                    sha.AppendData(buffer, 0, n);
+                    crc = Crc32.Append(crc, buffer.AsSpan(0, n));
                     pos += n;
+                    if (progressClock.ElapsedMilliseconds >= 200)
+                    {
+                        long read = pos - start;
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (!ct.IsCancellationRequested && ReferenceEquals(_checksumCts, cts) && generation == _sourceGeneration)
+                                _checksumResult.Text = $"Computing {scope}, {read:N0} of {length:N0} bytes read… (Esc stops)";
+                        });
+                        progressClock.Restart();
+                    }
                 }
                 ct.ThrowIfCancellationRequested();
-                return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start);
+                ContentRevision? after = null;
+                long finalLength = -1;
+                _reader.WithSource(source => { after = source.GetRevision(); finalLength = source.Length; });
+                ct.ThrowIfCancellationRequested();
+                if (before != after || initialLength != finalLength)
+                    throw new IOException("The source changed while computing the checksum. No checksum is published for the mixed content; reopen the viewer and compute again.");
+                return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start, Revision: before);
             }, ct);
-            if (ct.IsCancellationRequested || !ReferenceEquals(_checksumCts, cts)) return;
-            var scope = length == _reader.Length ? "whole file" : $"range 0x{start:X}–0x{start + length - 1:X}";
-            var message = $"{scope}, {result.Read:N0} bytes\nSHA-256: {result.Sha}\nCRC-32: {result.Crc:x8}";
-            if (result.Read < length) message += "\nWarning: the content ended early; the checksum covers only the bytes read.";
-            _status.Text = $"SHA-256 {result.Sha[..16]}… · CRC-32 {result.Crc:x8} ({scope})";
-            if (Clipboard is { } clipboard)
+            if (ct.IsCancellationRequested || !ReferenceEquals(_checksumCts, cts) || generation != _sourceGeneration) return;
+            var message = $"Source: {Formatters.SafeName(_displayName)}\n{scope}, {result.Read:N0} of {length:N0} bytes read\nSHA-256: {result.Sha}\nCRC-32: {result.Crc:x8}";
+            if (result.Read < length)
+                message = "INCOMPLETE: content ended early; these checksums cover only the bytes read.\n" + message;
+            if (_reader.ReadError is { } error)
+                message = "READ ERROR: " + error + "\n" + message;
+            message += "\n" + (result.Revision is { } revision
+                ? $"Revision evidence unchanged during read: {revision.Length:N0} bytes"
+                    + (revision.ModifiedTicks > 0 && revision.ModifiedTicks <= DateTime.MaxValue.Ticks
+                        ? $", modified {new DateTime(revision.ModifiedTicks, DateTimeKind.Utc):u}." : " (no modification time supplied).")
+                : "Revision unavailable: source consistency could not be verified.");
+            _checksumResult.Text = message;
+            _copyChecksum.IsEnabled = true;
+            _status.Text = result.Read < length || _reader.ReadError is not null
+                ? "Checksum is incomplete. The visible result states the bytes read and the warning."
+                : $"Checksums ready for {scope}; full results are shown below.";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_checksumCts, cts) && generation == _sourceGeneration)
             {
-                await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, message);
-                if (!ct.IsCancellationRequested && ReferenceEquals(_checksumCts, cts))
-                    _status.Text += " · copied to the clipboard";
+                _checksumResult.Text = "Checksum canceled. No complete result was produced.";
+                _status.Text = "Checksum canceled.";
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (ObjectDisposedException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_checksumCts, cts) && generation == _sourceGeneration)
+            {
+                _checksumResult.Text = "Checksum could not finish: " + ex.Message;
+                _status.Text = "Checksum could not finish; details are shown below.";
+            }
+        }
         finally
         {
-            if (ReferenceEquals(_checksumCts, cts)) _checksumCts = null;
+            if (ReferenceEquals(_checksumCts, cts)) { _checksumCts = null; _stopChecksum.IsVisible = false; }
         }
     }
+
 }
 
 /// <summary>Opens viewer windows for items of any provider that exposes content.</summary>

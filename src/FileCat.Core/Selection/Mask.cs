@@ -11,7 +11,7 @@ namespace FileCat.Core.Selection;
 /// exactly what it matches (its own exclusions included); <c>|@name</c> excludes those items. Name matching is
 /// case-insensitive.
 /// </summary>
-public sealed class Mask
+public sealed partial class Mask
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
 
@@ -228,6 +228,9 @@ public sealed class Mask
     private sealed class MaskPart(string? glob, Regex? regex, bool directoriesOnly)
     {
         private Regex? _pathRegex;
+
+        public string? Glob => glob;
+        public Regex? Expression => regex;
 
         public bool DirectoriesOnly { get; } = directoriesOnly;
 

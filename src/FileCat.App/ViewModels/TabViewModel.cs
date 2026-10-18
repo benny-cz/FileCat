@@ -53,6 +53,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public PanelViewModel Panel { get; set; }
     public ListingModel Listing { get; }
     public Location? Location => Listing.Location;
+    /// <summary>Changes at navigation intent, before any provider/connection await; delayed path Paste checks it.</summary>
+    internal long NavigationGeneration { get; private set; }
     public IReadOnlyList<Location> BackHistory => _back;
     public IReadOnlyList<Location> ForwardHistory => _forward;
 
@@ -301,6 +303,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Navigate(Location location, string? focusName = null, bool record = true)
     {
+        if (_disposed) return;
+        NavigationGeneration++;
         // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
         if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
         {
@@ -444,6 +448,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void NavigateHistory(Location target)
     {
+        NavigationGeneration++;
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(target);

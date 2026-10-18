@@ -40,7 +40,7 @@ public sealed class ReportWindowTests
             Assert.Contains("308 lines · F5 reads it again", window.StatusText, StringComparison.Ordinal);
 
             // Find (F3) scrolls to the match.
-            var search = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().Single();
+            var search = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().Single(t => t.PlaceholderText == "Find (Ctrl+F)");
             search.Text = "Security";
             window.KeyPressQwerty(PhysicalKey.F3, RawInputModifiers.None);
             for (int i = 0; i < 250 && window.TopOffset == 0; i++) await Task.Delay(20, ct);

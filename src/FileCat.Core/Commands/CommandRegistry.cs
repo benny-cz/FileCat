@@ -77,6 +77,7 @@ public static class CommandIds
     public const string UnmarkSameName = "mark.sameNameUnselect";
     public const string MarkRestore = "mark.restore";
     public const string UnmarkHidden = "mark.unmarkHidden";
+    public const string ReviewMarks = "mark.review";
 
     public const string Parent = "nav.parent";
     public const string Enter = "nav.enter";
@@ -301,6 +302,7 @@ public sealed class CommandRegistry
         Add(CommandIds.MarkSameName, "Select same name", M, null, CommandContext.Panel, "Alt+Num+");
         Add(CommandIds.UnmarkSameName, "Unselect same name", M, null, CommandContext.Panel, "Alt+Num-");
         Add(CommandIds.MarkRestore, "Restore previous selection", M, null, CommandContext.Panel, "Ctrl+Num/");
+        Add(CommandIds.ReviewMarks, "Review marked items…", M, null, CommandContext.Panel, "Ctrl+Alt+M");
         Add(CommandIds.UnmarkHidden, "Unmark items hidden by the filter", M);
 
         Add(CommandIds.Parent, "Go to parent", N, null, CommandContext.Panel, "Ctrl+PgUp", "Backspace");
@@ -465,6 +467,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
         r.Describe(CommandIds.MarkSelectMask, "Marks the items whose names match a mask, such as *.txt.");
+        r.Describe(CommandIds.ReviewMarks, "Reviews every marked item in accessible pages, including marks hidden by filtering or outside the visible rows. This does not change the selection.");
         r.Describe(CommandIds.MarkUnselectMask, "Unmarks the items whose names match a mask, such as *.txt.");
         r.Describe(CommandIds.MarkInvert, "Marks the files that are not marked, and unmarks those that are.");
         r.Describe(CommandIds.MarkAll, "Marks every item in the list.");

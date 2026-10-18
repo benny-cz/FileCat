@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Jobs;
@@ -48,6 +49,7 @@ public sealed class InterruptedOperationUiTests
             var run = vm.RunInterruptedAgainAsync(interrupted);
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen, "Run again asks first");
+            window.UpdateLayout(); // Realize the disclosure before asserting the exact cleanup/keep list.
             var lines = window.GetVisualDescendants().OfType<TextBlock>().Select(b => b.Text ?? string.Empty).ToList();
             int deleting = lines.FindIndex(l => l.Contains("will be deleted", StringComparison.Ordinal));
             int leaving = lines.FindIndex(l => l.Contains("leaves them as they are", StringComparison.Ordinal));
@@ -57,6 +59,11 @@ public sealed class InterruptedOperationUiTests
             Assert.Equal("• " + Path.Combine(dst, "edited.txt"), lines[leaving + 1]);
             Assert.DoesNotContain("• " + Path.Combine(dst, "edited.txt"), lines.Take(leaving));
 
+            // Consequential recovery now initially selects Cancel. This test deliberately approves the reviewed cleanup.
+            Dispatcher.UIThread.RunJobs();
+            var proceed = Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Continue copy");
+            Assert.False(proceed.IsDefault);
+            proceed.Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Assert.True(await run);
             for (int i = 0; i < 500 && !(services.Jobs.Jobs.Count == 2 && services.Jobs.Jobs.All(j => j.State.IsFinished())); i++) await Task.Delay(20, ct);

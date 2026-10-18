@@ -34,10 +34,14 @@
           </Grid>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
+          <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
+                  ToolTip.Tip="Review this operation's waiting decision; background work does not interrupt your typing" />
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
           <Button Classes="flat" Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
           <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+          <Button Classes="flat" Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
+                  ToolTip.Tip="Reopen the complete retained Undo outcomes; Copy all copies the report" />
           <Button Classes="flat" Content="Results" IsVisible="{Binding CanShowResults}" Click="OnShowResults"
                   ToolTip.Tip="What the check found, file by file: each checksum's expected and computed values, and each signature" />
           <Button Classes="flat" Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
@@ -62,8 +66,10 @@
                     <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Content="Run again…" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
-                            ToolTip.Tip="Removes the partial files, then copies or moves what is left; items that already arrived are skipped" />
+                    <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
+                            ToolTip.Tip="Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy" />
+                    <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
+                            ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
                     <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
                     <Button Content="Dismiss" Tag="{Binding}" Click="OnDismissInterrupted" />
                   </StackPanel>
@@ -74,10 +80,10 @@
         </ItemsControl>
 
         <DockPanel Grid.Row="1">
-          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
+          <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
             <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" IsVisible="{Binding HasFinished}" />
-          </StackPanel>
+          </WrapPanel>
           <Panel>
           <!-- Nothing yet: say what will appear here. -->
           <TextBlock Text="No operations yet. Copies, moves, deletions, and other jobs show their progress and reports here."
@@ -105,11 +111,17 @@
         <!-- The chosen operation's actions and report; nothing while none is chosen. -->
         <DockPanel Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel"
                    IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
+          <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
+            <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
             <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+            <TextBlock Text="{Binding UndoStatus}" VerticalAlignment="Center" Classes="small muted" />
+            <Button Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
+                    ToolTip.Tip="Every outcome with full paths and counts; includes Copy all and Save as" />
+            <Button Content="Show affected files" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoAffected"
+                    ToolTip.Tip="Show affected paths that still exist, including a retained original hard-link name" />
             <Button Content="Results" IsVisible="{Binding CanShowResults}" Click="OnShowResults"
                     ToolTip.Tip="What the check found, file by file: each checksum's expected and computed values, and each signature" />
             <Button Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
@@ -117,7 +129,7 @@
             <Button Content="Move up" Click="OnMoveUp" IsVisible="{Binding !IsActive}" />
             <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
             <Button Content="Remove" IsVisible="{Binding IsFinished}" Click="OnRemove" />
-          </StackPanel>
+          </WrapPanel>
           <!-- The chosen operation at a glance (release issue I30): where from and to, what it does now and how far, how long
                it has run and has left, what it did, and its pace. -->
           <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="10,0,10,6">

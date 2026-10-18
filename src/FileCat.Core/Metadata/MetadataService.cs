@@ -118,6 +118,10 @@ public sealed class MetadataService
         return MetadataValue.Pending;
     }
 
+    /// <summary>Reads already produced metadata without requesting I/O, for bounded accessibility inspection.</summary>
+    public MetadataValue Peek(string fieldId, string path, in EntryData entry) =>
+        _cache.TryGetValue(Key(path, entry, fieldId), out var value) ? value : new MetadataValue(MetadataState.NotRequested);
+
     private static bool Applies(MetadataField field, in EntryData entry) =>
         (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
 

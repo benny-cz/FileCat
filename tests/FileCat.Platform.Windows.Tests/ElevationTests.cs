@@ -27,7 +27,7 @@ public sealed class ElevationTests
     [Fact]
     public void The_window_titles_account_and_rights_come_from_the_process_token()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         var account = new WindowsShellServices().Account;
         using var identity = WindowsIdentity.GetCurrent();
         // A local account by its name alone; a domain account (or NT AUTHORITY's) with its domain.
@@ -53,7 +53,7 @@ public sealed class ElevationTests
     [Fact]
     public void Delete_tree_removes_links_as_links_and_never_touches_their_targets()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         try
         {
@@ -78,7 +78,7 @@ public sealed class ElevationTests
     [Fact]
     public void A_folder_swapped_for_a_link_on_the_way_is_refused()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         try
         {
@@ -105,7 +105,7 @@ public sealed class ElevationTests
     [Fact]
     public void Copy_tree_skips_links_keeps_marks_and_honors_the_replace_policy()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         try
         {
@@ -142,7 +142,7 @@ public sealed class ElevationTests
     [Fact]
     public void Move_rename_create_and_attributes_work_through_verified_handles()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         try
         {
@@ -180,7 +180,7 @@ public sealed class ElevationTests
     [Fact]
     public void Plans_round_trip_and_validation_refuses_what_the_broker_must_not_run()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         const string volume = @"\\?\Volume{12345678-1234-1234-1234-123456789abc}\";
         const string other = @"\\?\Volume{87654321-1234-1234-1234-123456789abc}\";
         var good = ValidPlan(new ElevatedStep(ElevatedVerb.DeleteTree) { Path = volume + @"Program Files\App\old" },
@@ -216,7 +216,7 @@ public sealed class ElevationTests
     [Fact]
     public void The_exchange_reads_verified_plans_and_never_writes_through_a_planted_link()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         try
         {
@@ -265,7 +265,7 @@ public sealed class ElevationTests
     [Fact]
     public void The_runner_reports_each_step_and_stops_between_steps()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string root = NewDirectory();
         string sid = WindowsIdentity.GetCurrent().User!.Value;
         string keyPath = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
@@ -305,7 +305,7 @@ public sealed class ElevationTests
     [Fact]
     public async Task Access_denied_Registry_changes_become_a_retry_plan_in_the_users_own_hive()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         string journals = Path.Combine(Path.GetTempPath(), "filecat-elevation-jobs", Guid.NewGuid().ToString("N"));
         var user = WindowsIdentity.GetCurrent().User!;
@@ -370,7 +370,7 @@ public sealed class ElevationTests
     [Fact]
     public void The_broker_runs_only_from_Program_Files_and_never_in_portable_mode()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
         Assert.Null(ElevationBroker.Locate(portable: true, out var portableReason));
         Assert.Contains("Portable", portableReason);
         Assert.Null(ElevationBroker.Locate(portable: false, out var missingReason)); // test output has no broker next to it

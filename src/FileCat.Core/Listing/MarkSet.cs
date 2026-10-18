@@ -38,6 +38,30 @@ public sealed class MarkSet
         Count = 0;
     }
 
+    /// <summary>
+    /// Copies the next marked store indexes, in stable store order, without allocating a complete selection.
+    /// Pass -1 for the first page and the last returned index for the next page.
+    /// </summary>
+    public int CopyAfter(int afterIndex, Span<int> destination)
+    {
+        if (afterIndex < -1) throw new ArgumentOutOfRangeException(nameof(afterIndex));
+        if (afterIndex == int.MaxValue || destination.IsEmpty || Count == 0) return 0;
+        int start = afterIndex + 1;
+        int count = 0;
+        for (int word = start >> 6; word < _bits.Length; word++)
+        {
+            ulong bits = _bits[word];
+            if (word == start >> 6) bits &= ulong.MaxValue << (start & 63);
+            while (bits != 0)
+            {
+                destination[count++] = (word << 6) + BitOperations.TrailingZeroCount(bits);
+                if (count == destination.Length) return count;
+                bits &= bits - 1;
+            }
+        }
+        return count;
+    }
+
     public IEnumerable<int> Enumerate()
     {
         for (int w = 0; w < _bits.Length; w++)

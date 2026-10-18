@@ -37,7 +37,7 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
         if (change == "same-length-time") { File.WriteAllText(f.Staged, "other"); File.SetLastWriteTimeUtc(f.Staged, stamp); }
         if (change == "replacement") { File.Delete(f.Staged); File.WriteAllText(f.Staged, "replacement"); }
         if (change == "removed") File.Delete(f.Staged);
-        if (change == "cancel") f.Escape(); else f.Click("Copy the rest");
+        if (change == "cancel") f.Escape(); else f.Click("Continue copy");
         await f.Drain(run); bool retained = File.Exists(f.Staged); int jobs = f.Services.Jobs.Jobs.Count;
         Emit(f, "staged-change", new { change, retained, jobs, Ended = f.Ended, Started = await run });
         Assert.Equal(change is "changed" or "same-length-time" or "replacement" or "cancel", retained);
@@ -52,9 +52,9 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     [InlineData("close", "move")]
     public async Task Approval_after_demand_ends_cannot_delete_close_the_journal_or_submit(string end, string kind)
     {
-        using var f = await Fixture.Create(); var original = f.Interrupted with { Kind = kind == "move" ? nameof(JobKind.Move) : nameof(JobKind.Copy) };
+        using var f = await Fixture.Create(); var original = f.Interrupted with { Kind = kind == "move" ? nameof(JobKind.Move) : nameof(JobKind.Copy), TransferIntent = f.Interrupted.TransferIntent! with { Kind = kind == "move" ? JobKind.Move : JobKind.Copy } };
         var run = f.Vm.RunInterruptedAgainAsync(original); await Wait(() => f.HasDialog);
-        f.End(end); string? notification = f.Vm.Notification; f.Click(kind == "move" ? "Move the rest" : "Copy the rest"); await f.Drain(run);
+        f.End(end); string? notification = f.Vm.Notification; f.Click(kind == "move" ? "Continue move" : "Continue copy"); await f.Drain(run);
         Emit(f, "ended-approval", new { end, kind, Started = await run, Retained = File.Exists(f.Staged), Ended = f.Ended, Jobs = f.Services.Jobs.Jobs.Count });
         Assert.False(await run); Assert.True(File.Exists(f.Staged)); Assert.False(f.Ended); Assert.Single(f.Services.Jobs.Jobs); Assert.Equal(notification, f.Vm.Notification);
     }
@@ -64,7 +64,7 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     {
         using var f = await Fixture.Create(); var first = f.Vm.RunInterruptedAgainAsync(f.Interrupted); await Wait(() => f.HasDialog);
         var second = f.Vm.RunInterruptedAgainAsync(f.Interrupted); bool secondFinished = second.IsCompleted;
-        f.Click("Copy the rest"); await f.Drain(first, second);
+        f.Click("Continue copy"); await f.Drain(first, second);
         Emit(f, "coalesced", new { secondFinished, First = await first, Second = await second, Jobs = f.Services.Jobs.Jobs.Count });
         Assert.True(secondFinished); Assert.False(await second); Assert.True(await first); Assert.Equal(2, f.Services.Jobs.Jobs.Count);
     }
@@ -104,7 +104,7 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     public async Task An_unavailable_staged_review_keeps_the_file_and_names_it(string outcome)
     {
         using var f = await Fixture.Create(outcome: outcome); var run = f.Vm.RunInterruptedAgainAsync(f.Interrupted); await Wait(() => f.HasDialog || run.IsCompleted);
-        if (f.HasDialog) f.Click("Copy the rest"); await f.Drain(run);
+        if (f.HasDialog) f.Click("Continue copy"); await f.Drain(run);
         Emit(f, "unavailable", new { outcome, Retained = File.Exists(f.Staged), Started = await run, Jobs = f.Services.Jobs.Jobs.Count });
         Workers(f); Assert.True(File.Exists(f.Staged)); Assert.True(await run); Assert.Equal(2, f.Services.Jobs.Jobs.Count);
     }
@@ -118,7 +118,7 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
         // The alert must originate from the job's actual selected source, rather than an unrelated sibling.
         File.WriteAllText(cut, "source"); File.SetCreationTimeUtc(cut, DateTime.UtcNow);
         var job = f.Interrupted with { FillDirectories = [new FillDirectory(f.SourceFolder, f.Destination)] };
-        var run = f.Vm.RunInterruptedAgainAsync(job); await Wait(() => f.HasDialog); File.WriteAllText(cut, "newer destination bytes"); f.Click("Copy the rest");
+        var run = f.Vm.RunInterruptedAgainAsync(job); await Wait(() => f.HasDialog); File.WriteAllText(cut, "newer destination bytes"); f.Click("Continue copy");
         await Wait(() => f.Button("OK") is not null || run.IsCompleted); Assert.NotNull(f.Button("OK"));
         f.End(end); f.Click("OK"); await f.Drain(run);
         Emit(f, "kept-alert-end", new { end, Started = await run, Ended = f.Ended, Jobs = f.Services.Jobs.Jobs.Count });

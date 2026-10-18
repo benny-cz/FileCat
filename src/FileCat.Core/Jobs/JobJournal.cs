@@ -33,6 +33,9 @@ public sealed class JobJournal : IDisposable
     }
 
     public string Path { get; }
+    /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
+    public bool NeedsRecovery { get; private set; }
+    internal void RequireRecovery() => NeedsRecovery = true;
 
     /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
     internal const int HeaderSampleSize = 64;
@@ -51,22 +54,30 @@ public sealed class JobJournal : IDisposable
         var path = System.IO.Path.Combine(directory, $"job-{job.CreatedUtc:yyyyMMddHHmmss}-{job.ShortId}.fcj");
         var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, FileOptions.None);
         var j = new JobJournal(path, fs);
+        var transferIntent = RecoverableTransferIntent.Capture(job.Request, out var transferIntentProblem);
         var begin = new JsonObject
         {
             ["t"] = "begin",
             ["id"] = job.Id.ToString("N"),
             ["kind"] = job.Kind.ToString(),
             ["title"] = job.Title,
+            ["undoOf"] = job.Request.UndoPlan?.OriginalId.ToString("N"),
             ["created"] = job.CreatedUtc.ToString("O"),
             ["sources"] = new JsonArray(job.Request.Sources.Take(HeaderSampleSize).Select(s => (JsonNode)(s.FileSystemPath ?? s.ToString())).ToArray()),
             ["sourceCount"] = job.Request.Sources.Count,
             ["dest"] = job.Request.Destination?.Serialize(),
             ["newName"] = job.Request.NewName,
+            ["transferIntent"] = transferIntent,
+            ["transferIntentProblem"] = transferIntentProblem,
         };
-        j.Write(begin, sync: true);
-        int count = job.Request.Sources.Count;
-        if (count > HeaderSampleSize && count <= ManifestLimit) WriteManifest(ManifestPathOf(path), job.Request.Sources);
-        return j;
+        try
+        {
+            j.Write(begin, sync: true);
+            int count = job.Request.Sources.Count;
+            if (count > HeaderSampleSize && count <= ManifestLimit) WriteManifest(ManifestPathOf(path), job.Request.Sources);
+            return j;
+        }
+        catch { j.Dispose(); throw; }
     }
 
     /// <summary>
@@ -286,7 +297,7 @@ public sealed class JobJournal : IDisposable
 public sealed class JournalRecord(JsonObject node)
 {
     public JsonObject Node { get; } = node;
-    public string Type => Node["t"]?.GetValue<string>() ?? string.Empty;
+    public string Type => Get("t") ?? string.Empty;
     public string? Get(string key) => Node[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
     public int Step => Node["n"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 0;
 }
@@ -305,7 +316,17 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
     public string? ManifestPath { get; init; }
 
     /// <summary>Every source path is known: from the header when it lists them all, otherwise from the manifest.</summary>
-    public bool SourcesKnown => SourceCount <= Sources.Count || ManifestPath is not null;
+    public bool SourcesKnown => SourceCount > 0 && SourceCount <= JobJournal.ManifestLimit && (SourceCount == Sources.Count || ManifestPath is not null);
+
+    /// <summary>Complete original local transfer semantics, independent of today's settings and saved filters.</summary>
+    public RecoverableTransferIntent? TransferIntent { get; init; }
+
+    /// <summary>A legacy header may record the new name even though other transfer choices are missing.</summary>
+    public string? NewName { get; init; }
+
+    public string? TransferIntentProblem { get; init; }
+
+    public bool CanContinueTransfer => SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
 }
 
 public sealed record FillDirectory(string Source, string Destination);
@@ -412,17 +433,29 @@ public static partial class JournalRecovery
                 TryDelete(f.FullName);
                 continue;
             }
-            var sources = begin.Node["sources"] is JsonArray arr ? arr.Select(x => x?.GetValue<string>() ?? "").ToList() : [];
+            // Malformed scalar types must disable reconstruction without crashing the whole startup scan.
+            var sources = begin.Node["sources"] is JsonArray arr && arr.Count <= JobJournal.HeaderSampleSize &&
+                arr.All(x => x is JsonValue value && value.TryGetValue<string>(out _))
+                ? arr.Select(x => x!.GetValue<string>()).ToList() : [];
             int sourceCount = begin.Node["sourceCount"] is JsonValue countValue && countValue.TryGetValue<int>(out int declared)
-                ? declared : sources.Count;
+                ? declared : begin.Node.ContainsKey("sourceCount") ? -1 : sources.Count;
             DateTime.TryParse(begin.Get("created"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var created);
-            result.Add(new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
+            var transferIntent = RecoverableTransferIntent.Read(begin.Node["transferIntent"], out var transferIntentProblem);
+            if (begin.Node["transferIntent"] is null && begin.Get("transferIntentProblem") is { Length: > 0 and <= 1024 } reason)
+                transferIntentProblem = reason + " Select the sources again to review a new transfer.";
+            var interrupted = new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
                 begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount)
             {
                 FillDirectories = fills,
                 FillDirectoriesCut = fillsCut,
                 ManifestPath = File.Exists(manifest) ? manifest : null,
-            });
+                NewName = begin.Get("newName"),
+                TransferIntent = transferIntent,
+                TransferIntentProblem = transferIntentProblem,
+            };
+            if (transferIntent is not null && !transferIntent.Matches(interrupted))
+                interrupted = interrupted with { TransferIntent = null, TransferIntentProblem = "The original source or destination mapping is inconsistent. Review a new transfer to choose the scope again." };
+            result.Add(interrupted);
         }
         return result;
     }
@@ -590,6 +623,36 @@ public static partial class JournalRecovery
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             { return new CopyReview(incomplete, differing, true); }
         }
+        var transfer = job.TransferIntent;
+        if (transfer is not null && (!transfer.Matches(job) || !transfer.MatchesSources(selection)))
+            return new CopyReview(incomplete, differing, true);
+
+        IEnumerable<FileInfo> CandidateSources(FileInfo destination, IReadOnlyList<string> sourceFolders)
+        {
+            if (transfer is null)
+            {
+                foreach (var folder in sourceFolders) yield return new FileInfo(Path.Combine(folder, destination.Name));
+                yield break;
+            }
+            foreach (var root in transfer.Roots)
+            {
+                string targetFolder = transfer.Flatten || string.IsNullOrEmpty(root.RelativeFolder)
+                    ? transfer.Destination.Path : RelativeFolders.Resolve(transfer.Destination.Path, root.RelativeFolder);
+                string target = Path.Combine(targetFolder, transfer.NewName ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(root.Path)));
+                string? candidate = null;
+                if (selectedFolders.Contains(PathUtil.NormalizeForCompare(root.Path), PathUtil.SafetyComparer))
+                {
+                    if (PathUtil.IsSameOrUnder(destination.FullName, target) &&
+                        (transfer.Filter is null || transfer.Filter.IsMatch(destination.Name)))
+                        candidate = Path.Combine(root.Path, Path.GetRelativePath(target, destination.FullName));
+                }
+                else if (PathUtil.SafetyComparer.Equals(PathUtil.NormalizeForCompare(target), PathUtil.NormalizeForCompare(destination.FullName)))
+                    candidate = root.Path;
+                // The mapped file must also be covered by an actual durable direct-copy fill record.
+                if (candidate is not null && Path.GetDirectoryName(candidate) is { } parent && sourceFolders.Contains(parent, PathUtil.SafetyComparer))
+                    yield return new FileInfo(candidate);
+            }
+        }
         var since = job.CreatedUtc.AddSeconds(-2);
         int inspected = 0;
         foreach (var group in job.FillDirectories.GroupBy(f => f.Destination, PathUtil.SafetyComparer))
@@ -611,7 +674,7 @@ public static partial class JournalRecovery
                     if (inspected++ >= limit) return new CopyReview(incomplete, differing, true);
                     if (dst.CreationTimeUtc < since || dst.LinkTarget is not null || (dst.Attributes & FileAttributes.ReparsePoint) != 0 ||
                         dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) || dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
-                    var sources = sourceFolders.Select(folder => new FileInfo(Path.Combine(folder, dst.Name)))
+                    var sources = CandidateSources(dst, sourceFolders)
                         .Where(s => (selectedPaths.Contains(PathUtil.NormalizeForCompare(s.FullName)) ||
                             selectedFolders.Any(folder => PathUtil.IsSameOrUnder(s.FullName, folder))) &&
                             s.Exists && s.LinkTarget is null).ToList();
@@ -725,7 +788,8 @@ public static partial class JournalRecovery
     /// <summary>Every source path of the job (header or manifest), or null when they are not all known.</summary>
     public static IReadOnlyList<string>? LoadSources(InterruptedJob job)
     {
-        if (job.SourceCount <= job.Sources.Count) return job.Sources;
+        if (job.SourceCount < 0 || job.SourceCount > JobJournal.ManifestLimit) return null;
+        if (job.SourceCount == job.Sources.Count) return job.Sources;
         if (job.ManifestPath is not { } manifest) return null;
         try
         {

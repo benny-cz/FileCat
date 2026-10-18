@@ -42,9 +42,10 @@ public sealed class UnixTerminalShellSelectionTests
             new PortableShellServices().RunInTerminal(root,
                 "printf 'control' > " + ShellQuoting.QuotePosix(controlMarker), "sh");
 
-            Assert.True(SpinWait.SpinUntil(() => File.Exists(doneMarker), TimeSpan.FromSeconds(10)),
+            string terminalStatus = string.Empty;
+            Assert.True(SpinWait.SpinUntil(() => TryReadPublishedStatus(doneMarker, out terminalStatus), TimeSpan.FromSeconds(10)),
                 "The owned terminal did not finish its nested command.");
-            Assert.Equal("0", File.ReadAllText(doneMarker));
+            Assert.Equal("0", terminalStatus);
             Assert.Equal("control", File.ReadAllText(controlMarker));
             Assert.False(File.Exists(decoyMarker), "A writable PATH entry supplied FileCat's nested shell.");
         }
@@ -57,6 +58,48 @@ public sealed class UnixTerminalShellSelectionTests
             Environment.SetEnvironmentVariable("FILECAT_TERMINAL_DONE", oldDoneMarker);
             Directory.Delete(root, recursive: true);
             Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("21")]
+    public void Terminal_status_reader_waits_for_content_and_retains_the_published_status(string publishedStatus)
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-terminal-status-").FullName;
+        string doneMarker = Path.Combine(root, "terminal-done");
+        try
+        {
+            Assert.False(TryReadPublishedStatus(doneMarker, out string observed));
+            Assert.Empty(observed);
+
+            // Shell redirection creates the marker before printf publishes the exit status.
+            File.WriteAllText(doneMarker, string.Empty);
+            Assert.False(TryReadPublishedStatus(doneMarker, out observed));
+            Assert.Empty(observed);
+
+            File.WriteAllText(doneMarker, publishedStatus);
+            Assert.True(TryReadPublishedStatus(doneMarker, out observed));
+            Assert.Equal(publishedStatus, observed);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    private static bool TryReadPublishedStatus(string path, out string status)
+    {
+        try
+        {
+            status = File.ReadAllText(path);
+            return status.Length != 0;
+        }
+        catch (FileNotFoundException)
+        {
+            status = string.Empty;
+            return false;
         }
     }
 }

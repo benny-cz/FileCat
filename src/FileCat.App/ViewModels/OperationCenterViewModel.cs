@@ -29,6 +29,7 @@ public sealed partial class JobViewModel : ObservableObject
 
     private static string DescribeRoute(JobRequest r, Func<Location, string> display)
     {
+        if (r.UndoPlan is { } inverse) return $"Reversing {inverse.Steps.Count:N0} recorded actions from {Formatters.SafeName(inverse.OriginalTitle)}";
         string? from = null;
         try
         {
@@ -61,6 +62,8 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canResume;
     [ObservableProperty] private bool _canUndo;
+    [ObservableProperty] private bool _canShowUndoReport;
+    [ObservableProperty] private string _undoStatus = string.Empty;
     [ObservableProperty] private bool _canRetryElevated;
     /// <summary>A finished check of checksums and signatures whose results are still kept (D-57): they can be shown again.</summary>
     [ObservableProperty] private bool _canShowResults;
@@ -88,7 +91,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private string _graphCaption = string.Empty;
     private readonly OperationSpeedHistory _speedHistorySamples = new();
     private bool MeasuresItems => Job.Kind is JobKind.Delete or JobKind.Recycle or JobKind.CreateDirectory or
-        JobKind.CreateFile or JobKind.Rename or JobKind.Attributes or JobKind.Registry or JobKind.CreateLink or JobKind.ApplyCommand;
+        JobKind.CreateFile or JobKind.Rename or JobKind.Attributes or JobKind.Registry or JobKind.CreateLink or JobKind.ApplyCommand or JobKind.Undo;
 
     /// <summary>A large file gets a bar of its own; a small one is done before a bar would help.</summary>
     private const long OwnBarFrom = 16L << 20;
@@ -104,6 +107,14 @@ public sealed partial class JobViewModel : ObservableObject
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
         CanResume = j.IsPaused || j.State is JobState.Paused or JobState.Pausing;
         CanUndo = j.CanUndo;
+        CanShowUndoReport = IsFinished && j.UndoReport is not null;
+        UndoStatus = j.UndoState switch
+        {
+            UndoAttemptState.Reviewing => "Undo is being reviewed",
+            UndoAttemptState.Attempting => "Undo is running as a separate operation",
+            UndoAttemptState.Consumed => "Undo attempt consumed; its result is on the inverse operation",
+            _ => string.Empty,
+        };
         CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
         CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
         int issues = j.IssueCount;
@@ -152,7 +163,7 @@ public sealed partial class JobViewModel : ObservableObject
             // Done as asked: how much, and nothing more (the title says what). Counts matter when some items were not.
             parts.Clear();
             if (bd > 0) parts.Add(Formatters.SizeWithUnit(bd));
-            if (j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
+            if (j.Kind == JobKind.Undo || j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
         }
         DetailText = Formatters.SafeName(string.Join(" · ", parts));
         CurrentItem = j.CurrentItem is { } c ? Formatters.SafeName(Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c) : string.Empty;
@@ -178,6 +189,7 @@ public sealed partial class JobViewModel : ObservableObject
             {
                 JobKind.Copy => "Copying",
                 JobKind.Move => "Moving",
+                JobKind.Undo => "Applying recorded inverse actions",
                 JobKind.Recycle => "Moving to the Recycle Bin",
                 JobKind.Delete => "Deleting",
                 JobKind.Extract => "Extracting",
@@ -251,15 +263,20 @@ public sealed partial class JobViewModel : ObservableObject
 public sealed partial class InterruptedJobViewModel(InterruptedJob job) : ObservableObject
 {
     public InterruptedJob Job { get; } = job;
-    public string Title => $"{Job.Title} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
+    public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
     public string Details => $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
-        : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.");
+        : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
+        (Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && !CanRunAgain
+            ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable. Review a new transfer to choose its scope and options again.") : "");
 
     public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…" : "Clean up partial files";
 
-    /// <summary>A copy or move whose sources are all known can continue with a new job.</summary>
-    public bool CanRunAgain => Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.Destination is not null && Job.SourcesKnown;
+    /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
+    public bool CanRunAgain => Job.CanContinueTransfer;
+    public string ContinueLabel => Job.Kind == nameof(JobKind.Move) ? "Continue move…" : "Continue copy…";
+    public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
+        RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
 }
 
 /// <summary>User-facing operation history and control (plan §19.2): not a dump of technical logs.</summary>

@@ -17,7 +17,10 @@ namespace FileCat.App.Controls;
 public sealed class HexView : Control
 {
     public const int BytesPerRow = 16;
-    private readonly ScrollBar _vbar;
+    private readonly ScrollBar _vbar, _hbar;
+    private double _horizontalOffset;
+    private Size _viewportSize;
+    private bool _updatingScroll;
     private PagedReader? _reader;
     private long _topRow;
     private long _cursor;
@@ -26,7 +29,9 @@ public sealed class HexView : Control
     private double _fontSize = 13;
     private double _charWidth = 8;
     private double _rowHeight = 18;
-    private bool _pendingInvalidate;
+    private Action? _pageLoaded;
+    private long _readerGeneration;
+    private string _committedValue = "No content", _editingState = "Read-only inspection";
     private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _cursorBrush = Brushes.Blue, _bg = Brushes.White, _hit = Brushes.Yellow, _modified = Brushes.Orange;
     private (long Start, long Length)? _highlight;
 
@@ -34,22 +39,35 @@ public sealed class HexView : Control
     {
         Focusable = true;
         ClipToBounds = true;
-        CursorMoved += () => _automationPeer?.AnnounceCursor();
+        CursorMoved += RefreshSemanticState;
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
+        _hbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Horizontal, AllowAutoHide = false };
+        Avalonia.Automation.AutomationProperties.SetName(_vbar, "Hex vertical position");
+        Avalonia.Automation.AutomationProperties.SetName(_hbar, "Hex horizontal position");
         _vbar.PropertyChanged += (_, e) =>
         {
-            if (e.Property == RangeBase.ValueProperty && _reader is not null)
+            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null)
             {
                 long top = (long)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
                     _topRow = top;
+                    RefreshSemanticState();
                     InvalidateVisual();
                 }
             }
         };
         VisualChildren.Add(_vbar);
         LogicalChildren.Add(_vbar);
+        _hbar.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != RangeBase.ValueProperty || _updatingScroll) return;
+            _horizontalOffset = _hbar.Value;
+            RefreshSemanticState();
+            InvalidateVisual();
+        };
+        VisualChildren.Add(_hbar);
+        LogicalChildren.Add(_hbar);
     }
 
     public event Action? CursorMoved;
@@ -60,7 +78,13 @@ public sealed class HexView : Control
     public int PendingNibble
     {
         get => _pendingNibble;
-        set { _pendingNibble = value; InvalidateVisual(); }
+        set
+        {
+            if (_pendingNibble == value) return;
+            _pendingNibble = value;
+            InvalidateVisual();
+            RefreshSemanticState();
+        }
     }
 
     /// <summary>Editing: typing goes to the text column; the cursor there is drawn as the stronger one.</summary>
@@ -71,6 +95,7 @@ public sealed class HexView : Control
         {
             if (_textColumnActive == value) return;
             _textColumnActive = value;
+            EnsureHorizontalVisible();
             InvalidateVisual();
             CursorMoved?.Invoke();
         }
@@ -78,6 +103,22 @@ public sealed class HexView : Control
 
     /// <summary>Clicks choose the active column (hex or text) for an editor.</summary>
     public bool TracksActiveColumn { get; set; }
+
+    /// <summary>Describes the host's actual byte-editing eligibility without turning this descriptive Value into SetValue.</summary>
+    public void SetEditingState(bool canEdit, int unsavedBytes, string? blockedReason = null)
+    {
+        string state = canEdit ? "Byte editing available" : "Byte editing blocked: " + (blockedReason ?? "Editing is unavailable");
+        state += unsavedBytes > 0 ? $"; {unsavedBytes:N0} modified bytes, unsaved" : "; no unsaved changes";
+        if (_editingState == state) return;
+        _editingState = state;
+        RefreshSemanticState();
+    }
+
+    internal string SemanticStatus => DescribeState();
+    internal double HorizontalOffset => _horizontalOffset;
+    private double VerticalBarWidth => _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
+    private double HorizontalBarHeight => _hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12;
+    internal Rect ContentViewport => new(0, 0, Math.Max(0, _viewportSize.Width - VerticalBarWidth), Math.Max(0, _viewportSize.Height - HorizontalBarHeight));
 
     private int _pendingNibble = -1;
     private bool _textColumnActive;
@@ -96,15 +137,30 @@ public sealed class HexView : Control
 
     /// <summary>The cursor byte and its row, for assistive technology (never blocks on I/O).</summary>
     internal string DescribeCursor()
+        => _committedValue;
+
+    private string DescribeState()
     {
-        if (_reader is null) return "No content";
+        var (start, length) = Selection;
+        return (length > 0 ? $"Selected bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes; " : "No byte selection; ")
+            + (TracksActiveColumn ? $"active typing column: {(_textColumnActive ? "text (ASCII)" : "hex")}; " : "read-only byte inspection; ")
+            + (_pendingNibble >= 0 ? $"pending first nibble {_pendingNibble:X}, type the second digit; " : "")
+            + _editingState + $"; viewport begins at byte {_topRow * BytesPerRow:N0}, horizontal position {_horizontalOffset:0}.";
+    }
+
+    /// <summary>Commit a bounded cached-row snapshot, then publish it. Getters and event payloads never start I/O.</summary>
+    private void RefreshSemanticState()
+    {
+        if (_reader is null) { _committedValue = "No content"; _automationPeer?.AnnounceCursor(); return; }
         long row = _cursor / BytesPerRow * BytesPerRow;
         Span<byte> bytes = stackalloc byte[BytesPerRow];
         _reader.TryRead(row, bytes, out int n);
         int at = (int)(_cursor - row);
         var hex = string.Join(" ", bytes[..n].ToArray().Select(b => b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)));
         var value = at < n ? $"byte {bytes[at]:X2} hex" : "byte not loaded yet";
-        return $"Offset {_cursor:N0} of {_reader.Length:N0}, {value}; row {row:X8}: {hex}";
+        _committedValue = $"Offset {_cursor:N0} of {_reader.Length:N0}, {value}; row {row:X8}: {hex}. " + DescribeState();
+        if (_reader.ReadError is { } error) _committedValue += " Incomplete reading: " + error;
+        _automationPeer?.AnnounceCursor();
     }
 
     public long CursorOffset => _cursor;
@@ -126,33 +182,52 @@ public sealed class HexView : Control
         {
             _fontSize = Math.Clamp(value, 8, 32);
             Measure();
+            EnsureHorizontalVisible();
+            UpdateScroll();
+            RefreshSemanticState();
             InvalidateVisual();
         }
     }
 
     public void SetReader(PagedReader? reader)
     {
-        if (_reader is not null) _reader.PageLoaded -= OnPageLoaded;
+        if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
         _reader = reader;
-        if (reader is not null) reader.PageLoaded += OnPageLoaded;
+        long generation = ++_readerGeneration;
+        if (reader is not null)
+        {
+            int queued = 0;
+            _pageLoaded = () =>
+            {
+                if (Interlocked.Exchange(ref queued, 1) != 0) return;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    Interlocked.Exchange(ref queued, 0);
+                    if (!ReferenceEquals(_reader, reader) || generation != _readerGeneration) return;
+                    RefreshSemanticState(); InvalidateVisual();
+                }, DispatcherPriority.Background);
+            };
+            reader.PageLoaded += _pageLoaded;
+        }
         _topRow = 0;
         _cursor = 0;
         _anchor = -1;
+        _pendingNibble = -1;
+        _horizontalOffset = 0;
         Measure();
         UpdateScroll();
         InvalidateVisual();
+        RefreshSemanticState();
     }
 
-    private void OnPageLoaded()
+    public void SourceChanged()
     {
-        if (_pendingInvalidate) return;
-        _pendingInvalidate = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _pendingInvalidate = false;
-            InvalidateVisual();
-        }, DispatcherPriority.Render);
+        _anchor = -1; _pendingNibble = -1;
+        _cursor = Math.Clamp(_cursor, 0, Math.Max(0, (_reader?.Length ?? 0) - 1));
+        UpdateScroll(); RefreshSemanticState(); InvalidateVisual();
     }
+
+    public void ContentChanged() { RefreshSemanticState(); InvalidateVisual(); }
 
     public void ResolveBrushes()
     {
@@ -180,8 +255,8 @@ public sealed class HexView : Control
         _rowHeight = Math.Ceiling(_fontSize * 1.45);
     }
 
-    private long RowCount => _reader is null ? 0 : (_reader.Length + BytesPerRow - 1) / BytesPerRow;
-    private int VisibleRows => Math.Max(1, (int)(Bounds.Height / _rowHeight));
+    private long RowCount => _reader is null ? 0 : _reader.Length / BytesPerRow + (_reader.Length % BytesPerRow > 0 ? 1 : 0);
+    private int VisibleRows => Math.Max(1, (int)(ContentViewport.Height / _rowHeight));
     private int OffsetDigits => _reader is null || _reader.Length <= 0xFFFFFFFFL ? 8 : _reader.Length <= 0xFFFFFFFFFFFFL ? 12 : 16;
 
     /// <summary>Room left of the offsets, so they do not touch the window's edge.</summary>
@@ -191,8 +266,10 @@ public sealed class HexView : Control
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        double sbw = _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
-        _vbar.Arrange(new Rect(finalSize.Width - sbw, 0, sbw, finalSize.Height));
+        _viewportSize = finalSize;
+        _vbar.Arrange(new Rect(Math.Max(0, finalSize.Width - VerticalBarWidth), 0, VerticalBarWidth, ContentViewport.Height));
+        _hbar.Arrange(new Rect(0, ContentViewport.Height, ContentViewport.Width, HorizontalBarHeight));
+        EnsureHorizontalVisible();
         UpdateScroll();
         return finalSize;
     }
@@ -200,11 +277,13 @@ public sealed class HexView : Control
     protected override Size MeasureOverride(Size availableSize)
     {
         _vbar.Measure(availableSize);
+        _hbar.Measure(availableSize);
         return new Size(double.IsInfinity(availableSize.Width) ? 600 : availableSize.Width, double.IsInfinity(availableSize.Height) ? 400 : availableSize.Height);
     }
 
     private void UpdateScroll()
     {
+        _updatingScroll = true;
         long max = Math.Max(0, RowCount - VisibleRows);
         _topRow = Math.Clamp(_topRow, 0, max);
         _vbar.Maximum = max;
@@ -212,26 +291,35 @@ public sealed class HexView : Control
         _vbar.LargeChange = Math.Max(1, VisibleRows - 1);
         _vbar.SmallChange = 1;
         _vbar.Value = _topRow;
+        _hbar.Maximum = Math.Max(0, TextColumnX + BytesPerRow * _charWidth + Gutter - ContentViewport.Width);
+        _hbar.ViewportSize = Math.Max(1, ContentViewport.Width);
+        _hbar.SmallChange = _charWidth * 4;
+        _hbar.LargeChange = Math.Max(_charWidth, ContentViewport.Width * .8);
+        _horizontalOffset = Math.Clamp(_horizontalOffset, 0, _hbar.Maximum);
+        _hbar.Value = _horizontalOffset;
+        _updatingScroll = false;
     }
 
     public override void Render(DrawingContext dc)
     {
         dc.FillRectangle(_bg, new Rect(Bounds.Size));
         if (_reader is null) return;
+        using var clip = dc.PushClip(ContentViewport);
         int digits = OffsetDigits;
-        double xHex = HexColumnX;
-        double xText = TextColumnX;
+        double xHex = HexColumnX - _horizontalOffset;
+        double xText = TextColumnX - _horizontalOffset;
         var sel = Selection;
         var buffer = new byte[BytesPerRow];
         long len = _reader.Length;
         for (int r = 0; r <= VisibleRows; r++)
         {
             long row = _topRow + r;
+            if (row >= RowCount && len > 0) break;
             long offset = row * BytesPerRow;
             if (offset >= len && len > 0 || len == 0 && r > 0) break;
             double y = r * _rowHeight;
             bool ok = _reader.TryRead(offset, buffer, out int n);
-            DrawText(dc, offset.ToString("X" + digits, CultureInfo.InvariantCulture), Gutter, y, _muted);
+            DrawText(dc, offset.ToString("X" + digits, CultureInfo.InvariantCulture), Gutter - _horizontalOffset, y, _muted);
             var hex = new StringBuilder(BytesPerRow * 3 + 2);
             var text = new StringBuilder(BytesPerRow);
             for (int i = 0; i < BytesPerRow; i++)
@@ -305,7 +393,7 @@ public sealed class HexView : Control
         if (select && length > 0)
         {
             _anchor = offset;
-            _cursor = Math.Min(max, offset + length - 1);
+            _cursor = offset + Math.Min(max - offset, length - 1);
         }
         else
         {
@@ -321,6 +409,7 @@ public sealed class HexView : Control
         long row = _cursor / BytesPerRow;
         if (row < _topRow) _topRow = row;
         else if (row >= _topRow + VisibleRows) _topRow = row - VisibleRows + 1;
+        EnsureHorizontalVisible();
         UpdateScroll();
         InvalidateVisual();
         CursorMoved?.Invoke();
@@ -330,19 +419,24 @@ public sealed class HexView : Control
     {
         base.OnKeyDown(e);
         if (_reader is null || e.Handled) return;
+        if ((e.KeyModifiers & KeyModifiers.Alt) != 0 && e.Key is Key.Left or Key.Right)
+        {
+            _horizontalOffset += (e.Key == Key.Left ? -1 : 1) * _charWidth * 8;
+            UpdateScroll(); RefreshSemanticState(); InvalidateVisual(); e.Handled = true; return;
+        }
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         long len = _reader.Length;
         long target = e.Key switch
         {
             Key.Left => _cursor - 1,
-            Key.Right => _cursor + 1,
+            Key.Right => _cursor + Math.Min(1, Math.Max(0, len - 1 - _cursor)),
             Key.Up => _cursor - BytesPerRow,
-            Key.Down => _cursor + BytesPerRow,
+            Key.Down => _cursor + Math.Min(BytesPerRow, Math.Max(0, len - 1 - _cursor)),
             Key.PageUp => _cursor - BytesPerRow * (VisibleRows - 1),
-            Key.PageDown => _cursor + BytesPerRow * (VisibleRows - 1),
+            Key.PageDown => _cursor + Math.Min(BytesPerRow * (long)Math.Max(1, VisibleRows - 1), Math.Max(0, len - 1 - _cursor)),
             Key.Home => ctrl ? 0 : _cursor - _cursor % BytesPerRow,
-            Key.End => ctrl ? len - 1 : _cursor - _cursor % BytesPerRow + BytesPerRow - 1,
+            Key.End => ctrl ? len - 1 : _cursor + Math.Min(BytesPerRow - 1 - _cursor % BytesPerRow, Math.Max(0, len - 1 - _cursor)),
             _ => long.MinValue,
         };
         if (target == long.MinValue) return;
@@ -359,9 +453,10 @@ public sealed class HexView : Control
         base.OnPointerPressed(e);
         Focus();
         var p = e.GetPosition(this);
+        if (!ContentViewport.Contains(p) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         long pos = HitTest(p);
         if (pos < 0) return;
-        if (TracksActiveColumn) _textColumnActive = p.X >= TextColumnX;
+        _textColumnActive = p.X + _horizontalOffset >= TextColumnX;
         if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
         {
             if (_anchor < 0) _anchor = _cursor;
@@ -392,10 +487,28 @@ public sealed class HexView : Control
 
     private double TextColumnX => HexColumnX + (BytesPerRow * 3 + 2) * _charWidth;
 
+    internal Rect CursorBounds(bool textColumn)
+    {
+        int col = (int)(_cursor % BytesPerRow);
+        double x = textColumn ? TextColumnX + col * _charWidth : HexColumnX + (col * 3 + (col >= 8 ? 1 : 0)) * _charWidth - 1;
+        return new Rect(x - _horizontalOffset, (_cursor / BytesPerRow - _topRow) * _rowHeight,
+            textColumn ? _charWidth : _charWidth * 2 + 2, _rowHeight);
+    }
+
+    private void EnsureHorizontalVisible()
+    {
+        if (_reader is null || ContentViewport.Width <= 0) return;
+        Rect cursor = CursorBounds(_textColumnActive);
+        if (cursor.Left < Gutter) _horizontalOffset += cursor.Left - Gutter;
+        else if (cursor.Right > ContentViewport.Width - Gutter) _horizontalOffset += cursor.Right - ContentViewport.Width + Gutter;
+        UpdateScroll();
+    }
+
     private long HitTest(Point p)
     {
         if (_reader is null) return -1;
         long row = _topRow + (long)(p.Y / _rowHeight);
+        p = new Point(p.X + _horizontalOffset, p.Y);
         double xHex = HexColumnX;
         double xText = TextColumnX;
         int col;
@@ -413,8 +526,11 @@ public sealed class HexView : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        _topRow -= (long)Math.Round(e.Delta.Y * 3);
+        if ((e.KeyModifiers & KeyModifiers.Shift) != 0 || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y))
+            _horizontalOffset -= (e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * _charWidth * 4;
+        else _topRow -= (long)Math.Round(e.Delta.Y * 3);
         UpdateScroll();
+        RefreshSemanticState();
         InvalidateVisual();
         e.Handled = true;
     }

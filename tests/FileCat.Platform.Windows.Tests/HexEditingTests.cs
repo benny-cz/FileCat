@@ -17,7 +17,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Save_as_creates_exact_new_file_without_touching_original()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexcopy-");
         string originalPath = Path.Combine(directory, "original.bin");
         string copyPath = Path.Combine(directory, "copy.bin");
@@ -53,7 +53,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Exported_patch_applies_only_where_every_original_byte_matches()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexpatch-");
         string target = Path.Combine(directory, "target.bin");
         string other = Path.Combine(directory, "other.bin");
@@ -96,7 +96,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Patch_import_checks_the_opened_file_size_before_reading_a_link_target()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexpatch-bound-");
         try
         {
@@ -125,7 +125,7 @@ public sealed partial class HexEditingTests
     {
         // Release plan DPI P05: the patch's ranges were staged one by one until the touched-byte limit stopped one, and
         // the editor said nothing was applied while the first ranges stayed as unsaved edits, for a later save to write.
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexlimit-");
         string target = Path.Combine(directory, "big.bin");
         const int MiB = 1024 * 1024;
@@ -151,7 +151,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Sparse_save_as_keeps_holes_and_the_download_mark()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexsparse-");
         string source = Path.Combine(directory, "sparse.bin");
         string copy = Path.Combine(directory, "copy.bin");
@@ -196,7 +196,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Save_as_does_not_publish_when_the_download_mark_cannot_be_read()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexmarklocked-");
         string source = Path.Combine(directory, "source.bin");
         string copy = Path.Combine(directory, "copy.bin");
@@ -224,7 +224,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Save_as_does_not_publish_an_oversized_download_mark()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexmarklarge-");
         string source = Path.Combine(directory, "source.bin");
         string copy = Path.Combine(directory, "copy.bin");
@@ -248,7 +248,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Protected_open_refuses_empty_read_only_shared_and_linked_files_with_reasons()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexopen-");
         try
         {
@@ -278,7 +278,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Interrupted_save_reports_its_state_and_recovers_through_the_open_editor_handle()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexinterrupt-");
         string target = Path.Combine(directory, "target.bin");
         string journals = Path.Combine(directory, "journals");
@@ -322,7 +322,7 @@ public sealed partial class HexEditingTests
     [InlineData(true)]
     public void A_range_torn_by_a_crash_is_recognized_and_recovered_either_way(bool rollback)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hextorn-");
         string target = Path.Combine(directory, "target.bin");
         string journals = Path.Combine(directory, "journals");
@@ -365,7 +365,7 @@ public sealed partial class HexEditingTests
     [Fact]
     public void Recovery_rejects_unrelated_changes_and_preserves_journal()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Protected hex-file handles, identities and publication require Windows.");
         string directory = NewDirectory("filecat-hexguard-");
         string target = Path.Combine(directory, "target.bin");
         string journals = Path.Combine(directory, "journals");

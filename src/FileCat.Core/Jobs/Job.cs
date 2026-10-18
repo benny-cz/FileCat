@@ -8,7 +8,7 @@ namespace FileCat.Core.Jobs;
 /// read by the UI at a bounded rate; the UI never receives one notification per byte (PI-01).
 /// A job captures its sources and destination at creation; later UI changes cannot retarget it (AI-07).
 /// </summary>
-public sealed class Job
+public sealed partial class Job
 {
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
@@ -207,11 +207,7 @@ public sealed class Job
 
     public bool CanUndo
     {
-        get
-        {
-            if (State is not (JobState.Completed or JobState.CompletedWithIssues)) return false;
-            lock (_lock) return _undo.Count > 0;
-        }
+        get => UndoState == UndoAttemptState.Available;
     }
 
     /// <summary>Undo is recorded for at most this many steps; larger operations say why it is not offered.</summary>
@@ -428,7 +424,7 @@ public sealed class Job
     /// <summary>Undo was performed (or attempted); the steps are not offered again.</summary>
     public void MarkUndone()
     {
-        lock (_lock) _undo.Clear();
+        lock (_lock) { _undo.Clear(); _undoConsumed = true; _undoReservation = null; }
         Changed?.Invoke(this);
     }
 

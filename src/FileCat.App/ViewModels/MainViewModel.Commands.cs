@@ -406,6 +406,9 @@ public sealed partial class MainViewModel
             case CommandIds.UnmarkHidden:
                 listing?.UnmarkHidden();
                 break;
+            case CommandIds.ReviewMarks:
+                if (tab is not null) await Views.MarkedItemsReview.ShowAsync(tab, Dialogs);
+                break;
 
             // ---- View --------------------------------------------------------------------------------
             case CommandIds.SortName:

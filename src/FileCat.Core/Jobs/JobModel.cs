@@ -34,6 +34,8 @@ public enum JobKind
     ApplyCommand,
     /// <summary>Check the sources against the checksum files and signatures beside them (D-57); read-only.</summary>
     VerifyBeside,
+    /// <summary>A reserved, reviewed filesystem inverse with tracked mutation ownership and retained outcomes.</summary>
+    Undo,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -136,6 +138,8 @@ public sealed class TransferOptions
 
 public sealed class JobRequest
 {
+    /// <summary>The immutable captured inverse; ordinary callers obtain it through a Job Undo reservation.</summary>
+    public UndoPlan? UndoPlan { get; init; }
     public required JobKind Kind { get; init; }
     public IReadOnlyList<ItemRef> Sources { get; init; } = [];
     public Location? Destination { get; init; }
@@ -294,6 +298,9 @@ public sealed record ErrorRequest(string Title, string Message, string Path, boo
 
 public sealed record ConfirmRequest(string Title, string Message, string Path, string ConfirmClass, IReadOnlyList<DecisionAction> Actions) : DecisionRequest(Title, Message)
 {
+    /// <summary>The initial keyboard action, independent of the display order. Unsupported choices fall back to Cancel.</summary>
+    public DecisionAction InitialAction { get; init; } = DecisionAction.Skip;
+
     /// <summary>Button text for <see cref="DecisionAction.Proceed"/> (what proceeding does, in plain words).</summary>
     public string? ProceedLabel { get; init; }
 

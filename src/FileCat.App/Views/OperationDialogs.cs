@@ -19,7 +19,11 @@ namespace FileCat.App.Views;
 
 /// <param name="Panels">The folders of the panels F5 and F6 can go to, offered as one-click destinations when there are several.</param>
 public sealed record TransferDialogInput(JobKind Kind, IReadOnlyList<ItemRef> Items, string Summary, string Destination, string? TargetLabel, int HiddenMarked, bool FromResultSet,
-    IReadOnlyList<PanelDestination>? Panels = null);
+    IReadOnlyList<PanelDestination>? Panels = null)
+{
+    /// <summary>A legacy recovery is an explicitly new transfer; show its missing intent beside the editable options.</summary>
+    public string? RecoveryReviewNotice { get; init; }
+}
 
 /// <summary>A panel's folder as a destination: its number, a short name, and the text that goes in the destination box.</summary>
 public sealed record PanelDestination(int Number, string Name, string Destination);
@@ -54,7 +58,8 @@ public static class OperationDialogs
     public static async Task<TransferDialogResult?> ShowTransferAsync(MainViewModel vm, TransferDialogInput input)
     {
         string verb = input.Kind == JobKind.Move ? "Move" : "Copy";
-        var body = new StackPanel { Spacing = 6, MinWidth = 560 };
+        var body = new StackPanel { Spacing = 6 };
+        if (input.RecoveryReviewNotice is { } recoveryNotice) body.Children.Add(Text(recoveryNotice));
         // The title is the verb; the body says what (one item by name, several counted and then named).
         var single = input.Items.Count == 1 ? input.Items[0] : null;
         string what = single is null ? input.Summary
@@ -62,7 +67,7 @@ public static class OperationDialogs
               (single is { IsContainer: false, Size: >= 0 } ? $" ({Formatters.SizeWithUnit(single.Size)})" : string.Empty);
         body.Children.Add(Text($"{verb} {what}", bold: true));
         if (single is null) body.Children.Add(Muted(NameList(input.Items)));
-        var toLabel = new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) };
+        var toLabel = new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         body.Children.Add(toLabel);
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
@@ -114,32 +119,19 @@ public static class OperationDialogs
         var conflicts = new ComboBox
         {
             ItemsSource = new[] { "Ask each time", "Skip existing", "Replace", "Replace if newer", "Keep both: rename the copy", "Keep both: rename the existing item" },
-            SelectedIndex = 0,
+            SelectedIndex = input.RecoveryReviewNotice is null ? 0 : 1,
             MinWidth = 260,
         };
         var verify = new ComboBox { ItemsSource = new[] { "Size and metadata (fast)", "Read back and compare content" }, SelectedIndex = vm.Services.Settings.DefaultVerify == "ReadBack" ? 1 : 0, MinWidth = 260 };
         var filter = new TextBox { PlaceholderText = "all files (mask, e.g. *.cs;*.axaml|*Test*)", MinWidth = 260 };
         var limit = new TextBox { PlaceholderText = "unlimited", MinWidth = 120 };
         var flatten = new CheckBox { Content = "Flatten: put all items directly into the destination (instead of keeping their folders)", IsVisible = input.FromResultSet };
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"), Margin = new Thickness(0, 4, 0, 0) };
-        void Row(int r, string label, Control c)
-        {
-            var l = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 3, 12, 3) };
-            Grid.SetRow(l, r);
-            Grid.SetRow(c, r);
-            Grid.SetColumn(c, 1);
-            c.Margin = new Thickness(0, 3);
-            grid.Children.Add(l);
-            grid.Children.Add(c);
-        }
-        Row(0, "If an item already exists:", conflicts);
-        Row(1, "Verification:", verify);
-        Row(2, "Only files matching:", filter);
-        Row(3, "Speed limit (MB/s):", limit);
+        var grid = new DialogForm(("If an item already exists:", conflicts), ("Verification:", verify),
+            ("Only files matching:", filter), ("Speed limit (MB/s):", limit)) { Margin = new Thickness(0, 4, 0, 0) };
         var optionsPanel = new StackPanel { Spacing = 4 };
         optionsPanel.Children.Add(grid);
         optionsPanel.Children.Add(flatten);
-        var expander = new Expander { Header = "Options", Content = optionsPanel, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var expander = new Expander { Header = "Options", Content = optionsPanel, HorizontalAlignment = HorizontalAlignment.Stretch, IsExpanded = input.RecoveryReviewNotice is not null };
         body.Children.Add(expander);
         CheckBox? includeHidden = null;
         if (input.HiddenMarked > 0)
@@ -200,7 +192,7 @@ public static class OperationDialogs
 
         while (true)
         {
-            var result = await vm.Dialogs.ShowCustomAsync(verb, body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Queue", "queue"), new DialogButton(verb, "start", IsDefault: true)], dest);
+            var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Queue", "queue"), new DialogButton(verb, "start", IsDefault: true)], dest);
             if (result is not ("start" or "queue")) return null;
             Mask? mask = null;
             if (!string.IsNullOrWhiteSpace(filter.Text))
@@ -269,7 +261,7 @@ public static class OperationDialogs
 
     public static async Task<DeleteDialogResult?> ShowDeleteAsync(MainViewModel vm, DeleteDialogInput input)
     {
-        var body = new StackPanel { Spacing = 6, MinWidth = 520 };
+        var body = new StackPanel { Spacing = 6 };
         string what = input.Items.Count == 1 ? $"\"{Formatters.SafeName(input.Items[0].Name)}\"" : input.Summary;
         body.Children.Add(Text(input.Permanent
             ? $"Delete {what} permanently? This cannot be undone."
@@ -306,18 +298,34 @@ public static class OperationDialogs
     public static async Task<Decision> ShowDecisionAsync(MainViewModel vm, PendingDecision pending)
     {
         var job = pending.Job;
-        return pending.Request switch
+        if (job.Token.IsCancellationRequested || pending.Task.IsCompleted) return new Decision(DecisionAction.CancelJob);
+        var closer = new DialogCloser();
+        var dialog = pending.Request switch
         {
-            ConflictRequest c => await ConflictAsync(vm, job, c),
-            ErrorRequest e => await ErrorAsync(vm, job, e),
-            ConfirmRequest cr => await ConfirmAsync(vm, job, cr),
-            _ => new Decision(DecisionAction.CancelJob),
+            ConflictRequest c => ConflictAsync(vm, job, c, closer),
+            ErrorRequest e => ErrorAsync(vm, job, e, closer),
+            ConfirmRequest cr => ConfirmAsync(vm, job, cr, closer),
+            _ => Task.FromResult(new Decision(DecisionAction.CancelJob)),
         };
+        using var stopped = new CancellationTokenSource();
+        using var canceled = job.Token.Register(() => vm.Services.Ui.Post(() => closer.Close(DecisionAction.CancelJob)));
+        async Task ObserveResolution()
+        {
+            try
+            {
+                await pending.Task.WaitAsync(stopped.Token);
+                closer.Close(DecisionAction.CancelJob);
+            }
+            catch (OperationCanceledException) when (stopped.IsCancellationRequested) { }
+        }
+        var observation = ObserveResolution();
+        try { return await dialog; }
+        finally { stopped.Cancel(); await observation; }
     }
 
-    private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c)
+    private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c, DialogCloser closer)
     {
-        var body = new StackPanel { Spacing = 8, MinWidth = 600 };
+        var body = new StackPanel { Spacing = 8 };
         body.Children.Add(Muted(job.Title));
         // The title above usually names the destination already: the folder is repeated only when it says more.
         string folder = Path.GetDirectoryName(c.DestinationPath) ?? string.Empty;
@@ -347,10 +355,25 @@ public static class OperationDialogs
             Cell(3, 2, existingAttributes);
         }
         body.Children.Add(grid);
-        if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", Classes = { "warning" } });
-        if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", Classes = { "warning" } });
+        if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        void SuggestedName(string label, string? name)
+        {
+            if (name is null) return;
+            body.Children.Add(Muted(label));
+            string display = Formatters.SafeName(name);
+            var value = new SelectableTextBlock { Text = display, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetName(value, label);
+            if (!string.Equals(display, name, StringComparison.Ordinal))
+                AutomationProperties.SetHelpText(value, "Invisible control and bidirectional characters are shown as escape sequences. The proposed filename is unchanged.");
+            body.Children.Add(value);
+            if (!string.Equals(display, name, StringComparison.Ordinal))
+                body.Children.Add(Muted("Invisible characters are shown as escape sequences in this proposed name."));
+        }
+        SuggestedName("Keep both: incoming copy name", c.SuggestedIncomingName);
+        if (!c.TypeMismatch) SuggestedName("Rename existing: existing item name", c.SuggestedExistingName);
 
-        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var tools = DialogLayout.Actions();
         var compareResult = Muted(string.Empty);
         bool dialogOpen = true;
         CancellationTokenSource? comparison = null;
@@ -397,17 +420,17 @@ public static class OperationDialogs
         var buttons = new List<DialogButton>();
         if (c.CanReplace)
         {
-            buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDefault: true));
-            buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer));
+            buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDanger: true));
+            buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer, IsDanger: true));
         }
-        buttons.Add(new DialogButton("Skip", DecisionAction.Skip, IsDefault: !c.CanReplace && !c.SameItem));
-        buttons.Add(new DialogButton($"Keep both{(c.SuggestedIncomingName is null ? "" : $" (\"{c.SuggestedIncomingName}\")")}", DecisionAction.KeepBothRenameIncoming, IsDefault: c.SameItem));
+        buttons.Add(new DialogButton("Skip", DecisionAction.Skip, IsDefault: true));
+        buttons.Add(new DialogButton("Keep both", DecisionAction.KeepBothRenameIncoming));
         if (c.SuggestedExistingName is not null && !c.TypeMismatch)
             buttons.Add(new DialogButton("Rename existing", DecisionAction.KeepBothRenameExisting));
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
         try
         {
-            var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons);
+            var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
             return r is DecisionAction a ? new Decision(a, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
         }
         finally
@@ -418,9 +441,9 @@ public static class OperationDialogs
         }
     }
 
-    private static async Task<Decision> ErrorAsync(MainViewModel vm, Job job, ErrorRequest e)
+    private static async Task<Decision> ErrorAsync(MainViewModel vm, Job job, ErrorRequest e, DialogCloser closer)
     {
-        var body = new StackPanel { Spacing = 6, MinWidth = 520 };
+        var body = new StackPanel { Spacing = 6 };
         body.Children.Add(Muted(job.Title));
         body.Children.Add(Text(e.Message));
         if (e.Path.Length > 0) body.Children.Add(Muted(e.Path));
@@ -439,7 +462,8 @@ public static class OperationDialogs
         if (isAuth) buttons.Insert(0, new DialogButton("Sign in…", "signin"));
         while (true)
         {
-            var r = await vm.Dialogs.ShowCustomAsync(e.Title, body, buttons);
+            if (job.Token.IsCancellationRequested) return new Decision(DecisionAction.CancelJob);
+            var r = await vm.Dialogs.ShowCustomAsync(e.Title, body, buttons, closer: closer);
             if (r as string == "signin")
             {
                 await vm.SignInToServerAsync(PathUtil.GetUncServer(e.Path)!);
@@ -450,14 +474,15 @@ public static class OperationDialogs
         }
     }
 
-    private static async Task<Decision> ConfirmAsync(MainViewModel vm, Job job, ConfirmRequest c)
+    private static async Task<Decision> ConfirmAsync(MainViewModel vm, Job job, ConfirmRequest c, DialogCloser closer)
     {
         var body = new StackPanel { Spacing = 6, MinWidth = 480 };
         body.Children.Add(Muted(job.Title));
         body.Children.Add(Text(c.Message));
         var applyAll = new CheckBox { Content = "Do the same for similar items in this operation" };
         body.Children.Add(applyAll);
-        var buttons = c.Actions.Select((a, i) => new DialogButton(a switch
+        var initial = c.Actions.Contains(c.InitialAction) ? c.InitialAction : DecisionAction.CancelJob;
+        var buttons = c.Actions.Select(a => new DialogButton(a switch
         {
             DecisionAction.Proceed => c.ProceedLabel ?? "Delete anyway",
             DecisionAction.KeepSource => "Copy instead (keep the original)",
@@ -466,8 +491,8 @@ public static class OperationDialogs
             DecisionAction.CreateJunction => "Create a junction",
             DecisionAction.CancelJob => "Cancel operation",
             _ => a.ToString(),
-        }, a, IsDefault: i == 0, IsCancel: a == DecisionAction.CancelJob)).ToList();
-        var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons);
+        }, a, IsDefault: a == initial, IsCancel: a == DecisionAction.CancelJob, IsDanger: a == DecisionAction.Proceed)).ToList();
+        var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
         return r is DecisionAction act ? new Decision(act, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
     }
 
@@ -511,7 +536,7 @@ public static class OperationDialogs
         var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
         Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
         // One line for one file (and room for a scroll bar under a long SHA-512 line); more for more.
-        var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = files.Count == 1 ? 56 : 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap, MinWidth = 640 };
+        var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = files.Count == 1 ? 56 : 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap };
         Avalonia.Automation.AutomationProperties.SetName(output, "Checksums");
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };

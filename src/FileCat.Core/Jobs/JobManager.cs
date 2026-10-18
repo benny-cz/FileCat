@@ -57,18 +57,42 @@ public sealed class JobManager
         }
     }
 
-    public Job Submit(JobRequest request)
+    public Job Submit(JobRequest request) => Submit(request, null);
+
+    /// <summary>Transfers an approved reservation into independently tracked mutation and shutdown ownership.</summary>
+    public Job SubmitUndo(UndoReservation reservation)
     {
+        ArgumentNullException.ThrowIfNull(reservation);
+        var plan = reservation.Plan;
+        if (plan.Steps.Count == 0) throw new ArgumentException("No inverse steps were recorded.", nameof(reservation));
+        bool registry = plan.Steps.All(s => s.Kind == UndoKind.RegistryInverse);
+        if (!registry && plan.Steps.Any(s => s.Kind == UndoKind.RegistryInverse))
+            throw new NotSupportedException("A mixed Registry and filesystem inverse must be reviewed separately.");
+        var changes = registry ? plan.Steps.Reverse().Select(s => s.Registry ?? throw new ArgumentException("A Registry inverse is missing.")).ToArray() : [];
+        return Submit(new JobRequest
+        {
+            Kind = registry ? JobKind.Registry : JobKind.Undo, UndoPlan = plan,
+            RegistryChanges = changes, IndependentSteps = registry, Destination = registry ? changes[0].Key : null,
+            Description = "Undo: " + plan.OriginalTitle, Mode = QueueMode.Queue,
+        }, reservation);
+    }
+
+    private Job Submit(JobRequest request, UndoReservation? reservation)
+    {
+        if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
+            throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
         var (title, device, reads, writes) = Describe(request);
         var job = new Job(request, title, device, reads, writes);
         job.Changed += OnJobChanged;
-        IReadOnlyList<Job> retired;
+        IReadOnlyList<Job> retired = [];
         lock (_lock)
         {
-            job.QueueOrder = ++_order;
-            _jobs.Add(job);
+            void Admit() { job.QueueOrder = ++_order; _jobs.Add(job); }
+            if (reservation is null) Admit();
+            else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
             retired = TrimFinishedLocked();
         }
+        reservation?.Original.UndoAdmissionChanged();
         foreach (var finished in retired) JobRemoved?.Invoke(finished);
         job.SetState(JobState.Queued);
         JobAdded?.Invoke(job);
@@ -151,6 +175,8 @@ public sealed class JobManager
                 if (job.IsCancellationRequested)
                 {
                     job.SetState(JobState.Canceled);
+                    if (job.Kind == JobKind.Undo && job.Request.UndoPlan is { } plan)
+                        job.SetUndoReport(UndoReport.NotStarted(plan, "Canceled before the inverse started; no inverse steps ran."));
                     canceled.Add(job);
                     continue;
                 }
@@ -255,7 +281,13 @@ public sealed class JobManager
             final = JobState.Failed;
         }
         if (job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
-        try { journal?.Finish(final, job.Summary); }
+        if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
+            job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));
+        try
+        {
+            if (journal is { NeedsRecovery: true }) journal.Note("Temporary rename items remain unresolved; the journal is retained for recovery.");
+            else journal?.Finish(final, job.Summary);
+        }
         catch (IOException ex) { AppLog.Warn("Journal finish failed", ex); }
         journal?.Dispose();
         job.SetState(final);
@@ -300,6 +332,20 @@ public sealed class JobManager
         string title;
         switch (r.Kind)
         {
+            case JobKind.Undo:
+            {
+                var inverse = r.UndoPlan ?? throw new ArgumentException("An approved inverse plan is required.", nameof(r));
+                title = "Undo: " + inverse.OriginalTitle;
+                if (inverse.Steps.Count > ExactScopeLimit) { reads.Add(GlobalScope); writes.Add(GlobalScope); break; }
+                foreach (var step in inverse.Steps)
+                {
+                    if (step.Kind == UndoKind.RestoreRecycled) writes.Add(GlobalScope);
+                    else writes.Add(step.From);
+                    if (step.Kind is UndoKind.MoveBack or UndoKind.RenameBatchBack or UndoKind.RestoreRecycled) writes.Add(step.To);
+                    if (step.Kind == UndoKind.RemoveCreatedHardLink) reads.Add(step.To);
+                }
+                break;
+            }
             case JobKind.Copy:
             case JobKind.Extract:
                 title = $"{(r.Kind == JobKind.Copy ? "Copy" : "Extract")} {What()} to {Dest()}";

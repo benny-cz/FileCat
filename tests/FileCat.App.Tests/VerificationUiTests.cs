@@ -100,6 +100,7 @@ public sealed class VerificationUiTests
             // Whatever it found, its results open: here the file, its value and the checksum file's, both in full.
             var dialogs = (OverlayDialogService)vm.Dialogs;
             await Until(() => dialogs.IsOpen, "the results open");
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying result details.
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "big.bin is intact: it matches its checksum");
             Assert.Equal(2, window.GetVisualDescendants().OfType<SelectableTextBlock>().Count(t => t.Text == Sha(big)));
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "SHA-256 · SHA256SUMS, line 3: matches");
@@ -315,6 +316,7 @@ public sealed class VerificationUiTests
             for (int i = 0; i < 500 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen, "the results open");
             Assert.Equal([JobKind.VerifyBeside, JobKind.VerifyChecksums], services.Jobs.Jobs.OrderBy(j => j.QueueOrder).Select(j => j.Kind));
+            window.UpdateLayout();
             var files = Assert.IsAssignableFrom<IReadOnlyList<VerifiedFile>>(window.GetVisualDescendants().OfType<ListBox>()
                 .Single(l => Avalonia.Automation.AutomationProperties.GetName(l) == "Files checked").ItemsSource);
             // Each once, as the list found them: that nothing beside them names them is moot.
@@ -653,6 +655,7 @@ public sealed class VerificationUiTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen, "the results open");
+            window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "gone.iso.asc: signs a file that is not here");
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);

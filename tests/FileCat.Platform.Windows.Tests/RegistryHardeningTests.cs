@@ -22,7 +22,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public void Explicit_32_bit_view_reaches_redirected_keys_below_the_root()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         // HKCU\Software\Classes\CLSID is redirected by WOW64, so the views differ without administrator rights.
         string sub = @"Software\Classes\CLSID\{" + Guid.NewGuid() + "}";
         using var base32 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32);
@@ -50,7 +50,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public void Deleting_a_subtree_removes_a_link_as_a_link_and_keeps_its_target()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         string root = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(root)!;
         try
@@ -89,7 +89,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public void A_key_is_renamed_through_the_handle_it_was_checked_by_never_through_a_link_put_in_its_place()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         string root = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(root)!;
         try
@@ -131,7 +131,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public async Task Plans_stop_at_the_first_failure_but_keep_undo_for_completed_changes()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path)!;
         string journals = Path.Combine(Path.GetTempPath(), "filecat-regundo", Guid.NewGuid().ToString("N"));
@@ -184,7 +184,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public void Alias_views_name_their_writable_keys_and_links_resolve_to_real_keys()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         var hkcr = new Location(Schemes.Registry, @"HKCR\.txt", session: "default");
         var targets = RegistryAliases.WritableTargets(hkcr);
         string sid = WindowsIdentity.GetCurrent().User!.Value;
@@ -205,7 +205,7 @@ public sealed partial class RegistryHardeningTests
     [Fact]
     public void Several_keys_and_values_export_to_one_reg_file_of_one_view()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry views, links and permissions require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path)!;
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");

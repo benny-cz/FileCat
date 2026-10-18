@@ -13,9 +13,12 @@ public static class UserCommandsText
 {
     public static string Format(IEnumerable<ToolDefinition> tools)
     {
+        var definitions = tools.ToList();
         var sb = new StringBuilder();
-        Format(tools, string.Empty, sb);
-        return sb.ToString().TrimEnd();
+        Format(definitions, string.Empty, sb);
+        string concise = sb.ToString().TrimEnd();
+        var parsed = Parse(concise, out var error);
+        return ToolTextGrammar.PreserveDefinitions(definitions, concise, parsed, error);
     }
 
     private static void Format(IEnumerable<ToolDefinition> tools, string groups, StringBuilder sb)
@@ -27,49 +30,45 @@ public static class UserCommandsText
                 Format(children, groups + QuoteName(t.Name) + " > ", sb);
                 continue;
             }
-            sb.Append(groups).Append(QuoteName(t.Name)).Append(" | ").Append(Quote(t.Executable)).Append(" | ")
-                .Append(string.Join(" ", t.Arguments.Select(Quote)));
+            sb.Append(groups).Append(QuoteName(t.Name)).Append(" | ").Append(ToolTextGrammar.QuoteField(t.Executable)).Append(" | ")
+                .Append(ToolTextGrammar.FormatArguments(t.Arguments));
             var options = new List<string>();
-            if (!string.IsNullOrEmpty(t.Hotkey)) options.Add("key=" + t.Hotkey);
-            if (!string.IsNullOrEmpty(t.WorkingDirectory) && t.WorkingDirectory != "{dir}") options.Add(Quote("dir=" + t.WorkingDirectory));
+            if (t.Hotkey is not null) options.Add("key=" + t.Hotkey);
+            if (t.WorkingDirectory != "{dir}") options.Add("dir=" + t.WorkingDirectory);
             if (t.ShellMode) options.Add("shell");
-            if (options.Count > 0) sb.Append(" | ").Append(string.Join(" ", options));
+            if (options.Count > 0) sb.Append(" | ").Append(ToolTextGrammar.FormatArguments(options));
             sb.AppendLine();
         }
     }
 
-    private static string Quote(string token) =>
-        token.Length == 0 || token.AsSpan().IndexOfAny(' ', '|', '"') >= 0 ? "\"" + token.Replace("\"", "\"\"") + "\"" : token;
+    private static string QuoteName(string name) => ToolTextGrammar.QuoteField(name, name: true);
 
-    /// <summary>Names may hold spaces; they are quoted only when they hold a separator or surrounding spaces.</summary>
-    private static string QuoteName(string name) =>
-        name.AsSpan().IndexOfAny('|', '>', '"') >= 0 || name != name.Trim() ? "\"" + name.Replace("\"", "\"\"") + "\"" : name;
-
-    private static string UnquoteName(string segment)
-    {
-        var t = segment.Trim();
-        return t.Length >= 2 && t[0] == '"' && t[^1] == '"' ? t[1..^1].Replace("\"\"", "\"") : t;
-    }
+    private static string UnquoteName(string segment) => ToolTextGrammar.Field(segment);
 
     public static List<ToolDefinition> Parse(string? text, out string? error)
     {
         error = null;
         var root = new List<ToolDefinition>();
+        int lineNumber = 0;
+        try
+        {
+        ToolTextGrammar.CheckLength(text ?? "");
+        if (ToolTextGrammar.TryParseDefinitions(text ?? "", out var structured)) return structured;
         foreach (var raw in (text ?? string.Empty).Split('\n'))
         {
+            lineNumber++;
             var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#')) continue;
             var columns = SplitOutsideQuotes(line, '|');
-            if (columns.Count < 2 || columns[1].Trim().Length == 0)
+            if (columns.Count is < 2 or > 4 || columns[1].Trim().Length == 0)
             {
-                error = $"\"{line}\": expected Name | program | arguments.";
-                return root;
+                throw new FormatException("expected Name | program | arguments | options (two to four columns); unexpected columns are not ignored.");
             }
             var path = SplitOutsideQuotes(columns[0], '>').Select(UnquoteName).ToArray();
+            if (path.Length > 32) throw new FormatException("Use at most 31 submenu levels.");
             if (path.Any(p => p.Length == 0))
             {
-                error = $"\"{line}\": a menu or command name is empty.";
-                return root;
+                throw new FormatException("A menu or command name is empty.");
             }
             var tool = new ToolDefinition
             {
@@ -77,17 +76,20 @@ public static class UserCommandsText
                 Executable = Unquote(columns[1].Trim()),
                 Arguments = columns.Count > 2 ? Tokens(columns[2]) : ["{file}"],
             };
+            if (string.IsNullOrWhiteSpace(tool.Executable)) throw new FormatException("The program is missing.");
             if (columns.Count > 3)
             {
+                var seenOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var option in Tokens(columns[3]))
                 {
+                    string optionKey = option.Split('=', 2)[0];
+                    if (!seenOptions.Add(optionKey)) throw new FormatException($"Duplicate option '{optionKey}'.");
                     if (option.StartsWith("key=", StringComparison.OrdinalIgnoreCase)) tool.Hotkey = option[4..];
                     else if (option.StartsWith("dir=", StringComparison.OrdinalIgnoreCase)) tool.WorkingDirectory = option[4..];
                     else if (option.Equals("shell", StringComparison.OrdinalIgnoreCase)) tool.ShellMode = true;
                     else
                     {
-                        error = $"\"{line}\": unknown option \"{option}\" (use key=, dir=, or shell).";
-                        return root;
+                        throw new FormatException($"unknown option \"{option}\" (use key=, dir=, or shell).");
                     }
                 }
             }
@@ -104,67 +106,12 @@ public static class UserCommandsText
             }
             level.Add(tool);
         }
+        }
+        catch (FormatException ex) { error = $"Line {Math.Max(1, lineNumber)}: {ex.Message}"; return []; }
         return root;
     }
 
-    /// <summary>Splits on <paramref name="separator"/> outside double quotes (quotes are kept for the next pass).</summary>
-    private static List<string> SplitOutsideQuotes(string line, char separator)
-    {
-        var columns = new List<string>();
-        var current = new StringBuilder();
-        bool quoted = false;
-        foreach (char c in line)
-        {
-            if (c == '"') quoted = !quoted;
-            if (c == separator && !quoted)
-            {
-                columns.Add(current.ToString());
-                current.Clear();
-                continue;
-            }
-            current.Append(c);
-        }
-        columns.Add(current.ToString());
-        return columns;
-    }
-
-    /// <summary>Space-separated tokens; double quotes group (and <c>""</c> inside quotes is one quote).</summary>
-    private static List<string> Tokens(string text)
-    {
-        var tokens = new List<string>();
-        var current = new StringBuilder();
-        bool quoted = false, any = false;
-        for (int i = 0; i < text.Length; i++)
-        {
-            char c = text[i];
-            if (c == '"')
-            {
-                if (quoted && i + 1 < text.Length && text[i + 1] == '"')
-                {
-                    current.Append('"');
-                    i++;
-                    continue;
-                }
-                quoted = !quoted;
-                any = true;
-                continue;
-            }
-            if (c == ' ' && !quoted)
-            {
-                if (current.Length > 0 || any) tokens.Add(current.ToString());
-                current.Clear();
-                any = false;
-                continue;
-            }
-            current.Append(c);
-        }
-        if (current.Length > 0 || any) tokens.Add(current.ToString());
-        return tokens;
-    }
-
-    private static string Unquote(string token)
-    {
-        var tokens = Tokens(token);
-        return tokens.Count == 1 ? tokens[0] : token.Trim('"');
-    }
+    private static List<string> SplitOutsideQuotes(string text, char separator) => ToolTextGrammar.SplitFields(text, separator);
+    private static List<string> Tokens(string text) => ToolTextGrammar.ParseArguments(text);
+    private static string Unquote(string text) => ToolTextGrammar.Field(text);
 }

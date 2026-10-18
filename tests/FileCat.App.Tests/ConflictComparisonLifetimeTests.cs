@@ -46,6 +46,7 @@ public sealed class ConflictComparisonLifetimeTests
             var conflict = new ConflictRequest("Owned conflict", "owned-existing.bin", ai, bi, a, b,
                 true, false, false, false, null, null);
             decision = OperationDialogs.ShowDecisionAsync(vm, new PendingDecision(job, conflict));
+            window.UpdateLayout(); // Realize the modal before starting the asynchronous comparison under test.
             var compare = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare content");
             var body = Assert.IsType<StackPanel>(compare.Parent!.Parent);
             var result = body.Children.OfType<TextBlock>().Last();

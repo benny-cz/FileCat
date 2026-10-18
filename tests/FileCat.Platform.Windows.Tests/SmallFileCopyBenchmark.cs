@@ -16,7 +16,7 @@ public sealed class SmallFileCopyBenchmark
     [Fact]
     public async Task Small_file_copy_stays_close_to_copyfile2()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "The native CopyFile2 comparison benchmark requires Windows.");
         int n = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_COPY_BENCH"), out var v) ? v : 500;
         int rounds = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_COPY_BENCH_ROUNDS"), out var r) ? r : 1;
         var root = Path.Combine(Path.GetTempPath(), "fc-smallcopy-" + Guid.NewGuid().ToString("N"));

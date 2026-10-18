@@ -1,8 +1,6 @@
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -17,7 +15,11 @@ using FileCat.Core.Resources;
 namespace FileCat.App.Views;
 
 /// <summary>One row of the side-by-side view: a line on either side (or a gap), how they relate, and a note row's text.</summary>
-public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, int? RightLine, string RightText, bool EndingDiffers = false, string? Note = null);
+public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, int? RightLine, string RightText, bool EndingDiffers = false, string? Note = null)
+{
+    // A list-item name must not stringify megabytes of source text. Full source text has its own selectable fields.
+    public override string ToString() => $"{Kind}: left {(LeftLine is { } left ? $"line {left:N0}" : "gap")}, right {(RightLine is { } right ? $"line {right:N0}" : "gap")}";
+}
 
 /// <summary>
 /// File comparison (plan §16.2, TV-08): text side by side with within-line changes, or both files' bytes side by side
@@ -28,12 +30,7 @@ public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, i
 /// </summary>
 public sealed class CompareWindow : Window
 {
-    private static readonly IBrush LeftOnlyBrush = new SolidColorBrush(Color.FromArgb(0x38, 0xE0, 0x40, 0x40));
-    private static readonly IBrush RightOnlyBrush = new SolidColorBrush(Color.FromArgb(0x38, 0x40, 0xC0, 0x40));
-    private static readonly IBrush ChangedBrush = new SolidColorBrush(Color.FromArgb(0x30, 0xE0, 0xB0, 0x30));
     private static readonly IBrush UnalignedBrush = new SolidColorBrush(Color.FromArgb(0x30, 0x90, 0x90, 0xA0));
-    private static readonly IBrush InlineBrush = new SolidColorBrush(Color.FromArgb(0x70, 0xE0, 0x90, 0x20));
-    private static readonly FontFamily Mono = new("Cascadia Mono,Consolas,Menlo,monospace");
     /// <summary>At most this many differences are listed to choose from; the arrows go through all of them.</summary>
     public const int MaxListed = 20_000;
     private const string BytesHint = "Drag over bytes to select them; Ctrl+C copies them as hex. Clicking a difference makes it the current one.";
@@ -45,6 +42,10 @@ public sealed class CompareWindow : Window
     private Func<Task<(IContentSource Left, IContentSource Right)>>? _reopenAsync;
     private bool CanReopen => _reopen is not null || _reopenAsync is not null;
     private readonly ListBox _rows = new();
+    private readonly CompareLineDetails _lineDetails;
+    private readonly CompareTextView _textView;
+    private readonly Grid _textBody = new() { RowDefinitions = RowDefinitions.Parse("*,1,*") };
+    private readonly Button _fullLine = new() { Content = "Full-line details", VerticalAlignment = VerticalAlignment.Center };
     private readonly HexCompareView _hex = new() { IsVisible = false };
     private readonly ComboBox _differenceBox = new() { MinWidth = 320, MaxWidth = 560, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
@@ -55,6 +56,7 @@ public sealed class CompareWindow : Window
     private readonly CheckBox _ignoreCase = new() { Content = "Ignore case", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _binary = new() { Content = "Binary", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _collapse = new() { Content = "Hide equal lines", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _wrapLines = new() { Content = "Wrap long lines", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _align = new() { Content = "Align shifted bytes", VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly Button _first, _previous, _next, _last;
     private readonly Button _again = new() { Content = "Compare again", VerticalAlignment = VerticalAlignment.Center };
@@ -113,7 +115,7 @@ public sealed class CompareWindow : Window
         return window;
     }
 
-    private CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right,
+    internal CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right,
         Func<(IContentSource, IContentSource)>? reopen, Func<Task<(IContentSource, IContentSource)>>? reopenAsync)
     {
         _left = left;
@@ -122,6 +124,8 @@ public sealed class CompareWindow : Window
         _rightView = new ViewSource(right);
         _leftName = leftName;
         _rightName = rightName;
+        _textView = new CompareTextView(_rows);
+        _lineDetails = new CompareLineDetails(leftName, rightName);
         _reopen = reopen;
         _reopenAsync = reopenAsync;
         Title = $"Compare: {Path.GetFileName(leftName.TrimEnd('/', '\\'))} ↔ {Path.GetFileName(rightName.TrimEnd('/', '\\'))}";
@@ -136,13 +140,12 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_differenceBox, "Difference");
         ToolTip.SetTip(_differenceBox, "Go to a difference (Alt+D)");
         ToolTip.SetTip(_again, "Read both files again and compare them (F5)");
+        ToolTip.SetTip(_fullLine, "Inspect and copy both full source lines (Alt+L or double-click a row)");
+        Avalonia.Automation.AutomationProperties.SetName(_fullLine, "Focus full-line comparison details");
+        Avalonia.Automation.AutomationProperties.SetHelpText(_rows, $"Aligned source lines scroll horizontally together; Alt+Left and Alt+Right move both panes. Wrap long lines preserves aligned source numbers and gaps. Lines over {CompareTextView.MaximumLineCharacters:N0} UTF-16 characters have an explicit complete-line action. Alt+L or a double-click focuses selectable full-line details.");
+        Avalonia.Automation.AutomationProperties.SetName(_wrapLines, "Wrap long source lines in the aligned comparison");
+        ToolTip.SetTip(_wrapLines, "Wrap both source panes, keeping each left/right line pair and gap aligned. Difference navigation reveals the changed text on both axes.");
         _again.IsVisible = CanReopen;
-        _rows.ItemTemplate = new FuncDataTemplate<object>((item, _) => item switch
-        {
-            CompareRow row => BuildRow(row),
-            string text => new TextBlock { Text = text, FontFamily = Mono, Margin = new Thickness(4, 1) },
-            _ => new TextBlock(),
-        });
         // Long paths lose their middle, not the file name at their end.
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(8, 4) };
         var leftHeader = new TextBlock { Text = leftName, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 8, 0) };
@@ -156,7 +159,7 @@ public sealed class CompareWindow : Window
         {
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(8, 6, 8, 2),
-            Children = { _first, _previous, _next, _last, _differenceBox, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse },
+            Children = { _first, _previous, _next, _last, _differenceBox, _fullLine, _wrapLines, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse },
         };
         foreach (var child in bar.Children.OfType<Control>()) child.Margin = new Thickness(0, 0, child is Button { Content: Image } ? 2 : 10, 4);
         var root = new DockPanel();
@@ -173,11 +176,25 @@ public sealed class CompareWindow : Window
         root.Children.Add(_changedBanner);
         root.Children.Add(header);
         root.Children.Add(_statusBar);
-        var body = new Panel { Children = { _rows, _hex } };
+        Grid.SetRow(_lineDetails, 2);
+        var divider = new Border { Background = UnalignedBrush, Height = 1 };
+        Grid.SetRow(divider, 1);
+        _textBody.Children.Add(_textView);
+        _textBody.Children.Add(divider);
+        _textBody.Children.Add(_lineDetails);
+        var body = new Panel { Children = { _textBody, _hex } };
         root.Children.Add(body);
         Content = ThemeLayers.Over(root, body);
 
         _again.Click += (_, _) => CompareAgain();
+        _fullLine.Click += (_, _) => FocusLineDetails();
+        _wrapLines.IsCheckedChanged += (_, _) => _textView.Wrap = _wrapLines.IsChecked == true;
+        _textView.DetailsRequested += focus =>
+        {
+            if (_shown != Shown.Text || _closed) return;
+            if (focus) FocusLineDetails();
+            else _lineDetails.RevealCurrentDifference();
+        };
         foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse, _align }) box.IsCheckedChanged += (_, _) => Recompute();
         ToolTip.SetTip(_align, "Finds content that moved because bytes were inserted or removed, instead of comparing at the same offsets. A heuristic view: whether the files are identical is the exact comparison's answer.");
         _differenceBox.SelectionChanged += (_, _) =>
@@ -185,6 +202,7 @@ public sealed class CompareWindow : Window
             if (!_settingDifference && _differenceBox.SelectedIndex >= 0) GoTo(_differenceBox.SelectedIndex);
         };
         _rows.SelectionChanged += (_, _) => FollowRow();
+        _rows.DoubleTapped += (_, _) => FocusLineDetails();
         _hex.DifferenceClicked += index => ShowDifference(index);
         _hex.StatusChanged += () => _status.Text = _hex.Status.Length > 0 ? _hex.Status : BytesHint;
         _status.Text = BytesHint;
@@ -206,7 +224,9 @@ public sealed class CompareWindow : Window
             _view++;
             _shown = Shown.Nothing;
             _hex.SetContent(null, null, null, []);
+            _textView.Dispose();
             ControlRetirement.ClearItems(_rows);
+            _lineDetails.Dispose();
             ControlRetirement.ClearItems(_differenceBox);
             _pages = null;
             _bytes = null;
@@ -310,6 +330,9 @@ public sealed class CompareWindow : Window
                 _differenceBox.Focus();
                 _differenceBox.IsDropDownOpen = _differenceBox.ItemCount > 0;
                 break;
+            case Key.L when e.KeyModifiers == KeyModifiers.Alt && _shown == Shown.Text:
+                FocusLineDetails();
+                break;
             case Key.F5 when e.KeyModifiers == KeyModifiers.None && CanReopen:
             case Key.R when e.KeyModifiers == KeyModifiers.Control && CanReopen:
                 CompareAgain();
@@ -349,6 +372,9 @@ public sealed class CompareWindow : Window
             _rows.SelectedIndex = row;
             _rows.ScrollIntoView(row);
             SetCurrent(index, null);
+            // The current row may already be selected. Navigation still re-reveals its decisive text.
+            _textView.RevealSelected();
+            _lineDetails.RevealCurrentDifference();
         }
         else ShowDifference(index);
     }
@@ -432,9 +458,28 @@ public sealed class CompareWindow : Window
     private void FollowRow()
     {
         if (_shown != Shown.Text || _settingDifference) return;
+        _lineDetails.SetComparisonRow(_rows.SelectedItem as CompareRow);
+        _textView.RevealSelected();
         int row = _rows.SelectedIndex;
         int index = _differenceRows.FindLastIndex(r => r <= row);
         if (index != _current && index >= 0) SetCurrent(index, null);
+    }
+
+    private void FocusLineDetails()
+    {
+        if (_shown != Shown.Text) return;
+        if (_rows.SelectedItem is not CompareRow)
+        {
+            int from = Math.Max(0, _rows.SelectedIndex);
+            for (int i = from; i < _rows.ItemCount; i++)
+            {
+                if (_rows.Items[i] is not CompareRow) continue;
+                _rows.SelectedIndex = i;
+                _rows.ScrollIntoView(i);
+                break;
+            }
+        }
+        _lineDetails.FocusText();
     }
 
     /// <summary>
@@ -790,6 +835,7 @@ public sealed class CompareWindow : Window
         // Options changed meanwhile, or the files were compared again: a newer view is on its way.
         if (view != _view || _closed) return;
         Show(Shown.Text);
+        _textView.Reset();
         ControlRetirement.ClearItems(_rows);
         _rows.ItemsSource = shown.Rows;
         _differenceRows = shown.Differences;
@@ -806,11 +852,17 @@ public sealed class CompareWindow : Window
     {
         _shown = shown;
         bool text = shown == Shown.Text;
+        _textBody.IsVisible = _fullLine.IsVisible = _wrapLines.IsVisible = text;
         _rows.IsVisible = text;
         _hex.IsVisible = !text;
         _statusBar.IsVisible = !text;
         if (text) _hex.SetContent(null, null, null, []);
-        else ControlRetirement.ClearItems(_rows);
+        else
+        {
+            _textView.Reset();
+            ControlRetirement.ClearItems(_rows);
+            _lineDetails.SetComparisonRow(null);
+        }
     }
 
     private void ShowBinary(BinaryDiffResult bytes)
@@ -1024,57 +1076,6 @@ public sealed class CompareWindow : Window
             if (result.Heuristic) summary.Append(" Large stretches were matched on lines that occur once on each side, which can show more differences than the fewest possible.");
         }
         return (rows, diff, descriptions, summary.ToString());
-    }
-
-    private static IBrush KindBrush(DiffKind kind) => kind switch
-    {
-        DiffKind.Changed => ChangedBrush,
-        DiffKind.LeftOnly => LeftOnlyBrush,
-        DiffKind.RightOnly => RightOnlyBrush,
-        DiffKind.Unaligned => UnalignedBrush,
-        _ => Brushes.Transparent,
-    };
-
-    private static Control BuildRow(CompareRow row)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("56,*,56,*") };
-        grid.Background = KindBrush(row.Kind);
-        (IReadOnlyList<(int, int)> Left, IReadOnlyList<(int, int)> Right)? spans = row.Kind == DiffKind.Changed ? InlineDiff.Compare(row.LeftText, row.RightText) : null;
-        AddCell(grid, 0, row.LeftLine?.ToString("N0") ?? "", null, number: true);
-        AddCell(grid, 1, row.LeftText + (row.EndingDiffers ? "  ⏎≠" : ""), spans?.Left, number: false);
-        AddCell(grid, 2, row.RightLine?.ToString("N0") ?? "", null, number: true);
-        AddCell(grid, 3, row.RightText, spans?.Right, number: false);
-        if (row.EndingDiffers) ToolTip.SetTip(grid, "Same text; the line endings differ (for example CRLF and LF)");
-        return grid;
-    }
-
-    private static void AddCell(Grid grid, int column, string text, IReadOnlyList<(int Start, int Length)>? spans, bool number)
-    {
-        var block = new TextBlock
-        {
-            FontFamily = Mono,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(number ? 0 : 6, 1, number ? 6 : 0, 1),
-            HorizontalAlignment = number ? HorizontalAlignment.Right : HorizontalAlignment.Stretch,
-            Classes = { number ? "muted" : "" },
-        };
-        if (spans is { Count: > 0 })
-        {
-            int at = 0;
-            var inlines = new InlineCollection();
-            foreach (var (start, length) in spans)
-            {
-                if (start > at) inlines.Add(new Run(text[at..start]));
-                inlines.Add(new Run(text.Substring(start, length)) { Background = InlineBrush });
-                at = start + length;
-            }
-            if (at < text.Length) inlines.Add(new Run(text[at..]));
-            block.Inlines = inlines;
-        }
-        else block.Text = text;
-        if (!number && text.Length > 80) ToolTip.SetTip(block, text);
-        Grid.SetColumn(block, column);
-        grid.Children.Add(block);
     }
 
     /// <summary>

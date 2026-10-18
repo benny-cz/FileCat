@@ -78,6 +78,7 @@ public sealed class ViewerChecksumRevisionTests
             long afterGeneration = Field<long>(viewer, "_sourceGeneration");
             string beforeStatus = Field<TextBlock>(viewer, "_status").Text ?? "";
             string beforeClipboard = await ClipboardExtensions.TryGetTextAsync(clipboard) ?? "";
+            string beforeResult = viewer.ChecksumResultText;
             int beforeReads = source.ReadsAfterArm;
             int beforeChecksumReads = source.ChecksumReadsAfterArm;
             bool canceledAfterPoll = oldCancellation!.IsCancellationRequested;
@@ -87,6 +88,8 @@ public sealed class ViewerChecksumRevisionTests
             catch (Exception ex) { error = ex; }
             string afterStatus = Field<TextBlock>(viewer, "_status").Text ?? "";
             string afterClipboard = await ClipboardExtensions.TryGetTextAsync(clipboard) ?? "";
+            string afterResult = viewer.ChecksumResultText;
+            Assert.Equal("current clipboard before checksum", afterClipboard);
             bool? cancellationDisposed = null;
             if (oldCancellation is not null)
             {
@@ -113,6 +116,7 @@ public sealed class ViewerChecksumRevisionTests
                 Assert.Equal(beforeGeneration + 1, afterGeneration);
                 Assert.Contains("The file changed", beforeStatus);
                 Assert.Equal(beforeClipboard, afterClipboard);
+                Assert.Equal(beforeResult, afterResult);
                 Assert.Equal(beforeStatus, afterStatus);
                 Assert.True(canceledAfterPoll);
                 Assert.Equal(beforeChecksumReads, source.ChecksumReadsAfterArm);
@@ -122,10 +126,10 @@ public sealed class ViewerChecksumRevisionTests
             {
                 Assert.Equal(beforeRevision, afterRevision);
                 Assert.Equal(beforeGeneration, afterGeneration);
-                Assert.Contains("SHA-256: " + (range ? "009bbde8ad374ff4374d69adc7bcb73a7652a75bc14dde857fd15f254dd92b7f" : "6b646183f04fba97e2529fc94fc0e58d0c5aa68a8cd2b440f4a285e0b0777515"), afterClipboard);
-                Assert.Contains("CRC-32: " + (range ? "4aa67210" : "2a6f43f6"), afterClipboard);
-                Assert.DoesNotContain("Warning:", afterClipboard);
-                Assert.Contains(range ? "range 0x20000–0x20FFF" : "whole file", afterClipboard);
+                Assert.Contains("SHA-256: " + (range ? "009bbde8ad374ff4374d69adc7bcb73a7652a75bc14dde857fd15f254dd92b7f" : "6b646183f04fba97e2529fc94fc0e58d0c5aa68a8cd2b440f4a285e0b0777515"), afterResult);
+                Assert.Contains("CRC-32: " + (range ? "4aa67210" : "2a6f43f6"), afterResult);
+                Assert.DoesNotContain("Warning:", afterResult);
+                Assert.Contains(range ? "range 0x20000–0x20FFF" : "whole file", afterResult);
                 Assert.Equal(range ? 1 : 3, source.ReadsAfterArm);
             }
             if (sourceField is not null) { Assert.True(cancellationDisposed); Assert.True(currentCleared); }
@@ -148,7 +152,12 @@ public sealed class ViewerChecksumRevisionTests
         typeof(HexView).GetField("_cursor", Fields)!.SetValue(hex, start + length - 1);
         Assert.Equal((start, length), hex.Selection);
     }
-    private static Task Checksum(ViewerWindow viewer) => (Task)typeof(ViewerWindow).GetMethod("ChecksumAsync", Fields)!.Invoke(viewer, [])!;
+    private static Task Checksum(ViewerWindow viewer)
+    {
+        // A new user checksum request first reviews/captures its scope, then presses Compute.
+        typeof(ViewerWindow).GetMethod("ShowChecksum", Fields)!.Invoke(viewer, []);
+        return (Task)typeof(ViewerWindow).GetMethod("ChecksumAsync", Fields)!.Invoke(viewer, [])!;
+    }
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
     private static async Task WaitFor(Func<bool> condition)
     {

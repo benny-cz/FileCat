@@ -159,12 +159,12 @@ public sealed class InterruptedSourceContentTests(ITestOutputHelper output)
             services.Providers.Register(new Provider(services.Providers.Get(Schemes.FileSystem), source, files));
             return new Fixture { Services = services, Vm = vm, Window = window, Root = root, Source = source, Destination = destination, Staged = staged, Interrupted = interrupted, Files = files, Original = original };
         }
-        public Task<bool> Start(string kind = "copy") => Vm.RunInterruptedAgainAsync(Interrupted with { Kind = kind == "move" ? nameof(JobKind.Move) : nameof(JobKind.Copy) });
+        public Task<bool> Start(string kind = "copy") => Vm.RunInterruptedAgainAsync(Interrupted with { Kind = kind == "move" ? nameof(JobKind.Move) : nameof(JobKind.Copy), TransferIntent = Interrupted.TransferIntent! with { Kind = kind == "move" ? JobKind.Move : JobKind.Copy } });
         public bool Ended => !JournalRecovery.Scan(Services.Paths.JournalDirectory).Any(j => j.JournalPath == Interrupted.JournalPath);
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public bool HasDialog => Window.GetVisualDescendants().OfType<Border>().Any(b => b.Classes.Contains("backdrop"));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        public void Approve(string kind = "copy") => Click(kind == "move" ? "Move the rest" : "Copy the rest");
+        public void Approve(string kind = "copy") => Click(kind == "move" ? "Continue move" : "Continue copy");
         public void Escape() => Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
         public void End(string end) { if (end == "shutdown") Services.Io.Dispose(); else Window.Close(); }
         public void Change(string change)

@@ -140,6 +140,9 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
         try
         {
             await Wait(() => f.Button("Close") is not null);
+            f.Window.UpdateLayout(); // Inspect the presented message, after its scrollable body is realized.
+            var body = Assert.Single(f.Window.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Name == "DialogBodyScroll");
+            Assert.True(body.IsArrangeValid && body.Viewport.Width > 0 && body.Viewport.Height > 0);
             var text = string.Join(" ", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
             Emit(f, "unavailable", new { outcome, text }); AssertWorkers(f); Assert.Contains("cannot be read", text); Assert.Null(f.Button("Commit")); Assert.Null(f.Button("Reopen editor")); f.Click("Close"); await task;
         }
@@ -171,6 +174,9 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
         try
         {
             await Wait(() => f.Button("Close") is not null); AssertWorkers(f);
+            f.Window.UpdateLayout();
+            var body = Assert.Single(f.Window.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Name == "DialogBodyScroll");
+            Assert.True(body.IsArrangeValid && body.Viewport.Width > 0 && body.Viewport.Height > 0);
             string text = string.Join(" ", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
             Emit(f, "missing", new { text }); Assert.Contains("working copy missing", text); Assert.Null(f.Button("Commit")); Assert.Null(f.Button("Reopen editor")); Assert.Single(f.Services.EditSessions.LoadAll());
             f.Click("Close"); await task;

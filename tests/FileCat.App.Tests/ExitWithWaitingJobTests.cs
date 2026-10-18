@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.Jobs;
 
 namespace FileCat.App.Tests;
 
@@ -44,12 +45,14 @@ public sealed class ExitWithWaitingJobTests
             for (int i = 0; i < 250 && !find.Dialogs.IsOpen; i++) await Task.Delay(20, ct);
             find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
 
-            // The job retries a few times, then asks in the main window.
-            for (int i = 0; i < 400 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
-            Assert.True(dialogs.IsOpen, "the job asks what to do about the locked file");
+            // Background decisions stay in Operations until the user explicitly reviews them.
+            for (int i = 0; i < 400 && !services.Jobs.Jobs.Any(j => j.State == JobState.AwaitingDecision); i++) await Task.Delay(20, ct);
+            Assert.Contains(services.Jobs.Jobs, j => j.State == JobState.AwaitingDecision);
+            Assert.False(dialogs.IsOpen);
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Review decision…" && b.IsVisible);
             Assert.True(File.Exists(original));
 
-            // Closing now asks about the operation still waiting, over the job's own question.
+            // Closing now asks about the operation still waiting.
             find.Close();
             window.Close();
             bool Asked() => window.GetVisualDescendants().OfType<TextBlock>().Any(b => b.Text == "Operations are still running");

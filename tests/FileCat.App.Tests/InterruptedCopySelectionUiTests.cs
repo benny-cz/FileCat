@@ -38,8 +38,8 @@ public sealed class InterruptedCopySelectionUiTests(ITestOutputHelper output)
         Assert.Single(roots); Assert.Equal(selected, roots.Contains(source, FileCat.Core.FileSystem.PathUtil.SafetyComparer));
         Task<bool>? run = flow == "run-again" ? f.Vm.RunInterruptedAgainAsync(f.Job) : null;
         if (run is null) f.Cleanup();
-        await Wait(() => f.Button(flow == "run-again" ? "Copy the rest" : "Delete partial files") is not null || flow == "cleanup" && f.Button("OK") is not null);
-        string action = flow == "run-again" ? "Copy the rest" : f.Button("Delete partial files") is not null ? "Delete partial files" : "OK";
+        await Wait(() => f.Button(flow == "run-again" ? "Continue copy" : "Delete partial files") is not null || flow == "cleanup" && f.Button("OK") is not null);
+        string action = flow == "run-again" ? "Continue copy" : f.Button("Delete partial files") is not null ? "Delete partial files" : "OK";
         f.Click(action); await f.Finish(run); bool exists = File.Exists(target); bool ended = f.Ended;
         output.WriteLine("COPY_SELECTION_UI " + JsonSerializer.Serialize(new { length, flow, selected, Action = action,
             ActualSourceRoots = roots, ActualSource = source, TargetExists = exists, Ended = ended,
@@ -51,7 +51,7 @@ public sealed class InterruptedCopySelectionUiTests(ITestOutputHelper output)
         Assert.Equal(flow == "run-again" ? 2 : 1, f.Services.Jobs.Jobs.Count);
         if (exists) Assert.Equal(selected ? File.ReadAllBytes(source) : f.Prefix, File.ReadAllBytes(target));
         if (run is not null) Assert.True(await run);
-        Assert.Equal(flow == "run-again" ? "Copy the rest" : selected ? "Delete partial files" : "OK", action);
+        Assert.Equal(flow == "run-again" ? "Continue copy" : selected ? "Delete partial files" : "OK", action);
     }
     private static string? Hash(string path) => File.Exists(path) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) : null;
     private static async Task Wait(Func<bool> ready)
@@ -85,7 +85,7 @@ public sealed class InterruptedCopySelectionUiTests(ITestOutputHelper output)
             }
             catch { AccessibilityTests.Close(services, window, root); throw; }
         }
-        public string Action(string flow) => flow == "cleanup" ? "Delete partial files" : "Copy the rest";
+        public string Action(string flow) => flow == "cleanup" ? "Delete partial files" : "Continue copy";
         public bool Ended => !JournalRecovery.Scan(Services.Paths.JournalDirectory).Any(j => j.JournalPath == Job.JournalPath);
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));

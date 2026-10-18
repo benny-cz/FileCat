@@ -19,7 +19,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public void Streams_of_files_and_folders_are_listed_read_and_deleted()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS streams and extended attributes require Windows.");
         string dir = NewFolder();
         try
         {
@@ -59,7 +59,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public void NTFS_extended_attributes_are_listed_read_and_deleted()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS streams and extended attributes require Windows.");
         string dir = NewFolder();
         try
         {
@@ -85,7 +85,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public async Task The_hidden_data_place_lists_each_item_with_what_it_says_and_serves_it()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS streams and extended attributes require Windows.");
         string dir = NewFolder();
         try
         {
@@ -114,7 +114,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public void A_path_with_a_colon_after_it_names_its_streams_as_NTFS_writes_it()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS streams and extended attributes require Windows.");
         string dir = NewFolder();
         try
         {
@@ -141,7 +141,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public void Find_finds_files_carrying_streams_besides_their_download_mark()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS streams and extended attributes require Windows.");
         string dir = NewFolder();
         try
         {

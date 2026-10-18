@@ -6,6 +6,7 @@ public sealed class WindowsIconsTests
     [Fact]
     public void Files_without_a_program_and_programs_have_stock_icons_that_draw()
     {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows Shell stock icons and GDI extraction require Windows.");
         // A name without an extension is Explorer's blank page, never another type's icon (".bin" is VLC's on many computers).
         foreach (int id in new[] { WindowsIcons.StockDocumentNoAssociation, WindowsIcons.StockApplication })
         {

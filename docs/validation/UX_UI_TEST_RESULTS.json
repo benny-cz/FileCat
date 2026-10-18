@@ -1,0 +1,3199 @@
+{
+  "schema_version": 1,
+  "generated_utc": "2026-10-17T12:24:15.666875+00:00",
+  "environment": {
+    "sdk": "10.0.101",
+    "configuration": "Release",
+    "os": "Linux",
+    "effective_user": "root",
+    "core_max_parallel_threads": 4,
+    "target_framework": "net10.0",
+    "architecture": "x64",
+    "ui_backend": "Avalonia headless",
+    "avalonia": "12.1.1",
+    "xunit": "3.2.2",
+    "native_desktop_acceptance_executed": false,
+    "dependencies_and_lock_files_unchanged": true,
+    "app_hang_guard_seconds": 90,
+    "source_baseline_commit": "aed1ae5053f50ef0c90f682200c5cb5d0b03ae24"
+  },
+  "runs_overlap_do_not_sum": true,
+  "runs": [
+    {
+      "id": "baseline_core",
+      "label": "Original Core suite",
+      "evidence_path": "baseline/core.trx",
+      "sha256": "fa6d7cdab2f457c9c0c48c869599ad4ce5ac680c4b256be4070e5af09b73aa59",
+      "started_utc": "2026-10-17T10:53:40.554132+00:00",
+      "finished_utc": "2026-10-17T11:00:53.558462+00:00",
+      "elapsed_seconds": 433.004,
+      "total": 4360,
+      "passed": 4247,
+      "failed": 1,
+      "skipped": 112,
+      "other_outcomes": {},
+      "repeated_display_names": {
+        "FileCat.Core.Tests.UnixWorkerIdentityTests.Linux_worker_requires_a_complete_zero_capability_inventory(status: \"CapInh:\\t0000000000000000\\nCapPrm:\\t00000000000000\"···, expected: False)": 4,
+        "FileCat.Core.Tests.InspectorCrossCheckTests.PE_headers_directories_and_sections_are_what_the_runtime_reads(path: \"/workspace/scratch/c81a650ea3dd/toolchain/dotnet/s\"···)": 2,
+        "FileCat.Core.Tests.ChecksumManifestTests.A_pasted_checksum_is_read_in_the_forms_pages_and_tools_show(text: \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4\"···, kind: Sha256)": 2
+      },
+      "failures": [
+        {
+          "name": "FileCat.Core.Tests.ChecksumManifestBoundedInputTests.Unix_zero_length_device_cannot_escape_the_explicit_manifest_budget",
+          "outcome": "Failed",
+          "duration": "00:00:00.0027236",
+          "message": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.IO.InvalidDataException)\nActual:   typeof(FileCat.Core.Verification.VerificationFileReader+NotAFileException)\n---- FileCat.Core.Verification.VerificationFileReader+NotAFileException : It is not a regular file (a pipe, a socket, or a device)."
+        }
+      ]
+    },
+    {
+      "id": "final_core",
+      "label": "Final complete Core suite",
+      "evidence_path": "final/core.trx",
+      "sha256": "ef392c0220c22513648e03395076b00be49d89800669d5494b98608709dcfebb",
+      "started_utc": "2026-10-17T11:39:17.348512+00:00",
+      "finished_utc": "2026-10-17T11:45:13.064129+00:00",
+      "elapsed_seconds": 355.716,
+      "total": 4508,
+      "passed": 4395,
+      "failed": 1,
+      "skipped": 112,
+      "other_outcomes": {},
+      "repeated_display_names": {
+        "FileCat.Core.Tests.UnixWorkerIdentityTests.Linux_worker_requires_a_complete_zero_capability_inventory(status: \"CapInh:\\t0000000000000000\\nCapPrm:\\t00000000000000\"···, expected: False)": 4,
+        "FileCat.Core.Tests.ToolTextRoundTripTests.Structured_tool_edits_reject_unknown_or_invalid_data_atomically(text: \"@tools:[{\\\"Name\\\":\\\"Run\\\",\\\"Executable\\\":\\\"tool\\\",\"···)": 2,
+        "FileCat.Core.Tests.ChecksumManifestTests.A_pasted_checksum_is_read_in_the_forms_pages_and_tools_show(text: \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4\"···, kind: Sha256)": 2,
+        "FileCat.Core.Tests.InspectorCrossCheckTests.PE_headers_directories_and_sections_are_what_the_runtime_reads(path: \"/workspace/scratch/c81a650ea3dd/toolchain/dotnet/s\"···)": 2
+      },
+      "failures": [
+        {
+          "name": "FileCat.Core.Tests.ChecksumManifestBoundedInputTests.Unix_zero_length_device_cannot_escape_the_explicit_manifest_budget",
+          "outcome": "Failed",
+          "duration": "00:00:00.0043129",
+          "message": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.IO.InvalidDataException)\nActual:   typeof(FileCat.Core.Verification.VerificationFileReader+NotAFileException)\n---- FileCat.Core.Verification.VerificationFileReader+NotAFileException : It is not a regular file (a pipe, a socket, or a device)."
+        }
+      ]
+    },
+    {
+      "id": "baseline_app",
+      "label": "Original complete App suite",
+      "evidence_path": "baseline/app.trx",
+      "sha256": "39b68f611ae0188c4e77a1faca2f05ebf645b406f20129e5004782463ea1dce0",
+      "started_utc": "2026-10-17T11:16:28.345875+00:00",
+      "finished_utc": "2026-10-17T11:29:36.967152+00:00",
+      "elapsed_seconds": 788.621,
+      "total": 1733,
+      "passed": 1577,
+      "failed": 31,
+      "skipped": 125,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": [
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0476751",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.ShellPictureUiTests.Quick_view_decodes_a_picture_itself_where_the_Shell_gives_none",
+          "outcome": "Failed",
+          "duration": "00:00:21.1020677",
+          "message": "Assert.True() Failure\nExpected: True\nActual:   False"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8192, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0374530",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 2147483647, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0366763",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0626810",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.1367205",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7891429",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Rapid_quick_pictures_do_not_start_more_source_calls_on_a_held_device",
+          "outcome": "Failed",
+          "duration": "00:01:01.6076646",
+          "message": "System.TimeoutException : Owned picture device fixture did not reach its checkpoint."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7707823",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Viewer_headers_share_device_admission_and_canceled_headers_never_read",
+          "outcome": "Failed",
+          "duration": "00:00:00.6245636",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7891262",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8193, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0412579",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.Closing_a_loaded_picture_releases_its_bitmap_and_source",
+          "outcome": "Failed",
+          "duration": "00:00:00.3030195",
+          "message": "Assert.IsType() Failure: Value is null\nExpected: typeof(FileCat.App.Services.DecodedPicture)\nActual:   null"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 0, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0399188",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.A_completed_quick_picture_keeps_its_dimensions_and_releases_on_close",
+          "outcome": "Failed",
+          "duration": "00:00:40.1443844",
+          "message": "System.TimeoutException : Decoded quick picture did not appear: reads=2, feederReads=1, disposals=0, visible=False, caption=owned.png | 753 bytes ·  · binary, shown as hex | ."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7708808",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"PNG\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0484975",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"BMP\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0478910",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 15, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0427846",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Picture_viewers_share_the_provider_device_limit_and_other_devices_complete",
+          "outcome": "Failed",
+          "duration": "00:00:01.6297104",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0564971",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0497925",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0809558",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 16, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0387609",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+          "outcome": "Failed",
+          "duration": "00:00:00.2233977",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.UnauthorizedAccessException)"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.The_worker_process_decodes_and_refuses_on_its_own",
+          "outcome": "Failed",
+          "duration": "00:00:00.0442343",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"invalid\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0468689",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0410379",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"empty\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0534334",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: -1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0439556",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.F3_on_a_picture_shows_the_picture_and_F4_its_bytes",
+          "outcome": "Failed",
+          "duration": "00:00:00.1747381",
+          "message": "Picture worker did not publish a decoded image. This picture cannot be shown: FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded.. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers."
+        }
+      ]
+    },
+    {
+      "id": "final_app",
+      "label": "Final complete App suite",
+      "evidence_path": "final/app.trx",
+      "sha256": "b08eeaf46ec3e40f0cf7b9c1db5e792be879237f516a5179a77b15502008a972",
+      "started_utc": "2026-10-17T12:10:52.144525+00:00",
+      "finished_utc": "2026-10-17T12:24:10.076324+00:00",
+      "elapsed_seconds": 797.932,
+      "total": 1906,
+      "passed": 1750,
+      "failed": 31,
+      "skipped": 125,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": [
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"empty\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0608233",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 16, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0666087",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0479928",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8192, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0420288",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0880696",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.The_worker_process_decodes_and_refuses_on_its_own",
+          "outcome": "Failed",
+          "duration": "00:00:00.0453355",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0388287",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.A_completed_quick_picture_keeps_its_dimensions_and_releases_on_close",
+          "outcome": "Failed",
+          "duration": "00:00:40.1081436",
+          "message": "System.TimeoutException : Decoded quick picture did not appear: reads=2, feederReads=1, disposals=0, visible=False, caption=owned.png | 753 bytes ·  · binary, shown as hex | ."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 2147483647, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0380968",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.ShellPictureUiTests.Quick_view_decodes_a_picture_itself_where_the_Shell_gives_none",
+          "outcome": "Failed",
+          "duration": "00:00:21.1091011",
+          "message": "Assert.True() Failure\nExpected: True\nActual:   False"
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"invalid\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0384035",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7655038",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 15, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0402336",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7666936",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Rapid_quick_pictures_do_not_start_more_source_calls_on_a_held_device",
+          "outcome": "Failed",
+          "duration": "00:01:01.8275980",
+          "message": "System.TimeoutException : Owned picture device fixture did not reach its checkpoint."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8193, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0418552",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7633432",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 0, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0382468",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Picture_viewers_share_the_provider_device_limit_and_other_devices_complete",
+          "outcome": "Failed",
+          "duration": "00:00:02.0273416",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.1394468",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"PNG\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0480809",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.Closing_a_loaded_picture_releases_its_bitmap_and_source",
+          "outcome": "Failed",
+          "duration": "00:00:00.3205305",
+          "message": "Assert.IsType() Failure: Value is null\nExpected: typeof(FileCat.App.Services.DecodedPicture)\nActual:   null"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Viewer_headers_share_device_admission_and_canceled_headers_never_read",
+          "outcome": "Failed",
+          "duration": "00:00:00.6293798",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"BMP\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0707180",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0678084",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7725050",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0470646",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+          "outcome": "Failed",
+          "duration": "00:00:00.0596238",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.UnauthorizedAccessException)"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: -1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0369110",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.F3_on_a_picture_shows_the_picture_and_F4_its_bytes",
+          "outcome": "Failed",
+          "duration": "00:00:00.2334452",
+          "message": "Picture worker did not publish a decoded image. This picture cannot be shown: FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded.. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0489821",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        }
+      ]
+    },
+    {
+      "id": "baseline_journal_permission",
+      "label": "Original-source journal permission failure reproduced separately",
+      "evidence_path": "baseline/journal-permission.trx",
+      "sha256": "ef822737186a07c51020ec20e757b90ff042129493d45396aa772e44c23df54c",
+      "started_utc": "2026-10-17T11:29:16.133503+00:00",
+      "finished_utc": "2026-10-17T11:29:20.455007+00:00",
+      "elapsed_seconds": 4.322,
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": [
+        {
+          "name": "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+          "outcome": "Failed",
+          "duration": "00:00:01.7168064",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.UnauthorizedAccessException)"
+        }
+      ]
+    },
+    {
+      "id": "focused_clipboard_content",
+      "label": "Clipboard, search and checksum focused gate",
+      "evidence_path": "focused/clipboard-content.trx",
+      "sha256": "026cf530bd12cf64f726054ce1656f131b5ae2f054cc83c1f259b6b802bb4dbe",
+      "started_utc": "2026-10-17T11:47:04.553547+00:00",
+      "finished_utc": "2026-10-17T11:47:26.928874+00:00",
+      "elapsed_seconds": 22.375,
+      "total": 98,
+      "passed": 98,
+      "failed": 0,
+      "skipped": 0,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": []
+    },
+    {
+      "id": "focused_recovery_undo",
+      "label": "Recovery and Undo affected App regression gate",
+      "evidence_path": "focused/recovery-undo-app.trx",
+      "sha256": "105ffe3f608e6b65bcaabfc6ff0c1e96c1a220f54c43f83925c62f2ea7d05e5a",
+      "started_utc": "2026-10-17T11:48:46.087959+00:00",
+      "finished_utc": "2026-10-17T11:49:32.177955+00:00",
+      "elapsed_seconds": 46.09,
+      "total": 240,
+      "passed": 231,
+      "failed": 1,
+      "skipped": 8,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": [
+        {
+          "name": "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+          "outcome": "Failed",
+          "duration": "00:00:00.0760176",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.UnauthorizedAccessException)"
+        }
+      ]
+    },
+    {
+      "id": "focused_dialogs_settings_scope",
+      "label": "Dialogs, settings, rename and synchronization focused gate",
+      "evidence_path": "focused/dialogs-settings-scope.trx",
+      "sha256": "1024e64833fa5cc371db677dd480986bc5c149bb6f5a208e1e35ad440d50adde",
+      "started_utc": "2026-10-17T11:29:38.469432+00:00",
+      "finished_utc": "2026-10-17T11:29:52.614489+00:00",
+      "elapsed_seconds": 14.145,
+      "total": 45,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": []
+    },
+    {
+      "id": "focused_selection_compare_find",
+      "label": "Final selection, comparison, Find, toolbar and working-set integration gate",
+      "evidence_path": "focused/selection-compare-find-integration.trx",
+      "sha256": "a77f8298c72ef60d91b0df4a15e9c16c9e043a6d5978fe097ce4bf78132cd1b8",
+      "started_utc": "2026-10-17T12:09:43.674169+00:00",
+      "finished_utc": "2026-10-17T12:10:25.783397+00:00",
+      "elapsed_seconds": 42.109,
+      "total": 114,
+      "passed": 112,
+      "failed": 0,
+      "skipped": 2,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": []
+    },
+    {
+      "id": "focused_selection_core",
+      "label": "Core marked-item paging and cached metadata focused gate",
+      "evidence_path": "focused/selection-accessibility-core.trx",
+      "sha256": "5ad988d1169e6e3a20ffd9be09d638a0614d2476309a954fd49b8ba7e6899989",
+      "started_utc": "2026-10-17T11:25:18.332561+00:00",
+      "finished_utc": "2026-10-17T11:25:23.016154+00:00",
+      "elapsed_seconds": 4.684,
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": []
+    },
+    {
+      "id": "diagnostic_core_unbounded",
+      "label": "Earlier Core run with unrestricted collection concurrency; superseded by final bounded run",
+      "evidence_path": "diagnostic/core-before-concurrency-limit.trx",
+      "sha256": "4c130a679e758f4c1993144ee5bf1d4af8c7d8b2b018bc6375e04a17c3ce129f",
+      "started_utc": "2026-10-17T11:30:40.407153+00:00",
+      "finished_utc": "2026-10-17T11:36:30.437048+00:00",
+      "elapsed_seconds": 350.03,
+      "total": 4496,
+      "passed": 4380,
+      "failed": 4,
+      "skipped": 112,
+      "other_outcomes": {},
+      "repeated_display_names": {
+        "FileCat.Core.Tests.UnixWorkerIdentityTests.Linux_worker_requires_a_complete_zero_capability_inventory(status: \"CapInh:\\t0000000000000000\\nCapPrm:\\t00000000000000\"···, expected: False)": 4,
+        "FileCat.Core.Tests.ChecksumManifestTests.A_pasted_checksum_is_read_in_the_forms_pages_and_tools_show(text: \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4\"···, kind: Sha256)": 2,
+        "FileCat.Core.Tests.InspectorCrossCheckTests.PE_headers_directories_and_sections_are_what_the_runtime_reads(path: \"/workspace/scratch/c81a650ea3dd/toolchain/dotnet/s\"···)": 2,
+        "FileCat.Core.Tests.ToolTextRoundTripTests.Structured_tool_edits_reject_unknown_or_invalid_data_atomically(text: \"@tools:[{\\\"Name\\\":\\\"Run\\\",\\\"Executable\\\":\\\"tool\\\",\"···)": 2
+      },
+      "failures": [
+        {
+          "name": "FileCat.Core.Tests.RecoveryFuzzTests.Damaged_images_are_reported_not_crashed_on(image: \"fat16\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.5635968",
+          "message": "System.OutOfMemoryException : Exception of type 'System.OutOfMemoryException' was thrown."
+        },
+        {
+          "name": "FileCat.Core.Tests.PageCacheBudgetTests.Open_viewers_together_stay_within_the_shared_budget",
+          "outcome": "Failed",
+          "duration": "00:00:00.2733260",
+          "message": "System.OutOfMemoryException : Exception of type 'System.OutOfMemoryException' was thrown."
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryFuzzTests.Damaged_images_are_reported_not_crashed_on(image: \"ntfs\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0271979",
+          "message": "System.OutOfMemoryException : Exception of type 'System.OutOfMemoryException' was thrown."
+        },
+        {
+          "name": "FileCat.Core.Tests.ChecksumManifestBoundedInputTests.Unix_zero_length_device_cannot_escape_the_explicit_manifest_budget",
+          "outcome": "Failed",
+          "duration": "00:00:00.0013496",
+          "message": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.IO.InvalidDataException)\nActual:   typeof(FileCat.Core.Verification.VerificationFileReader+NotAFileException)\n---- FileCat.Core.Verification.VerificationFileReader+NotAFileException : It is not a regular file (a pipe, a socket, or a device)."
+        }
+      ]
+    },
+    {
+      "id": "diagnostic_app_first_complete",
+      "label": "Earlier complete App integration run; superseded by final App run after seven regressions were addressed",
+      "evidence_path": "diagnostic/app-before-integration-corrections.trx",
+      "sha256": "d5798c4cc178cd1bcaeafc8286ff73f6e0e4eda2042d8b642f0c36f2b3d6383a",
+      "started_utc": "2026-10-17T11:51:37.048397+00:00",
+      "finished_utc": "2026-10-17T12:03:45.429577+00:00",
+      "elapsed_seconds": 728.381,
+      "total": 1901,
+      "passed": 1738,
+      "failed": 38,
+      "skipped": 125,
+      "other_outcomes": {},
+      "repeated_display_names": {},
+      "failures": [
+        {
+          "name": "FileCat.App.Tests.WorkingSetUiTests.F5_toward_a_working_set_adds_references_and_deleting_the_set_keeps_the_files",
+          "outcome": "Failed",
+          "duration": "00:00:00.6307931",
+          "message": "Assert.Empty() Failure: Collection was not empty\nCollection: [ResultSet { Count = 0, CreatedUtc = 2026-10-17T11:52:38.8298417Z, FullFolders = False, Id = \"8dfe277b0c49\", IsComplete = True, ··· }]"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0486466",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.FindRemainingScopeTests.Duplicates_within_results_never_add_excluded_files_and_keep_original_relative_paths",
+          "outcome": "Failed",
+          "duration": "00:00:05.2069485",
+          "message": "The controlled Find state did not complete."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.A_completed_quick_picture_keeps_its_dimensions_and_releases_on_close",
+          "outcome": "Failed",
+          "duration": "00:00:40.0753721",
+          "message": "System.TimeoutException : Decoded quick picture did not appear: reads=2, feederReads=1, disposals=0, visible=False, caption=owned.png | 753 bytes ·  · binary, shown as hex | ."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7858731",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0473590",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.F3_on_a_picture_shows_the_picture_and_F4_its_bytes",
+          "outcome": "Failed",
+          "duration": "00:00:00.1967554",
+          "message": "Picture worker did not publish a decoded image. This picture cannot be shown: FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded.. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 0, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0389403",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.FindRemainingScopeTests.Saved_literal_search_reloads_case_words_masks_and_size_limits",
+          "outcome": "Failed",
+          "duration": "00:00:05.2442957",
+          "message": "The controlled Find state did not complete."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.1989768",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 15, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0384486",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0416568",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.FindRemainingScopeTests.Saved_regex_search_reloads_the_expression_and_word_boundaries",
+          "outcome": "Failed",
+          "duration": "00:00:05.2278102",
+          "message": "The controlled Find state did not complete."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"empty\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0463845",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 40)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7935518",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Viewer_headers_share_device_admission_and_canceled_headers_never_read",
+          "outcome": "Failed",
+          "duration": "00:00:00.6366509",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"BMP\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0580461",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: True)",
+          "outcome": "Failed",
+          "duration": "00:00:00.1061452",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.FindRemainingScopeTests.Saved_hex_search_reloads_exact_bytes_and_exclusions",
+          "outcome": "Failed",
+          "duration": "00:00:05.1497523",
+          "message": "The controlled Find state did not complete."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7721492",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"invalid\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0482863",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PanelKeysTests.The_toolbar_runs_commands_names_their_keys_shows_switches_and_can_be_hidden",
+          "outcome": "Failed",
+          "duration": "00:00:00.2145395",
+          "message": "No icon: Review marked items…"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8192, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0441515",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0755004",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8193, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0404450",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 16, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0431241",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureViewerTests.The_worker_process_decodes_and_refuses_on_its_own",
+          "outcome": "Failed",
+          "duration": "00:00:00.0445277",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Picture_viewers_share_the_provider_device_limit_and_other_devices_complete",
+          "outcome": "Failed",
+          "duration": "00:00:01.6371138",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: -1, width: 16, height: 12)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0388840",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+          "outcome": "Failed",
+          "duration": "00:00:00.0760093",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.UnauthorizedAccessException)"
+        },
+        {
+          "name": "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"PNG\")",
+          "outcome": "Failed",
+          "duration": "00:00:00.0477428",
+          "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: False)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0683435",
+          "message": "System.NullReferenceException : Object reference not set to an instance of an object."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 8)",
+          "outcome": "Failed",
+          "duration": "00:00:00.7961492",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.ShellPictureUiTests.Quick_view_decodes_a_picture_itself_where_the_Shell_gives_none",
+          "outcome": "Failed",
+          "duration": "00:00:21.1369624",
+          "message": "Assert.True() Failure\nExpected: True\nActual:   False"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureLifetimeTests.Closing_a_loaded_picture_releases_its_bitmap_and_source",
+          "outcome": "Failed",
+          "duration": "00:00:00.1952459",
+          "message": "Assert.IsType() Failure: Value is null\nExpected: typeof(FileCat.App.Services.DecodedPicture)\nActual:   null"
+        },
+        {
+          "name": "FileCat.App.Tests.PictureDeviceDemandTests.Rapid_quick_pictures_do_not_start_more_source_calls_on_a_held_device",
+          "outcome": "Failed",
+          "duration": "00:01:01.7535454",
+          "message": "System.TimeoutException : Owned picture device fixture did not reach its checkpoint."
+        },
+        {
+          "name": "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 2147483647, width: 32, height: 24)",
+          "outcome": "Failed",
+          "duration": "00:00:00.0354736",
+          "message": "System.IO.InvalidDataException : FileCat worker has elevated rights and the worker has no ordinary user and group to become (203), so this picture was not decoded."
+        },
+        {
+          "name": "FileCat.App.Tests.FindRemainingScopeTests.Saved_unicode_search_reloads_UTF8_and_both_UTF16_orders",
+          "outcome": "Failed",
+          "duration": "00:00:05.3685434",
+          "message": "The controlled Find state did not complete."
+        }
+      ]
+    }
+  ],
+  "comparisons": {
+    "core": {
+      "comparison_basis": "Display-name groups and outcome multisets; repeated truncated theory names retain their complete case counts.",
+      "verified_display_name_aliases": [
+        {
+          "baseline_name": "FileCat.Core.Tests.InspectorCrossCheckTests.PE_headers_directories_and_sections_are_what_the_runtime_reads(path: \"/workspace/scratch/c81a650ea3dd/baseline/tests/Fil\"···)",
+          "final_name": "FileCat.Core.Tests.InspectorCrossCheckTests.PE_headers_directories_and_sections_are_what_the_runtime_reads(path: \"/workspace/scratch/c81a650ea3dd/FileCat/tests/File\"···)",
+          "reason": "Unchanged InspectorCrossCheckTests.PeFiles uses typeof(PeInspector).Assembly.Location. The same existing case reports its assembly in the isolated baseline versus modified checkout; its displayed argument is truncated at different positions."
+        }
+      ],
+      "net_case_count_change": 148,
+      "added_case_count": 148,
+      "added_case_outcomes": {
+        "Passed": 148
+      },
+      "added_case_groups": [
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.A_match_that_starts_after_the_cursor_is_never_returned",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Cancellation_stops_before_the_next_reverse_window",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Every_missed_reverse_window_moves_to_an_earlier_boundary_until_zero",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Incomplete_text_read_is_an_error_instead_of_a_completed_negative_result(backward: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Incomplete_text_read_is_an_error_instead_of_a_completed_negative_result(backward: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Match_offsets_remain_exact_for_real_invalid_sequences_at_window_edges(name: \"utf-16\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Match_offsets_remain_exact_for_real_invalid_sequences_at_window_edges(name: \"utf-16BE\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Match_offsets_remain_exact_for_real_invalid_sequences_at_window_edges(name: \"utf-8\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_and_forward_search_preserve_overlapping_matches(name: \"iso-8859-1\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_and_forward_search_preserve_overlapping_matches(name: \"utf-16\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_and_forward_search_preserve_overlapping_matches(name: \"utf-16BE\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_and_forward_search_preserve_overlapping_matches(name: \"utf-8\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"iso-8859-1\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"utf-16\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"utf-16\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"utf-16BE\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"utf-8\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Reverse_text_search_exhausts_full_range_and_finds_boundary_matches(encodingName: \"utf-8\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Start_beyond_length_is_a_complete_empty_range_without_alignment_overflow",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Utf16_progress_is_encoding_aligned_with_or_without_bom(name: \"utf-16\", bom: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Utf16_progress_is_encoding_aligned_with_or_without_bom(name: \"utf-16\", bom: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Utf16_progress_is_encoding_aligned_with_or_without_bom(name: \"utf-16BE\", bom: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Utf16_progress_is_encoding_aligned_with_or_without_bom(name: \"utf-16BE\", bom: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Window_context_distinguishes_real_replacement_characters_from_split_multibyte_characters(name: \"utf-16\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Window_context_distinguishes_real_replacement_characters_from_split_multibyte_characters(name: \"utf-16BE\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ContentSearchBackwardTests.Window_context_distinguishes_real_replacement_characters_from_split_multibyte_characters(name: \"utf-8\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MarkPagingTests.Bounded_page_query_of_a_million_marks_allocates_no_selection_array",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MarkPagingTests.Invalid_cursor_is_rejected_and_cleared_marks_leave_no_stale_page",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MarkPagingTests.Pages_cover_sparse_and_word_boundary_marks_once_without_changing_selection(pageSize: 1)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MarkPagingTests.Pages_cover_sparse_and_word_boundary_marks_once_without_changing_selection(pageSize: 3)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MarkPagingTests.Pages_cover_sparse_and_word_boundary_marks_once_without_changing_selection(pageSize: 64)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Invalid_or_unsupported_recovery_mask_terms_do_not_become_match_all",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_mask_snapshot_has_global_text_term_and_depth_bounds",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_compiled_name_matching_semantics(text: \"*|*.bak\", contains: False, name: \"source.txt\", directory: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_compiled_name_matching_semantics(text: \"/^ab+c$/i\", contains: False, name: \"ABBC\", directory: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_compiled_name_matching_semantics(text: \"\\\"a;b.txt\\\"\", contains: False, name: \"a;b.txt\", directory: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_compiled_name_matching_semantics(text: \"report\", contains: True, name: \"Q3 report.pdf\", directory: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_compiled_name_matching_semantics(text: \"src/\", contains: False, name: \"src\", directory: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_path_matching_semantics(text: \"*.cs|*Test*\", path: \"src/View.cs\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_path_matching_semantics(text: \"src/**/*.cs\", path: \"src/a/b/c.cs\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MaskTests.Recovery_snapshot_retains_saved_filter_grouping_after_definitions_change_or_disappear",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.MetadataPeekTests.Accessibility_cache_inspection_never_starts_production_and_respects_entry_revision",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_filtered_same_volume_folder_move_leaves_excluded_files_in_the_source(mergeExisting: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_filtered_same_volume_folder_move_leaves_excluded_files_in_the_source(mergeExisting: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_legacy_header_retains_its_recorded_name_but_cannot_claim_equivalent_continuation",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"conflicts\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"destination\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"filter\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"flatten\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"kind\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"mode\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"newName\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"preserveAttributes\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"preserveTimestamps\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"rateLimit\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"roots\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"verify\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.A_missing_intent_field_never_silently_uses_current_defaults(field: \"version\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Comparison_and_edit_commit_preconditions_require_a_new_review",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Complete_options_and_name_mapping_round_trip_with_conservative_recovery_conflicts(kind: Copy, flatten: False, verify: Native)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Complete_options_and_name_mapping_round_trip_with_conservative_recovery_conflicts(kind: Move, flatten: True, verify: ReadBack)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"absolute-relative-folder\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"extra-option\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"filter-type\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"future-version\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"negative-rate\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"other-destination\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"other-source\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"oversized-filter\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"relative-source\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"root-type\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"traversing-name\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"traversing-relative-folder\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"unknown-conflict\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"unknown-verify\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"verify-type\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Malformed_or_inconsistent_intent_is_retained_for_review_without_continuation(change: \"wrong-kind\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Partial_copy_review_never_admits_a_file_excluded_by_the_recorded_filter",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Partial_copy_review_uses_the_original_new_name_and_excludes_unrelated_namesakes",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Source_and_mask_limits_disable_equivalent_continuation_without_losing_the_original_manifest",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.The_large_selection_manifest_keeps_each_relative_folder_in_the_same_source_order",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Wrong_header_scalar_types_do_not_crash_the_recovery_scan(field: \"count\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Wrong_header_scalar_types_do_not_crash_the_recovery_scan(field: \"source-array\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoverableTransferIntentTests.Wrong_header_scalar_types_do_not_crash_the_recovery_scan(field: \"type\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.A_case_only_move_keeps_the_original_recorded_name_change",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.A_file_folder_conflict_still_requires_a_safe_decision(kind: Copy)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.A_file_folder_conflict_still_requires_a_safe_decision(kind: Move)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.A_move_with_both_complete_versions_present_keeps_the_source_under_skip",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.A_same_item_hard_link_copy_still_requires_a_safe_conflict_decision",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.An_existing_directory_receives_missing_descendants_and_does_not_authorize_deleting_skipped_sources(kind: Copy)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.An_existing_directory_receives_missing_descendants_and_does_not_authorize_deleting_skipped_sources(kind: Move)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.Ordinary_existing_file_is_kept_without_verification_or_move_source_deletion(kind: Copy, crossVolume: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.Ordinary_existing_file_is_kept_without_verification_or_move_source_deletion(kind: Move, crossVolume: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.RecoveryTransferConflictTests.Ordinary_existing_file_is_kept_without_verification_or_move_source_deletion(kind: Move, crossVolume: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \" space \")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"@json:[1,2]\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"C:\\\\My Editor Profile\\\\\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"Příliš žluťoučký \\ud83d\\udc08\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"\\\"\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"a\\\"b\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"a|b\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"before\\tafter\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Argument_boundaries_and_literal_content_survive_format_and_parse(value: \"line one\\r\\nline two\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Association_exclusion_mask_and_all_launch_fields_survive_an_editable_round_trip",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Comment_marker_names_and_group_names_survive_repeated_settings_round_trips",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Empty_vector_and_one_empty_argument_remain_different",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Invalid_argument_fields_never_return_a_partial_vector(text: \"@json:[1]\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Invalid_argument_fields_never_return_a_partial_vector(text: \"@json:[\\\"incomplete\\\"\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Invalid_argument_fields_never_return_a_partial_vector(text: \"@json:[null]\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Invalid_argument_fields_never_return_a_partial_vector(text: \"@json:null\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Invalid_argument_fields_never_return_a_partial_vector(text: \"bad \\\"unterminated\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Line_break_arguments_and_working_directory_remain_one_row_in_the_tool_grammar",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Malformed_command_rows_are_reported_without_accepting_prior_rows(invalid: \"Run | tool.exe | \\\"unterminated\", expectedMessage: \"unmatched double quote\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Malformed_command_rows_are_reported_without_accepting_prior_rows(invalid: \"Run | tool.exe | x | dir=one dir=two\", expectedMessage: \"Duplicate option\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Malformed_command_rows_are_reported_without_accepting_prior_rows(invalid: \"Run | tool.exe | {file} | shell | ignored\", expectedMessage: \"unexpected columns\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Noncanonical_submenu_structures_preserve_complete_values_order_and_empty_groups",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Oversized_input_is_rejected_before_tokenization",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Structured_tool_edits_reject_unknown_or_invalid_data_atomically(text: \"@tools:[null]\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Structured_tool_edits_reject_unknown_or_invalid_data_atomically(text: \"@tools:[{\\\"Name\\\":\\\"Run\\\",\\\"Executable\\\":\\\"tool\\\",\"···)",
+          "case_count": 2,
+          "outcomes": {
+            "Passed": 2
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.ToolTextRoundTripTests.Structured_tool_edits_reject_unknown_or_invalid_data_atomically(text: \"@tools:null\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_batch_inverse_crash_has_durable_open_rename_intents_and_a_complete_failure_report",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_failed_handoff_preserves_the_only_recorded_inverse",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_late_failure_and_guarded_keep_are_counted_and_retained_ahead_of_successes_with_full_paths",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_mixed_move_discloses_the_copy_delete_subset_without_inventing_an_inverse_for_it",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_replacement_move_records_the_irreversible_destination_content_at_commit_time",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.A_single_reservation_owns_review_and_cancel_releases_it_without_consuming_steps",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.An_admitted_inverse_is_active_once_and_survives_removing_the_original_history",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.An_unexpected_worker_exit_still_accounts_for_every_captured_step",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Canceling_an_admitted_queued_inverse_keeps_a_complete_unattempted_report_and_never_replays",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Canceling_during_batch_staging_rolls_back_and_retains_failed_rollback_evidence(failRollback: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Canceling_during_batch_staging_rolls_back_and_retains_failed_rollback_evidence(failRollback: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Failed_canceled_and_truncated_originals_remain_ineligible",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Overlapping_work_waits_for_the_inverse_mutation_scope",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoLifecycleTests.Registry_inverse_bytes_cannot_change_the_captured_approval",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.A_created_empty_file_is_kept_when_it_now_contains_data_or_is_a_directory(directory: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.A_created_empty_file_is_kept_when_it_now_contains_data_or_is_a_directory(directory: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.An_empty_folder_inverse_keeps_a_populated_folder_or_replacement_file(replacedByFile: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.An_empty_folder_inverse_keeps_a_populated_folder_or_replacement_file(replacedByFile: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Hard_link_removal_requires_the_recorded_identity_at_both_names_but_allows_shared_content_changes(scenario: \"created-name-replaced\", removed: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Hard_link_removal_requires_the_recorded_identity_at_both_names_but_allows_shared_content_changes(scenario: \"original-missing\", removed: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Hard_link_removal_requires_the_recorded_identity_at_both_names_but_allows_shared_content_changes(scenario: \"original-replaced\", removed: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Hard_link_removal_requires_the_recorded_identity_at_both_names_but_allows_shared_content_changes(scenario: \"shared-content-edit\", removed: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Link_review_and_result_name_the_created_entry_and_retained_target_with_the_correct_verbs",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Moving_a_directory_back_keeps_its_current_contents_instead_of_requiring_an_unrecorded_tree_snapshot",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Recycle_restore_keeps_the_platform_refusal_and_never_overwrites_an_occupied_original(hasRecordedIdentity: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.Core.Tests.UndoSafetyTests.Recycle_restore_keeps_the_platform_refusal_and_never_overwrites_an_occupied_original(hasRecordedIdentity: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        }
+      ],
+      "removed_cases": [],
+      "changed_outcomes": [],
+      "failure_names_in_both": [
+        "FileCat.Core.Tests.ChecksumManifestBoundedInputTests.Unix_zero_length_device_cannot_escape_the_explicit_manifest_budget"
+      ],
+      "failures_absent_from_baseline": [],
+      "baseline_failures_absent_from_final": []
+    },
+    "app": {
+      "comparison_basis": "Display-name groups and outcome multisets; repeated truncated theory names retain their complete case counts.",
+      "verified_display_name_aliases": [],
+      "net_case_count_change": 173,
+      "added_case_count": 173,
+      "added_case_outcomes": {
+        "Passed": 173
+      },
+      "added_case_groups": [
+        {
+          "name": "FileCat.App.Tests.BackgroundDecisionTests.A_background_conflict_cannot_steal_a_prompt_or_its_queued_Enter",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BackgroundDecisionTests.Canceling_an_operation_retires_its_open_decision",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BackgroundDecisionTests.Consequential_confirmations_choose_safe_initial_action_independently_of_order(title: \"Encrypted file\", label: \"Copy decrypted\", kind: \"decrypt\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BackgroundDecisionTests.Consequential_confirmations_choose_safe_initial_action_independently_of_order(title: \"Moving would lose file metadata\", label: \"Move anyway\", kind: \"metadata-loss\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BackgroundDecisionTests.Consequential_confirmations_choose_safe_initial_action_independently_of_order(title: \"Read-only item\", label: \"Delete anyway\", kind: \"readonly\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BulkRenameScopeTests.A_scope_with_only_hidden_marks_starts_empty_and_cannot_be_renamed_without_inclusion",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BulkRenameScopeTests.Hidden_marks_are_explicit_and_the_reviewed_scope_survives_later_navigation(include: False, navigate: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BulkRenameScopeTests.Hidden_marks_are_explicit_and_the_reviewed_scope_survives_later_navigation(include: False, navigate: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BulkRenameScopeTests.Hidden_marks_are_explicit_and_the_reviewed_scope_survives_later_navigation(include: True, navigate: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.BulkRenameScopeTests.Hidden_marks_are_explicit_and_the_reviewed_scope_survives_later_navigation(include: True, navigate: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Clipboard_without_ownership_support_explains_copy_fallback_and_preserves_source",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Concurrent_clipboard_writes_finish_in_invocation_order_and_only_latest_owns_cut",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Cut_in_flight_and_canceled_cut_require_deliberate_recut_before_another_move",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_file_paste_preserves_original_destination_after_same_tab_navigation(cut: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_file_paste_preserves_original_destination_after_same_tab_navigation(cut: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_text_paste_cannot_override_newer_navigation_or_closed_tab(action: \"close\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_text_paste_cannot_override_newer_navigation_or_closed_tab(action: \"navigate\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_text_paste_cannot_override_newer_navigation_or_closed_tab(action: \"pending-navigation\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Delayed_text_paste_cannot_override_newer_navigation_or_closed_tab(action: \"same-location\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Disappeared_destination_cancels_paste_without_recreating_or_redirecting_it",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Distinct_case_resources_remain_distinct_in_a_cut_publication",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.External_copy_of_same_path_or_subset_cannot_inherit_old_cut(subset: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.External_copy_of_same_path_or_subset_cannot_inherit_old_cut(subset: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Failed_clipboard_write_does_not_consume_the_previous_owned_cut_or_leave_paste_pending",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Failed_cut_admission_retains_originals_and_requires_review_before_retry",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Fully_completed_cut_is_not_reused_as_a_second_transfer",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Intervening_external_publications_do_not_allow_same_path_cut_revival(kind: \"empty\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Intervening_external_publications_do_not_allow_same_path_cut_revival(kind: \"files\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Intervening_external_publications_do_not_allow_same_path_cut_revival(kind: \"image\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Intervening_external_publications_do_not_allow_same_path_cut_revival(kind: \"text\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Matching_owner_still_requires_exact_resource_set(change: \"different-case\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Matching_owner_still_requires_exact_resource_set(change: \"subset\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Mixed_resource_selection_is_rejected_as_a_whole_and_preserves_the_clipboard(cut: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Mixed_resource_selection_is_rejected_as_a_whole_and_preserves_the_clipboard(cut: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.New_process_has_no_cut_authority_even_for_an_identical_retained_file_payload",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Newer_filecat_cut_during_pending_read_cannot_be_consumed_by_old_paste",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Older_move_completion_cannot_consume_a_newer_cut_publication",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Partial_cut_move_explains_remaining_roots_and_does_not_replay_original_clipboard",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Pending_file_paste_has_explicit_tab_lifetime_policy(action: \"close-tab\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Pending_file_paste_has_explicit_tab_lifetime_policy(action: \"move-tab\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Pending_file_paste_has_explicit_tab_lifetime_policy(action: \"switch-panel\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Relative_text_location_uses_captured_base_and_reads_one_snapshot",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Replacing_clipboard_while_cut_payload_is_pending_cancels_then_current_copy_works",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ClipboardIntentTests.Unconvertible_selection_keeps_previous_clipboard_and_reports_failure",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Combining_difference_at_a_part_boundary_reveals_the_decisive_mark_in_both_viewports",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Difference_selection_keeps_surrogate_pairs_and_combining_marks_intact",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Exceptional_lines_are_complete_through_bounded_parts_and_summary_rows_stay_small",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Gaps_empty_lines_ignored_differences_and_line_endings_have_honest_details",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Horizontal_scrolling_of_unwrapped_details_keeps_both_sides_at_the_same_offset",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.New_row_and_close_retire_old_detail_work_and_release_source_text",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Oversized_boundary_element_stays_bounded_and_discloses_its_complete_paging_path",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Queued_detail_focus_does_not_override_newer_focus_or_survive_a_new_row",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 1200, length: 10000)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 1200, length: 200)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 1200, length: 60)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 1200, length: 80)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 640, length: 10000)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 640, length: 200)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 640, length: 60)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 640, length: 80)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 980, length: 10000)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 980, length: 200)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 980, length: 60)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.CompareLineDetailsTests.Suffix_change_is_visible_in_both_viewports_through_keyboard_and_pointer(width: 980, length: 80)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.A_disabled_or_removed_return_target_uses_the_current_fallback(disable: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.A_disabled_or_removed_return_target_uses_the_current_fallback(disable: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.Closing_an_inner_prompt_returns_to_the_outer_input_and_preserves_its_caret",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.Confirm_initial_focus_and_Enter_follow_the_explicit_consequence(danger: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.Confirm_initial_focus_and_Enter_follow_the_explicit_consequence(danger: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.Deliberate_focus_before_queued_initial_focus_is_preserved",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.DialogFocusOwnershipTests.Open_and_close_before_dispatch_cannot_focus_a_retired_prompt_or_steal_the_new_prompt",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.An_item_invoke_cannot_follow_activation_into_another_tabs_files",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Container_identity_is_stable_while_focus_and_marks_have_separate_semantics",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Detached_visual_host_retires_cached_item_actions_even_when_its_tab_is_still_alive",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Focus_and_mark_events_report_actual_changes_and_background_updates_are_coalesced",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Million_item_selection_is_bounded_and_explicitly_routes_to_complete_review",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Paged_review_reaches_every_mark_with_keyboard_and_keeps_filter_hidden_marks",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Partially_visible_row_bounds_are_clipped_to_content_and_exclude_the_scrollbar",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Peers_from_a_replaced_store_cannot_mark_focus_or_invoke_another_item",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Refresh_selection_events_keep_the_actual_old_set_when_every_marked_item_disappears",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Registered_review_command_opens_an_accessible_complete_scope_and_escape_preserves_marks",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Result_set_review_and_peers_distinguish_same_names_by_original_identity_without_provider_reads",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Scroll_pattern_has_valid_bounds_and_does_not_change_command_focus",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Selection_item_select_publishes_one_complete_mark_change_even_for_hidden_items",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Sorting_reuses_item_identity_and_updates_bounds_and_position_without_renaming_it",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Standard_selection_includes_offscreen_and_hidden_marks_and_supports_safe_item_actions",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.State_channels_distinguish_loading_filter_empty_partial_failure_and_provider_kinds",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListAutomationTests.Stopped_partial_listing_remains_distinct_from_a_complete_or_empty_location",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.A_filtered_anchor_is_retired_and_cannot_return_when_revealed",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.A_visible_anchor_survives_filter_reordering",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Preloaded_tab_switch_uses_the_new_tabs_focus_and_preserves_ctrl_marks",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Refresh_retires_the_old_store_anchor_after_creation_and_deletion",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Releasing_shift_in_another_window_ends_the_native_window_gesture",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Shift_movement_preserves_commander_toggle_intent_until_shift_is_released",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Shift_release_outside_the_list_ends_the_previous_unmark_gesture",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Sorting_resolves_the_clicked_identity_in_the_new_visible_order",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Streaming_rows_preserves_an_anchor_in_the_same_store",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FileListSelectionTests.Switching_tabs_during_shift_movement_ends_the_previous_unmark_gesture",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FindInitialFocusTests.Closing_before_initial_focus_does_not_focus_a_retired_find_field",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FindInitialFocusTests.Queued_initial_focus_preserves_a_newer_deliberate_field_focus",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.FindInitialFocusTests.Queued_initial_focus_preserves_the_active_other_window",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.A_replaced_manifest_cannot_change_the_reviewed_transfer_scope_or_trigger_cleanup",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"cleanup\", policy: -1)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"copy-partial\", policy: -1)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"move\", policy: -1)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"new-copy\", policy: 2)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"new-copy\", policy: 3)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Consequential_recovery_reviews_initially_cancel_and_Enter_does_not_mutate_or_retire_the_journal(flow: \"new-copy\", policy: 5)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Filtered_move_preserves_scope_verification_and_excluded_source_and_destination_files",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Legacy_records_require_an_explicit_new_transfer_review_and_keep_the_journal_until_submission(approve: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Legacy_records_require_an_explicit_new_transfer_review_and_keep_the_journal_until_submission(approve: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Renamed_copy_reviews_and_reuses_the_exact_name_and_original_transfer_options",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Result_set_relative_folders_and_flatten_choice_survive_recovery(flatten: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.InterruptedTransferIntentUiTests.Result_set_relative_folders_and_flatten_choice_survive_recovery(flatten: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Cancel_restores_the_saved_theme_after_preview_and_preserves_the_tools",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Editing_arguments_preserves_other_editor_fields_and_never_splits_quoted_values",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Invalid_fields_keep_the_same_draft_session_and_focus_without_a_partial_commit(fieldName: \"Associations\", draft: \"*.txt | view | tool | \\\"unterminated\", message: \"Line 1:\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Invalid_fields_keep_the_same_draft_session_and_focus_without_a_partial_commit(fieldName: \"Editor arguments\", draft: \"--profile \\\"unterminated\", message: \"Editor arguments:\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Invalid_fields_keep_the_same_draft_session_and_focus_without_a_partial_commit(fieldName: \"User commands (F9)\", draft: \"Valid | tool | x\\nBroken | tool | x | shell | igno\"···, message: \"Line 2:\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.No_edit_and_theme_only_saves_preserve_all_tool_values_and_real_launch_arguments(changeTheme: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.No_edit_and_theme_only_saves_preserve_all_tool_values_and_real_launch_arguments(changeTheme: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Protected_profiles_remain_inspectable_with_the_correct_reason_and_no_edit_actions(status: NewerSchemaReadOnly, reason: \"newer FileCat\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Protected_profiles_remain_inspectable_with_the_correct_reason_and_no_edit_actions(status: OversizedReadOnly, reason: \"safe input limit\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Protected_profiles_remain_inspectable_with_the_correct_reason_and_no_edit_actions(status: UnavailableReadOnly, reason: \"could not be read safely\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SettingsPreservationTests.Reverting_a_valid_argument_draft_after_another_error_cannot_commit_stale_parsed_arguments",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SyncEndpointTests.A_long_endpoint_is_retained_in_full_at_the_minimum_window_width",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SyncEndpointTests.Full_copyable_endpoints_and_deletion_target_follow_direction(left: \"C:\\\\Work\\\\Project\", right: \"E:\\\\Backup\\\\Project\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.SyncEndpointTests.Full_copyable_endpoints_and_deletion_target_follow_direction(left: \"sftp://first.example/team/Project\", right: \"sftp://second.example/archive/Project\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.A_late_guarded_keep_is_visible_in_the_complete_report_and_the_report_reopens_and_copies",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.An_approval_arriving_after_window_close_or_io_shutdown_cannot_admit_an_inverse(ioShutdown: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.An_approval_arriving_after_window_close_or_io_shutdown_cannot_admit_an_inverse(ioShutdown: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.An_approved_queued_inverse_owns_close_policy_and_survives_clearing_original_history",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.Replacement_move_review_names_the_partial_inverse_and_irreversible_destination_content",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.Review_is_owned_before_await_duplicate_row_and_keyboard_requests_do_not_stack_and_cancel_releases_it",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.UndoLifecycleUiTests.Show_affected_keeps_distinct_case_resources_in_the_inventory",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.A_failed_explicit_copy_keeps_the_selectable_result_and_explains_the_failure",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.A_source_without_revision_evidence_does_not_claim_verified_current_content",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.An_early_end_is_visible_with_actual_count_and_full_partial_hash_without_clipboard_access",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Delayed_checksum_retains_scope_and_handles_cancellation_revision_and_read_failure(action: \"escape_from_results\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Delayed_checksum_retains_scope_and_handles_cancellation_revision_and_read_failure(action: \"read_error\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Delayed_checksum_retains_scope_and_handles_cancellation_revision_and_read_failure(action: \"scope_moved\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Delayed_checksum_retains_scope_and_handles_cancellation_revision_and_read_failure(action: \"source_changed\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Delayed_checksum_retains_scope_and_handles_cancellation_revision_and_read_failure(action: \"stop\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.One_byte_selection_hashes_one_byte_and_complete_results_remain_selectable_until_explicit_copy(width: 480)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.One_byte_selection_hashes_one_byte_and_complete_results_remain_selectable_until_explicit_copy(width: 980)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Scope_review_captures_range_before_caret_movement",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Unknown_source_length_cannot_be_reported_as_a_complete_empty_file_checksum",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerChecksumScopeTests.Whole_file_is_an_explicit_scope_and_opening_the_panel_does_not_compute_or_replace_clipboard",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Changed_search_context_does_not_reuse_an_incompatible_hit(change: \"bytes\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Changed_search_context_does_not_reuse_an_incompatible_hit(change: \"case\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Changed_search_context_does_not_reuse_an_incompatible_hit(change: \"encoding\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Changed_search_context_does_not_reuse_an_incompatible_hit(change: \"mode\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Changed_search_context_does_not_reuse_an_incompatible_hit(change: \"report\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Consecutive_find_commands_include_overlapping_matches_in_both_directions(editor: False, name: \"utf-16\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Consecutive_find_commands_include_overlapping_matches_in_both_directions(editor: False, name: \"utf-16BE\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Consecutive_find_commands_include_overlapping_matches_in_both_directions(editor: False, name: \"utf-8\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Consecutive_find_commands_include_overlapping_matches_in_both_directions(editor: True, name: \"iso-8859-1\")",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Manual_cursor_movement_and_changed_query_start_at_the_position_the_user_chose(editor: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Manual_cursor_movement_and_changed_query_start_at_the_position_the_user_chose(editor: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: False, encodingName: \"iso-8859-1\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: False, encodingName: \"utf-16\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: False, encodingName: \"utf-16BE\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: False, encodingName: \"utf-8\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: False, encodingName: \"utf-8\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: True, encodingName: \"iso-8859-1\", matchCase: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Previous_search_finds_distant_and_chunk_crossing_matches_in_reverse_order(editor: True, encodingName: \"iso-8859-1\", matchCase: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Source_polling_waits_for_initial_encoding_detection_and_cannot_restart_after_close(closeWhileOpening: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Source_polling_waits_for_initial_encoding_detection_and_cannot_restart_after_close(closeWhileOpening: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Unreadable_preceding_range_is_not_reported_as_a_complete_negative_result",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Utf16_previous_search_completes_with_non_ascii_content_and_bom_policy(name: \"utf-16\", bom: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Utf16_previous_search_completes_with_non_ascii_content_and_bom_policy(name: \"utf-16\", bom: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Utf16_previous_search_completes_with_non_ascii_content_and_bom_policy(name: \"utf-16BE\", bom: False)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        },
+        {
+          "name": "FileCat.App.Tests.ViewerSearchScopeTests.Utf16_previous_search_completes_with_non_ascii_content_and_bom_policy(name: \"utf-16BE\", bom: True)",
+          "case_count": 1,
+          "outcomes": {
+            "Passed": 1
+          }
+        }
+      ],
+      "removed_cases": [],
+      "changed_outcomes": [],
+      "failure_names_in_both": [
+        "FileCat.App.Tests.InterruptedDemandTests.A_failed_journal_close_preserves_the_durable_source_manifest",
+        "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"BMP\")",
+        "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"PNG\")",
+        "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"empty\")",
+        "FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: \"invalid\")",
+        "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 40)",
+        "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: False, requests: 8)",
+        "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 40)",
+        "FileCat.App.Tests.PictureAdmissionTests.Held_picture_feeds_share_a_worker_limit_and_canceled_waiters_never_read(scheduled: True, requests: 8)",
+        "FileCat.App.Tests.PictureDeviceDemandTests.Picture_viewers_share_the_provider_device_limit_and_other_devices_complete",
+        "FileCat.App.Tests.PictureDeviceDemandTests.Rapid_quick_pictures_do_not_start_more_source_calls_on_a_held_device",
+        "FileCat.App.Tests.PictureDeviceDemandTests.Viewer_headers_share_device_admission_and_canceled_headers_never_read",
+        "FileCat.App.Tests.PictureLifetimeTests.A_completed_quick_picture_keeps_its_dimensions_and_releases_on_close",
+        "FileCat.App.Tests.PictureLifetimeTests.Closing_a_loaded_picture_releases_its_bitmap_and_source",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: -1, width: 16, height: 12)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 0, width: 16, height: 12)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 1, width: 16, height: 12)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 15, width: 16, height: 12)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 16, width: 16, height: 12)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 2147483647, width: 32, height: 24)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8192, width: 32, height: 24)",
+        "FileCat.App.Tests.PictureRequestBoundsTests.Public_decode_keeps_worker_request_bounds(requested: 8193, width: 32, height: 24)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: False)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"hidden\", changed: True)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: False)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"late\", changed: True)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: False)",
+        "FileCat.App.Tests.PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes(mode: \"visible\", changed: True)",
+        "FileCat.App.Tests.PictureViewerTests.F3_on_a_picture_shows_the_picture_and_F4_its_bytes",
+        "FileCat.App.Tests.PictureViewerTests.The_worker_process_decodes_and_refuses_on_its_own",
+        "FileCat.App.Tests.ShellPictureUiTests.Quick_view_decodes_a_picture_itself_where_the_Shell_gives_none"
+      ],
+      "failures_absent_from_baseline": [],
+      "baseline_failures_absent_from_final": []
+    }
+  }
+}

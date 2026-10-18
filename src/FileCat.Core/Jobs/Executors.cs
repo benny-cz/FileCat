@@ -73,6 +73,8 @@ public static class JobExecutors
                 return new Operations.BulkRenameExecutor(job, fs, journal);
             case JobKind.Rename when fsSources:
                 return new RenameExecutor(job, fs, journal);
+            case JobKind.Undo when r.UndoPlan is not null:
+                return new UndoExecutor(job, fs, journal);
             default:
                 foreach (var module in _modules)
                 {
@@ -481,7 +483,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Info, src, "Source and destination are the same item; nothing to move.", StepOutcome.Skipped);
             return Result.Skipped;
         }
-        if (Move && SameVolume(src, dst)) return MoveByRename(src, dst, info);
+        // Renaming an entire folder would also move files excluded by the requested filter. The
+        // existing copy-then-delete traversal leaves excluded children (and their source folders) intact.
+        if (Move && SameVolume(src, dst) && (Options.Filter is null || !info.IsDirectory || info.IsLink))
+            return MoveByRename(src, dst, info);
         // A replacement planned by a comparison happens only while the target is as compared: one edited while the plan
         // was reviewed is not overwritten (release plan DPI P10).
         (long Size, long ModifiedTicks)? compared = Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) ? seen : null;
@@ -692,6 +697,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         var moved = Fs.TryGetInfo(target);
         Job.AddUndo(new UndoStep(UndoKind.MoveBack, target, src, moved?.Size ?? info.Size, (moved?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
+        if (replace) Job.RecordUndoRemainder(target, "The overwritten destination contents were not retained. Moving the incoming item back will not restore them.");
         Job.AddBytes(Math.Max(0, info.Size));
         Job.ItemDone();
         return Result.Committed;
@@ -1079,6 +1085,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Job.ItemDone();
             return Result.Committed;
         }
+        Job.RecordUndoRemainder(target, "This copy-then-delete move route has no recorded inverse; Undo will not remove the published copy or recreate its source.");
+        if (replace) Job.RecordUndoRemainder(target, "The overwritten destination contents were not retained.");
         if (keepSource)
         {
             Job.ItemSkipped();
@@ -1260,7 +1268,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Fs.TryCopyLink(src, linkAt, info.IsDirectory, out var error))
         {
             if (staged && PublishLink(src, linkAt, target, info.IsDirectory, expectedTarget) is { } result && result != Result.Committed) return result;
-            if (Move) DeleteLinkSource(src, info);
+            if (Move)
+            {
+                Job.RecordUndoRemainder(target, "This copied link has no recorded inverse; Undo will not remove it or recreate its source link.");
+                if (replace) Job.RecordUndoRemainder(target, "The replaced destination entry was not retained.");
+                DeleteLinkSource(src, info);
+            }
             Job.ItemDone();
             return Result.Committed;
         }
@@ -1298,7 +1311,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 if (TryIo(linkAt, "create a junction", () => Junctions.Create(linkAt, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
                 {
                     if (staged && PublishLink(src, linkAt, target, isDirectory: true, expectedTarget) is { } result && result != Result.Committed) return result;
-                    if (Move) DeleteLinkSource(src, info);
+                    if (Move)
+                    {
+                        Job.RecordUndoRemainder(target, "This created junction has no recorded inverse; Undo will not remove it or recreate its source link.");
+                        if (replace) Job.RecordUndoRemainder(target, "The replaced destination entry was not retained.");
+                        DeleteLinkSource(src, info);
+                    }
                     Job.ItemDone();
                     return Result.Committed;
                 }
@@ -1432,7 +1450,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         int step = Journal.Intent("rename-existing", path, newPath);
         bool ok = TryIo(path, "rename the existing item", () => Fs.Move(path, newPath, false));
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
-        if (ok) Issue(IssueSeverity.Info, path, $"The existing item was renamed to \"{Path.GetFileName(newPath)}\".", StepOutcome.Committed);
+        if (ok)
+        {
+            Job.RecordUndoRemainder(newPath, "The existing destination was renamed to keep both items; this rename has no recorded inverse.");
+            Issue(IssueSeverity.Info, path, $"The existing item was renamed to \"{Path.GetFileName(newPath)}\".", StepOutcome.Committed);
+        }
         return ok;
     }
 
@@ -1589,7 +1611,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
         }
         if (!all) return false;
         bool removed = TryIo(dir, "delete the folder", () => Fs.DeleteDirectory(dir));
-        if (removed) Job.ItemDone();
+        if (removed) { Job.ItemDone(); Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo."); }
         else Job.ItemFailed();
         return removed;
     }
@@ -1613,7 +1635,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
             if (info.IsDirectory) Fs.DeleteDirectory(path); // a directory link: removes only the link
             else Fs.DeleteFile(path);
         });
-        if (ok) Job.ItemDone();
+        if (ok) { Job.ItemDone(); Job.RecordUndoRemainder(path, "This item was permanently deleted; its data was not retained for Undo."); }
         else Job.ItemFailed();
         return ok;
     }
@@ -1702,8 +1724,10 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemDone();
                     if (root >= 0) Job.RootCompleted(root);
                     if (r.RecycledId is not null) Job.AddUndo(new UndoStep(UndoKind.RestoreRecycled, r.RecycledId, r.Path, 0, 0, r.RecycledId));
+                    else Job.RecordUndoRemainder(r.Path, "The item was recycled, but the platform did not provide an identity FileCat can restore. Use the Recycle Bin to review it.");
                     break;
                 case RecycleOutcome.PermanentlyDeleted:
+                    Job.RecordUndoRemainder(r.Path, "The platform permanently deleted this item instead of recycling it; its data was not retained for Undo.");
                     Job.ItemDone();
                     if (root >= 0) Job.RootCompleted(root);
                     Issue(IssueSeverity.Warning, r.Path, "Windows deleted this item permanently instead of moving it to the Recycle Bin.", StepOutcome.Committed);
@@ -1819,94 +1843,12 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
 /// <summary>Guarded undo (plan §9.3): each step is eligible only when the current state still matches.</summary>
 public static class UndoService
 {
+    /// <summary>Low-level compatibility helper. UI callers reserve and submit a tracked JobManager inverse.</summary>
     public static IReadOnlyList<string> Undo(Job job, IFileSystemOperations fs)
     {
-        var report = new List<string>();
-        // A bulk rename is undone as one batch: renames that swapped names need the same temporary-name protocol back.
-        var batch = job.UndoSteps.Where(s => s.Kind == UndoKind.RenameBatchBack).ToList();
-        if (batch.Count > 0)
-        {
-            var identity = batch.ToDictionary(s => s.From, PathUtil.SafetyComparer);
-            var outcomes = Operations.BulkRenameRunner.Run(batch.Select(s => new Operations.BulkRenameRunner.Pair(s.From, s.To)).ToList(), fs, () => { },
-                (pair, info) => identity.TryGetValue(pair.Source, out var s) && !info.IsDirectory && (info.Size != s.Size || info.ModifiedUtc.Ticks != s.ModifiedTicks)
-                    ? "it changed since the rename" : null);
-            foreach (var o in outcomes)
-                report.Add(o.Done ? $"Renamed \"{Path.GetFileName(o.Source)}\" back to \"{Path.GetFileName(o.Target)}\"."
-                                  : $"Not undone: \"{Path.GetFileName(o.Source)}\": {o.Error}");
-        }
-        foreach (var step in job.UndoSteps.Reverse())
-        {
-            if (step.Kind == UndoKind.RenameBatchBack) continue;
-            try
-            {
-                switch (step.Kind)
-                {
-                    case UndoKind.MoveBack:
-                        var now = fs.TryGetInfo(step.From);
-                        if (now is null) { report.Add($"Not undone: \"{Path.GetFileName(step.From)}\" no longer exists."); break; }
-                        if (!now.IsDirectory && (now.Size != step.Size || now.ModifiedUtc.Ticks != step.ModifiedTicks)) { report.Add($"Not undone: \"{Path.GetFileName(step.From)}\" changed since the operation."); break; }
-                        if (fs.TryGetInfo(step.To) is not null && !string.Equals(step.From, step.To, StringComparison.OrdinalIgnoreCase)) { report.Add($"Not undone: \"{Path.GetFileName(step.To)}\" exists again at the original location."); break; }
-                        // A move removes emptied source folders; putting an item back recreates its folder.
-                        Directory.CreateDirectory(Path.GetDirectoryName(step.To)!);
-                        fs.Move(step.From, step.To, false);
-                        report.Add($"Restored \"{Path.GetFileName(step.To)}\".");
-                        break;
-                    case UndoKind.RestoreRecycled:
-                        report.Add(fs.TryRestoreRecycled(step.RecycledId!, step.To, out var err)
-                            ? $"Restored \"{Path.GetFileName(step.To)}\" from the Recycle Bin."
-                            : $"Not restored: \"{Path.GetFileName(step.To)}\": {err}");
-                        break;
-                    case UndoKind.RemoveEmptyDirectory:
-                        if (Directory.Exists(step.From) && !Directory.EnumerateFileSystemEntries(step.From).Any())
-                        {
-                            fs.DeleteDirectory(step.From);
-                            report.Add($"Removed the created folder \"{Path.GetFileName(step.From)}\".");
-                        }
-                        else report.Add($"Kept \"{Path.GetFileName(step.From)}\": it is not empty anymore.");
-                        break;
-                    case UndoKind.RemoveCreatedFile:
-                        var fi = fs.TryGetInfo(step.From);
-                        if (fi is { Size: 0 } && fi.ModifiedUtc.Ticks == step.ModifiedTicks)
-                        {
-                            fs.DeleteFile(step.From);
-                            report.Add($"Removed the created file \"{Path.GetFileName(step.From)}\".");
-                        }
-                        else report.Add($"Kept \"{Path.GetFileName(step.From)}\": it was changed after it was created.");
-                        break;
-                    case UndoKind.RemoveCreatedLink:
-                        var li = fs.TryGetInfo(step.From);
-                        if (li is null) report.Add($"Nothing to undo: the link \"{Path.GetFileName(step.From)}\" no longer exists.");
-                        else if (!li.IsLink || li.LinkTarget is not { } pointsTo || !string.Equals(pointsTo.TrimEnd('\\', '/'), step.To.TrimEnd('\\', '/'), PathUtil.SafetyComparison))
-                            report.Add($"Kept \"{Path.GetFileName(step.From)}\": it is no longer the link that was created.");
-                        else
-                        {
-                            // Removing a link never touches its target.
-                            if (step.Size == 1) fs.DeleteDirectory(step.From);
-                            else fs.DeleteFile(step.From);
-                            report.Add($"Removed the created link \"{Path.GetFileName(step.From)}\".");
-                        }
-                        break;
-                    case UndoKind.RemoveCreatedHardLink:
-                        // The data survives only while the original name still exists and is the same file.
-                        string? linkId = fs.TryGetInfo(step.From) is { IsDirectory: false } ? fs.GetFileIdentity(step.From) : null;
-                        string? originalId = fs.TryGetInfo(step.To) is { IsDirectory: false } ? fs.GetFileIdentity(step.To) : null;
-                        if (fs.TryGetInfo(step.From) is null) report.Add($"Nothing to undo: the hard link \"{Path.GetFileName(step.From)}\" no longer exists.");
-                        else if (step.RecycledId is null || linkId != step.RecycledId || originalId != step.RecycledId)
-                            report.Add($"Kept \"{Path.GetFileName(step.From)}\": it is no longer another name of \"{Path.GetFileName(step.To)}\", so removing it could lose data.");
-                        else
-                        {
-                            fs.DeleteFile(step.From);
-                            report.Add($"Removed the created hard link \"{Path.GetFileName(step.From)}\"; \"{Path.GetFileName(step.To)}\" keeps the data.");
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                report.Add($"Not undone: \"{Path.GetFileName(step.From)}\": {ErrorText.Describe(ex)}");
-            }
-        }
-        return report;
+        var runner = new UndoRunner(job.SnapshotUndo(), fs, () => { });
+        runner.Run();
+        return runner.Report("This inverse did not run.").Outcomes.Select(o => UndoReport.Describe(o)).ToArray();
     }
 }
 

@@ -226,8 +226,11 @@ public sealed class CommandSearchTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             _ = vm.ShowPaletteAsync();
             await WaitFor(() => dialogs.IsOpen, ct);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying the palette filter.
             var filter = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Filter Search commands");
             filter.Text = "undelete";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // TextChanged is deferred; retire the already-realized unfiltered rows.
+            window.UpdateLayout();
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Search commands");
             await WaitFor(() => list.ContainerFromIndex(0) is not null, ct);
             var firstTitle = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().First().Text;

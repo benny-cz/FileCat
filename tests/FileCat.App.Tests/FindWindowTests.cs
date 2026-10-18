@@ -203,6 +203,7 @@ public sealed class FindWindowTests
             Assert.Equal("none", find.AdvancedSummary);
             find.OpenAdvanced();
             await WaitFor(() => find.Dialogs.IsOpen, ct);
+            find.UpdateLayout(); // Realize the modal's scrollable body before auditing and editing its fields.
             Assert.Empty(AccessibilityTests.Unnamed(find));
             var boxes = find.GetVisualDescendants().OfType<CheckBox>().ToList();
             boxes.Single(b => b.Content as string == "Folder").IsChecked = false; // files only
@@ -232,6 +233,7 @@ public sealed class FindWindowTests
             find.NamesBox.Text = "*.log";
             find.OpenSaveSearch();
             await WaitFor(() => find.Dialogs.IsOpen, ct);
+            find.UpdateLayout();
             var name = find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b)?.StartsWith("Name for these criteria", StringComparison.Ordinal) == true);
             await WaitFor(() => name.IsFocused, ct);
             name.Text = "Logs";
@@ -245,6 +247,7 @@ public sealed class FindWindowTests
 
             find.OpenIgnoredFolders();
             await WaitFor(() => find.Dialogs.IsOpen, ct);
+            find.UpdateLayout();
             var add = find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == "Folder to skip");
             add.Text = "node_modules";
             add.Focus();

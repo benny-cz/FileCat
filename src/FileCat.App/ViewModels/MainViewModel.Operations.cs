@@ -22,7 +22,6 @@ namespace FileCat.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private readonly Dictionary<Job, (TabViewModel Tab, Location Location)> _jobOrigins = new();
-    private readonly Queue<PendingDecision> _decisions = new();
     private bool _showingDecision;
     private OperationCenterViewModel? _operations;
 
@@ -561,6 +560,7 @@ public sealed partial class MainViewModel
     {
         OnEditCommitFinished(job);
         OnJobFinishedCore(job);
+        OnClipboardMoveFinished(job);
     }
 
     private void OnJobFinishedCore(Job job)
@@ -588,11 +588,14 @@ public sealed partial class MainViewModel
         // Permissions change without a new modification time: shown values are read again.
         if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
         // Verifying only reads: nothing to list again (the rows of the files it read ask for their new results).
-        if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside)) RefreshAffected(job);
+        if (job.Kind == JobKind.Undo) RefreshAll();
+        else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside)) RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
-        if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
+        if (job.Kind == JobKind.Undo)
+            Notify($"{Formatters.SafeName(job.Title)}: {job.Summary}. Open Undo report in Operations (Ctrl+J) for every outcome.", job.ItemsFailed > 0);
+        else if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
         else switch (job.State)
         {
             case JobState.Completed:
@@ -701,96 +704,33 @@ public sealed partial class MainViewModel
 
     private void EnqueueDecision(PendingDecision decision)
     {
-        _decisions.Enqueue(decision);
-        if (!_showingDecision) _ = ProcessDecisionsAsync();
+        if (decision.Task.IsCompleted || decision.Job.Token.IsCancellationRequested) return;
+        // Background work never replaces the user's input surface. The job's persistent attention state and
+        // Review decision action remain available in both the compact strip and Operations (Ctrl+J).
+        Operations.Refresh(decision.Job);
+        Operations.UpdateSummary();
+        Notify($"{decision.Job.Title}: a decision is required. Choose Review decision in Operations (Ctrl+J).");
     }
 
-    private async Task ProcessDecisionsAsync()
+    public async Task ReviewDecisionAsync(Job job)
     {
+        if (_showingDecision || job.Decision is not { } pending || pending.Task.IsCompleted) return;
+        if (Dialogs.IsOpen)
+        {
+            Notify("Finish or cancel the open dialog, then review this operation's decision.");
+            return;
+        }
         _showingDecision = true;
         try
         {
-            while (_decisions.TryDequeue(out var d))
-            {
-                if (d.Task.IsCompleted) continue;
-                var decision = await OperationDialogs.ShowDecisionAsync(this, d);
-                d.Resolve(decision);
-            }
+            var decision = await OperationDialogs.ShowDecisionAsync(this, pending);
+            pending.Resolve(decision);
         }
         finally
         {
             _showingDecision = false;
-            View.FocusActivePanel();
+            Operations.Refresh(job);
         }
-    }
-
-    // ---- Undo ---------------------------------------------------------------------------------------------
-
-    private async Task UndoLastAsync()
-    {
-        var job = Services.Jobs.Jobs.Where(j => j.CanUndo).OrderByDescending(j => j.FinishedUtc).FirstOrDefault();
-        var latest = Services.Jobs.Jobs.Where(j => j.State.IsFinished()).OrderByDescending(j => j.FinishedUtc).FirstOrDefault();
-        if (latest is { UndoTruncated: true } && !ReferenceEquals(latest, job))
-        {
-            // Never silently undo an older operation when the latest one was too large to record.
-            Notify($"\"{latest.Title}\" changed more than {Job.UndoLimit:N0} items, so no undo steps were recorded for it. Recycled items can still be restored from the Recycle Bin.", true);
-            return;
-        }
-        if (job is null)
-        {
-            Notify("There is no operation that can be undone safely. Permanent deletions, overwrites, and copies are never undone automatically.");
-            return;
-        }
-        await UndoJobAsync(job, last: true);
-    }
-
-    /// <summary>Undoes one specific finished operation (the Undo button on its row in the operations pane).</summary>
-    public async Task UndoJobAsync(Job job, bool last = false)
-    {
-        if (!job.CanUndo) return;
-        var steps = job.UndoSteps;
-        if (steps.All(s => s.Kind == UndoKind.RegistryInverse))
-        {
-            await UndoRegistryAsync(job, steps);
-            return;
-        }
-        var what = steps.Count == 1 ? Path.GetFileName(steps[0].To) : $"{steps.Count} items";
-        if (!await Dialogs.ConfirmAsync("Undo", $"Undo {(last ? "the last operation" : "this operation")}?\n{job.Title}\n\nFileCat restores {what} only where the current state still matches what the operation left; anything changed since is kept and reported.", "Undo"))
-            return;
-        var fs = Services.Platform.FileOperations;
-        var report = await Task.Run(() => UndoService.Undo(job, fs));
-        job.MarkUndone();
-        RefreshAffected(job);
-        await Dialogs.AlertAsync("Undo result", string.Join("\n", report.Take(30)) + (report.Count > 30 ? $"\n… {report.Count - 30} more" : ""));
-    }
-
-    /// <summary>
-    /// Registry undo runs the recorded inverse changes, newest first, as a new job. Each inverse is guarded by the
-    /// state the original change left, so anything changed since is kept and reported rather than overwritten.
-    /// </summary>
-    private async Task UndoRegistryAsync(Job job, IReadOnlyList<UndoStep> steps)
-    {
-        var inverses = steps.Reverse().Select(s => s.Registry!).ToList();
-        var lines = inverses.Take(12).Select(Platform.Windows.RegistryChangeRunner.Describe).ToList();
-        if (inverses.Count > lines.Count) lines.Add($"… {inverses.Count - lines.Count:N0} more");
-        int irreversible = job.Request.RegistryChanges.Count(c => c.Action == RegistryAction.DeleteKey) +
-                           (job.Request.Registry is { Action: RegistryAction.DeleteKey } ? 1 : 0);
-        if (!await Dialogs.ConfirmAsync("Undo Registry changes",
-                $"Undo \"{job.Title}\"? FileCat applies these changes only where the data is still exactly what the operation left:\n" +
-                string.Join("\n", lines) +
-                (irreversible > 0 ? $"\n\n{Formatters.Plural(irreversible, "deleted key subtree is", "deleted key subtrees are")} not restored: their data was not retained." : ""),
-                "Undo"))
-            return;
-        job.MarkUndone();
-        var undo = Services.Jobs.Submit(new JobRequest
-        {
-            Kind = JobKind.Registry,
-            RegistryChanges = inverses,
-            IndependentSteps = true,
-            Destination = inverses[0].Key,
-            Description = "Undo: " + job.Title,
-        });
-        if (ActiveTab is { } tab) Track(undo, tab);
     }
 
     // ---- View and edit ----------------------------------------------------------------------------------
@@ -919,74 +859,6 @@ public sealed partial class MainViewModel
     }
 
     // ---- Clipboard ---------------------------------------------------------------------------------------
-
-    private async Task PutFilesOnClipboardAsync(bool cut)
-    {
-        var sel = ActiveTab?.Listing.GetSelection();
-        var top = View.TopLevel;
-        if (sel is null || sel.Count == 0 || top?.Clipboard is null) return;
-        var paths = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList();
-        if (paths.Count == 0)
-        {
-            Notify("Only file-system items can be placed on the clipboard; extract other items first.", true);
-            return;
-        }
-        var storageItems = new List<IStorageItem>();
-        foreach (var p in paths)
-        {
-            IStorageItem? si = Directory.Exists(p)
-                ? await top.StorageProvider.TryGetFolderFromPathAsync(p)
-                : await top.StorageProvider.TryGetFileFromPathAsync(p);
-            if (si is not null) storageItems.Add(si);
-        }
-        await top.Clipboard.SetFilesAsync(storageItems);
-        _clipboardCut = cut ? paths.ToHashSet(StringComparer.OrdinalIgnoreCase) : null;
-        Notify($"{(cut ? "Cut" : "Copied")} {Formatters.Plural(storageItems.Count, "item", "items")} to the clipboard.");
-    }
-
-    private HashSet<string>? _clipboardCut;
-
-    private async Task PasteAsync()
-    {
-        var top = View.TopLevel;
-        var tab = ActiveTab;
-        if (top?.Clipboard is null || tab?.Location is null) return;
-        var files = await top.Clipboard.TryGetFilesAsync();
-        if (files is { Length: > 0 })
-        {
-            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Cast<string>().ToList();
-            if (paths.Count == 0) return;
-            if (!tab.Location.IsFileSystem)
-            {
-                Notify("Items can be pasted only into a file-system folder.", true);
-                return;
-            }
-            bool cut = _clipboardCut is not null && paths.All(_clipboardCut.Contains);
-            var items = paths.Select(p => ItemRef.ForFileSystemPath(p, Directory.Exists(p) ? EntryKind.Directory : EntryKind.File)).ToList();
-            // A paste captures its destination at invocation (plan §4.2).
-            var job = Services.Jobs.Submit(new JobRequest { Kind = cut ? JobKind.Move : JobKind.Copy, Sources = items, Destination = tab.Location });
-            Track(job, tab);
-            if (cut) _clipboardCut = null;
-            return;
-        }
-        var text = await top.Clipboard.TryGetTextAsync();
-        if (!string.IsNullOrWhiteSpace(text) && text.Length < 4096 && !text.Contains('\n'))
-        {
-            // Pasting a path navigates (Salamander).
-            if (Services.Providers.TryParse(text.Trim(), tab.Location, out var loc) && loc is not null)
-            {
-                string? focus = null;
-                if (loc.IsFileSystem && File.Exists(loc.Path))
-                {
-                    focus = Path.GetFileName(loc.Path);
-                    loc = Location.FileSystem(Path.GetDirectoryName(loc.Path)!);
-                }
-                tab.Navigate(loc, focus);
-                return;
-            }
-        }
-        Notify("The clipboard holds no files or location.");
-    }
 
     private async Task CopyUncPathsAsync()
     {

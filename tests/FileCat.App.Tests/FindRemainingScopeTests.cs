@@ -111,6 +111,7 @@ public sealed class FindRemainingScopeTests
             Assert.Equal(JsonSerializer.Serialize(criteria), JsonSerializer.Serialize(find.Criteria));
             find.OpenSaveSearch();
             await WaitFor(() => find.Dialogs.IsOpen);
+            find.UpdateLayout(); // Realize the modal's scrollable body before querying the name field.
             var name = find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b)?.StartsWith("Name for these criteria", StringComparison.Ordinal) == true);
             await WaitFor(() => name.IsFocused);
             name.Text = "Owned " + mode;

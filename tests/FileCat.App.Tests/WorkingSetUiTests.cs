@@ -1,6 +1,8 @@
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
@@ -17,10 +19,18 @@ public sealed class WorkingSetUiTests
         Assert.True(condition(), what);
     }
 
-    private static async Task ConfirmDialog(MainWindow window, OverlayDialogService dialogs)
+    private static async Task ConfirmDialog(MainWindow window, OverlayDialogService dialogs, string? approve = null)
     {
         await Until(() => dialogs.IsOpen, "a dialog opens");
         await Task.Delay(50, TestContext.Current.CancellationToken);
+        if (approve is not null)
+        {
+            // Consequential confirmations initially choose Cancel. The test deliberately approves
+            // the named action, preserving the original file/reference assertions below.
+            var action = Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+                b => b.Content as string == approve && b.IsEffectivelyVisible && b.IsEffectivelyEnabled);
+            Assert.True(action.Focus());
+        }
         window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         await Until(() => !dialogs.IsOpen, "the dialog closes");
         await Task.Delay(100, TestContext.Current.CancellationToken); // focus returns to the panel asynchronously
@@ -76,7 +86,7 @@ public sealed class WorkingSetUiTests
             vm.Workspace.Activate(right);
             list.SetFocus(0);
             vm.Execute(CommandIds.Delete);
-            await ConfirmDialog(window, dialogs);
+            await ConfirmDialog(window, dialogs, "Delete set");
             Assert.Empty(services.WorkingSets.All);
             Assert.True(File.Exists(Path.Combine(folder, remaining == "a.txt" ? "b.txt" : "a.txt")));
         }

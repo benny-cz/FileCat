@@ -36,6 +36,7 @@ public sealed class UnpackCatalogTests(ITestOutputHelper output)
         bool warned = f.Button("Extract listed members") is not null; int before = f.Services.Jobs.Jobs.Count;
         Emit("warning-before-choice", name, approve, f, warned, before);
         Assert.True(warned); Assert.Equal(0, before);
+        f.Window.UpdateLayout(); // The footer is attached before the scrollable warning body is realized.
         Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), t => (t.Text ?? "").Contains(name.StartsWith("duplicate", StringComparison.Ordinal) ? "duplicate names" : "damaged after", StringComparison.Ordinal));
         f.Click(approve ? "Extract listed members" : "Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         if (approve)
@@ -148,8 +149,13 @@ public sealed class UnpackCatalogTests(ITestOutputHelper output)
         {
             var task = (Task)typeof(MainViewModel).GetMethod("UnpackAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Vm, null)!;
             await Wait(() => Button("Unpack") is not null);
-            Window.GetVisualDescendants().OfType<TextBox>().Single(t => (Avalonia.Automation.AutomationProperties.GetName(t) ?? "").StartsWith("Unpack ", StringComparison.Ordinal)).Text = Target;
-            Window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Separate folder", StringComparison.Ordinal) == true).IsChecked = separate;
+            Window.UpdateLayout(); // A ready footer does not yet imply a realized ScrollViewer body.
+            var destination = Window.GetVisualDescendants().OfType<TextBox>().Single(t => (Avalonia.Automation.AutomationProperties.GetName(t) ?? "").StartsWith("Unpack ", StringComparison.Ordinal));
+            Assert.True(destination.IsArrangeValid && destination.Bounds.Width > 0 && destination.Bounds.Height > 0);
+            var separateFolder = Window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Separate folder", StringComparison.Ordinal) == true);
+            Assert.True(separateFolder.IsArrangeValid && separateFolder.Bounds.Width > 0 && separateFolder.Bounds.Height > 0);
+            destination.Text = Target;
+            separateFolder.IsChecked = separate;
             if (change == "selection") Source.Listing.FocusName("..");
             if (change == "source") Source.Navigate(Location.FileSystem(_root));
             if (change == "target") TargetTab.Navigate(Location.FileSystem(_folder));

@@ -64,6 +64,7 @@ public sealed class PathSuggestionTests
             vm.Execute(Core.Commands.CommandIds.Copy);
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying the destination.
             var dest = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Destination");
             for (int i = 0; i < 100 && !dest.IsFocused; i++) await Task.Delay(20, ct);
             Assert.True(dest.IsFocused);

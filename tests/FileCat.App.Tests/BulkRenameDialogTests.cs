@@ -98,6 +98,7 @@ public sealed class BulkRenameDialogTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying visual controls.
             TextBox Box(string name) => window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == name);
             Button Confirm() => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Rename");
             var preview = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Preview of new names");

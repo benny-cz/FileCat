@@ -25,51 +25,94 @@ public static class Associations
         return null;
     }
 
-    /// <summary>One association per line: <c>mask | view/edit/open | program | arguments</c>.</summary>
+    /// <summary>One association per line: mask | view/edit/open | program | arguments | options. Quote exclusion masks containing a pipe.</summary>
     public static List<ToolDefinition> Parse(string? text, out string? error)
     {
         error = null;
         var list = new List<ToolDefinition>();
+        int lineNumber = 0;
+        try
+        {
+        ToolTextGrammar.CheckLength(text ?? "");
+        if (ToolTextGrammar.TryParseDefinitions(text ?? "", out var structured))
+        {
+            foreach (var tool in structured)
+                if (!IsIntent(tool.Intent?.ToLowerInvariant()) || string.IsNullOrEmpty(tool.Mask) || !Mask.TryParse(tool.Mask, out _, out _))
+                    throw new FormatException($"Association '{tool.Name}' needs a valid mask and view, edit, or open intent.");
+            return structured;
+        }
         foreach (var raw in (text ?? string.Empty).Split('\n'))
         {
+            lineNumber++;
             var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#')) continue;
-            var parts = line.Split('|', StringSplitOptions.TrimEntries);
-            if (parts.Length < 3)
+            var parts = ToolTextGrammar.SplitFields(line, '|');
+            if (parts.Count is < 3 or > 5)
             {
-                error = $"\"{line}\": expected mask | view, edit, or open | program | arguments.";
-                return list;
+                throw new FormatException("Expected mask | view, edit, or open | program | arguments | options (three to five columns).");
             }
-            if (!Mask.TryParse(parts[0], out _, out var maskError) || parts[0].Length == 0)
+            string maskText = ToolTextGrammar.Field(parts[0]);
+            if (!Mask.TryParse(maskText, out _, out var maskError) || maskText.Length == 0)
             {
-                error = $"\"{parts[0]}\" is not a valid mask{(maskError is null ? "" : ": " + maskError)}.";
-                return list;
+                throw new FormatException($"\"{maskText}\" is not a valid mask{(maskError is null ? "" : ": " + maskError)}.");
             }
-            var intent = parts[1].ToLowerInvariant();
+            var intent = ToolTextGrammar.Field(parts[1]).ToLowerInvariant();
             if (!IsIntent(intent))
             {
-                error = $"\"{parts[1]}\": use view (F3), edit (F4), or open (Enter).";
-                return list;
+                throw new FormatException($"\"{intent}\": use view (F3), edit (F4), or open (Enter).");
             }
-            if (parts[2].Length == 0)
+            var executable = ToolTextGrammar.Field(parts[2]);
+            if (executable.Length == 0)
             {
-                error = $"\"{line}\": the program is missing.";
-                return list;
+                throw new FormatException("The program is missing.");
             }
-            var executable = parts[2].Trim('"');
-            list.Add(new ToolDefinition
+            var tool = new ToolDefinition
             {
                 // Display name from either separator: settings written on Windows stay readable everywhere.
                 Name = Path.GetFileNameWithoutExtension(executable[(executable.LastIndexOfAny(['\\', '/']) + 1)..]),
-                Mask = parts[0],
+                Mask = maskText,
                 Intent = intent,
                 Executable = executable,
-                Arguments = parts.Length > 3 && parts[3].Length > 0 ? parts[3].Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() : ["{file}"],
-            });
+                Arguments = parts.Count > 3 ? ToolTextGrammar.ParseArguments(parts[3]) : ["{file}"],
+            };
+            if (parts.Count > 4)
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string option in ToolTextGrammar.ParseArguments(parts[4]))
+                {
+                    int equals = option.IndexOf('=');
+                    string key = equals < 0 ? option : option[..equals];
+                    string value = equals < 0 ? "" : option[(equals + 1)..];
+                    if (!seen.Add(key)) throw new FormatException($"Duplicate option '{key}'.");
+                    switch (key.ToLowerInvariant())
+                    {
+                        case "name" when equals >= 0: tool.Name = value; break;
+                        case "dir" when equals >= 0: tool.WorkingDirectory = value; break;
+                        case "key" when equals >= 0: tool.Hotkey = value; break;
+                        case "shell" when equals < 0: tool.ShellMode = true; break;
+                        default: throw new FormatException($"Unknown association option '{option}' (use name=, dir=, key=, or shell).");
+                    }
+                }
+            }
+            list.Add(tool);
         }
+        }
+        catch (FormatException ex) { error = $"Line {Math.Max(1, lineNumber)}: {ex.Message}"; return []; }
         return list;
     }
 
-    public static string Format(IEnumerable<ToolDefinition> associations) =>
-        string.Join(Environment.NewLine, associations.Select(a => $"{a.Mask} | {a.Intent} | {a.Executable} | {string.Join(" ", a.Arguments)}"));
+    public static string Format(IEnumerable<ToolDefinition> associations)
+    {
+        var definitions = associations.ToList();
+        string concise = string.Join(Environment.NewLine, definitions.Select(a =>
+        {
+            var options = new List<string> { "name=" + a.Name };
+            if (a.WorkingDirectory != "{dir}") options.Add("dir=" + a.WorkingDirectory);
+            if (a.Hotkey is not null) options.Add("key=" + a.Hotkey);
+            if (a.ShellMode) options.Add("shell");
+            return $"{ToolTextGrammar.QuoteField(a.Mask ?? "", name: true)} | {a.Intent} | {ToolTextGrammar.QuoteField(a.Executable)} | {ToolTextGrammar.FormatArguments(a.Arguments)} | {ToolTextGrammar.FormatArguments(options)}";
+        }));
+        var parsed = Parse(concise, out var error);
+        return ToolTextGrammar.PreserveDefinitions(definitions, concise, parsed, error);
+    }
 }

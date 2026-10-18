@@ -21,8 +21,10 @@ public sealed class SettingsDialogTests
             vm.Execute(CommandIds.Settings);
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying its tabs.
             var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
             tabs.SelectedIndex = tabs.Items.OfType<TabItem>().ToList().FindIndex(t => t.Header as string == "Behavior");
+            window.UpdateLayout(); // Selecting a tab attaches a new visual subtree.
             ComboBox? Verify() => window.GetVisualDescendants().OfType<ComboBox>().FirstOrDefault(c => AutomationProperties.GetName(c) == "Default copy verification");
             for (int i = 0; i < 100 && Verify() is null; i++) await Task.Delay(20, ct);
             Assert.Equal(["Size and metadata (fast)", "Read back and compare content"], Verify()!.Items.OfType<string>());

@@ -160,17 +160,21 @@ public static partial class BulkRenamePlanner
 public static class BulkRenameRunner
 {
     public const string TempPrefix = ".~fcren-";
-
     public sealed record Pair(string Source, string Target);
-
-    public sealed record Outcome(string Source, string Target, bool Done, string? Error, long Size, long ModifiedTicks);
+    public sealed record Outcome(string Source, string Target, bool Done, string? Error, long Size, long ModifiedTicks)
+    {
+        public bool Kept { get; init; }
+        public bool NotAttempted { get; init; }
+        public string? UnresolvedTemporaryPath { get; init; }
+    }
 
     /// <param name="checkpoint">Pause and cancel point. Once every item of a chain has its temporary name, the second
-    /// phase runs to the end without stopping (quick renames), so a cancel never leaves items with temporary names.</param>
-    /// <param name="journal">When given, every temporary rename is journaled (one flush) before the first move, so
-    /// recovery can finish the renames after a crash (<see cref="JournalRecovery.FinishRenames"/>).</param>
+    /// phase runs to the end without stopping, so ordinary cancellation never interrupts publication.</param>
+    /// <param name="journal">Temporary rename intents are flushed before the first move. A failed rollback leaves its
+    /// intent open and the journal unfinished, so interrupted-operation recovery can still find it.</param>
+    /// <param name="completed">One notification per outcome, including outcomes completed before cancellation.</param>
     public static IReadOnlyList<Outcome> Run(IReadOnlyList<Pair> pairs, IFileSystemOperations fs, Action checkpoint,
-        Func<Pair, FileSystemItemInfo, string?>? guard = null, JobJournal? journal = null)
+        Func<Pair, FileSystemItemInfo, string?>? guard = null, JobJournal? journal = null, Action<int, Outcome>? completed = null)
     {
         var sources = new HashSet<string>(pairs.Select(p => p.Source), PathUtil.SafetyComparer);
         bool dependent = pairs.Any(p => sources.Contains(p.Target) && !string.Equals(p.Source, p.Target, StringComparison.OrdinalIgnoreCase));
@@ -179,85 +183,112 @@ public static class BulkRenameRunner
         var steps = new int[pairs.Count];
         string batch = Guid.NewGuid().ToString("N")[..8];
         string TempOf(int i) => Path.Combine(Path.GetDirectoryName(pairs[i].Source)!, $"{TempPrefix}{batch}-{i}");
+        int current = -1;
+        bool publishing = false;
         void Finish(int i, Outcome outcome)
         {
+            if (outcomes[i] is not null) return;
             outcomes[i] = outcome;
-            if (steps[i] > 0) journal!.Done(steps[i], outcome.Done ? StepOutcome.Committed : StepOutcome.Failed, outcome.Error);
+            if (outcome.UnresolvedTemporaryPath is not null) journal?.RequireRecovery();
+            completed?.Invoke(i, outcome);
+            if (steps[i] > 0 && outcome.UnresolvedTemporaryPath is null)
+                journal!.Done(steps[i], outcome.Done ? StepOutcome.Committed : StepOutcome.Failed, outcome.Error);
         }
-        if (dependent)
+        Outcome Refused(int i, string reason) => new(pairs[i].Source, pairs[i].Target, false, reason, 0, 0) { Kept = true };
+        Outcome RollBack(int i, string reason, bool canceled)
         {
-            if (journal is not null)
+            var p = pairs[i];
+            if (staged[i] is { } temp)
             {
-                for (int i = 0; i < pairs.Count; i++) steps[i] = journal.RenameVia(pairs[i].Source, pairs[i].Target, TempOf(i));
-                journal.Flush();
+                try { fs.Move(temp, p.Source, false); staged[i] = null; }
+                catch (Exception back)
+                {
+                    journal?.RequireRecovery();
+                    return new(p.Source, p.Target, false,
+                        reason + $" It could not get its original name back: {ErrorText.Describe(back)} The item remains at \"{temp}\". Review interrupted operations.", 0, 0)
+                        { UnresolvedTemporaryPath = temp };
+                }
             }
-            try
+            return new(p.Source, p.Target, false, reason, 0, 0) { NotAttempted = canceled };
+        }
+        try
+        {
+            if (dependent)
             {
+                if (journal is not null)
+                {
+                    for (int i = 0; i < pairs.Count; i++) steps[i] = journal.RenameVia(pairs[i].Source, pairs[i].Target, TempOf(i));
+                    journal.Flush();
+                }
                 for (int i = 0; i < pairs.Count; i++)
                 {
-                    checkpoint();
+                    checkpoint(); current = i;
                     var p = pairs[i];
                     var info = fs.TryGetInfo(p.Source);
-                    if (info is null) { Finish(i, new Outcome(p.Source, p.Target, false, "The item no longer exists.", 0, 0)); continue; }
-                    if (guard?.Invoke(p, info) is { } refused) { Finish(i, new Outcome(p.Source, p.Target, false, refused, 0, 0)); continue; }
-                    try
-                    {
-                        fs.Move(p.Source, TempOf(i), false);
-                        staged[i] = TempOf(i);
-                    }
+                    if (info is null) { Finish(i, Refused(i, "The item no longer exists.")); continue; }
+                    if (guard?.Invoke(p, info) is { } refused) { Finish(i, Refused(i, refused)); continue; }
+                    try { fs.Move(p.Source, TempOf(i), false); staged[i] = TempOf(i); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        Finish(i, new Outcome(p.Source, p.Target, false, ErrorText.Describe(ex), 0, 0));
-                    }
+                    { Finish(i, new(p.Source, p.Target, false, ErrorText.Describe(ex), 0, 0)); }
                 }
             }
-            catch (OperationCanceledException)
+            publishing = true;
+            for (int i = 0; i < pairs.Count; i++)
             {
-                // Nothing has its new name yet, so every original name is still free: put everything back.
-                for (int i = 0; i < pairs.Count; i++)
+                if (outcomes[i] is not null) continue;
+                if (!dependent) checkpoint();
+                current = i;
+                var p = pairs[i];
+                string from = staged[i] ?? p.Source;
+                var info = fs.TryGetInfo(from);
+                if (info is null)
                 {
-                    if (staged[i] is not { } temp) continue;
-                    try
-                    {
-                        fs.Move(temp, pairs[i].Source, false);
-                        Finish(i, new Outcome(pairs[i].Source, pairs[i].Target, false, "Canceled.", 0, 0));
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                    staged[i] = null;
+                    Finish(i, Refused(i, "The item no longer exists.")); continue;
                 }
-                throw;
+                if (staged[i] is null && guard?.Invoke(p, info) is { } refused) { Finish(i, Refused(i, refused)); continue; }
+                bool caseOnly = string.Equals(from, p.Target, StringComparison.OrdinalIgnoreCase);
+                try
+                {
+                    if (!caseOnly && fs.TryGetInfo(p.Target) is not null)
+                    {
+                        var occupied = RollBack(i, "An item with the new name exists now; it was not replaced.", false);
+                        Finish(i, occupied.UnresolvedTemporaryPath is null ? occupied with { Kept = true } : occupied);
+                        continue;
+                    }
+                    fs.Move(from, p.Target, false); staged[i] = null;
+                    var after = fs.TryGetInfo(p.Target);
+                    Finish(i, new(p.Source, p.Target, true, null, after?.Size ?? info.Size, (after?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { Finish(i, RollBack(i, ErrorText.Describe(ex), false)); }
             }
         }
-        for (int i = 0; i < pairs.Count; i++)
+        catch (Exception ex)
         {
-            if (outcomes[i] is not null) continue;
-            if (!dependent) checkpoint();
-            var p = pairs[i];
-            string from = staged[i] ?? p.Source;
-            var info = fs.TryGetInfo(from);
-            if (info is null) { Finish(i, new Outcome(p.Source, p.Target, false, "The item no longer exists.", 0, 0)); continue; }
-            if (staged[i] is null && guard?.Invoke(p, info) is { } refused) { Finish(i, new Outcome(p.Source, p.Target, false, refused, 0, 0)); continue; }
-            bool caseOnly = string.Equals(from, p.Target, StringComparison.OrdinalIgnoreCase);
-            try
+            bool canceled = ex is OperationCanceledException;
+            // During staging no final name has been published. Restore only owned temporary names; never replace.
+            for (int i = 0; i < pairs.Count; i++)
             {
-                if (!caseOnly && fs.TryGetInfo(p.Target) is not null) throw new IOException("An item with the new name exists now.");
-                fs.Move(from, p.Target, false);
-                var after = fs.TryGetInfo(p.Target);
-                Finish(i, new Outcome(p.Source, p.Target, true, null, after?.Size ?? info.Size, (after?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                string error = ErrorText.Describe(ex);
-                if (staged[i] is { } temp)
+                if (outcomes[i] is not null) continue;
+                string reason = canceled ? "Canceled before the rename completed." : "The rename stopped unexpectedly: " + ErrorText.Describe(ex);
+                Outcome outcome;
+                if (canceled && !publishing) outcome = RollBack(i, reason, true);
+                else if (staged[i] is { } temp)
                 {
-                    // Back to the original name; if that fails too, say exactly where the item is.
-                    try { fs.Move(temp, p.Source, false); }
-                    catch (Exception back) when (back is IOException or UnauthorizedAccessException)
-                    {
-                        error += $" It could not get its original name back either and is now named \"{Path.GetFileName(temp)}\".";
-                    }
+                    // Once publication has begun, putting a chain back piecemeal can occupy another pending name.
+                    // Unexpected failures retain every still-owned temporary name for explicit journal recovery.
+                    outcome = new(pairs[i].Source, pairs[i].Target, false,
+                        reason + $" The item remains at \"{temp}\". Review interrupted operations.", 0, 0) { UnresolvedTemporaryPath = temp };
                 }
-                Finish(i, new Outcome(p.Source, p.Target, false, error, 0, 0));
+                else outcome = new(pairs[i].Source, pairs[i].Target, false, reason, 0, 0) { NotAttempted = canceled || i != current };
+                Finish(i, outcome);
             }
+            throw;
+        }
+        finally
+        {
+            if (staged.Any(s => s is not null)) journal?.RequireRecovery();
         }
         return outcomes.Select(o => o!).ToList();
     }

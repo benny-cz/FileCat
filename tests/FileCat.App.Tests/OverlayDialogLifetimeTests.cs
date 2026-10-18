@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -20,23 +21,42 @@ public sealed class OverlayDialogLifetimeTests
     private static void CheckCollection(bool escape)
     {
         var host = new Grid();
+        var window = new Window { Content = host, Width = 800, Height = 600 };
+        window.Show();
         var dialogs = new OverlayDialogService(host, () => null);
-        var views = OpenAndClose(dialogs, host, escape);
-        Dispatcher.UIThread.RunJobs(); // Drain the old dialog's queued initial/restored focus callbacks.
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-        Assert.Empty(host.Children);
-        Assert.False(dialogs.IsOpen);
-        Assert.All(views, view => Assert.False(view.TryGetTarget(out _), "A closed prompt is still rooted by the dialog service."));
-        GC.KeepAlive(dialogs);
-        GC.KeepAlive(host);
+        try
+        {
+            var views = OpenAndClose(dialogs, host, window, escape);
+            Dispatcher.UIThread.RunJobs(); // Drain the old dialog's queued initial/restored focus callbacks.
+            window.UpdateLayout();
+            // A shown window can retain retired visuals in a submitted frame until the renderer advances.
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            Dispatcher.UIThread.RunJobs();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Assert.Empty(host.Children);
+            Assert.False(dialogs.IsOpen);
+            Assert.All(views, view => Assert.False(view.TryGetTarget(out _), "A closed prompt is still rooted by the dialog service."));
+            GC.KeepAlive(dialogs);
+            GC.KeepAlive(host);
+            GC.KeepAlive(window);
+        }
+        finally
+        {
+            dialogs.CancelAll();
+            window.Close();
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static WeakReference<Control>[] OpenAndClose(OverlayDialogService dialogs, Grid host, bool escape)
+    private static WeakReference<Control>[] OpenAndClose(OverlayDialogService dialogs, Grid host, Window window, bool escape)
     {
         var task = dialogs.PromptAsync(new PromptOptions("Lifetime control", "Owned prompt"));
+        // Exercise a realized, focused prompt as a user would see it, not an unattached control tree.
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
         var layer = Assert.Single(host.Children.OfType<Border>());
         var source = Assert.Single(layer.GetVisualDescendants().OfType<TextBox>());
         var views = new[] { new WeakReference<Control>(layer), new WeakReference<Control>(source) };
@@ -59,7 +79,9 @@ public sealed class OverlayDialogLifetimeTests
         try
         {
             var outer = dialogs.PromptAsync(new PromptOptions("Outer", "Owned outer prompt"));
+            window.UpdateLayout();
             var inner = dialogs.PromptAsync(new PromptOptions("Inner", "Owned inner prompt"));
+            window.UpdateLayout();
             var layer = host.Children.OfType<Border>().Last();
             var source = Assert.Single(layer.GetVisualDescendants().OfType<TextBox>());
             layer.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape, Source = source });

@@ -40,7 +40,7 @@ public sealed class FindWindow : Window, IViewActions
         CommandIds.Reveal, CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths, CommandIds.CopyToClipboard,
         CommandIds.CutToClipboard, CommandIds.MarkToggleDown, CommandIds.MarkAll, CommandIds.MarkNone, CommandIds.MarkInvert,
         CommandIds.MarkInvertAll, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkSameExt,
-        CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, CommandIds.MarkRestore, CommandIds.Checksum,
+        CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, CommandIds.MarkRestore, CommandIds.ReviewMarks, CommandIds.Checksum,
         CommandIds.Pack, CommandIds.Attributes, CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet, CommandIds.CompareFiles,
         CommandIds.ApplyCommand, CommandIds.BulkRename, CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime,
         CommandIds.SortSize, CommandIds.SortNone, CommandIds.Refresh,
@@ -199,11 +199,18 @@ public sealed class FindWindow : Window, IViewActions
         _list.DragRequested += async (_, press) => await DragAsync(press);
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Controls.AltChords.Attach(this);
-        Opened += (_, _) => Dispatcher.UIThread.Post(() =>
+        Opened += (_, _) =>
         {
-            _names.Focus();
-            _names.SelectAll();
-        }, DispatcherPriority.Input);
+            var focusAtOpen = FocusManager?.GetFocusedElement();
+            Dispatcher.UIThread.Post(() =>
+            {
+                // A dialog opened during this frame owns its initial focus. The window's older
+                // callback must also yield to deliberate focus elsewhere or to deactivation/close.
+                if (_closed || !IsActive || _dialogs.IsOpen ||
+                    !ReferenceEquals(FocusManager?.GetFocusedElement(), focusAtOpen)) return;
+                if (_names.Focus()) _names.SelectAll();
+            }, DispatcherPriority.Input);
+        };
         Closing += (_, _) => _dialogs.CancelAll();
         Closed += (_, _) =>
         {
@@ -364,7 +371,7 @@ public sealed class FindWindow : Window, IViewActions
         menu.Items.Add(Submenu("_Edit", [
             CommandItem(CommandIds.MarkAll, "Select all"), CommandItem(CommandIds.MarkNone, "Unselect all"),
             CommandItem(CommandIds.MarkInvert, "Invert selection"), CommandItem(CommandIds.MarkSelectMask, "Select…"),
-            CommandItem(CommandIds.MarkUnselectMask, "Unselect…"), new Separator(),
+            CommandItem(CommandIds.MarkUnselectMask, "Unselect…"), CommandItem(CommandIds.ReviewMarks, "Review marked items…"), new Separator(),
             ActionItem("Hide selected items", "Ctrl+H", HideSelected, () => _tab is not null, "find.hideSelected"),
             ActionItem("Hide duplicate names", null, HideDuplicateNames, () => _tab is not null, "find.hideDuplicates"),
             new Separator(),

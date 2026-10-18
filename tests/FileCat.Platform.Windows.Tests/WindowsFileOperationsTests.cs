@@ -24,7 +24,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void CopyFile2_reports_progress_and_refuses_to_overwrite()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var src = Path.Combine(_root, "src.bin");
         File.WriteAllBytes(src, new byte[3 * 1024 * 1024 + 17]);
         var dst = Path.Combine(_root, "dst.bin");
@@ -42,7 +42,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void CopyFile2_cancellation_throws_and_removes_partial_destination()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var src = Path.Combine(_root, "big.bin");
         using (var fs = new FileStream(src, FileMode.Create)) fs.SetLength(64L * 1024 * 1024);
         var dst = Path.Combine(_root, "big-copy.bin");
@@ -54,7 +54,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Shortcuts_made_by_windows_yield_their_raw_targets()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var folder = Directory.CreateDirectory(Path.Combine(_root, "target folder ž")).FullName;
         var file = Path.Combine(folder, "doc.txt");
         File.WriteAllText(file, "x");
@@ -79,7 +79,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Flushed_copies_work_for_read_only_files_with_streams()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var src = Path.Combine(_root, "ro.bin");
         var data = new byte[2 * 1024 * 1024 + 5];
         new Random(7).NextBytes(data);
@@ -107,7 +107,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Move_publishes_and_replaces_only_when_asked()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var a = Path.Combine(_root, "a.txt");
         var b = Path.Combine(_root, "b.txt");
         File.WriteAllText(a, "new");
@@ -121,7 +121,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Junction_removal_never_touches_the_target()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var target = Directory.CreateDirectory(Path.Combine(_root, "target")).FullName;
         File.WriteAllText(Path.Combine(target, "keep.txt"), "keep");
         var link = Path.Combine(_root, "junction");
@@ -138,7 +138,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public async Task Junctions_and_hard_links_are_created_and_undone_only_when_provably_safe()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
         var manager = new JobManager(_ops, providers, Path.Combine(_root, "journal-links"));
@@ -185,7 +185,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Volume_profile_and_recycle_classification()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var vol = _ops.GetVolumeInfo(_root);
         Assert.False(string.IsNullOrEmpty(vol.FileSystem));
         Assert.Equal(RecycleClassification.NoRecycleBin, _ops.ClassifyRecycle(@"\\server\share\file.txt", 10));
@@ -195,7 +195,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Mark_of_the_web_round_trips_on_ntfs()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var f = Path.Combine(_root, "download.exe");
         File.WriteAllText(f, "x");
         if (!_ops.GetVolumeInfo(f).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
@@ -210,7 +210,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Unreadable_download_mark_is_not_reported_as_absent()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var file = Path.Combine(_root, "locked-mark.bin");
         File.WriteAllBytes(file, [1, 2, 3]);
         if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
@@ -222,7 +222,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Oversized_download_mark_is_refused_before_text_materialization()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var file = Path.Combine(_root, "large-mark.bin");
         File.WriteAllBytes(file, [1, 2, 3]);
         if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
@@ -233,7 +233,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Origin_writer_refuses_an_unreadable_oversized_mark_without_replacing_an_existing_mark()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var file = Path.Combine(_root, "bounded-mark.bin");
         File.WriteAllBytes(file, [1, 2, 3]);
         if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
@@ -251,7 +251,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public async Task Extraction_does_not_publish_when_the_archive_download_mark_cannot_be_read()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var zip = Path.Combine(_root, "locked-download.zip");
         using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
         using (var writer = new StreamWriter(archive.CreateEntry("readme.txt").Open()))
@@ -317,7 +317,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public async Task Files_extracted_from_a_downloaded_zip_keep_their_times_and_the_mark()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var zip = Path.Combine(_root, "download.zip");
         // ZIP stores the local wall-clock time, as archivers do.
         var when = new DateTimeOffset(new DateTime(2019, 5, 6, 7, 8, 10, DateTimeKind.Local));
@@ -403,7 +403,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public async Task Job_engine_runs_on_native_operations()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var providers = new ProviderRegistry();
         providers.Register(new WindowsFileSystemProvider());
         var manager = new JobManager(_ops, providers, Path.Combine(_root, "journal"));
@@ -427,7 +427,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Alternate_data_streams_are_listed_without_the_default_stream()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file operations require Windows.");
         var path = Path.Combine(_root, "streams.txt");
         File.WriteAllText(path, "main");
         Assert.Empty(_ops.GetAlternateStreams(path));

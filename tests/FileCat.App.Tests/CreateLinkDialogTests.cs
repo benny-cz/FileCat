@@ -26,6 +26,7 @@ public sealed class CreateLinkDialogTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying visual controls.
             var path = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Link path");
             Button Confirm() => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Create");
 

@@ -23,22 +23,24 @@ public static partial class UnixTrash
     public static Location? For(string path)
     {
         if (OperatingSystem.IsWindows()) return null;
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(home)) return null;
+        bool macOS = OperatingSystem.IsMacOS();
+        var trashBase = ResolveHomeTrashBaseDirectory(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetEnvironmentVariable("XDG_DATA_HOME"), macOS);
+        if (trashBase is null) return null;
         string full = Path.GetFullPath(path);
         string volume = PortableFileOperations.UnixVolumeRoot(full);
-        if (OperatingSystem.IsMacOS())
+        if (macOS)
         {
-            var homeTrash = Path.Combine(home, ".Trash");
-            if (volume == PortableFileOperations.UnixVolumeRoot(home)) return new Location(homeTrash, homeTrash, null, null);
+            var homeTrash = Path.Combine(trashBase, ".Trash");
+            if (volume == PortableFileOperations.UnixVolumeRoot(trashBase)) return new Location(homeTrash, homeTrash, null, null);
             // Finder makes .Trashes on a volume; FileCat uses it once it exists.
             var trashes = Path.Combine(volume, ".Trashes");
             if (!IsRealDirectory(trashes)) return null;
             var mine = Path.Combine(trashes, UserId);
             return Usable(mine, mustExist: false) ? new Location(mine, mine, null, volume) : null;
         }
-        var data = Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } x ? x : Path.Combine(home, ".local", "share");
-        if (volume == PortableFileOperations.UnixVolumeRoot(data)) return Linux(Path.Combine(data, "Trash"), null);
+        if (volume == PortableFileOperations.UnixVolumeRoot(trashBase)) return Linux(Path.Combine(trashBase, "Trash"), null);
         // Another volume: the administrator's shared .Trash (sticky, not a link) first, then the user's own .Trash-$uid.
         var shared = Path.Combine(volume, ".Trash");
         if (IsRealDirectory(shared) && UnixPermissions.Stat(shared) is { } s && (s.Mode & UnixFileMode.StickyBit) != 0)
@@ -51,6 +53,25 @@ public static partial class UnixTrash
         return null;
 
         static Location Linux(string root, string? top) => new(root, Path.Combine(root, "files"), Path.Combine(root, "info"), top);
+    }
+
+    /// <summary>
+    /// Resolve the home-trash base without touching the filesystem. Linux's configured XDG data directory
+    /// is independent of the home directory; the latter is needed only for the default. Invalid relative
+    /// or malformed environment paths are ignored, never expanded against the working directory.
+    /// </summary>
+    internal static string? ResolveHomeTrashBaseDirectory(string? userProfile, string? xdgDataHome, bool macOS)
+    {
+        if (!macOS && Absolute(xdgDataHome) is { } configured) return configured;
+        if (Absolute(userProfile) is not { } profile) return null;
+        return macOS ? profile : Path.Combine(profile, ".local", "share");
+
+        static string? Absolute(string? candidate)
+        {
+            if (string.IsNullOrEmpty(candidate) || !Path.IsPathFullyQualified(candidate)) return null;
+            try { return Path.GetFullPath(candidate); }
+            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return null; }
+        }
     }
 
     /// <summary>

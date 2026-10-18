@@ -1,8 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Threading;
+using FileCat.Core.Tools;
 using FileCat.App.Services;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.State;
@@ -15,8 +20,8 @@ public static class SettingsDialog
     public static async Task ShowAsync(MainViewModel vm)
     {
         var s = vm.Services.Settings;
-        // Short pages stay compact; pages with editors can grow to keep their controls visible.
-        var tabs = new TabControl { MinWidth = 720, MinHeight = 330 };
+        // The shared modal owns vertical scrolling. Tabs wrap with the available client width.
+        var tabs = new TabControl { ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel()) };
 
         // ---- Appearance
         // Choosing a theme shows it at once; Cancel goes back to the one in use.
@@ -25,7 +30,7 @@ public static class SettingsDialog
         var themeDescription = Note(ThemeManager.Description(themeNames[theme.SelectedIndex]));
         theme.SelectionChanged += (_, _) =>
         {
-            if (theme.SelectedIndex >= 0)
+            if (!vm.Services.SettingsReadOnly && theme.SelectedIndex >= 0)
             {
                 themeDescription.Text = ThemeManager.Description(themeNames[theme.SelectedIndex]);
                 ThemeManager.Apply(themeNames[theme.SelectedIndex]);
@@ -57,7 +62,6 @@ public static class SettingsDialog
         {
             AcceptsReturn = true,
             MinHeight = 80,
-            MinWidth = 460,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = string.Join(Environment.NewLine, s.SavedFilters.Select(f => $"{f.Name} = {f.Mask}")),
             PlaceholderText = "images = *.png;*.jpg;*.gif\ncode = *.cs;*.axaml|*.g.cs",
@@ -75,15 +79,14 @@ public static class SettingsDialog
             ("", Note("One per line: name = mask. Use them as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
         // ---- Tools
-        var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable, MinWidth = 460 };
-        var editorArgs = new TextBox { Text = s.Editor is null ? "{files}" : string.Join(" ", s.Editor.Arguments), MinWidth = 460 };
+        var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable };
+        var editorArgs = new TextBox { Text = s.Editor is null ? "{files}" : ToolTextGrammar.FormatArguments(s.Editor.Arguments) };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
         var userCommands = new TextBox
         {
             AcceptsReturn = true,
             MinHeight = 120,
-            MinWidth = 460,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = Core.Tools.UserCommandsText.Format(s.UserCommands),
             PlaceholderText = OperatingSystem.IsWindows() ? "Edit in Notepad | notepad.exe | {file} | key=Ctrl+Alt+N" : "Edit in gedit | gedit | {file} | key=Ctrl+Alt+N",
@@ -92,7 +95,6 @@ public static class SettingsDialog
         {
             AcceptsReturn = true,
             MinHeight = 90,
-            MinWidth = 460,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = Core.Tools.Associations.Format(s.Associations),
             PlaceholderText = @"*.pdf | view | C:\Tools\SumatraPDF.exe | {file}",
@@ -101,10 +103,11 @@ public static class SettingsDialog
         {
             Header = "Tools",
             // Each box with its own explanation right below it.
-            Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs), ("Command line shell", shell), ("User commands (F9)", userCommands),
-                ("", Note("One command per line: Name | program | arguments | options. \"Group > Name\" puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
+            Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs),
+                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommands),
+                ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
                 ("Associations", associations),
-                ("", Note("Associations, one per line: mask | view, edit, or open | program | arguments. F3, F4, and Enter use the first matching line; Alt+F3 always opens the internal viewer."))),
+                ("", Note("Associations: mask | view, edit, or open | program | arguments | options. Quote exclusion masks (\"*.txt|secret*\") and arguments containing pipes or spaces. Optional name=, dir=, key=, shell preserve launch settings. F3, F4, and Enter use the first match; Alt+F3 always opens the internal viewer."))),
         });
 
         // ---- Columns
@@ -149,113 +152,142 @@ public static class SettingsDialog
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6, Children = { tabs, error } };
         if (vm.Services.SettingsReadOnly)
-            body.Children.Insert(0, new TextBlock { Text = "These settings were written by a newer FileCat and are read-only in this version.", Classes = { "warning" } });
-
-        while (true)
         {
-            var r = await vm.Dialogs.ShowCustomAsync("Settings", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)]);
-            if (r as string != "ok")
+            // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
+            foreach (var tab in tabs.Items.OfType<TabItem>())
+                if (tab.Content is Control page)
+                    foreach (var control in page.GetLogicalDescendants().OfType<Control>())
+                        if (control is TextBox textBox) textBox.IsReadOnly = true;
+                        else if (control is Button or ComboBox or CheckBox or NumericUpDown) control.IsEnabled = false;
+            string reason = vm.Services.SettingsStatus switch
             {
-                ThemeManager.Apply(s.Theme);
-                return;
-            }
-
-            var parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
-            if (bindingError is not null)
-            {
-                error.Text = bindingError;
-                error.IsVisible = true;
-                tabs.SelectedIndex = 4;
-                continue;
-            }
-            var parsedFilters = ParseSavedFilters(savedFilters.Text, out var filterError);
-            if (filterError is not null)
-            {
-                error.Text = filterError;
-                error.IsVisible = true;
-                tabs.SelectedIndex = 1;
-                continue;
-            }
-            var parsedAssociations = Core.Tools.Associations.Parse(associations.Text, out var associationError);
-            var parsedCommands = Core.Tools.UserCommandsText.Parse(userCommands.Text, out var commandError);
-            commandError ??= associationError;
-            if (commandError is not null)
-            {
-                error.Text = commandError;
-                error.IsVisible = true;
-                tabs.SelectedIndex = 2;
-                continue;
-            }
-
-            s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";
-            s.ThemeAnimations = animations.IsChecked == true;
-            s.FontSize = (double)(fontSize.Value ?? 13);
-            s.DateFormat = dateFormat.SelectedItem as string ?? "Culture";
-            s.ShowFunctionKeyBar = keyBar.IsChecked == true;
-            s.ShowToolbar = toolbar.IsChecked == true;
-            s.ShowDriveButtons = driveButtons.IsChecked == true;
-            s.ShowCommandLine = cmdLine.IsChecked == true;
-            s.ShowHidden = hidden.IsChecked == true;
-            s.NaturalSort = natural.IsChecked == true;
-            s.DirectoriesFirst = dirsFirst.IsChecked == true;
-            s.ConfirmRecycle = confirmRecycle.IsChecked == true;
-            s.SizeFolderOnSpace = sizeOnSpace.IsChecked == true;
-            s.SizeFolderOnSlowLocations = sizeSlow.IsChecked == true;
-            s.QuickSearchMatchAnywhere = anywhere.IsChecked == true;
-            s.SingleInstance = single.IsChecked == true;
-            s.KeepAwakeDuringJobs = awake.IsChecked == true;
-            s.DefaultVerify = verify.SelectedIndex == 1 ? "ReadBack" : "Native";
-            int upTo = (int)(verifyUpTo.Value ?? 256);
-            bool thresholdChanged = upTo != s.VerifyAutomaticallyUpToMiB;
-            s.VerifyAutomaticallyUpToMiB = upTo;
-            s.SavedFilters = parsedFilters;
-            s.Editor = string.IsNullOrWhiteSpace(editorExe.Text) ? null : new ToolDefinition
-            {
-                Name = Path.GetFileNameWithoutExtension(editorExe.Text.Trim()),
-                Executable = editorExe.Text.Trim().Trim('"'),
-                Arguments = (editorArgs.Text ?? "{files}").Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList(),
+                StateLoadStatus.NewerSchemaReadOnly => "These settings were written by a newer FileCat. They can be inspected here, but this version cannot change them.",
+                StateLoadStatus.OversizedReadOnly => "The settings exceed the safe input limit. A backup or defaults are shown for inspection; the original file is preserved.",
+                _ => "The settings could not be read safely. A backup or defaults are shown for inspection; the original file is preserved.",
             };
-            s.Terminal.Shell = shell.SelectedItem as string ?? s.Terminal.Shell;
-            s.UserCommands = parsedCommands;
-            s.Associations = parsedAssociations;
-            s.KeyBindings = parsedBindings;
-            s.DiagnosticMode = diag.IsChecked == true;
-            s.CheckForUpdates = updates.IsChecked == true;
-            s.ShellPictures = shellPictures.IsChecked == true;
-            s.ShellPicturesOnNetworkAndRemovable = shellSlow.IsChecked == true;
-            columnsEditor.Apply();
-            vm.ApplySettings();
-            // Rows beside checksums show "not checked" or a result according to the new size.
-            if (thresholdChanged) vm.Services.Metadata.Invalidate();
+            body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
+            await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
+                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
             return;
         }
+
+        string originalExecutable = editorExe.Text ?? "", originalArguments = editorArgs.Text ?? "";
+        string originalCommands = userCommands.Text ?? "", originalAssociations = associations.Text ?? "";
+        var parsedBindings = s.KeyBindings;
+        var parsedFilters = s.SavedFilters;
+        var parsedCommands = s.UserCommands;
+        var parsedAssociations = s.Associations;
+        var parsedArguments = s.Editor?.Arguments ?? ["{files}"];
+        string parsedExecutable = s.Editor?.Executable ?? "";
+        bool Fail(string fieldName, string message, TextBox field, int page)
+        {
+            error.Text = fieldName + ": " + message;
+            error.IsVisible = true;
+            Avalonia.Automation.AutomationProperties.SetHelpText(field, error.Text);
+            tabs.SelectedIndex = page;
+            var owner = TopLevel.GetTopLevel(tabs);
+            var previousFocus = owner?.FocusManager?.GetFocusedElement();
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (owner is not null && ReferenceEquals(TopLevel.GetTopLevel(field), owner) &&
+                    ReferenceEquals(owner.FocusManager?.GetFocusedElement(), previousFocus) &&
+                    field.IsEffectivelyVisible && field.IsEffectivelyEnabled)
+                    field.Focus();
+            }, DispatcherPriority.Input);
+            return false;
+        }
+        bool Validate()
+        {
+            // Each attempt starts from the captured structured values; reverting an edit after an error cannot reuse stale parsed data.
+            parsedArguments = s.Editor?.Arguments ?? ["{files}"];
+            parsedExecutable = s.Editor?.Executable ?? "";
+            error.IsVisible = false;
+            foreach (var field in new[] { bindings, savedFilters, editorExe, editorArgs, userCommands, associations })
+                Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
+            parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
+            if (bindingError is not null) return Fail("Custom bindings", bindingError, bindings, 4);
+            parsedFilters = ParseSavedFilters(savedFilters.Text, out var filterError);
+            if (filterError is not null) return Fail("Saved filters", filterError, savedFilters, 1);
+            if (editorExe.Text != originalExecutable && !ToolTextGrammar.TryParseField(editorExe.Text, out parsedExecutable, out var executableError))
+                return Fail("Editor program", executableError!, editorExe, 2);
+            if (editorArgs.Text != originalArguments && !ToolTextGrammar.TryParseArguments(editorArgs.Text, out parsedArguments, out var argumentError))
+                return Fail("Editor arguments", argumentError!, editorArgs, 2);
+            if (userCommands.Text != originalCommands)
+            {
+                parsedCommands = UserCommandsText.Parse(userCommands.Text, out var commandError);
+                if (commandError is not null) return Fail("User commands", commandError, userCommands, 2);
+            }
+            else parsedCommands = s.UserCommands;
+            if (associations.Text != originalAssociations)
+            {
+                parsedAssociations = Associations.Parse(associations.Text, out var associationError);
+                if (associationError is not null) return Fail("Associations", associationError, associations, 2);
+            }
+            else parsedAssociations = s.Associations;
+            return true;
+        }
+        var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }]);
+        if (r as string != "ok")
+        {
+            ThemeManager.Apply(s.Theme);
+            return;
+        }
+
+        s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";
+        s.ThemeAnimations = animations.IsChecked == true;
+        s.FontSize = (double)(fontSize.Value ?? 13);
+        s.DateFormat = dateFormat.SelectedItem as string ?? "Culture";
+        s.ShowFunctionKeyBar = keyBar.IsChecked == true;
+        s.ShowToolbar = toolbar.IsChecked == true;
+        s.ShowDriveButtons = driveButtons.IsChecked == true;
+        s.ShowCommandLine = cmdLine.IsChecked == true;
+        s.ShowHidden = hidden.IsChecked == true;
+        s.NaturalSort = natural.IsChecked == true;
+        s.DirectoriesFirst = dirsFirst.IsChecked == true;
+        s.ConfirmRecycle = confirmRecycle.IsChecked == true;
+        s.SizeFolderOnSpace = sizeOnSpace.IsChecked == true;
+        s.SizeFolderOnSlowLocations = sizeSlow.IsChecked == true;
+        s.QuickSearchMatchAnywhere = anywhere.IsChecked == true;
+        s.SingleInstance = single.IsChecked == true;
+        s.KeepAwakeDuringJobs = awake.IsChecked == true;
+        s.DefaultVerify = verify.SelectedIndex == 1 ? "ReadBack" : "Native";
+        int upTo = (int)(verifyUpTo.Value ?? 256);
+        bool thresholdChanged = upTo != s.VerifyAutomaticallyUpToMiB;
+        s.VerifyAutomaticallyUpToMiB = upTo;
+        s.SavedFilters = parsedFilters;
+        if (editorExe.Text != originalExecutable || editorArgs.Text != originalArguments)
+        {
+            var previous = s.Editor;
+            s.Editor = string.IsNullOrWhiteSpace(parsedExecutable) ? null : new ToolDefinition
+            {
+                Name = previous?.Name ?? Path.GetFileNameWithoutExtension(parsedExecutable),
+                Executable = parsedExecutable,
+                Arguments = [.. parsedArguments],
+                WorkingDirectory = previous?.WorkingDirectory ?? "{dir}",
+                ShellMode = previous?.ShellMode ?? false,
+                Hotkey = previous?.Hotkey,
+                Intent = previous?.Intent,
+                Mask = previous?.Mask,
+                Children = previous?.Children,
+            };
+        }
+        s.Terminal.Shell = shell.SelectedItem as string ?? s.Terminal.Shell;
+        s.UserCommands = parsedCommands;
+        s.Associations = parsedAssociations;
+        s.KeyBindings = parsedBindings;
+        s.DiagnosticMode = diag.IsChecked == true;
+        s.CheckForUpdates = updates.IsChecked == true;
+        s.ShellPictures = shellPictures.IsChecked == true;
+        s.ShellPicturesOnNetworkAndRemovable = shellSlow.IsChecked == true;
+        columnsEditor.Apply();
+        vm.ApplySettings();
+        // Rows beside checksums show "not checked" or a result according to the new size.
+        if (thresholdChanged) vm.Services.Metadata.Invalidate();
+        return;
     }
 
-    private static Control Form(params (string Label, Control Control)[] rows)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Margin = new Thickness(8) };
-        for (int i = 0; i < rows.Length; i++)
-        {
-            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            var (label, control) = rows[i];
-            if (label.Length > 0)
-            {
-                // Beside a box of several lines, the label sits at its first line, not in its middle.
-                bool tall = control is TextBox { AcceptsReturn: true };
-                var l = new TextBlock { Text = label, VerticalAlignment = tall ? VerticalAlignment.Top : VerticalAlignment.Center, Margin = new Thickness(0, tall ? 10 : 4, 12, 4) };
-                Grid.SetRow(l, i);
-                grid.Children.Add(l);
-                // Screen readers announce the field by its visible label.
-                if (string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(control)))
-                    Avalonia.Automation.AutomationProperties.SetName(control, label);
-            }
-            control.Margin = new Thickness(0, 4);
-            Grid.SetRow(control, i);
-            Grid.SetColumn(control, 1);
-            grid.Children.Add(control);
-        }
-        return new ScrollViewer { Content = grid, MaxHeight = 520 };
-    }
+    private static Control Form(params (string Label, Control Control)[] rows) => new DialogForm(rows) { Margin = new Thickness(8) };
 
     /// <summary>"name = mask" lines; every mask must parse, including references between saved filters.</summary>
     private static List<SavedFilter> ParseSavedFilters(string? text, out string? error)

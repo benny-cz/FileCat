@@ -19,7 +19,7 @@ namespace FileCat.App.Tests;
 
 /// <summary>
 /// TV-10 automated part: every visible interactive control has an accessible name, custom controls expose
-/// summarized peers, and every command is reachable from the keyboard. Screen-reader runs stay manual.
+/// bounded virtual peers, and every command is reachable from the keyboard. Screen-reader runs stay manual.
 /// </summary>
 public sealed class AccessibilityTests
 {
@@ -45,7 +45,8 @@ public sealed class AccessibilityTests
     }
 
     internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow(
-        Remote.Sftp.ISftpConnector? sftp = null, bool nativeWindowsOriginMarks = false)
+        Remote.Sftp.ISftpConnector? sftp = null, bool nativeWindowsOriginMarks = false,
+        int width = 1200, int height = 800, double? fontSize = null)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
         var folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
@@ -63,7 +64,8 @@ public sealed class AccessibilityTests
         }
         finally { PlatformFactory.WindowsFactory = previousFactory; }
         var vm = new MainViewModel(services);
-        var window = new MainWindow(vm, null) { Width = 1200, Height = 800 };
+        var window = new MainWindow(vm, null) { Width = width, Height = height };
+        if (fontSize is { } size) window.FontSize = size;
         vm.Initialize(null);
         foreach (var panel in vm.Workspace.Panels) panel.ActiveTab?.Navigate(Location.FileSystem(folder));
         window.Show();
@@ -149,10 +151,15 @@ public sealed class AccessibilityTests
             Assert.Equal(AutomationControlType.List, peer.GetAutomationControlType());
             vm.ActiveTab!.Listing.SetFocus(1);
             var name = peer.GetName();
-            Assert.Contains("a.txt, file", name);
-            Assert.Contains("of 3", name);
+            Assert.Contains("Panel 1", name);
+            var value = Assert.IsAssignableFrom<Avalonia.Automation.Provider.IValueProvider>(peer);
+            Assert.Contains("a.txt, file", value.Value);
+            Assert.Contains("of 3", value.Value);
             vm.ActiveTab.Listing.SetMark(1, true);
-            Assert.Contains("marked", peer.GetName());
+            Assert.Equal(name, peer.GetName());
+            Assert.Contains("marked", value.Value);
+            var selection = Assert.IsAssignableFrom<Avalonia.Automation.Provider.ISelectionProvider>(peer).GetSelection();
+            Assert.Equal("a.txt", Assert.Single(selection).GetName());
         }
         finally
         {

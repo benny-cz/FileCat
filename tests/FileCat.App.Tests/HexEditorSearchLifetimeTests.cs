@@ -66,7 +66,12 @@ public sealed class HexEditorSearchLifetimeTests
                 Assert.Equal(68, Field<HexView>(window, "_hex").CursorOffset);
             }
             else if (action == "close") window.CloseNow();
-            else if (action == "stop") oldSource.Cancel();
+            else if (action == "stop")
+            {
+                var stop = Field<Button>(window, "_stopSearch");
+                Assert.True(stop.IsVisible);
+                stop.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            }
             string statusBeforeRelease = Field<TextBlock>(window, "_status").Text ?? "";
             long cursorBeforeRelease = Field<HexView>(window, "_hex").CursorOffset;
             source.Release.Set();

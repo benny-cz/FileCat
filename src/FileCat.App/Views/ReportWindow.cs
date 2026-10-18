@@ -16,7 +16,7 @@ namespace FileCat.App.Views;
 
 /// <summary>
 /// A report FileCat writes about an item, such as its file-system record (D-56): read-only text that opens at once and
-/// fills in when ready, with Find (Ctrl+F, F3), Wrap (F2), Copy (Ctrl+C: the selection, or everything), Save as, and
+/// fills in when ready, with Find (Ctrl+F, F3), Wrap (F2), source/display Copy (Ctrl+C: selection or visible lines), Copy all, Save as, and
 /// Refresh (F5) to read it again. None of the viewer's modes, encodings, or checksums: there is no file here.
 /// </summary>
 public sealed class ReportWindow : Window
@@ -33,6 +33,10 @@ public sealed class ReportWindow : Window
     private readonly CancellationTokenSource _closing = new();
     private CancellationTokenSource? _reading;
     private CancellationTokenSource? _searching;
+    private CancellationTokenSource? _copying;
+    private readonly SemaphoreSlim _copyWrites = new(1, 1);
+    private readonly ContentCopyNotice _copyNotice = new();
+    private readonly Button _copyVisible = new() { Content = "Copy visible source text" };
     private PagedReader? _reader;
     private string _text = "";
     private long _lastHit = -1;
@@ -61,17 +65,24 @@ public sealed class ReportWindow : Window
         ToolTip.SetTip(_wrap, "Wrap long lines (F2)");
         ToolTip.SetTip(_matchCase, "Match case");
         var copy = new Button { Content = "Copy all" };
-        ToolTip.SetTip(copy, "Copy the whole report as text (Ctrl+C copies a selection)");
+        ToolTip.SetTip(copy, "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.");
+        var displayed = new Button { Content = "Copy displayed text" };
+        ToolTip.SetTip(displayed, "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.");
+        _copyVisible.Click += async (_, _) => await CopyTextAsync(displayed: false, explicitVisible: true);
+        displayed.Click += async (_, _) => await CopyTextAsync(displayed: true, explicitVisible: true);
         var save = new Button { Content = "Save as…" };
         ToolTip.SetTip(save, "Save the report as a text file");
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
-        foreach (var part in new Control[] { _refresh, _search, _matchCase, _wrap, copy, save }) toolbar.Children.Add(part);
+        foreach (var part in new Control[] { _refresh, _search, _matchCase, _wrap, copy, _copyVisible, displayed, save }) toolbar.Children.Add(part);
         var statusBar = new Border { Classes = { "status" }, Child = _status };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
         root.Children.Add(statusBar);
+        DockPanel.SetDock(_copyNotice, Dock.Bottom);
+        root.Children.Add(_copyNotice);
+        _copyNotice.StopRequested += () => _copying?.Cancel();
         var surface = new Border { Child = _view };
         root.Children.Add(surface);
         Content = ThemeLayers.Over(root, surface);
@@ -80,6 +91,11 @@ public sealed class ReportWindow : Window
         copy.Click += async (_, _) => await CopyAsync(all: true);
         save.Click += async (_, _) => await SaveAsync();
         _wrap.IsCheckedChanged += (_, _) => _view.Wrap = _wrap.IsChecked == true;
+        _view.ContentChanged += () =>
+        {
+            _copyVisible.Content = _view.HasSelection ? "Copy source selection" : "Copy visible source text";
+            if (_view.SelectionEnded is { } ended && !_closing.IsCancellationRequested) _copyNotice.Show(ended);
+        };
         _search.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter)
@@ -106,6 +122,7 @@ public sealed class ReportWindow : Window
             _closing.Cancel();
             _reading?.Cancel();
             _searching?.Cancel();
+            _copying?.Cancel();
             var reader = _reader;
             _reader = null;
             _view.SetReader(null, new UTF8Encoding(false), 0);
@@ -139,6 +156,7 @@ public sealed class ReportWindow : Window
         if (produce is null) return;
         _reading?.Cancel();
         _searching?.Cancel();
+        _copying?.Cancel();
         using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         _refresh.IsEnabled = false;
@@ -180,6 +198,7 @@ public sealed class ReportWindow : Window
     private void Show(string text)
     {
         _searching?.Cancel();
+        _copying?.Cancel();
         _text = text;
         var old = _reader;
         _reader = new PagedReader(new MemoryContentSource("Report", Encoding.UTF8.GetBytes(text)));
@@ -199,6 +218,7 @@ public sealed class ReportWindow : Window
     {
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        if (e.Key == Key.Escape && _copying is not null) { e.Handled = true; _copying.Cancel(); return; }
         if (FocusManager?.GetFocusedElement() is TextBox && e.Key is not (Key.F3 or Key.F5 or Key.F10)) return;
         switch (e.Key)
         {
@@ -222,7 +242,8 @@ public sealed class ReportWindow : Window
                 _wrap.IsChecked = _wrap.IsChecked != true;
                 break;
             case Key.C when ctrl:
-                await CopyAsync(all: false);
+                if (shift) await CopyTextAsync(displayed: true, explicitVisible: false);
+                else await CopyAsync(all: false);
                 break;
             case Key.S when ctrl:
                 await SaveAsync();
@@ -294,10 +315,87 @@ public sealed class ReportWindow : Window
 
     private async Task CopyAsync(bool all)
     {
-        if (Clipboard is null) return;
-        string text = all ? _text : _view.GetSelectedOrVisibleText();
-        await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, text);
-        _status.Text = all ? "The whole report is on the clipboard." : "Copied.";
+        if (!all) { await CopyTextAsync(displayed: false, explicitVisible: false); return; }
+        if (_closing.IsCancellationRequested || Clipboard is not { } clipboard) return;
+        _copying?.Cancel();
+        using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
+        string text = _text;
+        var reader = _reader;
+        bool publicationStarted = false;
+        bool Current() => !ct.IsCancellationRequested && ReferenceEquals(_copying, cts) && ReferenceEquals(_reader, reader);
+        try
+        {
+            if (text.Contains('\0'))
+            {
+                _copyNotice.Show("The report contains U+0000 (NUL). Native text clipboards can stop at NUL. Choose Copy displayed text or Save as to preserve the required representation.");
+                return;
+            }
+            await _copyWrites.WaitAsync(ct);
+            try { if (!Current()) return; publicationStarted = true; await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text); }
+            finally { _copyWrites.Release(); }
+            if (Current())
+            {
+                _status.Text = "The whole report is on the clipboard.";
+                _copyNotice.Show($"Copied the complete original report: {text.Length:N0} characters. Tabs and logical line endings are preserved.");
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.ExternalException)
+        {
+            if (Current()) _copyNotice.Show("Copy could not finish: " + ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_copying, cts))
+            {
+                if (ct.IsCancellationRequested && !_closing.IsCancellationRequested) _copyNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+                _copying = null;
+            }
+        }
+    }
+
+    internal async Task CopyTextAsync(bool displayed, bool explicitVisible, Avalonia.Input.Platform.IClipboard? targetClipboard = null)
+    {
+        if (_closing.IsCancellationRequested || (targetClipboard ?? Clipboard) is not { } clipboard) return;
+        _copying?.Cancel();
+        using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
+        var scope = _view.CaptureCopyScope(explicitVisible);
+        bool publicationStarted = false;
+        bool Current() => !ct.IsCancellationRequested && ReferenceEquals(_copying, cts) && scope is not null
+            && ReferenceEquals(_reader, scope.Reader) && scope.Generation == _view.SourceGeneration;
+        try
+        {
+            if (scope is null) { _copyNotice.Show(_view.SelectionEnded ?? "The current report is still loading. Wait for its text before copying."); return; }
+            _copyNotice.Show($"Reading the captured report range: {scope.Length:N0} bytes from offset {scope.Start:N0}…", running: true);
+            var result = await Task.Run(() => ContentCopy.Read(scope.Reader, scope.Start, scope.Length,
+                displayed ? ContentCopyRepresentation.DisplayedText : ContentCopyRepresentation.SourceText, scope.Encoding, scope.DisplayColumn, scope.Revision, ct), ct);
+            if (!Current()) return;
+            if (result.CanPublish)
+            {
+                await _copyWrites.WaitAsync(ct);
+                try { if (!Current()) return; publicationStarted = true; await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, result.Text); }
+                finally { _copyWrites.Release(); }
+            }
+            if (Current()) { string message = result.Describe(scope.Selected); _copyNotice.Show(message); _status.Text = message; }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_copying, cts)) _copyNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or NotSupportedException or System.Runtime.InteropServices.ExternalException)
+        {
+            if (Current()) _copyNotice.Show("Copy could not finish: " + ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_copying, cts))
+            {
+                if (ct.IsCancellationRequested && !_closing.IsCancellationRequested) _copyNotice.Show(ContentCopy.CanceledMessage(publicationStarted));
+                _copying = null;
+            }
+        }
     }
 
     private async Task SaveAsync()

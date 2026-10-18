@@ -11,7 +11,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task Provider_keeps_key_and_default_value_distinct_and_reads_raw_type()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         Assert.NotNull(fixture);
@@ -75,7 +75,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Native_create_rejects_existing_key_without_touching_its_values()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         try
@@ -92,7 +92,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Reg_export_preserves_raw_types_default_name_and_subkeys()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
@@ -121,7 +121,7 @@ public sealed class WindowsRegistryProviderTests
     {
         // Release plan DPI P06: FileCat's .reg backups name their view only in a comment, and a backup of a 32-bit-view
         // key restored in the default view would write to the 64-bit keys instead (the paths are the same text).
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
@@ -146,7 +146,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task Reg_import_previews_and_runs_guarded_batch_with_deletions()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
         string journals = Path.Combine(Path.GetTempPath(), "filecat-regimport", Guid.NewGuid().ToString("N"));
@@ -212,7 +212,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task Reading_a_root_is_no_change_and_a_burst_of_writes_is_one()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         var ct = TestContext.Current.CancellationToken;
         var provider = new WindowsRegistryProvider();
         // Reading a root through its predefined handle signalled a watch on that handle, so a view of HKCU or HKCC reread
@@ -260,7 +260,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task Registry_change_monitor_reports_value_edits_and_stops()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         try
@@ -278,7 +278,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Registry_acl_inspection_returns_owner_and_dacl_without_elevation()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         try
@@ -294,7 +294,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Protected_hex_file_denies_other_writers_and_checks_original_ranges()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".bin");
         File.WriteAllBytes(file, [1, 2, 3, 4]);
         try
@@ -310,7 +310,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Interrupted_hex_save_can_be_guardedly_rolled_back_or_resumed()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string directory = Path.Combine(Path.GetTempPath(), "filecat-hextest-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         string file = Path.Combine(directory, "target.bin");
@@ -354,7 +354,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task Registry_jobs_detect_stale_values_and_preserve_raw_bytes()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         try
@@ -420,7 +420,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public async Task CurrentControlSet_is_not_followed_implicitly()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         var location = new Location(Schemes.Registry, @"HKLM\SYSTEM\CurrentControlSet", session: "default");
         var ex = Record.Exception(() => WindowsRegistryProvider.Open(location, false));
         Assert.IsType<RegistryLinkException>(ex);
@@ -436,7 +436,7 @@ public sealed class WindowsRegistryProviderTests
     [Fact]
     public void Search_distinguishes_names_typed_data_and_raw_bytes()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows Registry and protected file operations require Windows.");
         string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
         using var fixture = Registry.CurrentUser.CreateSubKey(path);
         try

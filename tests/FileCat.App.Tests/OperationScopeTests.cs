@@ -121,6 +121,7 @@ public sealed class OperationScopeTests
             vm.Execute(CommandIds.Copy);
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            window.UpdateLayout(); // Realize the modal's scrollable body before querying visual controls.
             var hidden = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.CheckBox>()
                 .Single(box => (box.Content as string)?.StartsWith("Include 1 marked item hidden by the filter", StringComparison.Ordinal) == true);
             Assert.True(hidden.IsChecked);

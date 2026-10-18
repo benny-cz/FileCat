@@ -70,7 +70,12 @@ public sealed class ViewerSearchLifetimeTests
                 Assert.Equal(68, Field<HexView>(viewer, "_hex").CursorOffset);
             }
             else if (action == "close") viewer.Close();
-            else if (action == "stop") oldSource.Cancel();
+            else if (action == "stop")
+            {
+                var stop = Field<Button>(viewer, "_stopSearch");
+                Assert.True(stop.IsVisible);
+                stop.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            }
             string statusBeforeRelease = Field<TextBlock>(viewer, "_status").Text ?? "";
             long cursorBeforeRelease = Field<HexView>(viewer, "_hex").CursorOffset;
             source.Release.Set();

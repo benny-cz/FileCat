@@ -21,9 +21,9 @@ internal sealed class ColumnProfilesEditor
 
     private readonly ColumnProfileSet _set;
     private readonly List<Profile> _profiles;
-    private readonly ListBox _profileList = new() { MinWidth = 220, MinHeight = 240 };
-    private readonly ListBox _columnList = new() { MinWidth = 300, MinHeight = 200 };
-    private readonly TextBox _name = new() { MinWidth = 220 };
+    private readonly ListBox _profileList = new() { Height = 200 };
+    private readonly ListBox _columnList = new() { Height = 200 };
+    private readonly TextBox _name = new();
     private readonly NumericUpDown _width = new() { Minimum = 0, Maximum = 2000, Increment = 10, FormatString = "0", MinWidth = 140 };
     private readonly ComboBox _add = new() { MinWidth = 180, ItemsSource = ColumnProfileSet.Choices.Select(c => c.Title).ToList(), SelectedIndex = 0 };
     private bool _updating;
@@ -85,17 +85,13 @@ internal sealed class ColumnProfilesEditor
             Children =
             {
                 Label("Columns"), _columnList,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _add, addButton } },
+                DialogLayout.Actions(_add, addButton),
                 columnButtons,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Label("Width"), _width, Note("pixels; 0 fills the remaining space") } },
+                DialogLayout.Actions(Label("Width"), _width, Note("pixels; 0 fills the remaining space")),
                 Note("Dragging a column border in a panel also stores its width here. The Name column is always kept."),
             },
         };
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,24,*"), Margin = new Thickness(8) };
-        Grid.SetColumn(right, 2);
-        grid.Children.Add(left);
-        grid.Children.Add(right);
-        View = new ScrollViewer { Content = grid, MaxHeight = 520 };
+        View = new DialogColumns(left, right) { Margin = new Thickness(8) };
         RefreshProfiles(select: 0);
     }
 
@@ -209,9 +205,9 @@ internal sealed class ColumnProfilesEditor
         _updating = false;
     }
 
-    private static StackPanel Buttons(params (string Text, Action Click)[] buttons)
+    private static WrapPanel Buttons(params (string Text, Action Click)[] buttons)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var panel = DialogLayout.Actions();
         foreach (var (text, click) in buttons)
         {
             var b = new Button { Content = text };
@@ -221,7 +217,7 @@ internal sealed class ColumnProfilesEditor
         return panel;
     }
 
-    private static TextBlock Label(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+    private static TextBlock Label(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
 
     private static TextBlock Note(string text) =>
         new() { Text = text, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 420, VerticalAlignment = VerticalAlignment.Center };

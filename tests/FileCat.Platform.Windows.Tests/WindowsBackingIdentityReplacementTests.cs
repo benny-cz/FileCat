@@ -19,6 +19,7 @@ public sealed class WindowsBackingIdentityReplacementTests(ITestOutputHelper out
     [MemberData(nameof(Cases))]
     public async Task Replaced_backing_identity_never_authorizes_source_staging_cleanup_or_publication(string route, bool changed)
     {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file identities and staging publication require Windows.");
         using var root = new TempDir();
         using var ready = new ManualResetEventSlim(false);
         string destination = root.Dir("destination"), source = root.File("source-image.bin", "complete owned source image bytes"), target = Path.Combine(destination, "copy.bin");

@@ -23,6 +23,7 @@ public sealed class WindowsInitialUnknownBackingTests(ITestOutputHelper output)
     [MemberData(nameof(Cases))]
     public async Task Initially_unavailable_backing_identity_never_authorizes_source_cleanup_or_publication(string route, bool changed, string mode)
     {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows file identity and final-path queries require Windows.");
         using var root = new TempDir();
         using var ready = new ManualResetEventSlim(false);
         string destination = root.Dir("destination"), source = root.File("source-image.bin", "complete owned source image bytes"), target = Path.Combine(destination, "copy.bin");

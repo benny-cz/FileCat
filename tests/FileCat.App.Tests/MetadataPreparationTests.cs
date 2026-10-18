@@ -54,7 +54,9 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
         try
         {
             var task = f.Vm.ExecuteAsync(CommandIds.Attributes); await Wait(() => f.Button("Apply") is not null);
+            f.Window.UpdateLayout(); // The Apply footer does not establish that its fields are realized.
             var box = f.Window.GetVisualDescendants().OfType<CheckBox>().Single(b => OperatingSystem.IsWindows() ? b.Content as string == "Read-only" : Avalonia.Automation.AutomationProperties.GetName(b) == "Group execute");
+            Assert.True(box.IsArrangeValid && box.Bounds.Width > 0 && box.Bounds.Height > 0);
             bool? state = box.IsChecked; f.Click("Cancel"); await task;
             Emit("attribute-state", f, new { mixed, state }); Assert.Equal(mixed ? null : (bool?)false, state); Assert.Empty(f.Services.Jobs.Jobs); f.AssertUnchanged();
         }
@@ -69,7 +71,10 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
     {
         using var f = new Fixture("zip", "plain"); await f.Load();
         var task = f.Vm.ExecuteAsync(CommandIds.Attributes); await Wait(() => f.Button("Apply") is not null);
-        f.Window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Modified").Text = "2020-02-03 04:05:06";
+        f.Window.UpdateLayout();
+        var modified = f.Window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Modified");
+        Assert.True(modified.IsArrangeValid && modified.Bounds.Width > 0 && modified.Bounds.Height > 0);
+        modified.Text = "2020-02-03 04:05:06";
         if (change == "selection") f.Left.Listing.FocusName("second.txt");
         else if (change == "source") f.Left.Navigate(Location.FileSystem(f.Root));
         else f.Right.Navigate(Location.FileSystem(f.Root));
@@ -279,7 +284,10 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
         public async Task<Task> StartCompare()
         {
             var task = Vm.ExecuteAsync(CommandIds.CompareDirectories); await Wait(() => Button("Compare") is not null);
-            Window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true).IsChecked = true;
+            Window.UpdateLayout(); // The footer can exist before its scrollable options are realized.
+            var includeSubfolders = Window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true);
+            Assert.True(includeSubfolders.IsArrangeValid && includeSubfolders.Bounds.Width > 0 && includeSubfolders.Bounds.Height > 0);
+            includeSubfolders.IsChecked = true;
             Click("Compare"); return task;
         }
         public void Dispose() { Gate.Release.Set(); PlatformField.SetValue(Services, _original); AccessibilityTests.Close(Services, Window, Root); Gate.Dispose(); }

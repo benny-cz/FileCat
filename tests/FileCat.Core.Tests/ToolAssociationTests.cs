@@ -61,7 +61,7 @@ public sealed class ToolAssociationTests
         Associations.Parse("*.pdf | view", out error);
         Assert.NotNull(error);
         Associations.Parse("\"unclosed | view | a.exe", out error);
-        Assert.Contains("not a valid mask", error);
+        Assert.Contains("unmatched double quote", error);
     }
 
     [Theory]

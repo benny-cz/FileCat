@@ -27,10 +27,25 @@ public partial class OperationsView : UserControl
 
     private void OnCancel(object? sender, RoutedEventArgs e) => JobOf(sender)?.Job.Cancel();
 
+    private async void OnReviewDecision(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) await main.ReviewDecisionAsync(j.Job);
+    }
+
     private async void OnUndo(object? sender, RoutedEventArgs e)
     {
         // The button undoes the job on its own row, never whichever operation happens to be newest.
         if (JobOf(sender) is { } j && Main is { } main) await main.UndoJobAsync(j.Job);
+    }
+
+    private void OnShowUndoReport(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) main.ShowUndoResults(j.Job);
+    }
+
+    private async void OnShowUndoAffected(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) await main.ShowUndoAffectedAsync(j.Job);
     }
 
     private async void OnRetryElevated(object? sender, RoutedEventArgs e)
@@ -95,6 +110,14 @@ public partial class OperationsView : UserControl
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Center is not { } c || Main is not { } main) return;
         if (!await main.DismissInterruptedAsync(item.Job)) return;
+        c.Interrupted.Remove(item);
+        c.UpdateSummary();
+    }
+
+    private async void OnReviewNewInterrupted(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;
+        if (!await main.ReviewNewInterruptedTransferAsync(item.Job)) return;
         c.Interrupted.Remove(item);
         c.UpdateSummary();
     }

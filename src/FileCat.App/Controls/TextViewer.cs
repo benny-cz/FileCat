@@ -1,89 +1,134 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
 using FileCat.Core.Content;
+using FileCat.Core.Resources;
 
 namespace FileCat.App.Controls;
 
 /// <summary>
-/// Text view that scrolls by byte offset (plan §13.1): it never builds a whole-file line index, handles giant
-/// single lines by splitting them into bounded segments, and decodes only what is visible. Line starts are
-/// found by bounded scans around the viewport, so a multi-gigabyte log opens instantly.
+/// Bounded, paged text inspection. Selection belongs to decoder-consumed source bytes, while each visible
+/// segment maps those bytes to shaped display positions. Reflow does not change the selected source.
+/// Layout and semantic state are committed before events; painting never reads or changes content state.
 /// </summary>
 public sealed class TextViewer : Control
 {
-    private const int MaxLineBytes = 16 * 1024;
-    private readonly ScrollBar _vbar;
+    internal const int MaxLineBytes = 16 * 1024;
+    private const double Gutter = 8;
+    private readonly ScrollBar _vbar, _hbar;
     private PagedReader? _reader;
+    private Action? _pageLoaded;
     private Encoding _encoding = new UTF8Encoding(false);
     private int _unit = 1;
-    private long _start;
-    private long _topLine;
+    private long _start, _topLine;
     private int _topSub;
-    private bool _wrap = true;
-    private Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
-    private double _fontSize = 13;
-    private double _charWidth = 8;
-    private double _rowHeight = 18;
+    private long? _targetOffset, _selStart, _selEnd;
+    private int _selStartColumn, _selEndColumn;
+    private string? _selectionEnded;
+    private long _sourceGeneration, _readerAttachment;
+    private readonly Dictionary<long, (long Start, int Column)> _previousSegments = [];
+    private ContentRevision? _observedRevision;
+    private long _observedLength;
+    private bool _wrap = true, _updatingScroll, _committing, _commitPending, _layoutIncomplete;
+    private string? _layoutError;
+    private double _horizontalOffset;
+    private Size _viewportSize;
     private readonly List<Row> _rows = [];
-    private bool _layoutIncomplete;
-    private bool _pendingInvalidate;
-    private bool _updatingScroll;
-    private bool _scrollUpdatePosted;
+    private readonly List<TextLayout> _layouts = [];
+    private readonly Dictionary<(long Offset, int Column), SegmentLayout> _segmentLayouts = [];
+    private long _layoutFormat, _cachedFormat = -1;
+    private double _cachedWrapWidth = -1;
+    private readonly Dictionary<TextSourceSegment, (int Start, int End)[]> _highlightRanges = [];
+    private readonly List<Rect> _selectionGeometry = [], _highlightGeometry = [];
+    private Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
+    private Typeface _bold = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"), FontStyle.Normal, FontWeight.Bold);
+    private double _fontSize = 13, _charWidth = 8, _rowHeight = 18;
     private string? _highlight;
     private bool _highlightCase;
-    private (int Row, int Col)? _selStart;
-    private (int Row, int Col)? _selEnd;
     private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _bg = Brushes.White, _hit = Brushes.Yellow, _sel = Brushes.LightBlue;
     private IBrush _accent = Brushes.SteelBlue, _warning = Brushes.DarkOrange;
-    private Typeface _bold = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"), FontStyle.Normal, FontWeight.Bold);
+    private TextViewerAutomationPeer? _automationPeer;
+    private string _semanticValue = "No content", _semanticStatus = "No content";
+    private bool _reportStyle, _fontsResolved;
 
-    /// <summary>
-    /// Reports FileCat writes (Info, file-system records): lines that start at the margin are headings, drawn bold in the
-    /// accent colour; lines starting with ⚠ in the warning colour; table rules muted.
-    /// </summary>
-    public bool ReportStyle { get; set; }
+    private sealed record SegmentLayout(TextSourceSegment Segment, TextLayout Layout, string? ReadError);
+    internal int ShapedSegmentCount { get; private set; }
+    internal int DecorationGeometryBuildCount { get; private set; }
+    internal int DecorationCharactersMeasured { get; private set; }
+    internal int CachedTextRunCount => _segmentLayouts.Values.Sum(cached => cached.Layout.TextLines.Sum(line => line.TextRuns.Count));
+    internal int CachedTextLineCount => _segmentLayouts.Values.Sum(cached => cached.Layout.TextLines.Count);
 
-    private sealed record Row(long LineStart, int Sub, string Text, long NextLine, bool IsLastRowOfLine);
+    private sealed record Row(TextSourceSegment Segment, TextLine Line, int Sub)
+    {
+        internal int First => Line.FirstTextSourceIndex;
+        internal int End => Math.Min(Segment.Display.Length, First + Line.Length - Line.NewLineLength);
+        internal long StartByte => Segment.ByteAtDisplay(First);
+        internal long EndByte => Segment.ByteAtDisplay(End, trailing: true);
+    }
 
     public TextViewer()
     {
         Focusable = true;
         ClipToBounds = true;
-        PositionChanged += () => _automationPeer?.AnnounceContent();
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
+        _hbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Horizontal, AllowAutoHide = false, IsVisible = false };
+        AutomationProperties.SetName(_vbar, "Text vertical position");
+        AutomationProperties.SetName(_hbar, "Text horizontal position");
         _vbar.PropertyChanged += (_, e) =>
         {
-            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null) ScrollToOffset((long)_vbar.Value);
+            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null) ScrollToOffset((long)_vbar.Value, preserveSelection: true);
         };
-        VisualChildren.Add(_vbar);
-        LogicalChildren.Add(_vbar);
+        _hbar.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != RangeBase.ValueProperty || _updatingScroll) return;
+            _horizontalOffset = _hbar.Value;
+            PublishState(); InvalidateVisual(); PositionChanged?.Invoke();
+        };
+        VisualChildren.Add(_vbar); LogicalChildren.Add(_vbar);
+        VisualChildren.Add(_hbar); LogicalChildren.Add(_hbar);
     }
 
     public event Action? PositionChanged;
-
-    private TextViewerAutomationPeer? _automationPeer;
-
-    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => _automationPeer = new TextViewerAutomationPeer(this);
-
-    public long TopOffset => _topLine;
-
-    /// <summary>Where the text starts (after a byte-order mark).</summary>
+    /// <summary>Current source, copy scope or committed content changed; does not imply manual navigation.</summary>
+    public event Action? ContentChanged;
+    public long TopOffset => _rows.Count > 0 ? _rows[0].StartByte : _topLine;
     public long ContentStart => _start;
+    public Encoding Encoding => _encoding;
+    public bool HasSelection => _selStart is { } a && _selEnd is { } b && a != b;
+    public (long Start, long Length) Selection => _selStart is { } a && _selEnd is { } b ? (Math.Min(a, b), Math.Abs(b - a)) : (TopOffset, 0);
+    internal long SourceGeneration => _sourceGeneration;
+    internal PagedReader? Reader => _reader;
+    internal string? SelectionEnded => _selectionEnded;
+    internal double HorizontalOffset => _horizontalOffset;
+    internal Rect ContentViewport => new(0, 0, Math.Max(0, _viewportSize.Width - VerticalBarWidth), Math.Max(0, _viewportSize.Height - HorizontalBarHeight));
+    internal string SemanticValue => _semanticValue;
+    internal string SemanticStatus => _semanticStatus;
+
+    public bool ReportStyle
+    {
+        get => _reportStyle;
+        set { if (_reportStyle == value) return; _reportStyle = value; _layoutFormat++; CommitLayout(); }
+    }
 
     public bool Wrap
     {
         get => _wrap;
         set
         {
-            _wrap = value;
-            _topSub = 0;
-            InvalidateVisual();
+            if (_wrap == value) return;
+            long anchor = VisibleAnchor();
+            _wrap = value; _hbar.IsVisible = !value;
+            _layoutFormat++;
+            _targetOffset = anchor; _horizontalOffset = 0;
+            InvalidateMeasure(); CommitLayout();
         }
     }
 
@@ -92,332 +137,328 @@ public sealed class TextViewer : Control
         get => _fontSize;
         set
         {
-            _fontSize = Math.Clamp(value, 8, 32);
-            MeasureFont();
-            InvalidateVisual();
+            double size = Math.Clamp(value, 8, 32);
+            if (_fontSize == size) return;
+            long anchor = VisibleAnchor();
+            _fontSize = size; MeasureFont(); _targetOffset = anchor;
+            _layoutFormat++;
+            CommitLayout();
         }
     }
 
-    public Encoding Encoding => _encoding;
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => _automationPeer = new TextViewerAutomationPeer(this);
 
     public void SetReader(PagedReader? reader, Encoding encoding, int preambleLength)
     {
-        if (_reader is not null) _reader.PageLoaded -= OnPageLoaded;
-        _reader = reader;
-        if (reader is not null) reader.PageLoaded += OnPageLoaded;
-        SetEncoding(encoding, preambleLength);
+        if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
+        RetireSelection("The source changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
+        _sourceGeneration++;
+        _layoutFormat++;
+        long attachment = ++_readerAttachment;
+        _previousSegments.Clear();
+        _reader = reader; _observedRevision = reader?.Revision; _observedLength = reader?.Length ?? 0;
+        _encoding = encoding; _unit = TextDecoding.UnitSize(encoding);
+        _start = Math.Clamp(preambleLength, 0, Math.Max(0, _observedLength));
+        _topLine = _start; _topSub = 0; _targetOffset = null; _horizontalOffset = 0;
+        if (reader is not null)
+        {
+            int queued = 0;
+            _pageLoaded = () =>
+            {
+                if (Interlocked.Exchange(ref queued, 1) != 0) return;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    Interlocked.Exchange(ref queued, 0);
+                    if (ReferenceEquals(reader, _reader) && attachment == _readerAttachment &&
+                        (_layoutIncomplete || _targetOffset is not null || reader.Revision != _observedRevision || reader.Length != _observedLength)) CommitLayout();
+                }, DispatcherPriority.Background);
+            };
+            reader.PageLoaded += _pageLoaded;
+        }
+        else _pageLoaded = null;
+        MeasureFont(); CommitLayout();
     }
 
     public void SetEncoding(Encoding encoding, int preambleLength)
     {
-        _encoding = encoding;
-        _unit = TextDecoding.UnitSize(encoding);
-        _start = preambleLength;
-        _topLine = Math.Max(_start, Align(_topLine));
-        _topSub = 0;
-        MeasureFont();
-        InvalidateVisual();
+        if (_encoding.CodePage == encoding.CodePage && _start == preambleLength) return;
+        RetireSelection("The encoding changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
+        _sourceGeneration++; _layoutFormat++; _previousSegments.Clear();
+        _encoding = encoding; _unit = TextDecoding.UnitSize(encoding);
+        _start = Math.Clamp(preambleLength, 0, Math.Max(0, _reader?.Length ?? 0));
+        _topLine = Math.Clamp(Align(_topLine), _start, Math.Max(_start, _reader?.Length ?? 0));
+        _topSub = 0; _targetOffset = _topLine;
+        CommitLayout();
+    }
+
+    /// <summary>After a changed source revision is committed, old byte ranges are not reinterpreted.</summary>
+    public void SourceChanged()
+    {
+        RetireSelection("The file changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
+        _sourceGeneration++; _layoutFormat++; _previousSegments.Clear();
+        _observedRevision = _reader?.Revision; _observedLength = _reader?.Length ?? 0;
+        _topLine = Math.Clamp(_topLine, _start, Math.Max(_start, _observedLength));
+        _targetOffset = _topLine; CommitLayout();
     }
 
     public void SetHighlight(string? text, bool matchCase)
     {
-        _highlight = string.IsNullOrEmpty(text) ? null : text;
-        _highlightCase = matchCase;
+        _highlight = string.IsNullOrEmpty(text) ? null : text; _highlightCase = matchCase;
+        CommitHighlights();
+        CommitDecorationGeometry();
         InvalidateVisual();
-    }
-
-    private void OnPageLoaded()
-    {
-        if (_pendingInvalidate) return;
-        _pendingInvalidate = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _pendingInvalidate = false;
-            InvalidateVisual();
-        }, DispatcherPriority.Render);
     }
 
     public void ResolveBrushes()
     {
         IBrush B(string k, IBrush f) => this.TryFindResource(k, ActualThemeVariant, out var v) && v is IBrush b ? b : f;
-        _text = B("FcText", Brushes.Black);
-        _muted = B("FcTextMuted", Brushes.Gray);
-        _bg = B("FcPanel", Brushes.White);
-        _hit = B("FcSearchHit", Brushes.Yellow);
-        _sel = B("FcFocusBackground", Brushes.LightBlue);
-        _accent = B("FcActiveAccent", Brushes.SteelBlue);
-        // Headings in the accent colour, unless it is close to the text's (the DOS theme's cyan on cyan): then in the
-        // colour of column titles (its yellow).
-        if (_accent is ISolidColorBrush a && _text is ISolidColorBrush t && Distance(a.Color, t.Color) < 160) _accent = B("FcHeaderText", _accent);
-        _warning = B("FcWarning", Brushes.DarkOrange);
-        InvalidateVisual();
-
-        static double Distance(Color x, Color y) => Math.Sqrt(Math.Pow(x.R - y.R, 2) + Math.Pow(x.G - y.G, 2) + Math.Pow(x.B - y.B, 2));
+        _text = B("FcText", Brushes.Black); _muted = B("FcTextMuted", Brushes.Gray);
+        _bg = B("FcPanel", Brushes.White); _hit = B("FcSearchHit", Brushes.Yellow);
+        _sel = B("FcFocusBackground", Brushes.LightBlue); _accent = B("FcActiveAccent", Brushes.SteelBlue);
+        if (_accent is ISolidColorBrush a && _text is ISolidColorBrush t && Math.Sqrt(Math.Pow(a.Color.R - t.Color.R, 2) + Math.Pow(a.Color.G - t.Color.G, 2) + Math.Pow(a.Color.B - t.Color.B, 2)) < 160)
+            _accent = B("FcHeaderText", _accent);
+        _warning = B("FcWarning", Brushes.DarkOrange); _layoutFormat++; CommitLayout();
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnAttachedToVisualTree(e);
-        ResolveBrushes();
-        MeasureFont();
+        base.OnAttachedToVisualTree(e); MeasureFont(); ResolveBrushes();
     }
 
     private void MeasureFont()
     {
+        if (!_fontsResolved)
+        {
+            // This is a fixed list of platform alternatives, not a user font setting. Keep the
+            // actual face chosen by that list, then address it by its real family name. Repeated
+            // fallback probes for a synthetic style otherwise recreate uncached alias faces for
+            // every unsupported character in the pinned font stack. Unicode still uses the font
+            // manager's fallback after this selected primary face. Resolve only in the existing
+            // initialized font-measurement lifecycle, never from the control constructor.
+            _typeface = CanonicalSystemFace(_typeface);
+            _bold = CanonicalSystemFace(_bold);
+            _fontsResolved = true;
+        }
         var ft = new FormattedText("M", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, _typeface, _fontSize, Brushes.Black);
-        _charWidth = Math.Max(1, ft.WidthIncludingTrailingWhitespace);
-        _rowHeight = Math.Ceiling(_fontSize * 1.45);
+        _charWidth = Math.Max(1, ft.WidthIncludingTrailingWhitespace); _rowHeight = Math.Ceiling(_fontSize * 1.45);
     }
 
-    private int VisibleRows => Math.Max(1, (int)(Bounds.Height / _rowHeight));
-    private int Columns => Math.Max(10, (int)((Bounds.Width - 16 - (_vbar.IsVisible ? _vbar.Bounds.Width : 0)) / _charWidth));
+    private static Typeface CanonicalSystemFace(Typeface requested)
+        => new(new FontFamily(requested.GlyphTypeface.FamilyName), requested.Style, requested.Weight, requested.Stretch);
+    private double VerticalBarWidth => _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
+    private double HorizontalBarHeight => !_wrap ? (_hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12) : 0;
+    private int VisibleRows => Math.Clamp((int)(ContentViewport.Height / _rowHeight), 1, 512);
+    private double TextWidth => Math.Max(_charWidth, ContentViewport.Width - 2 * Gutter);
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        _vbar.Measure(availableSize);
+        _vbar.Measure(availableSize); _hbar.Measure(availableSize);
         return new Size(double.IsInfinity(availableSize.Width) ? 600 : availableSize.Width, double.IsInfinity(availableSize.Height) ? 400 : availableSize.Height);
     }
-
     protected override Size ArrangeOverride(Size finalSize)
     {
-        double sbw = _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
-        _vbar.Arrange(new Rect(finalSize.Width - sbw, 0, sbw, finalSize.Height));
-        return finalSize;
+        long anchor = VisibleAnchor();
+        bool widthChanged = Math.Abs(_viewportSize.Width - finalSize.Width) > 0.5;
+        _viewportSize = finalSize;
+        _vbar.Arrange(new Rect(Math.Max(0, finalSize.Width - VerticalBarWidth), 0, VerticalBarWidth, ContentViewport.Height));
+        _hbar.Arrange(new Rect(0, ContentViewport.Height, ContentViewport.Width, HorizontalBarHeight));
+        if (widthChanged && _targetOffset is null) _targetOffset = anchor;
+        CommitLayout(); return finalSize;
     }
-
     private long Align(long v) => _unit <= 1 ? v : v - (v - _start) % _unit;
 
-    // ---- Line reading ------------------------------------------------------------------------------------
-
-    /// <summary>Reads one logical line (or a bounded segment of a giant line) from cached pages.</summary>
-    private bool TryReadLine(long pos, out string text, out long next)
+    private bool TryReadLine(long pos, out TextSourceSegment segment, int initialColumn = 0)
     {
-        text = string.Empty;
-        next = pos;
+        segment = TextSourceSegment.Decode([], pos, _encoding);
         var reader = _reader!;
-        long len = reader.Length;
-        if (pos >= len) return true;
-        int want = (int)Math.Min(MaxLineBytes + 2 * _unit, len - pos);
+        if (pos >= reader.Length) return true;
+        int want = (int)Math.Min(MaxLineBytes + 16, reader.Length - pos);
         var buffer = new byte[want];
         if (!reader.TryRead(pos, buffer, out int n)) return false;
+        if (n == 0) { _layoutError = reader.ReadError ?? "The content ended before its reported length."; return true; }
         int nl = -1, nlLen = 0;
-        if (_unit == 1)
+        for (int i = 0; i + _unit <= n && i <= MaxLineBytes; i += _unit)
         {
-            for (int i = 0; i < n; i++)
-            {
-                byte b = buffer[i];
-                if (b == (byte)'\n') { nl = i; nlLen = 1; break; }
-                if (b == (byte)'\r') { nl = i; nlLen = i + 1 < n && buffer[i + 1] == (byte)'\n' ? 2 : 1; break; }
-            }
+            int c = Unit(buffer, i);
+            if (c is not ('\r' or '\n')) continue;
+            nl = i; nlLen = _unit;
+            if (c == '\r' && i + 2 * _unit <= n && Unit(buffer, i + _unit) == '\n') nlLen += _unit;
+            break;
         }
-        else
+        int count = nl >= 0 ? nl : n <= MaxLineBytes ? n : ContentCopy.BoundaryBefore(buffer.AsSpan(0, n), MaxLineBytes, _encoding);
+        segment = TextSourceSegment.Decode(buffer.AsSpan(0, count), pos, _encoding,
+            nl >= 0 ? buffer.AsSpan(nl, nlLen) : default, initialColumn);
+        if (segment.Next > pos)
         {
-            bool be = _encoding is UnicodeEncoding && _encoding.GetPreamble() is { Length: 2 } p && p[0] == 0xFE || _encoding.WebName == "utf-16BE";
-            for (int i = 0; i + 1 < n; i += 2)
-            {
-                int c = be ? buffer[i] << 8 | buffer[i + 1] : buffer[i + 1] << 8 | buffer[i];
-                if (c == '\n') { nl = i; nlLen = 2; break; }
-                if (c == '\r')
-                {
-                    int c2 = i + 3 < n ? (be ? buffer[i + 2] << 8 | buffer[i + 3] : buffer[i + 3] << 8 | buffer[i + 2]) : -1;
-                    nl = i;
-                    nlLen = c2 == '\n' ? 4 : 2;
-                    break;
-                }
-            }
+            if (_previousSegments.Count >= 128) _previousSegments.Remove(_previousSegments.Keys.First());
+            _previousSegments[segment.Next] = (pos, initialColumn);
         }
-        int lineBytes;
-        if (nl >= 0 && nl <= MaxLineBytes)
-        {
-            lineBytes = nl;
-            next = pos + nl + nlLen;
-        }
-        else if (pos + n >= len && nl < 0)
-        {
-            lineBytes = n;
-            next = len;
-        }
-        else
-        {
-            // Giant line: cut a bounded segment at a character boundary.
-            lineBytes = Math.Min(n, MaxLineBytes);
-            if (_encoding is UTF8Encoding)
-                while (lineBytes > 1 && (buffer[lineBytes] & 0xC0) == 0x80) lineBytes--;
-            else lineBytes -= lineBytes % _unit;
-            next = pos + lineBytes;
-        }
-        text = Sanitize(_encoding.GetString(buffer, 0, lineBytes));
+        if (n < want && segment.Next < reader.Length && nl < 0) _layoutError = reader.ReadError ?? "The content ended before its reported length.";
         return true;
     }
 
-    private static string Sanitize(string s)
+    private int Unit(ReadOnlySpan<byte> bytes, int i)
     {
-        StringBuilder? sb = null;
-        int col = 0;
-        for (int i = 0; i < s.Length; i++)
-        {
-            char c = s[i];
-            if (c == '\t')
-            {
-                sb ??= new StringBuilder(s, 0, i, s.Length + 16);
-                int spaces = 4 - col % 4;
-                sb.Append(' ', spaces);
-                col += spaces;
-                continue;
-            }
-            if (c < 0x20 || c == 0x7F)
-            {
-                sb ??= new StringBuilder(s, 0, i, s.Length + 16);
-                sb.Append(c == 0 ? '·' : (char)(0x2400 + (c == 0x7F ? 0x21 : c)));
-                col++;
-                continue;
-            }
-            sb?.Append(c);
-            col++;
-        }
-        return sb?.ToString() ?? s;
+        if (_unit == 1) return bytes[i];
+        bool be = _encoding.CodePage is 1201 or 12001;
+        int value = 0;
+        for (int k = 0; k < _unit; k++) value |= bytes[i + k] << (8 * (be ? _unit - k - 1 : k));
+        return value;
     }
 
-    /// <summary>
-    /// The rows that show a line: the whole line when it fits (or wrapping is off), otherwise wrapped after the last
-    /// space that keeps a row within the width; a word longer than half a row is cut at the width instead. Put together,
-    /// the rows are the line: a row keeps the space it wraps at (invisible, even when it is one past the width).
-    /// </summary>
-    internal static IEnumerable<string> Segments(string line, int cols, bool wrap)
-    {
-        if (!wrap || line.Length <= cols)
-        {
-            yield return line;
-            yield break;
-        }
-        int start = 0;
-        while (line.Length - start > cols)
-        {
-            int end = start + cols;
-            int space = line.LastIndexOf(' ', end - 1, cols);
-            int next = line[end] == ' ' ? end + 1 : space >= start + cols / 2 ? space + 1 : end;
-            yield return line[start..next];
-            start = next;
-        }
-        if (start < line.Length) yield return line[start..];
-    }
-
-    private IEnumerable<string> Segments(string line) => Segments(line, Columns, _wrap);
-
-    /// <summary>Start of the line before <paramref name="lineStart"/> (bounded backward scan).</summary>
     private bool TryFindPreviousLineStart(long lineStart, out long previous)
     {
         previous = lineStart;
         if (lineStart <= _start) return true;
+        if (_previousSegments.TryGetValue(lineStart, out var saved)) { previous = saved.Start; return true; }
         var reader = _reader!;
-        long windowStart = Math.Max(_start, lineStart - MaxLineBytes - 4 * _unit);
-        int count = (int)(lineStart - windowStart);
-        var buffer = new byte[count];
+        lineStart = Math.Min(lineStart, reader.Length);
+        long intendedStart = Math.Max(_start, Align(lineStart - MaxLineBytes - 4 * _unit));
+        long windowStart = Math.Max(_start, Align(intendedStart - 4));
+        var buffer = new byte[(int)(lineStart - windowStart)];
         if (!reader.TryRead(windowStart, buffer, out int n)) return false;
-        int end = n;
-        // Skip the terminator of the previous line.
-        if (_unit == 1)
-        {
-            if (end > 0 && buffer[end - 1] == '\n') end--;
-            if (end > 0 && buffer[end - 1] == '\r') end--;
-            for (int i = end - 1; i >= 0; i--)
-            {
-                if (buffer[i] is (byte)'\n' or (byte)'\r')
-                {
-                    previous = windowStart + i + 1;
-                    return true;
-                }
-            }
-        }
-        else
-        {
-            end -= end % 2;
-            bool be = _encoding.WebName == "utf-16BE";
-            int Char(int i) => be ? buffer[i] << 8 | buffer[i + 1] : buffer[i + 1] << 8 | buffer[i];
-            if (end >= 2 && Char(end - 2) == '\n') end -= 2;
-            if (end >= 2 && Char(end - 2) == '\r') end -= 2;
-            for (int i = end - 2; i >= 0; i -= 2)
-            {
-                if (Char(i) is '\n' or '\r')
-                {
-                    previous = windowStart + i + 2;
-                    return true;
-                }
-            }
-        }
-        previous = windowStart <= _start ? _start : Align(windowStart);
+        int end = n - n % _unit;
+        if (end >= _unit && Unit(buffer, end - _unit) == '\n') end -= _unit;
+        if (end >= _unit && Unit(buffer, end - _unit) == '\r') end -= _unit;
+        for (int i = end - _unit; i >= 0; i -= _unit)
+            if (Unit(buffer, i) is '\n' or '\r') { previous = windowStart + i + _unit; return true; }
+        previous = windowStart + ContentCopy.BoundaryBefore(buffer.AsSpan(0, n), (int)(intendedStart - windowStart), _encoding);
         return true;
     }
 
-    private void Layout()
+    private bool TryFindTargetSegmentStart(long target, out long first)
     {
-        _rows.Clear();
-        _layoutIncomplete = false;
-        if (_reader is null) return;
-        long pos = _topLine;
-        int skip = _topSub;
-        int needed = VisibleRows + 1;
-        while (_rows.Count < needed && pos < _reader.Length)
-        {
-            if (!TryReadLine(pos, out var text, out var next))
-            {
-                _layoutIncomplete = true;
-                break;
-            }
-            var segs = Segments(text).ToList();
-            for (int s = skip; s < segs.Count && _rows.Count < needed; s++)
-                _rows.Add(new Row(pos, s, segs[s], next, s == segs.Count - 1));
-            skip = 0;
-            if (next <= pos) break;
-            pos = next;
-        }
+        first = _start;
+        if (target <= _start) return true;
+        // Reuse a decoded segment when possible, so Go-to, search and reflow share the same source
+        // origin. This bounded cache is not a file-wide line index.
+        var known = _previousSegments.Where(pair => target >= pair.Value.Start && target < pair.Key)
+            .OrderByDescending(pair => pair.Value.Start).FirstOrDefault();
+        if (known.Key > known.Value.Start) { first = known.Value.Start; return true; }
+
+        // A new giant-line target uses a stable 16KiB source block, rather than a sliding read window
+        // whose final few bytes happen to contain the target. Keep enough prefix to align UTF groups.
+        long block = _start + (target - _start) / MaxLineBytes * MaxLineBytes;
+        long scanStart = Math.Max(_start, Align(block - 4 * _unit));
+        long end = target + Math.Min(_unit, Math.Max(0, _reader!.Length - target));
+        var bytes = new byte[(int)(end - scanStart)];
+        if (!_reader.TryRead(scanStart, bytes, out int read)) return false;
+        int count = read - read % _unit;
+        if (count >= _unit && Unit(bytes, count - _unit) == '\n') count -= _unit;
+        if (count >= _unit && Unit(bytes, count - _unit) == '\r') count -= _unit;
+        for (int i = count - _unit; i >= 0; i -= _unit)
+            if (Unit(bytes, i) is '\n' or '\r') { first = scanStart + i + _unit; return true; }
+        first = scanStart + ContentCopy.BoundaryBefore(bytes.AsSpan(0, read), (int)(block - scanStart), _encoding);
+        return true;
     }
 
-    public override void Render(DrawingContext dc)
+    private TextLayout Shape(TextSourceSegment segment)
     {
-        dc.FillRectangle(_bg, new Rect(Bounds.Size));
-        if (_reader is null) return;
-        Layout();
-        // Properties must not change during the render pass; the scrollbar follows right after it.
-        if (!_scrollUpdatePosted)
+        ShapedSegmentCount++;
+        var (brush, face) = ReportStyle && segment.Display.Length > 0 ? StyleOf(segment.Display) : (_text, _typeface);
+        return new TextLayout(segment.Display, face, _fontSize, brush, textWrapping: _wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
+            maxWidth: _wrap ? TextWidth : double.PositiveInfinity, lineHeight: _rowHeight);
+    }
+
+    private void CommitLayout()
+    {
+        if (_committing)
         {
-            _scrollUpdatePosted = true;
-            Dispatcher.UIThread.Post(() =>
-            {
-                _scrollUpdatePosted = false;
-                UpdateScroll();
-            }, DispatcherPriority.Background);
+            // Automation/content subscribers may synchronously replace the source. Do not let the
+            // previous rows authorize Copy or describe that new reader while its commit is deferred.
+            _commitPending = true;
+            _rows.Clear(); _highlightRanges.Clear(); _selectionGeometry.Clear(); _highlightGeometry.Clear();
+            _semanticValue = _reader is null ? "No content" : "Loading current content…";
+            _semanticStatus = _reader is null ? "No content" : "The current content is updating; wait for it before copying.";
+            return;
         }
-        (IBrush Brush, Typeface Face) lineStyle = (_text, _typeface);
-        for (int i = 0; i < _rows.Count; i++)
+        _committing = true;
+        try
         {
-            var row = _rows[i];
-            double y = i * _rowHeight;
-            if (row.Text.Length == 0) continue;
-            // A wrapped line keeps the style of its first row.
-            if (row.Sub == 0 || i == 0) lineStyle = ReportStyle && row.Sub == 0 ? StyleOf(row.Text) : (_text, _typeface);
-            DrawSelection(dc, i, row, y);
-            if (_highlight is not null)
+            if (_reader is not null && (_reader.Revision != _observedRevision || _reader.Length != _observedLength))
             {
-                int idx = row.Text.IndexOf(_highlight, _highlightCase ? StringComparison.Ordinal : StringComparison.CurrentCultureIgnoreCase);
-                while (idx >= 0)
-                {
-                    dc.FillRectangle(_hit, new Rect(8 + idx * _charWidth, y, _highlight.Length * _charWidth, _rowHeight));
-                    idx = row.Text.IndexOf(_highlight, idx + 1, _highlightCase ? StringComparison.Ordinal : StringComparison.CurrentCultureIgnoreCase);
-                }
+                RetireSelection("The file changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
+                _sourceGeneration++; _layoutFormat++; _previousSegments.Clear();
+                _observedRevision = _reader.Revision; _observedLength = _reader.Length;
             }
-            var ft = new FormattedText(row.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, lineStyle.Face, _fontSize, lineStyle.Brush);
-            dc.DrawText(ft, new Point(8, y + (_rowHeight - ft.Height) / 2));
+            _rows.Clear();
+            _highlightRanges.Clear();
+            if (_layoutFormat != _cachedFormat || _wrap && Math.Abs(_cachedWrapWidth - TextWidth) > .5)
+            {
+                foreach (var cached in _segmentLayouts.Values) cached.Layout.Dispose();
+                _segmentLayouts.Clear();
+                _cachedFormat = _layoutFormat; _cachedWrapWidth = TextWidth;
+            }
+            _layouts.Clear(); _layoutIncomplete = false; _layoutError = null;
+            if (_reader is null) { UpdateScroll(); PublishState(); InvalidateVisual(); return; }
+            // Before the first real arrangement there is no usable wrap width. Shaping an entire
+            // segment at a transient one-character width creates thousands of unnecessary rows.
+            if (_viewportSize.Width <= 0 || _viewportSize.Height <= 0)
+            {
+                _layoutIncomplete = _reader.Length > 0; PublishState(); InvalidateVisual(); return;
+            }
+            long? reveal = _targetOffset;
+            if (reveal is { } target)
+            {
+                target = Math.Clamp(Align(target), _start, Math.Max(_start, _reader.Length));
+                if (!TryFindTargetSegmentStart(target, out long first))
+                {
+                    _layoutIncomplete = true; PublishState(); InvalidateVisual(); return;
+                }
+                _topLine = first;
+                _topSub = 0;
+            }
+            long pos = Math.Clamp(_topLine, _start, Math.Max(_start, _reader.Length));
+            int skip = _topSub, column = SegmentColumn(pos);
+            while (_rows.Count < VisibleRows + 1 && pos < _reader.Length)
+            {
+                var key = (pos, column);
+                _segmentLayouts.TryGetValue(key, out var cached);
+                TextSourceSegment segment;
+                if (cached is not null) { segment = cached.Segment; _layoutError ??= cached.ReadError; }
+                else if (!TryReadLine(pos, out segment, column)) { _layoutIncomplete = true; break; }
+                if (segment.Next <= pos) break;
+                if (reveal is { } pending && pending > segment.ContentEnd)
+                {
+                    column = segment.Ending.Length > 0 ? 0 : segment.FinalColumn;
+                    pos = segment.Next;
+                    continue;
+                }
+                var layout = cached?.Layout ?? Shape(segment);
+                if (cached is null) _segmentLayouts.Add(key, new SegmentLayout(segment, layout, _layoutError));
+                _layouts.Add(layout);
+                var lines = layout.TextLines;
+                if (reveal is { } offset && offset >= pos && offset <= segment.ContentEnd)
+                {
+                    int display = segment.DisplayAtByte(offset);
+                    for (int i = 0; i < lines.Count; i++)
+                        if (display >= lines[i].FirstTextSourceIndex && (display < lines[i].FirstTextSourceIndex + lines[i].Length || i == lines.Count - 1))
+                        { skip = i; break; }
+                    _topLine = pos; _topSub = skip;
+                }
+                for (int i = Math.Min(skip, Math.Max(0, lines.Count - 1)); i < lines.Count && _rows.Count < VisibleRows + 1; i++)
+                    _rows.Add(new Row(segment, lines[i], i));
+                skip = 0; column = segment.Ending.Length > 0 ? 0 : segment.FinalColumn; pos = segment.Next;
+            }
+            UpdateScroll();
+            if (reveal is { } at && _rows.Count > 0 && _rows.Any(r => at >= r.Segment.Start && at <= r.Segment.ContentEnd))
+            {
+                RevealHorizontal(at); _targetOffset = null;
+            }
+            CommitHighlights();
+            PublishState(); InvalidateVisual();
         }
-        if (_layoutIncomplete && _rows.Count < VisibleRows)
+        finally
         {
-            var ft = new FormattedText("Loading…", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, _fontSize, _muted);
-            dc.DrawText(ft, new Point(8, _rows.Count * _rowHeight));
-        }
-        else if (_reader.Length == 0)
-        {
-            var ft = new FormattedText("The file is empty.", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, _fontSize, _muted);
-            dc.DrawText(ft, new Point(8, 0));
+            // Layout ownership follows the committed viewport. Reuse its segments across height and
+            // toolbar/result-panel changes; release every layout that is no longer represented.
+            foreach (var key in _segmentLayouts.Where(pair => !_layouts.Contains(pair.Value.Layout)).Select(pair => pair.Key).ToArray())
+            {
+                _segmentLayouts[key].Layout.Dispose();
+                _segmentLayouts.Remove(key);
+            }
+            _committing = false;
+            if (_commitPending) { _commitPending = false; CommitLayout(); }
         }
     }
 
@@ -428,98 +469,215 @@ public sealed class TextViewer : Control
         return line.TrimStart().StartsWith('─') ? (_muted, _typeface) : (_text, _typeface);
     }
 
-    private void DrawSelection(DrawingContext dc, int index, Row row, double y)
+    private void CommitHighlights()
     {
-        if (_selStart is not { } a || _selEnd is not { } b) return;
-        var (s, e) = Compare(a, b) <= 0 ? (a, b) : (b, a);
-        if (index < s.Row || index > e.Row) return;
-        int from = index == s.Row ? s.Col : 0;
-        int to = index == e.Row ? e.Col : row.Text.Length;
-        if (to > from) dc.FillRectangle(_sel, new Rect(8 + from * _charWidth, y, (to - from) * _charWidth, _rowHeight));
+        _highlightRanges.Clear();
+        if (_highlight is null) return;
+        var comparison = _highlightCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        foreach (var segment in _rows.Select(row => row.Segment).Distinct())
+        {
+            var ranges = new List<(int Start, int End)>();
+            int index = segment.Source.IndexOf(_highlight, comparison);
+            while (index >= 0)
+            {
+                ranges.Add((segment.DisplayAtSource(index), segment.DisplayAtSource(index + _highlight.Length, trailing: true)));
+                index = segment.Source.IndexOf(_highlight, index + 1, comparison);
+            }
+            _highlightRanges.Add(segment, ranges.ToArray());
+        }
     }
 
-    private static int Compare((int Row, int Col) a, (int Row, int Col) b) => a.Row != b.Row ? a.Row.CompareTo(b.Row) : a.Col.CompareTo(b.Col);
+    private void CommitDecorationGeometry()
+    {
+        _selectionGeometry.Clear(); _highlightGeometry.Clear();
+        DecorationCharactersMeasured = 0;
+        if (_commitPending) return;
+        DecorationGeometryBuildCount++;
+        if (!HasSelection && _highlightRanges.Count == 0) return;
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var row = _rows[i]; double y = i * _rowHeight;
+            foreach (var (left, right) in VisibleTextRanges(row))
+            {
+                if (HasSelection)
+                {
+                    var (start, length) = Selection;
+                    AddRangeGeometry(_selectionGeometry, row, Math.Max(left, row.Segment.DisplayAtByte(start)),
+                        Math.Min(right, row.Segment.DisplayAtByte(start + length, trailing: true)), y);
+                }
+                if (_highlightRanges.TryGetValue(row.Segment, out var ranges))
+                {
+                    int low = 0, high = ranges.Length;
+                    while (low < high) { int middle = low + (high - low) / 2; if (ranges[middle].End <= left) low = middle + 1; else high = middle; }
+                    for (int r = low; r < ranges.Length && ranges[r].Start < right; r++)
+                        AddRangeGeometry(_highlightGeometry, row, Math.Max(left, ranges[r].Start), Math.Min(right, ranges[r].End), y);
+                }
+            }
+        }
+    }
+
+    private IEnumerable<(int Start, int End)> VisibleTextRanges(Row row)
+    {
+        if (_wrap) { yield return (row.First, row.End); yield break; }
+        double left = _horizontalOffset - Gutter, right = _horizontalOffset + ContentViewport.Width - Gutter;
+        double x = row.Line.Start;
+        foreach (var textRun in row.Line.TextRuns)
+        {
+            if (textRun is not DrawableTextRun drawable) continue;
+            double next = x + drawable.Size.Width;
+            if (next > left && x < right)
+            {
+                // TextRuns are in visual order. Map each intersecting run independently so an RTL
+                // run between LTR viewport-edge hits cannot disappear from the selected geometry.
+                if (textRun is not ShapedTextRun shaped ||
+                    !MemoryMarshal.TryGetString(shaped.Text, out var text, out int first, out int length) ||
+                    !ReferenceEquals(text, row.Segment.Display))
+                {
+                    // A future formatter may return non-string-backed runs. Preserve correctness
+                    // in that case with the already bounded source segment, rather than omitting it.
+                    yield return (row.First, row.End);
+                    yield break;
+                }
+                var glyphs = shaped.GlyphRun;
+                var a = glyphs.GetCharacterHitFromDistance(Math.Max(0, left - x), out _);
+                var b = glyphs.GetCharacterHitFromDistance(Math.Min(drawable.Size.Width, right - x), out _);
+                int origin = first - glyphs.Metrics.FirstCluster;
+                int from = Math.Max(first, origin + Math.Min(a.FirstCharacterIndex, b.FirstCharacterIndex));
+                int to = Math.Min(first + length, origin + Math.Max(a.FirstCharacterIndex + Math.Max(1, a.TrailingLength), b.FirstCharacterIndex + Math.Max(1, b.TrailingLength)));
+                if (to > from) yield return (from, to);
+            }
+            x = next;
+            if (x >= right) yield break;
+        }
+    }
+
+    public override void Render(DrawingContext dc)
+    {
+        dc.FillRectangle(_bg, new Rect(Bounds.Size));
+        using var clip = dc.PushClip(ContentViewport);
+        foreach (var rect in _selectionGeometry) dc.FillRectangle(_sel, rect);
+        foreach (var rect in _highlightGeometry) dc.FillRectangle(_hit, rect);
+        for (int i = 0; i < _rows.Count; i++)
+            _rows[i].Line.Draw(dc, new Point(Gutter - _horizontalOffset, i * _rowHeight));
+        string? notice = _layoutError ?? (_layoutIncomplete ? "Loading…" : _reader is { Length: 0 } ? "The file is empty." : null);
+        if (notice is not null && _rows.Count < VisibleRows)
+        {
+            var text = new FormattedText(notice, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, _fontSize, _muted);
+            dc.DrawText(text, new Point(Gutter, _rows.Count * _rowHeight));
+        }
+    }
+
+    private void AddRangeGeometry(List<Rect> target, Row row, int from, int to, double y)
+    {
+        from = Math.Max(from, row.First); to = Math.Min(to, row.End);
+        if (to <= from) return;
+        DecorationCharactersMeasured += to - from;
+        foreach (var bounds in row.Line.GetTextBounds(from, to - from))
+        {
+            var visible = new Rect(Gutter - _horizontalOffset + bounds.Rectangle.X, y, bounds.Rectangle.Width, _rowHeight).Intersect(ContentViewport);
+            if (visible.Width > 0 && visible.Height > 0) target.Add(visible);
+        }
+    }
 
     private void UpdateScroll()
     {
-        if (_reader is null) return;
         _updatingScroll = true;
-        long len = Math.Max(1, _reader.Length);
-        _vbar.Maximum = len;
-        _vbar.ViewportSize = Math.Max(1, _rows.Count > 0 ? _rows[^1].NextLine - _topLine : 1);
-        _vbar.LargeChange = _vbar.ViewportSize;
-        _vbar.SmallChange = Math.Max(1, _vbar.ViewportSize / Math.Max(1, VisibleRows));
-        _vbar.Value = _topLine;
-        _updatingScroll = false;
+        try
+        {
+            _vbar.Maximum = Math.Max(0, _reader?.Length ?? 0);
+            _vbar.ViewportSize = Math.Max(1, _rows.Count > 0 ? _rows[^1].Segment.Next - _topLine : 1);
+            _vbar.LargeChange = _vbar.ViewportSize; _vbar.SmallChange = Math.Max(1, _vbar.ViewportSize / VisibleRows); _vbar.Value = _topLine;
+            double width = _rows.Count > 0 ? _rows.Max(r => r.Line.WidthIncludingTrailingWhitespace) : 0;
+            _hbar.Maximum = _wrap ? 0 : Math.Max(0, width - TextWidth); _hbar.ViewportSize = TextWidth;
+            _hbar.LargeChange = Math.Max(_charWidth, TextWidth * .8); _hbar.SmallChange = _charWidth * 4;
+            _horizontalOffset = Math.Clamp(_horizontalOffset, 0, _hbar.Maximum); _hbar.Value = _horizontalOffset;
+        }
+        finally { _updatingScroll = false; }
     }
 
-    // ---- Navigation ----------------------------------------------------------------------------------------
+    private long VisibleAnchor()
+    {
+        if (_rows.Count == 0) return _topLine;
+        if (_wrap || _horizontalOffset <= 0) return _rows[0].StartByte;
+        var hit = _rows[0].Line.GetCharacterHitFromDistance(_horizontalOffset);
+        return _rows[0].Segment.ByteAtDisplay(hit.FirstCharacterIndex + hit.TrailingLength);
+    }
+
+    private void RevealHorizontal(long offset)
+    {
+        if (_wrap) return;
+        var row = _rows.FirstOrDefault(r => offset >= r.StartByte && offset <= r.EndByte);
+        if (row is null) return;
+        int index = row.Segment.DisplayAtByte(offset);
+        double left = row.Line.GetDistanceFromCharacterHit(new CharacterHit(index, 0)), right = left + _charWidth;
+        var bounds = row.Line.GetTextBounds(index, Math.Min(1, Math.Max(0, row.End - index)));
+        if (bounds.Count > 0) { left = bounds[0].Rectangle.X; right = bounds[0].Rectangle.Right; }
+        if (left < _horizontalOffset) _horizontalOffset = left;
+        else if (right > _horizontalOffset + TextWidth) _horizontalOffset = Math.Max(0, right - TextWidth + _charWidth);
+        UpdateScroll();
+    }
+
+    internal Rect? SourceGlyphBounds(long offset)
+    {
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var row = _rows[i];
+            if (offset < row.StartByte || offset >= row.EndByte) continue;
+            var bounds = row.Line.GetTextBounds(row.Segment.DisplayAtByte(offset), 1);
+            if (bounds.Count > 0) return new Rect(Gutter - _horizontalOffset + bounds[0].Rectangle.X, i * _rowHeight, bounds[0].Rectangle.Width, _rowHeight);
+        }
+        return null;
+    }
 
     public void ScrollRows(int delta)
     {
-        if (_reader is null) return;
-        ClearSelection();
-        for (int i = 0; i < Math.Abs(delta); i++)
+        if (_reader is null || delta == 0) return;
+        _targetOffset = null;
+        for (int i = 0; i < Math.Min(Math.Abs((long)delta), 512); i++)
         {
             if (delta > 0 && !StepDown()) break;
             if (delta < 0 && !StepUp()) break;
         }
-        InvalidateVisual();
-        PositionChanged?.Invoke();
+        CommitLayout(); PositionChanged?.Invoke();
     }
-
     private bool StepDown()
     {
-        if (!TryReadLine(_topLine, out var text, out var next)) return false;
-        int rows = Segments(text).Count();
-        if (_topSub + 1 < rows)
-        {
-            _topSub++;
-            return true;
-        }
-        if (next >= _reader!.Length || next <= _topLine) return false;
-        _topLine = next;
-        _topSub = 0;
-        return true;
+        if (!TryGetSegmentLayout(_topLine, out var cached) || cached.Segment.Next <= _topLine) return false;
+        if (_topSub + 1 < cached.Layout.TextLines.Count) { _topSub++; return true; }
+        if (cached.Segment.Next >= _reader!.Length) return false;
+        _topLine = cached.Segment.Next; _topSub = 0; return true;
     }
-
     private bool StepUp()
     {
-        if (_topSub > 0)
-        {
-            _topSub--;
-            return true;
-        }
-        if (_topLine <= _start) return false;
-        if (!TryFindPreviousLineStart(_topLine, out var prev)) return false;
-        if (!TryReadLine(prev, out var text, out _)) return false;
-        _topLine = prev;
-        _topSub = Math.Max(0, Segments(text).Count() - 1);
+        if (_topSub > 0) { _topSub--; return true; }
+        if (_topLine <= _start || !TryFindPreviousLineStart(_topLine, out long previous) || previous >= _topLine) return false;
+        if (!TryGetSegmentLayout(previous, out var cached)) return false;
+        _topLine = previous; _topSub = Math.Max(0, cached.Layout.TextLines.Count - 1); return true;
+    }
+    private int SegmentColumn(long offset) => _previousSegments.Values.FirstOrDefault(segment => segment.Start == offset).Column;
+    private bool TryGetSegmentLayout(long offset, out SegmentLayout cached)
+    {
+        var key = (offset, SegmentColumn(offset));
+        if (_segmentLayouts.TryGetValue(key, out cached!)) return true;
+        if (!TryReadLine(offset, out var segment, key.Item2)) return false;
+        cached = new SegmentLayout(segment, Shape(segment), _layoutError);
+        _segmentLayouts.Add(key, cached);
         return true;
     }
-
-    public void ScrollToOffset(long offset)
+    public void ScrollToOffset(long offset, bool preserveSelection = false)
     {
         if (_reader is null) return;
-        offset = Math.Clamp(Align(offset), _start, Math.Max(_start, _reader.Length));
-        if (offset > _start && TryFindPreviousLineStart(offset + 1, out var ls) && ls <= offset) offset = ls;
-        _topLine = offset;
-        _topSub = 0;
-        ClearSelection();
-        InvalidateVisual();
-        PositionChanged?.Invoke();
+        if (!preserveSelection) ClearSelection();
+        _targetOffset = Math.Clamp(offset, _start, Math.Max(_start, _reader.Length));
+        CommitLayout(); PositionChanged?.Invoke();
     }
-
     public void GoToEnd()
     {
         if (_reader is null) return;
-        long pos = _reader.Length;
-        _topLine = pos;
-        _topSub = 0;
-        for (int i = 0; i < VisibleRows - 1; i++) if (!StepUp()) break;
-        if (_topLine >= _reader.Length) ScrollToOffset(Math.Max(_start, _reader.Length - 1));
-        InvalidateVisual();
-        PositionChanged?.Invoke();
+        ClearSelection(); _targetOffset = null; _topLine = _reader.Length; _topSub = 0;
+        for (int i = 0; i < VisibleRows; i++) if (!StepUp()) break;
+        if (_topLine >= _reader.Length) _targetOffset = Math.Max(_start, _reader.Length - _unit);
+        CommitLayout(); PositionChanged?.Invoke();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -531,84 +689,165 @@ public sealed class TextViewer : Control
         {
             case Key.Down: ScrollRows(1); break;
             case Key.Up: ScrollRows(-1); break;
-            case Key.PageDown: case Key.Space when e.KeyModifiers == KeyModifiers.None: ScrollRows(VisibleRows - 1); break;
-            case Key.PageUp: ScrollRows(-(VisibleRows - 1)); break;
+            case Key.PageDown: case Key.Space when e.KeyModifiers == KeyModifiers.None: ScrollRows(Math.Max(1, VisibleRows - 1)); break;
+            case Key.PageUp: ScrollRows(-Math.Max(1, VisibleRows - 1)); break;
             case Key.Home when ctrl: ScrollToOffset(_start); break;
             case Key.End when ctrl: GoToEnd(); break;
+            case Key.A when ctrl: SetSelection(_start, _reader.Length); break;
+            case Key.Left when !_wrap: ScrollHorizontal(-_charWidth * (ctrl ? 16 : 4)); break;
+            case Key.Right when !_wrap: ScrollHorizontal(_charWidth * (ctrl ? 16 : 4)); break;
+            case Key.Home when !_wrap: ScrollHorizontal(-_hbar.Maximum); break;
+            case Key.End when !_wrap: ScrollHorizontal(_hbar.Maximum); break;
             default: return;
         }
         e.Handled = true;
     }
-
+    private void ScrollHorizontal(double delta)
+    {
+        _horizontalOffset = Math.Clamp(_horizontalOffset + delta, 0, _hbar.Maximum);
+        UpdateScroll(); PublishState(); InvalidateVisual(); PositionChanged?.Invoke();
+    }
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        ScrollRows(-(int)Math.Round(e.Delta.Y * 3));
+        if (!_wrap && ((e.KeyModifiers & KeyModifiers.Shift) != 0 || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y)))
+            ScrollHorizontal(-(e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * _charWidth * 4);
+        else ScrollRows(-(int)Math.Round(e.Delta.Y * 3));
         e.Handled = true;
     }
-
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        Focus();
-        var p = e.GetPosition(this);
-        _selStart = Hit(p);
-        _selEnd = _selStart;
-        e.Pointer.Capture(this);
-        InvalidateVisual();
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || !ContentViewport.Contains(e.GetPosition(this))) return;
+        Focus(); long? at = Hit(e.GetPosition(this));
+        if (at is null) return;
+        if ((e.KeyModifiers & KeyModifiers.Shift) == 0 || _selStart is null)
+        { _selStart = at; _selStartColumn = ColumnAtByte(at.Value); }
+        _selEnd = at; _selEndColumn = ColumnAtByte(at.Value); _selectionEnded = null; e.Pointer.Capture(this);
+        PublishState(); InvalidateVisual(); PositionChanged?.Invoke();
     }
-
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         if (_selStart is null || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        _selEnd = Hit(e.GetPosition(this));
-        InvalidateVisual();
+        var point = e.GetPosition(this);
+        if (point.Y < 0) ScrollRows(-1);
+        else if (point.Y >= ContentViewport.Height) ScrollRows(1);
+        if (!_wrap && point.X < Gutter) ScrollHorizontal(-_charWidth * 4);
+        else if (!_wrap && point.X > ContentViewport.Width - Gutter) ScrollHorizontal(_charWidth * 4);
+        _selEnd = Hit(point) ?? _selEnd;
+        if (_selEnd is { } end) _selEndColumn = ColumnAtByte(end);
+        PublishState(); InvalidateVisual(); PositionChanged?.Invoke();
     }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); e.Pointer.Capture(null); }
+    private long? Hit(Point point)
     {
-        base.OnPointerReleased(e);
-        e.Pointer.Capture(null);
+        if (_rows.Count == 0) return null;
+        var row = _rows[Math.Clamp((int)(point.Y / _rowHeight), 0, Math.Min(VisibleRows - 1, _rows.Count - 1))];
+        var hit = row.Line.GetCharacterHitFromDistance(point.X - Gutter + _horizontalOffset);
+        return row.Segment.ByteAtDisplay(hit.FirstCharacterIndex + hit.TrailingLength);
     }
-
-    private (int Row, int Col) Hit(Point p)
+    internal void SetSelection(long start, long end)
     {
-        int row = Math.Clamp((int)(p.Y / _rowHeight), 0, Math.Max(0, _rows.Count - 1));
-        int col = Math.Max(0, (int)Math.Round((p.X - 8) / _charWidth));
-        if (row < _rows.Count) col = Math.Min(col, _rows[row].Text.Length);
-        return (row, col);
+        if (_reader is null) return;
+        _selStart = Math.Clamp(start, _start, Math.Max(_start, _reader.Length));
+        _selEnd = Math.Clamp(end, _start, Math.Max(_start, _reader.Length)); _selectionEnded = null;
+        _selStartColumn = ColumnAtByte(_selStart.Value); _selEndColumn = ColumnAtByte(_selEnd.Value);
+        PublishState(); InvalidateVisual(); PositionChanged?.Invoke();
     }
+    private void ClearSelection() { _selStart = _selEnd = null; }
+    private void RetireSelection(string reason) { if (HasSelection) _selectionEnded = reason; ClearSelection(); }
 
-    private void ClearSelection()
+    private int ColumnAtByte(long offset) => _rows.Select(r => r.Segment)
+        .FirstOrDefault(s => offset >= s.Start && offset <= s.ContentEnd)?.ColumnAtByte(offset) ?? 0;
+
+    internal TextCopyScope? CaptureCopyScope(bool explicitVisible)
     {
-        _selStart = null;
-        _selEnd = null;
+        if (_committing || _commitPending) return null;
+        // Refresh can finish on a worker before its UI continuation commits the new source. The
+        // selection belongs to the revision represented by our rows, not a newly refreshed reader.
+        if (_reader is not null && (_reader.Revision != _observedRevision || _reader.Length != _observedLength))
+        {
+            CommitLayout();
+            // Even the toolbar could still have said "Copy source selection" before this call. A
+            // second, deliberately visible-scope action is required after the refreshed view commits.
+            return null;
+        }
+        if (_reader is null || _rows.Count == 0 || !HasSelection && _selectionEnded is not null && !explicitVisible) return null;
+        if (explicitVisible && !HasSelection) _selectionEnded = null;
+        var (start, length) = HasSelection ? Selection : VisibleRange();
+        int column = HasSelection ? (_selStart <= _selEnd ? _selStartColumn : _selEndColumn) : ColumnAtByte(start);
+        return new TextCopyScope(_reader, _encoding, start, length, column, HasSelection, _sourceGeneration, _observedRevision);
     }
-
-    /// <summary>Selected text, or the visible rows when nothing is selected.</summary>
+    private (long Start, long Length) VisibleRange()
+    {
+        if (_rows.Count == 0) return (_topLine, 0);
+        var last = _rows[Math.Min(VisibleRows, _rows.Count) - 1];
+        long end = last.EndByte == last.Segment.ContentEnd ? last.Segment.Next : last.EndByte;
+        return (_rows[0].StartByte, Math.Max(0, end - _rows[0].StartByte));
+    }
+    /// <summary>Cached decoded source text only; never reads synchronously or inserts visual line endings.</summary>
     public string GetSelectedOrVisibleText()
     {
-        if (_rows.Count == 0) return string.Empty;
-        var sb = new StringBuilder();
-        if (_selStart is { } a && _selEnd is { } b && Compare(a, b) != 0)
+        if (_commitPending) return "";
+        var (start, length) = HasSelection ? Selection : VisibleRange();
+        var result = new StringBuilder();
+        foreach (var segment in _rows.Select(r => r.Segment).Distinct())
         {
-            var (s, e) = Compare(a, b) <= 0 ? (a, b) : (b, a);
-            for (int i = s.Row; i <= e.Row && i < _rows.Count; i++)
-            {
-                var t = _rows[i].Text;
-                int from = i == s.Row ? Math.Min(s.Col, t.Length) : 0;
-                int to = i == e.Row ? Math.Min(e.Col, t.Length) : t.Length;
-                sb.Append(t, from, Math.Max(0, to - from));
-                if (i < e.Row && _rows[i].IsLastRowOfLine) sb.AppendLine();
-            }
-            return sb.ToString();
+            if (segment.Next <= start || segment.Start >= start + length) continue;
+            result.Append(segment.SliceSource(Math.Max(start, segment.Start), Math.Min(start + length, segment.Next)));
         }
-        foreach (var r in _rows.Take(VisibleRows))
+        return result.ToString();
+    }
+
+    private string GetSemanticText()
+    {
+        if (_wrap || _horizontalOffset <= 0 || HasSelection)
+            return ContentCopy.DisplayText(GetSelectedOrVisibleText(), ColumnAtByte(HasSelection ? Selection.Start : TopOffset));
+        var result = new StringBuilder();
+        foreach (var row in _rows.Take(VisibleRows))
         {
-            sb.Append(r.Text);
-            if (r.IsLastRowOfLine) sb.AppendLine();
+            var hit = row.Line.GetCharacterHitFromDistance(_horizontalOffset);
+            long start = row.Segment.ByteAtDisplay(hit.FirstCharacterIndex);
+            result.Append(ContentCopy.DisplayText(row.Segment.SliceSource(start, row.Segment.Next), row.Segment.ColumnAtByte(start)));
+            if (result.Length >= 8192) break;
         }
-        return sb.ToString();
+        return result.ToString();
+    }
+    private void PublishState()
+    {
+        if (_commitPending) return;
+        CommitDecorationGeometry();
+        var (start, length) = Selection;
+        _semanticStatus = _reader is null ? "No content" :
+            $"{(HasSelection ? $"Selected source bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes" : "No selection; Copy visible source text copies the visible lines")}; {_encoding.WebName}; {(_wrap ? "wrapped" : $"unwrapped, horizontal position {_horizontalOffset:0} of {_hbar.Maximum:0}")}.";
+        if (_selectionEnded is not null) _semanticStatus = _selectionEnded + " " + _semanticStatus;
+        if (_layoutError is not null) _semanticStatus += " Incomplete reading: " + _layoutError;
+        else if (_layoutIncomplete) _semanticStatus += " Loading current content…";
+        // Text platforms and assistive clients may treat NUL as a terminator. The semantic excerpt
+        // uses the same explicit control symbols as the painted view; source Copy remains separate.
+        string visible = GetSemanticText();
+        int excerptEnd = Math.Min(8192, visible.Length);
+        if (excerptEnd < visible.Length && excerptEnd > 0 && char.IsHighSurrogate(visible[excerptEnd - 1]) && char.IsLowSurrogate(visible[excerptEnd])) excerptEnd--;
+        _semanticValue = _reader is null ? "No content" : visible.Length > 0 ?
+            (visible.Length <= 8192 ? visible : visible[..excerptEnd] + "\n[Accessible displayed excerpt limited to 8,192 characters; navigate to inspect more.]") :
+            _layoutError ?? (_layoutIncomplete ? "Loading current content…" : _reader.Length == 0 ? "The file is empty." : "No selected content in the current viewport.");
+        _automationPeer?.AnnounceContent(); ContentChanged?.Invoke();
+    }
+    /// <summary>Word wrapping policy: concatenating the pieces preserves every character.</summary>
+    internal static IEnumerable<string> Segments(string line, int cols, bool wrap)
+    {
+        if (!wrap || line.Length <= cols) { yield return line; yield break; }
+        int start = 0;
+        while (line.Length - start > cols)
+        {
+            int end = start + cols; int space = line.LastIndexOf(' ', end - 1, cols);
+            int next = line[end] == ' ' ? end + 1 : space >= start + cols / 2 ? space + 1 : end;
+            yield return line[start..next]; start = next;
+        }
+        if (start < line.Length) yield return line[start..];
     }
 }
+
+internal sealed record TextCopyScope(PagedReader Reader, Encoding Encoding, long Start, long Length, int DisplayColumn,
+    bool Selected, long Generation, ContentRevision? Revision);

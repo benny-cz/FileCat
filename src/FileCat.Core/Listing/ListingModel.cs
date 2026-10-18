@@ -771,6 +771,35 @@ public sealed class ListingModel : IDisposable
 
     public int MarkedCount => _marks.Count;
 
+    /// <summary>
+    /// Complete marks, including hidden marks, in bounded pages of store identities. Unlike GetSelection this
+    /// never substitutes the focused item. The caller must retire its cursor when Store changes.
+    /// </summary>
+    public int CopyMarkedStoreIndices(int afterStoreIndex, Span<int> destination)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _marks.CopyAfter(afterStoreIndex, destination);
+    }
+
+    /// <summary>Changes a real mark even when filtering hides the item; the index belongs to the current Store.</summary>
+    public void SetStoreMark(int storeIndex, bool value)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if ((uint)storeIndex >= (uint)_appliedCount || _store[storeIndex].Kind == EntryKind.Parent) return;
+        if (_marks.Set(storeIndex, value)) MarksChanged();
+    }
+
+    /// <summary>Selects exactly one real item with one notification, preserving its store identity during the change.</summary>
+    public void SelectStoreMark(int storeIndex)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if ((uint)storeIndex >= (uint)_appliedCount || _store[storeIndex].Kind == EntryKind.Parent) return;
+        if (_marks.Count == 1 && _marks.Get(storeIndex)) return;
+        _marks.Clear();
+        _marks.Set(storeIndex, true);
+        MarksChanged();
+    }
+
     public void ToggleMark(int visibleIndex) => SetMark(visibleIndex, !IsVisibleMarked(visibleIndex));
 
     public void SetMark(int visibleIndex, bool value)

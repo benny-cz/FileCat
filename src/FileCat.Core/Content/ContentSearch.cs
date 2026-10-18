@@ -57,35 +57,107 @@ public static class ContentSearch
     /// </summary>
     public static long FindText(PagedReader reader, Encoding encoding, long start, string pattern, bool matchCase, CancellationToken ct, Action<long>? progress = null)
     {
+        ct.ThrowIfCancellationRequested();
         if (pattern.Length == 0) return -1;
-        int unit = TextDecoding.UnitSize(encoding);
-        int overlapBytes = (pattern.Length + 4) * Math.Max(4, encoding.GetMaxByteCount(1));
-        var buffer = new byte[ChunkBytes + overlapBytes];
-        long pos = Align(Math.Max(0, start), unit);
         long len = reader.Length;
-        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.CurrentCultureIgnoreCase;
+        if (start >= len) return -1;
+        int unit = TextDecoding.UnitSize(encoding);
+        int overlapBytes = checked(encoding.GetMaxByteCount(checked(pattern.Length + 2)) + 4);
+        int context = Math.Max(4, encoding.GetMaxByteCount(1));
+        var buffer = new byte[checked(ChunkBytes + overlapBytes + context + unit)];
+        long pos = AlignUp(Math.Max(0, start), unit);
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         while (pos < len)
         {
             ct.ThrowIfCancellationRequested();
-            int n = reader.Read(pos, buffer.AsSpan(0, (int)Math.Min(buffer.Length, len - pos)), ct);
-            if (n <= 0) return -1;
-            // For UTF-8, begin at a character boundary.
-            int skip = 0;
-            if (encoding is UTF8Encoding)
-            {
-                while (skip < n && skip < 4 && (buffer[skip] & 0xC0) == 0x80) skip++;
-            }
-            var text = encoding.GetString(buffer, skip, n - skip);
+            // Decode a short prefix as context. A window/start inside a valid UTF-8 sequence or UTF-16
+            // surrogate pair must not invent a replacement character; actual malformed input still matches.
+            long from = Align(Math.Max(0, pos - context), unit);
+            long end = pos + Math.Min(checked(ChunkBytes + overlapBytes), len - pos);
+            long matchLimit = end == len ? end : pos + ChunkBytes;
+            int requested = (int)(end - from);
+            int n = reader.Read(from, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, n, requested);
+            var text = encoding.GetString(buffer, 0, n);
             int idx = text.IndexOf(pattern, comparison);
-            if (idx >= 0) return pos + skip + CharIndexToByteOffset(encoding, buffer.AsSpan(skip, n - skip), idx);
-            if (pos + n >= len) return -1;
-            pos = Align(pos + Math.Max(unit, n - overlapBytes), unit);
+            while (idx >= 0)
+            {
+                long found = from + CharIndexToByteOffset(encoding, buffer.AsSpan(0, n), idx);
+                if (found >= matchLimit) break;
+                if (found >= pos) return found;
+                idx = text.IndexOf(pattern, idx + 1, comparison);
+            }
+            if (end >= len) return -1;
+            pos += ChunkBytes;
             progress?.Invoke(pos);
         }
         return -1;
     }
 
+    /// <summary>
+    /// Finds the last text occurrence whose start precedes <paramref name="before"/>, including overlapping
+    /// matches. Reverse windows bound memory, not the searchable range; each miss moves to an earlier window.
+    /// Decoding respects encoding units and enough look-ahead is retained for a match crossing a window or
+    /// the starting cursor. Case-insensitive matching uses the same ordinal Unicode policy as forward search.
+    /// Throws on cancellation or an unreadable/truncated range instead of claiming a complete negative result.
+    /// </summary>
+    public static long FindTextBackward(PagedReader reader, Encoding encoding, long before, string pattern, bool matchCase,
+        CancellationToken ct, Action<long>? progress = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (pattern.Length == 0 || before <= 0) return -1;
+        int unit = TextDecoding.UnitSize(encoding);
+        int overlap = checked(encoding.GetMaxByteCount(checked(pattern.Length + 2)) + 4);
+        int context = Math.Max(4, encoding.GetMaxByteCount(1));
+        var buffer = new byte[checked(ChunkBytes + overlap + context + unit)];
+        long length = reader.Length;
+        long boundary = Math.Min(before, length);
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        while (boundary > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            long windowStart = Align(Math.Max(0, boundary - ChunkBytes), unit);
+            long from = Align(Math.Max(0, windowStart - context), unit);
+            long readEnd = boundary + Math.Min(overlap, length - boundary);
+            // Avoid a synthetic replacement character caused solely by cutting a UTF-16/32 code unit.
+            if (readEnd < length) readEnd = Align(readEnd, unit);
+            int requested = (int)(readEnd - from);
+            int n = reader.Read(from, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, n, requested);
+            var decoded = encoding.GetString(buffer, 0, n);
+            int precedingBytes = (int)Math.Clamp(boundary - from, 0, n);
+            int precedingChars = encoding.GetCharCount(buffer, 0, precedingBytes);
+            // LastIndexOf bounds the end of a potential match. Permit overlap across the cursor while
+            // ensuring its start precedes that cursor; mapping is performed once for the chosen candidate.
+            int lastCharacter = Math.Min(decoded.Length - 1, checked(precedingChars + pattern.Length - 2));
+            while (precedingChars > 0 && lastCharacter >= 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                int index = decoded.LastIndexOf(pattern, lastCharacter, comparison);
+                if (index < 0) break;
+                long found = from + CharIndexToByteOffset(encoding, buffer.AsSpan(0, n), index);
+                if (found < windowStart) break;
+                if (found < boundary) return found;
+                lastCharacter = index - 1;
+            }
+            // windowStart is strictly less than boundary; no hit is ever used as a byte +1 restart.
+            boundary = windowStart;
+            progress?.Invoke(boundary);
+        }
+        return -1;
+    }
+
+    private static void RequireCompleteRead(PagedReader reader, int read, int requested)
+    {
+        if (read != requested)
+            throw new EndOfStreamException(reader.ReadError is { } error
+                ? "Search did not finish because some content could not be read: " + error
+                : "Search did not finish because the content ended before its reported length.");
+    }
+
     private static long Align(long v, int unit) => unit <= 1 ? v : v - v % unit;
+
+    private static long AlignUp(long v, int unit) => unit <= 1 || v % unit == 0 ? v : checked(v + unit - v % unit);
 
     /// <summary>
     /// Byte offset of the <paramref name="charIndex"/>-th decoded character. Re-encoding the decoded prefix is

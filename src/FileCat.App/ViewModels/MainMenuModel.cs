@@ -23,7 +23,7 @@ public static class MainMenuModel
             CommandIds.Undo, CommandIds.Properties, CommandIds.HiddenData, CommandIds.FileRecord, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
         ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.CountFolderSizes, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
-            CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, "-",
+            CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, CommandIds.ReviewMarks, "-",
             CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),
         ("_Navigate", [CommandIds.Parent, CommandIds.Enter, CommandIds.Root, CommandIds.Back, CommandIds.Forward, CommandIds.Home, "-",
             CommandIds.GoTo, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.FindFolder, CommandIds.FolderHistory,

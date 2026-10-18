@@ -166,7 +166,14 @@ public sealed class PathLineTests
             Assert.Equal(vm.Places(vm.DriveButtons).Select(p => p.Title), buttons.Select(b => PlaceOf(b).Title));
             Assert.Contains(buttons, b => PlaceOf(b).Location?.Scheme == Core.Resources.Schemes.Computer);
             Assert.Contains(buttons, b => PlaceOf(b).Title == "Working sets");
-            Assert.Contains(buttons, b => PlaceOf(b).Title == "Home");
+            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (string.IsNullOrEmpty(profile))
+                Assert.DoesNotContain(buttons, b => PlaceOf(b).Title == "Home");
+            else
+            {
+                var home = Assert.Single(buttons, b => PlaceOf(b).Title == "Home");
+                Assert.Equal(Location.FileSystem(profile), PlaceOf(home).Location);
+            }
             Assert.True(PlaceOf(buttons[^1]).Connects);
             Assert.All(buttons, b => Assert.False(string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(b))));
             // Groups are set apart.
@@ -198,8 +205,9 @@ public sealed class PathLineTests
             // A button on the other panel makes that panel the source.
             vm.Workspace.Activate(panel);
             var other = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, vm.Workspace.Panels[1]));
-            var otherHome = other.GetVisualDescendants().OfType<Avalonia.Controls.Button>().First(b => b.Tag is Place { Title: "Home" });
-            otherHome.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            var otherComputer = Assert.Single(other.GetVisualDescendants().OfType<Avalonia.Controls.Button>(),
+                b => b.Tag is Place p && p.Location?.Scheme == Core.Resources.Schemes.Computer);
+            otherComputer.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             Assert.Same(vm.Workspace.Panels[1], vm.Workspace.ActivePanel);
 
             // A narrow panel: the row stays one line, and the places it has no room for are on the » button at its end.

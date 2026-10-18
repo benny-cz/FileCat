@@ -177,6 +177,7 @@ public sealed class ChoiceIconLifetimeTests
             Icons = provider,
             Search = customSearch ? q => q.Length == 0 ? Enumerable.Range(0, items.Length).ToArray() : Enumerable.Range(0, items.Length).Where(i => items[i].Title == q).ToArray() : null,
         });
+        window.UpdateLayout(); // Realize the modal's scrollable body before querying the filter.
         var filter = Assert.Single(host.GetVisualDescendants().OfType<TextBox>());
         var images = new List<WeakReference<Image>>();
         var bitmaps = new List<WeakReference<IImage>>();

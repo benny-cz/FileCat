@@ -75,6 +75,9 @@ public sealed record DialogButton(string Text, object Result, bool IsDefault = f
     /// is re-evaluated while the dialog is open.
     /// </summary>
     public Func<bool>? IsAvailable { get; init; }
+
+    /// <summary>Runs only on an explicit activation. False keeps this dialog open so field validation can retain the draft and focus.</summary>
+    public Func<bool>? Validate { get; init; }
 }
 
 /// <summary>Lets a custom dialog's content end it as one of its buttons would (Enter on a search result: "Go to").</summary>

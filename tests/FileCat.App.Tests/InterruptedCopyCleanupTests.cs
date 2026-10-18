@@ -150,7 +150,7 @@ public sealed class InterruptedCopyCleanupTests(ITestOutputHelper output)
             }
             catch { AccessibilityTests.Close(services, window, root); throw; }
         }
-        public string Action(string flow) => flow == "cleanup" ? "Delete partial files" : "Copy the rest";
+        public string Action(string flow) => flow == "cleanup" ? "Delete partial files" : "Continue copy";
         public bool Ended => !JournalRecovery.Scan(Services.Paths.JournalDirectory).Any(j => j.JournalPath == Job.JournalPath);
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));

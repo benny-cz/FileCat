@@ -27,6 +27,7 @@ public sealed class ShortcutEditorTests
             {
                 vm.Execute(CommandIds.Help);
                 for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+                window.UpdateLayout(); // Realize the modal's scrollable body before querying its search box.
                 var box = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.PlaceholderText == "Search command, shortcut, or command ID");
                 for (int i = 0; i < 100 && !box.IsFocused; i++) await Task.Delay(20, ct);
                 box.Text = search;

@@ -142,4 +142,77 @@ public class MaskTests
         Assert.False(excluded.Shows("obj", isFolder: true));
         Assert.True(excluded.Shows("src", isFolder: true));
     }
+
+    [Fact]
+    public void Recovery_snapshot_retains_saved_filter_grouping_after_definitions_change_or_disappear()
+    {
+        var saved = new Dictionary<string, string> { ["photos"] = "*.jpg;*.png|draft*", ["private"] = "/^secret/i" };
+        var previous = Mask.SavedFilters;
+        try
+        {
+            Mask.SavedFilters = name => saved.GetValueOrDefault(name);
+            var original = Mask.Parse("@photos;*.pdf|@private");
+            saved["photos"] = "*.txt"; saved.Clear();
+            var snapshot = Assert.IsType<System.Text.Json.Nodes.JsonObject>(original.CaptureSnapshot());
+            Mask.SavedFilters = _ => throw new InvalidOperationException("Recovery must not consult the current resolver.");
+            Assert.True(Mask.TryRestoreSnapshot(snapshot, out var recovered));
+            foreach (string name in new[] { "photo.jpg", "logo.PNG", "draft.jpg", "notes.txt", "report.pdf", "SECRET.jpg" })
+                Assert.Equal(original.IsMatch(name), recovered!.IsMatch(name));
+            Assert.True(recovered!.IsMatch("photo.jpg"));
+            Assert.False(recovered.IsMatch("notes.txt"));
+            Assert.False(recovered.IsMatch("SECRET.jpg"));
+            Assert.Contains("*.jpg", recovered.ResolvedDescription);
+            Assert.Contains("draft*", recovered.ResolvedDescription);
+        }
+        finally { Mask.SavedFilters = previous; }
+    }
+
+    [Theory]
+    [InlineData("report", true, "Q3 report.pdf", false)]
+    [InlineData("src/", false, "src", true)]
+    [InlineData("/^ab+c$/i", false, "ABBC", false)]
+    [InlineData("\"a;b.txt\"", false, "a;b.txt", false)]
+    [InlineData("*|*.bak", false, "source.txt", false)]
+    public void Recovery_snapshot_retains_compiled_name_matching_semantics(string text, bool contains, string name, bool directory)
+    {
+        Assert.True(Mask.TryParse(text, contains, out var original, out _));
+        Assert.True(Mask.TryRestoreSnapshot(original.CaptureSnapshot(), out var recovered));
+        Assert.Equal(original.IsMatch(name, directory), recovered!.IsMatch(name, directory));
+        Assert.True(recovered.IsMatch(name, directory));
+        Assert.Equal(original.NamesFolders, recovered.NamesFolders);
+    }
+
+    [Theory]
+    [InlineData("src/**/*.cs", "src/a/b/c.cs")]
+    [InlineData("*.cs|*Test*", "src/View.cs")]
+    public void Recovery_snapshot_retains_path_matching_semantics(string text, string path)
+    {
+        var original = Mask.Parse(text);
+        Assert.True(Mask.TryRestoreSnapshot(original.CaptureSnapshot(), out var recovered));
+        Assert.Equal(original.IsMatchPath(path), recovered!.IsMatchPath(path));
+        Assert.True(recovered.IsMatchPath(path));
+    }
+
+    [Fact]
+    public void Recovery_mask_snapshot_has_global_text_term_and_depth_bounds()
+    {
+        Assert.Null(Mask.Parse(new string('x', Mask.SnapshotTextLimit + 1)).CaptureSnapshot());
+        Assert.Null(Mask.Parse(string.Join(';', Enumerable.Repeat("*.txt", Mask.SnapshotPartLimit + 1))).CaptureSnapshot());
+        var node = Mask.Parse("*.txt").CaptureSnapshot()!;
+        for (int i = 0; i <= Mask.SnapshotDepthLimit; i++)
+            node = new System.Text.Json.Nodes.JsonObject { ["text"] = "@nested", ["include"] = new System.Text.Json.Nodes.JsonArray(
+                new System.Text.Json.Nodes.JsonObject { ["kind"] = "mask", ["mask"] = node }), ["exclude"] = new System.Text.Json.Nodes.JsonArray() };
+        Assert.False(Mask.TryRestoreSnapshot(node, out _));
+    }
+
+    [Fact]
+    public void Invalid_or_unsupported_recovery_mask_terms_do_not_become_match_all()
+    {
+        var node = Mask.Parse("*.txt").CaptureSnapshot()!;
+        node["include"]![0]!["kind"] = "future-match-all";
+        Assert.False(Mask.TryRestoreSnapshot(node, out var unknown)); Assert.Null(unknown);
+        node = Mask.Parse("/^abc$/").CaptureSnapshot()!;
+        node["include"]![0]!["pattern"] = "(";
+        Assert.False(Mask.TryRestoreSnapshot(node, out var invalid)); Assert.Null(invalid);
+    }
 }
