@@ -82,7 +82,8 @@
         <DockPanel Grid.Row="1">
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
             <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" IsVisible="{Binding HasFinished}" />
+            <Button Classes="flat" Content="Clear finished history…" Click="OnClearFinished" IsVisible="{Binding HasFinished}"
+                    ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
           </WrapPanel>
           <Panel>
           <!-- Nothing yet: say what will appear here. -->
@@ -128,7 +129,8 @@
                     ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
             <Button Content="Move up" Click="OnMoveUp" IsVisible="{Binding !IsActive}" />
             <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
-            <Button Content="Remove" IsVisible="{Binding IsFinished}" Click="OnRemove" />
+            <Button Content="Remove history row…" IsVisible="{Binding IsFinished}" Click="OnRemove"
+                    ToolTip.Tip="Removes this report and its unused Undo steps from this session" />
           </WrapPanel>
           <!-- The chosen operation at a glance (release issue I30): where from and to, what it does now and how far, how long
                it has run and has left, what it did, and its pace. -->

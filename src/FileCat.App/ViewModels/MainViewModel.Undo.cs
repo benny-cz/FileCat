@@ -30,11 +30,11 @@ public sealed partial class MainViewModel
             Notify("There is no operation that can be undone safely. Permanent deletions, overwrites, and copies are never undone automatically.");
             return;
         }
-        await UndoJobAsync(job, last: true);
+        await UndoJobAsync(job, mostRecentUndoable: true, newerOperationsExist: latest is not null && !ReferenceEquals(latest, job));
     }
 
     /// <summary>A claim owns the immutable review before the first await; an admitted job owns all later mutation.</summary>
-    public async Task UndoJobAsync(Job job, bool last = false)
+    public async Task UndoJobAsync(Job job, bool mostRecentUndoable = false, bool newerOperationsExist = false)
     {
         if (!EditSessionsActive) return;
         using var reservation = job.TryReserveUndo();
@@ -51,13 +51,14 @@ public sealed partial class MainViewModel
                 var lines = inverses.Select(Platform.Windows.RegistryChangeRunner.Describe);
                 int irreversible = job.Request.RegistryChanges.Count(c => c.Action == RegistryAction.DeleteKey) +
                                    (job.Request.Registry is { Action: RegistryAction.DeleteKey } ? 1 : 0);
-                approved = await Dialogs.ConfirmAsync("Undo Registry changes",
+                approved = await Dialogs.ConfirmAsync(mostRecentUndoable ? "Review most recent undoable Registry operation" : "Undo Registry changes",
+                    (newerOperationsExist ? "More recent finished operations are not covered by this Undo.\n\n" : "") +
                     $"Undo \"{Formatters.SafeName(job.Title)}\"? FileCat applies these changes only where the data is still exactly what the operation left:\n" +
                     string.Join("\n", lines.Select(Formatters.SafeName)) +
                     (irreversible > 0 ? $"\n\n{Formatters.Plural(irreversible, "deleted key subtree is", "deleted key subtrees are")} not restored: their data was not retained." : ""),
                     "Undo", danger: true);
             }
-            else approved = await UndoReviewDialog.ShowAsync(this, plan, last);
+            else approved = await UndoReviewDialog.ShowAsync(this, plan, mostRecentUndoable, newerOperationsExist);
             if (!approved || !EditSessionsActive) return;
             // This transfer consumes only the approved snapshot, and only after JobManager owns the inverse.
             var undo = Services.Jobs.SubmitUndo(reservation);

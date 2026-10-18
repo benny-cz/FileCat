@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.Core.FileSystem;
@@ -13,6 +14,52 @@ namespace FileCat.App.Tests;
 /// <summary>The operations panel's count of finished jobs and "Clear finished" agree (CI run 36931084621).</summary>
 public sealed class OperationCenterTests
 {
+    [AvaloniaFact]
+    public async Task Removing_a_failed_report_requires_review_and_cancel_keeps_the_evidence()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string target = Directory.CreateDirectory(Path.Combine(root, "failed-target")).FullName;
+            string missing = Path.Combine(root, "missing-source.txt");
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(missing, EntryKind.File)],
+                Destination = Location.FileSystem(target),
+            });
+            await Until(() => job.State.IsFinished() && center.Jobs.Any(j => j.Job == job));
+            Assert.True(job.IssueTotals.Error > 0);
+            Assert.False(job.CanUndo);
+            center.Selected = center.Jobs.Single(j => j.Job == job);
+            window.UpdateLayout();
+            Click("Remove history row…");
+            var dialogs = (FileCat.App.Views.OverlayDialogService)vm.Dialogs;
+            await Until(() => dialogs.IsOpen && window.GetVisualDescendants().OfType<Button>()
+                .Any(b => b.Content as string == "Remove this history row"));
+            window.UpdateLayout();
+            string text = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+            Assert.Contains("1 operation with retained results or problems", text);
+            Assert.Contains("Removing these rows also removes their reports", text);
+            Click("Keep history");
+            await Until(() => !dialogs.IsOpen);
+            Assert.Contains(job, services.Jobs.Jobs);
+
+            Click("Remove history row…");
+            await Until(() => dialogs.IsOpen);
+            Click("Remove this history row");
+            await Until(() => !services.Jobs.Jobs.Contains(job));
+            Assert.Empty(center.Jobs);
+            Assert.False(File.Exists(missing));
+
+            void Click(string label) => window.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Selected_issue_list_appends_two_live_outcomes_without_reselection_or_reset()
     {

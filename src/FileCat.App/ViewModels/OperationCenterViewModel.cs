@@ -507,6 +507,14 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         UpdateSummary();
     }
 
+    /// <summary>Retires only the finished rows the user reviewed, not jobs that finish while a dialog is open.</summary>
+    public void RemoveFinished(IReadOnlyCollection<Job> reviewed)
+    {
+        foreach (var job in reviewed)
+            if (job.State.IsFinished() && _map.TryGetValue(job, out var row)) RetireFinishedRow(row);
+        UpdateSummary();
+    }
+
     public void RemoveFinished(JobViewModel vm)
     {
         if (!vm.Job.State.IsFinished()) return;

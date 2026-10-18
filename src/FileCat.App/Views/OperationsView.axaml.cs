@@ -11,6 +11,7 @@ namespace FileCat.App.Views;
 
 public partial class OperationsView : UserControl
 {
+    private bool _historyReviewOpen;
     public OperationsView() => InitializeComponent();
 
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
@@ -126,14 +127,40 @@ public partial class OperationsView : UserControl
         if (Center is { } c) c.IsOpen = !c.IsOpen;
     }
 
-    private void OnClearFinished(object? sender, RoutedEventArgs e) => Center?.RemoveFinished();
-
-    private void OnRemove(object? sender, RoutedEventArgs e)
+    private async void OnClearFinished(object? sender, RoutedEventArgs e)
     {
-        if (JobOf(sender) is { } j && Center is { } c)
+        if (_historyReviewOpen || Center is not { } center || Main is not { } main) return;
+        var review = new OperationHistoryRetirement(center.Jobs.Select(j => j.Job));
+        if (review.Jobs.Count == 0) return;
+        if (review.NeedsConfirmation && main.Dialogs.IsOpen)
         {
-            c.RemoveFinished(j);
+            main.Notify("Finish or cancel the open dialog before clearing operation history.");
+            return;
         }
+        _historyReviewOpen = true;
+        try
+        {
+            if (await review.ConfirmAsync(main, "Clear finished history")) center.RemoveFinished(review.Jobs);
+        }
+        finally { _historyReviewOpen = false; }
+    }
+
+    private async void OnRemove(object? sender, RoutedEventArgs e)
+    {
+        if (_historyReviewOpen || JobOf(sender) is not { } row || Center is not { } center || Main is not { } main) return;
+        var review = new OperationHistoryRetirement([row.Job]);
+        if (review.Jobs.Count == 0) return;
+        if (review.NeedsConfirmation && main.Dialogs.IsOpen)
+        {
+            main.Notify("Finish or cancel the open dialog before removing operation history.");
+            return;
+        }
+        _historyReviewOpen = true;
+        try
+        {
+            if (await review.ConfirmAsync(main, "Remove this history row")) center.RemoveFinished(review.Jobs);
+        }
+        finally { _historyReviewOpen = false; }
     }
 
     private void OnMoveUp(object? sender, RoutedEventArgs e)

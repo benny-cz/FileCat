@@ -20,6 +20,80 @@ namespace FileCat.App.Tests;
 public sealed class UndoLifecycleUiTests
 {
     [AvaloniaFact]
+    public async Task Clearing_history_reviews_unused_undo_and_removes_only_rows_presented_before_confirmation()
+    {
+        using var f = await Fixture.Open();
+        var original = await f.CreateEmpty();
+        var center = f.Vm.Operations;
+        center.IsOpen = true;
+        await Fixture.Wait(() => center.Jobs.Any(j => j.Job == original));
+        Assert.True(original.CanUndo);
+        f.Window.UpdateLayout();
+        Assert.Contains(f.Window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Clear finished history…");
+
+        ClickHistory("Clear finished history…");
+        await f.WaitButton("Clear finished history");
+        Assert.Contains("1 unused Undo record", f.Text);
+        Assert.Contains("also removes their reports and unused Undo steps", f.Text);
+        Assert.Contains("does not change files", f.Text);
+        Assert.Contains($"configured to keep {f.Services.Jobs.KeepFinished:N0} finished operations", f.Text);
+        f.Click("Keep history");
+        await Fixture.Wait(() => !f.Vm.Dialogs.IsOpen);
+        Assert.Contains(original, f.Services.Jobs.Jobs);
+        Assert.True(original.CanUndo);
+
+        ClickHistory("Clear finished history…");
+        await f.WaitButton("Clear finished history");
+        string target = Directory.CreateDirectory(Path.Combine(f.Root, "newer-copy")).FullName;
+        var newer = f.Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(f.EmptyPath, EntryKind.File)],
+            Destination = Location.FileSystem(target),
+        });
+        await Fixture.Wait(() => newer.State.IsFinished() && center.Jobs.Any(j => j.Job == newer));
+        f.Click("Clear finished history");
+        await Fixture.Wait(() => !f.Vm.Dialogs.IsOpen && !f.Services.Jobs.Jobs.Contains(original));
+        Assert.Contains(newer, f.Services.Jobs.Jobs);
+        Assert.True(File.Exists(f.EmptyPath));
+        Assert.True(File.Exists(Path.Combine(target, "created-empty.txt")));
+
+        // The routine successful copy has no unused Undo or problem report, so a second warning is unnecessary.
+        ClickHistory("Clear finished history…");
+        await Fixture.Wait(() => !f.Services.Jobs.Jobs.Contains(newer));
+        Assert.False(f.Vm.Dialogs.IsOpen);
+
+        void ClickHistory(string label) => f.Window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    }
+
+    [AvaloniaFact]
+    public async Task Keyboard_undo_names_the_most_recent_undoable_action_when_a_newer_copy_exists()
+    {
+        using var f = await Fixture.Open();
+        var original = await f.CreateEmpty();
+        string target = Directory.CreateDirectory(Path.Combine(f.Root, "copy-target")).FullName;
+        var newer = f.Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(f.EmptyPath, EntryKind.File)],
+            Destination = Location.FileSystem(target),
+        });
+        await Fixture.Wait(() => newer.State.IsFinished());
+        Assert.False(newer.CanUndo);
+        var review = f.Vm.ExecuteAsync(CommandIds.Undo);
+        await f.WaitButton("Run these inverse actions");
+        Assert.Contains("Review most recent undoable operation", f.Text);
+        Assert.Contains("More recent finished operations are not covered by this Undo", f.Text);
+        Assert.DoesNotContain("last operation", f.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(f.EmptyPath, Assert.Single(f.Actions));
+        f.Click("Cancel"); await review;
+        Assert.True(original.CanUndo);
+        Assert.True(File.Exists(f.EmptyPath));
+        Assert.True(File.Exists(Path.Combine(target, "created-empty.txt")));
+    }
+
+    [AvaloniaFact]
     public async Task Review_is_owned_before_await_duplicate_row_and_keyboard_requests_do_not_stack_and_cancel_releases_it()
     {
         using var f = await Fixture.Open(); var original = await f.CreateEmpty();
@@ -51,7 +125,16 @@ public sealed class UndoLifecycleUiTests
         Assert.Equal(JobState.Queued, inverse.State); Assert.False(f.Vm.CanCloseImmediately());
         await f.Vm.UndoJobAsync(original); await f.Vm.ExecuteAsync(CommandIds.Undo);
         Assert.Equal(2, f.Services.Jobs.Jobs.Count); Assert.False(f.Vm.Dialogs.IsOpen);
-        f.Services.Jobs.Remove(original); f.Services.Jobs.ClearFinished();
+        f.Vm.Operations.IsOpen = true;
+        await Fixture.Wait(() => f.Vm.Operations.Jobs.Any(j => j.Job == original));
+        f.Vm.Operations.Selected = f.Vm.Operations.Jobs.Single(j => j.Job == original);
+        f.Window.UpdateLayout();
+        f.Window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Remove history row…")
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await f.WaitButton("Remove this history row");
+        Assert.Contains("Undo attempt is being reviewed or run", f.Text);
+        f.Click("Remove this history row");
+        await Fixture.Wait(() => !f.Services.Jobs.Jobs.Contains(original));
         Assert.Same(inverse, Assert.Single(f.Services.Jobs.Jobs)); Assert.False(f.Vm.CanCloseImmediately());
         var close = f.Vm.ConfirmExitWithActiveWorkAsync(); await f.WaitButton("Keep FileCat open");
         Assert.Contains("Undo:", f.Text); f.Click("Keep FileCat open"); Assert.False(await close);
