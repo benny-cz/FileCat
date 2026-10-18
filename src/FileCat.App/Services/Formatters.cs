@@ -192,6 +192,36 @@ public static class Formatters
     /// scripts), an emoji's presentation or a keycap, an ideograph's variant, a subdivision's flag.
     /// </summary>
     public static string SafeName(string name)
+        => SafeName(name, null);
+
+    /// <summary>Speech-friendly evidence for characters escaped by <see cref="SafeName(string)"/>.</summary>
+    public static string? DescribeHiddenNameCharacters(string name)
+    {
+        var hidden = new List<int>();
+        _ = SafeName(name, hidden);
+        if (hidden.Count == 0) return null;
+        string[] first = hidden.Distinct().Take(4).Select(code => $"{HiddenCharacterLabel(code)} U+{code:X4}").ToArray();
+        string remainder = hidden.Distinct().Skip(4).Any() ? ", and other hidden characters" : string.Empty;
+        return $"name contains {hidden.Count} hidden {(hidden.Count == 1 ? "character" : "characters")}: {string.Join(", ", first)}{remainder}";
+    }
+
+    private static string HiddenCharacterLabel(int code) => code switch
+    {
+        0x200B => "zero-width space",
+        0x200C => "zero-width non-joiner",
+        0x200D => "zero-width joiner",
+        0x202A => "left-to-right embedding",
+        0x202B => "right-to-left embedding",
+        0x202D => "left-to-right override",
+        0x202E => "right-to-left override",
+        0x2028 => "line separator",
+        0x2029 => "paragraph separator",
+        0x00AD => "soft hyphen",
+        _ when code <= 0x1F || code is >= 0x7F and <= 0x9F => "control character",
+        _ => "invisible character",
+    };
+
+    private static string SafeName(string name, List<int>? hiddenCodes)
     {
         StringBuilder? escaped = null;
         int tagsEnd = -1;
@@ -200,6 +230,7 @@ public static class Formatters
             int code = CodeAt(name, i), width = code > 0xFFFF ? 2 : 1;
             if (Hidden(name, i, code, width, ref tagsEnd))
             {
+                hiddenCodes?.Add(code);
                 escaped ??= new StringBuilder(name.Length + 8).Append(name, 0, i);
                 escaped.Append(code > 0xFFFF ? $"{(char)92}U{code:X8}" : $"{(char)92}u{code:X4}");
             }

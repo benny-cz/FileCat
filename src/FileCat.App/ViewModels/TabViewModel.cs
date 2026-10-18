@@ -709,17 +709,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
     }
 
-    private static string DescribeFocused(in EntryData e)
+    internal static string DescribeFocused(in EntryData e)
     {
         // A drive: what it is and how full ("C: SYSTEM · NTFS · 189 GB free of 952 GB, 80% used").
         if (e.Tag is Core.FileSystem.DriveTag drive)
         {
-            var parts = new List<string> { string.IsNullOrEmpty(drive.Label) ? e.Name : $"{e.Name} {drive.Label}" };
+            var parts = new List<string> { Formatters.SafeName(string.IsNullOrEmpty(drive.Label) ? e.Name : $"{e.Name} {drive.Label}") };
             if (!drive.Ready) parts.Add("not ready");
-            if (!string.IsNullOrEmpty(drive.Format)) parts.Add(drive.Format);
+            if (!string.IsNullOrEmpty(drive.Format)) parts.Add(Formatters.SafeName(drive.Format));
             if (drive.Ready && drive.TotalBytes > 0)
                 parts.Add($"{Formatters.SizeWithUnit(drive.FreeBytes)} free of {Formatters.SizeWithUnit(drive.TotalBytes)}, {100.0 * (drive.TotalBytes - drive.FreeBytes) / drive.TotalBytes:0}% used");
-            if (!string.IsNullOrEmpty(drive.RemoteName)) parts.Add(drive.RemoteName);
+            if (!string.IsNullOrEmpty(drive.RemoteName)) parts.Add(Formatters.SafeName(drive.RemoteName));
             return string.Join(" · ", parts);
         }
         // Escaped as the file list shows names (§18.3): a direction override must not turn the name around here either.

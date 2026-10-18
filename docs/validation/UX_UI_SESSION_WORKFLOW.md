@@ -28,23 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-014**. Follow
+After resolving any outstanding validation failure, resume **FCUX-071**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
-priority sort. The completed FCUX-011/012/013/076/072 and viewer FCUX-073 code scopes keep
+priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-014 — safe extension-cell display | Distinguish visible and invisible-character extensions in every list profile while retaining raw operation identity and legitimate Unicode presentation. |
-| 2 | FCUX-071 — remaining drag-export branch | Preflight and account for the complete captured selection; never begin a silently incomplete mixed-provider drag. Clipboard publication is already corrected. |
-| 3 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
-| 4 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
+| 1 | FCUX-071 — remaining drag-export branch | Preflight and account for the complete captured selection; never begin a silently incomplete mixed-provider drag. Clipboard publication is already corrected. |
+| 2 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
+| 3 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
 
 Then continue FCUX-016, FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-014 implementation record
+
+Actual list cell presentation escapes hidden controls in separate extension
+cells and provider-derived folder/kind/details text. Hover on an affected name
+offers the full safe name and a character description; focus status and row
+automation preserve the same identity evidence. Sorting and operations continue
+to use the raw filename. The profile, list and automation regressions pass;
+native glyph and screen-reader acceptance remain open.
 
 ### FCUX-013 implementation record
 

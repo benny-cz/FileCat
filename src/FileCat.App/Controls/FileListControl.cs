@@ -958,17 +958,17 @@ public sealed class FileListControl : Control
         return glyphs?.TryLayout(s, brush, maxWidth) ?? Controls.CellText.Formatted(s, brush, typeface, FontSize > 0 ? FontSize : 13, maxWidth);
     }
 
-    private string CellString(in EntryData e, ColumnSpec column) => column.Field switch
+    internal string CellString(in EntryData e, ColumnSpec column) => column.Field switch
     {
         ColumnField.Name => DisplayName(e),
-        ColumnField.Extension => e.IsContainer ? string.Empty : NameParts.GetExtension(e.Name),
+        ColumnField.Extension => e.IsContainer ? string.Empty : Formatters.SafeName(NameParts.GetExtension(e.Name)),
         ColumnField.Size => Formatters.SizeCell(e),
         ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e, column.Seconds),
         ColumnField.Created => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Created),
         ColumnField.Attributes => Formatters.Attributes(e),
-        ColumnField.Folder => Tab?.GetFolderText(e) ?? string.Empty,
-        ColumnField.Kind => Tab?.GetKindText(e) ?? string.Empty,
-        ColumnField.Details => Tab?.GetDetailsText(e) ?? string.Empty,
+        ColumnField.Folder => Formatters.SafeName(Tab?.GetFolderText(e) ?? string.Empty),
+        ColumnField.Kind => Formatters.SafeName(Tab?.GetKindText(e) ?? string.Empty),
+        ColumnField.Details => Formatters.SafeName(Tab?.GetDetailsText(e) ?? string.Empty),
         _ => string.Empty,
     };
 
@@ -976,7 +976,7 @@ public sealed class FileListControl : Control
     {
         if (e.Kind == EntryKind.RegistryValue && e.Name.Length == 0) return "(Default)";
         if (e.Kind == EntryKind.Drive && e.Tag is Core.FileSystem.DriveTag t)
-            return string.IsNullOrEmpty(t.Label) ? $"{e.Name}  {t.DriveType}" : $"{e.Name}  {t.Label}";
+            return Formatters.SafeName(string.IsNullOrEmpty(t.Label) ? $"{e.Name}  {t.DriveType}" : $"{e.Name}  {t.Label}");
         bool showExt = !_columns.Any(c => c.Field == ColumnField.Extension);
         var name = e.IsContainer || showExt ? e.Name : NameParts.GetExtension(e.Name).Length > 0 ? NameParts.GetStem(e.Name) : e.Name;
         return Formatters.SafeName(name);
@@ -1255,16 +1255,27 @@ public sealed class FileListControl : Control
     private void UpdateTip(Point? pos)
     {
         string? tip = null;
-        if (pos is { } p && _listing is { } listing && Tab is { HasSidecars: true } tab && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
+        if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
             bool overIcon = col == 0 && p.X >= _columnX[0] + MarkGutter && p.X < _columnX[0] + MarkGutter + IconSize + 2;
             bool overCell = _columns[col] is { Field: ColumnField.Metadata, MetadataId: "verified" };
             var entry = listing.GetVisible(row);
-            if ((overIcon || overCell) && entry.Kind == EntryKind.File) tip = tab.VerificationTip(entry, listing.GetStoreIndex(row));
+            if ((overIcon || overCell) && entry.Kind == EntryKind.File && Tab is { HasSidecars: true } tab)
+                tip = tab.VerificationTip(entry, listing.GetStoreIndex(row));
+            if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
+                tip = IdentityTip(entry);
         }
         if (tip == _tip) return;
         _tip = tip;
         ToolTip.SetTip(this, tip);
+    }
+
+    internal static string? IdentityTip(in EntryData entry)
+    {
+        if (entry.Kind == EntryKind.Parent) return null;
+        string safe = Formatters.SafeName(entry.Name);
+        if (safe == entry.Name) return null;
+        return $"Full name: {safe}\n{Formatters.DescribeHiddenNameCharacters(entry.Name)}";
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -1445,6 +1456,7 @@ public sealed class FileListControl : Control
     internal static string ItemWarnings(in EntryData e)
     {
         string details = string.Empty;
+        if (Formatters.DescribeHiddenNameCharacters(e.Name) is { } hidden) details += ", " + hidden;
         if (e.Has(EntryFlags.Offline)) details += ", cloud placeholder or offline; opening may download content";
         if (e.Has(EntryFlags.Unavailable)) details += ", unavailable";
         if (e.Has(EntryFlags.Protected)) details += ", protected content";
