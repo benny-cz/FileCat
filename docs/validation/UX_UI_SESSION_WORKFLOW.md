@@ -28,19 +28,18 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-072**. Follow
+After resolving any outstanding validation failure, resume **FCUX-013**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
-priority sort. The completed FCUX-011/012/076 and viewer FCUX-073 code scopes keep
+priority sort. The completed FCUX-011/012/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-072 — binary comparison keyboard byte ranges | Select and copy exactly four bytes from the right, then the left, without a pointer. Cover row boundaries and aligned gaps; source, side, extent, copied bytes and semantic state must agree. The audit permits an explicit Select byte range action. |
-| 2 | FCUX-013 — theme-state contrast | Verify the complete essential-text/state matrix across all palettes and System-resolved modes, including destructive actions and custom-drawn selections. Preserve the existing primary/target/tooltip fixes. |
-| 3 | FCUX-014 — safe extension-cell display | Distinguish visible and invisible-character extensions in every list profile while retaining raw operation identity and legitimate Unicode presentation. |
-| 4 | FCUX-071 — remaining drag-export branch | Preflight and account for the complete captured selection; never begin a silently incomplete mixed-provider drag. Clipboard publication is already corrected. |
-| 5 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
-| 6 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
+| 1 | FCUX-013 — theme-state contrast | Verify the complete essential-text/state matrix across all palettes and System-resolved modes, including destructive actions and custom-drawn selections. Preserve the existing primary/target/tooltip fixes. |
+| 2 | FCUX-014 — safe extension-cell display | Distinguish visible and invisible-character extensions in every list profile while retaining raw operation identity and legitimate Unicode presentation. |
+| 3 | FCUX-071 — remaining drag-export branch | Preflight and account for the complete captured selection; never begin a silently incomplete mixed-provider drag. Clipboard publication is already corrected. |
+| 4 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
+| 5 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
 
 Then continue FCUX-016, FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
@@ -48,39 +47,21 @@ endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
 
-### FCUX-072 implementation handoff
+### FCUX-072 implementation record
 
-The next slice can add an explicit **Select byte range…** review through
-`CompareWindow` and `OverlayDialogService`, leaving the established arrow/Page
-scrolling and difference-navigation shortcuts intact. `HexCompareView.Selection`
-already represents `(Side, Start, Length)` in source bytes. Add validated range
-admission and reveal through the same state path as pointer selection. In aligned
-mode, locate the chosen side's actual source interval; an alignment gap contains
-no byte and must never become an invented zero or counterpart.
+Alt+B and the labelled toolbar action open a range review with side, start and
+count. The control validates against the current source interval and reveals
+the chosen byte without turning alignment gaps into bytes. Invalid and
+overflowing input stays editable. Source replacement, view changes and closing
+retire a pending review. Cancel returns focus to the byte surface.
 
-Preserve the comparison's existing copy contract: a **4 MiB** limit, uppercase
-hex pairs separated by spaces, and its displayed-text mapping (including bytes
-at or above `0xA0`). The viewer's newer `ContentCopy` policy differs in size and
-format and cannot be substituted unchanged. The comparison's present asynchronous
-copy needs content/selection/request ownership checks and orderly clipboard
-publication before this new action can be considered robust. Closing, replacing
-sources, reopening or changing interpretation must retire a pending range review
-and stale copy completion while preserving active-read disposal safety.
-
-Guard `CompareWindow.OnNavigationKey` while its overlay is open. Keep invalid
-offset/count input and its error visible, reject overrun/overflow without silent
-clamping, and restore focus to the current surface on Cancel. Test its actual
-640 × 320 DIP minimum with normal and large text. Add bounded committed semantic
-state following `ViewerAutomation`; peer getters must not initiate source reads.
-
-The deterministic acceptance set should cover both sides in same-offset and
-aligned modes; exact four-byte keyboard copy; row boundaries and source ranges
-crossing visual gaps; empty/EOF/invalid/overflow inputs; stale review and delayed
-copy completion; held or failed pages; copy limits and short reads; and existing
-pointer, navigation, Ctrl+A, source-revision and close-during-read behavior. Use
-the protected `CompareWindowTests`, revision/lifetime tests and controlled
-clipboard patterns from `HexEditorCopyLifetimeTests`. This is preparation for
-the next implementation, not completed FCUX-072 acceptance.
+Copy retains the comparison's 4 MiB budget, spaced uppercase hex and displayed
+text mappings. Its read and clipboard publication are owned by the current
+source, selection and request; changed-source evidence blocks publication.
+The selectable bounded preview and read-only automation value expose source,
+side, range and bytes without synchronous peer reads. The 79 comparison and
+accessibility tests pass on Windows, including old pointer and replacement tests. Native
+screen-reader, scaling and clipboard interoperability acceptance remains open.
 
 ## Cumulative baseline
 

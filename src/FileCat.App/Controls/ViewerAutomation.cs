@@ -83,3 +83,26 @@ internal sealed class HexViewAutomationPeer(HexView owner) : ControlAutomationPe
         }
     }
 }
+
+/// <summary>Bounded, read-only semantics for the drawn binary comparison surface.</summary>
+internal sealed class HexCompareViewAutomationPeer(HexCompareView owner) : ControlAutomationPeer(owner), IValueProvider
+{
+    private string? _announced = owner.SemanticValue;
+
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
+    protected override string GetClassNameCore() => "HexCompareView";
+    protected override string? GetNameCore() => AutomationProperties.GetName(owner) is { Length: > 0 } name ? name : "Bytes of both files";
+    protected override bool IsKeyboardFocusableCore() => true;
+    public bool IsReadOnly => true;
+    public string? Value => owner.SemanticValue;
+    public void SetValue(string? value) => throw new InvalidOperationException("The comparison is read-only.");
+
+    public void AnnounceSelection()
+    {
+        var value = Value;
+        if (value == _announced) return;
+        var previous = _announced;
+        _announced = value;
+        RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, previous, value);
+    }
+}

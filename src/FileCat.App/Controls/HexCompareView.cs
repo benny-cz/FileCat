@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -9,6 +10,7 @@ using Avalonia.Threading;
 using FileCat.App.Services;
 using FileCat.Core.Compare;
 using FileCat.Core.Content;
+using FileCat.Core.Resources;
 
 namespace FileCat.App.Controls;
 
@@ -52,6 +54,10 @@ public sealed class HexCompareView : Control
     private bool _pendingInvalidate, _dragging;
     private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _accent = Brushes.Blue, _bg = Brushes.White, _divider = Brushes.Gray;
     private string _status = "";
+    private long _contentGeneration, _selectionGeneration, _copyRequest;
+    private CancellationTokenSource? _copyStop;
+    private readonly SemaphoreSlim _clipboardGate = new(1, 1);
+    private HexCompareViewAutomationPeer? _automationPeer;
 
     public HexCompareView()
     {
@@ -86,10 +92,17 @@ public sealed class HexCompareView : Control
             if (_status == value) return;
             _status = value;
             StatusChanged?.Invoke();
+            _automationPeer?.AnnounceSelection();
         }
     }
 
     public event Action? StatusChanged;
+
+    internal string SemanticValue => Selection is { } selection
+        ? $"{(selection.Side == 0 ? "Left" : "Right")} file, offset 0x{selection.Start:X}, {selection.Length:N0} selected bytes. {Status}"
+        : "No byte range selected. Use Select byte range to choose a side, offset and count, or select bytes with the pointer.";
+
+    protected override AutomationPeer OnCreateAutomationPeer() => _automationPeer = new HexCompareViewAutomationPeer(this);
 
     public int BytesPerRow => _bytesPerRow;
 
@@ -102,12 +115,54 @@ public sealed class HexCompareView : Control
     public (int Side, long Start, long Length)? Selection =>
         _selectionSide < 0 ? null : (_selectionSide, Math.Min(_anchor, _caret), Math.Abs(_caret - _anchor) + 1);
 
+    public long SideLength(int side) => side switch { 0 => _left?.Length ?? 0, 1 => _right?.Length ?? 0, _ => 0 };
+
+    /// <summary>Selects a real source interval without turning an alignment gap into a byte.</summary>
+    public bool TrySelectRange(int side, long start, long length)
+    {
+        long available = SideLength(side);
+        if (side is not (0 or 1) || start < 0 || length <= 0 || start >= available || length > available - start)
+            return false;
+        int lo = 0, hi = _stretches.Count;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            var stretch = _stretches[mid];
+            long end = side == 0 ? stretch.LeftOffset + stretch.LeftLength : stretch.RightOffset + stretch.RightLength;
+            if (end <= start) lo = mid + 1;
+            else hi = mid;
+        }
+        if (lo >= _stretches.Count) return false;
+        var found = _stretches[lo];
+        long offset = side == 0 ? found.LeftOffset : found.RightOffset;
+        if (start < offset) return false;
+        Select(side, start, start + length - 1);
+        long row = _rowStart[lo] + (start - offset) / _bytesPerRow;
+        if (row < _topRow || row >= _topRow + VisibleRows)
+        {
+            _topRow = Math.Max(0, row - Math.Min(3, VisibleRows / 4));
+            UpdateScroll();
+        }
+        Focus();
+        InvalidateVisual();
+        return true;
+    }
+
+    private void RetireCopy()
+    {
+        _selectionGeneration++;
+        _copyRequest++;
+        _copyStop?.Cancel();
+    }
+
     /// <summary>
     /// Shows two files' bytes: at the same offsets (<paramref name="aligned"/> null), or in an aligned comparison's
     /// stretches. <paramref name="differences"/> are the ones a click on their bytes chooses (in file order).
     /// </summary>
     public void SetContent(PagedReader? left, PagedReader? right, IReadOnlyList<AlignedRange>? aligned, IReadOnlyList<AlignedRange> differences)
     {
+        RetireCopy();
+        _contentGeneration++;
         if (_left is not null) _left.PageLoaded -= OnPageLoaded;
         if (_right is not null) _right.PageLoaded -= OnPageLoaded;
         _left = left;
@@ -121,6 +176,7 @@ public sealed class HexCompareView : Control
         _selectionSide = -1;
         _topRow = 0;
         Status = "";
+        _automationPeer?.AnnounceSelection();
         Layout(Bounds.Width, keepTop: false, force: true);
         InvalidateVisual();
     }
@@ -543,6 +599,7 @@ public sealed class HexCompareView : Control
 
     private void Select(int side, long anchor, long caret)
     {
+        if (_selectionSide != side || _anchor != anchor || _caret != caret) RetireCopy();
         _selectionSide = side;
         _anchor = anchor;
         _caret = caret;
@@ -550,6 +607,7 @@ public sealed class HexCompareView : Control
         long start = Math.Min(anchor, caret);
         Status = $"{(side == 0 ? "Left" : "Right")} file: {Size(length)} selected at 0x{start:X}" +
                  (length > 1 ? $"–0x{start + length - 1:X}" : "") + ". Ctrl+C copies them as hex; the context menu has more.";
+        _automationPeer?.AnnounceSelection();
         InvalidateVisual();
     }
 
@@ -632,34 +690,85 @@ public sealed class HexCompareView : Control
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard is null) return;
         int length = (int)Math.Min(selection.Length, MaxCopy);
-        byte[] bytes;
+        _copyStop?.Cancel();
+        using var stop = new CancellationTokenSource();
+        _copyStop = stop;
+        long request = ++_copyRequest, content = _contentGeneration, selected = _selectionGeneration;
+        bool Current() => !stop.IsCancellationRequested && request == _copyRequest && content == _contentGeneration &&
+            selected == _selectionGeneration && ReferenceEquals(reader, selection.Side == 0 ? _left : _right) && Selection == selection;
+        bool admitted = false;
         try
         {
-            bytes = await Task.Run(() =>
+            var result = await Task.Run(() =>
             {
+                stop.Token.ThrowIfCancellationRequested();
+                ContentRevision? before = null, after = null;
+                long beforeLength = 0, afterLength = 0;
+                reader.WithSource(source => { before = source.GetRevision(); beforeLength = source.Length; });
+                if (beforeLength != reader.Length || reader.Revision is { } expected && before != expected)
+                    throw new InvalidDataException("The source changed before Copy. Compare the files again.");
                 var buffer = new byte[length];
-                int n = reader.Read(selection.Start, buffer);
+                int n = reader.Read(selection.Start, buffer, stop.Token);
+                stop.Token.ThrowIfCancellationRequested();
+                reader.WithSource(source => { after = source.GetRevision(); afterLength = source.Length; });
+                if (before != after || beforeLength != afterLength)
+                    throw new InvalidDataException("The source changed during Copy. Compare the files again.");
                 return buffer[..n];
             });
+            if (!Current()) return;
+            if (result.Length == 0)
+            {
+                Status = "No bytes could be read from the selected range. Nothing was copied.";
+                return;
+            }
+            string text = asText ? new string(result.Select(Printable).ToArray()) : HexText(result);
+            await _clipboardGate.WaitAsync(stop.Token);
+            admitted = true;
+            if (!Current()) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
+            if (!Current()) return;
+            Status = (result.Length < selection.Length
+                ? $"Copied the first {Size(result.Length)} of the {Size(selection.Length)} selected{(result.Length < length ? " (the rest could not be read)" : "")}."
+                : $"Copied {Size(result.Length)} as {(asText ? "text" : "hex")}.") +
+                (reader.Revision is null ? " The source has no revision evidence; compare again if it may have changed." : "");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or InvalidDataException)
         {
-            Status = "The bytes could not be read: " + ex.Message;
-            return;
+            if (Current()) Status = "The bytes could not be copied: " + ex.Message;
         }
-        string text = asText ? new string(bytes.Select(Printable).ToArray()) : HexText(bytes);
-        await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
-        Status = bytes.Length < selection.Length
-            ? $"Copied the first {Size(bytes.Length)} of the {Size(selection.Length)} selected{(bytes.Length < length ? " (the rest could not be read)" : "")}."
-            : $"Copied {Size(bytes.Length)} as {(asText ? "text" : "hex")}.";
+        finally
+        {
+            if (admitted) _clipboardGate.Release();
+            if (ReferenceEquals(_copyStop, stop)) _copyStop = null;
+        }
     }
 
     private async Task CopyOffsetAsync()
     {
         if (Selection is not { } selection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+        _copyStop?.Cancel();
+        using var stop = new CancellationTokenSource();
+        _copyStop = stop;
+        long request = ++_copyRequest, content = _contentGeneration, selected = _selectionGeneration;
+        bool Current() => !stop.IsCancellationRequested && request == _copyRequest && content == _contentGeneration &&
+            selected == _selectionGeneration && Selection == selection;
         string offset = "0x" + selection.Start.ToString("X", CultureInfo.InvariantCulture);
-        await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, offset);
-        Status = $"Copied the offset {offset}.";
+        bool admitted = false;
+        try
+        {
+            await _clipboardGate.WaitAsync(stop.Token);
+            admitted = true;
+            if (!Current()) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, offset);
+            if (Current()) Status = $"Copied the offset {offset}.";
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (admitted) _clipboardGate.Release();
+            if (ReferenceEquals(_copyStop, stop)) _copyStop = null;
+        }
     }
 
     /// <summary>"4D 5A 90": two digits per byte, spaces between.</summary>

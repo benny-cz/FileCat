@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.Core.Compare;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
@@ -33,7 +35,7 @@ public sealed class CompareWindow : Window
     private static readonly IBrush UnalignedBrush = new SolidColorBrush(Color.FromArgb(0x30, 0x90, 0x90, 0xA0));
     /// <summary>At most this many differences are listed to choose from; the arrows go through all of them.</summary>
     public const int MaxListed = 20_000;
-    private const string BytesHint = "Drag over bytes to select them; Ctrl+C copies them as hex. Clicking a difference makes it the current one.";
+    private const string BytesHint = "Select byte range (Alt+B) chooses a side, offset and count; Ctrl+C copies selected bytes as hex. Pointer selection also works.";
 
     private IContentSource _left, _right;
     private ViewSource _leftView, _rightView;
@@ -60,6 +62,14 @@ public sealed class CompareWindow : Window
     private readonly CheckBox _align = new() { Content = "Align shifted bytes", VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly Button _first, _previous, _next, _last;
     private readonly Button _again = new() { Content = "Compare again", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _selectBytes = new() { Content = "Select byte range…", VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+    private readonly TextBox _selectedBytes = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 56, IsVisible = false };
+    private readonly Panel _overlayHost = new() { IsVisible = false };
+    private readonly OverlayDialogService _dialogs;
+    private DialogCloser? _rangeReview;
+    private CancellationTokenSource? _previewStop;
+    private (int Side, long Start, long Length)? _previewSelection;
+    private int _previewView;
     private CancellationTokenSource? _work;
     private Task _loading = Task.CompletedTask;
     private BinaryDiffResult? _bytes;
@@ -142,6 +152,9 @@ public sealed class CompareWindow : Window
         ToolTip.SetTip(_again, "Read both files again and compare them (F5)");
         ToolTip.SetTip(_fullLine, "Inspect and copy both full source lines (Alt+L or double-click a row)");
         Avalonia.Automation.AutomationProperties.SetName(_fullLine, "Focus full-line comparison details");
+        Avalonia.Automation.AutomationProperties.SetName(_selectBytes, "Select byte range in left or right file");
+        Avalonia.Automation.AutomationProperties.SetName(_selectedBytes, "Selected source bytes and comparison view");
+        ToolTip.SetTip(_selectBytes, "Select an exact source byte interval on either side (Alt+B). Alignment gaps contain no bytes.");
         Avalonia.Automation.AutomationProperties.SetHelpText(_rows, $"Aligned source lines scroll horizontally together; Alt+Left and Alt+Right move both panes. Wrap long lines preserves aligned source numbers and gaps. Lines over {CompareTextView.MaximumLineCharacters:N0} UTF-16 characters have an explicit complete-line action. Alt+L or a double-click focuses selectable full-line details.");
         Avalonia.Automation.AutomationProperties.SetName(_wrapLines, "Wrap long source lines in the aligned comparison");
         ToolTip.SetTip(_wrapLines, "Wrap both source panes, keeping each left/right line pair and gap aligned. Difference navigation reveals the changed text on both axes.");
@@ -159,7 +172,7 @@ public sealed class CompareWindow : Window
         {
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(8, 6, 8, 2),
-            Children = { _first, _previous, _next, _last, _differenceBox, _fullLine, _wrapLines, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse },
+            Children = { _first, _previous, _next, _last, _differenceBox, _fullLine, _wrapLines, _again, _binary, _align, _selectBytes, _ignoreWhitespace, _ignoreCase, _collapse },
         };
         foreach (var child in bar.Children.OfType<Control>()) child.Margin = new Thickness(0, 0, child is Button { Content: Image } ? 2 : 10, 4);
         var root = new DockPanel();
@@ -169,7 +182,7 @@ public sealed class CompareWindow : Window
         DockPanel.SetDock(summaryBorder, Dock.Top);
         _changedBanner = new Border { Child = _changed, Padding = new Thickness(8, 4), Classes = { "banner" }, IsVisible = false };
         DockPanel.SetDock(_changedBanner, Dock.Top);
-        _statusBar = new Border { Child = _status, Padding = new Thickness(8, 3), IsVisible = false };
+        _statusBar = new Border { Child = new StackPanel { Spacing = 3, Children = { _status, _selectedBytes } }, Padding = new Thickness(8, 3), IsVisible = false };
         DockPanel.SetDock(_statusBar, Dock.Bottom);
         root.Children.Add(bar);
         root.Children.Add(summaryBorder);
@@ -184,9 +197,11 @@ public sealed class CompareWindow : Window
         _textBody.Children.Add(_lineDetails);
         var body = new Panel { Children = { _textBody, _hex } };
         root.Children.Add(body);
-        Content = ThemeLayers.Over(root, body);
+        Content = ThemeLayers.Over(new Grid { Children = { root, _overlayHost } }, body);
+        _dialogs = new OverlayDialogService(_overlayHost, () => _hex);
 
         _again.Click += (_, _) => CompareAgain();
+        _selectBytes.Click += (_, _) => _ = SelectByteRangeAsync();
         _fullLine.Click += (_, _) => FocusLineDetails();
         _wrapLines.IsCheckedChanged += (_, _) => _textView.Wrap = _wrapLines.IsChecked == true;
         _textView.DetailsRequested += focus =>
@@ -204,7 +219,11 @@ public sealed class CompareWindow : Window
         _rows.SelectionChanged += (_, _) => FollowRow();
         _rows.DoubleTapped += (_, _) => FocusLineDetails();
         _hex.DifferenceClicked += index => ShowDifference(index);
-        _hex.StatusChanged += () => _status.Text = _hex.Status.Length > 0 ? _hex.Status : BytesHint;
+        _hex.StatusChanged += () =>
+        {
+            _status.Text = _hex.Status.Length > 0 ? _hex.Status : BytesHint;
+            _ = UpdateSelectedBytesAsync();
+        };
         _status.Text = BytesHint;
         // Navigation keys work wherever the focus is (the list and the difference box have their own uses for arrows).
         AddHandler(KeyDownEvent, OnNavigationKey, RoutingStrategies.Tunnel);
@@ -215,6 +234,8 @@ public sealed class CompareWindow : Window
         {
             if (_closed) return;
             _closed = true;
+            RetireRangeReview();
+            _previewStop?.Cancel();
             ThemeManager.ThemeChanged -= RefreshIcons;
             _work?.Cancel();
             ReleaseWhenIdle(_left, _right, _leftView, _rightView);
@@ -303,6 +324,7 @@ public sealed class CompareWindow : Window
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
+        if (_dialogs.IsOpen) return;
         if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None) return;
         Close();
         e.Handled = true;
@@ -310,6 +332,7 @@ public sealed class CompareWindow : Window
 
     private void OnNavigationKey(object? sender, KeyEventArgs e)
     {
+        if (_dialogs.IsOpen) return;
         switch (e.Key)
         {
             case Key.Home when e.KeyModifiers == KeyModifiers.Alt:
@@ -333,6 +356,9 @@ public sealed class CompareWindow : Window
             case Key.L when e.KeyModifiers == KeyModifiers.Alt && _shown == Shown.Text:
                 FocusLineDetails();
                 break;
+            case Key.B when e.KeyModifiers == KeyModifiers.Alt && _shown is Shown.Bytes or Shown.Aligned:
+                _ = SelectByteRangeAsync();
+                break;
             case Key.F5 when e.KeyModifiers == KeyModifiers.None && CanReopen:
             case Key.R when e.KeyModifiers == KeyModifiers.Control && CanReopen:
                 CompareAgain();
@@ -341,6 +367,159 @@ public sealed class CompareWindow : Window
                 return;
         }
         e.Handled = true;
+    }
+
+    private void RetireRangeReview()
+    {
+        var closer = _rangeReview;
+        _rangeReview = null;
+        closer?.Close(null);
+    }
+
+    private async Task SelectByteRangeAsync()
+    {
+        if (_closed || _dialogs.IsOpen || IsComparing || _shown is not (Shown.Bytes or Shown.Aligned) || _pages is null) return;
+        int view = _view;
+        var pages = _pages;
+        var previous = _hex.Selection;
+        var side = new ComboBox { ItemsSource = new[] { "Left file", "Right file" }, SelectedIndex = previous?.Side ?? 0 };
+        var sourcePath = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 64 };
+        var offset = new TextBox { Text = previous is { } p ? $"0x{p.Start:X}" : "0x0", MinWidth = 170 };
+        var count = new TextBox { Text = (previous?.Length ?? 4).ToString(CultureInfo.InvariantCulture), MinWidth = 120 };
+        Avalonia.Automation.AutomationProperties.SetName(side, "Source side for byte selection");
+        Avalonia.Automation.AutomationProperties.SetName(sourcePath, "Full path of selected source file");
+        Avalonia.Automation.AutomationProperties.SetName(offset, "Start offset in decimal or 0x hexadecimal");
+        Avalonia.Automation.AutomationProperties.SetName(count, "Number of source bytes in decimal");
+        var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        var body = new StackPanel { Spacing = 8, Children =
+        {
+            new TextBlock { Text = "Choose an exact range in one source file. Alignment gaps contain no source bytes.", TextWrapping = TextWrapping.Wrap },
+            new DialogForm(("Source side:", side), ("Source file:", sourcePath), ("Start offset:", offset), ("Byte count:", count)),
+            error,
+            new TextBlock { Text = "Ctrl+C copies the selection as spaced hex pairs. Copy is limited to the first 4 MiB and reports unread bytes.", TextWrapping = TextWrapping.Wrap },
+        } };
+        bool Current() => !_closed && !IsComparing && view == _view &&
+            ReferenceEquals(pages.Value.Left, _pages?.Left) && ReferenceEquals(pages.Value.Right, _pages?.Right) &&
+            _shown is Shown.Bytes or Shown.Aligned;
+        bool ParseStart(string text, out long value)
+        {
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ulong.TryParse(text.AsSpan(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong hex) && hex <= long.MaxValue)
+                { value = (long)hex; return true; }
+            }
+            else if (long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value)) return true;
+            value = 0;
+            return false;
+        }
+        bool Validate()
+        {
+            string? message = null;
+            if (!Current()) message = "The comparison changed. Close this review and select a range in the current view.";
+            else if (side.SelectedIndex is not (0 or 1)) message = "Choose the left or right source file.";
+            else if (!ParseStart(offset.Text ?? "", out long start)) message = "Enter a nonnegative start offset in decimal or 0x hexadecimal without overflow.";
+            else if (!long.TryParse((count.Text ?? "").Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out long length) || length <= 0)
+                message = "Enter a positive decimal byte count without overflow.";
+            else if (start >= _hex.SideLength(side.SelectedIndex) || length > _hex.SideLength(side.SelectedIndex) - start)
+                message = "The requested range extends beyond that source file. No bytes were selected.";
+            else if (!_hex.TrySelectRange(side.SelectedIndex, start, length))
+                message = "That offset has no source byte in the current aligned view. Choose an offset within the selected side.";
+            if (message is null) return true;
+            error.Text = message;
+            error.IsVisible = true;
+            (message.StartsWith("Enter a positive", StringComparison.Ordinal) ? count : offset).Focus();
+            return false;
+        }
+        void ShowSource()
+        {
+            sourcePath.Text = side.SelectedIndex == 1 ? _rightName : _leftName;
+            error.IsVisible = false;
+        }
+        side.SelectionChanged += (_, _) => ShowSource();
+        ShowSource();
+        offset.TextChanged += (_, _) => error.IsVisible = false;
+        count.TextChanged += (_, _) => error.IsVisible = false;
+        var closer = new DialogCloser();
+        _rangeReview = closer;
+        object? result = null;
+        try
+        {
+            result = await _dialogs.ShowCustomAsync("Select byte range", body,
+                [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Select", true, IsDefault: true) { Validate = Validate }],
+                side, closer: closer);
+        }
+        finally
+        {
+            if (ReferenceEquals(_rangeReview, closer)) _rangeReview = null;
+            if (result is not true && Current())
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!Current() || _dialogs.IsOpen || !IsActive) return;
+                    var focused = FocusManager?.GetFocusedElement();
+                    if (focused is null || ReferenceEquals(focused, _selectBytes)) _hex.Focus();
+                }, DispatcherPriority.Background);
+        }
+    }
+
+    private async Task UpdateSelectedBytesAsync()
+    {
+        var selection = _hex.Selection;
+        if (selection == _previewSelection && _previewView == _view) return;
+        _previewStop?.Cancel();
+        _previewSelection = selection;
+        _previewView = _view;
+        if (selection is not { } chosen || _pages is not { } pages || _closed)
+        {
+            _selectedBytes.IsVisible = false;
+            _selectedBytes.Text = string.Empty;
+            return;
+        }
+        using var stop = new CancellationTokenSource();
+        _previewStop = stop;
+        int view = _view;
+        var reader = chosen.Side == 0 ? pages.Left : pages.Right;
+        int length = (int)Math.Min(64, chosen.Length);
+        string side = chosen.Side == 0 ? "Left" : "Right";
+        string source = chosen.Side == 0 ? _leftName : _rightName;
+        string relation = _shown == Shown.Aligned ? "Aligned view; an empty counterpart is a gap, not a zero byte." : "Same-offset view.";
+        _selectedBytes.Text = $"{side}: {source}; reading the first {length:N0} selected bytes at 0x{chosen.Start:X}… {relation}";
+        _selectedBytes.IsVisible = true;
+        bool Current() => !stop.IsCancellationRequested && !_closed && view == _view &&
+            ReferenceEquals(pages.Left, _pages?.Left) && ReferenceEquals(pages.Right, _pages?.Right) && _hex.Selection == chosen;
+        try
+        {
+            var bytes = await Task.Run(() =>
+            {
+                stop.Token.ThrowIfCancellationRequested();
+                ContentRevision? before = null, after = null;
+                long beforeLength = 0, afterLength = 0;
+                reader.WithSource(content => { before = content.GetRevision(); beforeLength = content.Length; });
+                if (beforeLength != reader.Length || reader.Revision is { } expected && before != expected)
+                    throw new InvalidDataException("The source changed. Compare the files again before inspecting this selection.");
+                var buffer = new byte[length];
+                int read = reader.Read(chosen.Start, buffer, stop.Token);
+                stop.Token.ThrowIfCancellationRequested();
+                reader.WithSource(content => { after = content.GetRevision(); afterLength = content.Length; });
+                if (before != after || beforeLength != afterLength)
+                    throw new InvalidDataException("The source changed during inspection. Compare the files again.");
+                return buffer[..read];
+            });
+            if (!Current()) return;
+            _selectedBytes.Text = $"{side}: {source}; offset 0x{chosen.Start:X}, {chosen.Length:N0} selected bytes. " +
+                $"{(chosen.Length > length ? $"First {length:N0} bytes" : "Selected bytes")}: {HexCompareView.HexText(bytes)}" +
+                (bytes.Length < length ? $" (only {bytes.Length:N0} of {length:N0} preview bytes could be read)" : "") +
+                $". {relation}" + (reader.Revision is null ? " The source has no revision evidence; compare again if it may have changed." : "");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or InvalidDataException)
+        {
+            if (Current()) _selectedBytes.Text = $"{side}: {source}; selected bytes could not be inspected: {ex.Message}";
+        }
+        finally
+        {
+            if (ReferenceEquals(_previewStop, stop)) _previewStop = null;
+        }
     }
 
     /// <summary>A comparison opens on its first difference: the equal lines or bytes before it are what the user did not come for.</summary>
@@ -735,6 +914,7 @@ public sealed class CompareWindow : Window
     public async void CompareAgain()
     {
         if (!CanReopen || _closed || _reopening) return;
+        RetireRangeReview();
         _reopening = true;
         _again.IsEnabled = false;
         _work?.Cancel();
@@ -805,6 +985,7 @@ public sealed class CompareWindow : Window
     private async void Recompute()
     {
         if (_bytes is not { } bytes || _settingOptions) return;
+        RetireRangeReview();
         int view = ++_view;
         bool binary = _binary.IsChecked == true || _leftText is null || _rightText is null;
         // Options show where they apply: aligning to bytes, the rest to lines.
@@ -850,8 +1031,10 @@ public sealed class CompareWindow : Window
     /// <summary>The text rows, or the bytes (with the status line under them).</summary>
     private void Show(Shown shown)
     {
+        RetireRangeReview();
         _shown = shown;
         bool text = shown == Shown.Text;
+        _selectBytes.IsVisible = !text && shown is Shown.Bytes or Shown.Aligned;
         _textBody.IsVisible = _fullLine.IsVisible = _wrapLines.IsVisible = text;
         _rows.IsVisible = text;
         _hex.IsVisible = !text;
