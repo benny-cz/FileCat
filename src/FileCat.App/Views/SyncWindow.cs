@@ -44,6 +44,10 @@ public sealed class SyncWindow : Window
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
     private readonly Button _run = new() { Content = "Synchronize", Classes = { "primary" } };
     private List<SyncItem> _items = [];
+    private readonly Dictionary<(TreeDiffEntry Entry, bool SourceIsLeft, SyncAction Action), bool> _reviewedChoices = [];
+    private string? _acknowledgedRemovalScope;
+    private string _planNotice = string.Empty;
+    private bool _planBuilt, _updatingConsent;
 
     public SyncWindow(TreeCompareResult comparison, SyncContext context)
     {
@@ -62,7 +66,12 @@ public sealed class SyncWindow : Window
         _direction.SelectionChanged += (_, _) => Propose();
         _mode.SelectionChanged += (_, _) => Propose();
         _showAll.IsCheckedChanged += (_, _) => Refresh();
-        _permanent.IsCheckedChanged += (_, _) => UpdateSummary();
+        _permanent.IsCheckedChanged += (_, _) =>
+        {
+            if (_updatingConsent) return;
+            _acknowledgedRemovalScope = _permanent.IsChecked == true ? RemovalScope() : null;
+            UpdateSummary();
+        };
         _list.ItemTemplate = new FuncDataTemplate<SyncItem>((item, _) => item is null ? new TextBlock() : Row(item));
         // Space includes or excludes the selected steps (all of them the same way), before the list's items take it.
         Controls.ListKeys.OnKey(_list, Key.Space, _ =>
@@ -70,7 +79,11 @@ public sealed class SyncWindow : Window
             if (_list.SelectedItems is null) return false;
             var selected = _list.SelectedItems.OfType<SyncItem>().Where(i => i.CanInclude).ToList();
             bool include = selected.Any(i => !i.Include);
-            foreach (var i in selected) i.Include = include;
+            foreach (var i in selected)
+            {
+                i.Include = include;
+                _reviewedChoices[(i.Entry, SourceIsLeft, i.Action)] = include;
+            }
             Refresh(keepSelection: true);
             Controls.ListKeys.Focus(_list); // the refreshed list has new rows: keep the keyboard in it
             return true;
@@ -153,8 +166,34 @@ public sealed class SyncWindow : Window
     private void Propose()
     {
         if (_closed) return;
+        if (_planBuilt)
+        {
+            ClearPermanentConsent();
+            _planNotice = "Plan rebuilt for the current direction and mode. Choices for matching actions were kept; changed actions returned to their defaults. Review the included steps again.";
+        }
         _items = SyncPlanner.Propose(_comparison, SourceIsLeft, Mode, _context.IgnoresCase);
+        foreach (var item in _items)
+            if (_reviewedChoices.TryGetValue((item.Entry, SourceIsLeft, item.Action), out bool include)) item.Include = include;
+        _planBuilt = true;
         Refresh();
+    }
+
+    private void ClearPermanentConsent()
+    {
+        _acknowledgedRemovalScope = null;
+        _updatingConsent = true;
+        try { _permanent.IsChecked = false; }
+        finally { _updatingConsent = false; }
+    }
+
+    private string? RemovalScope()
+    {
+        if (TargetRecycles) return null;
+        var paths = _items.Where(i => i.Include && i.Action == SyncAction.Remove)
+            .Select(i => i.Entry.RelativePath).Order(StringComparer.Ordinal).ToArray();
+        if (paths.Length == 0) return null;
+        string target = SourceIsLeft ? _context.RightName : _context.LeftName;
+        return (SourceIsLeft ? "L" : "R") + "\0" + target + "\0" + string.Join("\0", paths);
     }
 
     private void Refresh(bool keepSelection = false)
@@ -180,12 +219,22 @@ public sealed class SyncWindow : Window
         ToolTip.SetTip(_targetPath, target);
         var whyNot = _context.WhyNotTarget(!SourceIsLeft);
         bool removals = _items.Any(i => i.Include && i.Action == SyncAction.Remove);
+        string? removalScope = RemovalScope();
+        if (_permanent.IsChecked == true && (removalScope is null || _acknowledgedRemovalScope != removalScope))
+            ClearPermanentConsent();
+        _permanent.Content = new TextBlock
+        {
+            Text = $"Delete permanently from target \"{Formatters.SafeName(target)}\" (no Recycle Bin)",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Avalonia.Automation.AutomationProperties.SetName(_permanent, "Allow permanent deletion from target " + target + " for the currently included removals");
         _permanent.IsVisible = removals && !TargetRecycles;
         var warnings = new List<string>();
+        if (_planNotice.Length > 0) warnings.Add(_planNotice);
         if (Mode == SyncMode.Mirror)
             warnings.Add($"Mirror changes the target \"{target}\": items only in this target are removed" + (TargetRecycles ? " (to the Recycle Bin)" : "") +
                          ", and differing files are replaced by the source's.");
-        if (removals && !TargetRecycles && _permanent.IsChecked != true)
+        if (removals && !TargetRecycles && (_permanent.IsChecked != true || _acknowledgedRemovalScope != removalScope))
             warnings.Add("The target has no Recycle Bin: removals run only if you choose to delete permanently.");
         if (!_comparison.Complete) warnings.Add("The comparison did not finish: only what was compared is listed.");
         if (whyNot is not null) warnings.Add(whyNot);
@@ -203,13 +252,18 @@ public sealed class SyncWindow : Window
     }
 
     /// <summary>Included steps that may run: removals only to a Recycle Bin or with permanent deletion chosen.</summary>
-    private List<SyncItem> RunnableItems() =>
-        _items.Where(i => i.Include && i.CanInclude && (i.Action != SyncAction.Remove || TargetRecycles || _permanent.IsChecked == true)).ToList();
+    private List<SyncItem> RunnableItems()
+    {
+        bool mayRemove = TargetRecycles ||
+            _permanent.IsChecked == true && _acknowledgedRemovalScope == RemovalScope();
+        return _items.Where(i => i.Include && i.CanInclude && (i.Action != SyncAction.Remove || mayRemove)).ToList();
+    }
 
     public void Run()
     {
         if (_closed || !_run.IsEnabled) return;
-        if (_context.Submit(RunnableItems(), SourceIsLeft, !TargetRecycles && _permanent.IsChecked == true)) Close();
+        if (_context.Submit(RunnableItems(), SourceIsLeft,
+                !TargetRecycles && _permanent.IsChecked == true && _acknowledgedRemovalScope == RemovalScope())) Close();
     }
 
     private static TextBox EndpointBox()
@@ -237,6 +291,7 @@ public sealed class SyncWindow : Window
         {
             if (_closed || box.DataContext is not SyncItem current) return;
             current.Include = box.IsChecked == true;
+            _reviewedChoices[(current.Entry, SourceIsLeft, current.Action)] = current.Include;
             UpdateSummary();
         };
         grid.Children.Add(box);
