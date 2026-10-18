@@ -28,19 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-027**. Follow
+After resolving any outstanding validation failure, resume **FCUX-028**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-027 — sort focus continuity | Keep the focused row visible after explicit sort, without overriding a deliberate manual scroll during refresh. |
+| 1 | FCUX-028 — filter draft validation | Keep invalid filter text editable and show its own error without replacing unrelated status. |
 
-Then continue FCUX-028 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-029 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-027 implementation record
+
+Explicit sorts now register a focused-item reveal against the requested listing
+revision and the invoking tab, location, store, focus, navigation generation and
+viewport intent. The list reveals that same item only when those sorted rows
+arrive. Later vertical or horizontal scroll, focus change, navigation, tab
+switch or another view revision retires the request. Background refresh retains
+its manual-scroll behavior. Headless regressions cover both sort directions,
+metadata order, delayed manual scroll/focus/tab changes, refresh preservation
+and identity-based pointer ranges. Native pointer, keyboard and screen-reader
+acceptance remain open.
 
 ### FCUX-026 implementation record
 

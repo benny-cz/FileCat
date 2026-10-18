@@ -352,8 +352,11 @@ public sealed class ListingModelTests : IDisposable
         Assert.Equal(3001, names.Length);
         Assert.Equal("n1.dat", names[1]);
         Assert.Equal("n3000.dat", names[^1]);
+        Assert.Equal(m.ViewSpecVersion, m.AppliedViewSpecVersion);
         await _ui.InvokeAsync(() => m.Sort = new SortSpec(SortField.Name, Descending: true));
-        await _ui.WaitUntilAsync(() => m.GetVisible(1).Name == "n3000.dat");
+        int requested = await _ui.InvokeAsync(() => m.ViewSpecVersion);
+        await _ui.WaitUntilAsync(() => m.AppliedViewSpecVersion == requested);
+        Assert.Equal("n3000.dat", await _ui.InvokeAsync(() => m.GetVisible(1).Name));
     }
     [Fact]
     public async Task Slow_provider_shows_first_rows_before_enumeration_completes()

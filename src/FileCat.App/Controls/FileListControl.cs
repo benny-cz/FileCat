@@ -46,6 +46,10 @@ public sealed class FileListControl : Control
     private bool _updatingScrollBar;
     private bool _updatingHorizontalScrollBar;
     private int? _refreshTopRow;
+    private long _viewportIntentGeneration;
+    private SortRevealIntent? _sortReveal;
+    private sealed record SortRevealIntent(TabViewModel Tab, EntryStore Store, FileCat.Core.Resources.Location? Location,
+        int FocusedStoreIndex, int ViewSpecVersion, long ViewportIntentGeneration, long NavigationGeneration);
     private readonly Dictionary<long, CellText> _textCache = new();
     private SimpleGlyphs? _glyphs;
     private SimpleGlyphs? _boldGlyphs;
@@ -149,6 +153,7 @@ public sealed class FileListControl : Control
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
+                    _viewportIntentGeneration++;
                     _topRow = top;
                     if (_refreshTopRow.HasValue) _refreshTopRow = top;
                     if (IsRenaming) InvalidateArrange();
@@ -362,12 +367,15 @@ public sealed class FileListControl : Control
         base.OnPropertyChanged(change);
         if (change.Property == TabProperty)
         {
+            _sortReveal = null;
+            _viewportIntentGeneration++;
             FinishRename(null, restoreFocus: false);
             ResetSelectionGesture();
             if (change.OldValue is TabViewModel oldTab)
             {
                 oldTab.Listing.Changed -= OnListingChanged;
                 oldTab.ColumnsChanged -= OnColumnsChanged;
+                oldTab.ExplicitSortRequested -= OnExplicitSortRequested;
             }
             if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
             _identityPanel = null;
@@ -383,6 +391,7 @@ public sealed class FileListControl : Control
                     if (_viewEventsAttached) _metadataSource.ValuesChanged += _metadataHandler;
                 }
                 tab.ColumnsChanged += OnColumnsChanged;
+                tab.ExplicitSortRequested += OnExplicitSortRequested;
                 _identityPanel = tab.Panel;
                 if (_viewEventsAttached) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
                 _columns = tab.Columns;
@@ -578,9 +587,19 @@ public sealed class FileListControl : Control
 
     // ---- Listing notifications ------------------------------------------------------------------------------
 
+    private void OnExplicitSortRequested(int version)
+    {
+        if (Tab is not { } tab || _listing is not { } listing) return;
+        _sortReveal = new SortRevealIntent(tab, listing.Store, listing.Location,
+            listing.FocusedStoreIndex, version, _viewportIntentGeneration, tab.NavigationGeneration);
+    }
+
     private void OnListingChanged(object? sender, ListingChange change)
     {
         if (!ReferenceEquals(sender, _listing)) return;
+        if ((change & ListingChange.Focus) != 0 && (change & ListingChange.Rows) == 0)
+            _viewportIntentGeneration++;
+        if ((change & ListingChange.Reset) != 0) _sortReveal = null;
         if ((change & ListingChange.Reset) != 0 ||
             _anchorStore is not null && !ReferenceEquals(_anchorStore, _listing!.Store))
             ResetSelectionGesture();
@@ -626,6 +645,22 @@ public sealed class FileListControl : Control
         {
             EnsureFocusVisible();
             if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
+        }
+        if (_sortReveal is { } reveal && (change & ListingChange.Rows) != 0)
+        {
+            if (!ReferenceEquals(reveal.Tab, Tab) || !ReferenceEquals(reveal.Store, _listing!.Store) ||
+                !Equals(reveal.Location, _listing.Location) || reveal.FocusedStoreIndex != _listing.FocusedStoreIndex ||
+                reveal.NavigationGeneration != reveal.Tab.NavigationGeneration ||
+                reveal.ViewportIntentGeneration != _viewportIntentGeneration ||
+                _listing.ViewSpecVersion != reveal.ViewSpecVersion ||
+                _listing.AppliedViewSpecVersion > reveal.ViewSpecVersion)
+                _sortReveal = null;
+            else if (_listing.AppliedViewSpecVersion == reveal.ViewSpecVersion &&
+                     _listing.FocusedIndex >= 0)
+            {
+                EnsureFocusVisible();
+                _sortReveal = null;
+            }
         }
         if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
         bool hadVerticalBar = _vbar.IsVisible;
@@ -732,6 +767,7 @@ public sealed class FileListControl : Control
     {
         double next = Math.Clamp(offset, 0, Math.Max(0, _contentExtent - _horizontalViewport));
         if (Math.Abs(next - _horizontalOffset) < 0.01) return;
+        _viewportIntentGeneration++;
         _horizontalOffset = next;
         _updatingHorizontalScrollBar = true;
         try { _hbar.Value = next; }
@@ -1398,8 +1434,10 @@ public sealed class FileListControl : Control
             e.Handled = true;
             return;
         }
+        int previousTop = _topRow;
         _topRow -= (int)Math.Round(e.Delta.Y * 3);
         ClampTop();
+        if (_topRow != previousTop) _viewportIntentGeneration++;
         if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         UpdateScrollBar();
         if (IsRenaming) InvalidateArrange();
@@ -1430,15 +1468,16 @@ public sealed class FileListControl : Control
         if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount)
             throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
         int cap = VisibleRowCapacity;
-        if (row < _topRow) _topRow = row;
-        else if (row >= _topRow + cap) _topRow = row - cap + 1;
-        ScrollToTopRow(_topRow);
+        int target = row < _topRow ? row : row >= _topRow + cap ? row - cap + 1 : _topRow;
+        ScrollToTopRow(target);
     }
 
     internal void ScrollToTopRow(int row)
     {
+        int previousTop = _topRow;
         _topRow = row;
         ClampTop();
+        if (_topRow != previousTop) _viewportIntentGeneration++;
         if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         UpdateScrollBar();
         if (IsRenaming) InvalidateArrange();

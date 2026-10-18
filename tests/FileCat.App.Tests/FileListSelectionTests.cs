@@ -230,7 +230,8 @@ internal sealed class FileListFixture : IDisposable
 
     internal void Click(int row, RawInputModifiers modifiers = RawInputModifiers.None)
     {
-        var scroll = Assert.Single(List.GetVisualDescendants().OfType<ScrollBar>());
+        var scroll = Assert.Single(List.GetVisualDescendants().OfType<ScrollBar>(),
+            bar => bar.Orientation == Avalonia.Layout.Orientation.Vertical);
         // Scroll without changing keyboard focus: Shift-click's fallback must be the previous focused item.
         var bounds = List.GetRowBounds(row);
         if (bounds.Top < List.GetRowBounds((int)scroll.Value).Top || bounds.Bottom > List.Bounds.Height)

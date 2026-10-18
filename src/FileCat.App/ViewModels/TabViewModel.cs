@@ -641,7 +641,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void SortBy(SortField field)
     {
         var s = Listing.Sort;
-        Listing.Sort = s.Field == field ? s with { Descending = !s.Descending } : s with { Field = field, Descending = field is SortField.Modified or SortField.Size };
+        ApplyExplicitSort(s.Field == field ? s with { Descending = !s.Descending } : s with { Field = field, Descending = field is SortField.Modified or SortField.Size });
+    }
+
+    /// <summary>Raised before a user-requested sort so the list can reveal its focused item when that revision arrives.</summary>
+    internal event Action<int>? ExplicitSortRequested;
+
+    private void ApplyExplicitSort(SortSpec sort)
+    {
+        if (Listing.Sort == sort) return;
+        ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
+        Listing.Sort = sort;
     }
 
     public void SetFilter(string? text)
@@ -928,7 +938,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var s = Listing.Sort;
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
         Listing.MetadataKeys ??= MetadataKey;
-        Listing.Sort = s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending };
+        ApplyExplicitSort(s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending });
         if (fieldId == ColumnSpec.FolderSortKey || analyzing) return; // every item's folder is known at once
         var field = Services.Metadata.Field(fieldId);
         Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
@@ -1007,6 +1017,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             {
                 AnalysisStatus = null;
                 Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
+                ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
                 Listing.Resort();
             }
         }

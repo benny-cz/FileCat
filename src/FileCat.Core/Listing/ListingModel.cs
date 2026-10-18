@@ -126,6 +126,10 @@ public sealed class ListingModel : IDisposable
     public Exception? LastRefreshError { get; private set; }
     public bool HasParentRow { get; private set; }
     public int Generation => _generation;
+    /// <summary>The newest requested view revision, including sorts, filters, and visibility changes.</summary>
+    public int ViewSpecVersion => _specVersion;
+    /// <summary>The view revision whose rows are currently shown.</summary>
+    public int AppliedViewSpecVersion { get; private set; }
     public EntryStore Store => _store;
     public int VisibleCount => _diskView?.Count ?? _visible.Length;
     public bool HasExternalIndex => _diskView is not null;
@@ -629,6 +633,7 @@ public sealed class ListingModel : IDisposable
         _diskView = r.External;
         _visible = r.Visible;
         _appliedCount = r.Count;
+        AppliedViewSpecVersion = r.SpecVersion;
         _positions = r.External is null && _visible.Length > 0 ? BuildPositions(_visible, r.Count) : [];
         if (r.External is not null) p.ReleaseIndexReservation();
         var change = ListingChange.Rows;
@@ -1165,7 +1170,7 @@ public sealed class ListingModel : IDisposable
     private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version);
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
-    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false);
+    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0);
 
     private sealed class Pipeline
     {
@@ -1341,7 +1346,7 @@ public sealed class ListingModel : IDisposable
                         sortedCount = n;
                         applied = spec;
                         doneAnnounced = true;
-                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external));
+                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external, SpecVersion: spec.Version));
                         continue;
                     }
                     // Geometric batches keep streaming merges and position rebuilds near O(n log n). The first
@@ -1386,7 +1391,7 @@ public sealed class ListingModel : IDisposable
                     if (!changed && !announceDone) continue;
 
                     var visible = BuildVisible(sorted, spec, firstIndex == 1);
-                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone);
+                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone, SpecVersion: spec.Version);
                     applied = spec;
                     if (announceDone) doneAnnounced = true;
                     Publish(result);
