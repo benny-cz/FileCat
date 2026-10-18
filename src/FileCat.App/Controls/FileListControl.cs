@@ -246,6 +246,8 @@ public sealed class FileListControl : Control
     public event EventHandler? ActivateRequested;
 
     public event EventHandler<Point>? ContextMenuRequested;
+    /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
+    public event EventHandler<Point>? BackgroundContextRequested;
 
     /// <summary>Raised when a drag starts; carries the original press, which drag-and-drop requires.</summary>
     public event EventHandler<PointerPressedEventArgs>? DragRequested;
@@ -1303,6 +1305,9 @@ public sealed class FileListControl : Control
         }
         if (row < 0)
         {
+            if (point.Properties.IsRightButtonPressed && pos.X >= 0 && pos.X < _horizontalViewport &&
+                pos.Y >= _headerHeight && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
+                BackgroundContextRequested?.Invoke(this, pos);
             e.Handled = true;
             return;
         }

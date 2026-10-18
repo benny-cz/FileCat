@@ -2,10 +2,13 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** UXBUG-009 makes reopening Details select and reveal the
-currently active operation when the previous selection is finished. A deliberate
-choice stays selected while the drawer remains open. The focused test and all
-44 related App cases pass; the complete App rerun is in progress. UXBUG-008's
+**Current work:** FCUX-048 adds a folder-background menu on listing whitespace.
+Paste, New folder, Reread, terminal and location-copy actions use the clicked
+tab's captured location; focused or marked files are never implicit targets.
+Five focused and 63 related App tests pass with one platform-specific skip.
+Native pointer, clipboard and provider acceptance remain open. UXBUG-009's
+focused and 44 related App cases pass; a complete App rerun is in progress.
+UXBUG-008's
 240 related App and 111 related Core cases pass, and the full Core Release suite
 passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance
 and an exact Page-mode Find total remain open. UXBUG-007's
@@ -167,6 +170,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-007 — resizable search dialogs | Registry search, Advanced criteria, and Ignored folders dialogs expose a visible drag grip with keyboard arrows and larger Shift steps. Criteria and results fit the available width; lists gain height when expanded. Host shrink clamps the card and later expansion restores its requested size. | `SearchDialogResizeTests` covers drag events, keyboard resize, host shrink/expand, reopening, Registry results and narrow layout, ignored-folder results, and the Advanced grip. Seventy-two related App cases pass. The complete App Release suite passes 2,242 with 63 skips. | Native pointer dragging, scaling, and assistive-technology acceptance remain open. |
 | UXBUG-008 — visible viewer Find results | Text, Hex and Info show a background match count, visible Previous/Next buttons, and a Stop count action. Counting is limited to 64 MiB for local sources or 8 MiB for nonlocal sources and 10,000 hits; partial totals are labelled as lower bounds. Page shows a lower bound because its native Find engines return only success/failure. Query, source and mode changes retire stale counts. | Seven `ContentSearchCountTests` cases cover overlap, encoding, read, limit and cancellation boundaries. `ViewerFindControlsTests` and `ViewerPageSearchTests` cover controls, result states, keyboard parity, source ownership and Page limitations. The 111 related Core and 240 related App cases pass. | Native desktop button, status and keyboard acceptance remain open. Page cannot provide an exact total without a native engine count API. |
 | UXBUG-009 — Details selects active operation | Reopening the operations drawer selects the current active job when the retained selection has finished, then scrolls the selected row into view. While the drawer stays open, progress refreshes and newly added work preserve a deliberate history selection. | `OperationCenterTests` reproduces eight finished jobs, a scrolled history, a new waiting job, Details click, row visibility, and selection preservation after another job arrives. The focused and 44 related App cases pass. | Native pointer, keyboard, and screen-reader acceptance remain open. |
+| FCUX-048 — listing background context menu | Right-clicking empty listing space opens location actions without changing Commander marks or the focused row. The menu uses a captured tab and location for Paste and New folder even if another panel becomes active, refuses stale tab navigation, rechecks capabilities, and shows disabled reasons on unsupported locations. The Windows item shell menu remains limited to item requests. | `BackgroundContextMenuTests` exercises empty and nonempty pointer routes, dismissal, menu contents, actual Paste and New folder destinations, another active panel, stale navigation, and disabled location feedback. Five focused and 63 related App cases pass with one platform skip. | Native pointer placement, clipboard interoperability, read-only archive/Registry/working-set/disconnected providers, keyboard route and assistive-technology acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

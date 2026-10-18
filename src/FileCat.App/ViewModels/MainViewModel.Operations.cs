@@ -388,9 +388,9 @@ public sealed partial class MainViewModel
         _focusAfter[job] = newName;
     }
 
-    private async Task MakeDirectoryAsync()
+    private async Task MakeDirectoryAsync(TabViewModel? contextTab = null)
     {
-        var tab = ActiveTab;
+        var tab = contextTab ?? ActiveTab;
         if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
         if (tab?.Location is { Scheme: Schemes.Zip } archiveFolder)
         {

@@ -28,6 +28,7 @@ public partial class PanelView : UserControl
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
         List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
+        List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point);
         List.GotFocus += (_, _) => Activated?.Invoke();
         // The number, or the tab strip beside the tabs, moves the whole panel.
         NumberBadge.PointerPressed += (_, e) =>
@@ -917,6 +918,22 @@ public partial class PanelView : UserControl
         _openItemMenu?.Close();
         _openItemMenu = null;
         _ = ShowContextMenuAsync(atFocus, point, request);
+    }
+
+    private void ShowBackgroundContextMenu(Avalonia.Point point)
+    {
+        long request = ++_menuRequest;
+        _openItemMenu?.Close();
+        _openItemMenu = null;
+        if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm ||
+            Panel is not { ActiveTab: { Location: { } location } tab } panel ||
+            !ReferenceEquals(tab, List.Tab)) return;
+        var menu = ContextMenuFactory.BuildBackground(vm, panel, tab, location);
+        if (request != _menuRequest) return;
+        menu.Placement = PlacementMode.Pointer;
+        _openItemMenu = menu;
+        menu.Closed += (_, _) => { if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null; };
+        menu.Open(List);
     }
 
     private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, long request)

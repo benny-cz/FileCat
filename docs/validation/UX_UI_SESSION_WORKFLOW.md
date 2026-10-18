@@ -49,7 +49,9 @@ acceptance remains open. UXBUG-008 viewer Find controls and bounded counts
 pass 240 related App and 111 related Core cases. Its full Core rerun passes
 4,427 with 150 skips using 16 workers. Native acceptance and the exact
 Page-mode total remain open. UXBUG-009's selected active job and visible row
-pass 44 related App cases. Its native acceptance remains open; FCUX-048 follows.
+pass 44 related App cases. Its native acceptance remains open. FCUX-048's
+folder-background menu passes five focused and 63 related App cases with one
+platform skip. Native location-menu acceptance remains open; FCUX-049 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -73,6 +75,7 @@ pass 44 related App cases. Its native acceptance remains open; FCUX-048 follows.
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
 | 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts; Page exposes the same navigation and a truthful lower bound because native engines do not return totals. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity. Native acceptance and an exact Page total remain open. |
 | 20 | UXBUG-009 — Details selects the active operation | Reopening Details selects and reveals active work over a retained finished selection; open-drawer choices remain stable as jobs arrive. The eight-finished-job regression and 44 related App cases pass. Native pointer, keyboard, and screen-reader acceptance remain open. |
+| 21 | FCUX-048 — listing background context menu | Whitespace right-click opens captured-location actions without targeting marked or focused files. Five focused and 63 related App cases pass with one platform skip. Native location-provider, pointer and keyboard acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

@@ -69,10 +69,10 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task PasteAsync()
+    private async Task PasteAsync(TabViewModel? contextTab = null)
     {
         var clipboard = View.Clipboard;
-        var tab = ActiveTab;
+        var tab = contextTab ?? ActiveTab;
         if (clipboard is null || tab?.Location is not { } destination) return;
 
         // Location is immutable. A tab object is not: navigation, panel changes and delayed clipboard owners
