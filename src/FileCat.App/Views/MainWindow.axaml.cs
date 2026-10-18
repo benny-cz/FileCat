@@ -201,20 +201,53 @@ public partial class MainWindow : Window, IViewActions
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
         DragDrop.SetAllowDrop(view, true);
+        DropTargetAdmission.Offer? offered = null;
         view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
-                ? (e.KeyModifiers & KeyModifiers.Shift) != 0 ? DragDropEffects.Move : DragDropEffects.Copy
-                : DragDropEffects.None;
+            (offered, _) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File),
+                (e.KeyModifiers & KeyModifiers.Shift) != 0);
+            e.DragEffects = offered?.Effect ?? DragDropEffects.None;
+            e.Handled = true;
         });
+        view.AddHandler(DragDrop.DragLeaveEvent, (_, _) => offered = null);
         view.AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
-            var files = e.DataTransfer.TryGetFiles();
-            if (files is null) return;
-            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Cast<string>().ToList();
+            var previous = offered;
+            offered = null;
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
-            await _vm.DropFilesAsync(panel, paths, move);
+            e.DragEffects = DragDropEffects.None;
+            var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move);
+            if (current is null)
+            {
+                _vm.Notify(refusal!, true);
+                return;
+            }
+            if (previous is not null && !DropTargetAdmission.SameTarget(previous, current))
+            {
+                _vm.Notify("The drop target changed during the drag. Drop again onto the folder you want to use.", true);
+                return;
+            }
+            IReadOnlyList<string>? paths;
+            string? pathRefusal;
+            try
+            {
+                var files = e.DataTransfer.TryGetFiles()?.ToArray();
+                (paths, pathRefusal) = DropTargetAdmission.CompletePaths(
+                    e.DataTransfer.GetItems(DataFormat.File).Count(), files?.Select(f => f.TryGetLocalPath()).ToArray() ?? []);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _vm.Notify("The dropped file payload could not be read. No items were accepted; copy them to a local folder and use F5.", true);
+                return;
+            }
+            if (paths is null)
+            {
+                _vm.Notify(pathRefusal!, true);
+                return;
+            }
+            e.DragEffects = current.Effect;
+            await _vm.DropFilesAsync(panel, current, paths);
         });
         view.List.DragRequested += async (_, press) =>
         {

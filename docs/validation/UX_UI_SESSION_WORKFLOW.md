@@ -28,21 +28,30 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-075**. Follow
+After resolving any outstanding validation failure, resume **FCUX-015**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-075 — unsupported drop feedback | Advertised effects must match capability; revalidate on Drop and explain refusal without changing the user's active destination. |
-| 2 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
+| 1 | FCUX-015 — live selected-job reports | Update the bound issue list without changing job selection, preserve selection/scroll, and reconcile the final report with bounded update work. |
 
 Then continue FCUX-016, FCUX-017, FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-075 implementation record
+
+The drop cursor offers Copy or Move only when the displayed filesystem tab is
+ready and its provider accepts transfers. Drop rechecks the same tab and
+location, verifies the folder is available, and refuses incomplete external
+file payloads without starting a partial job. Unsupported or changed targets
+explain the local-folder and F5 alternatives without activating the panel.
+An accepted transfer review keeps its captured destination after navigation.
+The five focused tests pass; native cursor and interapplication checks remain.
 
 ### FCUX-071 implementation record
 

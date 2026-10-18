@@ -870,12 +870,33 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
-    public async Task DropFilesAsync(PanelViewModel panel, IReadOnlyList<string> paths, bool move)
+    internal async Task DropFilesAsync(PanelViewModel panel, DropTargetAdmission.Offer offered, IReadOnlyList<string> paths)
     {
+        var (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, offered.Effect == Avalonia.Input.DragDropEffects.Move);
+        if (current is null || !DropTargetAdmission.SameTarget(offered, current))
+        {
+            Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
+            return;
+        }
+        bool available = await Task.Run(() => Directory.Exists(offered.Destination.Path));
+        (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, offered.Effect == Avalonia.Input.DragDropEffects.Move);
+        if (!available || current is null || !DropTargetAdmission.SameTarget(offered, current))
+        {
+            Notify(!available ? "The drop folder is no longer available. Reconnect or choose another destination with F5."
+                : current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
+            return;
+        }
+        bool move = offered.Effect == Avalonia.Input.DragDropEffects.Move;
+        var dest = offered.Destination;
+        var items = await Task.Run(() => paths.Select(p => ItemRef.ForFileSystemPath(p,
+            Directory.Exists(p) ? EntryKind.Directory : EntryKind.File)).ToList());
+        (current, refusal) = DropTargetAdmission.Check(panel, true, move);
+        if (current is null || !DropTargetAdmission.SameTarget(offered, current))
+        {
+            Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
+            return;
+        }
         Workspace.Activate(panel);
-        var tab = panel.ActiveTab;
-        if (tab?.Location is not { IsFileSystem: true } dest || paths.Count == 0) return;
-        var items = paths.Select(p => ItemRef.ForFileSystemPath(p, Directory.Exists(p) ? EntryKind.Directory : EntryKind.File)).ToList();
         if (items.All(i => i.Parent.Equals(dest)))
         {
             Notify("The dropped items are already in this folder.");
@@ -889,8 +910,7 @@ public sealed partial class MainViewModel
             Notify(error!, true);
             return;
         }
-        var job = Services.Jobs.Submit(new JobRequest { Kind = move ? JobKind.Move : JobKind.Copy, Sources = items, Destination = destLocation, NewName = newName, Options = request.Options, Mode = request.Queue ? QueueMode.Queue : QueueMode.Start });
-        Track(job, tab);
+        Services.Jobs.Submit(new JobRequest { Kind = move ? JobKind.Move : JobKind.Copy, Sources = items, Destination = destLocation, NewName = newName, Options = request.Options, Mode = request.Queue ? QueueMode.Queue : QueueMode.Start });
     }
 
     // ---- Checksums ---------------------------------------------------------------------------------------
