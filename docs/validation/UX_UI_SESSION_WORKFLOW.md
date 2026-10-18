@@ -54,6 +54,7 @@ Continue with FCUX-045 after resolving the complete App test-host abort.
 | 13 | UXBUG-005 — viewer window size | Remember each viewer window's last usable size and restore it on reopen, including after app restart; clamp saved bounds to the current display and cover reopened text, Markdown, PE, and other viewer modes. |
 | 14 | UXBUG-006 — Streams count after deletion | After Delete removes a stream from Streams and attributes, refresh the parent file's Streams count when the provider can query it; cover Delete-key action, stale-row retirement, and a clean fallback when the count is unavailable. |
 | 15 | FCUX-045 — Find completion | Put complete/partial/issue state where it remains visible; explain zero matches in the searched scope. |
+| 16 | UXBUG-007 — resizable search windows | Make Find in Registry and comparable search windows expandable and shrinkable, with usable minimum bounds and responsive criteria, results, and action layouts. Cover resize and reopen behavior. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
