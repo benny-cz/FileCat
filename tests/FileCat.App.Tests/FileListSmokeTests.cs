@@ -60,7 +60,8 @@ public sealed class FileListSmokeTests
                 for (int i = 0; i < 250 && tab.Listing.State != ListingState.Complete; i++) await Task.Delay(20, ct);
                 Assert.Equal(ListingState.Complete, tab.Listing.State);
                 Assert.True(tab.Listing.FocusedIndex < 20);
-                var scroll = Assert.Single(list.GetVisualDescendants().OfType<ScrollBar>());
+                var scroll = Assert.Single(list.GetVisualDescendants().OfType<ScrollBar>(),
+                    bar => bar.Orientation == Avalonia.Layout.Orientation.Vertical);
                 scroll.Value = 100;
                 Assert.Equal(100, scroll.Value);
                 int focusedBeforeScroll = tab.Listing.FocusedIndex;

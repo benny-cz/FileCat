@@ -211,6 +211,7 @@ public static class CommandIcons
             new("M8,1.5 L8,3.5 M8,12.5 L8,14.5 M1.5,8 L3.5,8 M12.5,8 L14.5,8 M3.4,3.4 L4.8,4.8 M11.2,11.2 L12.6,12.6 M3.4,12.6 L4.8,11.2 M11.2,4.8 L12.6,3.4", "ActiveAccent")],
         [CommandIds.SaveWorkspace] = [new("M2.5,2.5 L11.5,2.5 L13.5,4.5 L13.5,13.5 L2.5,13.5 Z M5,2.5 L5,6 L10.5,6 L10.5,2.5"), new("M4.5,13.5 L4.5,9.5 L11.5,9.5 L11.5,13.5", "ActiveAccent")],
         [CommandIds.LoadWorkspace] = [new(Folder, "FolderIcon"), new("M8,11.5 L8,7 M6,9 L8,7 L10,9", "OnAccent")],
+        [CommandIds.RestorePreviousWorkspace] = [new(Folder, "FolderIcon"), new("M9,6 L6,8 L9,10 M6,8 L12,8", "OnAccent")],
         [CommandIds.HexRecovery] = [new(Box, "TextMuted"), new("M4.5,5 L4.5,11 M4.5,8 L7,8 M7,5 L7,11 M9,5 L12,11 M12,5 L9,11", "Warning")],
         [CommandIds.DiagnosticsExport] = [new("M1.5,8 L4.5,8 L6,4 L9,12.5 L10.5,8 L14.5,8", "ActiveAccent")],
         // The Find window's own actions.

@@ -27,7 +27,8 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     private bool _queued;
     private ListingChange _changes;
     private string _name, _help, _value, _status;
-    private double _scrollPercent, _viewSize;
+    private double _scrollPercent, _viewSize, _horizontalScrollPercent, _horizontalViewSize;
+    private bool _horizontallyScrollable;
     private IReadOnlyList<AutomationPeer>? _selection;
 
     internal FileListAutomationPeer(FileListControl list) : base(list)
@@ -39,6 +40,9 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         _status = list.DescribeListingState();
         _scrollPercent = VerticalScrollPercent;
         _viewSize = VerticalViewSize;
+        _horizontalScrollPercent = HorizontalScrollPercent;
+        _horizontalViewSize = HorizontalViewSize;
+        _horizontallyScrollable = HorizontallyScrollable;
         _selection = SnapshotSelection();
         _selectionStore = _store;
     }
@@ -122,9 +126,12 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     public string Value => _list.DescribeFocus();
     public void SetValue(string? value) => throw new InvalidOperationException("Use list navigation and marking actions to change the focused item or selection.");
 
-    public bool HorizontallyScrollable => false;
-    public double HorizontalScrollPercent => ScrollPatternIdentifiers.NoScroll;
-    public double HorizontalViewSize => 100;
+    private double MaximumHorizontal => Math.Max(0, _list.HorizontalExtent - _list.HorizontalViewport);
+    public bool HorizontallyScrollable => MaximumHorizontal > 0;
+    public double HorizontalScrollPercent => HorizontallyScrollable
+        ? Math.Clamp(_list.HorizontalOffset * 100.0 / MaximumHorizontal, 0, 100) : ScrollPatternIdentifiers.NoScroll;
+    public double HorizontalViewSize => _list.HorizontalExtent > 0
+        ? Math.Min(100, _list.HorizontalViewport * 100.0 / _list.HorizontalExtent) : 100;
     private int MaximumTop => Math.Max(0, (_list.AutomationListing?.VisibleCount ?? 0) - _list.VisibleRowCapacity);
     public bool VerticallyScrollable => MaximumTop > 0;
     public double VerticalScrollPercent => MaximumTop > 0 ? _list.TopRow * 100.0 / MaximumTop : ScrollPatternIdentifiers.NoScroll;
@@ -134,7 +141,18 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     public void Scroll(ScrollAmount horizontalAmount, ScrollAmount verticalAmount)
     {
         EnsureEnabled();
-        if (horizontalAmount != ScrollAmount.NoAmount) throw new InvalidOperationException("The file list does not scroll horizontally.");
+        if (horizontalAmount != ScrollAmount.NoAmount && !HorizontallyScrollable)
+            throw new InvalidOperationException("The file list has no horizontal overflow to scroll.");
+        double horizontalDelta = horizontalAmount switch
+        {
+            ScrollAmount.NoAmount => 0,
+            ScrollAmount.SmallIncrement => 48,
+            ScrollAmount.SmallDecrement => -48,
+            ScrollAmount.LargeIncrement => Math.Max(48, _list.HorizontalViewport * 0.8),
+            ScrollAmount.LargeDecrement => -Math.Max(48, _list.HorizontalViewport * 0.8),
+            _ => throw new ArgumentOutOfRangeException(nameof(horizontalAmount)),
+        };
+        if (horizontalDelta != 0) _list.ScrollToHorizontalOffset(_list.HorizontalOffset + horizontalDelta);
         int delta = verticalAmount switch
         {
             ScrollAmount.NoAmount => 0,
@@ -150,7 +168,13 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     public void SetScrollPercent(double horizontalPercent, double verticalPercent)
     {
         EnsureEnabled();
-        if (horizontalPercent != ScrollPatternIdentifiers.NoScroll) throw new InvalidOperationException("The file list does not scroll horizontally.");
+        if (horizontalPercent != ScrollPatternIdentifiers.NoScroll)
+        {
+            if (!HorizontallyScrollable) throw new InvalidOperationException("The file list has no horizontal overflow to scroll.");
+            if (!double.IsFinite(horizontalPercent) || horizontalPercent < 0 || horizontalPercent > 100)
+                throw new ArgumentOutOfRangeException(nameof(horizontalPercent));
+            _list.ScrollToHorizontalOffset(MaximumHorizontal * horizontalPercent / 100);
+        }
         if (verticalPercent == ScrollPatternIdentifiers.NoScroll) return;
         if (!double.IsFinite(verticalPercent) || verticalPercent < 0 || verticalPercent > 100)
             throw new ArgumentOutOfRangeException(nameof(verticalPercent));
@@ -179,6 +203,11 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         double scroll = VerticalScrollPercent, size = VerticalViewSize;
         if (_scrollPercent != scroll) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.VerticalScrollPercentProperty, _scrollPercent, scroll); _scrollPercent = scroll; }
         if (_viewSize != size) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.VerticalViewSizeProperty, _viewSize, size); _viewSize = size; }
+        double horizontal = HorizontalScrollPercent, horizontalSize = HorizontalViewSize;
+        bool horizontallyScrollable = HorizontallyScrollable;
+        if (_horizontallyScrollable != horizontallyScrollable) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontallyScrollableProperty, _horizontallyScrollable, horizontallyScrollable); _horizontallyScrollable = horizontallyScrollable; }
+        if (_horizontalScrollPercent != horizontal) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontalScrollPercentProperty, _horizontalScrollPercent, horizontal); _horizontalScrollPercent = horizontal; }
+        if (_horizontalViewSize != horizontalSize) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontalViewSizeProperty, _horizontalViewSize, horizontalSize); _horizontalViewSize = horizontalSize; }
         // A native event listener may synchronously inspect/create another peer while it handles a change.
         foreach (var item in _items.Values.ToArray()) item.UpdateState();
         if ((changes & (ListingChange.Rows | ListingChange.Reset | ListingChange.Focus)) != 0) InvalidateChildren();

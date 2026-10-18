@@ -42,7 +42,9 @@ public sealed class FileListControl : Control
     private const double ResizeGrip = 4;
 
     private readonly ScrollBar _vbar;
+    private readonly ScrollBar _hbar;
     private bool _updatingScrollBar;
+    private bool _updatingHorizontalScrollBar;
     private int? _refreshTopRow;
     private readonly Dictionary<long, CellText> _textCache = new();
     private SimpleGlyphs? _glyphs;
@@ -57,6 +59,10 @@ public sealed class FileListControl : Control
     private ColumnSpec[] _columns = ColumnProfiles.Defaults[0].Columns;
     private double[] _columnX = [];
     private double[] _columnW = [];
+    private double _contentExtent;
+    private double _horizontalViewport;
+    private double _horizontalOffset;
+    private double _layoutHeight;
     private Typeface _typeface;
     private Typeface _boldTypeface;
     // Cached row text belongs to one store instance: a refresh swaps stores, so identity (not generation) keys it.
@@ -98,6 +104,7 @@ public sealed class FileListControl : Control
     internal double DateScale => _dateScale;
 
     private double ScaleOf(ColumnSpec column) => column.Field is ColumnField.Modified or ColumnField.Created ? _dateScale : _widthScale;
+    private double MinimumStarWidth(ColumnSpec column) => (column.Field == ColumnField.Name ? 140 : 80) * _widthScale;
     private bool _resizeInverse;
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
@@ -152,6 +159,15 @@ public sealed class FileListControl : Control
         };
         VisualChildren.Add(_vbar);
         LogicalChildren.Add(_vbar);
+        _hbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Horizontal, AllowAutoHide = false, IsVisible = false };
+        AutomationProperties.SetName(_hbar, "Listing columns");
+        _hbar.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == RangeBase.ValueProperty && !_updatingHorizontalScrollBar)
+                ScrollToHorizontalOffset(_hbar.Value);
+        };
+        VisualChildren.Add(_hbar);
+        LogicalChildren.Add(_hbar);
         _renameEditor = new TextBox
         {
             IsVisible = false,
@@ -208,7 +224,13 @@ public sealed class FileListControl : Control
         set => SetValue(FontSizeProperty, value);
     }
 
-    public int VisibleRowCapacity => Math.Max(1, (int)((Bounds.Height - _headerHeight) / _rowHeight));
+    private double HorizontalBarHeight => _hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12;
+    public int VisibleRowCapacity => Math.Max(1, (int)(((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)) / _rowHeight));
+    internal double HorizontalOffset => _horizontalOffset;
+    internal double HorizontalExtent => _contentExtent;
+    internal double HorizontalViewport => _horizontalViewport;
+    internal bool HorizontalScrollBarVisible => _hbar.IsVisible;
+    internal bool VerticalScrollBarVisible => _vbar.IsVisible;
 
     /// <summary>Raised when the user asks to open the focused row (double click).</summary>
     public event EventHandler? OpenRequested;
@@ -230,6 +252,7 @@ public sealed class FileListControl : Control
             return null;
         FinishRename(null, restoreFocus: false);
         EnsureFocusVisible();
+        ScrollToHorizontalOffset(0);
         _renameOptions = options;
         _renameStoreIndex = _listing.FocusedStoreIndex;
         _renameEditor.Text = options.Text;
@@ -322,7 +345,7 @@ public sealed class FileListControl : Control
         int nameColumn = Array.FindIndex(_columns, c => c.Field == ColumnField.Name);
         if (nameColumn < 0) nameColumn = 0;
         double y = _headerHeight + (row - _topRow) * _rowHeight;
-        double x = _columnX[nameColumn] + MarkGutter + IconSize + 4;
+        double x = _columnX[nameColumn] - _horizontalOffset + MarkGutter + IconSize + 4;
         double available = Math.Max(80, finalSize.Width - scrollWidth - x - Padding);
         double width = Math.Min(available, Math.Max(140, _columnW[nameColumn] - (x - _columnX[nameColumn]) - Padding));
         _renameEditor.Arrange(new Rect(x, y + 1, width, Math.Max(18, _rowHeight - 2)));
@@ -373,6 +396,7 @@ public sealed class FileListControl : Control
             ClearTextCache();
             _cachedStore = _listing?.Store;
             _topRow = 0;
+            _horizontalOffset = 0;
             _refreshTopRow = null;
             EnsureFocusVisible();
             RefreshGitStatuses();
@@ -410,6 +434,7 @@ public sealed class FileListControl : Control
     {
         if (Tab is null) return;
         _columns = Tab.Columns;
+        _horizontalOffset = 0;
         _widthOverrides.Clear();
         ClearTextCache();
         InvalidateArrange();
@@ -516,8 +541,7 @@ public sealed class FileListControl : Control
         if (_listing is null || _listing.FocusedIndex < 0) return null;
         int row = _listing.FocusedIndex - _topRow;
         if (row < 0 || row >= VisibleRowCapacity) return null;
-        double nameWidth = _columnW.Length > 0 ? _columnW[0] : Bounds.Width;
-        return new Rect(0, _headerHeight + row * _rowHeight, Math.Min(nameWidth, Bounds.Width), _rowHeight);
+        return new Rect(0, _headerHeight + row * _rowHeight, _horizontalViewport, _rowHeight);
     }
 
     private void ClearTextCache()
@@ -604,7 +628,9 @@ public sealed class FileListControl : Control
             if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         }
         if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
+        bool hadVerticalBar = _vbar.IsVisible;
         UpdateScrollBar();
+        if (hadVerticalBar != _vbar.IsVisible) InvalidateArrange();
         _automationPeer?.QueueUpdate(change);
         InvalidateVisual();
     }
@@ -702,11 +728,42 @@ public sealed class FileListControl : Control
         finally { _updatingScrollBar = false; }
     }
 
+    internal void ScrollToHorizontalOffset(double offset)
+    {
+        double next = Math.Clamp(offset, 0, Math.Max(0, _contentExtent - _horizontalViewport));
+        if (Math.Abs(next - _horizontalOffset) < 0.01) return;
+        _horizontalOffset = next;
+        _updatingHorizontalScrollBar = true;
+        try { _hbar.Value = next; }
+        finally { _updatingHorizontalScrollBar = false; }
+        if (IsRenaming) InvalidateArrange();
+        _automationPeer?.QueueUpdate(ListingChange.Rows);
+        InvalidateVisual();
+    }
+
+    private void UpdateHorizontalScrollBar()
+    {
+        _updatingHorizontalScrollBar = true;
+        try
+        {
+            double maximum = Math.Max(0, _contentExtent - _horizontalViewport);
+            _horizontalOffset = Math.Clamp(_horizontalOffset, 0, maximum);
+            _hbar.Maximum = maximum;
+            _hbar.ViewportSize = _horizontalViewport;
+            _hbar.SmallChange = 48;
+            _hbar.LargeChange = Math.Max(48, _horizontalViewport * 0.8);
+            _hbar.Value = _horizontalOffset;
+        }
+        finally { _updatingHorizontalScrollBar = false; }
+        _automationPeer?.QueueUpdate(ListingChange.Rows);
+    }
+
     // ---- Layout -----------------------------------------------------------------------------------------------
 
     protected override Size MeasureOverride(Size availableSize)
     {
         _vbar.Measure(availableSize);
+        _hbar.Measure(availableSize);
         if (IsRenaming) _renameEditor.Measure(availableSize);
         if (_renameErrorBox.IsVisible) _renameErrorBox.Measure(availableSize);
         double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
@@ -717,10 +774,27 @@ public sealed class FileListControl : Control
     protected override Size ArrangeOverride(Size finalSize)
     {
         double sbw = _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
-        _vbar.Arrange(new Rect(finalSize.Width - sbw, _headerHeight, sbw, Math.Max(0, finalSize.Height - _headerHeight)));
-        LayoutColumns(finalSize.Width - (_vbar.IsVisible ? sbw : 0));
+        double hbh = HorizontalBarHeight;
+        _layoutHeight = finalSize.Height;
+        for (int i = 0; i < 4; i++)
+        {
+            bool wasVertical = _vbar.IsVisible, wasHorizontal = _hbar.IsVisible;
+            _horizontalViewport = Math.Max(0, finalSize.Width - (wasVertical ? sbw : 0));
+            LayoutColumns(_horizontalViewport);
+            _hbar.IsVisible = _contentExtent > _horizontalViewport + 0.5;
+            ClampTop();
+            UpdateScrollBar();
+            if (wasVertical == _vbar.IsVisible && wasHorizontal == _hbar.IsVisible) break;
+        }
+        _horizontalViewport = Math.Max(0, finalSize.Width - (_vbar.IsVisible ? sbw : 0));
+        LayoutColumns(_horizontalViewport);
+        _hbar.IsVisible = _contentExtent > _horizontalViewport + 0.5;
         ClampTop();
         UpdateScrollBar();
+        UpdateHorizontalScrollBar();
+        _vbar.Arrange(new Rect(finalSize.Width - sbw, _headerHeight, sbw,
+            Math.Max(0, finalSize.Height - _headerHeight - (_hbar.IsVisible ? hbh : 0))));
+        _hbar.Arrange(new Rect(0, Math.Max(_headerHeight, finalSize.Height - hbh), _horizontalViewport, hbh));
         ArrangeRename(finalSize, _vbar.IsVisible ? sbw : 0);
         return finalSize;
     }
@@ -738,17 +812,20 @@ public sealed class FileListControl : Control
             if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
-        double starSpace = Math.Max(80, totalWidth - fixedSum);
+        double minimumStarSpace = _columns.Where(c => c.Star).Sum(MinimumStarWidth);
+        double starSpace = Math.Max(minimumStarSpace, totalWidth - fixedSum);
         double x = 0;
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
             double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
-                : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width * ScaleOf(c);
+                : c.Star ? Math.Max(MinimumStarWidth(c),
+                    starSpace * (c.Width / Math.Max(1, starSum))) : c.Width * ScaleOf(c);
             _columnX[i] = x;
             _columnW[i] = Math.Max(24, w);
             x += _columnW[i];
         }
+        _contentExtent = x;
     }
 
     // ---- Rendering ----------------------------------------------------------------------------------------------
@@ -770,7 +847,7 @@ public sealed class FileListControl : Control
         var bounds = new Rect(Bounds.Size);
         bool active = IsActivePanel;
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
-        double contentWidth = bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0);
+        double contentWidth = _horizontalViewport > 0 ? _horizontalViewport : bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0);
         // New columns (another tab or location) can reach a frame before the next arrange lays them out.
         if (_columnW.Length != _columns.Length) LayoutColumns(contentWidth);
         RenderHeader(dc, contentWidth, active);
@@ -782,7 +859,8 @@ public sealed class FileListControl : Control
         _inCloudRoot = Tab is { Location: { IsFileSystem: true } here } shown
             && Core.FileSystem.CloudFiles.RootOf(here.Path, shown.Services.Shell.CloudSyncRoots) is not null;
         int count = listing.VisibleCount;
-        using (dc.PushClip(new Rect(0, _headerHeight, contentWidth, Math.Max(0, bounds.Height - _headerHeight))))
+        using (dc.PushClip(new Rect(0, _headerHeight, contentWidth,
+                   Math.Max(0, bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)))))
         {
             int cap = VisibleRowCapacity + 1;
             // Scrolling must not keep every page it passed: a few pages of cells, so cached text dies young (GC).
@@ -807,8 +885,11 @@ public sealed class FileListControl : Control
         // Active panel: a strong accent bar under the header (non-color cue: thickness).
         dc.FillRectangle(active ? _accent : _grid, new Rect(0, _headerHeight - (active ? 2 : 1), Bounds.Width, active ? 2 : 1));
         var sort = _listing?.Sort ?? default;
+        using var clip = dc.PushClip(new Rect(0, 0, width, _headerHeight));
+        using var transform = dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0));
         for (int i = 0; i < _columns.Length; i++)
         {
+            if (_columnX[i] + _columnW[i] < _horizontalOffset || _columnX[i] > _horizontalOffset + width) continue;
             var c = _columns[i];
             string title = c.Header;
             if (c.SortField is { } sf && sf == sort.Field && (sf != SortField.Metadata || sort.MetadataId == c.MetadataId)) title += sort.Descending ? " ▼" : " ▲";
@@ -841,11 +922,13 @@ public sealed class FileListControl : Control
             : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6 : 0;
         var typeface = marked ? _boldTypeface : _typeface;
 
+        using (dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0)))
         for (int i = 0; i < _columns.Length; i++)
         {
             var c = _columns[i];
             double colX = _columnX[i];
             double colW = _columnW[i];
+            if (colX + colW < _horizontalOffset || colX > _horizontalOffset + width) continue;
             double textX = colX + Padding;
             double avail = colW - 2 * Padding;
             if (i == 0)
@@ -990,6 +1073,12 @@ public sealed class FileListControl : Control
         if (e.Handled || _listing is null || IsRenaming) return;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         bool other = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0;
+        if (!shift && !other && _hbar.IsVisible && e.Key is Key.Left or Key.Right)
+        {
+            ScrollToHorizontalOffset(_horizontalOffset + (e.Key == Key.Right ? 64 : -64));
+            e.Handled = true;
+            return;
+        }
         if (other) return;
         int f = Math.Max(0, _listing.FocusedIndex);
         int count = _listing.VisibleCount;
@@ -1091,7 +1180,8 @@ public sealed class FileListControl : Control
 
     private int RowAt(Point p)
     {
-        if (p.Y < _headerHeight) return -1;
+        if (p.Y < _headerHeight || p.Y >= Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0) ||
+            p.X < 0 || p.X >= _horizontalViewport) return -1;
         int row = _topRow + (int)((p.Y - _headerHeight) / _rowHeight);
         return _listing is not null && row < _listing.VisibleCount ? row : -1;
     }
@@ -1105,11 +1195,12 @@ public sealed class FileListControl : Control
     private int ResizeTargetAt(Point p, out bool inverse)
     {
         inverse = false;
-        if (p.Y >= _headerHeight) return -1;
+        if (p.Y >= _headerHeight || p.X < 0 || p.X >= _horizontalViewport) return -1;
+        double x = p.X + _horizontalOffset;
         for (int i = 0; i < _columns.Length; i++)
         {
             double right = _columnX[i] + _columnW[i];
-            if (Math.Abs(p.X - right) > ResizeGrip) continue;
+            if (Math.Abs(x - right) > ResizeGrip) continue;
             if (!_columns[i].Star) return i;
             if (i + 1 < _columns.Length && !_columns[i + 1].Star)
             {
@@ -1123,9 +1214,11 @@ public sealed class FileListControl : Control
 
     private int ColumnAt(Point p)
     {
+        if (p.X < 0 || p.X >= _horizontalViewport) return -1;
+        double x = p.X + _horizontalOffset;
         for (int i = 0; i < _columns.Length; i++)
         {
-            if (p.X >= _columnX[i] && p.X < _columnX[i] + _columnW[i]) return i;
+            if (x >= _columnX[i] && x < _columnX[i] + _columnW[i]) return i;
         }
         return -1;
     }
@@ -1257,7 +1350,8 @@ public sealed class FileListControl : Control
         string? tip = null;
         if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
-            bool overIcon = col == 0 && p.X >= _columnX[0] + MarkGutter && p.X < _columnX[0] + MarkGutter + IconSize + 2;
+            bool overIcon = col == 0 && p.X + _horizontalOffset >= _columnX[0] + MarkGutter &&
+                p.X + _horizontalOffset < _columnX[0] + MarkGutter + IconSize + 2;
             bool overCell = _columns[col] is { Field: ColumnField.Metadata, MetadataId: "verified" };
             var entry = listing.GetVisible(row);
             if ((overIcon || overCell) && entry.Kind == EntryKind.File && Tab is { HasSidecars: true } tab)
@@ -1297,6 +1391,13 @@ public sealed class FileListControl : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
+        if (_hbar.IsVisible && (Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) || (e.KeyModifiers & KeyModifiers.Shift) != 0))
+        {
+            double delta = Math.Abs(e.Delta.X) > 0 ? e.Delta.X : e.Delta.Y;
+            ScrollToHorizontalOffset(_horizontalOffset - delta * 48);
+            e.Handled = true;
+            return;
+        }
         _topRow -= (int)Math.Round(e.Delta.Y * 3);
         ClampTop();
         if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
@@ -1319,7 +1420,8 @@ public sealed class FileListControl : Control
     internal Rect VisibleRowBounds(int row)
     {
         if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount) return default;
-        var viewport = new Rect(0, _headerHeight, Math.Max(0, Bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0)), Math.Max(0, Bounds.Height - _headerHeight));
+        var viewport = new Rect(0, _headerHeight, _horizontalViewport,
+            Math.Max(0, Bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)));
         return GetRowBounds(row).Intersect(viewport);
     }
 
@@ -1377,7 +1479,8 @@ public sealed class FileListControl : Control
     }
 
     /// <summary>Right border of a laid-out column (tests and automation).</summary>
-    internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column];
+    internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column] - _horizontalOffset;
+    internal double ColumnLeftEdge(int column) => _columnX[column] - _horizontalOffset;
 
     internal string DescribeFocus()
     {
@@ -1419,7 +1522,8 @@ public sealed class FileListControl : Control
         string filter = listing.Filter is { } mask ? " Filter: " + Formatters.SafeName(mask.Text) + "." : " No filter.";
         return DescribeListingState() + " " + selection + filter + $" Sort: {listing.Sort.Field}, {(listing.Sort.Descending ? "descending" : "ascending")}. " +
             "The Review marked items command opens the complete selection, including hidden and offscreen marks. " +
-            "Arrow keys move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.";
+            "Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark." +
+            (_hbar.IsVisible ? " Left and Right scroll the columns; Shift with the wheel also scrolls columns." : string.Empty);
     }
 
     internal static string ItemKind(in EntryData e) => e.Kind switch

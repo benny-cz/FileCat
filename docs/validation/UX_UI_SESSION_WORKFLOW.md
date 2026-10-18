@@ -28,19 +28,32 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-026**. Follow
+After resolving any outstanding validation failure, resume **FCUX-027**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-026 — listing geometry | Make every configured column reachable in narrow panels, with matched header, row, hit-test and keyboard geometry. |
+| 1 | FCUX-027 — sort focus continuity | Keep the focused row visible after explicit sort, without overriding a deliberate manual scroll during refresh. |
 
-Then continue FCUX-027 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-028 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-026 implementation record
+
+The virtual file list now has a horizontal scrollbar whenever the configured
+columns exceed the pane. Header, rows, pointer hit tests, resize edges,
+tooltips and the rename editor share one horizontal offset. Left/Right keys,
+horizontal or Shift+wheel input and the accessibility Scroll pattern can reach
+the remaining columns. The Name column retains a font-scaled useful minimum;
+tab/profile changes reset the offset and resize clamps it to the current
+extent. Vertical and horizontal bars reserve each other's space. Focused
+geometry tests cover 320–800 DIP widths, enlarged text, two fill columns,
+vertical overflow, scrolled sort/resize, rename, automation and return to
+Name. Native touchpad, screen-reader and scaled desktop acceptance remain open.
 
 ### FCUX-025 implementation record
 
