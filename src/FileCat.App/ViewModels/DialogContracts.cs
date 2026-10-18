@@ -141,3 +141,9 @@ public interface IPanelResizeActions
 {
     bool BeginPanelResize(PanelViewModel panel);
 }
+
+/// <summary>Opens the active panel's ancestor menu using its provider-derived breadcrumb segments.</summary>
+public interface IBreadcrumbActions
+{
+    bool OpenAncestorMenu();
+}

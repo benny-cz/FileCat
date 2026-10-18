@@ -19,7 +19,7 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Views;
 
-public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider, IPanelResizeActions
+public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider, IPanelResizeActions, IBreadcrumbActions
 {
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
@@ -775,6 +775,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     }
 
     public void FocusPathBox() => ActivePanelView()?.FocusPathBox();
+
+    public bool OpenAncestorMenu() => ActivePanelView()?.OpenAncestorMenu() == true;
 
     public void CloseWhenIdle()
     {

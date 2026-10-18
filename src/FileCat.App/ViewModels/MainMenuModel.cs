@@ -26,7 +26,7 @@ public static class MainMenuModel
             CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, CommandIds.ReviewMarks, "-",
             CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),
         ("_Navigate", [CommandIds.Parent, CommandIds.Enter, CommandIds.Root, CommandIds.Back, CommandIds.Forward, CommandIds.Home, "-",
-            CommandIds.GoTo, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.FindFolder, CommandIds.FolderHistory,
+            CommandIds.GoTo, CommandIds.AncestorMenu, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.FindFolder, CommandIds.FolderHistory,
             CommandIds.FileHistory, CommandIds.Bookmarks, CommandIds.WorkingSets, "-", CommandIds.Refresh, CommandIds.ToggleHidden]),
         ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.FlatView, CommandIds.QuickFilter, "-",
             CommandIds.CommandLineFocus, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",

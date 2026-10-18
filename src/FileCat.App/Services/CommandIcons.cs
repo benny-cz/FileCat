@@ -128,6 +128,7 @@ public static class CommandIcons
         [CommandIds.Enter] = [new("M13,3 L13,9 L4,9 M6.5,6.5 L4,9 L6.5,11.5")],
         [CommandIds.Home] = [new("M1.5,8 L8,2 L14.5,8 M3.5,6.5 L3.5,14 L12.5,14 L12.5,6.5"), new("M6.5,14 L6.5,10 L9.5,10 L9.5,14", "ActiveAccent")],
         [CommandIds.GoTo] = [new("M8,14.5 C8,14.5 3,9.5 3,6.5 C3,3.7 5.2,1.5 8,1.5 C10.8,1.5 13,3.7 13,6.5 C13,9.5 8,14.5 8,14.5 Z"), new("M8,5 C8.8,5 9.5,5.7 9.5,6.5 C9.5,7.3 8.8,8 8,8 C7.2,8 6.5,7.3 6.5,6.5 C6.5,5.7 7.2,5 8,5 Z", "ActiveAccent", Fill: true)],
+        [CommandIds.AncestorMenu] = [new("M2,4 L5,4 M6.5,4 L9.5,4 M11,4 L14,4 M2,8 L5,8 M6.5,8 L9.5,8 M11,8 L14,8 M2,12 L5,12 M6.5,12 L9.5,12", "TextMuted"), new("M12,10 L14,12 L12,14", "ActiveAccent")],
         [CommandIds.LocationMenuSource] = [new("M1.5,3.5 L14.5,3.5 L14.5,9.5 L1.5,9.5 Z", "DriveIcon"), new("M11,6.5 L12,6.5", "DriveIcon"), new("M2,11.5 L7,11.5 L4.5,14.5 Z", "ActiveAccent", Fill: true)],
         [CommandIds.LocationMenuTarget] = [new("M1.5,3.5 L14.5,3.5 L14.5,9.5 L1.5,9.5 Z", "DriveIcon"), new("M11,6.5 L12,6.5", "DriveIcon"), new("M9,11.5 L14,11.5 L11.5,14.5 Z", "ActiveAccent", Fill: true)],
         [CommandIds.FindFolder] = [new(Folder, "FolderIcon", Opacity: 0.8), new("M10,7.5 C11.4,7.5 12.5,8.6 12.5,10 C12.5,11.4 11.4,12.5 10,12.5 C8.6,12.5 7.5,11.4 7.5,10 C7.5,8.6 8.6,7.5 10,7.5 Z M11.8,11.8 L14.5,14.5")],

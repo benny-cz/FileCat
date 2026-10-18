@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -13,6 +14,7 @@ namespace FileCat.App.Views;
 public partial class PanelView : UserControl
 {
     private bool _addressCompact;
+    private ContextMenu? _ancestorMenu;
     private static ContextMenu? _openItemMenu;
     private static long _menuRequest;
     private static bool _nativeMenuWarningShown;
@@ -501,6 +503,7 @@ public partial class PanelView : UserControl
         if (newTab)
         {
             panel.OpenTab(target);
+            List.Focus();
             return;
         }
         var segments = PathLinks.Segments;
@@ -516,6 +519,85 @@ public partial class PanelView : UserControl
         await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
         if (TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm) vm.Notify("Copied " + text);
     }
+
+    /// <summary>One explicit keyboard stop exposes every provider-derived ancestor and its actions.</summary>
+    public bool OpenAncestorMenu()
+    {
+        if (Panel is not { } panel || panel.ActiveTab is not { Location: { } origin } tab) return false;
+        var segments = PathLinks.Segments;
+        if (segments.Count < 2) return false;
+        _ancestorMenu?.Close();
+        var focused = tab.Listing.FocusedStoreIndex;
+        Core.Resources.ItemRef? originalItem = focused >= 0 && tab.Listing.TryGetFocused(out var entry)
+            ? tab.Listing.GetItemRef(focused) : null;
+        var items = new List<MenuItem>();
+        bool Current() => ReferenceEquals(Panel, panel) && ReferenceEquals(panel.ActiveTab, tab)
+            && Equals(tab.Location, origin);
+        void Run(Action action)
+        {
+            if (!Current())
+            {
+                _main?.Notify("The path changed. Open the ancestor menu again for the current location.");
+                return;
+            }
+            action();
+        }
+        for (int i = segments.Count - 2; i >= 0; i--)
+        {
+            var segment = segments[i];
+            string path = PathLinks.PathUpTo(i);
+            string safePath = Formatters.SafeName(path);
+            string name = Formatters.SafeName(PathLinks.NameOf(i));
+            var group = new MenuItem
+            {
+                Header = new TextBlock { Text = name.Length > 0 ? name : safePath, MaxWidth = 380,
+                    TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis },
+                ItemsSource = new[]
+                {
+                    CreateAction("Open here", Core.Commands.CommandIds.Parent, () => Run(() => OnPathPartChosen(segment.Target, false)), safePath),
+                    CreateAction("Open in new tab", Core.Commands.CommandIds.NewTab, () => Run(() => OnPathPartChosen(segment.Target, true)), safePath),
+                    CreateAction("Copy path", Core.Commands.CommandIds.CopyPaths, () => Run(() => _ = CopyToClipboardAsync(path)), safePath),
+                },
+            };
+            AutomationProperties.SetName(group, $"Ancestor {name}: {safePath}");
+            ToolTip.SetTip(group, safePath);
+            items.Add(group);
+        }
+        var menu = new ContextMenu { ItemsSource = items, Placement = PlacementMode.Bottom };
+        _ancestorMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_ancestorMenu, menu)) _ancestorMenu = null;
+            if (_main?.Workspace.ActivePanel is not { } active || !ReferenceEquals(active, panel))
+            {
+                _main?.View.FocusActivePanel();
+                return;
+            }
+            // The listing retains its own identity across a menu. Never reapply a stale row index after navigation
+            // or refresh: give the current list keyboard focus, preserving its item only if it is still the same one.
+            if (Current() && originalItem is not null && tab.Listing.FocusedStoreIndex >= 0
+                && tab.Listing.TryGetFocused(out _) &&
+                !tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).Equals(originalItem))
+                _main?.Notify("The listing changed while the ancestor menu was open; focus is on its current item.");
+            List.Focus();
+        };
+        menu.Open(AddressRow);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(_ancestorMenu, menu)) items[0].Focus();
+        }, DispatcherPriority.Input);
+        return true;
+
+        static MenuItem CreateAction(string verb, string icon, Action run, string path)
+        {
+            var item = new MenuItem { Header = verb, Icon = MenuIconFactory.Create(icon) };
+            AutomationProperties.SetName(item, $"{verb}: {path}");
+            item.Click += (_, _) => run();
+            return item;
+        }
+    }
+
+    internal ContextMenu? AncestorMenu => _ancestorMenu;
 
     /// <summary>The path's context menu: copy the whole path, the part clicked, or the name; go there; edit the path.</summary>
     private void ShowPathMenu(Avalonia.Point point, int segment)

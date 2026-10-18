@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Input;
@@ -70,6 +71,10 @@ public sealed class PathLine : Control
         _hot = -1;
         _layout = null;
         ToolTip.SetTip(this, null);
+        AutomationProperties.SetName(this, string.IsNullOrEmpty(text)
+            ? "Current location unavailable"
+            : $"Current location: {Services.Formatters.SafeName(text)}");
+        AutomationProperties.SetHelpText(this, "Alt+Up opens the keyboard-accessible ancestor menu; Ctrl+L edits the full location.");
         InvalidateVisual();
     }
 

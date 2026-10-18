@@ -46,6 +46,7 @@ public sealed class CommandSearchTests
     [InlineData("symlink", CommandIds.CreateLink)]
     [InlineData("sha256", CommandIds.Checksum)]
     [InlineData("keyboard resize", CommandIds.ResizePanel)]
+    [InlineData("copy ancestor", CommandIds.AncestorMenu)]
     public void Finds_commands_by_title_synonym_misspelling_and_shortcut(string query, string expected)
     {
         Assert.Equal(expected, First(query));
@@ -59,6 +60,7 @@ public sealed class CommandSearchTests
         // "registry" is the File › Registry submenu of the export command.
         Assert.Equal("File › Registry", MainMenuModel.PathOf(CommandIds.RegistryExport));
         Assert.Equal("Panels › Arrange", MainMenuModel.PathOf(CommandIds.ResizePanel));
+        Assert.Equal("Navigate", MainMenuModel.PathOf(CommandIds.AncestorMenu));
         Assert.Contains(CommandSearch.Rank("registry export", Entries, []), e => e.Id == CommandIds.RegistryExport);
         Assert.Null(MainMenuModel.PathOf(CommandIds.BookmarkGoPrefix + "1"));
     }

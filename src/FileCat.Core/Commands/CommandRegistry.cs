@@ -85,6 +85,7 @@ public static class CommandIds
     public const string Back = "nav.back";
     public const string Forward = "nav.forward";
     public const string GoTo = "nav.goto";
+    public const string AncestorMenu = "nav.ancestors";
     public const string Refresh = "nav.refresh";
     /// <summary>Alt+F1: the source panel's location menu (the id keeps its first name, for saved key bindings).</summary>
     public const string LocationMenuSource = "nav.locationLeft";
@@ -314,6 +315,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Back, "Back", N, null, CommandContext.Panel, "Alt+Left");
         Add(CommandIds.Forward, "Forward", N, null, CommandContext.Panel, "Alt+Right");
         Add(CommandIds.GoTo, "Go to path…", N, "Go to", CommandContext.Panel, "Shift+F7", "Ctrl+L");
+        Add(CommandIds.AncestorMenu, "Browse path ancestors…", N, null, CommandContext.Panel, "Alt+Up");
         Add(CommandIds.Refresh, "Reread", N, null, CommandContext.Panel, "Ctrl+R");
         Add(CommandIds.LocationMenuSource, "Change source location…", N, "Source", CommandContext.Panel, "Alt+F1");
         Add(CommandIds.LocationMenuTarget, "Change target location…", N, "Target", CommandContext.Panel, "Alt+F2");
@@ -571,6 +573,7 @@ public sealed class CommandRegistry
         K(CommandIds.LocationMenuTarget, "drives", "change drive", "locations", "right", "other panel");
         K(CommandIds.FindFolder, "jump to folder", "go to folder", "cd");
         K(CommandIds.GoTo, "path", "address", "location", "cd");
+        K(CommandIds.AncestorMenu, "breadcrumb", "parent folders", "path segments", "copy ancestor", "open ancestor");
         K(CommandIds.Refresh, "reload", "rescan", "reread");
         K(CommandIds.RegistryExport, "reg file", "export registry", "regedit");
         K(CommandIds.RegistryImport, "reg file", "import registry", "regedit");

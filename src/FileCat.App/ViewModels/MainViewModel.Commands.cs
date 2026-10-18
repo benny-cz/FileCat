@@ -224,6 +224,10 @@ public sealed partial class MainViewModel
             case CommandIds.GoTo:
                 View.FocusPathBox();
                 break;
+            case CommandIds.AncestorMenu:
+                if (_view is not IBreadcrumbActions breadcrumbs || !breadcrumbs.OpenAncestorMenu())
+                    Notify("This location has no path ancestors to browse. Ctrl+L edits its full location.");
+                break;
             case CommandIds.Home:
                 tab?.Navigate(WorkspaceViewModel.DefaultLocation());
                 break;

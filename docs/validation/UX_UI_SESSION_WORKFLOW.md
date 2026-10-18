@@ -28,19 +28,33 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-032**. Follow
+After resolving any outstanding validation failure, resume **FCUX-033**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-032 — breadcrumb accessibility | Give every breadcrumb action a complete keyboard and accessible route. |
+| 1 | FCUX-033 — long breadcrumb presentation | Keep the current folder identifiable and make the full safe path inspectable in narrow panes. |
 
-Then continue FCUX-033 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-034 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-032 implementation record
+
+Alt+Up, Navigate and command search now open a single ancestor menu based on
+the same provider-derived segments used by pointer breadcrumbs. Each ancestor
+has standard menu actions to open here, open in a new tab or copy its full path;
+the menu items expose complete safe paths to accessibility clients. The drawn
+path names the current location and explains Alt+Up and Ctrl+L without adding
+an ancestor per ordinary Tab stop. Escape returns to the current list. Menu
+actions refuse a changed tab/location, and closing a menu never reapplies an
+old row index after refresh or navigation. Successful navigation focuses the
+new listing. Keyboard-driven headless tests cover the actions, cancellation,
+stale actions and Ctrl+L; the existing pointer path tests pass. Native screen-
+reader and provider-specific desktop acceptance remains open.
 
 ### FCUX-031 implementation record
 

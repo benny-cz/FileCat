@@ -55,7 +55,7 @@
         <Panel x:Name="PathCell" Grid.Column="2">
           <TextBox x:Name="PathBox" Classes="path linked" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                    AutomationProperties.Name="Location" />
-          <ctl:PathLine x:Name="PathLinks" Margin="6,0" AutomationProperties.Name="Path" />
+          <ctl:PathLine x:Name="PathLinks" Margin="6,0" />
         </Panel>
         <!-- This belongs to the displayed file-system volume; archives and virtual locations do not show stale space. -->
         <TextBlock x:Name="FreeSpaceLabel" Grid.Column="3" Text="{Binding ActiveTab.FreeSpaceText}" Classes="small muted" Margin="8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
