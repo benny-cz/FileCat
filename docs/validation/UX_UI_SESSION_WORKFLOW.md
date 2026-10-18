@@ -39,7 +39,8 @@ their native acceptance gates open.
 | 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
 | 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
-| 5 | FCUX-039 — rename validation responsiveness | Move filesystem checks off the UI thread with current-generation ownership. |
+| 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
+| 6 | FCUX-040 — next S2 finding | Continue in the audit's physical order after the rename validation gate. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -120,8 +121,23 @@ cutoff. A synthetic 3,001-row planner case places the only collision at row
 2,501 and verifies one-click discovery and a small realized visual set. The
 existing rename scope, execution and dialog viewport tests pass in the same
 33-case selection. Native screen-reader, scaled-layout and maximum-size
-responsiveness checks remain open. FCUX-039 owns the still-synchronous
-filesystem existence probes.
+responsiveness checks remain open. The separate FCUX-039 work below moves
+filesystem existence probes to device workers.
+
+### FCUX-039 implementation record
+
+The planner now separates pure rule expansion and duplicate checks from the
+candidate destinations that need filesystem probes. The dialog computes the
+pure plan off the UI thread and runs existence probes in bounded device queues.
+Edits and scope changes clear stale rows, cancel queued work and show an
+accessible “Checking names…” state; only the current validated generation can
+enable Rename. After confirmation, a fresh device-scheduled check refuses a
+new collision before job admission, and the executor retains its no-replace
+guard. `BulkRenameAsyncPreviewTests` holds a probe to verify responsive edits,
+Cancel and stale-result rejection, and makes a target appear after preview.
+The affected App selection passes 38 cases with one platform skip; seven Core
+planner cases pass. Native slow-network, maximum-size and shutdown timing
+acceptance remain open.
 
 ### FCUX-033 implementation record
 

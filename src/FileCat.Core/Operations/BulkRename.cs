@@ -24,6 +24,30 @@ public sealed record RenamePreview(ItemRef Item, string OldName, string NewName,
     public bool Changes => Problem is null && !string.Equals(OldName, NewName, StringComparison.Ordinal);
 }
 
+public sealed record RenameExistenceCandidate(int Index, string TargetPath);
+
+/// <summary>Pure name expansion and plan collisions, ready for device-aware existence checks.</summary>
+public sealed class BulkRenamePreparation
+{
+    internal BulkRenamePreparation(IReadOnlyList<RenamePreview> rows, IReadOnlyList<RenameExistenceCandidate> candidates)
+    {
+        Rows = rows;
+        Candidates = candidates;
+    }
+
+    public IReadOnlyList<RenamePreview> Rows { get; }
+    public IReadOnlyList<RenameExistenceCandidate> Candidates { get; }
+
+    public IReadOnlyList<RenamePreview> WithExistingTargets(IReadOnlySet<int> occupied)
+    {
+        var result = Rows.ToArray();
+        foreach (var candidate in Candidates)
+            if (occupied.Contains(candidate.Index))
+                result[candidate.Index] = result[candidate.Index] with { Problem = "An item with this name exists and is not renamed." };
+        return result;
+    }
+}
+
 public static partial class BulkRenamePlanner
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
@@ -35,6 +59,17 @@ public static partial class BulkRenamePlanner
     public static IReadOnlyList<RenamePreview> Preview(IReadOnlyList<ItemRef> items, RenameRules rules, Func<string, bool> existsOnDisk,
         IReadOnlyList<string>? explicitNames = null)
     {
+        var prepared = Prepare(items, rules, explicitNames);
+        var occupied = new HashSet<int>();
+        foreach (var candidate in prepared.Candidates)
+            if (existsOnDisk(candidate.TargetPath)) occupied.Add(candidate.Index);
+        return prepared.WithExistingTargets(occupied);
+    }
+
+    /// <summary>Expands and checks names without touching a filesystem.</summary>
+    public static BulkRenamePreparation Prepare(IReadOnlyList<ItemRef> items, RenameRules rules,
+        IReadOnlyList<string>? explicitNames = null, CancellationToken cancellationToken = default)
+    {
         Regex? regex = null;
         string? regexError = null;
         if (rules.Regex && rules.Search.Length > 0)
@@ -45,6 +80,7 @@ public static partial class BulkRenamePlanner
         var rows = new List<RenamePreview>(items.Count);
         for (int i = 0; i < items.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var item = items[i];
             string name;
             string? problem = explicitNames is null ? regexError : null;
@@ -63,25 +99,29 @@ public static partial class BulkRenamePlanner
         var leaving = new HashSet<string>(comparer);
         foreach (var r in rows)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (r.Item.FileSystemPath is not { } path) continue;
             if (r.Changes) leaving.Add(path);
         }
         foreach (var r in rows)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!r.Changes || r.Item.FileSystemPath is not { } path) continue;
             string target = Path.Combine(Path.GetDirectoryName(path)!, r.NewName);
             targets[target] = targets.GetValueOrDefault(target) + 1;
         }
+        var candidates = new List<RenameExistenceCandidate>();
         for (int i = 0; i < rows.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var r = rows[i];
             if (!r.Changes || r.Item.FileSystemPath is not { } path) continue;
             string target = Path.Combine(Path.GetDirectoryName(path)!, r.NewName);
             bool caseOnly = string.Equals(path, target, StringComparison.OrdinalIgnoreCase);
             if (targets[target] > 1) rows[i] = r with { Problem = "Another item gets the same name." };
-            else if (!caseOnly && !leaving.Contains(target) && existsOnDisk(target)) rows[i] = r with { Problem = "An item with this name exists and is not renamed." };
+            else if (!caseOnly && !leaving.Contains(target)) candidates.Add(new RenameExistenceCandidate(i, target));
         }
-        return rows;
+        return new BulkRenamePreparation(rows, candidates);
     }
 
     public static string NewName(ItemRef item, int index, RenameRules rules, Regex? regex = null)

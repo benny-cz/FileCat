@@ -114,6 +114,7 @@ public sealed class BulkRenameDialogTests
 
             Confirm().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && services.Jobs.Jobs.Count == 0; i++) await Task.Delay(20, ct);
             var job = Assert.Single(services.Jobs.Jobs);
             for (int i = 0; i < 250 && !job.State.IsFinished(); i++) await Task.Delay(20, ct);
             Assert.Equal(JobState.Completed, job.State);

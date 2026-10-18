@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -11,6 +12,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.ViewModels;
 
@@ -21,6 +23,7 @@ namespace FileCat.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private const int MaxBulkRename = 50_000;
+    internal Func<string, bool> BulkRenameTargetExists { get; set; } = static path => File.Exists(path) || Directory.Exists(path);
 
     private async Task BulkRenameAsync()
     {
@@ -72,12 +75,18 @@ public sealed partial class MainViewModel
         var counterDigits = Box("1", "Counter digits", 40);
         var preview = new BulkRenameReview();
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 720 };
+        AutomationProperties.SetName(summary, "Bulk rename validation status");
+        AutomationProperties.SetLiveSetting(summary, AutomationLiveSetting.Polite);
         var editorButton = new Button { Content = "Edit names in editor…" };
         IReadOnlyList<string>? explicitNames = null;
         IReadOnlyList<RenamePreview> rows = [];
         RenameRules? plannedFor = null;
         int scopeRevision = 0, plannedScope = -1;
         bool dialogOpen = true;
+        int generation = 0;
+        bool requested = false;
+        Task? previewWork = null;
+        CancellationTokenSource? previewCancellation = null;
 
         RenameRules Rules() => new(nameMask.Text ?? "", extMask.Text ?? "", search.Text ?? "", replace.Text ?? "", regex.IsChecked == true,
             matchCase.IsChecked == true, (RenameCase)Math.Max(0, caseBox.SelectedIndex),
@@ -85,33 +94,116 @@ public sealed partial class MainViewModel
             long.TryParse(counterStep.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var st) ? st : 1,
             int.TryParse(counterDigits.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var d) ? Math.Clamp(d, 1, 12) : 1);
 
-        void Refresh()
+        async Task<IReadOnlyList<RenamePreview>> ComputeRowsAsync(IReadOnlyList<ItemRef> snapshot, RenameRules rules,
+            IReadOnlyList<string>? names, CancellationToken cancellationToken)
         {
-            plannedFor = Rules();
-            plannedScope = scopeRevision;
-            rows = BulkRenamePlanner.Preview(items, plannedFor, p => File.Exists(p) || Directory.Exists(p), explicitNames);
-            int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
+            // Rule expansion and duplicate-name checks are pure CPU work. Each target device performs its own
+            // existence checks on a bounded worker; cancellation retires queued work and late results.
+            var prepared = await Task.Run(() => BulkRenamePlanner.Prepare(snapshot, rules, names, cancellationToken), cancellationToken);
+            var groups = await Task.Run(() => prepared.Candidates
+                .GroupBy(candidate => PathUtil.GetDeviceKey(candidate.TargetPath))
+                .Select(group => (Device: group.Key, Candidates: group.ToArray())).ToArray(), cancellationToken);
+            var occupied = new HashSet<int>();
+            foreach (var group in groups)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var found = await Services.Io.Run(group.Device, IoPriority.Interactive, ct =>
+                {
+                    var hits = new List<int>();
+                    foreach (var candidate in group.Candidates)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (BulkRenameTargetExists(candidate.TargetPath)) hits.Add(candidate.Index);
+                    }
+                    return hits;
+                }, cancellationToken);
+                occupied.UnionWith(found);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return await Task.Run(() => prepared.WithExistingTargets(occupied), cancellationToken);
+        }
+
+        void Invalidate()
+        {
+            generation++;
+            previewCancellation?.Cancel();
+            requested = false;
+            plannedFor = null;
+            plannedScope = -1;
+            rows = [];
             preview.SetRows(rows);
+            editorButton.IsEnabled = false;
+            summary.Text = "Checking names…";
+            summary.Classes.Set("error", false);
+        }
+
+        void RequestPreview()
+        {
+            if (!dialogOpen) return;
+            requested = true;
+            if (previewWork is null || previewWork.IsCompleted) previewWork = RefreshPendingAsync();
+        }
+
+        async Task RefreshPendingAsync()
+        {
+            while (dialogOpen && requested && !Services.Io.IsStopped)
+            {
+                requested = false;
+                await RefreshAsync();
+            }
+        }
+
+        async Task RefreshAsync()
+        {
+            int mine = generation;
+            int scope = scopeRevision;
+            var rules = Rules();
+            var snapshot = items.ToArray();
+            var names = explicitNames?.ToArray();
+            using var cancellation = new CancellationTokenSource();
+            previewCancellation = cancellation;
+            IReadOnlyList<RenamePreview> result;
+            try { result = await ComputeRowsAsync(snapshot, rules, names, cancellation.Token); }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                if (dialogOpen && mine == generation)
+                {
+                    summary.Text = "Cannot check the proposed names: " + Formatters.SafeName(ex.Message);
+                    summary.Classes.Set("error", true);
+                }
+                return;
+            }
+            finally { if (ReferenceEquals(previewCancellation, cancellation)) previewCancellation = null; }
+            if (!dialogOpen || mine != generation || scope != scopeRevision || Services.Io.IsStopped) return;
+            rows = result;
+            plannedFor = rules;
+            plannedScope = scope;
+            preview.SetRows(rows);
+            editorButton.IsEnabled = rows.Count > 0;
+            int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
             summary.Text = $"{changing:N0} of {rows.Count:N0} names change" + (problems > 0 ? $" · {problems:N0} problems block the rename" : "") +
                            (sel.Value.HiddenMarked > 0 ? hidden.IsChecked == true ? $" · includes {sel.Value.HiddenMarked:N0} hidden marked items" : $" · {sel.Value.HiddenMarked:N0} hidden marked items excluded" : "") +
-                           (explicitNames is not null ? " · names come from the editor; change a rule to go back to the rules" : "");
+                           (names is not null ? " · names come from the editor; change a rule to go back to the rules" : "");
             summary.Classes.Set("error", problems > 0);
         }
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        debounce.Tick += (_, _) => { debounce.Stop(); Refresh(); };
+        debounce.Tick += (_, _) => { debounce.Stop(); RequestPreview(); };
         hidden.IsCheckedChanged += (_, _) =>
         {
             if (!dialogOpen) return;
             scopeRevision++;
-            plannedScope = -1;
             items = hidden.IsChecked == true ? allItems : visibleItems;
             explicitNames = null;
             debounce.Stop();
-            Refresh();
+            Invalidate();
+            RequestPreview();
         };
         void RulesChanged()
         {
+            if (!dialogOpen) return;
             explicitNames = null;
+            Invalidate();
             debounce.Stop();
             debounce.Start();
         }
@@ -122,16 +214,18 @@ public sealed partial class MainViewModel
         editorButton.Click += async (_, _) =>
         {
             int editedScope = scopeRevision;
+            int editedGeneration = generation;
             if (await EditNamesInEditorAsync(rows) is { } names)
             {
                 if (!dialogOpen) return;
-                if (editedScope != scopeRevision)
+                if (editedScope != scopeRevision || editedGeneration != generation)
                 {
-                    Notify("The rename scope changed while the names were being edited. Review the current items and edit their names again.", true);
+                    Notify("The rename rules or scope changed while the names were being edited. Review the current items and edit their names again.", true);
                     return;
                 }
                 explicitNames = names;
-                Refresh();
+                Invalidate();
+                RequestPreview();
             }
         };
 
@@ -162,16 +256,34 @@ public sealed partial class MainViewModel
                 DialogLayout.Actions(editorButton),
             },
         };
-        Refresh();
+        Invalidate();
+        RequestPreview();
         var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
             // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
             () => plannedScope == scopeRevision && (explicitNames is not null || plannedFor == Rules()) && rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
         dialogOpen = false;
+        generation++;
+        previewCancellation?.Cancel();
         debounce.Stop();
+        if (previewWork is not null) await previewWork;
         if (answer as string != "rename") return;
-        Refresh();
-        if (rows.Any(r => r.Problem is not null) || !rows.Any(r => r.Changes)) return;
+        if (plannedScope != scopeRevision || (explicitNames is null && plannedFor != Rules()) || rows.Any(r => r.Problem is not null) || !rows.Any(r => r.Changes)) return;
+        // The destination can change after preview. A second bounded check precedes job admission;
+        // the rename executor also refuses to replace a target that appears later.
+        IReadOnlyList<RenamePreview> latest;
+        try { latest = await ComputeRowsAsync(items.ToArray(), plannedFor!, explicitNames?.ToArray(), CancellationToken.None); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Notify("Could not recheck the names before rename: " + Formatters.SafeName(ex.Message), true);
+            return;
+        }
+        if (latest.Count != rows.Count || latest.Any(r => r.Problem is not null) ||
+            latest.Where((r, i) => r.NewName != rows[i].NewName).Any())
+        {
+            Notify("The rename preview changed before the job could start. Open Bulk rename again and review the current names.", true);
+            return;
+        }
         var job = Services.Jobs.Submit(new JobRequest
         {
             Kind = JobKind.Rename,

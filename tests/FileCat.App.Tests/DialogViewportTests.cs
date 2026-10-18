@@ -62,6 +62,8 @@ public sealed class DialogViewportTests
                 await Until(() => vm.Dialogs.IsOpen);
                 Layout(window);
                 Named<TextBox>(window, "Name mask").Text = new string('n', 180) + "_[C]";
+                await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b =>
+                    b.Content as string == "Edit names in editor…" && b.IsEnabled));
             }
             Layout(window);
             Assert.Equal(new Size(640, 420), window.ClientSize);

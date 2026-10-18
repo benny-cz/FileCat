@@ -44,8 +44,9 @@ public sealed class BulkRenameScopeTests
             var rename = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Rename");
             Mask().Text = "reviewed_[C]";
             await Until(() => rename.IsEnabled);
-            // The scope switch rebuilds counter order synchronously, including when clicked immediately after a preview.
+            // The scope switch invalidates the old preview immediately; the new counter order arrives after validation.
             hidden.IsChecked = include;
+            await Until(() => preview.ItemCount == (include ? 2 : 1) && rename.IsEnabled);
             Assert.Equal(include ? 2 : 1, preview.ItemCount);
             Assert.Contains(preview.ItemsSource!.Cast<BulkRenameReview.Row>(), r => r.Plan.OldName == "b.txt" && r.Plan.NewName == "reviewed_1.txt");
             if (include) Assert.Contains(preview.ItemsSource!.Cast<BulkRenameReview.Row>(), r => r.Plan.OldName == "a.txt" && r.Plan.NewName == "reviewed_2.txt");

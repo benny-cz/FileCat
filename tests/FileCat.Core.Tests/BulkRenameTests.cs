@@ -60,6 +60,29 @@ public sealed class BulkRenameTests : IDisposable
     }
 
     [Fact]
+    public void Pure_preparation_lists_only_external_targets_and_applies_checked_collisions()
+    {
+        var items = new[] { Item("a.txt"), Item("b.txt"), Item("c.txt") };
+        var swap = BulkRenamePlanner.Prepare(items[..2], new RenameRules(), ["b.txt", "a.txt"], TestContext.Current.CancellationToken);
+        Assert.Empty(swap.Candidates); // Both destinations leave in the same plan.
+        Assert.All(swap.Rows, row => Assert.Null(row.Problem));
+
+        var prepared = BulkRenamePlanner.Prepare(items, new RenameRules("new_[C]"), cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(3, prepared.Candidates.Count);
+        Assert.Equal("new_2.txt", Path.GetFileName(prepared.Candidates[1].TargetPath));
+        var checkedRows = prepared.WithExistingTargets(new HashSet<int> { 1 });
+        Assert.Null(prepared.Rows[1].Problem); // Validation never mutates the pure snapshot.
+        Assert.Contains("exists", checkedRows[1].Problem);
+        Assert.Equal(1, checkedRows.Count(row => row.Problem is not null));
+
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+#pragma warning disable xUnit1051 // This assertion specifically verifies the caller's canceled token.
+        Assert.Throws<OperationCanceledException>(() => BulkRenamePlanner.Prepare(items, new RenameRules(), cancellationToken: canceled.Token));
+#pragma warning restore xUnit1051
+    }
+
+    [Fact]
     public async Task Swaps_and_chains_run_through_temporary_names_and_undo_exactly()
     {
         _dir.File("a.txt", "A");
