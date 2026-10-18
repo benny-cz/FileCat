@@ -63,7 +63,8 @@ preference acceptance remains open. FCUX-052 adds provider-aware Refresh/F5 for
 the viewer, preserves the old snapshot until a replacement is ready, and keeps
 the changed-file banner and error visible if reopening or Page loading fails.
 Its nine focused App cases and 326 related viewer cases pass, with 12 platform
-skips in the related set. Its complete App rerun is in progress. The complete App run through FCUX-055 passes 2,276 cases
+skips in the related set. Its complete App rerun passes 2,285 cases with 63
+platform skips and zero failures. The complete App run through FCUX-055 passes 2,276 cases
 with 63 platform skips. Native provider and page-engine acceptance remain open.
 FCUX-053 adds a selection-owned loading state after debounce, Cancel/Retry,
 visible full-viewer action, and explicit empty, unavailable, permission, size

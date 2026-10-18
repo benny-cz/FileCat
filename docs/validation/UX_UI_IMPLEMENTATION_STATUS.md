@@ -7,7 +7,8 @@ prompt with visible actions. Invalid input keeps its draft; offsets and
 percentages stay in range, and line targets require a seekable source. Four
 focused and 338 related cases pass, with 12 platform skips in the related set.
 FCUX-053 passes 14 focused and 68 related App
-cases. The complete App rerun through FCUX-052 is still running. Native
+cases. The complete App rerun through FCUX-052 passes 2,285 cases with 63
+platform skips and zero failures. A complete rerun through FCUX-054 is running. Native
 provider, Shell, page-engine, scaling and assistive-technology acceptance
 remain open. FCUX-056 follows.
 FCUX-055 separates Fit, 100% and custom picture zoom states.
@@ -38,7 +39,8 @@ accessibility assertion now waits for Loaded bindings and still fails if names
 remain empty. The 59-case related rerun passes. The complete App rerun through
 FCUX-049 passes with 2,254 passes, 63 skips and no failures. Subsequent
 FCUX-050/051/055 changes pass a complete App rerun with 2,276 passes, 63 skips
-and no failures. FCUX-052 still needs a complete rerun.
+and no failures. The complete rerun through FCUX-052 passes 2,285 cases with
+63 skips and no failures; FCUX-053/054 are in the next complete rerun.
 UXBUG-008's
 240 related App and 111 related Core cases pass, and the full Core Release suite
 passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance
