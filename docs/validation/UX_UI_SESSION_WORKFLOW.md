@@ -38,8 +38,10 @@ correction, FCUX-043, FCUX-044, FCUX-045, FCUX-046, and FCUX-047 are implemented
 with focused coverage. The drop test now waits for asynchronous destination
 validation. The interrupted-review section opens expanded. The complete App
 Release suite passes (2,232 passed, 63 skipped); the complete Core suite passes
-with 16 workers (4,420 passed, 150 skipped). The 15-case fractional-scroll
-selection and 117 adjacent regressions pass. UXBUG-005 follows.
+with 16 workers (4,420 passed, 150 skipped). FCUX-047 then passed its complete
+App rerun (2,238 passed, 63 skipped). UXBUG-005 viewer geometry persistence
+passes two focused and 27 related App cases, plus 17 Core state cases.
+UXBUG-006 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -55,12 +57,12 @@ selection and 117 adjacent regressions pass. UXBUG-005 follows.
 | 10 | UXBUG-004 — Markdown prose width on resize | Prose and tables now share available Page width. Forty-eight Markdown tests pass; a rendered Chrome check measured both at 505 px narrow and 1,441 px wide. Native WebView2 desktop acceptance remains open. |
 | 11 | FCUX-043 — recovery preparation state | Reviewing, Awaiting approval, Applying and Submitted are visible. Stop before approval preserves the journal; Stop after a cleanup effect retains a report. Six focused cases pass; full App and native delayed-device acceptance remain open. |
 | 12 | FCUX-044 — Find scope | Unsupported SFTP, FTP, archive, and virtual origins show no local root and require deliberate local selection. Presets name their source; result-set scope stays fixed. Twelve focused cases and a related 47-case Find/Registry selection pass; native acceptance remains open. |
-| 13 | UXBUG-005 — viewer window size | Remember each viewer window's last usable size and restore it on reopen, including after app restart; clamp saved bounds to the current display and cover reopened text, Markdown, PE, and other viewer modes. |
+| 13 | UXBUG-005 — viewer window size | Deliberate normal-size changes persist across restart and viewer modes; saved dimensions are validated and display-clamped. Two focused and 27 related App cases pass; native display/DPI acceptance remains open. |
 | 14 | UXBUG-006 — Streams count after deletion | After Delete removes a stream from Streams and attributes, refresh the parent file's Streams count when the provider can query it; cover Delete-key action, stale-row retirement, and a clean fallback when the count is unavailable. |
 | 15 | FCUX-045 — Find completion | Visible completion and qualification, plus search-specific empty states, are implemented; 98 related Release tests pass. Full App and native acceptance remain open. |
 | 16 | UXBUG-007 — resizable search windows | Make Find in Registry and comparable search windows expandable and shrinkable, with usable minimum bounds and responsive criteria, results, and action layouts. Cover resize and reopen behavior. |
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
-| 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. Complete App rerun and native device acceptance remain open. |
+| 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

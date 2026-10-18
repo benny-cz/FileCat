@@ -100,6 +100,9 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _lineCts;
     private readonly CancellationTokenSource _closing = new();
     private static readonly List<ViewerWindow> s_open = [];
+    private Size _initialWindowSize;
+    private Size _lastNormalWindowSize;
+    private bool _windowOpened, _userSizedWindow;
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
     public static IReadOnlyList<ViewerWindow> OpenWindows => s_open;
@@ -124,10 +127,37 @@ public sealed class ViewerWindow : Window
         Closed += (_, _) => s_open.Remove(this);
         _reader = preparedReader ?? new PagedReader(source, services.Io, _deviceKey);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
-        Width = 980;
-        Height = 700;
-        MinWidth = 480;
-        MinHeight = 300;
+        Size usable = ViewerWorkingArea();
+        Size restored = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, usable);
+        MinWidth = Math.Min(480, Math.Max(1, usable.Width - 24));
+        MinHeight = Math.Min(300, Math.Max(1, usable.Height - 24));
+        Width = restored.Width;
+        Height = restored.Height;
+        Opened += (_, _) =>
+        {
+            if (Math.Abs(Width - restored.Width) < 1 && Math.Abs(Height - restored.Height) < 1)
+            {
+                // Screen information may first become available when the native window opens.
+                Size currentArea = ViewerWorkingArea();
+                Size currentSize = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, currentArea);
+                MinWidth = Math.Min(480, Math.Max(1, currentArea.Width - 24));
+                MinHeight = Math.Min(300, Math.Max(1, currentArea.Height - 24));
+                Width = currentSize.Width;
+                Height = currentSize.Height;
+            }
+            _initialWindowSize = new Size(Width, Height);
+            _lastNormalWindowSize = _initialWindowSize;
+            _windowOpened = true;
+        };
+        SizeChanged += (_, args) =>
+        {
+            if (!_windowOpened || WindowState != WindowState.Normal ||
+                !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
+            _lastNormalWindowSize = args.NewSize;
+            if (Math.Abs(args.NewSize.Width - _initialWindowSize.Width) > 1 ||
+                Math.Abs(args.NewSize.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
+        };
+        Closed += (_, _) => SaveViewerSize();
         TextDecoding.EnsureCodePages();
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
 
@@ -312,6 +342,38 @@ public sealed class ViewerWindow : Window
             _reader.Dispose();
             _infoReader?.Dispose();
         };
+    }
+
+    private Size ViewerWorkingArea()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null) return new Size(3840, 2160);
+        double scale = double.IsFinite(screen.Scaling) && screen.Scaling > 0 ? screen.Scaling : 1;
+        double width = screen.WorkingArea.Width / scale, height = screen.WorkingArea.Height / scale;
+        return new Size(double.IsFinite(width) && width > 0 ? width : 3840,
+            double.IsFinite(height) && height > 0 ? height : 2160);
+    }
+
+    internal static Size RestoreViewerSize(double? width, double? height, Size usableArea)
+    {
+        double availableWidth = double.IsFinite(usableArea.Width) && usableArea.Width > 0 ? usableArea.Width : 3840;
+        double availableHeight = double.IsFinite(usableArea.Height) && usableArea.Height > 0 ? usableArea.Height : 2160;
+        double maximumWidth = Math.Min(8192, Math.Max(1, availableWidth - 24));
+        double maximumHeight = Math.Min(8192, Math.Max(1, availableHeight - 24));
+        bool stored = width is { } w && height is { } h && ValidViewerDimension(w) && ValidViewerDimension(h);
+        return new Size(Math.Clamp(stored ? width!.Value : 980, Math.Min(480, maximumWidth), maximumWidth),
+            Math.Clamp(stored ? height!.Value : 700, Math.Min(300, maximumHeight), maximumHeight));
+    }
+
+    private static bool ValidViewerDimension(double value) => double.IsFinite(value) && value is >= 240 and <= 8192;
+
+    private void SaveViewerSize()
+    {
+        if (!_userSizedWindow || !ValidViewerDimension(_lastNormalWindowSize.Width) ||
+            !ValidViewerDimension(_lastNormalWindowSize.Height)) return;
+        _services.Settings.ViewerWidth = _lastNormalWindowSize.Width;
+        _services.Settings.ViewerHeight = _lastNormalWindowSize.Height;
+        _services.SaveSettings();
     }
 
     private async Task<byte[]> ReadOpeningPrefixAsync()

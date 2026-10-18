@@ -2,13 +2,13 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-047 fractional wheel input and one-row paging are
-implemented across the file list, TextViewer, HexView and HexCompareView. The
-new 15-case focused App selection and 117 nearby list/viewer regressions pass.
-The complete Core Release suite passes with 16 workers (4,420 passed,
-150 skipped). The complete App Release suite passes after the interrupted-review
-section was opened by default (2,232 passed, 63 skipped). The queued viewer
-window-size bug is next. FCUX-036 native acceptance and Advanced
+**Current work:** UXBUG-005 viewer windows now remember deliberate normal-size
+changes across reopening and restart, validate saved dimensions, and fit the
+current screen. Its two focused and 27 related App cases pass. FCUX-047 passes
+15 focused and 117 nearby App cases; the complete App Release run on that
+change passes (2,238 passed, 63 skipped). The complete Core Release suite
+passes with 16 workers (4,420 passed, 150 skipped). The queued Streams count
+refresh is next. FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
@@ -156,7 +156,8 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. The related 47-case Find/Registry selection and complete App Release run pass. | Native provider navigation and assistive announcement acceptance remain open. |
 | FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. The 98-case Release Find selection and complete App Release run pass. | Native narrow-window, keyboard, and screen-reader acceptance remains open. |
 | FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | New Core keymap and App Find/Settings cases pass. The related 56-case App selection passes; the complete Core Release run passes 4,420 with 150 skips using 16 workers. The complete App Release run passes 2,232 with 63 skips. | Native keyboard and shortcut editor acceptance remains open. |
-| FCUX-047 — fractional scroll and one-row paging | Accumulate precision-wheel fractions into whole rows in file list, text, hex and binary comparison; reset them at source/layout/navigation changes and list boundaries. Keep PageUp/PageDown moving with one visible row and retain list rename alignment. | Fifteen focused App cases pass, covering small and large deltas, direction reversal, a direct-scroll reset, boundaries, four surfaces, one-row paging and inline rename. All 117 nearby viewer/list regression cases pass. | Complete App rerun on this change and native conventional-wheel, precision touchpad and inertial-input acceptance remain open. |
+| FCUX-047 — fractional scroll and one-row paging | Accumulate precision-wheel fractions into whole rows in file list, text, hex and binary comparison; reset them at source/layout/navigation changes and list boundaries. Keep PageUp/PageDown moving with one visible row and retain list rename alignment. | Fifteen focused App cases and 117 nearby viewer/list regressions pass. The complete App Release run passes 2,238 with 63 skips. | Native conventional-wheel, precision touchpad and inertial-input acceptance remains open. |
+| UXBUG-005 — viewer window size | Remember a deliberate normal viewer size in profile settings and restore it for text, Markdown, PE Info, hex and picture modes. Clamp invalid or oversized values to the active display; an older untouched viewer cannot overwrite a newer size. | Two `ViewerWindowSizeTests` cases cover validation, screen bounds, reopen across viewer modes, restart persistence and concurrent windows. The related 27-case viewer selection and 17 Core state cases pass. | Native multi-monitor, DPI, minimize/maximize and restart acceptance remains open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),
