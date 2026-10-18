@@ -83,6 +83,21 @@ public sealed class BulkRenameTests : IDisposable
     }
 
     [Fact]
+    public void Counter_overflow_blocks_only_rows_that_use_the_counter()
+    {
+        var items = new[] { Item("a.txt"), Item("b.txt") };
+        var counted = BulkRenamePlanner.Prepare(items, new RenameRules("[C]", CounterStart: long.MaxValue, CounterStep: 1),
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Null(counted.Rows[0].Problem);
+        Assert.Contains("64-bit", counted.Rows[1].Problem);
+        Assert.DoesNotContain(counted.Candidates, candidate => candidate.Index == 1);
+        var literal = BulkRenamePlanner.Prepare(items, new RenameRules("[N]_plain", CounterStart: long.MaxValue, CounterStep: 1),
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.All(literal.Rows, row => Assert.Null(row.Problem));
+        Assert.Equal("b_plain.txt", literal.Rows[1].NewName);
+    }
+
+    [Fact]
     public async Task Swaps_and_chains_run_through_temporary_names_and_undo_exactly()
     {
         _dir.File("a.txt", "A");

@@ -89,6 +89,7 @@ public static partial class BulkRenamePlanner
             {
                 try { name = NewName(item, i, rules, regex); }
                 catch (RegexMatchTimeoutException) { name = item.Name; problem = "The regular expression took too long for this name."; }
+                catch (OverflowException) { name = item.Name; problem = "The counter exceeds the supported 64-bit range for this item."; }
             }
             problem ??= name == item.Name ? null : PathUtil.ValidateNewName(name);
             rows.Add(new RenamePreview(item, item.Name, name, problem));
@@ -128,7 +129,8 @@ public static partial class BulkRenamePlanner
     {
         string stem = item.IsContainer ? item.Name : Path.GetFileNameWithoutExtension(item.Name);
         string ext = item.IsContainer ? "" : Path.GetExtension(item.Name).TrimStart('.');
-        long counter = rules.CounterStart + index * rules.CounterStep;
+        long counter = rules.NameMask.Contains("[C]", StringComparison.Ordinal) || rules.ExtensionMask.Contains("[C]", StringComparison.Ordinal)
+            ? checked(rules.CounterStart + checked(index * rules.CounterStep)) : 0;
         string namePart = Expand(rules.NameMask, item, stem, ext, counter, rules.CounterDigits);
         string extPart = item.IsContainer ? "" : Expand(rules.ExtensionMask, item, stem, ext, counter, rules.CounterDigits);
         string result = extPart.Length > 0 ? namePart + "." + extPart : namePart;

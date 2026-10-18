@@ -40,7 +40,8 @@ their native acceptance gates open.
 | 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
 | 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
-| 6 | FCUX-040 — next S2 finding | Continue in the audit's physical order after the rename validation gate. |
+| 6 | FCUX-040 — counter field validation | Exact field validation and focused App/Core tests pass; native acceptance remains open. |
+| 7 | FCUX-041 — transfer destination validation | Keep deterministic destination errors within the transfer form. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -138,6 +139,16 @@ Cancel and stale-result rejection, and makes a target appear after preview.
 The affected App selection passes 38 cases with one platform skip; seven Core
 planner cases pass. Native slow-network, maximum-size and shutdown timing
 acceptance remain open.
+
+### FCUX-040 implementation record
+
+Counter start and step now require signed 64-bit whole numbers, and digits
+requires 1–12. The dialog keeps invalid text, shows field-adjacent accessible
+feedback, and refuses to plan or submit a fallback value. Empty intermediate
+text gets neutral guidance while editing. Negative steps count down and zero
+repeats the counter value; the pure planner catches overflow at each affected
+row instead of wrapping. Eight focused App field cases and eight Core planner
+cases pass. Native focus, screen-reader and scaled-layout checks remain open.
 
 ### FCUX-033 implementation record
 

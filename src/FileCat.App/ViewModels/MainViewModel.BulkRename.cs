@@ -73,6 +73,16 @@ public sealed partial class MainViewModel
         var counterStart = Box("1", "Counter start", 60);
         var counterStep = Box("1", "Counter step", 50);
         var counterDigits = Box("1", "Counter digits", 40);
+        var counterStartError = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        var counterStepError = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        var counterDigitsError = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        AutomationProperties.SetName(counterStartError, "Counter start validation");
+        AutomationProperties.SetName(counterStepError, "Counter step validation");
+        AutomationProperties.SetName(counterDigitsError, "Counter digits validation");
+        AutomationProperties.SetLiveSetting(counterStartError, AutomationLiveSetting.Assertive);
+        AutomationProperties.SetLiveSetting(counterStepError, AutomationLiveSetting.Assertive);
+        AutomationProperties.SetLiveSetting(counterDigitsError, AutomationLiveSetting.Assertive);
+        AutomationProperties.SetHelpText(counterStep, "A negative step counts down; zero repeats the counter value.");
         var preview = new BulkRenameReview();
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 720 };
         AutomationProperties.SetName(summary, "Bulk rename validation status");
@@ -88,11 +98,44 @@ public sealed partial class MainViewModel
         Task? previewWork = null;
         CancellationTokenSource? previewCancellation = null;
 
-        RenameRules Rules() => new(nameMask.Text ?? "", extMask.Text ?? "", search.Text ?? "", replace.Text ?? "", regex.IsChecked == true,
-            matchCase.IsChecked == true, (RenameCase)Math.Max(0, caseBox.SelectedIndex),
-            long.TryParse(counterStart.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var s) ? s : 1,
-            long.TryParse(counterStep.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var st) ? st : 1,
-            int.TryParse(counterDigits.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var d) ? Math.Clamp(d, 1, 12) : 1);
+        RenameRules? Rules()
+        {
+            if (!long.TryParse(counterStart.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long start) ||
+                !long.TryParse(counterStep.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long step) ||
+                !int.TryParse(counterDigits.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int digits) ||
+                digits is < 1 or > 12) return null;
+            return new RenameRules(nameMask.Text ?? "", extMask.Text ?? "", search.Text ?? "", replace.Text ?? "", regex.IsChecked == true,
+                matchCase.IsChecked == true, (RenameCase)Math.Max(0, caseBox.SelectedIndex), start, step, digits);
+        }
+
+        (string? Message, bool Error) ValidateCounters()
+        {
+            static string? Whole(TextBox box, string label) => string.IsNullOrWhiteSpace(box.Text)
+                ? $"Enter a {label}."
+                : long.TryParse(box.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                    ? null : $"{label} must be a signed 64-bit whole number.";
+            string? start = Whole(counterStart, "counter start");
+            string? step = Whole(counterStep, "counter step");
+            string? digits = string.IsNullOrWhiteSpace(counterDigits.Text) ? "Enter counter digits (1–12)."
+                : !int.TryParse(counterDigits.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) || d is < 1 or > 12
+                    ? "Counter digits must be a whole number from 1 to 12." : null;
+            static void Present(TextBox box, TextBlock label, string? message, string help)
+            {
+                label.Text = message;
+                label.IsVisible = message is not null;
+                label.Classes.Set("error", message is not null && !string.IsNullOrWhiteSpace(box.Text));
+                label.Classes.Set("muted", message is not null && string.IsNullOrWhiteSpace(box.Text));
+                AutomationProperties.SetHelpText(box, message is null ? help : message + " " + help);
+            }
+            Present(counterStart, counterStartError, start, "Use a signed 64-bit whole number.");
+            Present(counterStep, counterStepError, step, "Negative counts down; zero repeats the counter value.");
+            Present(counterDigits, counterDigitsError, digits, "Use 1 to 12 digits.");
+            string? first = start ?? step ?? digits;
+            bool error = (start is not null && !string.IsNullOrWhiteSpace(counterStart.Text)) ||
+                (step is not null && !string.IsNullOrWhiteSpace(counterStep.Text)) ||
+                (digits is not null && !string.IsNullOrWhiteSpace(counterDigits.Text));
+            return (first, error);
+        }
 
         async Task<IReadOnlyList<RenamePreview>> ComputeRowsAsync(IReadOnlyList<ItemRef> snapshot, RenameRules rules,
             IReadOnlyList<string>? names, CancellationToken cancellationToken)
@@ -133,13 +176,14 @@ public sealed partial class MainViewModel
             rows = [];
             preview.SetRows(rows);
             editorButton.IsEnabled = false;
-            summary.Text = "Checking names…";
-            summary.Classes.Set("error", false);
+            var validation = ValidateCounters();
+            summary.Text = validation.Message ?? "Checking names…";
+            summary.Classes.Set("error", validation.Error);
         }
 
         void RequestPreview()
         {
-            if (!dialogOpen) return;
+            if (!dialogOpen || Rules() is null) return;
             requested = true;
             if (previewWork is null || previewWork.IsCompleted) previewWork = RefreshPendingAsync();
         }
@@ -158,6 +202,7 @@ public sealed partial class MainViewModel
             int mine = generation;
             int scope = scopeRevision;
             var rules = Rules();
+            if (rules is null) return;
             var snapshot = items.ToArray();
             var names = explicitNames?.ToArray();
             using var cancellation = new CancellationTokenSource();
@@ -234,6 +279,11 @@ public sealed partial class MainViewModel
             Spacing = 2,
             Children = { new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap }, input },
         };
+        static Control CounterField(string label, TextBox input, TextBlock error) => new StackPanel
+        {
+            Spacing = 2,
+            Children = { new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap }, input, error },
+        };
         var body = new StackPanel
         {
             Spacing = 8,
@@ -250,7 +300,9 @@ public sealed partial class MainViewModel
                 },
                 DialogLayout.Actions(Field("Search:", search), Field("Replace:", replace)),
                 DialogLayout.Actions(regex, matchCase, Field("Case:", caseBox)),
-                DialogLayout.Actions(Field("Counter from", counterStart), Field("Step", counterStep), Field("Digits", counterDigits)),
+                DialogLayout.Actions(CounterField("Counter from", counterStart, counterStartError),
+                    CounterField("Step (negative counts down; zero repeats)", counterStep, counterStepError),
+                    CounterField("Digits (1–12)", counterDigits, counterDigitsError)),
                 preview,
                 summary,
                 DialogLayout.Actions(editorButton),
@@ -261,14 +313,16 @@ public sealed partial class MainViewModel
         var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
             // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
-            () => plannedScope == scopeRevision && (explicitNames is not null || plannedFor == Rules()) && rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
+            () => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
+                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();
         debounce.Stop();
         if (previewWork is not null) await previewWork;
         if (answer as string != "rename") return;
-        if (plannedScope != scopeRevision || (explicitNames is null && plannedFor != Rules()) || rows.Any(r => r.Problem is not null) || !rows.Any(r => r.Changes)) return;
+        if (plannedFor is null || plannedScope != scopeRevision || plannedFor != Rules() ||
+            rows.Any(r => r.Problem is not null) || !rows.Any(r => r.Changes)) return;
         // The destination can change after preview. A second bounded check precedes job admission;
         // the rename executor also refuses to replace a target that appears later.
         IReadOnlyList<RenamePreview> latest;
