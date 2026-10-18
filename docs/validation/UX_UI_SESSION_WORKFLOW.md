@@ -28,19 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-028**. Follow
+After resolving any outstanding validation failure, resume **FCUX-029**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-028 — filter draft validation | Keep invalid filter text editable and show its own error without replacing unrelated status. |
+| 1 | FCUX-029 — notification review | Give each notification coherent severity, accessible review and deliberate dismissal. |
 
-Then continue FCUX-029 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-030 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-028 implementation record
+
+The filter field keeps a rejected draft and caret in focus while its applied
+mask and rows stay unchanged. Its validation message appears beside the field,
+is linked through automation HelpText and is an assertive live region. Correcting
+and applying clears only that message; Escape, blur, tab switch and navigation
+discard the unapplied draft. All-items masks no longer erase an unrelated
+working-set, Registry or listing warning. Headless tests cover malformed quote,
+regular expression and saved-filter reference, correction, focus, warning
+preservation and actual working-set context. Native screen-reader and scaled
+layout acceptance remain open.
 
 ### FCUX-027 implementation record
 

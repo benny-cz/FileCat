@@ -72,7 +72,11 @@ public partial class PanelView : UserControl
             Activated?.Invoke();
             Dispatcher.UIThread.Post(FilterBox.SelectAll, DispatcherPriority.Input);
         };
-        FilterBox.LostFocus += (_, _) => ShowFilter();
+        FilterBox.LostFocus += (_, _) =>
+        {
+            if (_hookedTab is { } tab) tab.FilterValidationError = null;
+            ShowFilter(force: true);
+        };
         PathBox.AddHandler(KeyDownEvent, OnPathKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
@@ -392,11 +396,17 @@ public partial class PanelView : UserControl
     /// <summary>The path line follows the active tab's location.</summary>
     private void HookTab()
     {
-        if (_hookedTab is not null) _hookedTab.PropertyChanged -= OnTabPropertyChanged;
-        _hookedTab = Panel?.ActiveTab;
+        var next = Panel?.ActiveTab;
+        if (ReferenceEquals(_hookedTab, next)) return;
+        if (_hookedTab is not null)
+        {
+            _hookedTab.PropertyChanged -= OnTabPropertyChanged;
+            _hookedTab.FilterValidationError = null;
+        }
+        _hookedTab = next;
         if (_hookedTab is not null) _hookedTab.PropertyChanged += OnTabPropertyChanged;
         UpdatePathLinks();
-        ShowFilter();
+        ShowFilter(force: true);
         MarkCurrentPlace();
     }
 
@@ -406,6 +416,7 @@ public partial class PanelView : UserControl
         {
             UpdatePathLinks();
             MarkCurrentPlace();
+            ShowFilter(force: true);
         }
         else if (e.PropertyName == nameof(TabViewModel.FilterText)) ShowFilter();
     }
@@ -414,9 +425,9 @@ public partial class PanelView : UserControl
     public static string AllItemsMask => OperatingSystem.IsWindows() ? "*.*" : "*";
 
     /// <summary>The filter box shows the tab's filter (or the mask for everything), and stands out while it filters.</summary>
-    private void ShowFilter()
+    private void ShowFilter(bool force = false)
     {
-        if (FilterBox.IsFocused) return;
+        if (FilterBox.IsFocused && !force) return;
         string? filter = Panel?.ActiveTab?.FilterText;
         FilterBox.Text = filter ?? AllItemsMask;
         FilterBox.Classes.Set("active", filter is not null);
@@ -427,12 +438,13 @@ public partial class PanelView : UserControl
         if (e.Key == Key.Enter)
         {
             e.Handled = true;
-            Panel?.ActiveTab?.SetFilter(FilterBox.Text);
-            List.Focus();
+            if (Panel?.ActiveTab?.SetFilter(FilterBox.Text) == true) List.Focus();
         }
         else if (e.Key == Key.Escape)
         {
             e.Handled = true;
+            if (Panel?.ActiveTab is { } tab) tab.FilterValidationError = null;
+            ShowFilter(force: true);
             List.Focus();
         }
     }

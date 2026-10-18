@@ -99,6 +99,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _banner;
     /// <summary>The filter's mask as typed, or null when every item shows (the panel's filter box shows it).</summary>
     [ObservableProperty] private string? _filterText;
+    /// <summary>Validation for the filter field only; location and listing warnings keep their own banner.</summary>
+    [ObservableProperty] private string? _filterValidationError;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isActiveTab;
 
@@ -433,6 +435,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(location);
+        FilterValidationError = null;
         // A change journal reads newest first, times mixed with folders; the tab's own order returns when it leaves.
         if (location.Scheme == Schemes.Journal && Location?.Scheme != Schemes.Journal)
         {
@@ -556,6 +559,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(target);
+        FilterValidationError = null;
         _navigatedFocus = (target, null);
         Listing.Load(target);
         if (IsActiveTab) StartWatching();
@@ -654,25 +658,33 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Sort = sort;
     }
 
-    public void SetFilter(string? text)
+    /// <returns>Whether the draft was applied. A rejected draft leaves the current listing view intact.</returns>
+    public bool SetFilter(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text) || Mask.TryParse(text, out var all, out _) && all.IsMatchAll)
+        Mask? mask = null;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            if (!Mask.TryParse(text, out var parsed, out var error))
+            {
+                FilterValidationError = error;
+                return false;
+            }
+            mask = parsed;
+        }
+        if (mask is null || mask.IsMatchAll)
         {
             // "*" and "*.*" show everything: no filter.
             Listing.Filter = null;
             FilterText = null;
-            Banner = null;
+            FilterValidationError = null;
             UpdateStatus();
-            return;
-        }
-        if (!Mask.TryParse(text, out var mask, out var error))
-        {
-            Banner = "Filter: " + error;
-            return;
+            return true;
         }
         Listing.Filter = mask;
         FilterText = mask.Text;
+        FilterValidationError = null;
         UpdateStatus();
+        return true;
     }
 
     public void OnUserMovedFocus()
