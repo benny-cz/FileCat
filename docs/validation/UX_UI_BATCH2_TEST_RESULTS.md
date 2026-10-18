@@ -1,7 +1,7 @@
 # FileCat UX/UI continuation — implementation and test results
 
 This report continues the first high-severity implementation. The original audit
-is preserved unchanged. The earlier [execution report](UX_UI_TEST_RESULTS.md)
+retains its findings. The earlier [execution report](UX_UI_TEST_RESULTS.md)
 remains a historical record of the original and first-batch runs; its failures
 are addressed and rechecked here rather than erased from that evidence.
 
@@ -190,9 +190,8 @@ original 212 skips remain visible.
 
 The resulting Linux record is not native Windows qualification. Windows filesystem,
 registry, Shell, device and clipboard acceptance still requires the existing
-Windows/ARM64 CI and desktop environments. The evidence archive retains the
-original failure run, the reviewed platform-admission changes and their exact
-before/after source hashes.
+Windows/ARM64 CI and desktop environments. The recorded comparison includes
+the original failure run and the reviewed platform-admission changes.
 
 ## Implemented behavior and focused evidence
 
@@ -340,7 +339,7 @@ The sampled app peak fell by 78.41%; preparation allocations fell by approximate
 98.98% in both Info modes. These are different measures from live managed-heap
 size and from the entire dotnet/testhost process tree. The corrected run's separate
 child-rusage high-water mark was 266,744 KiB. Kernel OOM/kill counters did not
-increase during the corrected run. The evidence archive contains the original
+increase during the corrected run. The historical comparison captured the original
 and corrected profiles, exact-source diagnosis, hashes and upstream license.
 The source-derived allocation arithmetic is labeled as an inference, rather
 than claiming that individual native allocations were traced. These measurements
@@ -376,7 +375,7 @@ by 7,414. The same sampling and attribution limits above apply: the measurements
 do not isolate a feature or establish a memory leak, and the managed-heap cap
 does not bound total process RSS.
 
-## Reproduction and delivery verification
+## Reproduction and Git verification
 
 From the source root, use the pinned SDK and an ordinary user:
 
@@ -399,27 +398,26 @@ live-device, external-service or benchmark opt-ins.
 
 The integrated build receipt records the real successful process exit, source
 commit, unchanged source/test input snapshot, build log and complete output
-inventories for all four test projects. Each final invocation retains exact
+inventories for all four test projects. Each final invocation retained exact
 copies of those three build records. A separate task-local wrapper hashes the
 source inputs and every regular runtime file before and after calling the
 ordinary runner. Primary test assemblies, production dependencies, native
 libraries, runtime configuration, fixture data, file modes and complete path
-sets must agree with the successful build. The final packaging verification
-independently repeats those checks and rejects stale or changed results.
+sets must agree with the successful build. Repeat those checks against the
+current Git checkout when validating a new implementation.
 
 This binding covers the original runtime tree at the invocation boundaries.
 The unchanged ordinary runner makes an independent, contained private copy;
 the wrapper does not claim a separately hashed staging inventory or continuous
-monitoring of intermediate mutations. The retained source records and wrapper
-implementation make that scope explicit. Documentation-only final commits are
+monitoring of intermediate mutations. The historical source records and wrapper
+implementation made that scope explicit. Documentation-only commits were
 recorded separately from the build's source commit.
 
-### Test-runner and delivery-tool checks
+### Test-runner checks
 
-All 227 checks in the seven Python groups below passed. Their complete logs and
-the tested helper sources are retained in the delivery evidence. These are
-separate from the .NET suite totals; the focused .NET gates are overlapping
-regression selections.
+All 144 checks in the five runner-related Python groups below passed in the
+recorded batch. These are separate from the .NET suite totals; the focused .NET
+gates are overlapping regression selections.
 
 | Python group | Passed | Important boundaries |
 | --- | ---: | --- |
@@ -428,31 +426,11 @@ regression selections.
 | Durable preflight evidence | 25 | Exclusive paths, synced publication before invocation, exact retained scripts, abrupt Python exit, failed/mutated build evidence and mismatched exit receipts. |
 | Owned finite supervisor | 27 | Bounded regular identity reads, exact process ancestry, foreign/PID-reused refusal, owner-lock contention, real Python success/failure/timeout processes and cleanup failure receipts. |
 | Skip accounting | 48 | Four matching complete builds/runs, exact untrimmed reasons and identities, bounded captured TRX parsing, input replacement, preserved history and atomic publication. |
-| Cumulative packaging | 54 | Every reported run's identity and raw hash, exact final build/runtime binding, narrow reviewed historical fixture hashes, unchanged-file omission, restored earlier edits, explicit deletions, path/type safety, archive integrity and safe predecessor cleanup. |
-| Lossless evidence compaction | 29 | Exact XML/stdout/error bytes, corruption and size limits, safe paths, deterministic bundles, no-overwrite restoration and standalone helper execution. |
 
-An additional actual-data check compacted and restored 45 retained historical
-TRXs, totaling 200,716,940 original bytes. Every restored file matched its input
-byte-for-byte. The complete compact bundle used 6,835,697 ZIP-compressed bytes
-versus 21,394,927 bytes for separate DEFLATE entries, a 68.05% reduction for that
-same evidence set. The final package regenerates the bundle with the subsequent
-complete runs; its manifest records the final sizes and every original hash.
-
-The single current `FileCat-UX-changes.zip` contains cumulative added and modified
-repository files under `FileCat/`, including all earlier session fixes, the
-original audit added to the repository, regression tests, the runner and validation
-notes. Unchanged source files are omitted. Merge this directory into the original
-source tree or an earlier session iteration; the ZIP is not a complete standalone
-checkout. Its `_delivery/` directory contains application instructions, explicit
-deletion accounting and the retained build/test evidence.
-
-The optional patch is cumulative from the exact originally supplied source
-baseline. The package manifest records the exact changed-file set, source hashes,
-build-input hashes, local commits, clean-worktree status, archive integrity and a
-successful patch-application check against that original baseline. Superseded
-generated ZIPs are removed after the replacement passes verification. The
-[session workflow](UX_UI_SESSION_WORKFLOW.md) records these rules for the user's
-future “continue” requests.
+The former source-archive delivery and evidence-compaction checks are no longer
+part of this audit workflow. Continue from the Git checkout, rerun the relevant
+tests, and commit and push each verified change as described in the
+[session workflow](UX_UI_SESSION_WORKFLOW.md).
 
 ## Acceptance that requires a native environment
 

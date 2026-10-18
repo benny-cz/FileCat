@@ -4,7 +4,7 @@
 
 ## Scope and environment
 
-This report records the first high-severity implementation batch against the originally attached FileCat sources. The [implementation map](UX_UI_IMPLEMENTATION_STATUS.md) covers all 13 S1 findings in the supplied audit and identifies the remaining acceptance limits. FCUX-009 is an interim full-line-detail correction; FCUX-010 still requires native accessibility acceptance. Medium and low findings remain a separate backlog except for the explicitly documented adjacent Settings and clipboard-export corrections.
+This report records the first high-severity implementation batch against the original FileCat baseline checkout. The [implementation map](UX_UI_IMPLEMENTATION_STATUS.md) covers all 13 S1 findings in the supplied audit and identifies the remaining acceptance limits. FCUX-009 is an interim full-line-detail correction; FCUX-010 still requires native accessibility acceptance. Medium and low findings remain a separate backlog except for the explicitly documented adjacent Settings and clipboard-export corrections.
 
 The original and modified sources were built and tested in separate local checkouts using the pinned **.NET SDK 10.0.101**, **Release / net10.0**, **Avalonia 12.1.1**, and **xUnit v3 3.2.2**. The host is **Linux x64 running as root**; App UI tests use Avalonia's headless backend. Dependency versions, package lock files and SDK pinning were preserved. The locked package restore succeeded.
 
@@ -67,7 +67,7 @@ The first complete modified App run exposed seven failures absent from the origi
 
 An earlier unrestricted Core run also produced three memory failures in existing page-cache and recovery-fuzz tests on this runner. The final complete Core run uses **four concurrent xUnit collection threads** and the conservative scheduling algorithm. All three pass under that configuration; the original exception-type mismatch remains. Product memory limits, test assertions and test data were not reduced. The exact [runner configuration](ux-s1.runsettings) is included, using xUnit's documented [RunSettings interface](https://xunit.net/docs/config-runsettings).
 
-The earlier full runs are retained under `diagnostic/` in the evidence archive and are explicitly superseded by the final complete runs. Focused success is not substituted for the final regression comparison.
+The earlier full runs were retained as diagnostic evidence for this historical comparison and are explicitly superseded by the final complete runs. Focused success is not substituted for the final regression comparison.
 
 ## Reproduction
 
@@ -82,16 +82,12 @@ dotnet test tests/FileCat.App.Tests/FileCat.App.Tests.csproj -c Release --no-bui
 
 Use an ordinary desktop user for the native runs. The recorded container execution used a 1.5 GiB per-process managed GC heap cap (`DOTNET_GCHeapHardLimit=0x60000000`) and a task-local SDK/package installation. Those environment details describe the recorded run; they do not change the repository's runtime requirements or product policy.
 
-### Applying the companion patch
+### Reviewing the implementation
 
-The updated source ZIP is directly usable. To apply the companion patch instead, start from a clean Git checkout of the originally supplied sources. Use `--index` so Git honors the repository's `.gitattributes` rules, including CRLF for C# and Avalonia files. With the patch stored alongside the source directory, run the check before applying:
-
-```sh
-git apply --check --index --whitespace=nowarn ../FileCat-UX-S1.patch
-git apply --index --whitespace=nowarn ../FileCat-UX-S1.patch
-```
-
-If starting from a fresh extraction of the original ZIP, initialize its Git repository and add the original files to the index before these commands. The whitespace option preserves intentional Markdown hard line breaks in the byte-identical original audit. All other changed files pass the whitespace check. Packaging verifies the patch against a separate clean Git worktree at the exact original source baseline.
+Use the Git history on `main` to inspect the implementation and tests. Run the
+commands above against a checkout of the desired commit. The current validation
+state is recorded in the [implementation status](UX_UI_IMPLEMENTATION_STATUS.md)
+and [session workflow](UX_UI_SESSION_WORKFLOW.md).
 
 ## Remaining acceptance and next severity work
 
@@ -103,8 +99,12 @@ If starting from a fresh extraction of the original ZIP, initialize its Git repo
 
 Continue through the S2 audit order after the remaining S1 acceptance work: shared modal reachability (FCUX-011), viewer geometry/selection (FCUX-012), viewer copy correctness (FCUX-076), right-side binary keyboard selection (FCUX-072), and viewer accessibility events (FCUX-073), followed by the rest of the individual findings. Adjacent code changes do not imply that those findings are closed.
 
-## Evidence and package integrity
+## Evidence integrity
 
-The companion evidence archive includes original and final TRX files, focused gates, the two superseded full-run diagnostics, original/final solution build logs, locked restore output, the runner settings, and this report/JSON. `PACKAGE_MANIFEST.json` records the originally attached ZIP and audit SHA-256 values, per-source-file hashes, and deliverable hashes. The source archive excludes generated build outputs and Git metadata while retaining the original tracked assets and fixtures. Packaging verifies ZIP CRC integrity, checks that source/tests still match the final built files, and checks that the complete patch applies with `--index` to a clean Git worktree of the original source baseline.
+The [structured test results](UX_UI_TEST_RESULTS.json), runner settings and this
+report are tracked in Git. The first batch compared original and modified
+checkouts with separate complete builds and test runs. Current verification
+should use the checked-out source and the test commands above; historical run
+counts do not qualify later commits.
 
 For the regression comparison, test display-name groups are compared as outcome multisets, retaining repeated/truncated theory-case counts. VSTest IDs include checkout paths and therefore cannot directly identify the same test between the two isolated checkouts. One unchanged Core PE-inspection case reports the path of its own test assembly; its reviewed display-name alias and reason are recorded explicitly in JSON. No arbitrary name normalization or ignored new failures are used.

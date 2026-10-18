@@ -59,7 +59,7 @@ dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-r
 
 The final coordinated Release gate against the pinned SDK and Avalonia 12.1.1 completed **114 tests** in 39 seconds on the Linux headless host: **112 passed, zero failed, and two platform-specific Windows drive-letter tests were skipped**. All **31 selection/accessibility tests passed**: 10 real-input range-selection cases, 17 file-list automation cases, and 4 existing accessibility cases. These include rejection of actions from a detached visual host and distinct original identities for same-name search/working-set items. The group also passed 67 comparison cases, eight Find scope/focus cases, and six Working Set/menu integration cases, including the Review marked items menu icon invariant. Result artifact: `final-selection-compare-find-integration.trx`.
 
-The focused Core run passed **6 of 6 tests**, with **zero skipped**: 5 mark-paging cases and 1 cache-only metadata case. Result artifact: `selection-accessibility-core.trx`. The evidence archive packages the App gate as `focused/selection-compare-find-integration.trx` and the Core gate as `focused/selection-accessibility-core.trx`; the same six Core cases also pass in `final/core.trx`. These headless results do not constitute native screen-reader acceptance.
+The focused Core run passed **6 of 6 tests**, with **zero skipped**: 5 mark-paging cases and 1 cache-only metadata case. Its recorded result file was `selection-accessibility-core.trx`; the same six Core cases also passed in the complete Core run. These headless results do not constitute native screen-reader acceptance.
 
 ## Native acceptance gate: still open
 

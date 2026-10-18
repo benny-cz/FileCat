@@ -1,9 +1,9 @@
 # FileCat UX/UI Audit and Implementation Brief
 
 **Audit date:** 17 October 2026  
-**Document revision:** 2 — second source review, 17 October 2026  
+**Document revision:** 3 — Git workflow clarification, 18 October 2026\
 **Audience:** Product owner, interaction/visual designer, implementation engineer, and QA engineer  
-**Scope:** The FileCat implementation supplied in `FileCat(1).zip`; desktop interaction, information presentation, accessibility, and the user-facing consequences of implementation behavior  
+**Scope:** The FileCat implementation reviewed on 17 October 2026; desktop interaction, information presentation, accessibility, and the user-facing consequences of implementation behavior\
 **Status:** Independent audit and proposed implementation requirements. The application has not been modified by this review.
 
 ## Reading guide
@@ -34,7 +34,7 @@ This report distinguishes **facts about the supplied implementation** from **UX 
 
 | Evidence | What it establishes |
 | --- | --- |
-| `FileCat(1).zip`, SHA-256 `7a0cde5c72f7d39aeef3c00edde80a31b14a8ca1062cc5966f32078ea9536c63` | The exact archive reviewed. The archive has 2,055 files, including 359 C# source files under `src`, 127 of them in `FileCat.App`, and 184 C# files in `tests/FileCat.App.Tests`. These are inventory counts, not claims that every file received the same depth of review. |
+| Original review snapshot | The snapshot had 2,055 files, including 359 C# source files under `src`, 127 of them in `FileCat.App`, and 184 C# files in `tests/FileCat.App.Tests`. These historical inventory counts are not claims about the current Git checkout or the depth of review for every file. |
 | `README.md`, `global.json`, `Directory.Packages.props`, application and test project files | Product intent and stack: a keyboard-first desktop file manager using C#, the pinned .NET SDK `10.0.101`, and Avalonia `12.1.1`. Windows has additional native integration; portable surfaces also target Linux and macOS. |
 | Application XAML, custom controls, view models, relevant core services, and existing tests | Concrete wiring, data flow, rendering choices, command semantics, state transitions, and existing regression protections. Source inspection can establish deterministic branches even when their full desktop consequence still needs runtime validation. |
 | Eight JPEGs in `docs/screenshots/windows/` and `docs/screenshots/windows/CAPTURE.md` | Visual evidence from Windows captures dated 9 October 2026, showing four panels and three tabs per panel. Capture provenance names compiled source `a2f6cd9109a6b3dfddad7e92e74c5875147c78f9`; animations were disabled. This is a historical visual sample, not proof that every pixel represents the supplied source snapshot. |
@@ -42,7 +42,7 @@ This report distinguishes **facts about the supplied implementation** from **UX 
 
 **Execution boundary:** No .NET SDK or native desktop execution environment was available for this review. The application was not built or launched, and its automated tests were not run. Existing tests were inspected as specifications and evidence of covered behavior; their presence does not establish that they pass. Live keyboard behavior, assistive-technology output, operating-system integration, animation, and actual layout at the proposed sizes remain explicit validation work.
 
-All source paths below are **relative to the root of the supplied repository**. Line references refer to this archive; symbols are included so findings remain usable after lines move. The document requires no earlier conversation, unpublished design decision, or external task context. The source locations and screenshots named in a finding are sufficient starting points for implementation.
+All source paths below are **relative to the repository root**. Line references refer to the original review snapshot; symbols are included so findings remain usable after lines move. The document requires no earlier conversation, unpublished design decision, or external task context. The source locations and screenshots named in a finding are sufficient starting points for implementation.
 
 ### 1.2 Severity, evidence, and effort conventions
 
@@ -78,7 +78,11 @@ All source paths below are **relative to the root of the supplied repository**. 
 
 ### 1.4 Revision record and change boundaries
 
-Revision 2 rechecks the same archive and historical screenshots. It adds eight distinct findings and strengthens existing ones; it does not represent a new application version or newly executed desktop tests. All 68 original IDs remain stable. The revised total is **76 findings: 13 high, 51 medium, and 12 low**.
+Revision 3 clarifies that implementation and validation use the Git checkout. It
+does not change any finding or claim new desktop execution. Revision 2 rechecked
+the same original source snapshot and historical screenshots, added eight distinct
+findings and strengthened existing ones. All 68 original IDs remain stable. The
+total is **76 findings: 13 high, 51 medium, and 12 low**.
 
 | Change | Findings | Why the document changed |
 | --- | --- | --- |
@@ -3293,7 +3297,10 @@ Optional future research could study onboarding, terminology comprehension, tool
 
 ### 10.1 Primary implementation evidence
 
-The supplied `FileCat(1).zip` is the primary source. Its SHA-256, implementation stack and screenshot provenance are recorded in section 1. Source paths and line ranges in each finding point into this archive. They are locators rather than line-stable APIs; use the accompanying symbol names after code moves.
+The Git repository is the source for implementation and validation. This audit
+records observations from the original review snapshot. Source paths and line
+ranges in each finding are historical locators rather than line-stable APIs; use
+the accompanying symbol names after code moves.
 
 Visual evidence comes from the actual JPEGs in `docs/screenshots/windows/`, particularly `docs/screenshots/windows/Classic.jpg`, `docs/screenshots/windows/ClassicDark.jpg`, `docs/screenshots/windows/System.jpg`, `docs/screenshots/windows/HighContrast.jpg`, `docs/screenshots/windows/DosCommander.jpg` and `docs/screenshots/windows/Psychedelic.jpg`. `docs/screenshots/windows/CAPTURE.md` describes how and when they were captured. No new application screenshot was produced in this audit environment.
 

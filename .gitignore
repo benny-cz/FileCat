@@ -42,6 +42,7 @@ ScaffoldingReadMe.txt
 .env
 
 # Others
+.tmp/
 ~$*
 *~
 CodeCoverage/

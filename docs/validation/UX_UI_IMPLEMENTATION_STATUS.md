@@ -151,9 +151,7 @@ changing system accounts or checkout permissions.
 
 The [session workflow](UX_UI_SESSION_WORKFLOW.md) records what the user's next
 “continue” means: resolve any outstanding validation failures, then resume the
-highest-severity unfinished work with regression tests. Delivery uses one current
-`FileCat-UX-changes.zip`, containing all cumulative added and modified files from
-the original attached sources, including earlier session fixes. Unchanged source
-files are omitted. The ZIP includes application instructions, explicit deletion
-accounting and retained test evidence. The optional patch uses that same original
-baseline. Superseded generated ZIPs are removed after the replacement is verified.
+highest-severity unfinished work with regression tests. The current Git checkout
+and `main` history are the delivery record. Each verified implementation and its
+tests are committed and pushed to `origin/main`; validation results and outstanding native
+acceptance are recorded in this repository.

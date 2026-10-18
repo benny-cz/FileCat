@@ -1,8 +1,8 @@
 # FileCat UX/UI implementation session workflow
 
-This file records the user's continuation and delivery instructions for this
-implementation session. The original [UX/UI audit](FileCat_UX_UI_Audit.md) stays
-unchanged; the [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records
+This file records the user's continuation and Git delivery instructions for this
+implementation session. The original [UX/UI audit](FileCat_UX_UI_Audit.md) retains
+its findings; the [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records
 what has been implemented, verified and left open.
 
 ## What “continue” means
@@ -331,66 +331,13 @@ side, range and bytes without synchronous peer reads. The 79 comparison and
 accessibility tests pass on Windows, including old pointer and replacement tests. Native
 screen-reader, scaling and clipboard interoperability acceptance remains open.
 
-## Cumulative baseline
-
-The immutable source baseline is the original attached FileCat source archive,
-represented locally by commit:
-
-```text
-aed1ae5053f50ef0c90f682200c5cb5d0b03ae24
-```
-
-Always compare the final reviewed tree with this original baseline. Do not reset
-the delivery baseline to the previous iteration or the latest commit. The
-package must include every cumulative added or modified file, including fixes
-from earlier turns. Also include a file that was edited earlier and then restored
-to its original bytes or mode: otherwise an overlay on the earlier iteration
-would leave that old edit behind. Files never edited during the session can be
-omitted. Record deleted files explicitly; a missing file in a changes-only archive
-cannot communicate deletion by itself.
-
-When resuming from a delivered ZIP, retain its
-`_delivery/PACKAGE_MANIFEST.json`. Its original-source hash,
-`session_change_status`, restored-file records and `deleted_paths` preserve the
-same cumulative baseline and previously touched-file set if the local Git
-history needs to be reconstructed. Carry that history into the next delivery
-alongside the new changes.
-
-## One generated ZIP
-
-Maintain one current generated ZIP named **`FileCat-UX-changes.zip`**. It contains:
-
-- `FileCat/`: the cumulative added and modified repository files, using their
-  original repository-relative paths and retaining executable/symbolic-link
-  semantics where applicable.
-- `_delivery/`: application instructions, a manifest of changed and deleted
-  paths with hashes, and retained test/build evidence. This directory is delivery
-  metadata, separate from the product files.
-
-Unchanged repository files, build outputs, dependency caches and Git internals
-are omitted. This ZIP is an overlay for the original source tree or an earlier
-iteration of this same session; it is not a complete standalone checkout. Back
-up unrelated local edits before overlaying it. Apply the deletion manifest's
-explicit file/link removals before merging; preserve directories that now hold
-replacement files. For directory-to-file changes, remove only obsolete listed
-files and empty blocking directories, keeping unrelated local contents. Replace
-an existing symbolic link itself instead of copying through it. The ZIP's
-application instructions explain this order. An optional cumulative binary-safe
-patch is another way to apply the changes to the exact original baseline.
-
-Create and verify the replacement ZIP before removing superseded generated ZIPs.
-Verify its complete path set and hashes against the baseline diff, its CRCs, and
-the cumulative patch's application to a clean original checkout. Then remove
-older generated deliverable ZIPs so only the current ZIP remains. Preserve the
-original attached source archive and repository archive fixtures: those are
-inputs, not superseded deliverables. Keep expensive execution evidence in the
-current package even when its previous standalone ZIP is removed.
-
 ## Version control
 
-Commit the reviewed implementation, regression tests and status records locally.
-Push directly when an existing intended remote and working credentials are
-available, as the user requested. Do not invent a remote or change repository
-visibility. If pushing is unavailable, deliver the verified cumulative changes
-ZIP and state that limitation accurately. Preserve existing user changes and
-avoid destructive history rewrites.
+Use the current Git checkout and `main` history as the source of truth. Review
+each change with `git diff`, run its focused tests and applicable complete suites,
+then commit the implementation, regression tests and status records together.
+Push each verified commit to `origin/main`, as the user requested. Preserve
+unrelated local changes and avoid destructive history rewrites. If a push fails,
+keep the commit locally, report the failure and retry when the remote is available.
+Record test evidence and remaining native acceptance in the repository's validation
+documents. Do not create a source or changes ZIP for this audit workflow.

@@ -54,7 +54,7 @@ UI tests require the repository's existing Avalonia headless test setup. Run the
 
 ### Recorded focused results
 
-The final focused App run passed **98/98** cases with no failures or skips in 20 seconds. Its result file is `clipboard-content-passing.trx`, packaged as `focused/clipboard-content.trx` in the evidence archive. The **26** `ContentSearchBackwardTests` cases also passed in the complete final Core run, packaged as `final/core.trx`. Together these findings have **124 passing cases**; these counts overlap the complete suites and do not claim that the entire repository or every native platform passed.
+The final focused App run passed **98/98** cases with no failures or skips in 20 seconds; its recorded result file was `clipboard-content-passing.trx`. The **26** `ContentSearchBackwardTests` cases also passed in the complete final Core run. Together these findings have **124 passing cases**; these counts overlap the complete suites and do not claim that the entire repository or every native platform passed.
 
 | Test class or group | Passing cases |
 | --- | ---: |
