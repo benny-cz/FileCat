@@ -38,12 +38,19 @@ public sealed class ViewerPageSearchTests
         Assert.True(search.IsFocused);
         search.Text = "needle";
         Dispatcher.UIThread.RunJobs();
+        var next = Field<Button>(viewer, "_nextMatch");
+        var previousButton = Field<Button>(viewer, "_previousMatch");
+        var matchCount = Field<TextBlock>(viewer, "_matchCount");
+        Assert.True(next.IsVisible);
+        Assert.True(previousButton.IsVisible);
+        Assert.True(next.IsEnabled);
+        Assert.Equal("Press Next or Previous to find", matchCount.Text);
 
-        var first = Find(viewer, forward: true);
+        next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await WaitFor(() => engine.Requests.Count == 1);
         Assert.Equal(("needle", false, true), engine.Requests[0].Query);
         engine.Requests[0].Done.SetResult(true);
-        await first;
+        await WaitFor(() => matchCount.Text?.StartsWith("At least 1 match", StringComparison.Ordinal) == true);
         Assert.Contains("Found \"needle\"", viewer.StatusText);
 
         Assert.True(page.KeyRequested(Key.F3, KeyModifiers.None));
@@ -53,11 +60,11 @@ public sealed class ViewerPageSearchTests
         await WaitFor(() => viewer.StatusText.Contains("was not found", StringComparison.Ordinal));
         Assert.Contains("was not found", viewer.StatusText);
 
-        var previous = Find(viewer, forward: false);
+        previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await WaitFor(() => engine.Requests.Count == 3);
         Assert.Equal(("needle", false, false), engine.Requests[2].Query);
         engine.Requests[2].Done.SetResult(true);
-        await previous;
+        await WaitFor(() => viewer.StatusText.Contains("Found \"needle\"", StringComparison.Ordinal));
         Assert.Contains("Found \"needle\"", viewer.StatusText);
 
         var stopped = Find(viewer, forward: true);
@@ -68,6 +75,29 @@ public sealed class ViewerPageSearchTests
         await stopped;
         Assert.Contains("canceled", viewer.StatusText);
         Assert.False(stop.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Page_find_count_never_claims_an_exact_total_from_a_directional_browser_result()
+    {
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        Field<TextBox>(viewer, "_search").Text = "missing";
+        var noMatch = Find(viewer, forward: true);
+        await WaitFor(() => fixture.Engine.Requests.Count == 1);
+        fixture.Engine.Requests[0].Done.SetResult(false);
+        await noMatch;
+        Assert.Contains("total unavailable", Field<TextBlock>(viewer, "_matchCount").Text);
+        Assert.Contains("0 matches from here", Field<TextBlock>(viewer, "_matchCount").Text);
+        Field<TextBox>(viewer, "_search").Text = "needle";
+        var found = Find(viewer, forward: true);
+        await WaitFor(() => fixture.Engine.Requests.Count == 2);
+        fixture.Engine.Requests[1].Done.SetResult(true);
+        await found;
+        Assert.Contains("At least 1 match", Field<TextBlock>(viewer, "_matchCount").Text);
+        Field<ToggleButton>(viewer, "_modeHex").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.DoesNotContain("At least 1 match", Field<TextBlock>(viewer, "_matchCount").Text);
     }
 
     [AvaloniaFact]

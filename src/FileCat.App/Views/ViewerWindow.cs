@@ -36,7 +36,11 @@ public sealed class ViewerWindow : Window
     private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _previousMatch = new() { Content = "Previous" };
+    private readonly Button _nextMatch = new() { Content = "Next" };
+    private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
+    private readonly Button _stopCount = new() { Content = "Stop count", IsVisible = false };
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
@@ -77,6 +81,14 @@ public sealed class ViewerWindow : Window
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _countCts;
+    private SearchIdentity? _countIdentity;
+    private ContentSearch.MatchCount? _countResult;
+    private bool _countFailed;
+    private bool _countCanceled;
+    private bool _pageFoundMatch;
+    private bool _pageTriedFind;
+    private bool _pageFindUnavailable;
     private CancellationTokenSource? _checksumCts;
     private readonly Border _checksumPanel = new() { IsVisible = false, Padding = new Thickness(10), Classes = { "banner" } };
     private readonly ComboBox _checksumScope = new() { MinWidth = 230 };
@@ -163,6 +175,10 @@ public sealed class ViewerWindow : Window
 
         foreach (var (name, _) in TextDecoding.Choices) _encodingBox.Items.Add(name);
         Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
+        Avalonia.Automation.AutomationProperties.SetName(_previousMatch, "Find previous match");
+        Avalonia.Automation.AutomationProperties.SetName(_nextMatch, "Find next match");
+        Avalonia.Automation.AutomationProperties.SetName(_matchCount, "Find match count");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_matchCount, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_encodingBox, "Text encoding");
         _wrap.IsChecked = services.Settings.ViewerWrap;
         _text.Wrap = services.Settings.ViewerWrap;
@@ -187,8 +203,21 @@ public sealed class ViewerWindow : Window
         var encodingLabel = new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
         var goTo = new Button { Content = "Go to…" };
         goTo.Click += async (_, _) => await GoToAsync();
-        _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo, _encodingInfo]);
-        foreach (var part in _textOnly.Take(8)) toolbar.Children.Add(part);
+        _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo,
+            _encodingInfo, _previousMatch, _nextMatch, _matchCount, _stopCount]);
+        foreach (var part in _textOnly.Take(7)) toolbar.Children.Add(part);
+        ToolTip.SetTip(_previousMatch, "Find the previous match (Shift+F3)");
+        ToolTip.SetTip(_nextMatch, "Find the next match (F3)");
+        _previousMatch.Click += async (_, _) => await FindAsync(forward: false);
+        _nextMatch.Click += async (_, _) => await FindAsync(forward: true);
+        toolbar.Children.Add(_previousMatch);
+        toolbar.Children.Add(_nextMatch);
+        toolbar.Children.Add(_matchCount);
+        ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
+        _stopCount.Click += (_, _) => _countCts?.Cancel();
+        toolbar.Children.Add(_stopCount);
+        toolbar.Children.Add(goTo);
+        UpdateMatchControls();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc). Other navigation remains available.");
         _stopSearch.Click += (_, _) => _searchCts?.Cancel();
         toolbar.Children.Add(_stopSearch);
@@ -297,6 +326,7 @@ public sealed class ViewerWindow : Window
             {
                 e.Handled = true;
                 _searchCts?.Cancel();
+                _countCts?.Cancel();
                 FocusContent();
             }
         };
@@ -334,6 +364,7 @@ public sealed class ViewerWindow : Window
         {
             _changeTimer.Stop();
             _searchCts?.Cancel();
+            _countCts?.Cancel();
             _closing.Cancel();
             _text.SetReader(null, _text.Encoding, 0);
             _hex.SetReader(null);
@@ -526,7 +557,9 @@ public sealed class ViewerWindow : Window
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
         _modePage.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
-        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase;
+        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase ||
+            part == _previousMatch || part == _nextMatch || part == _matchCount || part == _stopCount;
+        UpdateMatchControls();
         if (_htmlPage is null)
         {
             _pageGeneration = _sourceGeneration;
@@ -598,7 +631,9 @@ public sealed class ViewerWindow : Window
         _modeInfo.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = false;
         // Find works in the report; the text-only settings do not apply to it.
-        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase || part == _wrap;
+        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase || part == _wrap ||
+            part == _previousMatch || part == _nextMatch || part == _matchCount || part == _stopCount;
+        UpdateMatchControls();
         _wrap.IsEnabled = true;
         _wrap.IsChecked = _info.Wrap;
         UpdateCopyActions();
@@ -734,6 +769,7 @@ public sealed class ViewerWindow : Window
         _wrap.IsChecked = _text.Wrap;
         if (hex) _hex.GoTo(_text.TopOffset);
         else _text.ScrollToOffset(_hex.CursorOffset);
+        UpdateMatchControls();
         FocusContent();
         UpdateStatus();
         UpdateCopyActions();
@@ -838,9 +874,11 @@ public sealed class ViewerWindow : Window
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var focused = FocusManager?.GetFocusedElement();
-        if (e.Key == Key.Escape && (_searchCts is not null || _checksumCts is not null || _copyCts is not null))
+        if (e.Key == Key.Escape && (_searchCts is not null || _countCts is not null ||
+            _checksumCts is not null || _copyCts is not null))
         {
             if (_searchCts is not null) _searchCts.Cancel();
+            else if (_countCts is not null) _countCts.Cancel();
             else if (_checksumCts is not null) _checksumCts.Cancel();
             else _copyCts?.Cancel();
             e.Handled = true;
@@ -964,6 +1002,7 @@ public sealed class ViewerWindow : Window
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         _stopSearch.IsVisible = true;
+        UpdateMatchControls();
         _status.Text = $"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)";
         long found;
         try
@@ -980,6 +1019,7 @@ public sealed class ViewerWindow : Window
             if (found < 0)
             {
                 _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.";
+                EnsureMatchCount(identity, reader, bytes, enc, matchCase);
                 return;
             }
             _lastHit = found;
@@ -998,6 +1038,7 @@ public sealed class ViewerWindow : Window
             }
             finally { _revealingSearch = false; }
             UpdateStatus();
+            EnsureMatchCount(identity, reader, bytes, enc, matchCase);
         }
         catch (OperationCanceledException)
         {
@@ -1011,7 +1052,12 @@ public sealed class ViewerWindow : Window
         }
         finally
         {
-            if (ReferenceEquals(_searchCts, cts)) { _searchCts = null; _stopSearch.IsVisible = false; }
+            if (ReferenceEquals(_searchCts, cts))
+            {
+                _searchCts = null;
+                _stopSearch.IsVisible = false;
+                UpdateMatchControls();
+            }
         }
     }
 
@@ -1022,6 +1068,8 @@ public sealed class ViewerWindow : Window
         if (_pageGeneration != _sourceGeneration)
         {
             _pageSearchStatus = "The file changed; reopen the viewer to search this page.";
+            _pageFindUnavailable = true;
+            UpdateMatchControls();
             UpdateStatus();
             return;
         }
@@ -1030,6 +1078,7 @@ public sealed class ViewerWindow : Window
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         _stopSearch.IsVisible = true;
         _pageSearchStatus = $"Searching page {(forward ? "forward" : "backward")}… (Esc stops)";
+        UpdateMatchControls();
         UpdateStatus();
         try
         {
@@ -1042,6 +1091,10 @@ public sealed class ViewerWindow : Window
                 false => $"\"{pattern}\" was not found in this page.",
                 null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
             };
+            _pageTriedFind = found is not null;
+            _pageFindUnavailable = found is null;
+            _pageFoundMatch |= found == true;
+            UpdateMatchControls();
             UpdateStatus();
         }
         catch (OperationCanceledException)
@@ -1054,11 +1107,16 @@ public sealed class ViewerWindow : Window
         }
         finally
         {
-            if (ReferenceEquals(_searchCts, cts)) { _searchCts = null; _stopSearch.IsVisible = false; }
+            if (ReferenceEquals(_searchCts, cts))
+            {
+                _searchCts = null;
+                _stopSearch.IsVisible = false;
+                UpdateMatchControls();
+            }
         }
     }
 
-    private void InvalidateSearch()
+    private void InvalidateSearch(bool keepCount = false)
     {
         if (_isPage) _pageView.ClearFind();
         _searchCts?.Cancel();
@@ -1067,6 +1125,125 @@ public sealed class ViewerWindow : Window
         _lastHit = -1;
         _lastSearch = null;
         _pageSearchStatus = null;
+        if (!keepCount)
+        {
+            _countCts?.Cancel();
+            _countCts = null;
+            _countIdentity = null;
+            _countResult = null;
+            _countFailed = false;
+            _countCanceled = false;
+            _pageTriedFind = false;
+            _pageFoundMatch = false;
+            _pageFindUnavailable = false;
+            _stopCount.IsVisible = false;
+        }
+        UpdateMatchControls();
+    }
+
+    private void EnsureMatchCount(SearchIdentity identity, PagedReader reader, byte[]? bytes, Encoding encoding,
+        bool matchCase)
+    {
+        if (_countIdentity == identity && (_countCts is not null || _countResult is not null ||
+            _countFailed || _countCanceled))
+        {
+            UpdateMatchControls();
+            return;
+        }
+        _countCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _countCts = cts;
+        _countIdentity = identity;
+        _countResult = null;
+        _countFailed = false;
+        _countCanceled = false;
+        _stopCount.IsVisible = true;
+        UpdateMatchControls();
+        long byteLimit = ReferenceEquals(reader, _infoReader) || reader.Source.LocalPath is not null
+            ? 64L << 20 : 8L << 20;
+        _ = CountMatchesAsync(identity, reader, bytes, encoding, matchCase, byteLimit, cts);
+    }
+
+    private async Task CountMatchesAsync(SearchIdentity identity, PagedReader reader, byte[]? bytes,
+        Encoding encoding, bool matchCase, long byteLimit, CancellationTokenSource cts)
+    {
+        try
+        {
+            var result = await Task.Run(() => bytes is not null
+                ? ContentSearch.CountBytes(reader, bytes, byteLimit, 10_000, cts.Token)
+                : ContentSearch.CountText(reader, encoding, identity.Pattern, matchCase, byteLimit, 10_000,
+                    cts.Token), cts.Token);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(_countCts, cts) || _countIdentity != identity) return;
+            _countResult = result;
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_countCts, cts)) _countCanceled = true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            FileCat.Core.Diagnostics.AppLog.Warn("Viewer match count: " + ex.Message);
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_countCts, cts)) _countFailed = true;
+        }
+        finally
+        {
+            if (ReferenceEquals(_countCts, cts))
+            {
+                _countCts = null;
+                _stopCount.IsVisible = false;
+                UpdateMatchControls();
+            }
+            cts.Dispose();
+        }
+    }
+
+    private void UpdateMatchControls()
+    {
+        _stopCount.IsVisible = _countCts is not null && !_isPicture && !_isPage;
+        if (_countResult is null)
+        {
+            ToolTip.SetTip(_matchCount, null);
+            Avalonia.Automation.AutomationProperties.SetHelpText(_matchCount, string.Empty);
+        }
+        bool available = !_isPicture && !string.IsNullOrEmpty(_search.Text);
+        _previousMatch.IsEnabled = available;
+        _nextMatch.IsEnabled = available;
+        if (!available)
+        {
+            _matchCount.Text = _isPicture ? string.Empty : "Enter text to find";
+            return;
+        }
+        if (_isPage)
+        {
+            _matchCount.Text = _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
+                : _searchCts is not null ? "Searching page…"
+                : _pageFindUnavailable ? "Page search or count unavailable"
+                : _pageTriedFind ? "0 matches from here · total unavailable in Page mode"
+                : "Press Next or Previous to find";
+            return;
+        }
+        if (_countResult is { } count)
+        {
+            int known = count.Matches + (!count.Complete && _lastHit >= count.ScannedBytes ? 1 : 0);
+            string noun = known == 1 ? "match" : "matches";
+            _matchCount.Text = count.Complete ? $"{known:N0} {noun}"
+                : $"At least {known:N0} {noun} · count limited";
+            string detail = count.Complete ? "The whole searchable content was counted."
+                : $"The count is a lower bound. Scanned {Formatters.ExactSize(count.ScannedBytes)} of " +
+                  $"{Formatters.ExactSize(_countIdentity?.Reader.Length ?? 0)} or reached the 10,000-match limit.";
+            ToolTip.SetTip(_matchCount, detail);
+            Avalonia.Automation.AutomationProperties.SetHelpText(_matchCount, detail);
+        }
+        else if (_countCts is not null)
+            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · counting…" : "Counting matches…";
+        else if (_countFailed)
+            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · count unavailable" : "Match count unavailable";
+        else if (_countCanceled)
+            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · count stopped" : "Count stopped";
+        else if (_searchCts is not null)
+            _matchCount.Text = "Searching…";
+        else
+            _matchCount.Text = "Press Next or Previous to count";
     }
 
     private void SearchPositionChanged(Control source)
@@ -1075,7 +1252,7 @@ public sealed class ViewerWindow : Window
         // navigation in the searched surface and cannot cancel its request or replace its status.
         Control active = _isInfo ? _info : _isHex ? _hex : _text;
         if (_isPicture || _isPage || source != active) return;
-        if (!_revealingSearch) InvalidateSearch();
+        if (!_revealingSearch) InvalidateSearch(keepCount: true);
         UpdateStatus();
     }
 

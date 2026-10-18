@@ -43,8 +43,11 @@ App rerun (2,238 passed, 63 skipped). UXBUG-005 viewer geometry persistence
 passes two focused and 27 related App cases, plus 17 Core state cases.
 UXBUG-006 then passes its real Delete-key and parent-column regression, plus
 the related 89-pass, 16-skip App selection. UXBUG-007 resizable Registry,
-Advanced criteria, and Ignored folders dialogs pass 72 related App cases.
-Its native pointer and scaling acceptance remains open. UXBUG-008 follows.
+Advanced criteria, and Ignored folders dialogs pass 72 related App cases and
+the full App suite passes 2,242 with 63 skips. Its native pointer and scaling
+acceptance remains open. UXBUG-008 viewer Find controls and bounded counts
+pass 240 related App and 111 related Core cases. Its native acceptance and
+exact Page-mode total remain open. UXBUG-009 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -66,7 +69,8 @@ Its native pointer and scaling acceptance remains open. UXBUG-008 follows.
 | 16 | UXBUG-007 — resizable search windows | Registry, Advanced criteria, and Ignored folders dialogs have a visible pointer/keyboard resize grip, responsive content, host bounds, and reopen behavior. Seventy-two related tests pass; native pointer and scaling acceptance remains open. |
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
-| 19 | UXBUG-008 — visible viewer Find results | In Markdown and every other viewer mode that supports Find, show a clear match count and visible Previous/Next actions alongside F3 and Shift+F3. Keep the count honest while searching or when the result set is incomplete; cover zero, one, many, wrap, mode changes, and keyboard/button parity. |
+| 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts; Page exposes the same navigation and a truthful lower bound because native engines do not return totals. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity. Native acceptance and an exact Page total remain open. |
+| 20 | UXBUG-009 — Details selects the active operation | When completed operations already occupy the drawer and a newer operation is in progress, Details selects and reveals the running job. Cover multiple finished jobs, a new active job, and deliberate user selection so automatic focus does not steal a later choice. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

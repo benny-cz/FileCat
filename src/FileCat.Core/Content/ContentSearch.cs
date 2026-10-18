@@ -9,6 +9,83 @@ namespace FileCat.Core.Content;
 public static class ContentSearch
 {
     private const int ChunkBytes = 1024 * 1024;
+    private const int CountChunkBytes = 64 * 1024;
+
+    /// <summary>A bounded match count. An incomplete count is a lower bound, never a file total.</summary>
+    public readonly record struct MatchCount(int Matches, bool Complete, long ScannedBytes);
+
+    /// <summary>Counts overlapping byte matches in a bounded prefix without retaining match positions.</summary>
+    public static MatchCount CountBytes(PagedReader reader, ReadOnlySpan<byte> pattern, long maxBytes, int maxMatches,
+        CancellationToken ct)
+    {
+        if (pattern.Length == 0) return new MatchCount(0, true, 0);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMatches);
+        byte[] needle = pattern.ToArray();
+        byte[] buffer = new byte[checked(CountChunkBytes + needle.Length - 1)];
+        long length = reader.Length, limit = Math.Min(length, maxBytes);
+        int matches = 0;
+        for (long pos = 0; pos < limit;)
+        {
+            ct.ThrowIfCancellationRequested();
+            long mainEnd = pos + Math.Min(CountChunkBytes, limit - pos);
+            long end = mainEnd + Math.Min(needle.Length - 1L, length - mainEnd);
+            int requested = checked((int)(end - pos));
+            int read = reader.Read(pos, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, read, requested);
+            int index = 0;
+            while (index <= read - needle.Length)
+            {
+                int next = buffer.AsSpan(index, read - index).IndexOf(needle);
+                if (next < 0) break;
+                index += next;
+                if (pos + index >= mainEnd) break;
+                if (++matches >= maxMatches) return new MatchCount(matches, false, pos + index + 1);
+                index++; // overlapping occurrences are distinct matches
+            }
+            pos = mainEnd;
+        }
+        return new MatchCount(matches, limit == length, limit);
+    }
+
+    /// <summary>Counts overlapping decoded-text matches with the same case and chunk-boundary rules as FindText.</summary>
+    public static MatchCount CountText(PagedReader reader, Encoding encoding, string pattern, bool matchCase,
+        long maxBytes, int maxMatches, CancellationToken ct)
+    {
+        if (pattern.Length == 0) return new MatchCount(0, true, 0);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMatches);
+        int unit = TextDecoding.UnitSize(encoding);
+        int overlap = checked(encoding.GetMaxByteCount(checked(pattern.Length + 2)) + 4);
+        int context = Math.Max(4, encoding.GetMaxByteCount(1));
+        byte[] buffer = new byte[checked(CountChunkBytes + overlap + context + unit)];
+        long length = reader.Length, limit = Math.Min(length, maxBytes);
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        int matches = 0;
+        for (long pos = 0; pos < limit;)
+        {
+            ct.ThrowIfCancellationRequested();
+            long from = Align(Math.Max(0, pos - context), unit);
+            long mainEnd = pos + Math.Min(CountChunkBytes, limit - pos);
+            long end = mainEnd + Math.Min(overlap, length - mainEnd);
+            if (end < length) end = Math.Min(length, AlignUp(end, unit));
+            int requested = checked((int)(end - from));
+            int read = reader.Read(from, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, read, requested);
+            string decoded = encoding.GetString(buffer, 0, read);
+            for (int index = decoded.IndexOf(pattern, comparison); index >= 0;
+                 index = decoded.IndexOf(pattern, index + 1, comparison))
+            {
+                ct.ThrowIfCancellationRequested();
+                long found = from + CharIndexToByteOffset(encoding, buffer.AsSpan(0, read), index);
+                if (found >= mainEnd) break;
+                if (found < pos) continue;
+                if (++matches >= maxMatches) return new MatchCount(matches, false, found + 1);
+            }
+            pos = mainEnd;
+        }
+        return new MatchCount(matches, limit == length, limit);
+    }
 
     /// <summary>Finds <paramref name="pattern"/> bytes forward from <paramref name="start"/>; -1 when absent.</summary>
     public static long FindBytes(PagedReader reader, long start, ReadOnlySpan<byte> pattern, CancellationToken ct, Action<long>? progress = null)
