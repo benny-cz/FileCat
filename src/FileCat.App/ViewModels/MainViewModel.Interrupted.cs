@@ -10,6 +10,7 @@ public sealed partial class MainViewModel
 {
     private readonly HashSet<string> _interruptedActions = new(PathUtil.SafetyComparer);
     private sealed record InterruptedReview(IReadOnlyList<JournalRecovery.StagedFileReview> Staged, IReadOnlyList<string> Unreviewed, CopyReview Copies, bool Limited);
+    private sealed record PartialCleanupResult(int Deleted, IReadOnlyList<string> DeletedPaths, IReadOnlyList<string> Kept);
 
     private async Task<InterruptedReview> ReviewInterruptedAsync(InterruptedJob job)
     {
@@ -49,9 +50,9 @@ public sealed partial class MainViewModel
         (review.Unreviewed.Count > 0 ? "\n\nThese staged files could not be completely reviewed and will be kept:\n" + InterruptedJobText.Bullets(review.Unreviewed) : "") +
         (review.Limited ? "\n\nThe staged-file review reached its limit. Files outside this review are kept; inspect the remaining files separately." : "");
 
-    private async Task<(int Deleted, IReadOnlyList<string> Kept)> DeleteInterruptedPartialsAsync(InterruptedReview review)
+    private async Task<PartialCleanupResult> DeleteInterruptedPartialsAsync(InterruptedReview review)
     {
-        int deleted = 0; var kept = new List<string>(review.Unreviewed);
+        int deleted = 0; var deletedPaths = new List<string>(); var kept = new List<string>(review.Unreviewed);
         foreach (var version in review.Staged)
         {
             var result = await MutationIoAsync(version.Path, () =>
@@ -59,7 +60,8 @@ public sealed partial class MainViewModel
                 bool removed = JournalRecovery.DeleteReviewedStagedFile(version, Services.Providers.For(Location.FileSystem(version.Path)), CheckSessionAction);
                 return (Removed: removed, Exists: !removed && File.Exists(version.Path));
             }, CheckSessionAction);
-            if (result.Removed) deleted++; else if (result.Exists) kept.Add(version.Path);
+            if (result.Removed) { deleted++; deletedPaths.Add(version.Path); }
+            else if (result.Exists) kept.Add(version.Path);
         }
         foreach (var copy in review.Copies.Incomplete)
         {
@@ -67,9 +69,11 @@ public sealed partial class MainViewModel
             {
                 int count = JournalRecovery.DeleteIncompleteCopies([copy], out var files, CheckSessionAction); return (Count: count, Kept: files);
             }, CheckSessionAction);
-            deleted += result.Count; kept.AddRange(result.Kept);
+            deleted += result.Count;
+            if (result.Count > 0) deletedPaths.Add(copy.Path);
+            kept.AddRange(result.Kept);
         }
-        return (deleted, kept.Distinct(PathUtil.SafetyComparer).ToList());
+        return new(deleted, deletedPaths.Distinct(PathUtil.SafetyComparer).ToList(), kept.Distinct(PathUtil.SafetyComparer).ToList());
     }
 
     public Task<bool> ReviewNewInterruptedTransferAsync(InterruptedJob job) => RunInterruptedOwnedAsync(job, newTransfer: true);
@@ -144,9 +148,10 @@ public sealed partial class MainViewModel
             }
             var review = await ReviewInterruptedAsync(job);
             var partial = review.Staged.Select(s => s.Path).Concat(review.Copies.Incomplete.Select(i => i.Path)).ToList();
+            string transferReview = InterruptedJobText.TransferReview(kind, destination, sources, newName, options, mode, continuing: !newTransfer);
             var message = $"{Formatters.SafeName(job.Title)}: {sources.Count:N0} of {job.SourceCount:N0} recorded source roots are available for this review. Unavailable roots are omitted."
                 + (newTransfer ? " The source-to-destination mapping and options below describe the new transfer you selected." : " The original name mapping, matching rules, folder layout and verification choices are preserved.")
-                + InterruptedJobText.TransferReview(kind, destination, sources, newName, options, mode, continuing: !newTransfer)
+                + transferReview
                 + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : "")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
             string action = (newTransfer ? "Start new " : "Continue ") + (kind == JobKind.Move ? "move" : "copy");
@@ -159,6 +164,17 @@ public sealed partial class MainViewModel
                 await Dialogs.AlertAsync(action, "These files were kept because they changed or could not be completely reviewed. The new operation uses the conflict policy shown in your review:\n" + InterruptedJobText.Bullets(result.Kept));
             CheckSessionAction();
             if (!await InterruptedSourcesStillReviewedAsync(sourceReviews, sourceTrees)) return false;
+            string report = await Task.Run(() => InterruptedRecoveryReport.Format(job,
+                newTransfer ? "Reviewed new transfer approved; see the closure status for tracking" : "Continuation with recorded intent approved; see the closure status for tracking",
+                review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited,
+                result.DeletedPaths, result.Kept, allSources: paths));
+            if ((long)report.Length + transferReview.Length > RecoveryReviewStore.MaxReportCharacters)
+                throw new InvalidDataException("The reviewed transfer report exceeds the retention budget; the old journal remains open.");
+            report += "\nReviewed transfer choices and complete available-root mapping:" + transferReview;
+            var record = new RecoveryReviewRecord(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
+                newTransfer ? "Reviewed new transfer" : "Continued recorded transfer", report, ClosureConfirmed: false);
+            await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+            Operations.AddReviewedRecovery(record);
             // Submission is the UI admission boundary. The old journal stays open through every approval/alert.
             Services.Jobs.Submit(new JobRequest { Kind = kind, Sources = sources, Destination = destination, NewName = newName,
                 ExpectedSources = sourceReviews, ExpectedSourceTrees = sourceTrees, Options = options, Mode = mode });
@@ -166,11 +182,22 @@ public sealed partial class MainViewModel
             bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job,
                 $"{(newTransfer ? "Replaced by an explicitly reviewed new transfer" : "Continued with recorded transfer intent and recovery Skip policy")}; {result.Deleted} partial file(s) deleted."), CheckSessionAction);
             if (!closed) Notify("The new operation started, but the old journal could not be closed. It is kept for review.", true);
+            else
+            {
+                record = record with { ClosureConfirmed = true };
+                try
+                {
+                    await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+                    Operations.AddReviewedRecovery(record);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+                { Notify("The old journal closed, but the saved report still says closure was not confirmed: " + Formatters.SafeName(ex.Message), true); }
+            }
             return true;
         }
         catch (OperationCanceledException) { return submitted; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        { if (EditSessionsActive) Notify($"Cannot continue this operation: {ex.Message}", true); return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        { if (EditSessionsActive) Notify("Cannot continue this operation: " + Formatters.SafeName(ex.Message) + " The old journal remains available if no replacement was admitted.", true); return submitted; }
         finally { _interruptedActions.Remove(job.JournalPath); }
     }
 
@@ -215,26 +242,135 @@ public sealed partial class MainViewModel
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => "OK" };
             if (!await Dialogs.ConfirmAsync("Interrupted operation", message, action, danger: partial.Count > 0 || renames.Count > 0)) return false;
             CheckSessionAction(); var result = await DeleteInterruptedPartialsAsync(review);
-            int renamed = 0; var notRenamed = new List<string>(); bool unresolvedRenames = renameLimited || unreviewedRenames.Count > 0;
+            int renamed = 0; var notRenamed = new List<string>(); var renameEffects = new List<string>();
+            bool unresolvedRenames = renameLimited || unreviewedRenames.Count > 0;
             foreach (var rename in renames)
             {
                 var outcome = await MutationIoAsync(rename.Intent.Via!, () => JournalRecovery.FinishReviewedRename(rename, Services.Jobs.FileOperations, Services.Providers.For(Location.FileSystem(rename.Intent.Via!)), CheckSessionAction), CheckSessionAction);
                 renamed += outcome.Finished; notRenamed.AddRange(outcome.Report); unresolvedRenames |= !outcome.Resolved;
+                if (outcome.Resolved)
+                    renameEffects.Add(outcome.Finished > 0
+                        ? $"Moved temporary {rename.Intent.Via} to {rename.Intent.Target}"
+                        : $"Restored temporary {rename.Intent.Via} to original {rename.Intent.Path}");
+                else renameEffects.AddRange(outcome.Report);
             }
+            renameEffects.AddRange(unreviewedRenames.Select(path => "Unreviewed temporary name kept: " + path));
             if (result.Kept.Count > 0) await Dialogs.AlertAsync("Interrupted operation", "These files were kept because they changed or could not be completely reviewed:\n" + InterruptedJobText.Bullets(result.Kept));
             CheckSessionAction();
             if (notRenamed.Count > 0) await Dialogs.AlertAsync("Interrupted rename", string.Join("\n", notRenamed.Take(20)));
             CheckSessionAction();
-            if (unresolvedRenames) { Notify("Temporary rename items remain unresolved. The old journal is kept for review.", true); if (renames.Count > 0) RefreshAll(); return false; }
+            var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), CheckSessionAction);
+            string report = await Task.Run(() => InterruptedRecoveryReport.Format(job,
+                unresolvedRenames ? "Cleanup attempted; unresolved rename remains and recovery tracking stays open" : "Reviewed cleanup; outcome details below",
+                review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited || renameLimited,
+                result.DeletedPaths, result.Kept, renameEffects, recordedSources));
+            var record = new RecoveryReviewRecord(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
+                unresolvedRenames ? "Cleanup attempted; recovery remains open" : "Reviewed cleanup", report, ClosureConfirmed: false);
+            await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+            Operations.AddReviewedRecovery(record);
+            if (unresolvedRenames)
+            {
+                Notify("Temporary rename items remain unresolved. The old journal is kept for review; the cleanup report is retained.", true);
+                if (renames.Count > 0) RefreshAll();
+                return false;
+            }
             bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job, $"Reviewed; {result.Deleted} partial file(s) deleted, {renamed} rename(s) finished."), CheckSessionAction);
+            if (closed)
+            {
+                record = record with { ClosureConfirmed = true };
+                try
+                {
+                    await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+                    Operations.AddReviewedRecovery(record);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+                { Notify("Cleanup closed tracking, but the saved report still says closure was not confirmed: " + Formatters.SafeName(ex.Message), true); }
+            }
             Notify(closed ? $"Removed {Formatters.Plural(result.Deleted, "partial file", "partial files")}; finished {Formatters.Plural(renamed, "rename", "renames")}." : "The old journal could not be closed. It is kept for review.", !closed);
             if (renames.Count > 0) RefreshAll();
             return closed;
         }
         catch (OperationCanceledException) { return false; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        { if (EditSessionsActive) Notify($"Cannot clean up this operation: {ex.Message}", true); return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        { if (EditSessionsActive) Notify("Cleanup could not finish: " + Formatters.SafeName(ex.Message) + " Some reviewed steps may already have run; the journal remains available if it was not closed.", true); return false; }
         finally { _interruptedActions.Remove(job.JournalPath); }
     }
 
+    internal async Task<ReportWindow?> ShowInterruptedReportAsync(InterruptedJob job)
+    {
+        if (!EditSessionsActive || !_interruptedActions.Add(job.JournalPath)) return null;
+        try
+        {
+            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction))
+            { Notify("This recovery journal is no longer available for review.", true); return null; }
+            var review = await ReviewInterruptedAsync(job);
+            var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), CheckSessionAction);
+            string report = await Task.Run(() => InterruptedRecoveryReport.Format(job, "Inspection only; no files or recovery tracking changed",
+                review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited,
+                allSources: recordedSources));
+            if (!EditSessionsActive) return null;
+            var window = new ReportWindow("Interrupted recovery report", Formatters.SafeName(job.Title), _ => Task.FromResult(report));
+            window.Show();
+            return window;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        { if (EditSessionsActive) Notify("The recovery report could not be opened: " + Formatters.SafeName(ex.Message), true); return null; }
+        finally { _interruptedActions.Remove(job.JournalPath); }
+    }
+
+    internal async Task<bool> MarkInterruptedReviewedAsync(InterruptedJob job)
+    {
+        if (Dialogs.IsOpen)
+        {
+            Notify("Finish or cancel the open dialog before marking this recovery reviewed.");
+            return false;
+        }
+        if (!EditSessionsActive || !_interruptedActions.Add(job.JournalPath)) return false;
+        try
+        {
+            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction)) return false;
+            var review = await ReviewInterruptedAsync(job);
+            var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), CheckSessionAction);
+            string report = await Task.Run(() => InterruptedRecoveryReport.Format(job, "Marked reviewed; no files changed by this action",
+                review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited,
+                allSources: recordedSources));
+            int renames = job.OpenIntents.Count(i => i.Operation == JobJournal.RenameViaOp);
+            string message = $"Stop offering automatic recovery for {Formatters.SafeName(job.Title)} on future starts? " +
+                "This does not delete or repair files. The journal will be closed and the recovery actions will no longer be offered. " +
+                "A bounded, copyable report of the known paths and review limits will remain in Operations under Reviewed recovery reports. " +
+                (renames > 0 ? $"\n\n{renames:N0} interrupted rename intent{(renames == 1 ? " has" : "s have")} a temporary name. Its path and possible target remain in the report; inspect or finish it before stopping reminders. " : "") +
+                (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut
+                    ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
+                "\n\nUse Review report first if you need to copy or save the full retained detail before this decision.";
+            if (!await Dialogs.ConfirmAsync("Stop interrupted recovery reminders?", message,
+                    "Mark reviewed and stop reminders", danger: renames > 0 || job.OpenIntents.Count > 0 || review.Limited || review.Copies.LimitReached)) return false;
+            CheckSessionAction();
+            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction)) return false;
+            var record = new RecoveryReviewRecord(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
+                "Marked reviewed without file changes", report, ClosureConfirmed: false);
+            await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+            Operations.AddReviewedRecovery(record);
+            bool closed = await MutationIoAsync(job.JournalPath,
+                () => JournalRecovery.TryClose(job, "Marked reviewed by the user; no files changed. Diagnostic report retained."), CheckSessionAction);
+            if (!closed)
+            {
+                Notify("The report was saved, but recovery tracking could not be closed. The interrupted notice remains.", true);
+                return false;
+            }
+            record = record with { ClosureConfirmed = true };
+            try
+            {
+                await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, CheckSessionAction);
+                Operations.AddReviewedRecovery(record);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            { Notify("Recovery tracking closed, but the saved report still says closure was not confirmed: " + Formatters.SafeName(ex.Message), true); }
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        { if (EditSessionsActive) Notify("Recovery tracking was kept open: " + Formatters.SafeName(ex.Message), true); return false; }
+        finally { _interruptedActions.Remove(job.JournalPath); }
+    }
 }

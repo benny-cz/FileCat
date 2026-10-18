@@ -52,6 +52,16 @@ public sealed class InterruptedCopyCleanupTests(ITestOutputHelper output)
         Assert.Equal(flow == "cleanup" ? expectedKept : true, exists);
         Assert.Equal(flow == "cleanup" || !changedSource, ended);
         Assert.Equal(flow == "run-again" && !changedSource ? 2 : 1, f.Services.Jobs.Jobs.Count);
+        if (ended)
+        {
+            var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
+            Assert.True(record.ClosureConfirmed);
+            Assert.Contains(JsonSerializer.Serialize(f.Target), record.Report);
+            if (flow == "cleanup")
+                Assert.Contains(expectedKept ? "Kept after cleanup" : "Deleted by cleanup", record.Report);
+            else
+                Assert.Contains("complete available-root mapping", record.Report);
+        }
         if (expectedKept) Assert.Equal(atApproval, final);
         else if (flow == "run-again") Assert.Equal(Hash(f.Source), final);
         if (run is not null) Assert.Equal(!changedSource, await run);

@@ -186,6 +186,14 @@ public partial class MainWindow : Window, IViewActions
                 _vm.Operations.IsOpen = true;
                 messages.Add($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
             }
+            try
+            {
+                var reviewed = await Task.Run(() => RecoveryReviewStore.Load(dir));
+                if (!_vm.EditSessionsActive) return;
+                _vm.Operations.LoadReviewedRecovery(reviewed);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { messages.Add("Reviewed recovery reports could not be loaded: " + Formatters.SafeName(ex.Message)); }
             int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
             if (!_vm.EditSessionsActive) return;
             if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");

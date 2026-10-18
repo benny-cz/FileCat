@@ -210,4 +210,24 @@ public partial class OperationsView : UserControl
         c.Interrupted.Remove(item);
         c.UpdateSummary();
     }
+
+    private async void OnInterruptedReport(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is InterruptedJobViewModel item && Main is { } main)
+            await main.ShowInterruptedReportAsync(item.Job);
+    }
+
+    private async void OnMarkInterruptedReviewed(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } center) return;
+        if (!await main.MarkInterruptedReviewedAsync(item.Job)) return;
+        center.Interrupted.Remove(item);
+        center.UpdateSummary();
+    }
+
+    private void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not RecoveryReviewRecord record) return;
+        new ReportWindow("Reviewed recovery report", Formatters.SafeName(record.Title), _ => Task.FromResult(record.Report)).Show();
+    }
 }

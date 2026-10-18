@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -38,6 +39,84 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         Assert.Equal("reviewed", File.ReadAllText(f.Via));
         f.Vm.Operations.LoadInterrupted(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
         Assert.Single(f.Vm.Operations.Interrupted);
+    }
+
+    [AvaloniaFact]
+    public async Task Mark_reviewed_requires_deliberate_consent_and_retains_full_rename_evidence()
+    {
+        using var f = await Fixture.Create();
+        f.Vm.Operations.LoadInterrupted([f.Interrupted]);
+        f.Vm.Operations.IsOpen = true;
+        f.Window.UpdateLayout();
+        Assert.Empty(AccessibilityTests.Unnamed(f.Window));
+        ClickBanner("Mark reviewed…");
+        await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
+        f.Window.UpdateLayout();
+        Assert.Contains("interrupted rename intent", string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)));
+        Assert.False(await f.Vm.MarkInterruptedReviewedAsync(f.Interrupted)); // the first review owns this journal
+        f.Click("Cancel");
+        await Wait(() => !f.HasDialog);
+        Assert.False(f.Ended);
+        Assert.Empty(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
+        Assert.Equal("reviewed", File.ReadAllText(f.Via));
+
+        ClickBanner("Mark reviewed…");
+        await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
+        f.Click("Mark reviewed and stop reminders");
+        await Wait(() => f.Ended && f.Vm.Operations.Interrupted.Count == 0);
+        var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
+        Assert.True(record.ClosureConfirmed);
+        Assert.Contains(JsonSerializer.Serialize(f.Via), record.Report);
+        Assert.Contains(JsonSerializer.Serialize(f.OriginalPath), record.Report);
+        Assert.Contains(JsonSerializer.Serialize(f.Target), record.Report);
+        Assert.Contains("Open step 1 (rename-via", record.Report, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(f.Vm.Operations.ReviewedRecovery);
+        f.Window.UpdateLayout();
+        Assert.Empty(AccessibilityTests.Unnamed(f.Window));
+        Assert.Equal("reviewed", File.ReadAllText(f.Via));
+        Assert.False(File.Exists(f.Target));
+        Assert.False(JournalRecovery.IsInterrupted(f.Interrupted));
+
+        Assert.True(f.Vm.Operations.HasReviewedRecovery);
+
+        void ClickBanner(string label) => f.Window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    }
+
+    [AvaloniaFact]
+    public async Task Failed_diagnostic_storage_keeps_recovery_tracking_open()
+    {
+        using var f = await Fixture.Create();
+        File.WriteAllText(RecoveryReviewStore.DirectoryOf(f.Services.Paths.JournalDirectory), "blocks the review directory");
+        var run = f.Vm.MarkInterruptedReviewedAsync(f.Interrupted);
+        await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
+        f.Click("Mark reviewed and stop reminders");
+        Assert.False(await run);
+        Assert.True(JournalRecovery.IsInterrupted(f.Interrupted));
+        Assert.Equal("reviewed", File.ReadAllText(f.Via));
+        Assert.Empty(Directory.GetFiles(f.Services.Paths.JournalDirectory, "review-*.json", SearchOption.TopDirectoryOnly));
+    }
+
+    [AvaloniaFact]
+    public async Task Recovery_report_copies_every_retained_path_without_closing_tracking()
+    {
+        using var f = await Fixture.Create();
+        var report = Assert.IsType<ReportWindow>(await f.Vm.ShowInterruptedReportAsync(f.Interrupted));
+        try
+        {
+            await Wait(() => report.Reading is not null);
+            await report.Reading!;
+            Assert.Contains(JsonSerializer.Serialize(f.Via), report.Text);
+            Assert.Contains(JsonSerializer.Serialize(f.OriginalPath), report.Text);
+            Assert.Contains(JsonSerializer.Serialize(f.Target), report.Text);
+            report.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Copy all")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Wait(() => report.StatusText == "The whole report is on the clipboard.");
+            Assert.Equal(report.Text, await ClipboardExtensions.TryGetTextAsync(report.Clipboard!));
+            Assert.True(JournalRecovery.IsInterrupted(f.Interrupted));
+            Assert.Equal("reviewed", File.ReadAllText(f.Via));
+        }
+        finally { report.Close(); }
     }
 
     [AvaloniaTheory]
@@ -163,6 +242,10 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         var run = f.Vm.CleanupInterruptedAsync(f.Interrupted with { OpenIntents = [.. f.Interrupted.OpenIntents, intent] }); await Wait(() => f.HasDialog); f.Click("Finish renaming"); await f.Drain(run);
         Emit(f, "mixed-rename-review", new { Completed = await run, f.Ended, TargetBytes = File.ReadAllText(f.Target), MissingTemporary = !Exists(other) });
         Assert.False(await run); Assert.False(f.Ended); Assert.Equal("reviewed", File.ReadAllText(f.Target));
+        var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
+        Assert.False(record.ClosureConfirmed);
+        Assert.Contains(JsonSerializer.Serialize(other), record.Report);
+        Assert.Contains("unresolved rename remains", record.Report);
     }
 
     private void Emit(Fixture f, string control, object detail) => output.WriteLine("INTERRUPTED_RENAME " + JsonSerializer.Serialize(new { control, detail, Calls = f.Files.Calls.ToArray(), OwnedFileSystem = true, NativeDesktop = false, PhysicalSource = false, SyntheticIdentityAndResolvedPath = true, AtomicRenameIdentityQualified = false }));

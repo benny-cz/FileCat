@@ -28,28 +28,33 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-020**. Follow
+After resolving any outstanding validation failure, resume **FCUX-021**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-020 — interrupted-recovery dismissal | Make the irreversible end of recovery tracking explicit and retain inspectable diagnostic evidence without enabling mutation again. |
+| 1 | FCUX-021 — synchronization review and plan cancellation | Preserve reviewed options across edits, then own and expose Stop for all submitted steps of a plan. |
 
-Then continue FCUX-021, FCUX-022 and onward
+Then continue FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
 
-### FCUX-020 in progress
+### FCUX-020 implementation record
 
-The former Dismiss button is now Hide for now. It removes only the current
-notice, leaves the journal and files unchanged, and reappears on the next
-startup scan. A headless UI test covers the journal and temporary item. Next,
-add an explicit reviewed-close path with a bounded persistent diagnostic report
-and complete retained-detail copy/export, including cleanup with kept files.
+The former Dismiss button is now Hide for now and never ends the journal.
+Mark reviewed explicitly ends recovery tracking after a deliberate review and
+stores a bounded report before the journal end record; storage failure keeps
+recovery available. Review report exposes all retained known paths and Copy all
+and Save as. Reviewed reports remain in Operations with no mutation actions,
+bounded to 200 records. Cleanup and reviewed transfer continuation also record
+deleted, kept, unresolved and submitted-scope effects before closure. Tests
+cover cancellation, duplicate ownership, storage refusal, kept partials,
+unresolved renames, source manifests and existing recovery guards. Native
+process-interruption, screen-reader and scaled-layout acceptance remain open.
 
 ### FCUX-019 implementation record
 

@@ -288,6 +288,9 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
             ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable. Review a new transfer to choose its scope and options again.") : "");
 
     public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…" : "Clean up partial files";
+    public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
+    public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
+    public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
     public bool CanRunAgain => Job.CanContinueTransfer;
@@ -341,6 +344,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public JobManager Manager { get; }
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
+    public ObservableCollection<RecoveryReviewRecord> ReviewedRecovery { get; } = [];
+    public bool HasReviewedRecovery => ReviewedRecovery.Count > 0;
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private JobViewModel? _selected;
@@ -497,6 +502,22 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         Interrupted.Clear();
         foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j));
         UpdateSummary();
+    }
+
+    public void LoadReviewedRecovery(IEnumerable<RecoveryReviewRecord> records)
+    {
+        ReviewedRecovery.Clear();
+        foreach (var record in records.Take(RecoveryReviewStore.KeepRecords)) ReviewedRecovery.Add(record);
+        OnPropertyChanged(nameof(HasReviewedRecovery));
+    }
+
+    public void AddReviewedRecovery(RecoveryReviewRecord record)
+    {
+        var previous = ReviewedRecovery.FirstOrDefault(r => r.JournalPath == record.JournalPath);
+        if (previous is not null) ReviewedRecovery.Remove(previous);
+        ReviewedRecovery.Insert(0, record);
+        while (ReviewedRecovery.Count > RecoveryReviewStore.KeepRecords) ReviewedRecovery.RemoveAt(ReviewedRecovery.Count - 1);
+        OnPropertyChanged(nameof(HasReviewedRecovery));
     }
 
     public void RemoveFinished()
