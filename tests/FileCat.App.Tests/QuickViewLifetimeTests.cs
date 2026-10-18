@@ -3,10 +3,12 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
+using FileCat.App.Views;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
@@ -64,9 +66,14 @@ public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
             preview.Show();
             old = Load(pane);
             await WaitFor(() => Volatile.Read(ref opened) == 1);
+            await WaitFor(() => pane.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.IsVisible && t.Text?.Contains("Loading preview of \"a.txt\"", StringComparison.Ordinal) == true));
+            Assert.Contains(pane.GetVisualDescendants().OfType<Button>(), b => b.IsVisible && b.Content as string == "Cancel preview");
             Assert.True(tab.Listing.FocusName("b.txt"));
             await Load(pane);
             Assert.True(ShowsText(pane));
+            Assert.DoesNotContain(pane.GetVisualDescendants().OfType<TextBlock>(), t =>
+                t.IsVisible && t.Text?.Contains("Loading preview of \"a.txt\"", StringComparison.Ordinal) == true);
             gate.Set();
             await old;
             Assert.True(ShowsText(pane), string.Join(" | ", Labels(pane)));
@@ -82,6 +89,222 @@ public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
             gate.Dispose();
             AccessibilityTests.Close(services, main, root);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task Cancel_and_retry_use_the_current_item_without_publishing_the_abandoned_source()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var gate = new ManualResetEventSlim();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        var stale = new ObservedSource("a.txt");
+        var current = new ObservedSource("a.txt");
+        Task? old = null;
+        int opens = 0;
+        try
+        {
+            services.Providers.Register(new PreviewProvider(item =>
+            {
+                if (Interlocked.Increment(ref opens) > 1) return current;
+                if (!gate.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Fixture release missing.");
+                return stale;
+            }));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            old = Load(pane);
+            await WaitFor(() => Volatile.Read(ref opens) == 1);
+            var cancel = pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel preview");
+            await WaitFor(() => cancel.IsVisible);
+            cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains(Labels(pane), text => text.Contains("Preview canceled", StringComparison.Ordinal));
+            Assert.True(pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Retry preview").IsVisible);
+            pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Retry preview")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => ShowsText(pane));
+            gate.Set();
+            await old;
+            await WaitFor(() => stale.Disposals == 1);
+            Assert.Equal(0, stale.Reads);
+            Assert.True(current.Reads >= 1);
+        }
+        finally
+        {
+            gate.Set();
+            if (old is not null) await old;
+            pane.Attach(null);
+            preview.Close();
+            gate.Dispose();
+            AccessibilityTests.Close(services, main, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Empty_file_explains_itself_and_visible_action_opens_the_full_viewer()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        var opened = new List<ObservedSource>();
+        try
+        {
+            services.Providers.Register(new PreviewProvider(item =>
+            {
+                var source = new ObservedSource(item.Name, data: []);
+                opened.Add(source);
+                return source;
+            }));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            await Load(pane);
+            Assert.Contains(Labels(pane), text => text.Contains("This file is empty", StringComparison.Ordinal));
+            var button = pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open full viewer (F3)");
+            Assert.True(button.IsVisible);
+            var before = ViewerWindow.OpenWindows.ToHashSet();
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => ViewerWindow.OpenWindows.Any(w => !before.Contains(w)));
+            Assert.EndsWith("a.txt", ViewerWindow.OpenWindows.Single(w => !before.Contains(w)).DisplayName);
+            ViewerWindow.OpenWindows.Single(w => !before.Contains(w)).Close();
+        }
+        finally
+        {
+            pane.Attach(null);
+            preview.Close();
+            AccessibilityTests.Close(services, main, root);
+            Assert.All(opened, source => Assert.Equal(1, source.Disposals));
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_quick_view_during_full_viewer_open_retires_the_late_source()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        var gate = new ManualResetEventSlim();
+        var late = new ObservedSource("a.txt");
+        int opens = 0;
+        try
+        {
+            services.Providers.Register(new PreviewProvider(item =>
+            {
+                if (Interlocked.Increment(ref opens) == 1) return new ObservedSource(item.Name);
+                if (!gate.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Fixture release missing.");
+                return late;
+            }));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            await Load(pane);
+            var before = ViewerWindow.OpenWindows.ToHashSet();
+            pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open full viewer (F3)")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => Volatile.Read(ref opens) == 2);
+            pane.Attach(null);
+            gate.Set();
+            await WaitFor(() => late.Disposals == 1);
+            Assert.Equal(0, late.Reads);
+            Assert.DoesNotContain(ViewerWindow.OpenWindows, w => !before.Contains(w));
+        }
+        finally
+        {
+            gate.Set();
+            pane.Attach(null);
+            preview.Close();
+            gate.Dispose();
+            AccessibilityTests.Close(services, main, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Recognized_but_damaged_picture_explains_hex_fallback()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        try
+        {
+            byte[] damaged = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
+            services.Providers.Register(new PreviewProvider(item => new ObservedSource(item.Name, data: damaged)));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            await Load(pane);
+            await WaitFor(() => Labels(pane).Any(text => text.Contains("Picture preview failed", StringComparison.Ordinal)));
+            Assert.True(pane.GetVisualDescendants().OfType<HexView>().Single().IsVisible);
+            Assert.Contains(Labels(pane), text => text.Contains("Open full viewer (F3)", StringComparison.Ordinal));
+        }
+        finally { pane.Attach(null); preview.Close(); AccessibilityTests.Close(services, main, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Oversize_picture_stays_in_hex_with_an_explicit_policy_reason()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        try
+        {
+            byte[] header = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
+            services.Providers.Register(new PreviewProvider(item =>
+                new ObservedSource(item.Name, data: header, declaredLength: 65L * 1024 * 1024)));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            await Load(pane);
+            Assert.True(pane.GetVisualDescendants().OfType<HexView>().Single().IsVisible);
+            Assert.Contains(Labels(pane), text => text.Contains("limited to 64 MiB", StringComparison.Ordinal));
+        }
+        finally { pane.Attach(null); preview.Close(); AccessibilityTests.Close(services, main, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Unsupported_and_permission_denied_previews_explain_their_current_file()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 600, Height = 400 };
+        try
+        {
+            services.Providers.Register(new PreviewProvider(item => item.Name == "a.txt"
+                ? null : throw new UnauthorizedAccessException("Read access denied")));
+            await Navigate(vm.ActiveTab!, "slow");
+            pane.Attach(vm.ActiveTab);
+            preview.Show();
+            await Load(pane);
+            Assert.Contains(Labels(pane), text => text.Contains("cannot supply a preview", StringComparison.Ordinal));
+            Assert.True(pane.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open full viewer (F3)").IsVisible);
+            Assert.True(vm.ActiveTab!.Listing.FocusName("b.txt"));
+            await Load(pane);
+            Assert.Contains(Labels(pane), text => text.Contains("Cannot preview", StringComparison.Ordinal));
+            Assert.Contains(Labels(pane), text => text.Contains("access", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(Labels(pane), text => text == "b.txt");
+        }
+        finally { pane.Attach(null); preview.Close(); AccessibilityTests.Close(services, main, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Picture_preview_target_uses_pane_size_but_never_exceeds_its_pixel_budget()
+    {
+        var pane = new QuickViewPane();
+        var preview = new Window { Content = pane, Width = 640, Height = 420 };
+        try
+        {
+            preview.Show();
+            await WaitFor(() => pane.Bounds.Width > 500);
+            int small = (int)typeof(QuickViewPane).GetMethod("PreviewSide", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(pane, [])!;
+            Assert.InRange(small, 500, 1024);
+            preview.Width = 1800;
+            preview.Height = 1200;
+            await WaitFor(() => pane.Bounds.Width > 1500);
+            int large = (int)typeof(QuickViewPane).GetMethod("PreviewSide", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(pane, [])!;
+            Assert.Equal(1024, large);
+        }
+        finally { preview.Close(); }
     }
 
     [AvaloniaFact]
@@ -326,15 +549,16 @@ public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
         }
     }
 
-    private sealed class ObservedSource(string name, bool binary = false, bool revisionFails = false, ManualResetEventSlim? readGate = null) : IContentSource
+    private sealed class ObservedSource(string name, bool binary = false, bool revisionFails = false,
+        ManualResetEventSlim? readGate = null, byte[]? data = null, long? declaredLength = null) : IContentSource
     {
-        private readonly byte[] _bytes = binary ? new byte[32] : System.Text.Encoding.UTF8.GetBytes("current preview\n");
+        private readonly byte[] _bytes = data ?? (binary ? new byte[32] : System.Text.Encoding.UTF8.GetBytes("current preview\n"));
         private int _reads, _disposals, _revisions;
         public int Reads => Volatile.Read(ref _reads);
         public int Disposals => Volatile.Read(ref _disposals);
         public int Revisions => Volatile.Read(ref _revisions);
         public string DisplayName => name;
-        public long Length => _bytes.Length;
+        public long Length => declaredLength ?? _bytes.Length;
         public bool CanSeek => true;
         public string? LocalPath => null;
         public int Read(long offset, Span<byte> buffer)
