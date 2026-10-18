@@ -430,7 +430,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
-    public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null)
+    public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false)
     {
         var tcs = new TaskCompletionSource<KeyboardReferenceChoice?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var search = new TextBox { PlaceholderText = "Search command, shortcut, or command ID", MinWidth = 220 };
@@ -459,7 +459,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         Avalonia.Automation.AutomationProperties.SetName(list, "Commands and current shortcuts");
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
         var count = new TextBlock { Classes = { "muted", "small" } };
-        var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = true };
+        var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = !remapOnly, IsVisible = !remapOnly };
         var change = new Button { Content = "Change shortcut…" };
         Avalonia.Controls.ToolTip.SetTip(change, "Press a new shortcut for the selected command (F2)");
         var close = new Button { Content = "Close", IsCancel = true };
@@ -477,7 +477,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(count);
         body.Children.Add(list);
         body.Children.Add(detail);
-        body.Children.Add(new TextBlock { Text = "Shortcuts reflect your current settings. Select a command and press Enter to run it; F2 changes its shortcut; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = remapOnly
+            ? "Shortcuts reflect this Settings draft. Select a command and press Enter or F2 to change it; Esc returns to Settings."
+            : "Shortcuts reflect your current settings. Select a command and press Enter to run it; F2 changes its shortcut; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
         Session? session = null;
         void Finish(KeyboardReferenceChoice? choice)
         {
@@ -487,6 +489,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }
         void Accept()
         {
+            if (remapOnly) { ChangeShortcut(); return; }
             if (list.SelectedItem is KeyboardHelpEntry { Enabled: true } selected) Finish(new KeyboardReferenceChoice(selected.Id, ChangeShortcut: false));
         }
         void ChangeShortcut()

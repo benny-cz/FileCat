@@ -99,7 +99,7 @@ public interface IDialogService
     Task AlertAsync(string title, string message);
     Task<ChoiceResult> ChooseAsync(ChoiceOptions options);
     /// <param name="selectedId">The command selected when it opens (after changing its shortcut).</param>
-    Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null);
+    Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false);
     /// <summary>
     /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
     /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.

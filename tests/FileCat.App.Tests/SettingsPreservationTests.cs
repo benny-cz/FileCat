@@ -378,6 +378,88 @@ public sealed class SettingsPreservationTests
     }
 
     [AvaloniaFact]
+    public async Task Shortcut_reference_edits_only_the_Settings_draft_until_OK()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string before = JsonSerializer.Serialize(services.Settings.KeyBindings);
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                var showing = SettingsDialog.ShowAsync(vm);
+                SelectPage(window, "Keyboard");
+                BodyButton(window, "Find and change a shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Dispatcher.UIThread.RunJobs();
+                var search = Field<TextBox>(window, "Search keyboard reference");
+                search.Text = "file.copy";
+                Dispatcher.UIThread.RunJobs();
+                BodyButton(window, "Change shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                for (int i = 0; i < 20 && !window.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "No shortcut")); i++)
+                {
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                    Dispatcher.UIThread.RunJobs();
+                }
+                Click(window, "No shortcut");
+                for (int i = 0; i < 20 && !Field<TextBox>(window, "Custom bindings").Text!.Contains("file.copy", StringComparison.Ordinal); i++)
+                {
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                    Dispatcher.UIThread.RunJobs();
+                }
+                Assert.Contains("file.copy =", Field<TextBox>(window, "Custom bindings").Text);
+                Assert.Equal(before, JsonSerializer.Serialize(services.Settings.KeyBindings));
+                BodyButton(window, "Close").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Dispatcher.UIThread.RunJobs();
+                Click(window, attempt == 0 ? "Cancel" : "OK");
+                await showing.WaitAsync(TimeSpan.FromSeconds(5));
+                if (attempt == 0) Assert.Equal(before, JsonSerializer.Serialize(services.Settings.KeyBindings));
+                else Assert.Empty(services.Settings.KeyBindings["file.copy"]);
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Command_and_association_token_controls_preview_arguments_without_launching_or_committing()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.UserCommands = [new() { Name = "Run", Executable = Environment.ProcessPath!, Arguments = ["{file}"] }];
+            services.Settings.Associations = [new() { Name = "View", Mask = "*.txt", Intent = "view", Executable = Environment.ProcessPath!, Arguments = ["{file}"] }];
+            string before = ToolsSnapshot(services.Settings);
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            string sample = Path.Combine(root, "sample with spaces.txt");
+            foreach (var kind in new[] { "Command", "Association" })
+            {
+                Field<TextBox>(window, kind + " preview file").Text = sample;
+                Field<ComboBox>(window, kind + " argument token").SelectedItem = "{dir}";
+                BodyButton(window, "Add " + kind.ToLowerInvariant() + " token").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Dispatcher.UIThread.RunJobs();
+                var arguments = Field<TextBox>(window, kind == "Command" ? "Selected command arguments" : "Association arguments");
+                Assert.True(ToolTextGrammar.TryParseArguments(arguments.Text, out var tokens, out _));
+                Assert.Equal(["{file}", "{dir}"], tokens);
+                var output = Field<SelectableTextBlock>(window, kind + " invocation preview");
+                BodyButton(window, "Preview " + kind.ToLowerInvariant() + " invocation").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                for (int i = 0; i < 100 && !output.Text!.Contains("Program:", StringComparison.Ordinal); i++)
+                {
+                    await Task.Delay(20, TestContext.Current.CancellationToken);
+                    Dispatcher.UIThread.RunJobs();
+                }
+                Assert.Contains("Arguments (2):", output.Text);
+                Assert.Contains(JsonSerializer.Serialize(sample), output.Text);
+                arguments.Text = "--changed {file}";
+                Dispatcher.UIThread.RunJobs();
+                Assert.Contains("out of date", output.Text);
+            }
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, ToolsSnapshot(services.Settings));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Association_priority_controls_change_the_first_match_without_launching_a_program()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

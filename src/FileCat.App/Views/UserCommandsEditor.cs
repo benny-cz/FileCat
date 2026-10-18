@@ -26,6 +26,7 @@ internal sealed class UserCommandsEditor
     private readonly CheckBox _advanced = new() { Content = "Edit user commands as text" };
     private readonly TextBox _raw = new() { AcceptsReturn = true, MinHeight = 120, FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace") };
     private readonly TextBlock _error = new() { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly ToolInvocationPreview _invocation;
     private readonly StackPanel _structured = new() { Spacing = 6 };
     private readonly StackPanel _rawPanel = new() { Spacing = 6, IsVisible = false };
     private readonly Button _duplicate = new() { Content = "Duplicate command or menu" };
@@ -35,10 +36,11 @@ internal sealed class UserCommandsEditor
     private List<Row> _rows = [];
     private bool _updating;
 
-    public UserCommandsEditor(IEnumerable<ToolDefinition> commands)
+    public UserCommandsEditor(IEnumerable<ToolDefinition> commands, string sampleFolder)
     {
         _draft = Clone(commands);
         RememberArguments(_draft);
+        _invocation = new ToolInvocationPreview("Command", _arguments, SnapshotInvocation, sampleFolder);
         AutomationProperties.SetName(_list, "User command and menu list");
         AutomationProperties.SetName(_name, "Selected command or menu name");
         AutomationProperties.SetName(_program, "Selected command program");
@@ -101,6 +103,7 @@ internal sealed class UserCommandsEditor
         };
         _structured.Children.Add(browse);
         _structured.Children.Add(Field("Arguments", _arguments));
+        _structured.Children.Add(_invocation.View);
         _structured.Children.Add(Field("Working directory", _directory));
         _structured.Children.Add(Field("Shortcut (optional)", _hotkey));
         _structured.Children.Add(_shell);
@@ -194,6 +197,7 @@ internal sealed class UserCommandsEditor
             if ((_shell.IsChecked == true) != tool.ShellMode) tool.ShellMode = _shell.IsChecked == true;
         }
         _error.IsVisible = false;
+        _invocation.Retire();
         Refresh(tool, show: false);
     }
 
@@ -205,6 +209,7 @@ internal sealed class UserCommandsEditor
         _list.ItemsSource = _rows.Select(r => new string(' ', r.Depth * 2) + (r.Tool.Children is null ? "Command: " : "Menu: ") + r.Tool.Name).ToList();
         _list.SelectedIndex = selected is null ? -1 : _rows.FindIndex(r => ReferenceEquals(r.Tool, selected));
         _updating = false;
+        _invocation.Retire();
         if (show) ShowSelected();
         else RefreshButtons();
     }
@@ -292,6 +297,17 @@ internal sealed class UserCommandsEditor
     {
         _error.Text = message;
         _error.IsVisible = true;
+    }
+
+    private (ToolDefinition? Tool, string? Error) SnapshotInvocation()
+    {
+        if (Selected?.Tool is not { Children: null } selected) return (null, "Select a command first.");
+        if (string.IsNullOrWhiteSpace(selected.Executable)) return (null, "Program: enter a program.");
+        if (!ToolTextGrammar.TryParseArguments(_argumentText[selected], out var arguments, out var error))
+            return (null, "Arguments: " + error);
+        var tool = Clone([selected])[0];
+        tool.Arguments = arguments;
+        return (tool, null);
     }
 
     private void RememberArguments(IEnumerable<ToolDefinition> tools)

@@ -209,8 +209,8 @@ public static class SettingsDialog
         };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
-        var userCommandsEditor = new UserCommandsEditor(s.UserCommands);
-        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot);
+        var userCommandsEditor = new UserCommandsEditor(s.UserCommands, previewFolder);
+        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot, previewFolder);
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
@@ -240,7 +240,41 @@ public static class SettingsDialog
             PlaceholderText = "command.id = Ctrl+Shift+X, F12",
         };
         var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Easier: in the keyboard reference (F1), select a command and press F2, then the new keys. Command ids are listed there.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
-        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", reference)) });
+        var chooseShortcut = new Button { Content = "Find and change a shortcut…" };
+        var shortcutStatus = Note("Changes here stay in this Settings draft until OK.");
+        chooseShortcut.Click += async (_, _) =>
+        {
+            var draft = ParseBindings(bindings.Text, vm.Services.Commands, out var parseError);
+            if (parseError is not null)
+            {
+                shortcutStatus.Text = "Fix custom bindings first: " + parseError;
+                Avalonia.Automation.AutomationProperties.SetHelpText(bindings, parseError);
+                bindings.Focus();
+                return;
+            }
+            string? selected = null;
+            while (true)
+            {
+                var keymap = new Keymap(vm.Services.Commands, draft);
+                var entries = vm.Services.Commands.All
+                    .Where(def => !def.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+                        && !def.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
+                        && !def.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
+                        && !def.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
+                    .Select(def => new KeyboardHelpEntry(def.Id, def.Title, def.Category,
+                        keymap.GetGestureText(def.Id), def.Description, true, null)).ToArray();
+                var choice = await vm.Dialogs.KeyboardReferenceAsync(entries, selected, remapOnly: true);
+                if (choice is null) return;
+                selected = choice.CommandId;
+                var changed = await vm.CaptureShortcutAsync(choice.CommandId, draft);
+                if (changed is not { } result) continue;
+                draft = result.Bindings;
+                bindings.Text = string.Join(Environment.NewLine,
+                    draft.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}"));
+                shortcutStatus.Text = result.Message + " Save Settings to keep this change.";
+            }
+        };
+        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", chooseShortcut), ("", shortcutStatus), ("", reference)) });
 
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };

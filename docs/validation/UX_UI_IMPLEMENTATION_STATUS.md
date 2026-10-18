@@ -9,8 +9,10 @@ implemented. Association ordering, per-field validation, an Advanced text route,
 and a nonexecuting first-match preview are implemented with focused regressions.
 F9 user commands have a structured nested-menu editor and a lossless Advanced
 route; Settings search navigates among labels and explanations across tabs.
-Direct keyboard remapping in Settings and token/preview controls for command and
-association arguments remain open. The reported Markdown Page
+The Keyboard tab opens the searchable reference and captures shortcut changes
+inside the Settings draft. Command and association rows offer argument tokens
+and nonexecuting previews. Native interaction acceptance and explicit Advanced
+text file import/export remain open. The reported Markdown Page
 table-width bug is fixed: tables use available viewer width and scroll within
 their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
 records the wide/narrow geometry check and remaining native acceptance.

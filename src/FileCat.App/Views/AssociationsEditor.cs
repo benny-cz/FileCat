@@ -42,13 +42,15 @@ internal sealed class AssociationsEditor
     private readonly StackPanel _structured = new() { Spacing = 6 };
     private readonly StackPanel _rawPanel = new() { Spacing = 6, IsVisible = false };
     private readonly TextBlock _structuredError = new() { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly ToolInvocationPreview _invocation;
     private Action? _retirePreview;
     private bool _updating;
 
-    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters)
+    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters, string sampleFolder)
     {
         _savedFilters = savedFilters;
         _draft = Clone(associations).Select(t => new Entry(t)).ToList();
+        _invocation = new ToolInvocationPreview("Association", _arguments, SnapshotInvocation, sampleFolder);
         AutomationProperties.SetName(_list, "Association priority list");
         AutomationProperties.SetName(_name, "Association name");
         AutomationProperties.SetName(_mask, "Association mask");
@@ -134,6 +136,7 @@ internal sealed class AssociationsEditor
         _structured.Children.Add(browse);
         _structured.Children.Add(browseError);
         _structured.Children.Add(Field("Arguments", _arguments));
+        _structured.Children.Add(_invocation.View);
         _structured.Children.Add(Field("Working directory", _directory));
         _structured.Children.Add(Field("Shortcut (optional)", _hotkey));
         _structured.Children.Add(_shell);
@@ -229,6 +232,7 @@ internal sealed class AssociationsEditor
     {
         if (_updating || Selected is not { } entry) return;
         _structuredError.IsVisible = false;
+        _invocation.Retire();
         var tool = entry.Tool;
         if (_name.Text != (tool.Name ?? string.Empty)) tool.Name = _name.Text ?? string.Empty;
         if (_mask.Text != (tool.Mask ?? string.Empty)) tool.Mask = _mask.Text ?? string.Empty;
@@ -256,6 +260,7 @@ internal sealed class AssociationsEditor
         _list.SelectedIndex = index >= 0 && _draft.Count > 0 ? Math.Min(index, _draft.Count - 1) : -1;
         _updating = false;
         _retirePreview?.Invoke();
+        _invocation.Retire();
         if (show) ShowSelected();
         else RefreshButtons();
     }
@@ -341,6 +346,17 @@ internal sealed class AssociationsEditor
 
     private static List<ToolDefinition> Clone(IEnumerable<ToolDefinition> associations) =>
         JsonSerializer.Deserialize<List<ToolDefinition>>(JsonSerializer.Serialize(associations)) ?? [];
+
+    private (ToolDefinition? Tool, string? Error) SnapshotInvocation()
+    {
+        if (Selected is not { } entry) return (null, "Select an association first.");
+        if (string.IsNullOrWhiteSpace(entry.Tool.Executable)) return (null, "Program: enter a program.");
+        if (!ToolTextGrammar.TryParseArguments(entry.ArgumentsText, out var arguments, out var error))
+            return (null, "Arguments: " + error);
+        var tool = Clone([entry.Tool])[0];
+        tool.Arguments = arguments;
+        return (tool, null);
+    }
 
     private Func<string, string?> CurrentResolver()
     {

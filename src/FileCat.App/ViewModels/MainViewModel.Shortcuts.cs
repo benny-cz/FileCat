@@ -19,8 +19,20 @@ public sealed partial class MainViewModel
     /// </summary>
     internal async Task ChangeShortcutAsync(string id)
     {
-        if (Services.Commands.Get(id) is not { } def) return;
-        var now = Services.Keymap.GetChords(id);
+        var changed = await CaptureShortcutAsync(id, Services.Settings.KeyBindings);
+        if (changed is not { } result) return;
+        Services.Settings.KeyBindings = result.Bindings;
+        ApplySettings();
+        Notify(result.Message);
+    }
+
+    /// <summary>Uses the same capture dialog for a private Settings draft without applying it.</summary>
+    internal async Task<(Dictionary<string, string[]> Bindings, string Message)?> CaptureShortcutAsync(
+        string id, IReadOnlyDictionary<string, string[]> current)
+    {
+        if (Services.Commands.Get(id) is not { } def) return null;
+        var keymap = new Keymap(Services.Commands, current);
+        var now = keymap.GetChords(id);
         KeyChord? pressed = null;
         string? taker = null;
         var keys = new TextBlock { Text = "Press the new shortcut", FontSize = 18, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center };
@@ -53,19 +65,19 @@ public sealed partial class MainViewModel
             e.Handled = true;
             pressed = chord;
             keys.Text = chord.ToDisplayString();
-            taker = ShortcutOwner(chord, def);
+            taker = ShortcutOwner(chord, def, keymap);
             status.Text = now.Contains(chord) ? "Already this command's shortcut."
                 : taker is null ? "Free: no other command uses it here."
                 : $"Used by \"{Services.Commands.Get(taker)?.Title}\": assigning takes it from there.";
             status.Classes.Set("warning", taker is not null);
         }, RoutingStrategies.Tunnel);
-        string current = now.Count == 0 ? "no shortcut" : string.Join(", ", now.Select(c => c.ToDisplayString()));
+        string currentText = now.Count == 0 ? "no shortcut" : string.Join(", ", now.Select(c => c.ToDisplayString()));
         var body = new StackPanel
         {
             Spacing = 8,
             Children =
             {
-                new TextBlock { Text = $"\"{def.Title}\" · now {current}", TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = $"\"{def.Title}\" · now {currentText}", TextWrapping = TextWrapping.Wrap },
                 capture,
                 status,
             },
@@ -74,17 +86,17 @@ public sealed partial class MainViewModel
         [
             new DialogButton("Cancel", "cancel", IsCancel: true),
             new DialogButton("No shortcut", "none") { IsAvailable = () => now.Count > 0 },
-            new DialogButton("Default", "default") { IsAvailable = () => Services.Settings.KeyBindings.ContainsKey(id) },
+            new DialogButton("Default", "default") { IsAvailable = () => current.ContainsKey(id) },
             new DialogButton("Assign", "assign", IsDefault: true) { IsAvailable = () => pressed is not null },
         ], capture, closer: closer);
-        var bindings = new Dictionary<string, string[]>(Services.Settings.KeyBindings, StringComparer.Ordinal);
+        var bindings = new Dictionary<string, string[]>(current, StringComparer.Ordinal);
         string done;
         switch (result as string)
         {
             case "assign" when pressed is { } chord:
                 bindings[id] = [chord.ToDisplayString()];
                 if (taker is not null)
-                    bindings[taker] = Services.Keymap.GetChords(taker).Where(c => c != chord).Select(c => c.ToDisplayString()).ToArray();
+                    bindings[taker] = keymap.GetChords(taker).Where(c => c != chord).Select(c => c.ToDisplayString()).ToArray();
                 done = $"\"{def.Title}\": {chord.ToDisplayString()}" + (taker is null ? "." : $" (no longer \"{Services.Commands.Get(taker)?.Title}\").");
                 break;
             case "none":
@@ -96,15 +108,13 @@ public sealed partial class MainViewModel
                 done = $"\"{def.Title}\" has its default shortcut again.";
                 break;
             default:
-                return;
+                return null;
         }
-        Services.Settings.KeyBindings = bindings;
-        ApplySettings();
-        Notify(done);
+        return (bindings, done);
     }
 
     /// <summary>The other command a chord runs where <paramref name="def"/> would run (its context, or everywhere).</summary>
-    private string? ShortcutOwner(KeyChord chord, CommandDefinition def) =>
-        Services.Commands.All.FirstOrDefault(d => d.Id != def.Id && Services.Keymap.GetChords(d.Id).Contains(chord) &&
+    private string? ShortcutOwner(KeyChord chord, CommandDefinition def, Keymap keymap) =>
+        Services.Commands.All.FirstOrDefault(d => d.Id != def.Id && keymap.GetChords(d.Id).Contains(chord) &&
             (d.Context == def.Context || d.Context == CommandContext.Global || def.Context == CommandContext.Global))?.Id;
 }

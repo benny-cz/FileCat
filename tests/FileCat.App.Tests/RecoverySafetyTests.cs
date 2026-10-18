@@ -243,7 +243,7 @@ public sealed class RecoverySafetyTests
         public Task AlertAsync(string title, string message) { Alerts.Add(message); return Task.CompletedTask; }
         public Task<PromptResult?> PromptAsync(PromptOptions options) => throw new InvalidOperationException("Unexpected prompt");
         public Task<ChoiceResult> ChooseAsync(ChoiceOptions options) => throw new InvalidOperationException("Unexpected choice");
-        public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null) => throw new InvalidOperationException("Unexpected keyboard dialog");
+        public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false) => throw new InvalidOperationException("Unexpected keyboard dialog");
         public Task<object?> ShowCustomAsync(string title, Avalonia.Controls.Control content, IReadOnlyList<DialogButton> buttons,
             Avalonia.Controls.Control? initialFocus = null, Func<bool>? canConfirm = null, DialogCloser? closer = null) => throw new InvalidOperationException("Unexpected custom dialog");
     }

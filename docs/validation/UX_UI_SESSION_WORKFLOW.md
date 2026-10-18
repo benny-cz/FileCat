@@ -28,7 +28,7 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-036**. Follow
+After resolving any outstanding validation failure, finish **FCUX-036** acceptance and implement **UXBUG-002**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
@@ -61,9 +61,13 @@ have a tree-aware list/detail editor with menu insertion, sibling reordering,
 program Browse, item-level errors and a lossless Advanced text route. Settings
 search finds labels and explanations across tabs and navigates to the result.
 Focused Settings tests cover command editing, nested ordering, malformed input,
-raw/structured round trips, Cancel and cross-tab search. Direct keyboard
-remapping in Settings, and argument token/preview support for command and
-association rows, remain open for FCUX-036.
+raw/structured round trips, Cancel and cross-tab search. The Keyboard tab now
+opens the existing searchable reference and shortcut capture dialog against the
+Settings draft; Cancel leaves saved bindings untouched. Command and association
+rows now offer token insertion and an asynchronous no-write argument-vector
+preview that retires on edits and selection changes. Focused regressions cover
+these routes. Native keyboard/focus, picker and scaled layout acceptance, and
+an explicit file import/export route for Advanced text, remain open for FCUX-036.
 
 ### UXBUG-001 implementation record
 
