@@ -153,7 +153,16 @@
               <TextBlock Text="{Binding GraphCaption}" Classes="small muted" HorizontalAlignment="Right" />
             </StackPanel>
           </Grid>
-          <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}" Classes="choices">
+          <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="8,0,8,4">
+            <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).IssueSummary}"
+                       Classes="small muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Content="Issue details…" Click="OnIssueDetails"
+                    IsEnabled="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssue, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <Button Content="Copy report" Click="OnCopyReport" />
+            <Button Content="Save report…" Click="OnSaveReport" />
+          </WrapPanel>
+          <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}"
+                   SelectedItem="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssue, Mode=TwoWay}" Classes="choices">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="jobs:JobIssue">
                 <StackPanel>

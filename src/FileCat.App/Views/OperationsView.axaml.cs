@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input.Platform;
+using Avalonia.Platform.Storage;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
@@ -57,6 +59,66 @@ public partial class OperationsView : UserControl
     {
         // The results of the check on this row (and of the check started with it), as they opened when it ended.
         if (JobOf(sender) is { } j && Main is { } main) await main.ShowVerificationResultsAsync(j.Job);
+    }
+
+    private async void OnIssueDetails(object? sender, RoutedEventArgs e)
+    {
+        if (Center?.Selected is { } selected && Center.SelectedIssue is { } issue && Main is { } main)
+            await OperationIssueDialog.ShowAsync(main, selected.Job, issue);
+    }
+
+    private async void OnCopyReport(object? sender, RoutedEventArgs e)
+    {
+        if (Center?.Selected?.Job is not { } job || Main is not { } main) return;
+        try
+        {
+            var snapshot = OperationReport.Capture(job);
+            string? report = await Task.Run(() => OperationReport.ForClipboard(snapshot));
+            if (report is null)
+            {
+                main.Notify("The complete retained report is too large for one clipboard publication. Use Save report to export every retained detail.", true);
+                return;
+            }
+            if (main.View.Clipboard is not { } clipboard)
+            {
+                main.Notify("The clipboard is not available.", true);
+                return;
+            }
+            await clipboard.SetTextAsync(report);
+            main.Notify($"Copied the report for {Formatters.SafeName(job.Title)} ({snapshot.Issues.Retained:N0} retained details).");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            main.Notify("The report could not be copied: " + Formatters.SafeName(ex.Message), true);
+        }
+    }
+
+    private async void OnSaveReport(object? sender, RoutedEventArgs e)
+    {
+        if (Center?.Selected?.Job is not { } job || Main is not { } main || TopLevel.GetTopLevel(this) is not { } top) return;
+        try
+        {
+            var picked = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save the complete retained operation report",
+                SuggestedFileName = $"FileCat operation {job.ShortId}.txt",
+                DefaultExtension = "txt",
+                FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
+            });
+            if (picked is null) return;
+            if (picked.TryGetLocalPath() is not { } path)
+            {
+                main.Notify("Choose a local file to save the complete report.", true);
+                return;
+            }
+            var snapshot = OperationReport.Capture(job);
+            await Task.Run(() => OperationReport.SaveAtomic(path, snapshot, CancellationToken.None));
+            main.Notify($"Saved the report for {Formatters.SafeName(job.Title)} to {Formatters.SafeName(path)}.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            main.Notify("The report could not be saved: " + Formatters.SafeName(ex.Message), true);
+        }
     }
 
     private void OnToggleDetails(object? sender, RoutedEventArgs e)

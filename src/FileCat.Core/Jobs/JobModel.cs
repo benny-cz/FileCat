@@ -230,6 +230,18 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
     public DateTime TimeUtc { get; } = DateTime.UtcNow;
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
+    /// <summary>Explicit source and target identities, when the operation can establish them.</summary>
+    public string? SourcePath { get; init; }
+    public string? TargetPath { get; init; }
+    /// <summary>True for a local filesystem path, false for a known provider path, null when unspecified.</summary>
+    public bool? SourceIsLocal { get; init; }
+    public bool? TargetIsLocal { get; init; }
+    /// <summary>Recorded intent and effect. Null means this issue alone does not establish that fact.</summary>
+    public string? RequestedAction { get; init; }
+    public string? CommittedEffect { get; init; }
+    public string? SourceDisposition { get; init; }
+    public string? TargetDisposition { get; init; }
+    public string? Certainty { get; init; }
 
     /// <summary>
     /// One line for a finished job's notice: its most serious issue (the first error, else the first warning), how many
@@ -256,6 +268,12 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
         int cut = trimmed.LastIndexOfAny(['/', '\\']);
         return cut >= 0 && cut < trimmed.Length - 1 ? trimmed[(cut + 1)..] : path;
     }
+}
+
+/// <summary>Counts every issue, including details beyond the bounded retained list.</summary>
+public readonly record struct JobIssueTotals(long Total, int Retained, long Info, long Warning, long Error)
+{
+    public long Omitted => Math.Max(0, Total - Retained);
 }
 
 // ---- Decisions ------------------------------------------------------------------------------------------

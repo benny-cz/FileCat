@@ -337,6 +337,24 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private long _admittedItems, _admittedBytes, _admittedVerify;
     private bool _discoveryComplete, _discoveryReliable = true;
     private bool Move => Job.Kind == JobKind.Move;
+
+    private void TransferIssue(IssueSeverity severity, string source, string target, string message,
+        StepOutcome outcome, string effect, string sourceDisposition, string targetDisposition, string certainty)
+    {
+        Job.AddIssue(new JobIssue(severity, source, message, outcome)
+        {
+            SourcePath = source,
+            TargetPath = target,
+            SourceIsLocal = true,
+            TargetIsLocal = true,
+            RequestedAction = Move ? "Move" : "Copy",
+            CommittedEffect = effect,
+            SourceDisposition = sourceDisposition,
+            TargetDisposition = targetDisposition,
+            Certainty = certainty,
+        });
+    }
+
     private TransferOptions Options => Job.Request.Options;
 
     private enum Result { Committed, Skipped, Failed, Filtered }
@@ -891,7 +909,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 case DecisionAction.Skip:
                     Job.ItemSkipped();
                     Job.AddBytes(Math.Max(0, info.Size));
-                    Issue(IssueSeverity.Info, src, "Skipped: the destination already has this name.", StepOutcome.Skipped);
+                    TransferIssue(IssueSeverity.Info, src, dst, "Skipped: the destination already has this name.",
+                        StepOutcome.Skipped, "No transfer attempted for this item", "Original kept",
+                        "Existing destination kept", "Confirmed before transfer");
                     return Result.Skipped;
                 case DecisionAction.Replace:
                     if (existing.IsDirectory && !existing.IsLink) return TypeMismatchFailure(src);
@@ -926,7 +946,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     break;
                 case DecisionAction.Skip:
                     Job.ItemSkipped();
-                    Issue(IssueSeverity.Info, src, "Skipped: moving it would have lost metadata the destination cannot store.", StepOutcome.Skipped);
+                    TransferIssue(IssueSeverity.Info, src, target, "Skipped: moving it would have lost metadata the destination cannot store.",
+                        StepOutcome.Skipped, "No transfer attempted for this item", "Original kept",
+                        "Destination unchanged by this item", "Confirmed before transfer");
                     return Result.Skipped;
                 default:
                     throw new OperationCanceledException();
@@ -1015,7 +1037,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     }
                     if (d.Action != DecisionAction.Skip) throw new OperationCanceledException();
                     Job.ItemSkipped();
-                    Issue(IssueSeverity.Warning, src, "Skipped: it is encrypted and the destination cannot keep it encrypted.", StepOutcome.Skipped);
+                    TransferIssue(IssueSeverity.Warning, src, target, "Skipped: it is encrypted and the destination cannot keep it encrypted.",
+                        StepOutcome.Skipped, "No transfer attempted for this item", "Original kept",
+                        "Destination unchanged by this item", "Confirmed before transfer");
                     return Result.Skipped;
                 }
                 var decision = Job.Ask(new ErrorRequest("Could not copy the file", $"{Path.GetFileName(src)}: {ErrorText.Describe(ex)}", src, true, cls));
@@ -1023,7 +1047,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 if (decision.Action == DecisionAction.Skip)
                 {
                     Job.ItemFailed();
-                    Issue(IssueSeverity.Error, src, "Not copied: " + ErrorText.Describe(ex), StepOutcome.Skipped);
+                    TransferIssue(IssueSeverity.Error, src, target, "Not copied: " + ErrorText.Describe(ex),
+                        StepOutcome.Failed, "Copy failed; no published copy confirmed", "Original kept",
+                        "Target state not confirmed; inspect before retrying", "Failure reported by the copy operation");
                     return Result.Failed;
                 }
                 throw new OperationCanceledException();
@@ -1090,7 +1116,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (keepSource)
         {
             Job.ItemSkipped();
-            Issue(IssueSeverity.Info, src, "Copied; the original was kept because the destination cannot store all of its metadata.", StepOutcome.Skipped);
+            TransferIssue(IssueSeverity.Info, src, target, "Copied; the original was kept because the destination cannot store all of its metadata.",
+                StepOutcome.Skipped, "Copy published; source removal not attempted", "Original kept",
+                "Copy published", "Observed at publication; later external changes are possible");
             return Result.Skipped;
         }
         if (followLink)
@@ -1098,7 +1126,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             // The approved operation copied contents through a link. Keep both the link and its referent: the
             // ordinary-file move checks cannot prove either may be removed after following it.
             Job.ItemSkipped();
-            Issue(IssueSeverity.Info, src, "Copied the link's contents; the source link and its target were kept.", StepOutcome.Skipped);
+            TransferIssue(IssueSeverity.Info, src, target, "Copied the link's contents; the source link and its target were kept.",
+                StepOutcome.Skipped, "Link contents copied; source removal not attempted", "Link and referent kept",
+                "Copy published", "Observed at publication; later external changes are possible");
             return Result.Skipped;
         }
         return DeleteMovedSource(src, target, info);
@@ -1184,7 +1214,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var now = Fs.TryGetInfo(src);
         if (now is null)
         {
-            Issue(IssueSeverity.Warning, src, "The copy was published, but the source had already disappeared.", StepOutcome.Uncertain);
+            TransferIssue(IssueSeverity.Warning, src, target, "The copy was published, but the source had already disappeared.",
+                StepOutcome.Uncertain, "Copy published; source disappearance observed", "Not present when checked",
+                "Copy published", "Who removed the source and later target state are unknown");
             Job.ItemDone();
             return Result.Committed;
         }
@@ -1192,13 +1224,17 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // source itself reached through a link.
         if (Fs.GetFileIdentity(src) is { } source && source == Fs.GetFileIdentity(target))
         {
-            Issue(IssueSeverity.Warning, src, "Not deleted: the destination turned out to be the source itself (reached through a link), so it stays where it is.", StepOutcome.PartiallyApplied);
+            TransferIssue(IssueSeverity.Warning, src, target, "Not deleted: the destination turned out to be the source itself (reached through a link), so it stays where it is.",
+                StepOutcome.PartiallyApplied, "Source deletion refused after publication", "Original kept",
+                "Target path aliases the original", "Confirmed by file identity at deletion check");
             Job.ItemDone();
             return Result.Failed;
         }
         if (now.Size != before.Size || now.ModifiedUtc != before.ModifiedUtc)
         {
-            Issue(IssueSeverity.Warning, src, "Copied, but the source changed during the copy, so it was not deleted. Both versions now exist.", StepOutcome.PartiallyApplied);
+            TransferIssue(IssueSeverity.Warning, src, target, "Copied, but the source changed during the copy, so it was not deleted. Both versions now exist.",
+                StepOutcome.PartiallyApplied, "Copy published; source deletion refused", "Changed original kept",
+                "Copy published", "Both paths were observed at the deletion check");
             Job.ItemDone();
             return Result.Failed;
         }
@@ -1206,7 +1242,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // new file away at once, and the source would then be the only copy (release plan DPI P01).
         if (Fs.TryGetInfo(target) is not { IsDirectory: false } copy || copy.Size != now.Size)
         {
-            Issue(IssueSeverity.Warning, src, "Not deleted: the copy is no longer at the destination as it was written (another program may have moved or removed it), so the source stays.", StepOutcome.PartiallyApplied);
+            TransferIssue(IssueSeverity.Warning, src, target, "Not deleted: the copy is no longer at the destination as it was written (another program may have moved or removed it), so the source stays.",
+                StepOutcome.PartiallyApplied, "Publication occurred; source deletion refused", "Original kept",
+                "Published copy no longer matched", "Target state observed at the deletion check");
             Job.ItemDone();
             return Result.Failed;
         }
@@ -1238,7 +1276,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
         if (!matching)
         {
-            Issue(IssueSeverity.Warning, src, "Not deleted: the source and published copy changed or their complete bytes could not be checked. The source stays.", StepOutcome.PartiallyApplied);
+            TransferIssue(IssueSeverity.Warning, src, target, "Not deleted: the source and published copy changed or their complete bytes could not be checked. The source stays.",
+                StepOutcome.PartiallyApplied, "Copy published; source deletion refused", "Original kept",
+                "Published copy may remain", "Complete equality could not be established");
             Job.ItemDone();
             return Result.Failed;
         }
@@ -1249,7 +1289,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Fs.DeleteFile(src);
         });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
-        if (!ok) Issue(IssueSeverity.Warning, src, "The item was copied, but the source could not be deleted; it still exists in both places.", StepOutcome.PartiallyApplied);
+        if (!ok) TransferIssue(IssueSeverity.Warning, src, target, "The item was copied, but the source could not be deleted; it still exists in both places.",
+            StepOutcome.PartiallyApplied, "Copy published; source deletion failed", "Original kept",
+            "Copy published", "Observed after the failed deletion attempt");
         Job.ItemDone();
         return ok ? Result.Committed : Result.Failed;
     }

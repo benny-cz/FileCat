@@ -28,20 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-017**. Follow
+After resolving any outstanding validation failure, resume **FCUX-019**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-017 — complete operation evidence | Expose full selectable issue paths, reasons and a complete retained report with truthful omission counts and useful remediation actions. |
+| 1 | FCUX-019 — history and Undo disclosure | Explain the retirement of eligible Undo and reports before clearing useful records; give generic Undo its accurate scope. |
 
-Then continue FCUX-019, FCUX-020, FCUX-021, FCUX-022 and onward
+Then continue FCUX-020, FCUX-021, FCUX-022 and onward
 from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
+
+### FCUX-017 implementation record
+
+Ordinary operation issues now have full selectable path/reason details, exact
+copy actions, and Reveal for existing, known-local items. A bounded clipboard
+report and streaming local save include all retained details. Total and severity
+counters continue past the 10,000-detail cap; the drawer and report disclose
+omissions. Structured transfer rows preserve Skip, failed copy, published copy
+with source kept, and deletion refusal. Focused App/Core tests and the Release
+solution build pass. Native clipboard, reveal, screen-reader and large-layout
+acceptance remain open.
 
 ### FCUX-016 implementation record
 

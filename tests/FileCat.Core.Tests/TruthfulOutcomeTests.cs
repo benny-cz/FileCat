@@ -89,6 +89,13 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.Empty(Directory.GetFiles(dst, JournalRecovery.StagedPrefix + "*"));
         var issue = Assert.Single(job.Issues, i => i.Severity == IssueSeverity.Error);
         Assert.Contains(text, issue.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(StepOutcome.Failed, issue.Outcome);
+        Assert.Equal(bad, issue.SourcePath);
+        Assert.Equal(Path.Combine(dst, "bad-FAIL.txt"), issue.TargetPath);
+        Assert.Equal("Copy", issue.RequestedAction);
+        Assert.Equal("Copy failed; no published copy confirmed", issue.CommittedEffect);
+        Assert.Equal("Original kept", issue.SourceDisposition);
+        Assert.Contains("not confirmed", issue.TargetDisposition);
     }
 
     [Fact]
@@ -204,6 +211,21 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.Equal(copied, File.Exists(Path.Combine(dst, "download.zip")));
         Assert.Equal(sourceKept, File.Exists(file));
         Assert.True(job.State.IsFinished());
+        if (answer == DecisionAction.KeepSource)
+        {
+            var issue = Assert.Single(job.Issues, i => i.CommittedEffect == "Copy published; source removal not attempted");
+            Assert.Equal(file, issue.SourcePath);
+            Assert.Equal(Path.Combine(dst, "download.zip"), issue.TargetPath);
+            Assert.Equal("Move", issue.RequestedAction);
+            Assert.Equal("Original kept", issue.SourceDisposition);
+            Assert.Equal("Copy published", issue.TargetDisposition);
+        }
+        if (answer == DecisionAction.Skip)
+        {
+            var issue = Assert.Single(job.Issues, i => i.CommittedEffect == "No transfer attempted for this item");
+            Assert.Equal(StepOutcome.Skipped, issue.Outcome);
+            Assert.Equal("Original kept", issue.SourceDisposition);
+        }
     }
 
     [Fact]
@@ -257,7 +279,13 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.True(job.State.IsFinished());
         Assert.False(File.Exists(Path.Combine(dst, "report.txt")));
         Assert.Equal("the only copy", File.ReadAllText(file));
-        Assert.Contains(job.Issues, i => i.Message.Contains("is no longer at the destination", StringComparison.Ordinal));
+        var issue = Assert.Single(job.Issues, i => i.Message.Contains("is no longer at the destination", StringComparison.Ordinal));
+        Assert.Equal(StepOutcome.PartiallyApplied, issue.Outcome);
+        Assert.Equal(file, issue.SourcePath);
+        Assert.Equal(Path.Combine(dst, "report.txt"), issue.TargetPath);
+        Assert.Equal("Publication occurred; source deletion refused", issue.CommittedEffect);
+        Assert.Equal("Original kept", issue.SourceDisposition);
+        Assert.Equal("Published copy no longer matched", issue.TargetDisposition);
     }
 
     /// <summary>An EFS-encrypted source: the native engine refuses a non-encrypting destination until allowed.</summary>

@@ -328,7 +328,11 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             {
                 lock (_changedLock) _pendingChanges.Remove(job);
                 if (_map.TryGetValue(job, out var vm)) vm.Refresh();
-                if (ReferenceEquals(Selected?.Job, job)) QueueIssueRefresh();
+                if (ReferenceEquals(Selected?.Job, job))
+                {
+                    QueueIssueRefresh();
+                    UpdateIssueSummary();
+                }
                 UpdateSummary();
             });
         };
@@ -340,6 +344,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private JobViewModel? _selected;
+    [ObservableProperty] private JobIssue? _selectedIssue;
+    [ObservableProperty] private string _issueSummary = string.Empty;
     [ObservableProperty] private JobViewModel? _primary;
     [ObservableProperty] private string _summary = string.Empty;
     [ObservableProperty] private bool _hasVisibleWork;
@@ -355,6 +361,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     partial void OnSelectedChanged(JobViewModel? value)
     {
+        SelectedIssue = null;
         _selectedIssueJob = value?.Job;
         SelectedIssues.Clear();
         ReconcileSelectedIssues();
@@ -386,10 +393,29 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             _selectedIssueJob = job;
             SelectedIssues.Clear();
         }
-        if (job is null) return;
+        if (job is null)
+        {
+            UpdateIssueSummary();
+            return;
+        }
         var next = job.ReadIssues(SelectedIssues.Count, IssueBatchSize);
         foreach (var issue in next) SelectedIssues.Add(issue);
+        UpdateIssueSummary();
         if (SelectedIssues.Count < job.IssueCount) QueueIssueRefresh();
+    }
+
+    private void UpdateIssueSummary()
+    {
+        if (Selected?.Job is not { } job)
+        {
+            IssueSummary = string.Empty;
+            return;
+        }
+        var totals = job.IssueTotals;
+        IssueSummary = totals.Total == 0 ? "No issues reported."
+            : $"Showing first {SelectedIssues.Count:N0} of {totals.Total:N0} issues · {totals.Retained:N0} details retained · " +
+              $"{totals.Info:N0} info, {totals.Warning:N0} warnings, {totals.Error:N0} errors" +
+              (totals.Omitted > 0 ? $" · {totals.Omitted:N0} additional details omitted" : "");
     }
 
     /// <summary>Shows a job's row as the job is now (a finished verification let go of its results: its Results button goes).</summary>

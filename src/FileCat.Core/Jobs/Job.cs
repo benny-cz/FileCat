@@ -12,6 +12,7 @@ public sealed partial class Job
 {
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
+    private long _issueTotal, _issueInfo, _issueWarnings, _issueErrors;
     private ulong[] _completedRoots = [];
     private ulong[] _failedRoots = [];
     private int _completedRootCount, _failedRootCount;
@@ -152,6 +153,14 @@ public sealed partial class Job
         }
     }
 
+    public JobIssueTotals IssueTotals
+    {
+        get
+        {
+            lock (_lock) return new JobIssueTotals(_issueTotal, _issues.Count, _issueInfo, _issueWarnings, _issueErrors);
+        }
+    }
+
     /// <summary>A bounded, thread-safe slice for a live report; progress ticks never copy the whole retained list.</summary>
     public IReadOnlyList<JobIssue> ReadIssues(int start, int maximum)
     {
@@ -248,8 +257,8 @@ public sealed partial class Job
             if (ItemsDone > 0) parts.Add($"{ItemsDone:N0} done");
             if (ItemsSkipped > 0) parts.Add($"{ItemsSkipped:N0} skipped");
             if (ItemsFailed > 0) parts.Add($"{ItemsFailed:N0} failed");
-            int warnings;
-            lock (_lock) warnings = _issues.Count(i => i.Severity == IssueSeverity.Warning);
+            long warnings;
+            lock (_lock) warnings = _issueWarnings;
             if (warnings > 0) parts.Add($"{warnings:N0} warning{(warnings == 1 ? "" : "s")}");
             return parts.Count == 0 ? State.Describe() : string.Join(", ", parts);
         }
@@ -389,6 +398,13 @@ public sealed partial class Job
     {
         lock (_lock)
         {
+            if (_issueTotal < long.MaxValue) _issueTotal++;
+            switch (issue.Severity)
+            {
+                case IssueSeverity.Info: if (_issueInfo < long.MaxValue) _issueInfo++; break;
+                case IssueSeverity.Warning: if (_issueWarnings < long.MaxValue) _issueWarnings++; break;
+                case IssueSeverity.Error: if (_issueErrors < long.MaxValue) _issueErrors++; break;
+            }
             if (_issues.Count < 10_000) _issues.Add(issue);
         }
         Changed?.Invoke(this);
