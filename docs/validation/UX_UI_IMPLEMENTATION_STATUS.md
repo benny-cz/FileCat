@@ -8,7 +8,12 @@ and 116 related App cases pass; native high-contrast and theme-transition
 acceptance remain open. FCUX-048's five focused and 63 related App tests pass
 with one platform-specific skip; native pointer, clipboard and provider
 acceptance remain open. UXBUG-009's
-focused and 44 related App cases pass; a complete App rerun is in progress.
+focused and 44 related App cases pass. The first complete App run after
+UXBUG-009 recorded 2,246 passes, 63 skips and one assertion taken before two
+interrupted-review button bindings settled. That test passes in isolation; its
+accessibility assertion now waits for Loaded bindings and still fails if names
+remain empty. The 59-case related rerun passes, and a complete rerun on the
+current build is in progress.
 UXBUG-008's
 240 related App and 111 related Core cases pass, and the full Core Release suite
 passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance

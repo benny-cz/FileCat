@@ -48,7 +48,7 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         f.Vm.Operations.LoadInterrupted([f.Interrupted]);
         f.Vm.Operations.IsOpen = true;
         f.Window.UpdateLayout();
-        Assert.Empty(AccessibilityTests.Unnamed(f.Window));
+        await AssertNamedWhenSettled(f.Window);
         ClickBanner("Mark reviewed…");
         await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
         f.Window.UpdateLayout();
@@ -72,7 +72,7 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         Assert.Contains("Open step 1 (rename-via", record.Report, StringComparison.OrdinalIgnoreCase);
         Assert.Single(f.Vm.Operations.ReviewedRecovery);
         f.Window.UpdateLayout();
-        Assert.Empty(AccessibilityTests.Unnamed(f.Window));
+        await AssertNamedWhenSettled(f.Window);
         Assert.Equal("reviewed", File.ReadAllText(f.Via));
         Assert.False(File.Exists(f.Target));
         Assert.False(JournalRecovery.IsInterrupted(f.Interrupted));
@@ -252,6 +252,20 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
     private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
     private static string? Bytes(string path) => File.Exists(path) ? File.ReadAllText(path) : Directory.Exists(path) ? string.Join(";", Directory.GetFiles(path).Order().Select(p => Path.GetFileName(p) + "=" + File.ReadAllText(p))) : null;
     private static async Task Wait(Func<bool> done) { var clock = Stopwatch.StartNew(); while (!done()) { Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), "Owned rename checkpoint timed out."); await Task.Delay(10, TestContext.Current.CancellationToken); } }
+
+    private static async Task AssertNamedWhenSettled(Window window)
+    {
+        // The expanded interrupted-review buttons get their localized content from bindings at
+        // Loaded priority. A full-suite render can reach this assertion before those bindings run.
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            window.UpdateLayout();
+            if (AccessibilityTests.Unnamed(window).Count == 0) return;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Empty(AccessibilityTests.Unnamed(window));
+    }
     private sealed record Call(string Operation, bool Ui, string Thread);
     private sealed class Fixture : IDisposable
     {

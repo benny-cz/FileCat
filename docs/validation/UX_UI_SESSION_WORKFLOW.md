@@ -55,6 +55,13 @@ platform skip. Native location-menu acceptance remains open. FCUX-049's open
 viewer palette and event-lifetime correction passes two focused and 116 related
 App cases; native acceptance remains open. FCUX-050 follows.
 
+The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
+and one interrupted-review accessibility assertion before two button bindings
+settled. The isolated test passed; the assertion now waits up to 10 seconds
+for the Loaded bindings and still reports any persistent unnamed controls.
+The 59 related cases pass. A full App rerun on the current FCUX-049 build is
+in progress; do not count the earlier run as a passing complete suite.
+
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
