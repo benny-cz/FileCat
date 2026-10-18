@@ -38,9 +38,32 @@ their native acceptance gates open.
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-Then continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
+After FCUX-036, continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
+acceptance remains open.
+
+### FCUX-036 work in progress
+
+The Editor field now offers a local program picker, argument token insertion,
+an explicit batch shell-interpretation choice and a sample invocation preview.
+The preview resolves the executable and displays
+each argument boundary without launching a process or creating a list file;
+changed inputs retire the old preview. The Settings draft still commits only
+after OK. Structured filter, command and association editors, ordering controls,
+raw/structured round trips, keyboard remapping access and Settings search remain
+open for FCUX-036.
+
+### UXBUG-001 implementation record
+
+Markdown Page tables now use the viewer's available width, while direct prose
+blocks retain an 880 px reading measure. A keyboard-focusable table region
+scrolls horizontally when a table's content needs more width. A headless Chrome
+geometry check of `UX_UI_IMPLEMENTATION_STATUS.md` at a 1,536 px viewport found
+the four columns visible in a 1,457 px table region with no inner overflow; at
+600 px, the 521 px region contained a 916 px table and horizontal scrolling,
+without expanding the page's horizontal extent. Markdown renderer regressions
+cover the safe region markup and stylesheet contract. Native WebView2 desktop
 acceptance remains open.
 
 ### FCUX-033 implementation record

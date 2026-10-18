@@ -61,9 +61,24 @@ public sealed class MarkdownTests
     public void Tables_align_and_keep_escaped_pipes()
     {
         string html = Html("| Name | Size |\n|:-----|-----:|\n| a\\|b | `x|y` |\n| c | 2 |");
+        Assert.Contains("<div class=\"table-region\" role=\"region\" aria-label=\"Table; scroll horizontally if needed\" tabindex=\"0\"><table>", html);
+        Assert.EndsWith("</table></div>", html);
         Assert.Contains("<th style=\"text-align:left\">Name</th><th style=\"text-align:right\">Size</th>", html);
         Assert.Contains("<td style=\"text-align:left\">a|b</td><td style=\"text-align:right\"><code>x|y</code></td>", html);
         Assert.Contains("<td style=\"text-align:left\">c</td>", html);
+    }
+
+    [Fact]
+    public void Tables_can_use_the_viewport_while_prose_stays_readable()
+    {
+        string page = Markdown.ToPage("# Report\n\nIntro text.\n\n| Finding | Work | Coverage | Acceptance |\n| --- | --- | --- | --- |\n| A | B | C | D |", "report.md");
+        Assert.Contains("article { box-sizing: border-box; width: 100%;", page);
+        Assert.Contains("article > :not(.table-region) { max-width: 880px;", page);
+        Assert.Contains(".table-region { max-width: 100%; margin: 0 0 1em; overflow-x: auto; }", page);
+        Assert.Contains("table { border-collapse: collapse; width: 100%; }", page);
+        Assert.Contains("<h1 id=\"report\">Report</h1>", page);
+        Assert.Contains("<p>Intro text.</p>", page);
+        Assert.Contains("<div class=\"table-region\"", page);
     }
 
     [Fact]

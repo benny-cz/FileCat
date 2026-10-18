@@ -4,7 +4,10 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using System.Text;
+using System.Text.Json;
 using FileCat.Core.Tools;
 using FileCat.App.Services;
 using FileCat.App.Controls;
@@ -81,6 +84,135 @@ public static class SettingsDialog
         // ---- Tools
         var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable };
         var editorArgs = new TextBox { Text = s.Editor is null ? "{files}" : ToolTextGrammar.FormatArguments(s.Editor.Arguments) };
+        var editorShellMode = new CheckBox
+        {
+            Content = "Allow shell interpretation for batch programs",
+            IsChecked = s.Editor?.ShellMode ?? false,
+        };
+        var browseEditor = new Button { Content = "Browse for editor…" };
+        var browseStatus = Note(string.Empty);
+        browseEditor.Click += async (_, _) =>
+        {
+            var top = TopLevel.GetTopLevel(browseEditor);
+            if (top is null) return;
+            try
+            {
+                var picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Choose editor program",
+                    AllowMultiple = false,
+                });
+                if (!ReferenceEquals(TopLevel.GetTopLevel(browseEditor), top) || picked.Count == 0) return;
+                if (picked[0].TryGetLocalPath() is { } path && Path.IsPathFullyQualified(path))
+                {
+                    editorExe.Text = path;
+                    browseStatus.Text = string.Empty;
+                }
+                else
+                    browseStatus.Text = "Choose a program on this computer.";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                browseStatus.Text = "Could not open the program picker: " + ex.Message;
+            }
+        };
+        var tokens = new ComboBox { ItemsSource = ToolLauncher.Placeholders, SelectedIndex = 0, MinWidth = 150 };
+        Avalonia.Automation.AutomationProperties.SetName(tokens, "Argument token to add");
+        var previewResult = new SelectableTextBlock
+        {
+            Text = "Choose Preview invocation to inspect the resolved argument vector. Nothing is run.",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 520,
+        };
+        Avalonia.Automation.AutomationProperties.SetName(previewResult, "Editor invocation preview");
+        var addToken = new Button { Content = "Add token" };
+        addToken.Click += (_, _) =>
+        {
+            if (tokens.SelectedItem is not string token) return;
+            if (!ToolTextGrammar.TryParseArguments(editorArgs.Text, out var arguments, out var parseError))
+            {
+                Avalonia.Automation.AutomationProperties.SetHelpText(editorArgs, parseError);
+                previewResult.Text = "Editor arguments: " + parseError;
+                editorArgs.Focus();
+                return;
+            }
+            Avalonia.Automation.AutomationProperties.SetHelpText(editorArgs, null);
+            arguments.Add(token);
+            editorArgs.Text = ToolTextGrammar.FormatArguments(arguments);
+            editorArgs.Focus();
+        };
+        var previewFolder = vm.ActiveTab?.Location is { IsFileSystem: true } localLocation
+            ? localLocation.Path : vm.Services.Paths.LocalDirectory;
+        var previewFile = new TextBox { Text = Path.Combine(previewFolder, "example file.txt") };
+        var previewButton = new Button { Content = "Preview invocation" };
+        int previewGeneration = 0;
+        (string Program, string Arguments, string Sample, bool ShellMode)? previewSnapshot =
+            (editorExe.Text ?? string.Empty, editorArgs.Text ?? string.Empty, previewFile.Text ?? string.Empty, editorShellMode.IsChecked == true);
+        void RetirePreview(object? _, EventArgs __)
+        {
+            if (previewSnapshot is { } snapshot && snapshot ==
+                (editorExe.Text ?? string.Empty, editorArgs.Text ?? string.Empty, previewFile.Text ?? string.Empty, editorShellMode.IsChecked == true)) return;
+            previewGeneration++;
+            previewSnapshot = null;
+            previewResult.Text = "Preview out of date. Choose Preview invocation again.";
+        }
+        editorExe.TextChanged += RetirePreview;
+        editorArgs.TextChanged += RetirePreview;
+        previewFile.TextChanged += RetirePreview;
+        editorShellMode.IsCheckedChanged += (_, _) => RetirePreview(null, EventArgs.Empty);
+        previewButton.Click += async (_, _) =>
+        {
+            int request = ++previewGeneration;
+            var owner = TopLevel.GetTopLevel(previewButton);
+            if (owner is null) return;
+            string programText = editorExe.Text ?? string.Empty;
+            string argumentsText = editorArgs.Text ?? string.Empty;
+            string sampleText = previewFile.Text ?? string.Empty;
+            string toolName = s.Editor?.Name ?? "Editor";
+            bool shellMode = editorShellMode.IsChecked == true;
+            string tempDirectory = vm.Services.Paths.LocalDirectory;
+            previewSnapshot = (programText, argumentsText, sampleText, shellMode);
+            previewResult.Text = "Checking invocation…";
+            string result = await Task.Run(() =>
+            {
+                try
+                {
+                    if (!Path.IsPathFullyQualified(sampleText)) return "Preview file: enter a full local path.";
+                    if (!ToolTextGrammar.TryParseArguments(argumentsText, out var arguments, out var parseError))
+                        return "Editor arguments: " + parseError;
+                    if (!ToolTextGrammar.TryParseField(programText, out var executable, out var fieldError))
+                        return "Editor program: " + fieldError;
+                    var tool = string.IsNullOrWhiteSpace(executable) ? ToolLauncher.DetectEditor() : new ToolDefinition
+                    {
+                        Name = toolName,
+                        Executable = executable,
+                        Arguments = arguments,
+                        ShellMode = shellMode,
+                    };
+                    var plan = ToolLauncher.Preview(tool,
+                        new ToolContext([sampleText], Path.GetDirectoryName(sampleText) ?? sampleText),
+                        tempDirectory, out var warning);
+                    var text = new StringBuilder("Sample invocation; no program or list file was created.\n");
+                    if (string.IsNullOrWhiteSpace(executable))
+                        text.Append("Automatic editor selected.\n");
+                    foreach (var (program, values) in plan)
+                    {
+                        text.Append("Program: ").Append(program).Append("\nArguments (").Append(values.Count).Append("):\n");
+                        for (int i = 0; i < values.Count; i++)
+                            text.Append(i + 1).Append(": ").Append(JsonSerializer.Serialize(values[i])).Append('\n');
+                    }
+                    if (tool.Arguments.Contains("{listfile}")) text.Append("A list file is created only when this tool is launched.\n");
+                    if (warning is not null) text.Append(warning);
+                    return text.Length <= 16384 ? text.ToString() : text.ToString(0, 16384) + "\nPreview truncated; inspect the argument fields for the full values.";
+                }
+                catch (Exception ex) when (ex is ToolLaunchException or ArgumentException or IOException or UnauthorizedAccessException)
+                {
+                    return "Preview could not resolve the invocation: " + ex.Message;
+                }
+            });
+            if (request == previewGeneration && ReferenceEquals(TopLevel.GetTopLevel(previewButton), owner))
+                previewResult.Text = result;
+        };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
         var userCommands = new TextBox
@@ -103,7 +235,11 @@ public static class SettingsDialog
         {
             Header = "Tools",
             // Each box with its own explanation right below it.
-            Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs),
+            Content = Form(("Editor (F4) program", editorExe), ("", browseEditor), ("", browseStatus), ("Editor arguments", editorArgs),
+                ("Add argument token", DialogLayout.Actions(tokens, addToken)),
+                ("Preview file (sample only)", previewFile), ("", previewButton), ("", previewResult),
+                ("", editorShellMode),
+                ("", Note("Batch programs normally reject selected names with shell characters such as &, | or >. Enable this only if you trust both the batch program and the names it receives; a normal executable is safer.")),
                 ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommands),
                 ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
                 ("Associations", associations),
@@ -256,7 +392,8 @@ public static class SettingsDialog
         bool thresholdChanged = upTo != s.VerifyAutomaticallyUpToMiB;
         s.VerifyAutomaticallyUpToMiB = upTo;
         s.SavedFilters = parsedFilters;
-        if (editorExe.Text != originalExecutable || editorArgs.Text != originalArguments)
+        if (editorExe.Text != originalExecutable || editorArgs.Text != originalArguments ||
+            (editorShellMode.IsChecked == true) != (s.Editor?.ShellMode ?? false))
         {
             var previous = s.Editor;
             s.Editor = string.IsNullOrWhiteSpace(parsedExecutable) ? null : new ToolDefinition
@@ -265,7 +402,7 @@ public static class SettingsDialog
                 Executable = parsedExecutable,
                 Arguments = [.. parsedArguments],
                 WorkingDirectory = previous?.WorkingDirectory ?? "{dir}",
-                ShellMode = previous?.ShellMode ?? false,
+                ShellMode = editorShellMode.IsChecked == true,
                 Hotkey = previous?.Hotkey,
                 Intent = previous?.Intent,
                 Mask = previous?.Mask,

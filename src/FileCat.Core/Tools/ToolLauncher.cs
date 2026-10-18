@@ -82,12 +82,16 @@ public static class ToolLauncher
         return null;
     }
 
-    /// <summary>Builds (and validates) the invocations without starting anything; used for previews and tests.</summary>
+    /// <summary>Builds (and validates) the invocations without starting a process; list files are written for launch parity.</summary>
     public static IReadOnlyList<(string Executable, IReadOnlyList<string> Arguments)> Plan(ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning)
-        => PlanOwned(tool, ctx, tempDirectory, out warning, out _);
+        => PlanOwned(tool, ctx, tempDirectory, out warning, out _, preview: false);
+
+    /// <summary>Shows the invocation that would be used without starting a process or writing a list file.</summary>
+    public static IReadOnlyList<(string Executable, IReadOnlyList<string> Arguments)> Preview(ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning)
+        => PlanOwned(tool, ctx, tempDirectory, out warning, out _, preview: true);
 
     private static IReadOnlyList<(string Executable, IReadOnlyList<string> Arguments)> PlanOwned(
-        ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning, out List<string> listFiles)
+        ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning, out List<string> listFiles, bool preview)
     {
         listFiles = [];
         try
@@ -110,7 +114,8 @@ public static class ToolLauncher
                 {
                     case "{files}": values.AddRange(files.Select(ProtectOptionLike)); break;
                     case "{file}": if (files.Count > 0) values.Add(ProtectOptionLike(files[0])); break;
-                    case "{listfile}": values.Add(WriteListFile(files, tempDirectory, listFiles)); break;
+                    // Keep the preview path the same length as a real generated name so command-line limit checks agree.
+                    case "{listfile}": values.Add(preview ? Path.Combine(tempDirectory, $"filelist-{Guid.Empty:N}.txt") : WriteListFile(files, tempDirectory, listFiles)); break;
                     default: values.Add(Substitute(token, ctx, files)); break;
                 }
                 resolved.Add((token == "{files}", values));
@@ -161,7 +166,7 @@ public static class ToolLauncher
 
     public static ToolLaunchResult Launch(ToolDefinition tool, ToolContext ctx, string tempDirectory)
     {
-        var plan = PlanOwned(tool, ctx, tempDirectory, out var warning, out var listFiles);
+        var plan = PlanOwned(tool, ctx, tempDirectory, out var warning, out var listFiles, preview: false);
         var summaries = new List<string>();
         bool started = false;
         try

@@ -71,6 +71,83 @@ public sealed class SettingsPreservationTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Editor_preview_shows_resolved_argument_boundaries_and_token_insertion_stays_in_the_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            ConfigureTools(services.Settings, root);
+            string before = ToolsSnapshot(services.Settings);
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var sample = Field<TextBox>(window, "Preview file (sample only)");
+            sample.Text = Path.Combine(root, "files", "a b.txt");
+            var preview = Field<SelectableTextBlock>(window, "Editor invocation preview");
+            var previewButton = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Preview invocation"));
+            Assert.Same(window, TopLevel.GetTopLevel(previewButton));
+            previewButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("Checking invocation", preview.Text);
+            for (int i = 0; i < 100 && !preview.Text!.Contains("Program:", StringComparison.Ordinal); i++)
+            {
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+                Dispatcher.UIThread.RunJobs();
+            }
+            Assert.Contains("Arguments (5):", preview.Text);
+            Assert.Contains("3: \"\"", preview.Text);
+            Assert.Contains(JsonSerializer.Serialize(sample.Text), preview.Text);
+
+            var shellMode = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(b => Equals(b.Content, "Allow shell interpretation for batch programs"));
+            shellMode.IsChecked = false;
+            Assert.Contains("out of date", preview.Text);
+
+            var arguments = Field<TextBox>(window, "Editor arguments");
+            arguments.Text = "--profile \"two words\" \"\"";
+            Field<ComboBox>(window, "Argument token to add").SelectedItem = "{file}";
+            window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Add token"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(ToolTextGrammar.TryParseArguments(arguments.Text, out var tokens, out _));
+            Assert.Equal(["--profile", "two words", "", "{file}"], tokens);
+            Assert.Contains("out of date", preview.Text);
+
+            arguments.Text = "\"unterminated";
+            window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Add token"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("\"unterminated", arguments.Text);
+            Assert.Contains("Editor arguments:", preview.Text);
+            Assert.NotNull(AutomationProperties.GetHelpText(arguments));
+
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, ToolsSnapshot(services.Settings));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Editor_shell_interpretation_is_an_explicit_draft_choice_that_preserves_other_fields()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            ConfigureTools(services.Settings, root);
+            var before = JsonSerializer.Deserialize<ToolDefinition>(JsonSerializer.Serialize(services.Settings.Editor))!;
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var shellMode = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(b => Equals(b.Content, "Allow shell interpretation for batch programs"));
+            Assert.True(shellMode.IsChecked);
+            shellMode.IsChecked = false;
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            before.ShellMode = false;
+            Assert.Equal(JsonSerializer.Serialize(before), JsonSerializer.Serialize(services.Settings.Editor));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("Editor arguments", "--profile \"unterminated", "Editor arguments:")]
     [InlineData("User commands (F9)", "Valid | tool | x\nBroken | tool | x | shell | ignored", "Line 2:")]

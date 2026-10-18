@@ -386,7 +386,7 @@ public static partial class Markdown
         {
             var header = Cells(lines[i]);
             var aligns = Cells(lines[i + 1]).Select(c => c.StartsWith(':') && c.EndsWith(':') ? "center" : c.EndsWith(':') ? "right" : c.StartsWith(':') ? "left" : null).ToList();
-            html.Append("<table>\n<thead><tr>");
+            html.Append("<div class=\"table-region\" role=\"region\" aria-label=\"Table; scroll horizontally if needed\" tabindex=\"0\"><table>\n<thead><tr>");
             for (int c = 0; c < header.Count; c++) Cell("th", header[c], aligns[c], html);
             html.Append("</tr></thead>\n<tbody>\n");
             i += 2;
@@ -398,7 +398,7 @@ public static partial class Markdown
                 html.Append("</tr>\n");
                 i++;
             }
-            html.Append("</tbody>\n</table>\n");
+            html.Append("</tbody>\n</table></div>\n");
             return i;
         }
 
@@ -856,12 +856,13 @@ public static partial class Markdown
         @media (prefers-color-scheme: dark) { :root { --fg: #e6edf3; --bg: #0d1117; --muted: #9198a1; --line: #3d444d; --code: #151b23; --link: #4493f8; } }
         html { background: var(--bg); color: var(--fg); }
         body { margin: 0; font: 16px/1.6 -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
-        article { max-width: 880px; margin: 0 auto; padding: 24px 32px 48px; overflow-wrap: break-word; }
+        article { box-sizing: border-box; width: 100%; margin: 0 auto; padding: 24px 32px 48px; overflow-wrap: break-word; }
+        article > :not(.table-region) { max-width: 880px; margin-left: auto; margin-right: auto; }
         h1, h2, h3, h4, h5, h6 { margin: 1.4em 0 0.6em; line-height: 1.25; font-weight: 600; }
         h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
         h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
         h3 { font-size: 1.25em; } h4 { font-size: 1em; } h5 { font-size: .875em; } h6 { font-size: .85em; color: var(--muted); }
-        p, ul, ol, blockquote, pre, table { margin: 0 0 1em; }
+        p, ul, ol, blockquote, pre { margin: 0 0 1em; }
         a, .link { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
         .link, .remote-picture { border-bottom: 1px dotted var(--link); cursor: help; }
         .remote-picture { color: var(--muted); font-style: italic; }
@@ -869,7 +870,9 @@ public static partial class Markdown
         pre { background: var(--code); padding: 16px; border-radius: 6px; overflow: auto; line-height: 1.45; }
         pre code { background: none; padding: 0; font-size: .85em; }
         blockquote { margin-left: 0; padding: 0 1em; color: var(--muted); border-left: .25em solid var(--line); }
-        table { border-collapse: collapse; display: block; overflow: auto; }
+        .table-region { max-width: 100%; margin: 0 0 1em; overflow-x: auto; }
+        .table-region:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+        table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid var(--line); padding: 6px 13px; } th { font-weight: 600; }
         tr:nth-child(2n) { background: var(--code); }
         hr { height: .25em; border: 0; background: var(--line); margin: 24px 0; }

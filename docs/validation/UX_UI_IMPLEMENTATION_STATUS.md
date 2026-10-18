@@ -2,6 +2,13 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
+**Current work:** FCUX-036 is in progress. The editor program picker, token
+insertion and a no-write invocation preview are implemented with focused
+regressions. Structured Settings editors remain open. The reported Markdown Page
+table-width bug is fixed: tables use available viewer width and scroll within
+their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
+records the wide/narrow geometry check and remaining native acceptance.
+
 ## Changes and verification map
 
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
