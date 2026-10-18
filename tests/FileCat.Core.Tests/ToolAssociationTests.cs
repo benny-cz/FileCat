@@ -1,10 +1,23 @@
 using FileCat.Core.State;
 using FileCat.Core.Tools;
+using FileCat.Core.Selection;
 
 namespace FileCat.Core.Tests;
 
 public sealed class ToolAssociationTests
 {
+    [Fact]
+    public void Association_preview_uses_the_supplied_draft_filter_for_parse_and_first_match()
+    {
+        string? Resolve(string name) => name == "draft" ? "secret*.txt" : null;
+        Assert.True(Mask.TryParse("@draft", Resolve, out var mask, out var error), error);
+        Assert.True(mask.IsMatch("secret-file.txt"));
+        var definitions = Associations.Parse("@draft | view | specific.exe | {file}\n*.txt | view | broad.exe | {file}", Resolve, out error);
+        Assert.Null(error);
+        Assert.Equal("specific.exe", Associations.Find(definitions, Associations.View, "secret-file.txt", Resolve)?.Executable);
+        Assert.Equal("broad.exe", Associations.Find(definitions, Associations.View, "other.txt", Resolve)?.Executable);
+    }
+
     [Fact]
     public void User_commands_text_round_trips_submenus_options_and_quoted_arguments()
     {

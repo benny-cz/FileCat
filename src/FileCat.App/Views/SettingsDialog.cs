@@ -216,14 +216,7 @@ public static class SettingsDialog
             Text = Core.Tools.UserCommandsText.Format(s.UserCommands),
             PlaceholderText = OperatingSystem.IsWindows() ? "Edit in Notepad | notepad.exe | {file} | key=Ctrl+Alt+N" : "Edit in gedit | gedit | {file} | key=Ctrl+Alt+N",
         };
-        var associations = new TextBox
-        {
-            AcceptsReturn = true,
-            MinHeight = 90,
-            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
-            Text = Core.Tools.Associations.Format(s.Associations),
-            PlaceholderText = @"*.pdf | view | C:\Tools\SumatraPDF.exe | {file}",
-        };
+        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot);
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
@@ -235,8 +228,8 @@ public static class SettingsDialog
                 ("", Note("Batch programs normally reject selected names with shell characters such as &, | or >. Enable this only if you trust both the batch program and the names it receives; a normal executable is safer.")),
                 ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommands),
                 ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
-                ("Associations", associations),
-                ("", Note("Associations: mask | view, edit, or open | program | arguments | options. Quote exclusion masks (\"*.txt|secret*\") and arguments containing pipes or spaces. Optional name=, dir=, key=, shell preserve launch settings. F3, F4, and Enter use the first match; Alt+F3 always opens the internal viewer."))),
+                ("Associations", associationsEditor.View),
+                ("", Note("F3, F4, and Enter use the first matching association for that action; Alt+F3 always opens the internal viewer."))),
         });
 
         // ---- Columns
@@ -301,7 +294,7 @@ public static class SettingsDialog
         }
 
         string originalExecutable = editorExe.Text ?? "", originalArguments = editorArgs.Text ?? "";
-        string originalCommands = userCommands.Text ?? "", originalAssociations = associations.Text ?? "";
+        string originalCommands = userCommands.Text ?? "";
         var parsedBindings = s.KeyBindings;
         var parsedFilters = s.SavedFilters;
         var parsedCommands = s.UserCommands;
@@ -331,7 +324,7 @@ public static class SettingsDialog
             parsedArguments = s.Editor?.Arguments ?? ["{files}"];
             parsedExecutable = s.Editor?.Executable ?? "";
             error.IsVisible = false;
-            foreach (var field in new[] { bindings, editorExe, editorArgs, userCommands, associations })
+            foreach (var field in new[] { bindings, editorExe, editorArgs, userCommands })
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
             if (bindingError is not null) return Fail("Custom bindings", bindingError, bindings, 4);
@@ -347,12 +340,8 @@ public static class SettingsDialog
                 if (commandError is not null) return Fail("User commands", commandError, userCommands, 2);
             }
             else parsedCommands = s.UserCommands;
-            if (associations.Text != originalAssociations)
-            {
-                parsedAssociations = Associations.Parse(associations.Text, out var associationError);
-                if (associationError is not null) return Fail("Associations", associationError, associations, 2);
-            }
-            else parsedAssociations = s.Associations;
+            if (!associationsEditor.TryGet(out parsedAssociations, out var associationError, out var associationField))
+                return Fail("Associations", associationError!, associationField, 2);
             return true;
         }
         var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
@@ -442,22 +431,14 @@ public static class SettingsDialog
             }
             list.Add(new SavedFilter { Name = name, Mask = line[(eq + 1)..].Trim() });
         }
-        var previous = Core.Selection.Mask.SavedFilters;
-        Core.Selection.Mask.SavedFilters = n => list.FirstOrDefault(f => string.Equals(f.Name, n, StringComparison.OrdinalIgnoreCase))?.Mask;
-        try
+        string? Resolve(string n) => list.FirstOrDefault(f => string.Equals(f.Name, n, StringComparison.OrdinalIgnoreCase))?.Mask;
+        foreach (var f in list)
         {
-            foreach (var f in list)
+            if (!Core.Selection.Mask.TryParse(f.Mask, Resolve, out _, out var maskError))
             {
-                if (!Core.Selection.Mask.TryParse(f.Mask, out _, out var maskError))
-                {
-                    error = $"Saved filter \"{f.Name}\": {maskError}";
-                    return list;
-                }
+                error = $"Saved filter \"{f.Name}\": {maskError}";
+                return list;
             }
-        }
-        finally
-        {
-            Core.Selection.Mask.SavedFilters = previous;
         }
         return list;
     }

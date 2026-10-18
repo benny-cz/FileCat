@@ -87,6 +87,10 @@ internal sealed class SavedFiltersEditor
 
     public Control View { get; }
 
+    public IReadOnlyList<SavedFilter> Snapshot() => _advanced.IsChecked == true
+        ? SettingsDialog.ParseSavedFilters(_raw.Text, out _)
+        : _draft.ToArray();
+
     public bool TryGet(out List<SavedFilter> filters, out string? error, out TextBox field)
     {
         AutomationProperties.SetHelpText(_name, null);

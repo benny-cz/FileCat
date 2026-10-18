@@ -38,18 +38,25 @@ public sealed partial class Mask
     /// <summary>Resolves <c>@name</c> to a saved filter's mask text, or null when there is none (set by the app).</summary>
     public static Func<string, string?>? SavedFilters { get; set; }
 
-    public static bool TryParse(string? text, out Mask mask, out string? error) => TryParse(text, false, out mask, out error);
+    public static bool TryParse(string? text, out Mask mask, out string? error) => TryParse(text, false, SavedFilters, out mask, out error);
+
+    /// <summary>Parses with an explicit saved-filter resolver, without replacing the process-wide default.</summary>
+    public static bool TryParse(string? text, Func<string, string?>? savedFilters, out Mask mask, out string? error) =>
+        TryParse(text, false, savedFilters, out mask, out error);
 
     /// <param name="plainMeansContains">
     /// Find's rule, as in Salamander: a mask without <c>*</c>, <c>?</c>, or <c>.</c> (and not quoted) matches the names
     /// that contain it, so <c>report</c> finds <c>Q3 report.pdf</c>.
     /// </param>
-    public static bool TryParse(string? text, bool plainMeansContains, out Mask mask, out string? error)
+    public static bool TryParse(string? text, bool plainMeansContains, out Mask mask, out string? error) =>
+        TryParse(text, plainMeansContains, SavedFilters, out mask, out error);
+
+    private static bool TryParse(string? text, bool plainMeansContains, Func<string, string?>? savedFilters, out Mask mask, out string? error)
     {
         error = null;
         try
         {
-            mask = ParseAt(text ?? string.Empty, 0, plainMeansContains);
+            mask = ParseAt(text ?? string.Empty, 0, plainMeansContains, savedFilters);
             return true;
         }
         catch (ArgumentException ex)
@@ -60,11 +67,11 @@ public sealed partial class Mask
         }
     }
 
-    private static Mask ParseAt(string text, int depth, bool plainMeansContains = false)
+    private static Mask ParseAt(string text, int depth, bool plainMeansContains, Func<string, string?>? savedFilters)
     {
         var (inc, exc) = SplitTopLevel(text);
-        return new Mask(text, inc.Select(t => ParsePart(t, depth, plainMeansContains)).ToArray(),
-            exc.Select(t => ParsePart(t, depth, plainMeansContains)).ToArray());
+        return new Mask(text, inc.Select(t => ParsePart(t, depth, plainMeansContains, savedFilters)).ToArray(),
+            exc.Select(t => ParsePart(t, depth, plainMeansContains, savedFilters)).ToArray());
     }
 
     /// <summary>A saved-filter name: <c>@</c> followed by a name without wildcards (<c>@*.txt</c> stays a glob).</summary>
@@ -194,14 +201,14 @@ public sealed partial class Mask
         }
     }
 
-    private static MaskPart ParsePart(string token, int depth, bool plainMeansContains = false)
+    private static MaskPart ParsePart(string token, int depth, bool plainMeansContains, Func<string, string?>? savedFilters)
     {
         if (IsSavedFilterReference(token))
         {
             var name = token[1..];
             if (depth >= 8) throw new ArgumentException($"Saved filters refer to each other in a loop (at \"@{name}\").");
-            var text = SavedFilters?.Invoke(name) ?? throw new ArgumentException($"There is no saved filter named \"{name}\".");
-            return new MaskPart(null, null, false) { Nested = ParseAt(text, depth + 1) };
+            var text = savedFilters?.Invoke(name) ?? throw new ArgumentException($"There is no saved filter named \"{name}\".");
+            return new MaskPart(null, null, false) { Nested = ParseAt(text, depth + 1, false, savedFilters) };
         }
         if (token.Length >= 2 && token[0] == '/')
         {

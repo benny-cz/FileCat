@@ -16,17 +16,24 @@ public static class Associations
     public static bool IsIntent(string? intent) => intent is View or Edit or Open;
 
     public static ToolDefinition? Find(IReadOnlyList<ToolDefinition> associations, string intent, string name)
+        => Find(associations, intent, name, Mask.SavedFilters);
+
+    public static ToolDefinition? Find(IReadOnlyList<ToolDefinition> associations, string intent, string name,
+        Func<string, string?>? savedFilters)
     {
         foreach (var a in associations)
         {
             if (!string.Equals(a.Intent, intent, StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(a.Mask)) continue;
-            if (Mask.TryParse(a.Mask, out var mask, out _) && mask.IsMatch(name)) return a;
+            if (Mask.TryParse(a.Mask, savedFilters, out var mask, out _) && mask.IsMatch(name)) return a;
         }
         return null;
     }
 
     /// <summary>One association per line: mask | view/edit/open | program | arguments | options. Quote exclusion masks containing a pipe.</summary>
     public static List<ToolDefinition> Parse(string? text, out string? error)
+        => Parse(text, Mask.SavedFilters, out error);
+
+    public static List<ToolDefinition> Parse(string? text, Func<string, string?>? savedFilters, out string? error)
     {
         error = null;
         var list = new List<ToolDefinition>();
@@ -37,7 +44,7 @@ public static class Associations
         if (ToolTextGrammar.TryParseDefinitions(text ?? "", out var structured))
         {
             foreach (var tool in structured)
-                if (!IsIntent(tool.Intent?.ToLowerInvariant()) || string.IsNullOrEmpty(tool.Mask) || !Mask.TryParse(tool.Mask, out _, out _))
+                if (!IsIntent(tool.Intent?.ToLowerInvariant()) || string.IsNullOrEmpty(tool.Mask) || !Mask.TryParse(tool.Mask, savedFilters, out _, out _))
                     throw new FormatException($"Association '{tool.Name}' needs a valid mask and view, edit, or open intent.");
             return structured;
         }
@@ -52,7 +59,7 @@ public static class Associations
                 throw new FormatException("Expected mask | view, edit, or open | program | arguments | options (three to five columns).");
             }
             string maskText = ToolTextGrammar.Field(parts[0]);
-            if (!Mask.TryParse(maskText, out _, out var maskError) || maskText.Length == 0)
+            if (!Mask.TryParse(maskText, savedFilters, out _, out var maskError) || maskText.Length == 0)
             {
                 throw new FormatException($"\"{maskText}\" is not a valid mask{(maskError is null ? "" : ": " + maskError)}.");
             }
@@ -101,7 +108,9 @@ public static class Associations
         return list;
     }
 
-    public static string Format(IEnumerable<ToolDefinition> associations)
+    public static string Format(IEnumerable<ToolDefinition> associations) => Format(associations, Mask.SavedFilters);
+
+    public static string Format(IEnumerable<ToolDefinition> associations, Func<string, string?>? savedFilters)
     {
         var definitions = associations.ToList();
         string concise = string.Join(Environment.NewLine, definitions.Select(a =>
@@ -112,7 +121,7 @@ public static class Associations
             if (a.ShellMode) options.Add("shell");
             return $"{ToolTextGrammar.QuoteField(a.Mask ?? "", name: true)} | {a.Intent} | {ToolTextGrammar.QuoteField(a.Executable)} | {ToolTextGrammar.FormatArguments(a.Arguments)} | {ToolTextGrammar.FormatArguments(options)}";
         }));
-        var parsed = Parse(concise, out var error);
+        var parsed = Parse(concise, savedFilters, out var error);
         return ToolTextGrammar.PreserveDefinitions(definitions, concise, parsed, error);
     }
 }

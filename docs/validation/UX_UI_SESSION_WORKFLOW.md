@@ -36,9 +36,10 @@ their native acceptance gates open.
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
+| 2 | UXBUG-002 — Markdown Page search | Make Markdown Page text searchable with the same find/next/previous/stop experience as the text viewer. Preserve source and surface ownership across Page/Text switches and file replacement; keep untrusted page scripts disabled. Test matches, no match, navigation, cancellation and stale results. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-After FCUX-036, continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
+After UXBUG-002, continue FCUX-037 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
@@ -53,9 +54,11 @@ changed inputs retire the old preview. The Settings draft still commits only
 after OK. A structured saved-filter editor with ordering controls and an
 Advanced text route is implemented. Focused headless Settings regressions cover
 exclusion masks, ordering, item-level errors, raw-text repair, save and Cancel.
-Structured command and association editors, first-match preview, complete
-raw/structured round trips, keyboard remapping access and Settings search remain
-open for FCUX-036.
+The association list/detail editor now supports reordering and a nonexecuting
+first-match preview, including filters added in the same Settings draft. Its
+Advanced text route and field validation have focused tests. Structured user
+commands, complete raw/structured round trips, keyboard remapping access and
+Settings search remain open for FCUX-036.
 
 ### UXBUG-001 implementation record
 

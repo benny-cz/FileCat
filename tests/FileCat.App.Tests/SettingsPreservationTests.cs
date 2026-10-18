@@ -250,10 +250,109 @@ public sealed class SettingsPreservationTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Association_priority_controls_change_the_first_match_without_launching_a_program()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.Associations =
+            [
+                new() { Name = "Broad", Mask = "*.txt", Intent = Associations.View, Executable = "broad.exe", Arguments = ["{file}"] },
+                new() { Name = "Specific", Mask = "secret*.txt", Intent = Associations.View, Executable = "specific.exe", Arguments = ["{file}"] },
+            ];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var sample = Field<TextBox>(window, "Association preview filename");
+            sample.Text = "secret-file.txt";
+            var preview = Field<SelectableTextBlock>(window, "Association first match preview");
+            BodyButton(window, "Preview first match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("association 1 wins (*.txt)", preview.Text);
+            Assert.Contains("broad.exe", preview.Text);
+            var list = Field<ListBox>(window, "Association priority list");
+            list.SelectedIndex = 1;
+            Dispatcher.UIThread.RunJobs();
+            BodyButton(window, "Move association up").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("out of date", preview.Text);
+            BodyButton(window, "Preview first match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("association 1 wins (secret*.txt)", preview.Text);
+            Assert.Contains("specific.exe", preview.Text);
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("Specific", Associations.Find(services.Settings.Associations, Associations.View, "secret-file.txt")?.Name);
+            Assert.Equal(["Specific", "Broad"], services.Settings.Associations.Select(a => a.Name));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Association_argument_error_stays_on_its_item_and_raw_toggle_round_trips()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            ConfigureTools(services.Settings, root);
+            string before = ToolsSnapshot(services.Settings);
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Tools");
+            var advanced = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(c => Equals(c.Content, "Edit associations as text"));
+            advanced.IsChecked = true;
+            Assert.Contains("*.txt", Field<TextBox>(window, "Associations advanced text").Text);
+            advanced.IsChecked = false;
+            Assert.False(advanced.IsChecked);
+            var arguments = Field<TextBox>(window, "Association arguments");
+            arguments.Text = "\"unterminated";
+            Dispatcher.UIThread.RunJobs();
+            Click(window, "OK");
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(showing.IsCompleted);
+            Assert.Contains("Association 1, arguments", AutomationProperties.GetHelpText(arguments));
+            Assert.Equal(before, ToolsSnapshot(services.Settings));
+            advanced.IsChecked = true;
+            Assert.False(advanced.IsChecked);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t =>
+                t.IsVisible && t.Classes.Contains("error") && t.Text?.Contains("Association 1, arguments", StringComparison.Ordinal) == true);
+            Click(window, "Cancel");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(before, ToolsSnapshot(services.Settings));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Association_preview_resolves_a_filter_added_in_the_same_settings_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.Associations = [new()
+            {
+                Name = "Draft match", Mask = "@draft", Intent = Associations.View,
+                Executable = "draft.exe", Arguments = ["{file}"],
+            }];
+            var showing = SettingsDialog.ShowAsync(vm);
+            SelectPage(window, "Behavior");
+            BodyButton(window, "Add filter").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Field<TextBox>(window, "Selected filter name").Text = "draft";
+            Field<TextBox>(window, "Selected filter mask").Text = "secret*.txt";
+            Dispatcher.UIThread.RunJobs();
+            SelectPage(window, "Tools");
+            Field<TextBox>(window, "Association preview filename").Text = "secret-file.txt";
+            BodyButton(window, "Preview first match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("association 1 wins (@draft)", Field<SelectableTextBlock>(window, "Association first match preview").Text);
+            Click(window, "OK");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("draft", Assert.Single(services.Settings.SavedFilters).Name);
+            Assert.Equal("Draft match", Assert.Single(services.Settings.Associations).Name);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("Editor arguments", "--profile \"unterminated", "Editor arguments:")]
     [InlineData("User commands (F9)", "Valid | tool | x\nBroken | tool | x | shell | ignored", "Line 2:")]
-    [InlineData("Associations", "*.txt | view | tool | \"unterminated", "Line 1:")]
+    [InlineData("Associations advanced text", "*.txt | view | tool | \"unterminated", "Line 1:")]
     public async Task Invalid_fields_keep_the_same_draft_session_and_focus_without_a_partial_commit(string fieldName, string draft, string message)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -263,6 +362,8 @@ public sealed class SettingsPreservationTests
             string before = JsonSerializer.Serialize(services.Settings);
             var showing = SettingsDialog.ShowAsync(vm);
             SelectPage(window, "Tools");
+            if (fieldName == "Associations advanced text")
+                window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Edit associations as text")).IsChecked = true;
             var field = Field<TextBox>(window, fieldName);
             field.Text = draft;
             field.CaretIndex = Math.Min(5, draft.Length);
