@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using FileCat.App.Services;
 using FileCat.App.Controls;
+using FileCat.App.Views;
 using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
@@ -52,8 +53,6 @@ public sealed partial class MainViewModel
             TextWrapping = TextWrapping.Wrap, MaxWidth = 720, IsVisible = sel.Value.HiddenMarked > 0,
             Classes = { "warning" },
         };
-        bool mixedParents = allItems.Select(i => Path.GetDirectoryName(i.FileSystemPath!)).Distinct(StringComparer.Ordinal).Skip(1).Any();
-
         TextBox Box(string text, string name, double width = 200)
         {
             var box = new TextBox { Text = text, MinWidth = width };
@@ -71,8 +70,7 @@ public sealed partial class MainViewModel
         var counterStart = Box("1", "Counter start", 60);
         var counterStep = Box("1", "Counter step", 50);
         var counterDigits = Box("1", "Counter digits", 40);
-        var preview = new ListBox { Height = 280 };
-        Avalonia.Automation.AutomationProperties.SetName(preview, "Preview of new names");
+        var preview = new BulkRenameReview();
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 720 };
         var editorButton = new Button { Content = "Edit names in editor…" };
         IReadOnlyList<string>? explicitNames = null;
@@ -93,13 +91,9 @@ public sealed partial class MainViewModel
             plannedScope = scopeRevision;
             rows = BulkRenamePlanner.Preview(items, plannedFor, p => File.Exists(p) || Directory.Exists(p), explicitNames);
             int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
-            preview.ItemsSource = rows.Take(2000).Select((r, index) =>
-                (r.Problem is not null ? $"⚠ {r.OldName}  →  {r.NewName}    ({r.Problem})"
-                : r.Changes ? $"{r.OldName}  →  {r.NewName}" : $"{r.OldName}  (unchanged)") +
-                (mixedParents ? $"    · {Path.GetDirectoryName(items[index].FileSystemPath!)}" : "")).ToList();
+            preview.SetRows(rows);
             summary.Text = $"{changing:N0} of {rows.Count:N0} names change" + (problems > 0 ? $" · {problems:N0} problems block the rename" : "") +
                            (sel.Value.HiddenMarked > 0 ? hidden.IsChecked == true ? $" · includes {sel.Value.HiddenMarked:N0} hidden marked items" : $" · {sel.Value.HiddenMarked:N0} hidden marked items excluded" : "") +
-                           (rows.Count > 2000 ? " · the first 2,000 are shown" : "") +
                            (explicitNames is not null ? " · names come from the editor; change a rule to go back to the rules" : "");
             summary.Classes.Set("error", problems > 0);
         }

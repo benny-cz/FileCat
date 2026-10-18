@@ -110,7 +110,7 @@ public sealed class BulkRenameDialogTests
             Box("Name mask").Text = "doc_[C]";
             for (int i = 0; i < 50 && !Confirm().IsEnabled; i++) await Task.Delay(20, ct);
             Assert.True(Confirm().IsEnabled);
-            Assert.Contains("a.txt  →  doc_1.txt", preview.ItemsSource!.Cast<string>());
+            Assert.Contains(preview.ItemsSource!.Cast<BulkRenameReview.Row>(), r => r.Plan.OldName == "a.txt" && r.Plan.NewName == "doc_1.txt");
 
             Confirm().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);

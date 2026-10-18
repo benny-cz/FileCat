@@ -47,8 +47,8 @@ public sealed class BulkRenameScopeTests
             // The scope switch rebuilds counter order synchronously, including when clicked immediately after a preview.
             hidden.IsChecked = include;
             Assert.Equal(include ? 2 : 1, preview.ItemCount);
-            Assert.Contains("b.txt  →  reviewed_1.txt", preview.ItemsSource!.Cast<string>());
-            if (include) Assert.Contains("a.txt  →  reviewed_2.txt", preview.ItemsSource!.Cast<string>());
+            Assert.Contains(preview.ItemsSource!.Cast<BulkRenameReview.Row>(), r => r.Plan.OldName == "b.txt" && r.Plan.NewName == "reviewed_1.txt");
+            if (include) Assert.Contains(preview.ItemsSource!.Cast<BulkRenameReview.Row>(), r => r.Plan.OldName == "a.txt" && r.Plan.NewName == "reviewed_2.txt");
             Assert.Equal(2, listing.GetMarkStats().Count);
             string other = Directory.CreateDirectory(Path.Combine(root, "other")).FullName;
             File.WriteAllText(Path.Combine(other, "b.txt"), "new destination must stay unchanged");

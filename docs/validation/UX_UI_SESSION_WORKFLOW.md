@@ -38,7 +38,8 @@ their native acceptance gates open.
 | 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
 | 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
 | 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
-| 4 | FCUX-038 — bulk rename review | Expose every accepted row and make blocking problems reachable. |
+| 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
+| 5 | FCUX-039 — rename validation responsiveness | Move filesystem checks off the UI thread with current-generation ownership. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -109,6 +110,18 @@ tabs, focus and provider changes, key-bar and command-search agreement, the
 refusal reason and execution's second admission check. The related 35 App tests
 pass. Native tooltip/screen-reader behavior and rapid-focus latency on a large
 listing or remote provider still need desktop acceptance.
+
+### FCUX-038 implementation record
+
+Bulk rename now binds the entire accepted plan to an explicitly virtualized
+list. Problems and Changed filters, name/path search, Next problem and a
+selectable old/new full-path detail field expose rows beyond the old 2,000-row
+cutoff. A synthetic 3,001-row planner case places the only collision at row
+2,501 and verifies one-click discovery and a small realized visual set. The
+existing rename scope, execution and dialog viewport tests pass in the same
+33-case selection. Native screen-reader, scaled-layout and maximum-size
+responsiveness checks remain open. FCUX-039 owns the still-synchronous
+filesystem existence probes.
 
 ### FCUX-033 implementation record
 
