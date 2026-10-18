@@ -1,22 +1,26 @@
-using System.Runtime.InteropServices;
 using Avalonia.Threading;
 
 namespace FileCat.App.Services;
 
-/// <summary>
-/// The clock of animated themes (psychedelic backdrop light). It runs only while such a theme is on,
-/// animations are allowed (FileCat's setting, and the system's reduce-motion preference), and a FileCat window is active;
-/// otherwise the visual time freezes so invalidation cannot move decorative light.
-/// </summary>
+/// <summary>The clock of decorative theme effects. It freezes whenever motion is disallowed.</summary>
 public static class ThemeAnimation
 {
-    private static readonly DispatcherTimer Timer = new(DispatcherPriority.Background);
+    private static readonly DispatcherTimer FrameTimer = new(DispatcherPriority.Background);
+    private static readonly DispatcherTimer PreferenceTimer = new(DispatcherPriority.Background)
+    {
+        Interval = TimeSpan.FromSeconds(3),
+    };
     private static readonly System.Diagnostics.Stopwatch Clock = new();
-    private static bool _allowed = true, _active = true;
+    private static bool _requestedAllowed = true, _active = true, _preferenceReady, _probeInFlight;
+    private static bool? _systemReducedMotion;
+    private static int _observationVersion;
+    internal static Func<CancellationToken, Task<bool?>> PreferenceReader { get; set; } =
+        cancellationToken => SystemMotionPreference.ReadAsync(cancellationToken);
 
     static ThemeAnimation()
     {
-        Timer.Tick += (_, _) => Tick();
+        FrameTimer.Tick += (_, _) => Frame?.Invoke();
+        PreferenceTimer.Tick += (_, _) => _ = RefreshPreferenceAsync();
         ThemeManager.ThemeChanged += Update;
     }
 
@@ -26,12 +30,15 @@ public static class ThemeAnimation
     /// <summary>Raised on the UI thread for each frame of an animated theme.</summary>
     public static event Action? Frame;
 
-    public static bool IsRunning => Timer.IsEnabled;
+    public static bool IsRunning => FrameTimer.IsEnabled;
 
-    /// <summary>FileCat's own setting (Settings → Appearance); the system's reduce-motion preference also turns animations off.</summary>
+    /// <summary>The current platform preference, when the desktop makes one available.</summary>
+    public static bool SystemPrefersReducedMotion() => _preferenceReady && _systemReducedMotion == true;
+
+    /// <summary>FileCat's own setting (Settings → Appearance). Off always wins.</summary>
     public static void SetAllowed(bool allowed)
     {
-        _allowed = allowed && !SystemPrefersReducedMotion();
+        _requestedAllowed = allowed;
         Update();
     }
 
@@ -44,34 +51,63 @@ public static class ThemeAnimation
 
     private static void Update()
     {
-        var effect = ThemeManager.Current.Effect;
-        bool animated = effect == ThemeEffect.Psychedelic;
-        if (!animated || !_allowed || !_active)
+        bool observe = _requestedAllowed && _active && ThemeManager.Current.Effect == ThemeEffect.Psychedelic;
+        if (observe && !PreferenceTimer.IsEnabled)
         {
-            if (Timer.IsEnabled) Timer.Stop();
+            // A newly active window/theme must not move on an old preference value.
+            _preferenceReady = false;
+            _observationVersion++;
+            PreferenceTimer.Start();
+            _ = RefreshPreferenceAsync();
+        }
+        else if (!observe && PreferenceTimer.IsEnabled)
+        {
+            PreferenceTimer.Stop();
+            _preferenceReady = false;
+            _observationVersion++;
+        }
+
+        if (!observe || !_preferenceReady || !SystemMotionPreference.AllowsMotion(_requestedAllowed, _active, true, _systemReducedMotion))
+        {
+            if (FrameTimer.IsEnabled) FrameTimer.Stop();
             Clock.Stop();
             Frame?.Invoke();
             return;
         }
-        // Drifting light uses 12 frames a second and resumes from its frozen phase.
-        Timer.Interval = TimeSpan.FromMilliseconds(83);
+
+        FrameTimer.Interval = TimeSpan.FromMilliseconds(83);
         Clock.Start();
-        if (!Timer.IsEnabled) Timer.Start();
+        if (!FrameTimer.IsEnabled) FrameTimer.Start();
     }
 
-    private static void Tick()
+    internal static async Task RefreshPreferenceAsync()
     {
-        Frame?.Invoke();
+        if (_probeInFlight) return;
+        _probeInFlight = true;
+        int version = _observationVersion;
+        try
+        {
+            bool? preference = await PreferenceReader(CancellationToken.None);
+            if (!PreferenceTimer.IsEnabled || version != _observationVersion) return;
+            _systemReducedMotion = preference;
+            _preferenceReady = true;
+            Update();
+        }
+        catch (Exception)
+        {
+            // A missing or broken desktop preference provider leaves FileCat's own switch authoritative.
+            if (PreferenceTimer.IsEnabled && version == _observationVersion)
+            {
+                _systemReducedMotion = null;
+                _preferenceReady = true;
+                Update();
+            }
+        }
+        finally
+        {
+            _probeInFlight = false;
+            if (PreferenceTimer.IsEnabled && version != _observationVersion)
+                _ = RefreshPreferenceAsync();
+        }
     }
-
-    /// <summary>The system's reduce-motion preference (Windows: "Animation effects" off).</summary>
-    public static bool SystemPrefersReducedMotion()
-    {
-        if (!OperatingSystem.IsWindows()) return false;
-        int enabled = 1;
-        return SystemParametersInfoW(0x1042 /* SPI_GETCLIENTAREAANIMATION */, 0, ref enabled, 0) && enabled == 0;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern bool SystemParametersInfoW(uint action, uint param, ref int value, uint winIni);
 }

@@ -52,7 +52,7 @@ public static class SettingsDialog
         if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
         var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
         tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", driveButtons), ("", cmdLine),
-            ("", Note("View → Theme… previews every theme. System high contrast takes priority, and the system's reduced-motion setting stops animations."))) });
+            ("", Note("View → Theme… previews every theme. System high contrast takes priority. FileCat follows reduced-motion settings on Windows, macOS, and GNOME; on other desktops, turn off Animate theme effects here."))) });
 
         // ---- Behavior
         var hidden = new CheckBox { Content = "Show hidden and system items (dimmed)", IsChecked = s.ShowHidden };

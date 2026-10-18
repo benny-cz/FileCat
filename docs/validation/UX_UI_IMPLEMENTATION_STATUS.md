@@ -2,7 +2,15 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-050 keeps Psychedelic motion in the decorative backdrop.
+**Current work:** FCUX-051 reads the Windows client-area animation setting,
+macOS accessibility reduced motion, and GNOME's animation setting when its
+desktop tools are available. A three-second active-theme probe updates motion
+without reopening FileCat. Startup and reactivation hold the effect still until
+the preference read finishes. The explicit setting and inactive-window pause
+always win; unsupported desktops use FileCat's own setting. Thirty-two related
+App cases pass, including simulated live preference changes and a Windows API
+read. Native macOS/GNOME preference toggles and screen-reader acceptance remain
+open. FCUX-050 keeps Psychedelic motion in the decorative backdrop.
 Menus and work surfaces now have opaque colors, focus/grid brushes stay fixed,
 and no content-sampling glitch overlay sits above files or viewers. The visual
 clock freezes when effects are disabled. Three focused and 54 related App cases
@@ -23,8 +31,8 @@ passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance
 and an exact Page-mode Find total remain open. UXBUG-007's
 72 related App cases and complete App Release suite pass (2,242 passed,
 63 skipped); native pointer/scaling acceptance remains open. UXBUG-005/006
-focused regressions and FCUX-047's complete App run also pass. FCUX-048 is the
-next audit finding after the queued corrections.
+focused regressions and FCUX-047's complete App run also pass. FCUX-052 is the
+next audit finding after FCUX-051.
 FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
@@ -182,6 +190,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-048 — listing background context menu | Right-clicking empty listing space opens location actions without changing Commander marks or the focused row. The menu uses a captured tab and location for Paste and New folder even if another panel becomes active, refuses stale tab navigation, rechecks capabilities, and shows disabled reasons on unsupported locations. The Windows item shell menu remains limited to item requests. | `BackgroundContextMenuTests` exercises empty and nonempty pointer routes, dismissal, menu contents, actual Paste and New folder destinations, another active panel, stale navigation, and disabled location feedback. Five focused and 63 related App cases pass with one platform skip. | Native pointer placement, clipboard interoperability, read-only archive/Registry/working-set/disconnected providers, keyboard route and assistive-technology acceptance remain open. |
 | FCUX-049 — live viewer theme changes | TextViewer and HexView own theme subscriptions only while attached. Applying a new palette re-resolves semantic text, background, selection, search and edit brushes in the existing controls. ReportWindow no longer duplicates TextViewer's theme notification. | `ViewerThemeLifecycleTests` switches open controls through Classic, Dark, High Contrast, DOS and back while checking brush resources, selection and position; attach/detach checks verify static-event release. Two focused and 116 related App cases pass. | Native theme transition, system high-contrast, quick-view, editor and screen-reader acceptance remain open. |
 | FCUX-050 — Psychedelic effect boundaries | Use opaque Psychedelic menu, panel, card and functional bar colors. Keep movement in the backdrop behind content; remove the overlay that copied and shifted rendered text/picture slices. Focus, grid and border brushes no longer animate. Pause the effect clock with the theme animation preference or inactive app so repainting stays static. | `PsychedelicSurfaceTests` checks functional alpha and menu contrast, samples 13 moving backdrop phases, verifies decoration stays below content and the disabled clock freezes, and switches themes back to Psychedelic. Three focused and 54 related App cases pass. | Native full-cycle menu/icon contrast, transparent picture content, system reduced-motion, window scaling and assistive-technology acceptance remain open. |
+| FCUX-051 — desktop motion preference | Query Windows client-area animation, macOS accessibility reduced motion, and GNOME `enable-animations` through a bounded, absolute-path system tool. Probe while an animated theme is active and recheck on reactivation; hold motion still until the first read. The app checkbox off and inactive-window pause always win. Unsupported or failed providers leave the explicit app control authoritative. Settings and capability text state the supported desktops and correct Psychedelic effect description. | `MotionPreferenceTests` covers the policy matrix, GNOME desktop/value parsing, live preference transitions, the disabled/inactive clock and the Windows native API read. Thirty-two related theme and Settings App cases pass. | Native Windows/macOS/GNOME preference toggles, unavailable provider behavior, high contrast and assistive-technology acceptance remain open. The poll can lag a change by one interval plus its bounded provider read. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

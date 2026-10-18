@@ -56,7 +56,10 @@ viewer palette and event-lifetime correction passes two focused and 116 related
 App cases; native acceptance remains open. FCUX-050's opaque functional
 surfaces, removed content overlay and frozen disabled clock pass three focused
 and 54 related App cases. Native animation, contrast and reduced-motion checks
-remain open; FCUX-051 follows.
+remain open. FCUX-051 adds Windows, macOS and GNOME preference probes,
+three-second active-theme refresh, and accurate unsupported-desktop wording.
+Thirty-two related theme and Settings App cases pass; native cross-platform
+preference acceptance remains open. FCUX-052 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -90,6 +93,7 @@ in progress; do not count the earlier run as a passing complete suite.
 | 21 | FCUX-048 — listing background context menu | Whitespace right-click opens captured-location actions without targeting marked or focused files. Five focused and 63 related App cases pass with one platform skip. Native location-provider, pointer and keyboard acceptance remain open. |
 | 22 | FCUX-049 — live viewer theme changes | Attached text and hex controls re-resolve semantic brushes on theme change and release static subscriptions on detach. Two focused and 116 related App cases pass; native theme and high-contrast acceptance remain open. |
 | 23 | FCUX-050 — Psychedelic effect boundaries | The menu and work surfaces are opaque, decoration stays below content, focus/grid brushes stay fixed, and disabled animation freezes visual time. Three focused and 54 related App cases pass; native cycle/contrast/motion acceptance remains open. |
+| 24 | FCUX-051 — desktop motion preference | Windows, macOS and GNOME motion probes refresh while an animated theme is active; startup/reactivation wait for the first preference read. Thirty-two related App cases pass. Native platform toggles, fallback and screen-reader acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
