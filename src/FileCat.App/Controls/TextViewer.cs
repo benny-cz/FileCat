@@ -38,6 +38,8 @@ public sealed class TextViewer : Control
     private ContentRevision? _observedRevision;
     private long _observedLength;
     private bool _wrap = true, _updatingScroll, _committing, _commitPending, _layoutIncomplete;
+    private readonly DispatcherTimer _barSeekTimer = new() { Interval = TimeSpan.FromMilliseconds(32) };
+    private long? _pendingBarOffset;
     private string? _layoutError;
     private double _horizontalOffset;
     private Size _viewportSize;
@@ -89,7 +91,14 @@ public sealed class TextViewer : Control
         AutomationProperties.SetName(_hbar, "Text horizontal position");
         _vbar.PropertyChanged += (_, e) =>
         {
-            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null) ScrollToOffset((long)_vbar.Value, preserveSelection: true);
+            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null) QueueBarSeek((long)_vbar.Value);
+        };
+        _barSeekTimer.Tick += (_, _) =>
+        {
+            _barSeekTimer.Stop();
+            if (_pendingBarOffset is not { } latest || _reader is null) return;
+            _pendingBarOffset = null;
+            ScrollToOffset(latest, preserveSelection: true);
         };
         _hbar.PropertyChanged += (_, e) =>
         {
@@ -129,6 +138,7 @@ public sealed class TextViewer : Control
         set
         {
             if (_wrap == value) return;
+            CancelPendingBarSeek();
             long anchor = VisibleAnchor();
             _wrap = value; _hbar.IsVisible = !value;
             _layoutFormat++;
@@ -144,6 +154,7 @@ public sealed class TextViewer : Control
         {
             double size = Math.Clamp(value, 8, 32);
             if (_fontSize == size) return;
+            CancelPendingBarSeek();
             long anchor = VisibleAnchor();
             _fontSize = size; MeasureFont(); _targetOffset = anchor;
             _layoutFormat++;
@@ -155,6 +166,7 @@ public sealed class TextViewer : Control
 
     public void SetReader(PagedReader? reader, Encoding encoding, int preambleLength)
     {
+        CancelPendingBarSeek();
         if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
         RetireSelection("The source changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
         _sourceGeneration++;
@@ -187,6 +199,7 @@ public sealed class TextViewer : Control
     public void SetEncoding(Encoding encoding, int preambleLength)
     {
         if (_encoding.CodePage == encoding.CodePage && _start == preambleLength) return;
+        CancelPendingBarSeek();
         RetireSelection("The encoding changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
         _sourceGeneration++; _layoutFormat++; _previousSegments.Clear();
         _encoding = encoding; _unit = TextDecoding.UnitSize(encoding);
@@ -199,6 +212,7 @@ public sealed class TextViewer : Control
     /// <summary>After a changed source revision is committed, old byte ranges are not reinterpreted.</summary>
     public void SourceChanged()
     {
+        CancelPendingBarSeek();
         RetireSelection("The file changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
         _sourceGeneration++; _layoutFormat++; _previousSegments.Clear();
         _observedRevision = _reader?.Revision; _observedLength = _reader?.Length ?? 0;
@@ -617,6 +631,20 @@ public sealed class TextViewer : Control
         }
     }
 
+    private void QueueBarSeek(long offset)
+    {
+        // A dragged thumb can publish hundreds of byte offsets per second. Shape at most one
+        // latest viewport per frame; intermediate positions must not monopolize the UI thread.
+        _pendingBarOffset = offset;
+        if (!_barSeekTimer.IsEnabled) _barSeekTimer.Start();
+    }
+
+    private void CancelPendingBarSeek()
+    {
+        _pendingBarOffset = null;
+        _barSeekTimer.Stop();
+    }
+
     private void UpdateScroll()
     {
         _updatingScroll = true;
@@ -624,7 +652,8 @@ public sealed class TextViewer : Control
         {
             _vbar.Maximum = Math.Max(0, _reader?.Length ?? 0);
             _vbar.ViewportSize = Math.Max(1, _rows.Count > 0 ? _rows[^1].Segment.Next - _topLine : 1);
-            _vbar.LargeChange = _vbar.ViewportSize; _vbar.SmallChange = Math.Max(1, _vbar.ViewportSize / VisibleRows); _vbar.Value = _topLine;
+            _vbar.LargeChange = _vbar.ViewportSize; _vbar.SmallChange = Math.Max(1, _vbar.ViewportSize / VisibleRows);
+            if (_pendingBarOffset is null) _vbar.Value = _topLine;
             double width = _rows.Count > 0 ? _rows.Max(r => r.Line.WidthIncludingTrailingWhitespace) : 0;
             _hbar.Maximum = _wrap ? 0 : Math.Max(0, width - TextWidth); _hbar.ViewportSize = TextWidth;
             _hbar.LargeChange = Math.Max(_charWidth, TextWidth * .8); _hbar.SmallChange = _charWidth * 4;
@@ -670,6 +699,7 @@ public sealed class TextViewer : Control
     public void ScrollRows(int delta)
     {
         if (_reader is null || delta == 0) return;
+        CancelPendingBarSeek();
         _targetOffset = null;
         for (int i = 0; i < Math.Min(Math.Abs((long)delta), 512); i++)
         {
@@ -705,6 +735,7 @@ public sealed class TextViewer : Control
     public void ScrollToOffset(long offset, bool preserveSelection = false)
     {
         if (_reader is null) return;
+        CancelPendingBarSeek();
         if (!preserveSelection) ClearSelection();
         _targetOffset = Math.Clamp(offset, _start, Math.Max(_start, _reader.Length));
         CommitLayout(); PositionChanged?.Invoke();
@@ -712,6 +743,7 @@ public sealed class TextViewer : Control
     public void GoToEnd()
     {
         if (_reader is null) return;
+        CancelPendingBarSeek();
         ClearSelection(); _targetOffset = null; _topLine = _reader.Length; _topSub = 0;
         for (int i = 0; i < VisibleRows; i++) if (!StepUp()) break;
         if (_topLine >= _reader.Length) _targetOffset = Math.Max(_start, _reader.Length - _unit);

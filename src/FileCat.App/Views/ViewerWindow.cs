@@ -67,6 +67,7 @@ public sealed class ViewerWindow : Window
     private readonly TextViewer _info = new() { IsVisible = false, Wrap = false, ReportStyle = true };
     private PagedReader? _infoReader;
     private string _infoText = "";
+    private int _infoLineCount;
     private bool _isInfo, _infoLoaded;
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
@@ -635,6 +636,7 @@ public sealed class ViewerWindow : Window
         InvalidateSearch();
         if (_isInfo) _copyCts?.Cancel();
         _infoText = text;
+        _infoLineCount = text.Count(c => c == '\n');
         var old = _infoReader;
         _infoReader = new PagedReader(new MemoryContentSource("Info", Encoding.UTF8.GetBytes(text)));
         _info.SetReader(_infoReader, new UTF8Encoding(false), 0);
@@ -700,8 +702,7 @@ public sealed class ViewerWindow : Window
         }
         if (_isInfo)
         {
-            int lines = _infoText.Count(c => c == '\n');
-            _status.Text = $"The file's structure: {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
+            _status.Text = $"The file's structure: {_infoLineCount.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
             if (_infoGeneration != _sourceGeneration)
                 _status.Text = "The file changed; reopen the viewer to refresh this structure report. " + _status.Text;
             return;

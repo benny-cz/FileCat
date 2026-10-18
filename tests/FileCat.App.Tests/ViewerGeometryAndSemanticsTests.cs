@@ -14,6 +14,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
@@ -23,6 +24,88 @@ namespace FileCat.App.Tests;
 /// <summary>FCUX-012/073: actual glyph/viewport geometry, source selection, and event payloads before any paint.</summary>
 public sealed class ViewerGeometryAndSemanticsTests
 {
+    [AvaloniaFact]
+    public async Task Info_scrollbar_thumb_tracking_coalesces_intermediate_layouts_and_keeps_the_final_position()
+    {
+        string report = "PE32+\n" + string.Concat(Enumerable.Range(0, 12_000)
+            .Select(i => $"  Import {i:D5}  SomeLibrary.dll  Function_{i:D5}\n"));
+        using var f = new TextFixture(Encoding.UTF8.GetBytes(report), 980, 13, wrap: false, report: true);
+        await Wait(() => f.View.SourceGlyphBounds(0) is not null);
+        var bar = f.View.GetVisualDescendants().OfType<ScrollBar>()
+            .Single(b => b.Orientation == Avalonia.Layout.Orientation.Vertical);
+        Assert.True(bar.Maximum > 100_000);
+        int commits = 0;
+        f.View.PositionChanged += () => commits++;
+        int shaped = f.View.ShapedSegmentCount;
+        for (int i = 1; i <= 80; i++) bar.Value = bar.Maximum * i / 81;
+        Assert.Equal(0, commits);
+        Assert.Equal(shaped, f.View.ShapedSegmentCount);
+        Dispatcher.UIThread.RunJobs();
+        await Wait(() => f.View.TopOffset > report.Length / 2);
+
+        commits = 0;
+        shaped = f.View.ShapedSegmentCount;
+        for (int i = 80; i >= 0; i--) bar.Value = bar.Maximum * i / 81;
+        Assert.Equal(0, commits);
+        Assert.Equal(shaped, f.View.ShapedSegmentCount);
+        Dispatcher.UIThread.RunJobs();
+        await Wait(() => f.View.TopOffset == 0);
+        Assert.InRange(commits, 1, 2);
+    }
+
+    [AvaloniaFact]
+    public async Task Info_scrollbar_thumb_can_be_dragged_down_and_back_to_the_start()
+    {
+        string report = "PE32+\n" + string.Concat(Enumerable.Range(0, 8_000)
+            .Select(i => $"  Export {i:D5}  Function_{i:D5}\n"));
+        using var f = new TextFixture(Encoding.UTF8.GetBytes(report), 980, 13, wrap: false, report: true);
+        await Wait(() => f.View.SourceGlyphBounds(0) is not null);
+        f.Window.CaptureRenderedFrame()?.Dispose();
+        var bar = f.View.GetVisualDescendants().OfType<ScrollBar>()
+            .Single(b => b.Orientation == Avalonia.Layout.Orientation.Vertical);
+        var thumb = bar.GetVisualDescendants().OfType<Thumb>().Single(t => t.IsVisible);
+        Point Center() => thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), f.Window)!.Value;
+        Point At(double y) => bar.TranslatePoint(new Point(bar.Bounds.Width / 2, y), f.Window)!.Value;
+        var down = At(bar.Bounds.Height - 28);
+        var start = Center();
+        f.Window.MouseDown(start, MouseButton.Left);
+        for (int i = 1; i <= 40; i++)
+            f.Window.MouseMove(new Point(start.X, start.Y + (down.Y - start.Y) * i / 40), RawInputModifiers.LeftMouseButton);
+        f.Window.MouseUp(down, MouseButton.Left);
+        await Wait(() => f.View.TopOffset > report.Length / 2);
+
+        f.Window.CaptureRenderedFrame()?.Dispose();
+        var up = At(0);
+        start = Center();
+        f.Window.MouseDown(start, MouseButton.Left);
+        for (int i = 1; i <= 40; i++)
+            f.Window.MouseMove(new Point(start.X, start.Y + (up.Y - start.Y) * i / 40), RawInputModifiers.LeftMouseButton);
+        f.Window.MouseUp(up, MouseButton.Left);
+        await Wait(() => f.View.TopOffset == 0);
+    }
+
+    [AvaloniaFact]
+    public async Task Pending_info_thumb_seek_cannot_override_direct_navigation_or_a_replaced_report()
+    {
+        string report = "PE32+\n" + string.Concat(Enumerable.Range(0, 6_000).Select(i => $"  Import {i:D5}\n"));
+        using var f = new TextFixture(Encoding.UTF8.GetBytes(report), 980, 13, wrap: false, report: true);
+        await Wait(() => f.View.SourceGlyphBounds(0) is not null);
+        var bar = f.View.GetVisualDescendants().OfType<ScrollBar>()
+            .Single(b => b.Orientation == Avalonia.Layout.Orientation.Vertical);
+        bar.Value = bar.Maximum * .8;
+        f.View.ScrollToOffset(0);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.Equal(0, f.View.TopOffset);
+
+        bar.Value = bar.Maximum * .8;
+        using var replacement = new PagedReader(new MemoryContentSource("new report", Encoding.UTF8.GetBytes("Current report\nOne row\n")));
+        f.View.SetReader(replacement, Encoding.UTF8, 0);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.Equal(0, f.View.TopOffset);
+        Assert.InRange(bar.Maximum, 1, 100);
+        f.View.SetReader(null, Encoding.UTF8, 0);
+    }
+
     public static TheoryData<int, int, bool> TextWidths
     {
         get

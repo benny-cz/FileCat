@@ -44,7 +44,7 @@ scrollbar-drag freeze after the current transfer-form regression gate.
 | 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
 | 6 | FCUX-040 — counter field validation | Exact field validation and focused App/Core tests pass; native acceptance remains open. |
 | 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; complete App regression and native network/focus acceptance remain open. |
-| 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Reproduce with affected EXE files by dragging the scrollbar thumb down and back up with the mouse, find the blocking scroll/layout path, and add a bounded regression that verifies the viewer stays responsive. Mouse-wheel scrolling is not the reported trigger. |
+| 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Thumb seeks are now coalesced and Info line counting is cached. Portable drag/value tests and a local headless check on the supplied SignalSetup.exe pass; native desktop acceptance remains open. Mouse-wheel scrolling is not the reported trigger. |
 | 9 | FCUX-042 — operations drawer layout | Make recovery rows, reports and controls reachable at the audit's narrow and scaled window sizes. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
@@ -169,6 +169,21 @@ and held-probe cancellation. Existing operation and recovery tests now wait for
 the form's validated submission state. The complete App regression gate is in
 progress; native network-path, focus, screen-reader and execution-time-change
 checks remain open.
+
+### UXBUG-003 implementation record
+
+The user clarified that dragging the PE viewer's scrollbar thumb down and up,
+not turning the mouse wheel, triggers the freeze. The supplied SignalSetup.exe
+sample is 282 MB; its static Info report is about 18,000
+characters and 460 lines. Thumb changes previously synchronously sought and
+shaped each intermediate viewport. The text view now keeps only the latest
+thumb position for each 32 ms update and cancels a pending seek when the source
+or another navigation action changes. The Info status line uses a line count
+captured when the report is generated. Portable tests cover 80 rapid thumb
+values and a real headless drag down/up through 40 pointer moves in each
+direction. A temporary local-only headless test against the supplied EXE also
+passed and was removed after verification. Native desktop drag acceptance and
+the related/full App suite remain open.
 
 ### FCUX-033 implementation record
 

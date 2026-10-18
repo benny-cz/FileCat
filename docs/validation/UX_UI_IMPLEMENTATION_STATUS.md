@@ -50,6 +50,14 @@ remain responsive. Focused tests cover retained options, both buttons, mapping,
 stale probes and cancellation. Native network-path and assistive-technology
 acceptance remain open.
 
+UXBUG-003 addresses the reported PE Info scrollbar-thumb freeze. Rapid thumb
+positions now coalesce to the latest location on a bounded 32 ms timer, rather
+than synchronously shaping every intermediate viewport. The report's line count
+is computed when the report changes instead of on each scroll. Portable tests
+exercise repeated value changes and real thumb dragging down and back up; a
+local headless check also passed with the supplied `SignalSetup.exe`. Native
+desktop acceptance on that EXE remains open.
+
 ## Changes and verification map
 
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
@@ -108,6 +116,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-039 — responsive rename validation | Separate pure expansion/plan collision checks from target existence checks. Compute and group candidates off the UI thread; use bounded per-device workers for existence, cancel queued work and ignore superseded generations. Show an accessible checking state, disable Rename until validation, and recheck current targets before job admission. The runner still refuses replacement at execution. | `BulkRenameAsyncPreviewTests` holds a target probe while editing and canceling, verifies a newer preview wins, and makes a target appear between preview and confirmation. Core `BulkRenameTests` covers pure candidates, swaps, checked collisions and cancellation. The related App selection passes 38 with one platform skip; seven focused Core cases pass. | Native slow-network, maximum 50,000-row responsiveness and shutdown timing acceptance remain open. |
 | FCUX-040 — exact bulk-rename counter validation | Parse start and step as signed 64-bit integers and digits as 1–12 without fallback or clamping. Show field-adjacent, accessible errors while preserving text; empty intermediate input gets neutral guidance. Negative steps count down, zero repeats the value, and checked planner arithmetic marks overflow as a blocking row problem. | `BulkRenameCounterValidationTests` covers malformed/overflowing start and step, invalid/overflowing digits, blank input, zero/negative steps and exact preview values. Core `BulkRenameTests` covers counter overflow with and without a counter token. Eight focused App and eight Core cases pass. | Native focus, screen-reader announcement and scaled-layout acceptance remain open. |
 | FCUX-041 — transfer destination validation | Show destination errors beside the field and keep the form, options, and scope intact. Start and Queue use the same asynchronous resolver and captured folder/new-name mapping. Device-scheduled filesystem probes cannot block editing or Cancel; stale results cannot authorize submission. | `TransferDestinationValidationTests` covers unsupported providers, retained options, both buttons, a single-item rename mapping, a held probe, correction, and cancellation. Existing operation and interrupted-transfer tests wait for destination validation before submission. Focused cases pass; full App regression is running. | Native network path, focus, screen-reader, and execution-time destination-change acceptance remain open. |
+| UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values and actual repeated pointer moves down/up through the thumb. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. Related viewer suite is running. | Native desktop drag acceptance on the supplied EXE remains open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),
