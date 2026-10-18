@@ -6,10 +6,12 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
@@ -17,6 +19,40 @@ namespace FileCat.App.Tests;
 /// <summary>The operations panel's count of finished jobs and "Clear finished" agree (CI run 36931084621).</summary>
 public sealed class OperationCenterTests
 {
+    [AvaloniaFact]
+    public void Opening_details_promotes_new_running_job_over_completed_history()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-details-focus-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var center = new OperationCenterViewModel(services.Jobs);
+            for (int i = 0; i < 8; i++)
+            {
+                var completed = new Job(new JobRequest { Kind = JobKind.Copy }, $"Finished {i}", "local", [], []);
+                completed.SetState(JobState.Failed);
+                center.Jobs.Add(new JobViewModel(completed));
+            }
+            var retained = center.Jobs[0];
+            center.Selected = retained;
+            var running = new Job(new JobRequest { Kind = JobKind.Copy }, "Current copy", "local", [], []);
+            running.SetState(JobState.Running);
+            center.Jobs.Insert(0, new JobViewModel(running));
+
+            center.IsOpen = true;
+            Assert.Same(running, center.Selected?.Job);
+            Assert.Same(running, center.Primary?.Job);
+            center.Selected = retained;
+            center.UpdateSummary();
+            Assert.Same(retained, center.Selected); // The open drawer follows the user's selection.
+            center.IsOpen = false;
+            center.IsOpen = true;
+            Assert.Same(running, center.Selected?.Job);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [AvaloniaFact]
     public async Task Reopening_details_reveals_running_operation_without_stealing_open_drawer_selection()
     {
