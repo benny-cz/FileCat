@@ -28,20 +28,31 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-021**. Follow
+After resolving any outstanding validation failure, resume **FCUX-022**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-021 — synchronization review and plan cancellation | Preserve reviewed options across edits, then own and expose Stop for all submitted steps of a plan. |
+| 1 | FCUX-022 — navigation intent | Prevent an older asynchronous navigation from replacing a newer destination; cover tab closure and delayed provider work. |
 
-Then continue FCUX-022 and onward
-from FCUX-023 in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-023 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
-they do not close the separate history-disclosure, synchronization-group or
-general navigation-supersession findings. Native S1 acceptance remains open.
+they do not close the separate general navigation-supersession finding. Native S1
+acceptance remains open.
+
+### FCUX-021 implementation record
+
+The sync preview retains explicit choices only for matching entries, directions
+and actions. Permanent deletion requires current target and removal-set consent.
+The job manager admits each plan as a group before scheduling children, and the
+Operations drawer shows its endpoints, revision, aggregate outcome and full
+pending-removal paths. Stop cancels only that group's unfinished children.
+Unexpected transfer failure or cancellation holds later removals for review;
+an expected policy Skip does not. Core scheduler and App controls have affected
+regression coverage, including delayed decisions and unrelated work. Native
+layout, accessibility and real interruption acceptance remain open.
 
 ### FCUX-020 implementation record
 

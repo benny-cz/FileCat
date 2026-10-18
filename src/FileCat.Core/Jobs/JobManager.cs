@@ -14,11 +14,14 @@ public sealed class JobManager
     private const string GlobalScope = "<all locations>";
     private readonly object _lock = new();
     private readonly List<Job> _jobs = [];
+    private readonly List<SyncGroup> _syncGroups = [];
+    private readonly Dictionary<Job, SyncGroup> _syncByJob = [];
     private readonly HashSet<Job> _starting = []; // chosen to start, not yet Running: no other Schedule may choose them
     private readonly IFileSystemOperations _fs;
     private readonly ProviderRegistry _providers;
     private readonly string _journalDirectory;
     private int _order;
+    private int _suppressScheduling;
 
     public JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory)
     {
@@ -39,6 +42,8 @@ public sealed class JobManager
     public event Action<Job>? JobRemoved;
     public event Action<Job>? JobChanged;
     public event Action<Job>? JobFinished;
+    public event Action<SyncGroup>? SyncGroupAdded;
+    public event Action<SyncGroup>? SyncGroupRemoved;
     public event Action<PendingDecision>? DecisionRequested;
 
     public IReadOnlyList<Job> Jobs
@@ -47,6 +52,16 @@ public sealed class JobManager
         {
             lock (_lock) return _jobs.ToList();
         }
+    }
+
+    public IReadOnlyList<SyncGroup> SyncGroups
+    {
+        get { lock (_lock) return _syncGroups.ToList(); }
+    }
+
+    public SyncGroup? SyncGroupFor(Job job)
+    {
+        lock (_lock) return _syncByJob.GetValueOrDefault(job);
     }
 
     public bool HasActiveWork
@@ -58,6 +73,57 @@ public sealed class JobManager
     }
 
     public Job Submit(JobRequest request) => Submit(request, null);
+
+    /// <summary>Admits every reviewed synchronization step under one owner before any step can start.</summary>
+    public SyncGroup SubmitSyncGroup(IReadOnlyList<JobRequest> requests, string source, string target, string reviewedPlan)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
+        if (requests.Count == 0 || requests.Count > 4 || string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target))
+            throw new ArgumentException("A synchronization needs captured endpoints and one to four reviewed steps.", nameof(requests));
+        bool seenRemoval = false;
+        foreach (var request in requests)
+        {
+            bool removal = request.Kind is JobKind.Delete or JobKind.Recycle;
+            if (request.Kind != JobKind.Copy && !removal || request.Mode != QueueMode.Queue ||
+                seenRemoval && !removal || removal && seenRemoval || request.Sources.Count == 0)
+                throw new ArgumentException("Synchronization steps must be ordered queued transfers followed by at most one removal.", nameof(requests));
+            if (removal) seenRemoval = true;
+        }
+        var jobs = requests.Select(request =>
+        {
+            var (title, device, reads, writes) = Describe(request);
+            return new Job(request, title, device, reads, writes);
+        }).ToArray();
+        foreach (var job in jobs)
+        {
+            job.SetState(JobState.Queued);
+            if (job.Kind is JobKind.Delete or JobKind.Recycle) job.Pause();
+        }
+        var group = new SyncGroup(this, source, target, reviewedPlan, jobs);
+        IReadOnlyList<Job> retired;
+        IReadOnlyList<SyncGroup> retiredGroups;
+        lock (_lock)
+        {
+            foreach (var job in jobs)
+            {
+                job.QueueOrder = ++_order;
+                _jobs.Add(job);
+                _syncByJob.Add(job, group);
+                job.Changed += OnJobChanged;
+            }
+            _syncGroups.Add(group);
+            retired = TrimFinishedLocked();
+            retiredGroups = _syncGroups.Where(g => g.IsFinished).Take(Math.Max(0, _syncGroups.Count(g => g.IsFinished) - KeepFinished)).ToArray();
+            foreach (var old in retiredGroups) RetireSyncGroupLocked(old);
+        }
+        foreach (var old in retired) JobRemoved?.Invoke(old);
+        foreach (var old in retiredGroups) SyncGroupRemoved?.Invoke(old);
+        SyncGroupAdded?.Invoke(group);
+        foreach (var job in jobs) JobAdded?.Invoke(job);
+        group.Begin();
+        Schedule();
+        return group;
+    }
 
     /// <summary>Transfers an approved reservation into independently tracked mutation and shutdown ownership.</summary>
     public Job SubmitUndo(UndoReservation reservation)
@@ -116,6 +182,7 @@ public sealed class JobManager
     public void ClearFinished()
     {
         List<Job> retired;
+        List<SyncGroup> retiredGroups;
         lock (_lock)
         {
             retired = _jobs.Where(j => j.State.IsFinished()).ToList();
@@ -124,8 +191,26 @@ public sealed class JobManager
                 _jobs.Remove(job);
                 job.Changed -= OnJobChanged;
             }
+            retiredGroups = _syncGroups.Where(g => g.IsFinished).ToList();
+            foreach (var group in retiredGroups) RetireSyncGroupLocked(group);
         }
         foreach (var job in retired) JobRemoved?.Invoke(job);
+        foreach (var group in retiredGroups) SyncGroupRemoved?.Invoke(group);
+    }
+
+    public void RemoveSyncGroup(SyncGroup group)
+    {
+        if (!group.IsFinished) return;
+        bool removed;
+        lock (_lock) removed = RetireSyncGroupLocked(group);
+        if (removed) SyncGroupRemoved?.Invoke(group);
+    }
+
+    private bool RetireSyncGroupLocked(SyncGroup group)
+    {
+        if (!_syncGroups.Remove(group)) return false;
+        foreach (var job in group.Steps) _syncByJob.Remove(job);
+        return true;
     }
 
     public void MoveInQueue(Job job, int delta)
@@ -139,6 +224,15 @@ public sealed class JobManager
             (queued[i].QueueOrder, queued[k].QueueOrder) = (queued[k].QueueOrder, queued[i].QueueOrder);
         }
         JobChanged?.Invoke(job);
+        Schedule();
+    }
+
+    /// <summary>Publishes cancellation to every child before another schedule pass can admit a sibling.</summary>
+    internal void CancelTogether(IReadOnlyList<Job> jobs)
+    {
+        lock (_lock) _suppressScheduling++;
+        try { foreach (var job in jobs) job.Cancel(); }
+        finally { lock (_lock) _suppressScheduling--; }
         Schedule();
     }
 
@@ -168,6 +262,7 @@ public sealed class JobManager
         var canceled = new List<Job>();
         lock (_lock)
         {
+            if (_suppressScheduling > 0) return;
             // Schedule runs on the submitting thread and on every finishing job's thread; a job is chosen by one of them.
             int running = _jobs.Count(j => j.State.IsActive() || _starting.Contains(j));
             foreach (var job in _jobs.Where(j => j.State == JobState.Queued && !_starting.Contains(j)).OrderBy(j => j.QueueOrder).ToList())
@@ -252,7 +347,17 @@ public sealed class JobManager
 
     private void Start(Job job)
     {
-        job.SetState(JobState.Running);
+        if (!job.TryStart())
+        {
+            lock (_lock) _starting.Remove(job);
+            if (!job.State.IsFinished())
+            {
+                job.SetState(JobState.Canceled);
+                JobFinished?.Invoke(job);
+            }
+            Schedule();
+            return;
+        }
         lock (_lock) _starting.Remove(job);
         var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
         thread.Start();

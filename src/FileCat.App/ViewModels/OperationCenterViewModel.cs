@@ -12,13 +12,19 @@ namespace FileCat.App.ViewModels;
 /// <summary>One job as shown in the operation center. Progress is polled at a bounded rate.</summary>
 public sealed partial class JobViewModel : ObservableObject
 {
-    public JobViewModel(Job job, Func<Location, string>? display = null)
+    public JobViewModel(Job job, Func<Location, string>? display = null, SyncGroup? syncGroup = null)
     {
         Job = job;
+        SyncGroup = syncGroup;
         Route = DescribeRoute(job.Request, display ?? (l => l.IsFileSystem ? l.Path : l.ToString()));
     }
 
     public Job Job { get; }
+    public SyncGroup? SyncGroup { get; }
+    public string CancelLabel => SyncGroup is null ? "Cancel" : "Cancel this step";
+    public string CancelTooltip => SyncGroup is null
+        ? "Stops at the next safe step; completed steps are kept"
+        : "Cancels only this step. Other synchronization steps stay visible; pending removals wait for review if a transfer stops.";
 
     /// <summary>The progress shown and the time left (release issue I26), on this view's own clock.</summary>
     private readonly ProgressEstimator _progress = new();
@@ -299,11 +305,28 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
 }
 
+public sealed class SyncGroupViewModel(SyncGroup group) : ObservableObject
+{
+    public SyncGroup Group { get; } = group;
+    public string Title => $"Synchronize {Formatters.SafeName(Group.Source)} → {Formatters.SafeName(Group.Target)}";
+    public string Reviewed => $"Reviewed plan {Group.ReviewRevision.ToString("N")[..8]}: {Group.ReviewedPlan}; {Group.ChildIds.Count:N0} steps";
+    public string Outcome => Group.Outcome;
+    public bool CanStop => Group.CanStop;
+    public bool PendingRemovalReview => Group.PendingRemovalReview;
+    public void Refresh()
+    {
+        OnPropertyChanged(nameof(Outcome));
+        OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(PendingRemovalReview));
+    }
+}
+
 /// <summary>User-facing operation history and control (plan §19.2): not a dump of technical logs.</summary>
 public sealed partial class OperationCenterViewModel : ObservableObject
 {
     private const int IssueBatchSize = 256;
     private readonly Dictionary<Job, JobViewModel> _map = new();
+    private readonly Dictionary<SyncGroup, SyncGroupViewModel> _groupMap = new();
     private readonly DispatcherTimer _timer;
     private readonly object _changedLock = new();
     private readonly HashSet<Job> _pendingChanges = [];
@@ -318,6 +341,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         _display = display;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
+        manager.SyncGroupAdded += group => Dispatcher.UIThread.Post(() => Add(group));
+        manager.SyncGroupRemoved += group => Dispatcher.UIThread.Post(() => Remove(group));
         manager.JobRemoved += job => Dispatcher.UIThread.Post(() =>
         {
             RetireRow(job);
@@ -343,6 +368,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public JobManager Manager { get; }
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
+    public ObservableCollection<SyncGroupViewModel> SyncGroups { get; } = [];
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
     public ObservableCollection<RecoveryReviewRecord> ReviewedRecovery { get; } = [];
     public bool HasReviewedRecovery => ReviewedRecovery.Count > 0;
@@ -442,9 +468,28 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         // Removal can reach the dispatcher before an earlier JobAdded observer has posted this add.
         if (_map.ContainsKey(job) || job.State.IsFinished() && !Manager.Jobs.Contains(job)) return;
-        var vm = new JobViewModel(job, _display);
+        var vm = new JobViewModel(job, _display, Manager.SyncGroupFor(job));
         _map[job] = vm;
         Add(vm);
+    }
+
+    private void Add(SyncGroup group)
+    {
+        if (_groupMap.ContainsKey(group) || !Manager.SyncGroups.Contains(group)) return;
+        var vm = new SyncGroupViewModel(group);
+        _groupMap.Add(group, vm);
+        SyncGroups.Insert(0, vm);
+        group.Changed += OnSyncGroupChanged;
+        vm.Refresh();
+    }
+
+    private void OnSyncGroupChanged(SyncGroup group) =>
+        Dispatcher.UIThread.Post(() => { if (_groupMap.TryGetValue(group, out var vm)) vm.Refresh(); });
+
+    private void Remove(SyncGroup group)
+    {
+        group.Changed -= OnSyncGroupChanged;
+        if (_groupMap.Remove(group, out var vm)) SyncGroups.Remove(vm);
     }
 
     private void Tick()
@@ -458,6 +503,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
                 any |= !vm.IsFinished;
             }
         }
+        foreach (var group in SyncGroups) group.Refresh();
         if (Selected is not null) QueueIssueRefresh();
         UpdateSummary();
         if (!any) _timer.Stop();
@@ -525,6 +571,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         // By the job's own state, as HasFinished counts them: a row whose refresh is still queued is finished too.
         foreach (var vm in Jobs.Where(j => j.Job.State.IsFinished()).ToList())
             RetireFinishedRow(vm);
+        foreach (var group in SyncGroups.Where(g => g.Group.IsFinished).ToList()) Manager.RemoveSyncGroup(group.Group);
         UpdateSummary();
     }
 
@@ -533,6 +580,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         foreach (var job in reviewed)
             if (job.State.IsFinished() && _map.TryGetValue(job, out var row)) RetireFinishedRow(row);
+        foreach (var group in SyncGroups.Where(g => g.Group.IsFinished && g.Group.Steps.All(reviewed.Contains)).ToList())
+            Manager.RemoveSyncGroup(group.Group);
         UpdateSummary();
     }
 

@@ -71,13 +71,12 @@ public sealed class OperationRowRetirementTests(ITestOutputHelper output)
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static Rig Visit(string root, string path, string route, int count)
     {
-        var providers = new ProviderRegistry();
-        providers.Register(new LocalFileSystemProvider());
-        var manager = new JobManager(new PortableFileOperations(), providers, Path.Join(root, "journal")) { MaxConcurrent = 0 };
-        var center = new OperationCenterViewModel(manager) { IsOpen = true };
-        var view = new OperationsView { DataContext = center };
-        var window = new Window { Content = view, Width = 1100, Height = 750 };
-        window.Show();
+        var (services, vm, window, appRoot) = AccessibilityTests.OpenMainWindow(width: 1100, height: 750);
+        var manager = services.Jobs;
+        manager.MaxConcurrent = 0;
+        var center = vm.Operations;
+        center.IsOpen = true;
+        var view = Assert.Single(window.GetVisualDescendants().OfType<OperationsView>());
         JobViewModel? selectedRow = null;
         List<Control> ownedControls = [];
         try
@@ -103,13 +102,20 @@ public sealed class OperationRowRetirementTests(ITestOutputHelper output)
             bool clicked = false;
             if (route != "live")
             {
-                string label = route == "remove" ? "Remove" : "Clear finished";
+                string label = route == "remove" ? "Remove history row…" : "Clear finished history…";
                 var button = Assert.Single(view.GetVisualDescendants().OfType<Button>(), v => Equals(v.Content, label));
                 Assert.True(button.IsVisible);
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 clicked = true;
                 Dispatcher.UIThread.RunJobs();
                 window.UpdateLayout();
+                if (vm.Dialogs.IsOpen)
+                {
+                    var confirm = Assert.Single(window.GetVisualDescendants().OfType<Button>(), v =>
+                        Equals(v.Content, route == "remove" ? "Remove this history row" : "Clear finished history"));
+                    confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Dispatcher.UIThread.RunJobs();
+                }
                 Assert.Empty(center.Jobs);
                 Assert.Empty(manager.Jobs);
             }
@@ -123,8 +129,7 @@ public sealed class OperationRowRetirementTests(ITestOutputHelper output)
             foreach (var control in ownedControls)
                 if (ReferenceEquals(control.DataContext, selectedRow)) control.DataContext = null;
             view.DataContext = null;
-            window.Content = null;
-            window.Close();
+            AccessibilityTests.Close(services, window, appRoot);
             Dispatcher.UIThread.RunJobs();
         }
     }

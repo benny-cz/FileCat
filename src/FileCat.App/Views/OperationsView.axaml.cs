@@ -30,6 +30,67 @@ public partial class OperationsView : UserControl
 
     private void OnCancel(object? sender, RoutedEventArgs e) => JobOf(sender)?.Job.Cancel();
 
+    private static SyncGroup? SyncGroupOf(object? sender) => ((sender as Button)?.Tag as SyncGroupViewModel)?.Group;
+
+    private void OnStopSyncGroup(object? sender, RoutedEventArgs e)
+    {
+        if (SyncGroupOf(sender) is not { } group) return;
+        group.Stop();
+        Main?.Notify("Stopping this synchronization's unfinished steps. Completed changes and their reports remain.");
+    }
+
+    private void OnSkipSyncRemovals(object? sender, RoutedEventArgs e)
+    {
+        if (SyncGroupOf(sender)?.SkipRemovals() == true)
+            Main?.Notify("Pending synchronization removals were skipped; completed transfers remain.");
+    }
+
+    private void OnListSyncRemovals(object? sender, RoutedEventArgs e)
+    {
+        if (SyncGroupOf(sender) is not { } group) return;
+        new ReportWindow("Pending synchronization removals", Formatters.SafeName(group.Target), ct => Task.Run(() =>
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"Reviewed plan: {group.ReviewedPlan}");
+            report.AppendLine($"Source: {Formatters.SafeName(group.Source)}");
+            report.AppendLine($"Target: {Formatters.SafeName(group.Target)}");
+            report.AppendLine($"Pending target-only paths: {group.PendingRemovalPaths.Count:N0}");
+            report.AppendLine("Each path is removed only while the compared target state still matches.");
+            report.AppendLine();
+            foreach (string path in group.PendingRemovalPaths)
+            {
+                ct.ThrowIfCancellationRequested();
+                report.AppendLine(Formatters.SafeName(path));
+            }
+            return report.ToString();
+        }, ct)).Show();
+    }
+
+    private async void OnReviewSyncRemovals(object? sender, RoutedEventArgs e)
+    {
+        if (SyncGroupOf(sender) is not { PendingRemovalReview: true } group || Main is not { } main) return;
+        if (main.Dialogs.IsOpen)
+        {
+            main.Notify("Finish or cancel the open dialog before reviewing pending removals.");
+            return;
+        }
+        string steps = string.Join("\n", group.Steps.Select(job =>
+            $"• {Formatters.SafeName(job.Title)} — {job.State.Describe()}, {job.Summary}"));
+        string paths = string.Join("\n", group.PendingRemovalPaths.Take(8).Select(Formatters.SafeName));
+        if (group.PendingRemovalPaths.Count > 8)
+            paths += $"\n… and {group.PendingRemovalPaths.Count - 8:N0} more; use List pending paths for the complete set.";
+        bool permanent = group.Steps.Any(job => job.Kind == JobKind.Delete);
+        bool approved = await main.Dialogs.ConfirmAsync("Review pending synchronization removals",
+            $"Source: {Formatters.SafeName(group.Source)}\nTarget: {Formatters.SafeName(group.Target)}\n" +
+            $"Reviewed plan: {group.ReviewedPlan}\n\nTransfers stopped or failed. Changes already committed are kept. " +
+            "The pending target-only removals were held. Review the step reports and the current target before continuing. " +
+            "Each removal still checks the compared target state when it runs.\n\n" +
+            $"Pending target-only paths ({group.PendingRemovalPaths.Count:N0}):\n{paths}\n\n" + steps,
+            "Run pending removals", danger: permanent);
+        if (approved && !group.ContinueRemovals())
+            main.Notify("The pending removals are no longer available to continue.");
+    }
+
     private async void OnReviewDecision(object? sender, RoutedEventArgs e)
     {
         if (JobOf(sender) is { } j && Main is { } main) await main.ReviewDecisionAsync(j.Job);

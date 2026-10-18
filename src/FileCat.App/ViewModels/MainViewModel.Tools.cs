@@ -449,9 +449,11 @@ public sealed partial class MainViewModel
             Notify("Nothing to synchronize.");
             return false;
         }
-        foreach (var request in requests) Services.Jobs.Submit(request);
-        Notify($"Synchronizing {Services.Providers.Display(sourceIsLeft ? left : right)} → {Services.Providers.Display(target)}: {SyncPlanner.Describe(items)}. " +
-               "Ctrl+J shows the operations.");
+        string sourceName = Services.Providers.Display(sourceIsLeft ? left : right);
+        string targetName = Services.Providers.Display(target);
+        var group = Services.Jobs.SubmitSyncGroup(requests, sourceName, targetName, SyncPlanner.Describe(items));
+        Notify($"Synchronizing {sourceName} → {targetName}: {group.ReviewedPlan}. " +
+               "Ctrl+J shows the plan, its steps and Stop this synchronization.");
         return true;
     }
 

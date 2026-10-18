@@ -39,7 +39,7 @@
                   ToolTip.Tip="Review this operation's waiting decision; background work does not interrupt your typing" />
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
           <Button Classes="flat" Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
-          <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
+          <Button Classes="flat" Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="{Binding CancelTooltip}" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
           <Button Classes="flat" Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
                   ToolTip.Tip="Reopen the complete retained Undo outcomes; Copy all copies the report" />
@@ -58,6 +58,30 @@
       <Grid ColumnDefinitions="2*,Auto,3*" RowDefinitions="Auto,*">
         <!-- Interrupted jobs -->
         <StackPanel Grid.ColumnSpan="3">
+        <ScrollViewer MaxHeight="92" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding SyncGroups}" Margin="8,4" AutomationProperties.Name="Synchronization plans">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SyncGroupViewModel">
+                <Border Classes="banner" Margin="0,2">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes="small" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Reviewed}" Classes="small muted" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Outcome}" Classes="small" TextWrapping="Wrap" />
+                    <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+                      <Button Content="Stop this synchronization" Tag="{Binding}" Click="OnStopSyncGroup" IsVisible="{Binding CanStop}"
+                              ToolTip.Tip="Stop every unfinished step in this reviewed plan; completed changes remain" />
+                      <Button Content="Review pending removals…" Tag="{Binding}" Click="OnReviewSyncRemovals" IsVisible="{Binding PendingRemovalReview}"
+                              ToolTip.Tip="Transfers stopped or failed; inspect the plan and committed work before releasing removals" />
+                      <Button Content="List pending paths" Tag="{Binding}" Click="OnListSyncRemovals" IsVisible="{Binding PendingRemovalReview}"
+                              ToolTip.Tip="Inspect, copy or save the complete set of target paths held for review" />
+                      <Button Content="Skip pending removals" Tag="{Binding}" Click="OnSkipSyncRemovals" IsVisible="{Binding PendingRemovalReview}" />
+                    </WrapPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
         <ItemsControl ItemsSource="{Binding Interrupted}" Margin="8,4">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:InterruptedJobViewModel">
@@ -138,7 +162,7 @@
             <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
-            <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
+            <Button Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="{Binding CancelTooltip}" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
             <TextBlock Text="{Binding UndoStatus}" VerticalAlignment="Center" Classes="small muted" />
             <Button Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"

@@ -18,6 +18,7 @@ public sealed partial class Job
     private int _completedRootCount, _failedRootCount;
     private readonly List<UndoStep> _undo = [];
     private readonly ManualResetEventSlim _runGate = new(true);
+    private readonly object _startLock = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Dictionary<string, Decision> _applyToAll = new(StringComparer.Ordinal);
     private long _bytesTotal, _bytesDone, _itemsTotal, _itemsDone, _itemsFailed, _itemsSkipped;
@@ -282,13 +283,27 @@ public sealed partial class Job
     /// <summary>Requests cancellation. The job stops at the next safe boundary; cancellation is not rollback (AI-11).</summary>
     public void Cancel()
     {
-        if (State.IsFinished()) return;
-        _cts.Cancel();
-        _runGate.Set();
-        Volatile.Read(ref _decision)?.Resolve(new Decision(DecisionAction.CancelJob));
-        if (State is JobState.Running or JobState.AwaitingDecision or JobState.Paused or JobState.Pausing) SetState(JobState.Stopping);
-        // A queued job never started: the manager finishes it as canceled right away.
-        else if (State == JobState.Queued) Changed?.Invoke(this);
+        lock (_startLock)
+        {
+            if (State.IsFinished()) return;
+            _cts.Cancel();
+            _runGate.Set();
+            Volatile.Read(ref _decision)?.Resolve(new Decision(DecisionAction.CancelJob));
+            if (State is JobState.Running or JobState.AwaitingDecision or JobState.Paused or JobState.Pausing) SetState(JobState.Stopping);
+            // A queued job never started: the manager finishes it as canceled right away.
+            else if (State == JobState.Queued) Changed?.Invoke(this);
+        }
+    }
+
+    /// <summary>Atomically chooses start or pre-start cancellation at the worker handoff.</summary>
+    internal bool TryStart()
+    {
+        lock (_startLock)
+        {
+            if (_cts.IsCancellationRequested || State != JobState.Queued) return false;
+            SetState(JobState.Running);
+            return true;
+        }
     }
 
     // ---- Executor API (job thread) ------------------------------------------------------------------
