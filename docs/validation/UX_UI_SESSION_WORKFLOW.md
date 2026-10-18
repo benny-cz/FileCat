@@ -32,8 +32,9 @@ After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
 FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
-native acceptance gates open. Investigate the newly reported PE viewer
-scrollbar-drag freeze after the current transfer-form regression gate.
+native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
+fix on the supplied Windows EXE. After FCUX-042, address the newly reported
+Markdown resize behavior, then continue the audit's physical S2 order.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -44,8 +45,10 @@ scrollbar-drag freeze after the current transfer-form regression gate.
 | 5 | FCUX-039 — rename validation responsiveness | Pure preparation, device-scheduled checks and current-generation tests pass; native timing acceptance remains open. |
 | 6 | FCUX-040 — counter field validation | Exact field validation and focused App/Core tests pass; native acceptance remains open. |
 | 7 | FCUX-041 — transfer destination validation | Code and focused tests pass; complete App regression and native network/focus acceptance remain open. |
-| 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Thumb seeks are now coalesced and Info line counting is cached. Portable drag/value tests and a local headless check on the supplied SignalSetup.exe pass; native desktop acceptance remains open. Mouse-wheel scrolling is not the reported trigger. |
-| 9 | FCUX-042 — operations drawer layout | Make recovery rows, reports and controls reachable at the audit's narrow and scaled window sizes. |
+| 8 | UXBUG-003 — PE viewer scrollbar-drag freeze | Thumb seeks are coalesced and Info line counting is cached. Portable drag/value tests and a local headless check pass; the user confirmed native Windows thumb dragging on SignalSetup.exe works. |
+| 9 | FCUX-042 — operations drawer layout | Bounded, persisted vertical resize; scrolling selected recovery review; full-window report entry; responsive graph and actions. Focused tests pass; native scaled desktop acceptance remains open. |
+| 10 | UXBUG-004 — Markdown prose width on resize | Tables expand with the Page window while prose remains at the old reading width. Match prose width to available space without sacrificing readable line length, then test wide/narrow transitions. |
+| 11 | FCUX-043 — recovery preparation state | Expose busy/cancel ownership through review and admitted-work transitions. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
@@ -182,8 +185,24 @@ or another navigation action changes. The Info status line uses a line count
 captured when the report is generated. Portable tests cover 80 rapid thumb
 values and a real headless drag down/up through 40 pointer moves in each
 direction. A temporary local-only headless test against the supplied EXE also
-passed and was removed after verification. Native desktop drag acceptance and
-the related/full App suite remain open.
+passed and was removed after verification. The user confirmed the native
+Windows scrollbar drag on that EXE works. The complete App suite still needs
+a passing run with the current code.
+
+### FCUX-042 implementation record
+
+The operations drawer has a pointer and keyboard resize grip. Its preferred
+height is saved with settings, and live workspace measurements keep at least
+100 DIP for the file panels when space permits. An initial 640 × 420 window and
+a sudden shrink from a taller window both retain usable workspace. The bounded
+recovery section lists interruptions and shows actions for one selected item;
+the list and section scroll, including through 20 items by keyboard. The
+operation header keeps a complete row and an Open report action visible at
+640 × 420. The fixed graph is behind a collapsed expander so it does not take
+diagnostic width. `OperationsDrawerLayoutTests` covers 1/5/20 interruptions,
+small/wide geometry, pointer and keyboard resize, settings persistence, and
+window shrink/expansion. Native scaling and screen-reader acceptance remain
+open.
 
 ### FCUX-033 implementation record
 

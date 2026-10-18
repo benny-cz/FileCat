@@ -2,8 +2,9 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-041 transfer destination validation has focused coverage;
-the full App regression gate is running. FCUX-036 native acceptance and Advanced
+**Current work:** FCUX-042 operations drawer layout has focused coverage;
+the complete App regression gate remains open. The next queued correction is
+UXBUG-004, Markdown prose width on window resize. FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
@@ -55,8 +56,15 @@ positions now coalesce to the latest location on a bounded 32 ms timer, rather
 than synchronously shaping every intermediate viewport. The report's line count
 is computed when the report changes instead of on each scroll. Portable tests
 exercise repeated value changes and real thumb dragging down and back up; a
-local headless check also passed with the supplied `SignalSetup.exe`. Native
-desktop acceptance on that EXE remains open.
+local headless check also passed with the supplied `SignalSetup.exe`. The user
+confirmed the Windows desktop scrollbar drag on that EXE now works.
+
+FCUX-042 keeps the operations drawer resizable without losing the file panels,
+scrolls recovery notices and shows actions for one selected interruption. At
+640 × 420, a complete operation row and Open report remain visible. The speed
+graph expands on demand. The user also reported UXBUG-004: after widening a
+Markdown Page window, tables use the added width but prose stays at its earlier
+measure. That correction is queued next.
 
 ## Changes and verification map
 
@@ -115,8 +123,9 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-038 — complete bulk-rename review | Bind all accepted planner rows to an explicitly virtualized list. Offer Problems and Changed filters, path search, next-problem navigation and selectable full old/new path details. The reviewed and submitted row arrays are the same. | `BulkRenameReviewTests` exercises 3,001 rows with a blocking collision at row 2,501, full paths, filtering, next-problem navigation and bounded realized controls. Existing rename scope, execution and dialog viewport tests pass in a 33-case selection (one platform skip). | Native screen-reader, scaled-layout and maximum-size responsiveness acceptance remain open. |
 | FCUX-039 — responsive rename validation | Separate pure expansion/plan collision checks from target existence checks. Compute and group candidates off the UI thread; use bounded per-device workers for existence, cancel queued work and ignore superseded generations. Show an accessible checking state, disable Rename until validation, and recheck current targets before job admission. The runner still refuses replacement at execution. | `BulkRenameAsyncPreviewTests` holds a target probe while editing and canceling, verifies a newer preview wins, and makes a target appear between preview and confirmation. Core `BulkRenameTests` covers pure candidates, swaps, checked collisions and cancellation. The related App selection passes 38 with one platform skip; seven focused Core cases pass. | Native slow-network, maximum 50,000-row responsiveness and shutdown timing acceptance remain open. |
 | FCUX-040 — exact bulk-rename counter validation | Parse start and step as signed 64-bit integers and digits as 1–12 without fallback or clamping. Show field-adjacent, accessible errors while preserving text; empty intermediate input gets neutral guidance. Negative steps count down, zero repeats the value, and checked planner arithmetic marks overflow as a blocking row problem. | `BulkRenameCounterValidationTests` covers malformed/overflowing start and step, invalid/overflowing digits, blank input, zero/negative steps and exact preview values. Core `BulkRenameTests` covers counter overflow with and without a counter token. Eight focused App and eight Core cases pass. | Native focus, screen-reader announcement and scaled-layout acceptance remain open. |
-| FCUX-041 — transfer destination validation | Show destination errors beside the field and keep the form, options, and scope intact. Start and Queue use the same asynchronous resolver and captured folder/new-name mapping. Device-scheduled filesystem probes cannot block editing or Cancel; stale results cannot authorize submission. | `TransferDestinationValidationTests` covers unsupported providers, retained options, both buttons, a single-item rename mapping, a held probe, correction, and cancellation. Existing operation and interrupted-transfer tests wait for destination validation before submission. Focused cases pass; full App regression is running. | Native network path, focus, screen-reader, and execution-time destination-change acceptance remain open. |
-| UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values and actual repeated pointer moves down/up through the thumb. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. Related viewer suite is running. | Native desktop drag acceptance on the supplied EXE remains open. |
+| FCUX-041 — transfer destination validation | Show destination errors beside the field and keep the form, options, and scope intact. Start and Queue use the same asynchronous resolver and captured folder/new-name mapping. Device-scheduled filesystem probes cannot block editing or Cancel; stale results cannot authorize submission. | `TransferDestinationValidationTests` covers unsupported providers, retained options, both buttons, a single-item rename mapping, a held probe, correction, and cancellation. Existing operation and interrupted-transfer tests wait for destination validation before submission. Focused cases pass; a complete App attempt remained idle and was stopped, so that gate is open. | Native network path, focus, screen-reader, and execution-time destination-change acceptance remain open. |
+| UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values, repeated pointer moves down/up through the thumb, and stale seek retirement. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. The 66-case related viewer suite passes. | The user manually confirmed the Windows desktop drag on the supplied EXE works. |
+| FCUX-042 — operations drawer layout | Persist a vertically resizable drawer while preserving usable workspace; bound and scroll recovery review with one selected item, keep a complete operation row and Open report action at 640 × 420, wrap controls, and collapse the graph until requested. | `OperationsDrawerLayoutTests` covers 1/5/20 interruptions, keyboard navigation, small/wide windows, a selected operation and report entry, pointer/keyboard resize, saved height and shrink/expand restoration. Nine focused cases pass. | Native high-DPI, pointer, keyboard and screen-reader acceptance remains open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

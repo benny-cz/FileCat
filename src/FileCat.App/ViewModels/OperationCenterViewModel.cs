@@ -339,6 +339,20 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         Manager = manager;
         _display = display;
+        Interrupted.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(InterruptedCount));
+            OnPropertyChanged(nameof(HasInterrupted));
+            if (SelectedInterrupted is null || !Interrupted.Contains(SelectedInterrupted))
+                SelectedInterrupted = Interrupted.FirstOrDefault();
+            // ListBox clears its old SelectedItem after a removed row's collection event. Let
+            // that binding settle, then restore the first remaining review item if needed.
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (SelectedInterrupted is null && Interrupted.Count > 0)
+                    SelectedInterrupted = Interrupted[0];
+            }, DispatcherPriority.Loaded);
+        };
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
         manager.SyncGroupAdded += group => Dispatcher.UIThread.Post(() => Add(group));
@@ -370,11 +384,14 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
     public ObservableCollection<SyncGroupViewModel> SyncGroups { get; } = [];
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
+    public int InterruptedCount => Interrupted.Count;
+    public bool HasInterrupted => Interrupted.Count > 0;
     public ObservableCollection<RecoveryReviewRecord> ReviewedRecovery { get; } = [];
     public bool HasReviewedRecovery => ReviewedRecovery.Count > 0;
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private JobViewModel? _selected;
+    [ObservableProperty] private InterruptedJobViewModel? _selectedInterrupted;
     [ObservableProperty] private JobIssue? _selectedIssue;
     [ObservableProperty] private string _issueSummary = string.Empty;
     [ObservableProperty] private JobViewModel? _primary;

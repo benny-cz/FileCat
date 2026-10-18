@@ -83,6 +83,8 @@ public sealed class AppSettings : IVersionedState
     public bool ShowFunctionKeyBar { get; set; } = true;
     public bool ShowCommandLine { get; set; } = true;
     public bool ShowToolbar { get; set; } = true;
+    /// <summary>Preferred height of the expanded operations drawer in logical pixels; clamped to the current window.</summary>
+    public double OperationsDrawerHeight { get; set; } = 300;
     /// <summary>The place buttons above each panel: drives and everything else the location menu offers (D-52, D-53).</summary>
     public bool ShowDriveButtons { get; set; } = true;
     public bool ShowTabsAlways { get; set; } = true;

@@ -1,0 +1,202 @@
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using FileCat.App.ViewModels;
+using FileCat.App.Views;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
+using Location = FileCat.Core.Resources.Location;
+
+namespace FileCat.App.Tests;
+
+public sealed class OperationsDrawerLayoutTests
+{
+    [AvaloniaTheory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(20)]
+    public void Recovery_section_stays_bounded_and_last_item_actions_are_scrollable(int count)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            for (int i = 0; i < count; i++)
+                center.Interrupted.Add(new InterruptedJobViewModel(new InterruptedJob(
+                    Path.Combine(root, $"journal-{i}"), nameof(JobKind.Copy), $"Interrupted {i}", DateTime.UtcNow,
+                    [Path.Combine(root, $"source-{i}")], Path.Combine(root, "target"), [], [], 0, 1)));
+            Layout(window);
+
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var recovery = view.FindControl<ScrollViewer>("RecoveryScroll")!;
+            var expander = view.GetVisualDescendants().OfType<Expander>()
+                .Single(e => AutomationProperties.GetName(e) == "Interrupted operations needing review");
+            expander.IsExpanded = true;
+            Layout(window);
+
+            Assert.Equal(count, center.InterruptedCount);
+            Assert.True(center.HasInterrupted);
+            Assert.True(recovery.Bounds.Height <= drawer.Bounds.Height * .34 + 2);
+            Assert.True(vm.Operations.SelectedInterrupted is not null);
+            var selector = view.GetVisualDescendants().OfType<ListBox>()
+                .Single(e => AutomationProperties.GetName(e) == "Choose an interrupted operation");
+            Assert.Equal(count, selector.ItemCount);
+            selector.ScrollIntoView(0);
+            Layout(window);
+            Assert.True(selector.ContainerFromIndex(0)!.Focus(), "The interrupted item must accept keyboard focus.");
+            for (int i = 0; i < count; i++)
+            {
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            }
+            Layout(window);
+            Assert.Same(center.Interrupted[^1], center.SelectedInterrupted);
+
+            recovery.Offset = new Vector(0, recovery.Extent.Height);
+            Layout(window);
+            string[] actions = ["Clean up partial files", "Review report", "Mark reviewed…", "Hide for now"];
+            foreach (string action in actions)
+                Assert.Single(view.GetVisualDescendants().OfType<Button>(), b => b.IsVisible && b.Content as string == action);
+            Assert.True(recovery.Extent.Height <= 1000, "Only the selected interrupted item should render its action details.");
+            center.Interrupted.RemoveAt(count - 1);
+            Layout(window);
+            Assert.Equal(count - 1, center.InterruptedCount);
+            Assert.Equal(count > 1, center.HasInterrupted);
+            Assert.Same(center.Interrupted.FirstOrDefault(), center.SelectedInterrupted);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(640, 420)]
+    [InlineData(980, 600)]
+    [InlineData(1200, 800)]
+    public void Drawer_respects_client_height_and_keyboard_resize_is_persisted(int width, int height)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: width, height: height);
+        try
+        {
+            vm.Operations.IsOpen = true;
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var handle = view.FindControl<Border>("DrawerResizeHandle")!;
+            Assert.InRange(drawer.Bounds.Height, 140, 720);
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90,
+                $"The workspace is only {window.WorkspaceViewport.Value.Height} DIP tall; drawer {drawer.Bounds.Height} DIP, client {window.ClientSize.Height} DIP.");
+            double before = drawer.Bounds.Height;
+            if (height > 420)
+            {
+                handle.Focus();
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                Layout(window);
+                Assert.True(drawer.Bounds.Height <= before - 15);
+                Assert.Equal(drawer.Bounds.Height, services.Settings.OperationsDrawerHeight, 1);
+                var saved = JsonFileStore.Load(services.Paths.SettingsFile, StateJsonContext.Default.AppSettings,
+                    AppSettings.CurrentSchema, () => new AppSettings(), out var status);
+                Assert.Equal(StateLoadStatus.Loaded, status);
+                Assert.Equal(drawer.Bounds.Height, saved.OperationsDrawerHeight, 1);
+            }
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Mouse_drag_resizes_drawer_and_keeps_the_workspace_usable()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            vm.Operations.IsOpen = true;
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var handle = view.FindControl<Border>("DrawerResizeHandle")!;
+            double before = drawer.Bounds.Height;
+            window.CaptureRenderedFrame()?.Dispose();
+            var point = handle.TranslatePoint(new Point(32, handle.Bounds.Height / 2), window)!.Value;
+            Assert.True(((Visual)window.InputHitTest(point)!).GetSelfAndVisualAncestors().Contains(handle),
+                $"Resize handle bounds {handle.Bounds}, visible {handle.IsEffectivelyVisible}, background {handle.Background}, point {point}; pointer chain " +
+                string.Join(" > ", ((Visual)window.InputHitTest(point)!).GetSelfAndVisualAncestors().Select(v =>
+                    v.GetType().FullName + ":" + (v as Control)?.Name + ":" + v.Bounds + ":hit=" + (v as InputElement)?.IsHitTestVisible)) +
+                "; handle chain " + string.Join(" > ", handle.GetSelfAndVisualAncestors().Select(v =>
+                    v.GetType().Name + ":" + (v as Control)?.Name + ":" + v.Bounds)));
+            window.MouseDown(point, MouseButton.Left);
+            for (int i = 1; i <= 8; i++)
+                window.MouseMove(new Point(point.X, point.Y - i * 12), RawInputModifiers.LeftMouseButton);
+            window.MouseUp(new Point(point.X, point.Y - 96), MouseButton.Left);
+            Layout(window);
+            Assert.True(drawer.Bounds.Height > before + 80,
+                $"Drag changed drawer from {before} to {drawer.Bounds.Height} DIP; workspace {window.WorkspaceViewport?.Height} DIP.");
+            Assert.Equal(drawer.Bounds.Height, services.Settings.OperationsDrawerHeight, 1);
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+            double preferred = drawer.Bounds.Height;
+            window.Height = 420;
+            Layout(window);
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+            Assert.True(drawer.Bounds.Height < preferred);
+            window.Height = 800;
+            Layout(window);
+            Assert.Equal(preferred, drawer.Bounds.Height, 1);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(1)]
+    [InlineData(20)]
+    public async Task Small_window_keeps_an_operation_row_and_full_report_action(int interruptions)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            for (int i = 0; i < interruptions; i++)
+                center.Interrupted.Add(new InterruptedJobViewModel(new InterruptedJob(
+                    Path.Combine(root, $"journal-{i}"), nameof(JobKind.Copy), $"Interrupted {i}", DateTime.UtcNow,
+                    [Path.Combine(root, $"source-{i}")], Path.Combine(root, "target"), [], [], 0, 1)));
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(Path.Combine(root, "missing.txt"), EntryKind.File)],
+                Destination = Location.FileSystem(root),
+            });
+            for (int i = 0; i < 300 && !(job.State.IsFinished() && center.Jobs.Count > 0); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.True(job.State.IsFinished());
+            center.Selected = center.Jobs.Single(j => j.Job == job);
+            Layout(window);
+
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var history = view.GetVisualDescendants().OfType<ListBox>()
+                .Single(e => AutomationProperties.GetName(e) == "Operations history");
+            var report = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open report");
+            Assert.True(history.Bounds.Height >= 45, $"Operation history height was {history.Bounds.Height} DIP.");
+            Assert.True(report.Bounds.Height >= 20 && report.IsEffectivelyVisible);
+            Assert.True(report.TranslatePoint(new Point(0, report.Bounds.Height), view)!.Value.Y <= view.Bounds.Height + 1,
+                "The report action must stay within the drawer.");
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static void Layout(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+    }
+}

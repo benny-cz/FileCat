@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using FileCat.App.Services;
@@ -11,8 +14,133 @@ namespace FileCat.App.Views;
 
 public partial class OperationsView : UserControl
 {
+    private const double MinimumDrawerHeight = 140;
     private bool _historyReviewOpen;
-    public OperationsView() => InitializeComponent();
+    private Window? _drawerOwner;
+    private Grid? _workspaceHost;
+    private double _preferredDrawerHeight = 300;
+    private double _nonDrawerHeight = 150;
+    private bool _drawerHeightChanged;
+    private IPointer? _resizePointer;
+    private double _resizeStartY;
+    private double _resizeStartHeight;
+
+    public OperationsView()
+    {
+        InitializeComponent();
+        DrawerResizeHandle.PointerPressed += (_, e) =>
+        {
+            if (_drawerOwner is null || !e.GetCurrentPoint(DrawerResizeHandle).Properties.IsLeftButtonPressed) return;
+            _resizePointer = e.Pointer;
+            _resizeStartY = e.GetPosition(_drawerOwner).Y;
+            _resizeStartHeight = DetailsDrawer.Height;
+            e.Pointer.Capture(DrawerResizeHandle);
+            e.Handled = true;
+        };
+        DrawerResizeHandle.PointerMoved += (_, e) =>
+        {
+            if (!ReferenceEquals(_resizePointer, e.Pointer) || _drawerOwner is null) return;
+            SetDrawerHeight(_resizeStartHeight + _resizeStartY - e.GetPosition(_drawerOwner).Y, userChoice: true);
+            e.Handled = true;
+        };
+        DrawerResizeHandle.PointerReleased += (_, e) =>
+        {
+            if (!ReferenceEquals(_resizePointer, e.Pointer)) return;
+            _resizePointer = null;
+            e.Pointer.Capture(null);
+            SaveDrawerHeight();
+            e.Handled = true;
+        };
+        DrawerResizeHandle.PointerCaptureLost += (_, _) =>
+        {
+            _resizePointer = null;
+            SaveDrawerHeight();
+        };
+        DrawerResizeHandle.KeyDown += (_, e) =>
+        {
+            double? next = e.Key switch
+            {
+                Key.Up => _preferredDrawerHeight + 16,
+                Key.Down => _preferredDrawerHeight - 16,
+                Key.PageUp => _preferredDrawerHeight + 64,
+                Key.PageDown => _preferredDrawerHeight - 64,
+                Key.Home => 0,
+                Key.End => double.MaxValue,
+                _ => null,
+            };
+            if (next is null) return;
+            SetDrawerHeight(next.Value, userChoice: true);
+            e.Handled = true;
+        };
+        DrawerResizeHandle.KeyUp += (_, _) => SaveDrawerHeight();
+        DrawerResizeHandle.LostFocus += (_, _) => SaveDrawerHeight();
+        AttachedToVisualTree += (_, _) =>
+        {
+            _drawerOwner = TopLevel.GetTopLevel(this) as Window;
+            if (_drawerOwner is null) return;
+            _drawerOwner.SizeChanged += OnOwnerSizeChanged;
+            _workspaceHost = (_drawerOwner as MainWindow)?.FindControl<Grid>("WorkspaceHost");
+            if (_workspaceHost is not null) _workspaceHost.SizeChanged += OnOwnerSizeChanged;
+            double saved = Main?.Services.Settings.OperationsDrawerHeight ?? 300;
+            _preferredDrawerHeight = double.IsFinite(saved) ? Math.Clamp(saved, MinimumDrawerHeight, 720) : 300;
+            RefreshDrawerHeight();
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _resizePointer?.Capture(null);
+            _resizePointer = null;
+            if (_workspaceHost is not null) _workspaceHost.SizeChanged -= OnOwnerSizeChanged;
+            _workspaceHost = null;
+            if (_drawerOwner is not null) _drawerOwner.SizeChanged -= OnOwnerSizeChanged;
+            _drawerOwner = null;
+        };
+    }
+
+    private void OnOwnerSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(RefreshDrawerHeight, DispatcherPriority.Background);
+    }
+
+    private double MaximumDrawerHeight()
+    {
+        if (_drawerOwner is not { ClientSize.Height: > 0 } window) return 720;
+        // Remember the surrounding chrome while the workspace still has measurable space. After a
+        // sudden window shrink the workspace can momentarily measure zero; its current height then
+        // cannot be used to recover the available drawer height.
+        if (DetailsDrawer.IsVisible && (window as MainWindow)?.WorkspaceViewport is { Height: > 0 } workspace)
+            _nonDrawerHeight = Math.Clamp(window.ClientSize.Height - DetailsDrawer.Bounds.Height - workspace.Height,
+                0, window.ClientSize.Height);
+        return Math.Clamp(window.ClientSize.Height - _nonDrawerHeight - 100, MinimumDrawerHeight, 720);
+    }
+
+    private void RefreshDrawerHeight()
+    {
+        if (_drawerOwner is null) return;
+        ApplyDrawerHeight(Math.Clamp(_preferredDrawerHeight, MinimumDrawerHeight, MaximumDrawerHeight()));
+    }
+
+    private void ApplyDrawerHeight(double height)
+    {
+        DetailsDrawer.Height = height;
+        RecoveryScroll.MaxHeight = Math.Clamp(height * .25, 35, 180);
+    }
+
+    private void SetDrawerHeight(double requested, bool userChoice)
+    {
+        double next = Math.Clamp(requested, MinimumDrawerHeight, MaximumDrawerHeight());
+        ApplyDrawerHeight(next);
+        if (!userChoice || Math.Abs(next - _preferredDrawerHeight) < .5) return;
+        _preferredDrawerHeight = next;
+        _drawerHeightChanged = true;
+    }
+
+    private void SaveDrawerHeight()
+    {
+        if (!_drawerHeightChanged || Main is not { } main) return;
+        _drawerHeightChanged = false;
+        main.Services.Settings.OperationsDrawerHeight = _preferredDrawerHeight;
+        main.Services.SaveSettings();
+    }
 
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
 
@@ -127,6 +255,19 @@ public partial class OperationsView : UserControl
     {
         if (Center?.Selected is { } selected && Center.SelectedIssue is { } issue && Main is { } main)
             await OperationIssueDialog.ShowAsync(main, selected.Job, issue);
+    }
+
+    private void OnOpenReport(object? sender, RoutedEventArgs e)
+    {
+        if (Center?.Selected?.Job is not { } job) return;
+        var snapshot = OperationReport.Capture(job);
+        new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return OperationReport.ForClipboard(snapshot) ??
+                "This retained report exceeds the window's 4 million character reading limit. " +
+                "Use Save report in the operations drawer to export every retained detail.";
+        }, ct)).Show();
     }
 
     private async void OnCopyReport(object? sender, RoutedEventArgs e)

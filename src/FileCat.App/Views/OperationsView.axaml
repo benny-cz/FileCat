@@ -53,12 +53,17 @@
       </Grid>
     </Border>
 
+    <!-- The resize grip is above the drawer so dragging upward allocates more room to reports. -->
+    <Border x:Name="DrawerResizeHandle" IsVisible="{Binding IsOpen}" Height="8" Cursor="SizeNorthSouth"
+            Background="Transparent" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,1" Focusable="True"
+            AutomationProperties.Name="Resize operations details"
+            AutomationProperties.HelpText="Drag up or down, or use Up and Down arrows, to resize the operations drawer" />
     <!-- Details drawer -->
-    <Border IsVisible="{Binding IsOpen}" Height="240" Background="{DynamicResource FcPanel}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
+    <Border x:Name="DetailsDrawer" IsVisible="{Binding IsOpen}" Height="300" Background="{DynamicResource FcPanel}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="2*,Auto,3*" RowDefinitions="Auto,*">
         <!-- Interrupted jobs -->
-        <StackPanel Grid.ColumnSpan="3">
-        <ScrollViewer MaxHeight="92" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="RecoveryScroll" Grid.ColumnSpan="3" MaxHeight="105" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
           <ItemsControl ItemsSource="{Binding SyncGroups}" Margin="8,4" AutomationProperties.Name="Synchronization plans">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:SyncGroupViewModel">
@@ -81,34 +86,43 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-        </ScrollViewer>
-        <ItemsControl ItemsSource="{Binding Interrupted}" Margin="8,4">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:InterruptedJobViewModel">
-              <Border Classes="banner" Margin="0,2">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel>
-                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes="small warning" />
-                    <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
-                            ToolTip.Tip="Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy" />
-                    <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
-                            ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
-                    <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
-                    <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
-                            ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
-                    <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
-                            ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
-                    <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
-                            ToolTip.Tip="Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged" />
-                  </StackPanel>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Expander Header="{Binding InterruptedCount, StringFormat='Needs review ({0})'}" IsVisible="{Binding HasInterrupted}" Margin="8,4"
+                  AutomationProperties.Name="Interrupted operations needing review">
+          <StackPanel Spacing="4">
+            <ListBox ItemsSource="{Binding Interrupted}" SelectedItem="{Binding SelectedInterrupted, Mode=TwoWay}" MaxHeight="78" Classes="choices"
+                     AutomationProperties.Name="Choose an interrupted operation">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:InterruptedJobViewModel">
+                  <TextBlock Text="{Binding Title}" Classes="small warning" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ContentControl Content="{Binding SelectedInterrupted}">
+              <ContentControl.ContentTemplate>
+                <DataTemplate x:DataType="vm:InterruptedJobViewModel">
+                  <Border Classes="banner">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
+                      <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+                        <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
+                                ToolTip.Tip="Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy" />
+                        <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
+                                ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
+                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
+                        <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
+                                ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
+                        <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
+                                ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
+                        <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
+                                ToolTip.Tip="Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged" />
+                      </WrapPanel>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ContentControl.ContentTemplate>
+            </ContentControl>
+          </StackPanel>
+        </Expander>
         <TextBlock Text="Reviewed recovery reports" Classes="small muted" Margin="10,0,0,2" IsVisible="{Binding HasReviewedRecovery}" />
         <ListBox ItemsSource="{Binding ReviewedRecovery}" MaxHeight="70" IsVisible="{Binding HasReviewedRecovery}" Margin="8,0,8,4" Classes="choices"
                  AutomationProperties.Name="Reviewed recovery reports">
@@ -123,12 +137,14 @@
           </ListBox.ItemTemplate>
         </ListBox>
         </StackPanel>
+        </ScrollViewer>
 
         <DockPanel Grid.Row="1">
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
             <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <Button Classes="flat" Content="Clear finished history…" Click="OnClearFinished" IsVisible="{Binding HasFinished}"
-                    ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
+            <Button Content="Open report" Click="OnOpenReport"
+                    IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Read the selected operation report in a larger, searchable window" />
           </WrapPanel>
           <Panel>
           <!-- Nothing yet: say what will appear here. -->
@@ -159,6 +175,9 @@
         <DockPanel Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel"
                    IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
+            <Button Classes="flat" Content="Clear finished history…" Click="OnClearFinished"
+                    IsVisible="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).HasFinished}"
+                    ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
             <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
@@ -180,7 +199,7 @@
           </WrapPanel>
           <!-- The chosen operation at a glance (release issue I30): where from and to, what it does now and how far, how long
                it has run and has left, what it did, and its pace. -->
-          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="10,0,10,6">
+          <StackPanel DockPanel.Dock="Top" Margin="10,0,10,6">
             <StackPanel Spacing="2">
               <TextBlock Text="{Binding Route}" Classes="small" TextWrapping="Wrap"
                          IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
@@ -196,11 +215,13 @@
               <TextBlock Text="{Binding DataText}" Classes="small" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{Binding SpeedText}" Classes="small" TextTrimming="CharacterEllipsis" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="2" Margin="12,2,0,0" IsVisible="{Binding HasSpeedHistory}">
-              <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
-              <TextBlock Text="{Binding GraphCaption}" Classes="small muted" HorizontalAlignment="Right" />
-            </StackPanel>
-          </Grid>
+            <Expander Header="Speed history" IsVisible="{Binding HasSpeedHistory}" Margin="0,4,0,0">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
+                <TextBlock Text="{Binding GraphCaption}" Classes="small muted" />
+              </StackPanel>
+            </Expander>
+          </StackPanel>
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="8,0,8,4">
             <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).IssueSummary}"
                        Classes="small muted" VerticalAlignment="Center" TextWrapping="Wrap" />
