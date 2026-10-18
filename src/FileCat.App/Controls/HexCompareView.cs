@@ -31,6 +31,7 @@ public sealed class HexCompareView : Control
     private const double RightMargin = 4;
 
     private readonly ScrollBar _vbar;
+    private readonly WheelRowAccumulator _wheelRows = new();
     private readonly Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
     private readonly double _fontSize = 12;
     private double _charWidth = 7, _rowHeight = 17;
@@ -69,6 +70,7 @@ public sealed class HexCompareView : Control
             if (e.Property != RangeBase.ValueProperty) return;
             long top = (long)Math.Round(_vbar.Value);
             if (top == _topRow) return;
+            _wheelRows.Reset();
             _topRow = top;
             InvalidateVisual();
         };
@@ -161,6 +163,7 @@ public sealed class HexCompareView : Control
     /// </summary>
     public void SetContent(PagedReader? left, PagedReader? right, IReadOnlyList<AlignedRange>? aligned, IReadOnlyList<AlignedRange> differences)
     {
+        _wheelRows.Reset();
         RetireCopy();
         _contentGeneration++;
         if (_left is not null) _left.PageLoaded -= OnPageLoaded;
@@ -578,7 +581,13 @@ public sealed class HexCompareView : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        ScrollBy(-(long)Math.Round(e.Delta.Y * 3));
+        long maxTop = Math.Max(0, _rowStart[^1] - VisibleRows);
+        bool beyondEnd = e.Delta.Y > 0 && _topRow == 0 || e.Delta.Y < 0 && _topRow >= maxTop;
+        if (beyondEnd) _wheelRows.Reset();
+        int rows = beyondEnd ? 0 : _wheelRows.Consume(e.Delta.Y);
+        long previousTop = _topRow;
+        if (rows != 0) ScrollBy(-rows);
+        if (rows != 0 && _topRow == previousTop) _wheelRows.Reset();
         e.Handled = true;
     }
 
@@ -593,6 +602,7 @@ public sealed class HexCompareView : Control
     {
         base.OnKeyDown(e);
         if (e.Handled || (e.KeyModifiers & KeyModifiers.Alt) != 0) return;
+        if (e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End) _wheelRows.Reset();
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         int page = Math.Max(1, VisibleRows - 1);
         switch (e.Key)

@@ -43,6 +43,7 @@ public sealed class FileListControl : Control
 
     private readonly ScrollBar _vbar;
     private readonly ScrollBar _hbar;
+    private readonly WheelRowAccumulator _wheelRows = new();
     private bool _updatingScrollBar;
     private bool _updatingHorizontalScrollBar;
     private int? _refreshTopRow;
@@ -150,6 +151,7 @@ public sealed class FileListControl : Control
             if (e.Property == RangeBase.ValueProperty)
             {
                 if (_updatingScrollBar) return;
+                _wheelRows.Reset();
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
@@ -365,8 +367,10 @@ public sealed class FileListControl : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == FontSizeProperty) _wheelRows.Reset();
         if (change.Property == TabProperty)
         {
+            _wheelRows.Reset();
             _sortReveal = null;
             _viewportIntentGeneration++;
             FinishRename(null, restoreFocus: false);
@@ -1123,8 +1127,8 @@ public sealed class FileListControl : Control
         {
             Key.Up => f - 1,
             Key.Down => f + 1,
-            Key.PageUp => f - (cap - 1),
-            Key.PageDown => f + (cap - 1),
+            Key.PageUp => f - Math.Max(1, cap - 1),
+            Key.PageDown => f + Math.Max(1, cap - 1),
             Key.Home => 0,
             Key.End => count - 1,
             _ => int.MinValue,
@@ -1134,6 +1138,7 @@ public sealed class FileListControl : Control
             if (!shift) _extendState = null;
             return;
         }
+        _wheelRows.Reset();
         e.Handled = true;
         target = Math.Clamp(target, 0, Math.Max(0, count - 1));
         if (shift)
@@ -1429,14 +1434,20 @@ public sealed class FileListControl : Control
         base.OnPointerWheelChanged(e);
         if (_hbar.IsVisible && (Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) || (e.KeyModifiers & KeyModifiers.Shift) != 0))
         {
+            _wheelRows.Reset();
             double delta = Math.Abs(e.Delta.X) > 0 ? e.Delta.X : e.Delta.Y;
             ScrollToHorizontalOffset(_horizontalOffset - delta * 48);
             e.Handled = true;
             return;
         }
         int previousTop = _topRow;
-        _topRow -= (int)Math.Round(e.Delta.Y * 3);
+        int maxTop = Math.Max(0, (_listing?.VisibleCount ?? 0) - VisibleRowCapacity);
+        bool beyondEnd = e.Delta.Y > 0 && _topRow == 0 || e.Delta.Y < 0 && _topRow >= maxTop;
+        if (beyondEnd) _wheelRows.Reset();
+        int rows = beyondEnd ? 0 : _wheelRows.Consume(e.Delta.Y);
+        _topRow = (int)Math.Clamp((long)_topRow - rows, 0, maxTop);
         ClampTop();
+        if (rows != 0 && _topRow == previousTop) _wheelRows.Reset();
         if (_topRow != previousTop) _viewportIntentGeneration++;
         if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         UpdateScrollBar();
@@ -1474,6 +1485,7 @@ public sealed class FileListControl : Control
 
     internal void ScrollToTopRow(int row)
     {
+        _wheelRows.Reset();
         int previousTop = _topRow;
         _topRow = row;
         ClampTop();

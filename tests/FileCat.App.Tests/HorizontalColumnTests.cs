@@ -149,6 +149,64 @@ public sealed class HorizontalColumnTests
         other.Dispose();
     }
 
+    [AvaloniaFact]
+    public async Task Precision_wheel_batches_scroll_the_same_rows_and_one_row_paging_moves_focus()
+    {
+        using var f = new Fixture(480, 13, fileCount: 30);
+        await f.Load(30);
+        var point = new Point(70, 70);
+        for (int i = 0; i < 10; i++) f.Window.MouseWheel(point, new Vector(0, -0.1));
+        Assert.Equal(3, f.List.TopRow);
+        f.List.ScrollToTopRow(0);
+        f.Window.MouseWheel(point, new Vector(0, -1));
+        Assert.Equal(3, f.List.TopRow);
+        for (int i = 0; i < 10; i++) f.Window.MouseWheel(point, new Vector(0, 0.1));
+        Assert.Equal(0, f.List.TopRow);
+        f.Window.MouseWheel(point, new Vector(0, 0.1));
+        f.Window.MouseWheel(point, new Vector(0, -0.1));
+        Assert.Equal(0, f.List.TopRow);
+        for (int i = 0; i < 3; i++) f.Window.MouseWheel(point, new Vector(0, -0.1));
+        Assert.Equal(1, f.List.TopRow);
+        f.List.ScrollToTopRow(0);
+        for (int i = 0; i < 2; i++) f.Window.MouseWheel(point, new Vector(0, -0.1));
+        f.List.ScrollToTopRow(1);
+        for (int i = 0; i < 2; i++) f.Window.MouseWheel(point, new Vector(0, -0.1));
+        Assert.Equal(1, f.List.TopRow);
+
+        f.Window.Height = 45;
+        f.Frame();
+        Assert.Equal(1, f.List.VisibleRowCapacity);
+        f.Tab.Listing.SetFocus(0);
+        f.List.Focus();
+        f.Window.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+        Assert.Equal(1, f.Tab.Listing.FocusedIndex);
+        f.Window.KeyPress(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+        Assert.Equal(0, f.Tab.Listing.FocusedIndex);
+    }
+
+    [AvaloniaFact]
+    public async Task Precision_wheel_keeps_inline_rename_attached_without_committing_it()
+    {
+        using var f = new Fixture(480, 13, fileCount: 30);
+        await f.Load(30);
+        f.Tab.Listing.SetFocus(5);
+        var rename = f.List.BeginRename(new PromptOptions("Rename", "Name") { Text = "row-004.txt" });
+        Assert.NotNull(rename);
+        f.Frame();
+        var editor = f.Window.GetVisualDescendants().OfType<TextBox>().Single(t =>
+            AutomationProperties.GetName(t) == "Rename selected item");
+        double before = editor.TranslatePoint(new Point(0, 0), f.List)!.Value.Y;
+        for (int i = 0; i < 4; i++) f.Window.MouseWheel(new Point(70, 70), new Vector(0, -0.1));
+        f.Frame();
+        double after = editor.TranslatePoint(new Point(0, 0), f.List)!.Value.Y;
+        Assert.Equal(1, f.List.TopRow);
+        Assert.InRange(before - after, f.List.GetRowBounds(5).Height - 1, f.List.GetRowBounds(5).Height + 1);
+        Assert.True(f.List.IsRenaming);
+        Assert.False(rename!.IsCompleted);
+        f.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        Assert.Null(await rename);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _root;
@@ -159,11 +217,12 @@ public sealed class HorizontalColumnTests
         public FileListControl List { get; }
         public Window Window { get; }
 
-        public Fixture(int width, int fontSize)
+        public Fixture(int width, int fontSize, int fileCount = 1)
         {
             _root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
             Folder = Directory.CreateDirectory(Path.Combine(_root, "files")).FullName;
             File.WriteAllText(Path.Combine(Folder, "a.txt"), "alpha");
+            for (int i = 1; i < fileCount; i++) File.WriteAllText(Path.Combine(Folder, $"row-{i:D3}.txt"), "content");
             Services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: _root));
             var workspace = new WorkspaceViewModel(Services);
             Panel = new PanelViewModel(workspace, Services);

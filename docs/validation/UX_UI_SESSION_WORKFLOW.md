@@ -34,12 +34,12 @@ FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
 native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
 fix on the supplied Windows EXE. FCUX-042, the newly reported Markdown resize
-correction, FCUX-043, FCUX-044, FCUX-045, and FCUX-046 are implemented with focused coverage.
-The drop test now waits for asynchronous destination validation. A complete App
-run passed 2,226 cases but exposed two collapsed interrupted-review tests; the
-review section now opens expanded and a 56-case affected selection passes.
-The complete Core suite passes with 16 workers (4,420 passed, 150 skipped).
-A fresh complete App rerun is in progress; FCUX-047 follows it.
+correction, FCUX-043, FCUX-044, FCUX-045, FCUX-046, and FCUX-047 are implemented
+with focused coverage. The drop test now waits for asynchronous destination
+validation. The interrupted-review section opens expanded. The complete App
+Release suite passes (2,232 passed, 63 skipped); the complete Core suite passes
+with 16 workers (4,420 passed, 150 skipped). The 15-case fractional-scroll
+selection and 117 adjacent regressions pass. UXBUG-005 follows.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -59,8 +59,8 @@ A fresh complete App rerun is in progress; FCUX-047 follows it.
 | 14 | UXBUG-006 — Streams count after deletion | After Delete removes a stream from Streams and attributes, refresh the parent file's Streams count when the provider can query it; cover Delete-key action, stale-row retirement, and a clean fallback when the count is unavailable. |
 | 15 | FCUX-045 — Find completion | Visible completion and qualification, plus search-specific empty states, are implemented; 98 related Release tests pass. Full App and native acceptance remain open. |
 | 16 | UXBUG-007 — resizable search windows | Make Find in Registry and comparable search windows expandable and shrinkable, with usable minimum bounds and responsive criteria, results, and action layouts. Cover resize and reopen behavior. |
-| 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App rerun and native keyboard acceptance remain open. |
-| 18 | FCUX-047 — fractional scroll | Preserve small wheel deltas across events and keep page movement usable with only one visible row. Test the affected list and viewer controls. |
+| 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
+| 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. Complete App rerun and native device acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization

@@ -18,6 +18,7 @@ public sealed class HexView : Control
 {
     public const int BytesPerRow = 16;
     private readonly ScrollBar _vbar, _hbar;
+    private readonly WheelRowAccumulator _wheelRows = new();
     private double _horizontalOffset;
     private Size _viewportSize;
     private bool _updatingScroll;
@@ -48,6 +49,7 @@ public sealed class HexView : Control
         {
             if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null)
             {
+                _wheelRows.Reset();
                 long top = (long)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
@@ -180,6 +182,7 @@ public sealed class HexView : Control
         get => _fontSize;
         set
         {
+            _wheelRows.Reset();
             _fontSize = Math.Clamp(value, 8, 32);
             Measure();
             EnsureHorizontalVisible();
@@ -191,6 +194,7 @@ public sealed class HexView : Control
 
     public void SetReader(PagedReader? reader)
     {
+        _wheelRows.Reset();
         if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
         _reader = reader;
         long generation = ++_readerGeneration;
@@ -456,13 +460,14 @@ public sealed class HexView : Control
             Key.Right => _cursor + Math.Min(1, Math.Max(0, len - 1 - _cursor)),
             Key.Up => _cursor - BytesPerRow,
             Key.Down => _cursor + Math.Min(BytesPerRow, Math.Max(0, len - 1 - _cursor)),
-            Key.PageUp => _cursor - BytesPerRow * (VisibleRows - 1),
+            Key.PageUp => _cursor - BytesPerRow * Math.Max(1, VisibleRows - 1),
             Key.PageDown => _cursor + Math.Min(BytesPerRow * (long)Math.Max(1, VisibleRows - 1), Math.Max(0, len - 1 - _cursor)),
             Key.Home => ctrl ? 0 : _cursor - _cursor % BytesPerRow,
             Key.End => ctrl ? len - 1 : _cursor + Math.Min(BytesPerRow - 1 - _cursor % BytesPerRow, Math.Max(0, len - 1 - _cursor)),
             _ => long.MinValue,
         };
         if (target == long.MinValue) return;
+        _wheelRows.Reset();
         e.Handled = true;
         if (shift && _anchor < 0) _anchor = _cursor;
         if (!shift) _anchor = -1;
@@ -550,9 +555,22 @@ public sealed class HexView : Control
     {
         base.OnPointerWheelChanged(e);
         if ((e.KeyModifiers & KeyModifiers.Shift) != 0 || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y))
+        {
+            _wheelRows.Reset();
             _horizontalOffset -= (e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * _charWidth * 4;
-        else _topRow -= (long)Math.Round(e.Delta.Y * 3);
-        UpdateScroll();
+            UpdateScroll();
+        }
+        else
+        {
+            long maxTop = Math.Max(0, RowCount - VisibleRows);
+            bool beyondEnd = e.Delta.Y > 0 && _topRow == 0 || e.Delta.Y < 0 && _topRow >= maxTop;
+            if (beyondEnd) _wheelRows.Reset();
+            int rows = beyondEnd ? 0 : _wheelRows.Consume(e.Delta.Y);
+            long previousTop = _topRow;
+            _topRow -= rows;
+            UpdateScroll();
+            if (rows != 0 && _topRow == previousTop) _wheelRows.Reset();
+        }
         RefreshSemanticState();
         InvalidateVisual();
         e.Handled = true;

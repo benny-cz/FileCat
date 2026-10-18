@@ -24,6 +24,7 @@ public sealed class TextViewer : Control
     internal const int MaxLineBytes = 16 * 1024;
     private const double Gutter = 8;
     private readonly ScrollBar _vbar, _hbar;
+    private readonly WheelRowAccumulator _wheelRows = new();
     private PagedReader? _reader;
     private Action? _pageLoaded;
     private Encoding _encoding = new UTF8Encoding(false);
@@ -91,7 +92,11 @@ public sealed class TextViewer : Control
         AutomationProperties.SetName(_hbar, "Text horizontal position");
         _vbar.PropertyChanged += (_, e) =>
         {
-            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null) QueueBarSeek((long)_vbar.Value);
+            if (e.Property == RangeBase.ValueProperty && !_updatingScroll && _reader is not null)
+            {
+                _wheelRows.Reset();
+                QueueBarSeek((long)_vbar.Value);
+            }
         };
         _barSeekTimer.Tick += (_, _) =>
         {
@@ -129,7 +134,7 @@ public sealed class TextViewer : Control
     public bool ReportStyle
     {
         get => _reportStyle;
-        set { if (_reportStyle == value) return; _reportStyle = value; _layoutFormat++; CommitLayout(); }
+        set { if (_reportStyle == value) return; _wheelRows.Reset(); _reportStyle = value; _layoutFormat++; CommitLayout(); }
     }
 
     public bool Wrap
@@ -138,6 +143,7 @@ public sealed class TextViewer : Control
         set
         {
             if (_wrap == value) return;
+            _wheelRows.Reset();
             CancelPendingBarSeek();
             long anchor = VisibleAnchor();
             _wrap = value; _hbar.IsVisible = !value;
@@ -154,6 +160,7 @@ public sealed class TextViewer : Control
         {
             double size = Math.Clamp(value, 8, 32);
             if (_fontSize == size) return;
+            _wheelRows.Reset();
             CancelPendingBarSeek();
             long anchor = VisibleAnchor();
             _fontSize = size; MeasureFont(); _targetOffset = anchor;
@@ -166,6 +173,7 @@ public sealed class TextViewer : Control
 
     public void SetReader(PagedReader? reader, Encoding encoding, int preambleLength)
     {
+        _wheelRows.Reset();
         CancelPendingBarSeek();
         if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
         RetireSelection("The source changed; the previous selection ended. Select again, or explicitly choose Copy visible source text.");
@@ -696,8 +704,11 @@ public sealed class TextViewer : Control
         return null;
     }
 
-    public void ScrollRows(int delta)
+    public void ScrollRows(int delta) => ScrollRowsCore(delta, fromWheel: false);
+
+    private void ScrollRowsCore(int delta, bool fromWheel)
     {
+        if (!fromWheel) _wheelRows.Reset();
         if (_reader is null || delta == 0) return;
         CancelPendingBarSeek();
         _targetOffset = null;
@@ -734,6 +745,7 @@ public sealed class TextViewer : Control
     }
     public void ScrollToOffset(long offset, bool preserveSelection = false)
     {
+        _wheelRows.Reset();
         if (_reader is null) return;
         CancelPendingBarSeek();
         if (!preserveSelection) ClearSelection();
@@ -742,6 +754,7 @@ public sealed class TextViewer : Control
     }
     public void GoToEnd()
     {
+        _wheelRows.Reset();
         if (_reader is null) return;
         CancelPendingBarSeek();
         ClearSelection(); _targetOffset = null; _topLine = _reader.Length; _topSub = 0;
@@ -781,8 +794,20 @@ public sealed class TextViewer : Control
     {
         base.OnPointerWheelChanged(e);
         if (!_wrap && ((e.KeyModifiers & KeyModifiers.Shift) != 0 || Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y)))
+        {
+            _wheelRows.Reset();
             ScrollHorizontal(-(e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * _charWidth * 4);
-        else ScrollRows(-(int)Math.Round(e.Delta.Y * 3));
+        }
+        else if (_reader is not null)
+        {
+            bool beyondStart = e.Delta.Y > 0 && _topLine == _start && _topSub == 0;
+            if (beyondStart) _wheelRows.Reset();
+            long priorLine = _topLine;
+            int priorSub = _topSub;
+            int rows = beyondStart ? 0 : _wheelRows.Consume(e.Delta.Y);
+            ScrollRowsCore(-rows, fromWheel: true);
+            if (rows != 0 && priorLine == _topLine && priorSub == _topSub) _wheelRows.Reset();
+        }
         e.Handled = true;
     }
     protected override void OnPointerPressed(PointerPressedEventArgs e)
