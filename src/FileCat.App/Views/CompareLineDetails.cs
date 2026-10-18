@@ -26,10 +26,10 @@ internal sealed class CompareLineDetails : Grid, IDisposable
     private readonly TextBlock _leftLabel = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _rightLabel = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
-    private readonly Button _previous = new() { Content = "Previous part" };
+    private readonly Button _previous = new() { Content = "Prev part" };
     private readonly Button _next = new() { Content = "Next part" };
-    private readonly Button _reveal = new() { Content = "Reveal changed text" };
-    private readonly CheckBox _wrap = new() { Content = "Wrap details", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _reveal = new() { Content = "Reveal change" };
+    private readonly CheckBox _wrap = new() { Content = "Wrap lines", VerticalAlignment = VerticalAlignment.Center };
     private readonly string _leftName, _rightName;
     private CompareRow? _row;
     private CancellationTokenSource? _work;
@@ -289,6 +289,10 @@ internal sealed class CompareLineDetails : Grid, IDisposable
                     if (stillOwned) (row.LeftLine is not null ? LeftText : RightText).Focus();
                 }
                 int start = _difference.Start >= 0 ? _difference.Start : row.EndingDiffers ? Math.Max(row.LeftText.Length, row.RightText.Length) : 0;
+                // Wrapping can change the text viewport after the queued reveal. Measure both fields at
+                // their final width before asking the presenter to bring the decisive glyph into view.
+                LeftText.UpdateLayout();
+                RightText.UpdateLayout();
                 Reveal(LeftText, start - _leftStart, _difference.LeftLength);
                 Reveal(RightText, start - _rightStart, _difference.RightLength);
             }

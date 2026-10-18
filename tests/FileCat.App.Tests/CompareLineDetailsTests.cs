@@ -355,7 +355,8 @@ public sealed class CompareLineDetailsTests
         Assert.True(glyph.Height > 0, "The changed glyph must have been laid out.");
         Assert.True(point.X >= -0.5 && point.Y >= -0.5, $"Changed glyph starts outside the viewport: {point}.");
         Assert.True(point.X + glyph.Width <= viewport.Bounds.Width + 0.5, "The changed glyph is clipped horizontally.");
-        Assert.True(point.Y + glyph.Height <= viewport.Bounds.Height + 0.5, "The changed glyph is clipped vertically.");
+        Assert.True(point.Y + glyph.Height <= viewport.Bounds.Height + 0.5,
+            $"The changed glyph is clipped vertically: glyph {point.Y}+{glyph.Height}, viewport {viewport.Bounds.Height}, field {field.Bounds}, details {field.FindAncestorOfType<CompareLineDetails>()?.Bounds}, children {string.Join("; ", field.FindAncestorOfType<CompareLineDetails>()?.Children.Select(c => c.GetType().Name + " " + c.Bounds) ?? [])}, wrap {field.TextWrapping}.");
     }
 
     private static void Layout(Window window)

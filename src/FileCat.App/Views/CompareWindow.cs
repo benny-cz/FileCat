@@ -48,6 +48,20 @@ public sealed class CompareWindow : Window
     private readonly CompareTextView _textView;
     private readonly Grid _textBody = new() { RowDefinitions = RowDefinitions.Parse("*,1,*") };
     private readonly Button _fullLine = new() { Content = "Full-line details", VerticalAlignment = VerticalAlignment.Center };
+    private readonly WrapPanel _textTools = new() { Orientation = Orientation.Horizontal, IsVisible = false, Margin = new Thickness(8, 0, 8, 2) };
+    private readonly WrapPanel _findBar = new() { Orientation = Orientation.Horizontal, IsVisible = false, Margin = new Thickness(8, 0, 8, 2) };
+    private readonly ComboBox _copySide = new() { ItemsSource = new[] { "Left source", "Right source" }, SelectedIndex = 0, MinWidth = 120 };
+    private readonly Button _copySelection = new() { Content = "Copy selection" };
+    private readonly Button _copyLine = new() { Content = "Copy line" };
+    private readonly Button _copyDifference = new() { Content = "Copy difference" };
+    private readonly TextBlock _textActionStatus = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison" };
+    private readonly ComboBox _findSide = new() { ItemsSource = new[] { "Both shown sides", "Left shown side", "Right shown side" }, SelectedIndex = 0, MinWidth = 150 };
+    private readonly CheckBox _findChanged = new() { Content = "Changed rows only", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _findPrevious = new() { Content = "Previous match" };
+    private readonly Button _findNext = new() { Content = "Next match" };
+    private readonly TextBlock _findStatus = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly HexCompareView _hex = new() { IsVisible = false };
     private readonly ComboBox _differenceBox = new() { MinWidth = 320, MaxWidth = 560, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
@@ -86,12 +100,18 @@ public sealed class CompareWindow : Window
     private string? _textProblem;
     private (ContentRevision? Left, ContentRevision? Right) _revisions;
     private bool _checkingInputs;
-    private bool _closed, _reopening, _binaryForced, _settingOptions, _settingDifference, _searching, _contentFocused;
+    private bool _closed, _reopening, _binaryForced, _settingOptions, _settingDifference, _searching, _contentFocused, _findOpen;
     private int _view;
+    private int _findRequest, _matchIndex = -1;
+    private CancellationTokenSource? _findStop;
+    private IReadOnlyList<CompareTextMatch> _matches = [];
+    private bool _matchesTruncated;
     private Shown _shown;
 
     /// <summary>What the window shows: the lines, the bytes at the same offsets, or the bytes aligned.</summary>
     private enum Shown { Nothing, Text, Bytes, Aligned }
+    private enum TextCopyKind { Selection, Line, Difference }
+    private const int MaximumTextCopyCharacters = 4 * 1024 * 1024;
 
     // The differences of the view shown. Text: the row each starts on. Bytes: the differing runs listed, in file order
     // (at the same offsets, the first ones found; more are searched for past them when the comparison had too many to
@@ -159,6 +179,23 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_wrapLines, "Wrap long source lines in the aligned comparison");
         ToolTip.SetTip(_wrapLines, "Wrap both source panes, keeping each left/right line pair and gap aligned. Difference navigation reveals the changed text on both axes.");
         _again.IsVisible = CanReopen;
+        foreach (var control in new Control[] { _copySide, _copySelection, _copyLine, _copyDifference, _findToggle, _textActionStatus })
+        {
+            control.Margin = new Thickness(0, 0, 8, 4);
+            _textTools.Children.Add(control);
+        }
+        Avalonia.Automation.AutomationProperties.SetName(_copySide, "Source side for copying a line");
+        Avalonia.Automation.AutomationProperties.SetName(_findText, "Find text in comparison (Ctrl+F)");
+        Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide comparison Find bar");
+        Avalonia.Automation.AutomationProperties.SetName(_findSide, "Comparison search source scope");
+        Avalonia.Automation.AutomationProperties.SetName(_findStatus, "Comparison match status");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_findStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
+        _findStatus.Text = "Find searches the shown comparison rows.";
+        _findPrevious.IsEnabled = _findNext.IsEnabled = false;
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_textActionStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
+        ToolTip.SetTip(_copySelection, "Copy selected source characters without line numbers. Lines are joined with LF; no final newline is added.");
+        ToolTip.SetTip(_copyLine, "Copy the complete current source line from the chosen side, without its line number or terminator.");
+        ToolTip.SetTip(_copyDifference, "Copy the current aligned row with Left and Right labels and explicit gaps.");
         // Long paths lose their middle, not the file name at their end.
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(8, 4) };
         var leftHeader = new TextBlock { Text = leftName, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 8, 0) };
@@ -177,6 +214,13 @@ public sealed class CompareWindow : Window
         foreach (var child in bar.Children.OfType<Control>()) child.Margin = new Thickness(0, 0, child is Button { Content: Image } ? 2 : 10, 4);
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
+        DockPanel.SetDock(_textTools, Dock.Top);
+        foreach (var control in new Control[] { _findText, _findSide, _findChanged, _findPrevious, _findNext, _findStatus })
+        {
+            control.Margin = new Thickness(0, 0, 8, 4);
+            _findBar.Children.Add(control);
+        }
+        DockPanel.SetDock(_findBar, Dock.Top);
         DockPanel.SetDock(header, Dock.Top);
         var summaryBorder = new Border { Child = _summary, Padding = new Thickness(8, 4), Classes = { "banner" } };
         DockPanel.SetDock(summaryBorder, Dock.Top);
@@ -185,6 +229,8 @@ public sealed class CompareWindow : Window
         _statusBar = new Border { Child = new StackPanel { Spacing = 3, Children = { _status, _selectedBytes } }, Padding = new Thickness(8, 3), IsVisible = false };
         DockPanel.SetDock(_statusBar, Dock.Bottom);
         root.Children.Add(bar);
+        root.Children.Add(_textTools);
+        root.Children.Add(_findBar);
         root.Children.Add(summaryBorder);
         root.Children.Add(_changedBanner);
         root.Children.Add(header);
@@ -203,6 +249,37 @@ public sealed class CompareWindow : Window
         _again.Click += (_, _) => CompareAgain();
         _selectBytes.Click += (_, _) => _ = SelectByteRangeAsync();
         _fullLine.Click += (_, _) => FocusLineDetails();
+        _copySelection.Click += async (_, _) => await CopyTextAsync(TextCopyKind.Selection);
+        _copyLine.Click += async (_, _) => await CopyTextAsync(TextCopyKind.Line);
+        _copyDifference.Click += async (_, _) => await CopyTextAsync(TextCopyKind.Difference);
+        _textView.SelectionChanged += () =>
+        {
+            if (_textView.SelectedSide is { } side) _copySide.SelectedIndex = side;
+            _copySelection.IsEnabled = _textView.HasSelection;
+        };
+        _textView.CopyRequested += (action, side) =>
+        {
+            if (action == CompareTextCopyAction.Selection && _textView.SelectedSide != side)
+            {
+                _textActionStatus.Text = "The selection is on the other source side. Right-click that side or select text here.";
+                return;
+            }
+            if (action != CompareTextCopyAction.Selection) _copySide.SelectedIndex = side;
+            _ = CopyTextAsync(action switch
+            {
+                CompareTextCopyAction.Line => TextCopyKind.Line,
+                CompareTextCopyAction.Difference => TextCopyKind.Difference,
+                _ => TextCopyKind.Selection,
+            });
+        };
+        _copySelection.IsEnabled = false;
+        _copySide.SelectionChanged += (_, _) => UpdateCopyLineAvailability();
+        _findToggle.Click += (_, _) => SetFindOpen(!_findOpen);
+        _findText.TextChanged += (_, _) => ScheduleFind();
+        _findSide.SelectionChanged += (_, _) => ScheduleFind();
+        _findChanged.IsCheckedChanged += (_, _) => ScheduleFind();
+        _findPrevious.Click += (_, _) => MoveMatch(-1);
+        _findNext.Click += (_, _) => MoveMatch(1);
         _wrapLines.IsCheckedChanged += (_, _) => _textView.Wrap = _wrapLines.IsChecked == true;
         _textView.DetailsRequested += focus =>
         {
@@ -233,6 +310,9 @@ public sealed class CompareWindow : Window
         Closed += (_, _) =>
         {
             if (_closed) return;
+            _findStop?.Cancel();
+            _findStop?.Dispose();
+            _findStop = null;
             _closed = true;
             RetireRangeReview();
             _previewStop?.Cancel();
@@ -326,6 +406,13 @@ public sealed class CompareWindow : Window
     {
         if (_dialogs.IsOpen) return;
         if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None) return;
+        if (_findOpen && _findText.IsFocused)
+        {
+            SetFindOpen(false);
+            _rows.Focus();
+            e.Handled = true;
+            return;
+        }
         Close();
         e.Handled = true;
     }
@@ -333,6 +420,27 @@ public sealed class CompareWindow : Window
     private void OnNavigationKey(object? sender, KeyEventArgs e)
     {
         if (_dialogs.IsOpen) return;
+        if (_shown == Shown.Text && e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
+        {
+            SetFindOpen(true);
+            _findText.Focus();
+            _findText.SelectAll();
+            e.Handled = true;
+            return;
+        }
+        if (_shown == Shown.Text && e.Key == Key.F3 && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift)
+        {
+            MoveMatch(e.KeyModifiers == KeyModifiers.Shift ? -1 : 1);
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.C && e.KeyModifiers == KeyModifiers.Control && _shown == Shown.Text &&
+            e.Source is not TextBox)
+        {
+            _ = CopyTextAsync(TextCopyKind.Selection);
+            e.Handled = true;
+            return;
+        }
         switch (e.Key)
         {
             case Key.Home when e.KeyModifiers == KeyModifiers.Alt:
@@ -637,11 +745,177 @@ public sealed class CompareWindow : Window
     private void FollowRow()
     {
         if (_shown != Shown.Text || _settingDifference) return;
-        _lineDetails.SetComparisonRow(_rows.SelectedItem as CompareRow);
-        _textView.RevealSelected();
+        var selected = _rows.SelectedItem as CompareRow;
+        _lineDetails.SetComparisonRow(selected);
+        if (!_textView.SelectionGestureActive) _textView.RevealSelected();
+        UpdateCopyLineAvailability();
+        _copyDifference.IsEnabled = selected is { Kind: not DiffKind.Equal } or { EndingDiffers: true };
         int row = _rows.SelectedIndex;
         int index = _differenceRows.FindLastIndex(r => r <= row);
         if (index != _current && index >= 0) SetCurrent(index, null);
+    }
+
+    private void UpdateCopyLineAvailability()
+    {
+        if (_shown != Shown.Text || _rows.SelectedItem is not CompareRow row)
+        {
+            _copyLine.IsEnabled = false;
+            return;
+        }
+        _copyLine.IsEnabled = (_copySide.SelectedIndex == 1 ? row.RightLine : row.LeftLine) is not null;
+    }
+
+    private void ScheduleFind()
+    {
+        _findStop?.Cancel();
+        _findStop?.Dispose();
+        _findStop = null;
+        int request = ++_findRequest;
+        _matches = [];
+        _matchesTruncated = false;
+        _matchIndex = -1;
+        _findPrevious.IsEnabled = _findNext.IsEnabled = false;
+        if (_closed || _shown != Shown.Text || _rows.ItemsSource is not IReadOnlyList<object> rows) return;
+        string term = _findText.Text ?? "";
+        if (term.Length == 0)
+        {
+            _findStatus.Text = "Find searches the shown comparison rows.";
+            return;
+        }
+        int scope = _findSide.SelectedIndex;
+        bool changedOnly = _findChanged.IsChecked == true;
+        int view = _view;
+        var stop = new CancellationTokenSource();
+        _findStop = stop;
+        _findStatus.Text = $"Searching {FindScope(scope, changedOnly)}…";
+        _ = RunFindAsync(rows, term, scope, changedOnly, view, request, stop.Token);
+    }
+
+    private void SetFindOpen(bool open)
+    {
+        _findOpen = open;
+        _findBar.IsVisible = open && _shown == Shown.Text;
+        _findToggle.Content = open ? "Hide Find" : "Find…";
+        if (open) _findText.Focus();
+    }
+
+    private async Task RunFindAsync(IReadOnlyList<object> rows, string term, int scope, bool changedOnly,
+        int view, int request, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(120, token);
+            var result = await Task.Run(() => CompareTextSearch.Search(rows, term, scope, changedOnly, token), token);
+            if (_closed || token.IsCancellationRequested || request != _findRequest || view != _view ||
+                !ReferenceEquals(rows, _rows.ItemsSource) || _shown != Shown.Text) return;
+            _matches = result.Matches;
+            _matchesTruncated = result.Truncated;
+            _findPrevious.IsEnabled = _findNext.IsEnabled = _matches.Count > 0;
+            _findStatus.Text = _matches.Count == 0
+                ? $"No matches in {FindScope(scope, changedOnly)}."
+                : $"{_matches.Count:N0}{(_matchesTruncated ? "+" : "")} matches in {FindScope(scope, changedOnly)}. F3/Shift+F3 moves between matches.";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!_closed && request == _findRequest) _findStatus.Text = "Search failed: " + ex.Message;
+        }
+    }
+
+    private static string FindScope(int side, bool changedOnly) =>
+        (side switch { 1 => "the left shown source", 2 => "the right shown source", _ => "both shown sources" }) +
+        (changedOnly ? ", changed rows only" : ", all rows");
+
+    private void MoveMatch(int direction)
+    {
+        if (_closed || _shown != Shown.Text || _matches.Count == 0) return;
+        _matchIndex = _matchIndex < 0 ? (direction > 0 ? 0 : _matches.Count - 1) :
+            (_matchIndex + direction + _matches.Count) % _matches.Count;
+        var match = _matches[_matchIndex];
+        if (_rows.ItemsSource is not IReadOnlyList<object> rows || match.Row >= rows.Count ||
+            rows[match.Row] is not CompareRow) return;
+        int length = _findText.Text?.Length ?? 0;
+        _textView.SetSelection(match.Side, match.Row, match.Offset, match.Row, match.Offset + length);
+        if (_rows.SelectedIndex != match.Row) _rows.SelectedIndex = match.Row;
+        else _textView.RevealSelected();
+        _rows.ScrollIntoView(match.Row);
+        _findStatus.Text = $"Match {_matchIndex + 1:N0} of {_matches.Count:N0}{(_matchesTruncated ? "+" : "")} in " +
+            FindScope(_findSide.SelectedIndex, _findChanged.IsChecked == true) + ".";
+    }
+
+    private async Task CopyTextAsync(TextCopyKind kind)
+    {
+        if (_shown != Shown.Text || _closed) return;
+        string? value = null;
+        if (kind == TextCopyKind.Selection)
+        {
+            var selected = _textView.SelectedSourceText(MaximumTextCopyCharacters);
+            if (selected.TooLarge)
+            {
+                _textActionStatus.Text = "The selection exceeds the 4,194,304-character copy limit. Select a smaller source range.";
+                return;
+            }
+            value = selected.Text;
+            if (value is null) { _textActionStatus.Text = "Select source characters first, or use Copy line."; return; }
+        }
+        else if (_rows.SelectedItem is not CompareRow row)
+        {
+            _textActionStatus.Text = "Choose a source row first.";
+            return;
+        }
+        else if (kind == TextCopyKind.Line)
+        {
+            int side = _copySide.SelectedIndex == 1 ? 1 : 0;
+            if ((side == 0 ? row.LeftLine : row.RightLine) is null)
+            {
+                _textActionStatus.Text = "This aligned row has a gap on the chosen side; there is no source line to copy.";
+                return;
+            }
+            value = side == 0 ? row.LeftText : row.RightText;
+            if (value.Length > MaximumTextCopyCharacters)
+            {
+                _textActionStatus.Text = "This source line exceeds the 4,194,304-character copy limit. Use full-line details to select a smaller part.";
+                return;
+            }
+        }
+        else
+        {
+            if (row.Kind == DiffKind.Equal && !row.EndingDiffers)
+            {
+                _textActionStatus.Text = "This row has no difference; choose a differing row.";
+                return;
+            }
+            long size = (long)row.LeftText.Length + row.RightText.Length + 100;
+            if (size > MaximumTextCopyCharacters)
+            {
+                _textActionStatus.Text = "This difference exceeds the 4,194,304-character copy limit. Copy one source line or part instead.";
+                return;
+            }
+            value = "Left: " + (row.LeftLine is null ? "[gap]" : row.LeftText) + "\nRight: " +
+                (row.RightLine is null ? "[gap]" : row.RightText) +
+                (row.EndingDiffers ? "\n[line endings differ; use Binary view for exact bytes]" : "");
+        }
+        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            _textActionStatus.Text = "The system clipboard is unavailable.";
+            return;
+        }
+        int view = _view;
+        try
+        {
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, value);
+            if (!_closed && _shown == Shown.Text && _view == view)
+                _textActionStatus.Text = kind switch
+                {
+                    TextCopyKind.Selection => "Copied selected source text. Aligned lines use LF; no line numbers or final newline were added.",
+                    TextCopyKind.Line => "Copied the complete source line without its number or terminator.",
+                    _ => "Copied the aligned difference with Left and Right labels; gaps are explicit.",
+                };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            if (!_closed && _view == view) _textActionStatus.Text = "Copy failed: " + ex.Message;
+        }
     }
 
     private void FocusLineDetails()
@@ -1026,6 +1300,7 @@ public sealed class CompareWindow : Window
         ShowFirstDifference();
         _summary.Text = shown.Summary;
         IsComparing = false;
+        ScheduleFind();
     }
 
     /// <summary>The text rows, or the bytes (with the status line under them).</summary>
@@ -1034,6 +1309,9 @@ public sealed class CompareWindow : Window
         RetireRangeReview();
         _shown = shown;
         bool text = shown == Shown.Text;
+        _textTools.IsVisible = text;
+        _findBar.IsVisible = text && _findOpen;
+        if (!text) ScheduleFind();
         _selectBytes.IsVisible = !text && shown is Shown.Bytes or Shown.Aligned;
         _textBody.IsVisible = _fullLine.IsVisible = _wrapLines.IsVisible = text;
         _rows.IsVisible = text;

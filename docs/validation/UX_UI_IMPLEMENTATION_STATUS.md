@@ -2,15 +2,11 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Medium and low findings remain in the audit backlog unless explicitly mentioned here. Native desktop acceptance remains separate from the automated Linux/headless checks.
 
-**Current work:** FCUX-054 uses a viewport-bounded, inline-validated Go to
-prompt with visible actions. Invalid input keeps its draft; offsets and
-percentages stay in range, and line targets require a seekable source. Four
-focused and 338 related cases pass, with 12 platform skips in the related set.
-FCUX-053 passes 14 focused and 68 related App
-cases. The complete App rerun through FCUX-052 passes 2,285 cases with 63
-platform skips and zero failures. A complete rerun through FCUX-054 is running. Native
-provider, Shell, page-engine, scaling and assistive-technology acceptance
-remain open. FCUX-056 follows.
+**Current work:** FCUX-056 adds source selection, bounded clipboard copying and
+scoped Find to text comparison. Its 81 related App tests pass. The complete App
+rerun through FCUX-054 passes 2,296 cases with 63 platform skips and zero
+failures. FCUX-057 is next. Native provider, Shell, page-engine, scaling and
+assistive-technology acceptance remain open.
 FCUX-055 separates Fit, 100% and custom picture zoom states.
 Twelve focused and 74 related App cases pass, with 12 platform skips in the
 related set. This supplies the zoom state needed for FCUX-052 snapshot refresh;
@@ -40,15 +36,15 @@ remain empty. The 59-case related rerun passes. The complete App rerun through
 FCUX-049 passes with 2,254 passes, 63 skips and no failures. Subsequent
 FCUX-050/051/055 changes pass a complete App rerun with 2,276 passes, 63 skips
 and no failures. The complete rerun through FCUX-052 passes 2,285 cases with
-63 skips and no failures; FCUX-053/054 are in the next complete rerun.
+63 skips and no failures; the complete rerun through FCUX-054 passes 2,296
+cases with 63 skips and no failures.
 UXBUG-008's
 240 related App and 111 related Core cases pass, and the full Core Release suite
 passes with 16 workers (4,427 passed, 150 skipped). Native viewer acceptance
 and an exact Page-mode Find total remain open. UXBUG-007's
 72 related App cases and complete App Release suite pass (2,242 passed,
 63 skipped); native pointer/scaling acceptance remains open. UXBUG-005/006
-focused regressions and FCUX-047's complete App run also pass. FCUX-053 is the
-next audit finding after FCUX-052.
+focused regressions and FCUX-047's complete App run also pass.
 FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
@@ -210,7 +206,8 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-055 — picture zoom state | Separate Fit and 100% buttons with a visible zoom percentage. A custom 50%, 125% or 200% scale leaves both modes unselected. The 100% command returns to original-scale dimensions; Fit remains a distinct mode even when a small image happens to display at 100%. Keyboard Z retains the Fit/100% toggle. | `PictureViewerTests` exercises buttons, zoom text, custom levels and small-image equality; picture revision checks stay green. Twelve focused and 74 related App cases pass, with 12 platform skips in the related set. | Native pointer, scaling at 100/150/200%, decoder-cap labeling and assistive-technology acceptance remain open. |
 | FCUX-052 — refresh changed viewer content | Refresh/F5 reopens the exact provider item, stages new bytes and mode-specific decoding, then replaces Text, Info, Picture or Page in the same window. A persistent banner marks stale snapshots; failures retain the last valid view and show the reason. Picture zoom and approximate pan, text/Info scroll, and selections on an identical revision are preserved. Page waits for native load before committing; cancellation and late provider results retire their sources safely. | `ViewerRefreshTests` covers text, Info, Picture, Page, provider-only sources, failed reopen/load, selection and scroll, close during open, and close during metadata admission. `ViewerProviderAdmissionTests` verifies the original item/device worker and late-source disposal. Nine focused cases pass; related viewer suite passes 326 cases with 12 platform skips. | Native archive/remote reopen and capability behavior, WebView2 page-load rollback, scaling and assistive-technology acceptance remain open. Providers without revision evidence require explicit Refresh to detect a change. |
 | FCUX-053 — clear quick-view feedback | A selection-owned preview state reports Loading after the debounce and no-flicker delay, then Text, Hex, Picture or a specific message. Cancel/Retry and Open full viewer are visible actions. Empty, unsupported and denied results explain themselves; picture decode failure and the 64 MiB automatic cap keep Hex visible with a reason. Preview pixels scale with the pane up to 1,024 physical pixels. A late source, thumbnail or decoder result cannot publish over a newer selection. | `QuickViewLifetimeTests` covers held loading, rapid selection, Cancel/Retry, empty/full-viewer action, full-viewer cancellation, unsupported/denied results, damaged and oversized pictures, pane-size cap, and source ownership. Fourteen focused and 68 related quick-view/picture cases pass. | Native Shell thumbnail fallback, slow local/remote storage, small-pane layout, keyboard and assistive-technology acceptance remain open. The full viewer can have a higher decode budget than automatic quick view. |
-| FCUX-054 — usable Viewer Go to | Replace the small unvalidated top-level input with the shared viewport-bounded prompt, visible Go/Cancel buttons, a wrapped label, and inline validation. Invalid and out-of-range offsets, percentages and line prefixes keep the draft open. Valid decimal/hex/percent positions and seekable line targets navigate after confirmation; nonseekable lines explain their limitation before scanning. Modal ownership blocks other viewer shortcuts until dismissal. | `ViewerGoToDialogTests` covers the pure parser and bounds, a 480 × 300 dialog with pointer correction, Enter line navigation, Escape, and a nonseekable source. Four focused and 338 related viewer/dialog cases pass, with 12 platform skips in the related set. | Native pointer, keyboard, scaled layout, screen-reader announcement and remote seek capability acceptance remain open. A line beyond the document is reported after the asynchronous scan. |
+| FCUX-054 — usable Viewer Go to | Replace the small unvalidated top-level input with the shared viewport-bounded prompt, visible Go/Cancel buttons, a wrapped label, and inline validation. Invalid and out-of-range offsets, percentages and line prefixes keep the draft open. Valid decimal/hex/percent positions and seekable line targets navigate after confirmation; nonseekable lines explain their limitation before scanning. Modal ownership blocks other viewer shortcuts until dismissal. | `ViewerGoToDialogTests` covers the pure parser and bounds, a 480 × 300 dialog with pointer correction, Enter line navigation, Escape, and a nonseekable source. Four focused and 338 related viewer/dialog cases pass, with 12 platform skips in the related set. The complete App rerun through this finding passes 2,296 tests, 63 platform skips and zero failures. | Native pointer, keyboard, scaled layout, screen-reader announcement and remote seek capability acceptance remain open. A line beyond the document is reported after the asynchronous scan. |
+| FCUX-056 — compare source selection and Find | Virtualized per-side cells support drag, Shift+click and keyboard selection. Copy selection/line/difference actions use original source text, omit gutter numbers, explain gaps and normalize selected line joins to LF. A collapsible Find bar searches both or one shown side, optionally changed rows, with distinct match buttons and F3 shortcuts. Canceled searches cannot publish after query, view or window replacement. The main toolbar retains room for full-line details at 640 DIPs. | `CompareTextInteractionTests` covers source and gap copy semantics, pointer and keyboard selection, long offscreen suffixes, search scope/count/navigation and cancellation. The related comparison suite passes 81 tests, zero failures. | Native pointer/context-menu, keyboard, screen-reader and scaled-layout acceptance remain open. The search stores at most 50,000 positions and marks additional matches with `+`; exceptional lines use full-line details for selection. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

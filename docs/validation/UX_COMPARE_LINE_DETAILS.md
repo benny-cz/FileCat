@@ -1,6 +1,6 @@
 # Inspectable aligned text comparison
 
-The FCUX-009 implementation now presents ordinary source lines directly in the main virtualized comparison. Both panes share a horizontal position; **Wrap long lines** gives each source pair a common variable row height. Source line numbers and actual gaps remain aligned. Lines above the explicit main-rendering bound retain the complete-line detail route. The main renderer is bounded; it is not an unlimited comparison editor or a completion claim for FCUX-056.
+The FCUX-009 implementation presents ordinary source lines directly in the main virtualized comparison. FCUX-056 adds source-text selection, copying and Find. Both panes share a horizontal position; **Wrap long lines** gives each source pair a common variable row height. Source line numbers and actual gaps remain aligned. Lines above the explicit main-rendering bound retain the complete-line detail route. The main renderer is bounded; it is not an unlimited comparison editor.
 
 ## Main comparison surface
 
@@ -12,15 +12,23 @@ Each ordinary side cell renders the complete decoded source line, up to **16,384
 
 A line above the main bound has an explicit action such as **60,000-character source line — inspect complete line**, with the source side, line number, exact UTF-16 length and bound in its accessible description. Activating it opens the complete-line reader on the first changed location. It does not quietly draw a shortened source line and claim that it is complete.
 
+## Source selection, copy and Find
+
+Click a left or right source cell and drag or Shift+click to select characters on that side across aligned rows. Shift+arrow, Shift+Home and Shift+End extend a keyboard selection; Ctrl+C copies it. The visible **Copy selection**, **Copy line** and **Copy difference** actions and each source cell's context menu offer the same work without memorizing shortcuts. The chosen side is explicit for Copy line. Copy difference labels Left and Right, uses `[gap]` for a missing source line, and discloses a line-ending-only difference; Binary view provides exact ending bytes.
+
+Selected-source copy excludes gutter line numbers and absent-side gaps. It joins selected source lines with LF and adds no final newline. Copy line excludes its source terminator. The clipboard bound is **4,194,304 UTF-16 characters**; an overlarge request is refused with a visible explanation. The complete-line detail fields remain the route for selecting part of an exceptional line above the main shaping bound.
+
+**Find…** opens a compact bar (Ctrl+F). It searches both shown sides or one chosen side, optionally changed rows only. Counts and no-result messages name the active scope. **Next/Previous match** and F3/Shift+F3 navigate text matches independently of F8/Shift+F8 difference navigation, including offscreen source suffixes. Search is case-insensitive and scans the rows currently shown; **Hide equal lines** therefore excludes hidden equal rows. Results are computed off the UI thread, canceled when the query, view or window changes, and capped at 50,000 stored positions. A `+` after the count discloses that more matches exist beyond this navigation bound.
+
 ## Exact full-line details
 
 Selecting any text row updates the **Full-line detail** area. **Alt+L**, the **Full-line details** button, a double-click on a row, or an exceptional line's action focuses that area. Its two read-only standard text fields preserve the decoded source text and support normal text selection and copy controls. Source line numbers and explicit gaps remain above the fields.
 
-Unwrapped detail fields synchronize horizontal scrolling. **Wrap details** enables wrapping inside both fields. **Reveal changed text** returns to the decisive source text after scrolling or part navigation. A source line ending before its counterpart is identified as an ending. If the comparison options treat different raw strings as equal, the detail says so.
+Unwrapped detail fields synchronize horizontal scrolling. **Wrap lines** enables wrapping inside both fields. **Reveal change** returns to the decisive source text after scrolling or part navigation. A source line ending before its counterpart is identified as an ending. If the comparison options treat different raw strings as equal, the detail says so.
 
 A detail field normally shapes **16,384 UTF-16 code units per part**. If the first differing text element starts in that part but ends just beyond it, the part extends by at most **256 code units** to include the whole element. Up to two further code units avoid splitting a surrogate pair at a boundary, giving an absolute bound of **16,642 code units per field**. This makes the decisive accent visible for 16,383 `x` characters followed by `e\u0301` versus `e\u0300`, without shaping an unbounded cluster on the UI thread.
 
-Exceptionally long lines expose **Previous part / Next part**, source offsets and the displayed range. The initial part contains the start of the first difference; every part remains reachable. Adjacent parts can overlap the bounded extension or boundary surrogate pair, with the displayed ranges identifying that overlap. Paging never substitutes an ellipsis for undisclosed source text. It is not general grapheme-safe paging: unrelated text elements may cross a boundary, and an element requiring more than the 256-code-unit extension remains split across parts. Visible status and accessibility help disclose a partial differing element and direct the user to the remaining parts.
+Exceptionally long lines expose **Prev part / Next part**, source offsets and the displayed range. The initial part contains the start of the first difference; every part remains reachable. Adjacent parts can overlap the bounded extension or boundary surrogate pair, with the displayed ranges identifying that overlap. Paging never substitutes an ellipsis for undisclosed source text. It is not general grapheme-safe paging: unrelated text elements may cross a boundary, and an element requiring more than the 256-code-unit extension remains split across parts. Visible status and accessibility help disclose a partial differing element and direct the user to the remaining parts.
 
 ## Resource and lifetime guarantees
 
@@ -50,10 +58,10 @@ The existing exact-byte equality, decoded-text equality, BOM/encoding distinctio
 
 `tests/FileCat.App.Tests/CompareLineDetailsTests.cs` retains the twenty full-line-detail cases: the same twelve widths/lengths, exact source reassembly through a 60,000-character line, synchronized scrolling, source-state labels, ownership/focus retirement, the combining-mark part-boundary reveal, and explicit disclosure/reassembly for an oversized differing text element.
 
-Run these with the existing comparison/revision/retirement contract tests:
+`CompareTextInteractionTests` covers source-faithful selection and clipboard output, gaps, pointer and keyboard selection, a 10,000-character offscreen suffix, side/changed-only Find scopes, match counts and independent F3 navigation. The 2026-10-19 related comparison run passed **81 tests**. Run the comparison/revision/retirement contract tests with 16 build workers where available:
 
 ```sh
-dotnet test tests/FileCat.App.Tests/FileCat.App.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~CompareTextViewTests|FullyQualifiedName~CompareLineDetailsTests|FullyQualifiedName~CompareWindowTests|FullyQualifiedName~CompareRevision|FullyQualifiedName~ComparisonWindowRetirementTests|FullyQualifiedName~ComparisonReplacementRetirementTests' --blame-hang --blame-hang-timeout 90s --blame-hang-dump-type none
+dotnet test tests/FileCat.App.Tests/FileCat.App.Tests.csproj -c Release -m:16 --no-build --no-restore --filter 'FullyQualifiedName~Compare' --blame-hang --blame-hang-timeout 90s --blame-hang-dump-type none
 ```
 
 ### Recorded execution
@@ -64,6 +72,6 @@ Evidence files are `comparison-commit-build.log`, `comparison-commit-final.log` 
 
 ## Remaining scope and platform validation
 
-The main surface displays complete ordinary lines within its stated shaping bound and retains the exact full-line/source-offset alternative for larger lines. General comparison text search, multirow per-side text selection, and richer selection/export remain FCUX-056 scope. This change does not claim a full editable comparison or merge surface.
+The main surface displays complete ordinary lines within its stated shaping bound and retains the exact full-line/source-offset alternative for larger lines. It supports bounded source selection, clipboard copy and Find; it does not claim a full editable comparison, merge surface or unbounded export.
 
 Native screen-reader journeys and enlarged-font/scaling layouts still require platform validation. Detail paging does not guarantee whole-grapheme presentation for exceptional oversized clusters. These limits remain disclosed rather than being described as an unlimited text surface.

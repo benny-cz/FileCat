@@ -18,6 +18,8 @@ using FileCat.Core.Compare;
 
 namespace FileCat.App.Views;
 
+internal enum CompareTextCopyAction { Selection, Line, Difference }
+
 /// <summary>
 /// The aligned source rows remain virtualized by the list. Each realized row owns two clipped text layouts:
 /// one shared horizontal position when unwrapped, or a shared row height when wrapped. Only exceptional
@@ -36,6 +38,15 @@ internal sealed class CompareTextView : Grid, IDisposable
     private bool _wrap, _disposed, _metricsQueued, _settingOffset;
     private double _extent, _paneWidth;
     private PendingReveal? _pendingReveal;
+    private readonly record struct TextPoint(int Row, int Side, int Offset);
+    private TextPoint? _selectionAnchor, _selectionEnd;
+    private CompareSourceCell? _pointerCell;
+    internal bool SelectionGestureActive { get; private set; }
+    internal int? SelectedSide => _selectionAnchor?.Side;
+    internal bool HasSelection => OrderedSelection() is { } s &&
+        (s.Start.Row != s.End.Row || s.Start.Offset != s.End.Offset);
+    internal event Action? SelectionChanged;
+    internal event Action<CompareTextCopyAction, int>? CopyRequested;
     private sealed record PendingReveal(int Index, int Generation, int Request, object? Items, CompareRow Source);
 
     internal event Action<bool>? DetailsRequested;
@@ -85,7 +96,9 @@ internal sealed class CompareTextView : Grid, IDisposable
         };
         AddHandler(KeyDownEvent, OnKey, RoutingStrategies.Tunnel);
         AddHandler(PointerWheelChangedEvent, OnWheel, RoutingStrategies.Tunnel);
-        AddHandler(PointerPressedEvent, (_, _) => _revealRequest++, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnSourcePointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(PointerMovedEvent, OnSourcePointerMoved, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, OnSourcePointerReleased, RoutingStrategies.Tunnel);
         SizeChanged += (_, _) =>
         {
             QueueMetrics();
@@ -109,6 +122,9 @@ internal sealed class CompareTextView : Grid, IDisposable
         _generation++;
         _revealRequest++;
         _pendingReveal = null;
+        _selectionAnchor = _selectionEnd = null;
+        _pointerCell = null;
+        InvalidateSelection();
         foreach (var row in RealizedRows().ToArray()) row.Retire();
         _extent = _paneWidth = 0;
         _horizontal.Maximum = 0;
@@ -117,6 +133,165 @@ internal sealed class CompareTextView : Grid, IDisposable
 
     private IEnumerable<CompareTextRow> RealizedRows() => _rows.GetRealizedContainers()
         .SelectMany(c => c.GetVisualDescendants().OfType<CompareTextRow>());
+
+    private CompareSourceCell? SourceAt(Point point)
+    {
+        foreach (var row in RealizedRows())
+        {
+            if (!IsCurrent(row)) continue;
+            foreach (var cell in new[] { row.LeftCell, row.RightCell })
+            {
+                if (cell is null || cell.TranslatePoint(default, this) is not { } origin) continue;
+                if (new Rect(origin, cell.Bounds.Size).Contains(point)) return cell;
+            }
+        }
+        return null;
+    }
+
+    private void OnSourcePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        _revealRequest++;
+        if (_disposed || SourceAt(e.GetPosition(this)) is not { } cell) return;
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            cell.ContextMenu?.Open(cell);
+            e.Handled = true;
+            return;
+        }
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        cell.Focus();
+        SelectCell(cell, cell.SourceOffset(e.GetPosition(cell)), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+        _pointerCell = cell;
+        e.Pointer.Capture(this);
+        e.Handled = true;
+    }
+
+    private void OnSourcePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_pointerCell is not { } start || SourceAt(e.GetPosition(this)) is not { } cell ||
+            cell.Side != start.Side) return;
+        ExtendCellSelection(cell, cell.SourceOffset(e.GetPosition(cell)));
+    }
+
+    private void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_pointerCell is null) return;
+        OnSourcePointerMoved(sender, e);
+        _pointerCell = null;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
+    /// <summary>Selection is keyed to aligned row and source side, never to a recycled visual cell.</summary>
+    internal void SelectCell(CompareSourceCell cell, int offset, bool extend)
+    {
+        if (_disposed || cell.FindAncestorOfType<CompareTextRow>() is not { } row || !IsCurrent(row)) return;
+        var container = row.FindAncestorOfType<ListBoxItem>();
+        int index = container is null ? -1 : _rows.IndexFromContainer(container);
+        if (index < 0 || !ReferenceEquals(_rows.Items[index], row.Source)) return;
+        var point = new TextPoint(index, cell.Side, Math.Clamp(offset, 0, cell.Text.Length));
+        if (!extend || _selectionAnchor is not { } anchor || anchor.Side != point.Side)
+            _selectionAnchor = point;
+        _selectionEnd = point;
+        SelectionGestureActive = true;
+        try { _rows.SelectedIndex = index; }
+        finally { SelectionGestureActive = false; }
+        InvalidateSelection();
+    }
+
+    internal void ExtendCellSelection(CompareSourceCell cell, int offset)
+    {
+        if (_selectionAnchor is not { } anchor || anchor.Side != cell.Side) return;
+        SelectCell(cell, offset, extend: true);
+    }
+
+    internal void SetSelection(int side, int startRow, int startOffset, int endRow, int endOffset)
+    {
+        if (_disposed || side is not (0 or 1) || _rows.ItemsSource is not IReadOnlyList<object> rows ||
+            startRow < 0 || endRow < 0 || startRow >= rows.Count || endRow >= rows.Count ||
+            rows[startRow] is not CompareRow first || rows[endRow] is not CompareRow last ||
+            (side == 0 ? first.LeftLine : first.RightLine) is null ||
+            (side == 0 ? last.LeftLine : last.RightLine) is null) return;
+        _selectionAnchor = new TextPoint(startRow, side, Math.Clamp(startOffset, 0, (side == 0 ? first.LeftText : first.RightText).Length));
+        _selectionEnd = new TextPoint(endRow, side, Math.Clamp(endOffset, 0, (side == 0 ? last.LeftText : last.RightText).Length));
+        InvalidateSelection();
+    }
+
+    internal void ClearSelection()
+    {
+        _selectionAnchor = _selectionEnd = null;
+        InvalidateSelection();
+    }
+
+    internal void RequestCopy(CompareTextCopyAction action, CompareSourceCell cell)
+    {
+        if (_disposed || cell.FindAncestorOfType<CompareTextRow>() is not { } row || !IsCurrent(row)) return;
+        var container = row.FindAncestorOfType<ListBoxItem>();
+        int index = container is null ? -1 : _rows.IndexFromContainer(container);
+        if (index < 0 || !ReferenceEquals(_rows.Items[index], row.Source)) return;
+        if (action != CompareTextCopyAction.Selection) _rows.SelectedIndex = index;
+        CopyRequested?.Invoke(action, cell.Side);
+    }
+
+    private (TextPoint Start, TextPoint End)? OrderedSelection()
+    {
+        if (_selectionAnchor is not { } anchor || _selectionEnd is not { } end || anchor.Side != end.Side)
+            return null;
+        return anchor.Row < end.Row || anchor.Row == end.Row && anchor.Offset <= end.Offset
+            ? (anchor, end) : (end, anchor);
+    }
+
+    internal (int Start, int Length)? SelectionFor(CompareSourceCell cell)
+    {
+        if (OrderedSelection() is not { } selection || cell.Side != selection.Start.Side ||
+            cell.FindAncestorOfType<CompareTextRow>() is not { } row ||
+            !IsCurrent(row) ||
+            row.FindAncestorOfType<ListBoxItem>() is not { } container) return null;
+        int index = _rows.IndexFromContainer(container);
+        if (index < selection.Start.Row || index > selection.End.Row) return null;
+        int start = index == selection.Start.Row ? selection.Start.Offset : 0;
+        int end = index == selection.End.Row ? selection.End.Offset : cell.Text.Length;
+        start = Math.Clamp(start, 0, cell.Text.Length);
+        end = Math.Clamp(end, start, cell.Text.Length);
+        return end > start ? (start, end - start) : null;
+    }
+
+    /// <summary>Source text only: gaps are omitted, source lines are joined with LF, and no final LF is added.</summary>
+    internal (string? Text, bool TooLarge) SelectedSourceText(int maxCharacters = 4 * 1024 * 1024)
+    {
+        if (OrderedSelection() is not { } selection || _rows.ItemsSource is not IReadOnlyList<object> rows ||
+            selection.Start.Row < 0 || selection.End.Row >= rows.Count ||
+            selection.Start.Row == selection.End.Row && selection.Start.Offset == selection.End.Offset) return (null, false);
+        var parts = new List<string>();
+        int total = 0;
+        for (int i = selection.Start.Row; i <= selection.End.Row; i++)
+        {
+            if (rows[i] is not CompareRow row) continue;
+            int? line = selection.Start.Side == 0 ? row.LeftLine : row.RightLine;
+            if (line is null) continue;
+            string source = selection.Start.Side == 0 ? row.LeftText : row.RightText;
+            int start = Math.Clamp(i == selection.Start.Row ? selection.Start.Offset : 0, 0, source.Length);
+            int end = Math.Clamp(i == selection.End.Row ? selection.End.Offset : source.Length, start, source.Length);
+            int length = end - start + (parts.Count > 0 ? 1 : 0);
+            if (length > maxCharacters - total) return (null, true);
+            total += length;
+            parts.Add(source[start..end]);
+        }
+        return (parts.Count == 0 ? null : string.Join('\n', parts), false);
+    }
+
+    private void InvalidateSelection()
+    {
+        AutomationProperties.SetHelpText(this, OrderedSelection() is { } selected
+            ? $"{(selected.Start.Side == 0 ? "Left" : "Right")} source selected from aligned row {selected.Start.Row + 1:N0}, character {selected.Start.Offset + 1:N0}, to row {selected.End.Row + 1:N0}, character {selected.End.Offset + 1:N0}. Ctrl+C copies source text; gaps are omitted and selected lines use LF."
+            : "Choose a source side by clicking its text. Drag, Shift+click, or use Shift+arrow keys to select; Ctrl+C copies source text.");
+        foreach (var row in RealizedRows())
+        {
+            row.LeftCell?.InvalidateVisual();
+            row.RightCell?.InvalidateVisual();
+        }
+        SelectionChanged?.Invoke();
+    }
 
     internal CompareTextRow? RealizedRow(int index) => _rows.ContainerFromIndex(index)?
         .GetVisualDescendants().OfType<CompareTextRow>().FirstOrDefault();
@@ -196,7 +371,9 @@ internal sealed class CompareTextView : Grid, IDisposable
             }
             var source = pending.Source;
             var evidence = row.Difference;
-            int at = evidence.Start >= 0 ? evidence.Start : source.EndingDiffers ? Math.Max(source.LeftText.Length, source.RightText.Length) : 0;
+            int at = _selectionEnd is { } selection && selection.Row == pending.Index
+                ? selection.Offset
+                : evidence.Start >= 0 ? evidence.Start : source.EndingDiffers ? Math.Max(source.LeftText.Length, source.RightText.Length) : 0;
             Rect? left = row.LeftCell?.SourceBounds(Math.Min(at, source.LeftText.Length));
             Rect? right = row.RightCell?.SourceBounds(Math.Min(at, source.RightText.Length));
             if (!_wrap)
@@ -240,9 +417,67 @@ internal sealed class CompareTextView : Grid, IDisposable
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
-        if (_disposed || _wrap || e.KeyModifiers != KeyModifiers.Alt || e.Key is not (Key.Left or Key.Right)) return;
+        if (_disposed) return;
+        if (e.Source is CompareSourceCell cell && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift &&
+            e.Key is Key.Left or Key.Right or Key.Home or Key.End or Key.Up or Key.Down &&
+            MoveSourceCaret(cell, e.Key, e.KeyModifiers == KeyModifiers.Shift))
+        {
+            e.Handled = true;
+            return;
+        }
+        if (_wrap || e.KeyModifiers != KeyModifiers.Alt || e.Key is not (Key.Left or Key.Right)) return;
         _horizontal.Value += e.Key == Key.Left ? -_horizontal.SmallChange : _horizontal.SmallChange;
         e.Handled = true;
+    }
+
+    private bool MoveSourceCaret(CompareSourceCell cell, Key key, bool extend)
+    {
+        if (cell.FindAncestorOfType<CompareTextRow>() is not { } visual || !IsCurrent(visual) ||
+            visual.FindAncestorOfType<ListBoxItem>() is not { } container ||
+            _rows.ItemsSource is not IReadOnlyList<object> rows) return false;
+        int sourceRow = _rows.IndexFromContainer(container);
+        if (sourceRow < 0 || sourceRow >= rows.Count || !ReferenceEquals(rows[sourceRow], visual.Source)) return false;
+        int side = cell.Side;
+        var current = _selectionEnd is { } end && end.Side == side ? end : new TextPoint(sourceRow, side, 0);
+        int row = current.Row, offset = current.Offset;
+        if (row < 0 || row >= rows.Count || rows[row] is not CompareRow source) return false;
+        int length = (side == 0 ? source.LeftText : source.RightText).Length;
+        switch (key)
+        {
+            case Key.Home: offset = 0; break;
+            case Key.End: offset = length; break;
+            case Key.Left when offset > 0: offset--; break;
+            case Key.Right when offset < length: offset++; break;
+            case Key.Left:
+            case Key.Right:
+            case Key.Up:
+            case Key.Down:
+                int step = key is Key.Left or Key.Up ? -1 : 1;
+                int next = row + step;
+                while (next >= 0 && next < rows.Count &&
+                    (rows[next] is not CompareRow candidate ||
+                     (side == 0 ? candidate.LeftLine : candidate.RightLine) is null)) next += step;
+                if (next < 0 || next >= rows.Count || rows[next] is not CompareRow nextSource) return true;
+                row = next;
+                int nextLength = (side == 0 ? nextSource.LeftText : nextSource.RightText).Length;
+                offset = key switch
+                {
+                    Key.Left => nextLength,
+                    Key.Right => 0,
+                    _ => Math.Min(offset, nextLength),
+                };
+                break;
+        }
+        if (!extend) _selectionAnchor = new TextPoint(row, side, offset);
+        else if (_selectionAnchor is not { } anchor || anchor.Side != side) _selectionAnchor = current;
+        _selectionEnd = new TextPoint(row, side, offset);
+        InvalidateSelection();
+        SelectionGestureActive = true;
+        try { _rows.SelectedIndex = row; }
+        finally { SelectionGestureActive = false; }
+        _rows.ScrollIntoView(row);
+        RevealSelected();
+        return true;
     }
 
     private void OnWheel(object? sender, PointerWheelEventArgs e)
@@ -262,6 +497,8 @@ internal sealed class CompareTextView : Grid, IDisposable
         _rows.ContainerPrepared -= OnContainerPrepared;
         Reset();
         DetailsRequested = null;
+        CopyRequested = null;
+        SelectionChanged = null;
     }
 }
 
@@ -292,8 +529,8 @@ internal sealed class CompareTextRow : Grid
         var spans = !IsExceptional && source.Kind == DiffKind.Changed ? InlineDiff.Compare(source.LeftText, source.RightText) : null;
         AddNumber(0, source.LeftLine, "Left", source.Kind == DiffKind.LeftOnly ? "− " : "", source.EndingDiffers);
         AddNumber(2, source.RightLine, "Right", source.Kind == DiffKind.RightOnly ? "+ " : "", false);
-        LeftCell = AddSource(1, source.LeftLine, source.LeftText, "Left", spans?.Left);
-        RightCell = AddSource(3, source.RightLine, source.RightText, "Right", spans?.Right);
+        LeftCell = AddSource(1, 0, source.LeftLine, source.LeftText, "Left", spans?.Left);
+        RightCell = AddSource(3, 1, source.RightLine, source.RightText, "Right", spans?.Right);
         AutomationProperties.SetName(this, source.ToString());
         AutomationProperties.SetHelpText(this, source.Kind == DiffKind.Unaligned
             ? "Unaligned source content; no line-by-line match is claimed. Alt+L opens complete source-line details."
@@ -314,7 +551,7 @@ internal sealed class CompareTextRow : Grid
         Children.Add(label);
     }
 
-    private CompareSourceCell? AddSource(int column, int? line, string text, string side, IReadOnlyList<(int Start, int Length)>? spans)
+    private CompareSourceCell? AddSource(int column, int sideIndex, int? line, string text, string side, IReadOnlyList<(int Start, int Length)>? spans)
     {
         Control content;
         CompareSourceCell? cell = null;
@@ -338,7 +575,7 @@ internal sealed class CompareTextRow : Grid
         }
         else
         {
-            cell = new CompareSourceCell(_owner, text, spans);
+            cell = new CompareSourceCell(_owner, text, spans, sideIndex);
             AutomationProperties.SetName(cell, $"{side} source line {line:N0}");
             content = cell;
         }
@@ -381,10 +618,13 @@ internal sealed class CompareSourceCell : TemplatedControl
     private readonly CompareTextView _owner;
     private readonly IReadOnlyList<(int Start, int Length)>? _spans;
     private TextLayout? _sourceLayout;
+    private Color _selectionBase;
+    private IBrush? _selectionFill;
     private LayoutKey? _layoutKey;
     private Rect[] _underlines = [];
     private bool _retired;
     internal string Text { get; }
+    internal int Side { get; }
     internal TextLayout? SourceLayout => _sourceLayout;
     internal double TextWidth => _sourceLayout?.WidthIncludingTrailingWhitespace ?? 0;
     internal Point TextOrigin => new(-_owner.HorizontalOffset, 0);
@@ -399,17 +639,27 @@ internal sealed class CompareSourceCell : TemplatedControl
         FontSizeProperty, FontStyleProperty, FontWeightProperty, FontStretchProperty, ForegroundProperty,
         FlowDirectionProperty, LetterSpacingProperty);
 
-    internal CompareSourceCell(CompareTextView owner, string source, IReadOnlyList<(int Start, int Length)>? spans)
+    internal CompareSourceCell(CompareTextView owner, string source, IReadOnlyList<(int Start, int Length)>? spans, int side = 0)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(source.Length, CompareTextView.MaximumLineCharacters);
         _owner = owner;
         _spans = spans;
+        Side = side;
         ClipToBounds = true;
+        Focusable = true;
+        Cursor = new Cursor(StandardCursorType.Ibeam);
         Margin = new Thickness(0, 2, 4, 2);
         Text = source;
         FontFamily = Mono;
-        AutomationProperties.SetHelpText(this, "Read-only source text. Alt+L opens standard selectable fields for both complete source lines.");
+        AutomationProperties.SetHelpText(this, "Read-only source text. Drag or Shift+click to select source characters; Ctrl+C copies them without line numbers. Alt+L opens complete source-line details.");
+        var copySelected = new MenuItem { Header = "Copy selected text" };
+        var copyLine = new MenuItem { Header = "Copy this source line" };
+        var copyDifference = new MenuItem { Header = "Copy aligned difference" };
+        copySelected.Click += (_, _) => _owner.RequestCopy(CompareTextCopyAction.Selection, this);
+        copyLine.Click += (_, _) => _owner.RequestCopy(CompareTextCopyAction.Line, this);
+        copyDifference.Click += (_, _) => _owner.RequestCopy(CompareTextCopyAction.Difference, this);
+        ContextMenu = new ContextMenu { Items = { copySelected, copyLine, copyDifference } };
     }
 
     internal void UpdateWrapping()
@@ -478,10 +728,33 @@ internal sealed class CompareSourceCell : TemplatedControl
 
     internal Rect SourceBounds(int sourceOffset) => _sourceLayout?.HitTestTextPosition(sourceOffset) ?? default;
 
+    internal int SourceOffset(Point point)
+    {
+        if (_sourceLayout is null) EnsureLayout(Bounds.Width);
+        if (_sourceLayout is null) return 0;
+        var local = new Point(point.X + _owner.HorizontalOffset, Math.Clamp(point.Y, 0, _sourceLayout.Height));
+        return Math.Clamp(_sourceLayout.HitTestPoint(local).TextPosition, 0, Text.Length);
+    }
+
     public override void Render(DrawingContext context)
     {
         if (_sourceLayout is not { } layout || Bounds.Width < MinimumShapingWidth) return;
         var origin = TextOrigin;
+        if (_owner.SelectionFor(this) is { } selection)
+        {
+            Color color = this.TryFindResource("FcFocusBackground", ActualThemeVariant, out var resource) &&
+                resource is ISolidColorBrush brush ? brush.Color : Colors.CornflowerBlue;
+            if (_selectionFill is null || _selectionBase != color)
+            {
+                _selectionBase = color;
+                _selectionFill = new SolidColorBrush(Color.FromArgb(0x70, color.R, color.G, color.B));
+            }
+            using (context.PushClip(new Rect(0, 0, Bounds.Width, Bounds.Height)))
+            {
+                foreach (var bounds in layout.HitTestTextRange(selection.Start, selection.Length))
+                    context.DrawRectangle(_selectionFill, null, bounds.Translate(new Vector(origin.X, origin.Y)));
+            }
+        }
         layout.Draw(context, origin);
         // Geometry and source offsets come from the same cached layout, and the current text
         // foreground preserves the decoration in monochrome and across theme changes.
