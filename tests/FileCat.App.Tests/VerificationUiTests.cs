@@ -167,7 +167,9 @@ public sealed class VerificationUiTests
             Assert.Equal(1, window.GetVisualDescendants().OfType<SelectableTextBlock>().Count(t => t.Text == Text("beta")));
 
             // The report copies as text without closing the dialog: every file, both values in full.
-            Button ButtonNamed(string text) => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text);
+            // The modal owns these actions; another part of the window may offer a same-named command.
+            var overlay = window.FindControl<Panel>("OverlayHost")!;
+            Button ButtonNamed(string text) => overlay.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text);
             await ClipboardExtensions.SetTextAsync(Assert.IsAssignableFrom<IClipboard>(window.Clipboard), "");
             ButtonNamed("Copy report").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             string copied = "";

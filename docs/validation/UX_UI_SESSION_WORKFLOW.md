@@ -28,19 +28,33 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-025**. Follow
+After resolving any outstanding validation failure, resume **FCUX-026**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-025 — workspace restoration | Save the complete prior arrangement before loading a named workspace, and restore it without depending on the recently closed tab limit. |
+| 1 | FCUX-026 — listing geometry | Make every configured column reachable in narrow panels, with matched header, row, hit-test and keyboard geometry. |
 
-Then continue FCUX-026 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-027 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-025 implementation record
+
+Opening a named workspace now captures one bounded, complete previous
+arrangement before disposing tabs. Restore previous workspace appears in Tools,
+command search and the completion notification. It restores supported tab
+order, locks, active panel/tab, split proportions and target assignments and
+swaps the one previous slot with the current arrangement. Ordinary Recently
+Closed entries are untouched. Temporary views are counted from live tabs and
+disclosed before any switch; canceled disclosure leaves the current layout
+intact. Persisted active-tab indices account for filtered transient tabs.
+Headless tests cover 40 tabs across four panels, repeated switching, the
+notification action, transient disclosure/refusal and safe omission. Native
+keyboard, scaled-layout and assistive-technology acceptance remain open.
 
 ### FCUX-024 implementation record
 

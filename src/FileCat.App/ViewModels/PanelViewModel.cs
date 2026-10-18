@@ -113,12 +113,17 @@ public sealed partial class PanelViewModel : ObservableObject
         ActiveTab = Tabs[((i + delta) % Tabs.Count + Tabs.Count) % Tabs.Count];
     }
 
-    public PanelState ToState() => new()
+    public PanelState ToState()
     {
-        Id = Id,
-        Tabs = Tabs.Select(t => t.ToState()).Where(t => t.Location is not null).ToList(),
-        ActiveTab = ActiveTab is null ? 0 : Math.Max(0, Tabs.IndexOf(ActiveTab)),
-        TargetPanelId = TargetPanelId,
-        Size = Size,
-    };
+        var saved = Tabs.Select(t => t.ToState()).ToList();
+        int active = ActiveTab is null ? 0 : Math.Max(0, Tabs.IndexOf(ActiveTab));
+        return new PanelState
+        {
+            Id = Id,
+            Tabs = saved.Where(t => t.Location is not null).ToList(),
+            ActiveTab = saved.Take(active).Count(t => t.Location is not null),
+            TargetPanelId = TargetPanelId,
+            Size = Size,
+        };
+    }
 }

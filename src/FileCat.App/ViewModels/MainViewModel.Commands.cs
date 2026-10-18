@@ -124,6 +124,8 @@ public sealed partial class MainViewModel
                 return tab?.CanGoForward == true ? CommandAvailability.Yes : CommandAvailability.No("No later location in this tab.");
             case CommandIds.ReopenTab:
                 return Workspace.RecentlyClosed.Count > 0 ? CommandAvailability.Yes : CommandAvailability.No("No recently closed tabs.");
+            case CommandIds.RestorePreviousWorkspace:
+                return CanRestorePreviousWorkspace ? CommandAvailability.Yes : CommandAvailability.No("No previous workspace to restore.");
             case CommandIds.ClosePanel:
                 return Workspace.Panels.Count > 1 ? CommandAvailability.Yes : CommandAvailability.No("The last panel cannot be closed.");
             case CommandIds.AddPanel:

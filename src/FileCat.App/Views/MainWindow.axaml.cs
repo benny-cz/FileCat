@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -320,7 +321,14 @@ public partial class MainWindow : Window, IViewActions
         }
     }
 
-    private void OnNotificationPressed(object? sender, PointerPressedEventArgs e) => _vm.ClearNotification();
+    private void OnNotificationPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Button || e.Source is Visual visual && visual.GetVisualAncestors().OfType<Button>().Any()) return;
+        _vm.ClearNotification();
+    }
+
+    private void OnNotificationRestoreWorkspaceClicked(object? sender, RoutedEventArgs e) =>
+        _vm.Execute(CommandIds.RestorePreviousWorkspace);
 
     private Core.Platform.ProcessAccount? _account;
     private TabViewModel? _titleTab;

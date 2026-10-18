@@ -100,6 +100,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _commandLineText = string.Empty;
     [ObservableProperty] private string? _notification;
     [ObservableProperty] private bool _notificationIsError;
+    [ObservableProperty] private bool _notificationRestoreWorkspace;
     [ObservableProperty] private bool _showKeyBar = true;
     [ObservableProperty] private bool _showCommandLine = true;
     [ObservableProperty] private bool _showToolbar = true;
@@ -167,10 +168,15 @@ public sealed partial class MainViewModel : ObservableObject
         }
         Notification = message;
         NotificationIsError = isError;
+        NotificationRestoreWorkspace = false;
         if (isError) AppLog.Warn("User notification: " + message);
     }
 
-    public void ClearNotification() => Notification = null;
+    public void ClearNotification()
+    {
+        Notification = null;
+        NotificationRestoreWorkspace = false;
+    }
 
     /// <summary>
     /// Stops a count. It ends in its tab at once: a call it is waiting on (a slow disk, a dead share) may take a while to

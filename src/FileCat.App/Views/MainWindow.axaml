@@ -88,7 +88,11 @@
             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,22" MaxWidth="900"
             IsVisible="{Binding Notification, Converter={x:Static ObjectConverters.IsNotNull}}"
             PointerPressed="OnNotificationPressed">
-      <TextBlock Text="{Binding Notification}" TextWrapping="Wrap" />
+      <StackPanel Spacing="6">
+        <TextBlock Text="{Binding Notification}" TextWrapping="Wrap" />
+        <Button x:Name="RestoreWorkspaceNotificationButton" Content="Restore previous workspace" HorizontalAlignment="Left"
+                IsVisible="{Binding NotificationRestoreWorkspace}" Click="OnNotificationRestoreWorkspaceClicked" />
+      </StackPanel>
     </Border>
 
     <Panel x:Name="OverlayHost" Grid.Row="0" Grid.RowSpan="5" IsVisible="False" />

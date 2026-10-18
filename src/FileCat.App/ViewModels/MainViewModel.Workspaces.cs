@@ -14,6 +14,35 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
+    private const int MaxSwitchTabs = 512;
+    private WorkspaceState? _previousWorkspace;
+    public bool CanRestorePreviousWorkspace => _previousWorkspace is not null;
+
+    private void SetPreviousWorkspace(WorkspaceState? state)
+    {
+        _previousWorkspace = state;
+        OnPropertyChanged(nameof(CanRestorePreviousWorkspace));
+    }
+
+    private static int TabCount(WorkspaceState state) => state.Panels.Sum(panel => panel.Tabs.Count);
+
+    private int LiveUnrestorableTabCount() => Workspace.Panels.Sum(panel => panel.Tabs.Count(tab => tab.ToState().Location is null));
+
+    internal static int DropUnrestorableTabs(WorkspaceState state)
+    {
+        int dropped = 0;
+        foreach (var panel in state.Panels)
+        {
+            int oldActive = panel.ActiveTab;
+            int activeBefore = panel.Tabs.Take(Math.Clamp(oldActive, 0, panel.Tabs.Count)).Count(tab => tab.Location is not null);
+            int before = panel.Tabs.Count;
+            panel.Tabs.RemoveAll(tab => tab.Location is null);
+            dropped += before - panel.Tabs.Count;
+            panel.ActiveTab = Math.Clamp(activeBefore, 0, Math.Max(0, panel.Tabs.Count - 1));
+        }
+        return dropped;
+    }
+
     private string WorkspacePath(string name) =>
         Path.Combine(Services.Paths.WorkspacesDirectory, name + ".json");
 
@@ -142,7 +171,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task OpenNamedWorkspaceAsync(string? name = null)
+    internal async Task OpenNamedWorkspaceAsync(string? name = null)
     {
         var names = NamedWorkspaces();
         if (names.Count == 0)
@@ -166,16 +195,61 @@ public sealed partial class MainViewModel
             name = names[r.Index];
         }
         var state = JsonFileStore.Load(WorkspacePath(name), StateJsonContext.Default.WorkspaceState, WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var status);
-        if (status is StateLoadStatus.CorruptUsingDefaults or StateLoadStatus.Missing or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly)
+        if (status is StateLoadStatus.CorruptUsingDefaults or StateLoadStatus.Missing or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly or StateLoadStatus.NewerSchemaReadOnly ||
+            state.Panels is null || state.Panels.Any(panel => panel.Tabs is null))
         {
             Notify($"Workspace \"{name}\" could not be read.", true);
             return;
         }
-        foreach (var p in Workspace.Panels)
-            foreach (var t in p.Tabs) Workspace.RememberClosed(t.ToState());
-        Workspace.LoadState(state);
+        int unavailable = LiveUnrestorableTabCount();
+        var previous = Workspace.ToState(LastPlacement);
+        if (TabCount(previous) > MaxSwitchTabs || TabCount(state) > MaxSwitchTabs)
+        {
+            Notify($"Workspace switching supports at most {MaxSwitchTabs} tabs per arrangement. Close some tabs before switching.", true);
+            return;
+        }
+        _ = DropUnrestorableTabs(previous);
+        if (unavailable > 0 && !await Dialogs.ConfirmAsync("Open workspace",
+            $"{unavailable} temporary {(unavailable == 1 ? "view cannot" : "views cannot")} be restored after this switch. Open \"{name}\" and keep the supported panels and tabs for restoration?",
+            "Open workspace", danger: true)) return;
+        try { Workspace.LoadState(state); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            try { Workspace.LoadState(previous); } catch (Exception) { }
+            Notify("Could not open the workspace: " + ex.Message, true);
+            return;
+        }
+        SetPreviousWorkspace(previous);
         AppLog.Info("Opened a named workspace");
-        Notify($"Workspace \"{name}\" opened. The previous tabs can be reopened with Ctrl+Shift+T.");
+        Notify($"Workspace \"{name}\" opened. Restore the previous panels, tabs, layout and targets with Restore previous workspace.");
+        NotificationRestoreWorkspace = true;
+        View.FocusActivePanel();
+    }
+
+    internal async Task RestorePreviousWorkspaceAsync()
+    {
+        if (_previousWorkspace is not { } previous) return;
+        int unavailable = LiveUnrestorableTabCount();
+        var current = Workspace.ToState(LastPlacement);
+        if (TabCount(current) > MaxSwitchTabs)
+        {
+            Notify($"Restore supports at most {MaxSwitchTabs} tabs in the current arrangement. Close some tabs and try again.", true);
+            return;
+        }
+        _ = DropUnrestorableTabs(current);
+        if (unavailable > 0 && !await Dialogs.ConfirmAsync("Restore previous workspace",
+            $"{unavailable} temporary {(unavailable == 1 ? "view cannot" : "views cannot")} be restored after switching back. Restore the previous workspace and keep the supported current arrangement for later?",
+            "Restore previous workspace", danger: true)) return;
+        try { Workspace.LoadState(previous); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            try { Workspace.LoadState(current); } catch (Exception) { }
+            Notify("Could not restore the previous workspace: " + ex.Message, true);
+            return;
+        }
+        SetPreviousWorkspace(current);
+        Notify("Previous workspace restored. The workspace you left can be restored again.");
+        NotificationRestoreWorkspace = true;
         View.FocusActivePanel();
     }
 
@@ -189,6 +263,9 @@ public sealed partial class MainViewModel
                 return true;
             case CommandIds.LoadWorkspace:
                 await OpenNamedWorkspaceAsync();
+                return true;
+            case CommandIds.RestorePreviousWorkspace:
+                await RestorePreviousWorkspaceAsync();
                 return true;
             case CommandIds.Settings:
                 await Views.SettingsDialog.ShowAsync(this);

@@ -192,6 +192,7 @@ public static class CommandIds
     public const string ViewerWindows = "app.viewerWindows";
     public const string SaveWorkspace = "app.saveWorkspace";
     public const string LoadWorkspace = "app.loadWorkspace";
+    public const string RestorePreviousWorkspace = "app.restorePreviousWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
     public const string ThemeCycle = "app.themeCycle";
     public const string ThemePrevious = "app.themePrevious";
@@ -421,6 +422,7 @@ public sealed class CommandRegistry
         Add(CommandIds.ViewerWindows, "Viewer and editor windows…", A, null, CommandContext.Global);
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
+        Add(CommandIds.RestorePreviousWorkspace, "Restore previous workspace", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);
         Add(CommandIds.ThemePick, "Theme…", A);
         Add(CommandIds.ThemeCycle, "Next theme", A);
@@ -557,6 +559,7 @@ public sealed class CommandRegistry
         K(CommandIds.UserMenu, "custom commands", "tools");
         K(CommandIds.SaveWorkspace, "session", "save layout");
         K(CommandIds.LoadWorkspace, "session", "restore layout");
+        K(CommandIds.RestorePreviousWorkspace, "previous workspace", "restore previous layout");
         K(CommandIds.EditSessions, "remote edits", "pending uploads", "edited files");
         K(CommandIds.CommandLineFocus, "prompt", "command line");
         K(CommandIds.LocationMenuSource, "drives", "change drive", "locations", "left");
