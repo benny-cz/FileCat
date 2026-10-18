@@ -34,8 +34,10 @@ FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
 native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
 fix on the supplied Windows EXE. FCUX-042, the newly reported Markdown resize
-correction, FCUX-043, and FCUX-044 are implemented with focused coverage.
-Continue with FCUX-045 after resolving the complete App test-host abort.
+correction, FCUX-043, FCUX-044, and FCUX-045 are implemented with focused coverage.
+The complete App run twice stopped on the same drop test; its premature Enter
+now waits for asynchronous destination validation, and the corrected class passes.
+Rerun the complete App gate, then continue with FCUX-046.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -53,7 +55,7 @@ Continue with FCUX-045 after resolving the complete App test-host abort.
 | 12 | FCUX-044 — Find scope | Unsupported SFTP, FTP, archive, and virtual origins show no local root and require deliberate local selection. Presets name their source; result-set scope stays fixed. Twelve focused cases and a related 47-case Find/Registry selection pass; native acceptance remains open. |
 | 13 | UXBUG-005 — viewer window size | Remember each viewer window's last usable size and restore it on reopen, including after app restart; clamp saved bounds to the current display and cover reopened text, Markdown, PE, and other viewer modes. |
 | 14 | UXBUG-006 — Streams count after deletion | After Delete removes a stream from Streams and attributes, refresh the parent file's Streams count when the provider can query it; cover Delete-key action, stale-row retirement, and a clean fallback when the count is unavailable. |
-| 15 | FCUX-045 — Find completion | Put complete/partial/issue state where it remains visible; explain zero matches in the searched scope. |
+| 15 | FCUX-045 — Find completion | Visible completion and qualification, plus search-specific empty states, are implemented; 98 related Release tests pass. Full App and native acceptance remain open. |
 | 16 | UXBUG-007 — resizable search windows | Make Find in Registry and comparable search windows expandable and shrinkable, with usable minimum bounds and responsive criteria, results, and action layouts. Cover resize and reopen behavior. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.

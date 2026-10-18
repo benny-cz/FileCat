@@ -191,6 +191,94 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Zero_results_show_the_actual_criteria_and_scope_with_an_edit_action()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "no-file-has-this-name", ct);
+            find.Width = find.MinWidth;
+            find.UpdateLayout();
+
+            Assert.Empty(find.Found);
+            Assert.Equal("No matches", find.EmptyResultHeadline);
+            Assert.Contains("no-file-has-this-name", find.EmptyResultExplanation);
+            Assert.Contains("Criteria and scope:", find.EmptyResultExplanation);
+            Assert.Contains("No matches", find.Status);
+            var completion = find.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => AutomationProperties.GetName(t) == "Find completion");
+            Assert.Equal(Avalonia.Media.TextTrimming.None, completion.TextTrimming);
+            Assert.Equal(Avalonia.Media.TextWrapping.Wrap, completion.TextWrapping);
+            var edit = find.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Content as string == "Edit criteria");
+            edit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(find.NamesBox.IsFocused);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Zero_results_with_exclusions_offer_the_log_from_the_empty_view()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            Directory.CreateDirectory(Path.Combine(root, "files", "cache"));
+            services.Settings.SearchLogOnErrors = false;
+            services.Settings.SearchIgnoredFolders.Add(new IgnoredFolderEntry { Folder = "cache" });
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "no-file-has-this-name", ct);
+
+            Assert.Equal("No matches outside exclusions", find.EmptyResultHeadline);
+            Assert.Contains("1 not searched (1 ignored)", find.Status);
+            var review = find.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Content as string == "Review search log");
+            Assert.True(review.IsVisible);
+            Assert.True(review.Focus());
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => find.Dialogs.IsOpen, ct);
+            Assert.True(find.Dialogs.IsOpen);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Hiding_the_last_found_item_updates_the_empty_result_explanation()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "b", ct);
+            await WaitFor(() => find.ResultsTab!.Listing.VisibleCount == 1, ct);
+            find.List.Focus();
+            find.ResultsTab!.Listing.SetFocus(0);
+            find.KeyPress(Key.H, RawInputModifiers.Control, PhysicalKey.H, null);
+
+            Assert.Empty(find.Found);
+            Assert.Equal("No results in the list", find.EmptyResultHeadline);
+            Assert.Contains("Matches were found", find.EmptyResultExplanation);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Advanced_criteria_show_in_one_line_and_narrow_the_search()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

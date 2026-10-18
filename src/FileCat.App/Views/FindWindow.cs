@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -94,7 +95,14 @@ public sealed class FindWindow : Window, IViewActions
     private readonly Button _advancedButton = new() { Content = "Advanced…" };
     private readonly Button _advancedReset = new() { Content = "Reset" };
     private AdvancedSearchCriteria _advanced = new();
-    private readonly TextBlock _status = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _qualifications = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly TextBlock _activity = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis };
+    private readonly Border _emptyResults = new() { IsVisible = false };
+    private readonly TextBlock _emptyHeadline = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
+    private readonly TextBlock _emptyExplanation = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly Button _editCriteria = new() { Content = "Edit criteria" };
+    private readonly Button _emptyLog = new() { Content = "Review search log", IsVisible = false };
     private readonly TextBlock _error = new() { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 4, 10, 0) };
     private readonly TextBlock _message = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _scopeNotice = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
@@ -112,6 +120,7 @@ public sealed class FindWindow : Window, IViewActions
     private RefineMode _mode;
     private int _appended;
     private SearchSession? _session;
+    private string _searchScope = string.Empty;
     private CancellationTokenSource? _cts;
     private DateTime _lastRefresh;
     private int _shownCount = -1;
@@ -155,6 +164,12 @@ public sealed class FindWindow : Window, IViewActions
         AutomationName(_useLocalHome, "Choose local home as Find scope");
         AutomationName(_text, "Containing");
         AutomationName(_logButton, "Search log");
+        AutomationName(_status, "Find completion");
+        AutomationName(_qualifications, "Search qualifications");
+        AutomationName(_activity, "Search progress");
+        AutomationName(_emptyResults, "Search result summary");
+        AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Off);
+        AutomationProperties.SetLiveSetting(_qualifications, AutomationLiveSetting.Off);
 
         var history = _services.History;
         _names.Text = history.SearchNames.FirstOrDefault() ?? "*";
@@ -199,16 +214,27 @@ public sealed class FindWindow : Window, IViewActions
         DockPanel.SetDock(criteria, Dock.Top);
         dock.Children.Add(criteria);
         var statusBar = new DockPanel { Margin = new Thickness(10, 4, 10, 6) };
-        DockPanel.SetDock(_logButton, Dock.Right);
-        statusBar.Children.Add(_logButton);
         statusBar.Children.Add(_message);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         dock.Children.Add(statusBar);
+        _emptyResults[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FcPanel");
+        var emptyActions = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { _editCriteria, _emptyLog } };
+        _emptyResults.Child = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = new StackPanel
+            {
+                Spacing = 10, Margin = new Thickness(20), MaxWidth = 720,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Children = { _emptyHeadline, _emptyExplanation, emptyActions },
+            },
+        };
         var results = new Border
         {
             Margin = new Thickness(8, 4, 8, 0),
             BorderThickness = new Thickness(1),
-            Child = new Panel { Children = { _list, _placeholder } },
+            Child = new Panel { Children = { _list, _placeholder, _emptyResults } },
             [!Border.BorderBrushProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FcBorder"),
         };
         _list.IsVisible = false;
@@ -223,6 +249,8 @@ public sealed class FindWindow : Window, IViewActions
         _stop.Click += (_, _) => Stop();
         _skip.Click += (_, _) => _session?.SkipCurrentFolder();
         _logButton.Click += (_, _) => _ = ShowLogAsync();
+        _editCriteria.Click += (_, _) => { _names.Focus(); _names.SelectAll(); };
+        _emptyLog.Click += (_, _) => _ = ShowLogAsync();
         _timer.Tick += (_, _) => OnTick();
         _list.OpenRequested += (_, _) => OpenFocused();
         _list.ContextMenuRequested += (_, point) => ShowListMenu(point);
@@ -318,14 +346,18 @@ public sealed class FindWindow : Window, IViewActions
         _advancedButton.Click += (_, _) => _ = EditAdvancedAsync();
         _advancedReset.Click += (_, _) => SetAdvanced(new AdvancedSearchCriteria());
         SetAdvanced(_advanced);
-        var actions = new DockPanel { Margin = new Thickness(10, 6, 10, 0) }; // in line with the form above and the results below
+        var actions = new StackPanel { Margin = new Thickness(10, 6, 10, 0), Spacing = 4 };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _find, _stop, _skip } };
         ToolTip.SetTip(_find, "Enter · Ctrl+I keeps only items found again · Ctrl+S removes them · Ctrl+W adds the new finds");
         ToolTip.SetTip(_stop, "Esc");
-        DockPanel.SetDock(buttons, Dock.Left);
         actions.Children.Add(buttons);
-        _status.Margin = new Thickness(12, 0, 0, 0);
-        actions.Children.Add(_status);
+        var headline = new DockPanel();
+        DockPanel.SetDock(_logButton, Dock.Right);
+        headline.Children.Add(_logButton);
+        headline.Children.Add(_status);
+        actions.Children.Add(headline);
+        actions.Children.Add(_qualifications);
+        actions.Children.Add(_activity);
         Grid.SetColumn(_useLocalHome, 1);
         _useLocalHome.Margin = new Thickness(8, 0, 0, 0);
         _scopeHost.Children.Add(_scopeNotice);
@@ -726,6 +758,7 @@ public sealed class FindWindow : Window, IViewActions
         _duplicates = mode == RefineMode.Replace ? duplicates : null;
         var title = TitleOf(criteria);
         var provenance = query!.Describe();
+        _searchScope = provenance;
         // Refinement matches are private scratch data; only the displayed set needs a provider location.
         var found = mode == RefineMode.Replace
             ? _services.ResultSets.Create(title, provenance)
@@ -775,7 +808,6 @@ public sealed class FindWindow : Window, IViewActions
             _tab = _panel.OpenTab(location);
             _scope = new CommandScope(_tab, _dialogs, this);
             _list.Tab = _tab;
-            _list.IsVisible = true;
             _placeholder.IsVisible = false;
         }
         else
@@ -847,6 +879,7 @@ public sealed class FindWindow : Window, IViewActions
         groups.IsComplete = true;
         _groups = result.Groups;
         _set = groups;
+        _searchScope = groups.Provenance;
         ShowSet(groups);
         // The groups keep the order found; a column header sorts them otherwise.
         _tab!.Listing.Sort = new Core.Listing.SortSpec(Core.Listing.SortField.None);
@@ -855,6 +888,8 @@ public sealed class FindWindow : Window, IViewActions
         _status.Text = result.Groups.Count == 0
             ? "No duplicates among the found files."
             : $"{Formatters.Plural(result.Groups.Count, "group", "groups")} of duplicates · {Formatters.Plural(files, "file", "files")}";
+        UpdateEmptyResults(new FindFeedback(_status.Text, string.Empty, string.Empty, _status.Text,
+            "Comparison scope: " + _searchScope, false));
         if (result.Unreadable.Count > 0)
             ShowNotification($"{Formatters.Plural(result.Unreadable.Count, "file", "files")} could not be read and were left out: {string.Join(", ", result.Unreadable.Take(3).Select(Path.GetFileName))}{(result.Unreadable.Count > 3 ? ", …" : "")}", true);
         else if (result.SameFile.Count > 0 || result.Links.Count > 0)
@@ -942,7 +977,7 @@ public sealed class FindWindow : Window, IViewActions
     {
         if (_tab is null || _set is null) return;
         int count = _set.Count;
-        if (!force && (count == _shownCount || DateTime.UtcNow - _lastRefresh < TimeSpan.FromMilliseconds(900))) return;
+        if (!force && (count == _shownCount || (_shownCount > 0 && DateTime.UtcNow - _lastRefresh < TimeSpan.FromMilliseconds(900)))) return;
         _shownCount = count;
         _lastRefresh = DateTime.UtcNow;
         _tab.Refresh();
@@ -950,27 +985,34 @@ public sealed class FindWindow : Window, IViewActions
 
     private void UpdateStatus()
     {
-        if (_session is not { } s) return;
+        if (_session is not { } s || _set is null) return;
         var log = s.Log;
-        int warnings = log.Count(e => e.Kind == SearchLogKind.Warning);
-        int notSearched = log.Count - warnings;
-        string state = s.Finished
-            ? (_refineScratch is { IsComplete: false } || _refineScratch is null && _set is { IsComplete: false } ? "Stopped" : "Finished")
-            : $"Searching {s.CurrentFolder}";
-        string verb = _mode switch
-        {
-            RefineMode.Intersect => " matched again",
-            RefineMode.Subtract => " to remove",
-            RefineMode.Append => " new",
-            _ => " found",
-        };
-        _status.Text = state + $" · {s.FoldersVisited:N0} folders" + (s.FilesExamined > 0 ? $" · {s.FilesExamined:N0} files read" : string.Empty)
-            + $" · {s.Matches:N0}{verb}" + (_mode != RefineMode.Replace ? $" · {_set?.Count ?? 0:N0} in the list" : string.Empty)
-            + (notSearched > 0 ? $" · {notSearched:N0} not searched (see the log)" : string.Empty)
-            + (warnings > 0 ? $" · {warnings:N0} warnings (see the log)" : string.Empty)
-            + (s.RegexTimedOut ? " · some regular expression matches timed out" : string.Empty);
+        bool complete = _refineScratch?.IsComplete ?? _set.IsComplete;
+        var feedback = FindFeedback.Create(s.Finished, complete, _set.Count, s.FoldersVisited, s.FilesExamined,
+            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope);
+        // Announce the outcome once. The rapidly changing folder and counters stay out of the live region.
+        AutomationProperties.SetLiveSetting(_status, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
+        AutomationProperties.SetLiveSetting(_qualifications, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
+        _status.Text = feedback.Headline;
+        _qualifications.Text = feedback.Qualifications;
+        _qualifications.IsVisible = feedback.Qualifications.Length > 0;
+        _activity.Text = feedback.Activity;
         _logButton.IsEnabled = log.Count > 0;
         _logButton.Content = log.Count > 0 ? $"Log ({log.Count:N0})" : "Log";
+        UpdateEmptyResults(feedback);
+    }
+
+    private void UpdateEmptyResults(FindFeedback feedback)
+    {
+        bool empty = _set is { Count: 0 };
+        bool listHadFocus = _list.IsKeyboardFocusWithin;
+        _emptyResults.IsVisible = empty;
+        _list.IsVisible = !empty && _set is not null;
+        if (!empty) return;
+        if (listHadFocus) _names.Focus();
+        _emptyHeadline.Text = feedback.EmptyHeadline;
+        _emptyExplanation.Text = feedback.EmptyExplanation;
+        _emptyLog.IsVisible = feedback.HasLog;
     }
 
     private void UpdateButtons()
@@ -1074,6 +1116,7 @@ public sealed class FindWindow : Window, IViewActions
         var selection = _tab.Listing.GetSelection();
         int hidden = _set.Remove(selection);
         _tab.Refresh();
+        UpdateStatus();
         ShowNotification($"{Formatters.Plural(hidden, "item was", "items were")} hidden from the list. Nothing was deleted.");
     }
 
@@ -1085,6 +1128,7 @@ public sealed class FindWindow : Window, IViewActions
         var repeats = _set.Snapshot().Select(s => s.Item).Where(i => !seen.Add(i.Name)).ToList();
         int hidden = _set.Remove(repeats);
         _tab.Refresh();
+        UpdateStatus();
         ShowNotification(hidden == 0 ? "No name is listed twice." : $"{Formatters.Plural(hidden, "item with a repeated name was", "items with repeated names were")} hidden. Nothing was deleted.");
     }
 
@@ -1146,7 +1190,8 @@ public sealed class FindWindow : Window, IViewActions
         bool inList = _tab is not null && (_list.IsFocused || _list.IsKeyboardFocusWithin);
         if (!inList)
         {
-            // Enter in the criteria searches (unless it chooses a suggested folder).
+            // Let a focused action button activate itself; Enter in the criteria searches.
+            if (FocusManager?.GetFocusedElement() is Button) return;
             if (e.Key == Key.Enter && mods == KeyModifiers.None)
             {
                 e.Handled = true;
@@ -1260,7 +1305,11 @@ public sealed class FindWindow : Window, IViewActions
 
     internal bool UnicodeAvailable => _unicode.IsEnabled;
 
-    internal string Status => _status.Text ?? string.Empty;
+    internal string Status => string.Join(" · ", new[] { _status.Text, _qualifications.Text }.Where(t => !string.IsNullOrEmpty(t)));
+
+    internal string EmptyResultHeadline => _emptyResults.IsVisible ? _emptyHeadline.Text ?? string.Empty : string.Empty;
+
+    internal string EmptyResultExplanation => _emptyResults.IsVisible ? _emptyExplanation.Text ?? string.Empty : string.Empty;
 
     internal string Message => _message.Text ?? string.Empty;
 }

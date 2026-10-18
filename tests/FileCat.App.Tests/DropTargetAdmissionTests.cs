@@ -155,9 +155,13 @@ public sealed class DropTargetAdmissionTests
                 .Single(box => AutomationProperties.GetName(box) == "Destination");
             Assert.Equal(destination + Path.DirectorySeparatorChar, destBox.Text);
             Assert.Empty(services.Jobs.Jobs); // review happens before a job is submitted
+            // Destination validation is asynchronous. Under a busy full-suite host, Enter before it finishes
+            // correctly leaves the dialog open; wait for the reviewed action to become available.
+            await Until(() => window.GetVisualDescendants().OfType<Button>()
+                .Any(button => button.Content as string == "Copy" && button.IsDefault && button.IsEnabled));
             panel.ActiveTab.Navigate(Location.FileSystem(later));
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            await pending;
+            await pending.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs.All(job => job.State.IsFinished()));
             Assert.Equal("alpha", File.ReadAllText(Path.Combine(destination, "a.txt")));
             Assert.False(File.Exists(Path.Combine(later, "a.txt")));

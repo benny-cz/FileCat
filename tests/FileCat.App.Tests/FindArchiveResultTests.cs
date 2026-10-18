@@ -110,7 +110,7 @@ public sealed class FindArchiveResultTests
                 Assert.All(bytes, b => Assert.Equal((byte)'x', b));
             }
             Assert.Equal(1, result.Snapshot().Single(r => r.Item.Name == "dup.txt").Item.Ordinal);
-            Assert.Contains("warnings (see the log)", find.Status, StringComparison.Ordinal);
+            Assert.Contains("warning", find.Status, StringComparison.Ordinal);
             Assert.DoesNotContain("not searched", find.Status, StringComparison.Ordinal);
             find.OpenLog();
             await WaitFor(() => find.Dialogs.IsOpen);
