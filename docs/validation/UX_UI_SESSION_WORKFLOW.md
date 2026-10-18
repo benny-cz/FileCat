@@ -28,19 +28,32 @@ does not imply that the whole audit has been closed.
 
 ### Next queued implementation
 
-After resolving any outstanding validation failure, resume **FCUX-023**. Follow
+After resolving any outstanding validation failure, resume **FCUX-024**. Follow
 the audit's physical S2 order; its permanent IDs are references, not a numeric
 priority sort. The completed FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes keep
 their native acceptance gates open.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-023 — free-space feedback | Refresh capacity after explicit refresh and operations; query the actual mounted filesystem without changing scheduler device grouping. |
+| 1 | FCUX-024 — workspace saving | Suggest an unused name, validate backing identity, and require an explicit review before replacing an existing workspace. |
 
-Then continue FCUX-024 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Then continue FCUX-025 onward in the audit's S2 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
+
+### FCUX-023 implementation record
+
+Capacity queries now resolve the displayed directory and report the containing
+volume separately from the IO scheduler key. Windows uses the containing volume
+mount point and native available-to-caller bytes, including UNC shares; Unix
+selects the longest containing mount. Explicit Refresh and completed mutations
+force a recheck. The active tab periodically checks a short expiry, while slow
+queries coalesce and late results cannot replace a newer location. Pending,
+unavailable and expired values are labeled instead of showing an old number.
+Core and headless App tests cover mount and share identities, actual capacity,
+mutations, expiry, slow-query coalescing and obsolete replies. Native mounted
+volume/share and disconnected-server acceptance remain open.
 
 ### FCUX-022 implementation record
 

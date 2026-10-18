@@ -17,7 +17,7 @@ public sealed class PanelFreeSpaceTests
         {
             var tab = vm.ActiveTab!;
             var ct = TestContext.Current.CancellationToken;
-            for (int i = 0; i < 250 && tab.FreeSpaceText.Length == 0; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && !tab.FreeSpaceText.EndsWith(" free", StringComparison.Ordinal); i++) await Task.Delay(20, ct);
             Assert.EndsWith(" free", tab.FreeSpaceText, StringComparison.Ordinal);
 
             var panel = window.GetVisualDescendants().OfType<PanelView>()

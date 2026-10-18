@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FileCat.App.Controls;
 using FileCat.App.Services;
@@ -24,9 +25,18 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private int _columnProfile;
     private long _freeBytes = -1;
     private Location? _freeBytesLocation;
+    private string? _freeBytesVolume;
+    private DateTime _freeBytesCheckedUtc;
+    private bool _freeSpaceUnavailable;
+    private Location? _freeSpaceTrackedLocation;
+    private Location? _freeSpacePendingLocation;
+    private DateTime _freeSpacePendingSince;
+    private long _freeSpaceRequestId;
+    private bool _freeSpaceRefreshAfterPending;
+    private bool _forceFreeSpaceOnListingComplete;
+    private readonly DispatcherTimer _freeSpaceTimer;
     /// <summary>The tab's own order while it shows a change journal (which reads newest first).</summary>
     private SortSpec? _sortOutsideJournal;
-    private string? _freeBytesDevice;
     private bool _disposed;
     private CancellationTokenSource? _pendingNavigation;
     private string? _bannerBeforePendingNavigation;
@@ -35,6 +45,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         Services = services;
         Panel = panel;
+        CapacityQuery = FileSystemCapacity.Query;
+        _freeSpaceTimer = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => RequestFreeSpace());
         Listing = new ListingModel(services.Providers, services.Io, services.Ui, services.Paths.ListingScratchDirectory, indexBudget: services.ListingIndexes)
         {
             ShowHidden = services.Settings.ShowHidden,
@@ -54,6 +66,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public AppServices Services { get; }
     public PanelViewModel Panel { get; set; }
     public ListingModel Listing { get; }
+    internal Func<string, FileSystemCapacitySnapshot?> CapacityQuery { get; set; }
+    internal TimeSpan CapacityTtl { get; set; } = TimeSpan.FromSeconds(20);
+    internal string? FreeSpaceVolumeIdentity => _freeBytesVolume;
     public Location? Location => Listing.Location;
     /// <summary>Changes at navigation intent, before any provider/connection await; delayed path Paste checks it.</summary>
     internal long NavigationGeneration { get; private set; }
@@ -164,10 +179,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             StartWatching();
             RefreshIfFolderChanged();
+            _freeSpaceTimer.Start();
+            if (Listing.State == ListingState.Complete && !Listing.IsRefreshing) RequestFreeSpace();
         }
         else
         {
             StopWatching();
+            _freeSpaceTimer.Stop();
         }
     }
 
@@ -590,6 +608,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         ComparisonLabel = null;
+        if (Location is { IsFileSystem: true }) _forceFreeSpaceOnListingComplete = true;
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);
         else Listing.Refresh();
     }
@@ -657,11 +676,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if ((change & ListingChange.State) != 0 || (change & ListingChange.Reset) != 0)
         {
+            if (Location != _freeSpaceTrackedLocation)
+            {
+                _freeSpaceTrackedLocation = Location;
+                _freeSpaceRequestId++;
+                _freeSpacePendingLocation = null;
+                _freeSpaceRefreshAfterPending = false;
+                _forceFreeSpaceOnListingComplete = false;
+                _freeBytes = -1;
+                _freeBytesLocation = null;
+                _freeBytesVolume = null;
+                _freeSpaceUnavailable = false;
+            }
             IsLoading = Listing.State == ListingState.Loading || Listing.IsRefreshing;
             if (Listing.Issues.Count > 0) Banner = Listing.Issues[^1];
             if (Listing.State == ListingState.Complete)
             {
-                RequestFreeSpace();
+                bool forceCapacity = _forceFreeSpaceOnListingComplete;
+                _forceFreeSpaceOnListingComplete = false;
+                RequestFreeSpace(forceCapacity);
                 OnLoadCompleted();
                 NoteSidecars();
                 if (Listing.LastRefreshError is DirectoryNotFoundException && Location is { IsFileSystem: true } gone) LeaveVanishedFolder(gone);
@@ -683,28 +716,49 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Title = provider.GetDisplayName(Location);
     }
 
-    private void RequestFreeSpace()
+    private void RequestFreeSpace(bool force = false)
     {
-        if (Location is not { IsFileSystem: true } loc) return;
+        if (_disposed || Location is not { IsFileSystem: true } loc) return;
         var device = Services.Providers.For(loc).GetDeviceKey(loc);
         _freeBytesLocation = loc;
-        if (device == _freeBytesDevice && _freeBytes >= 0) { UpdateStatus(); return; }
+        if (_freeSpacePendingLocation == loc)
+        {
+            if (force) { _freeSpaceRefreshAfterPending = true; _freeBytes = -1; }
+            UpdateStatus();
+            return;
+        }
+        if (!force && _freeBytes >= 0 && DateTime.UtcNow - _freeBytesCheckedUtc < CapacityTtl)
+        {
+            UpdateStatus();
+            return;
+        }
         _freeBytes = -1;
-        _freeBytesDevice = device;
+        _freeBytesVolume = null;
+        _freeSpaceUnavailable = false;
+        _freeSpacePendingLocation = loc;
+        _freeSpacePendingSince = DateTime.UtcNow;
+        long request = ++_freeSpaceRequestId;
         UpdateStatus();
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, _ =>
+            CapacityQuery(loc.Path)).ContinueWith(t =>
         {
-            var root = Path.GetPathRoot(loc.Path);
-            return string.IsNullOrEmpty(root) ? -1 : new DriveInfo(root).AvailableFreeSpace;
-        }).ContinueWith(t =>
-        {
-            if (t.IsCompletedSuccessfully)
-                Services.Ui.Post(() =>
+            Services.Ui.Post(() =>
+            {
+                if (_disposed || Location != loc || _freeSpaceRequestId != request) return;
+                _freeSpacePendingLocation = null;
+                if (_freeSpaceRefreshAfterPending)
                 {
-                    if (_disposed || Location != loc || _freeBytesDevice != device) return;
-                    _freeBytes = t.Result;
-                    UpdateStatus();
-                });
+                    _freeSpaceRefreshAfterPending = false;
+                    RequestFreeSpace(force: true);
+                    return;
+                }
+                var capacity = t.IsCompletedSuccessfully ? t.Result : null;
+                _freeBytes = capacity?.AvailableBytes ?? -1;
+                _freeBytesVolume = capacity?.VolumeIdentity;
+                _freeBytesCheckedUtc = DateTime.UtcNow;
+                _freeSpaceUnavailable = _freeBytes < 0;
+                UpdateStatus();
+            });
         }, TaskScheduler.Default);
     }
 
@@ -744,8 +798,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
         // A navigation can enter Loading before RequestFreeSpace runs. Match the last queried location without
         // consulting mapped-drive identity on every focus, mark or listing-status refresh.
-        bool currentFreeSpace = fileSystem && _freeBytes >= 0 && Location == _freeBytesLocation;
-        FreeSpaceText = currentFreeSpace ? $"{Formatters.SizeWithUnit(_freeBytes)} free" : string.Empty;
+        bool currentFreeSpace = fileSystem && Location == _freeBytesLocation;
+        FreeSpaceText = !currentFreeSpace ? string.Empty
+            : _freeSpacePendingLocation == Location ? DateTime.UtcNow - _freeSpacePendingSince > TimeSpan.FromSeconds(10)
+                ? "Free space still being checked…" : "Checking free space…"
+            : _freeBytes >= 0 && DateTime.UtcNow - _freeBytesCheckedUtc < CapacityTtl
+                ? $"{Formatters.SizeWithUnit(_freeBytes)} free"
+            : _freeSpaceUnavailable ? "Free space unavailable"
+            : "Free space needs refresh";
 
         var stats = l.GetMarkStats();
         if (stats.Count == 0)
@@ -1017,6 +1077,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         EndQuickSearch();
         _disposed = true;
+        _freeSpaceTimer.Stop();
         NavigationGeneration++;
         _pendingNavigation?.Cancel();
         _pendingNavigation = null;
