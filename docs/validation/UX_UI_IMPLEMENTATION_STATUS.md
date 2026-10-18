@@ -4,8 +4,10 @@ Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_U
 
 **Current work:** FCUX-043 recovery preparation now has visible phases and a
 Stop action with focused cancellation coverage. The complete Core Release suite
-passed (4,419 passed, 150 skipped); the complete App Release gate is running.
-FCUX-044 is next in the audit. FCUX-036 native acceptance and Advanced
+passed (4,419 passed, 150 skipped). A complete App Release attempt aborted when
+its test host exited after 124 passes and two skips; its in-progress drop test
+passes alone, and that gate needs a clean rerun. FCUX-044 is implemented with
+focused coverage; FCUX-045 is next. FCUX-036 native acceptance and Advanced
 text import/export remain open. The editor program picker, token
 insertion and a no-write invocation preview are implemented with focused
 regressions. The saved-filter list/detail editor and Advanced text route are now
@@ -75,6 +77,12 @@ open. A newly admitted job keeps its own lifecycle even if Stop arrives at its
 admission callback. Focused tests cover held reads, approval, the transfer form,
 one completed deletion and admission.
 
+FCUX-044 leaves Find without a local scope when opened from SFTP, FTP, archive,
+or other unsupported views. It explains the provider limit and asks for an
+explicit local folder, drive set, or home selection before search. A saved
+search that supplies local folders names itself as the source of that choice;
+result-set snapshots keep their own scope. Registry retains its separate Find.
+
 ## Changes and verification map
 
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
@@ -136,7 +144,8 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values, repeated pointer moves down/up through the thumb, and stale seek retirement. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. The 66-case related viewer suite passes. | The user manually confirmed the Windows desktop drag on the supplied EXE works. |
 | FCUX-042 — operations drawer layout | Persist a vertically resizable drawer while preserving usable workspace; bound and scroll recovery review with one selected item, keep a complete operation row and Open report action at 640 × 420, wrap controls, and collapse the graph until requested. | `OperationsDrawerLayoutTests` covers 1/5/20 interruptions, keyboard navigation, small/wide windows, a selected operation and report entry, pointer/keyboard resize, saved height and shrink/expand restoration. Nine focused cases pass. | Native high-DPI, pointer, keyboard and screen-reader acceptance remains open. |
 | UXBUG-004 — Markdown prose width on resize | Let prose blocks use the article's available width, matching table regions as the Page window changes size; retain article padding and table-local horizontal scrolling. | Forty-eight `MarkdownTests` cases pass. Headless Chrome measured prose and table regions at 505 px in a narrow window and 1,441 px in a wide window, with no page-level horizontal overflow. | Native WebView2 desktop resize acceptance remains open. |
-| FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` adds six focused cases for held open/read calls, approval, new-transfer form, an already deleted partial, and Stop in the job-admission callback. All six pass, with existing demand tests passing in the same class. Full App Release gate is running. | Native delayed-device, keyboard/screen-reader status, and shutdown timing acceptance remain open. |
+| FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` adds six focused cases for held open/read calls, approval, new-transfer form, an already deleted partial, and Stop in the job-admission callback. All six pass, with existing demand tests passing in the same class. A complete App attempt aborted after 124 passes and two skips when its host exited; the in-progress drop test passes alone. | Full App rerun and native delayed-device, keyboard/screen-reader status, and shutdown timing acceptance remain open. |
+| FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. The related 47-case Find/Registry selection passes. | Native provider navigation, assistive announcement, and full App acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

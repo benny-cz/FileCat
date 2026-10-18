@@ -51,6 +51,12 @@ public sealed class FindWindow : Window, IViewActions
 
     private readonly MainViewModel _vm;
     private readonly AppServices _services;
+    private readonly Location? _origin;
+    private readonly bool _requiresLocalChoice;
+    private bool _localChoiceMade;
+    private bool _applyingSavedSearch;
+    private string? _loadedSearchName;
+    private bool _loadedSearchHasScope;
     private readonly OverlayDialogService _dialogs;
     private readonly Panel _overlay = new() { IsVisible = false };
     // The found items live in a tab of a panel outside the workspace, so the panels' commands work on them.
@@ -91,6 +97,9 @@ public sealed class FindWindow : Window, IViewActions
     private readonly TextBlock _status = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _error = new() { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 4, 10, 0) };
     private readonly TextBlock _message = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _scopeNotice = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly Button _useLocalHome = new() { Content = "Use local home", IsVisible = false };
+    private readonly Grid _scopeHost = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(10, 6, 10, 0), IsVisible = false };
     private readonly Panel _lookInHost = new();
     private readonly PathCompletion _completion;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
@@ -116,20 +125,22 @@ public sealed class FindWindow : Window, IViewActions
     /// <summary>Open Find windows, oldest first.</summary>
     public static IReadOnlyList<FindWindow> OpenWindows => s_open;
 
-    /// <summary>Opens Find for <paramref name="root"/>, or within a result set's items.</summary>
-    public static FindWindow Open(MainViewModel vm, string root, ResultSet? within)
+    /// <summary>Opens Find for a local root or result snapshot; an unsupported origin requires a deliberate local choice.</summary>
+    public static FindWindow Open(MainViewModel vm, string root, ResultSet? within, Location? origin = null)
     {
-        var window = new FindWindow(vm, root, within);
+        var window = new FindWindow(vm, root, within, origin);
         s_open.Add(window);
         window.Closed += (_, _) => s_open.Remove(window);
         window.Show();
         return window;
     }
 
-    private FindWindow(MainViewModel vm, string root, ResultSet? within)
+    private FindWindow(MainViewModel vm, string root, ResultSet? within, Location? origin)
     {
         _vm = vm;
         _services = vm.Services;
+        _origin = origin;
+        _requiresLocalChoice = within is null && origin is not null && !origin.IsFileSystem;
         _panel = new PanelViewModel(vm.Workspace, vm.Services);
         _within = within?.Snapshot();
         Title = within is null ? "Find files" : "Find within results";
@@ -140,12 +151,15 @@ public sealed class FindWindow : Window, IViewActions
         AutomationName(_list, "Found items");
         AutomationName(_names, "Names");
         AutomationName(_lookIn, within is null ? "Look in" : "Search within");
+        AutomationName(_scopeNotice, "Find scope guidance");
+        AutomationName(_useLocalHome, "Choose local home as Find scope");
         AutomationName(_text, "Containing");
         AutomationName(_logButton, "Search log");
 
         var history = _services.History;
         _names.Text = history.SearchNames.FirstOrDefault() ?? "*";
-        _lookIn.Text = _within is null ? root : $"{within!.Title} ({_within.Count:N0} items)";
+        _lookIn.Text = _within is not null ? $"{within!.Title} ({_within.Count:N0} items)"
+            : _requiresLocalChoice ? string.Empty : root;
         _lookIn.IsReadOnly = _within is not null;
         _hidden.IsChecked = _services.Settings.ShowHidden;
         HistoryKeys(_names, () => history.SearchNames);
@@ -161,6 +175,21 @@ public sealed class FindWindow : Window, IViewActions
         DockPanel.SetDock(menu, Dock.Top);
         dock.Children.Add(menu);
         var criteria = BuildCriteria();
+        _lookIn.PropertyChanged += (_, change) =>
+        {
+            if (change.Property != TextBox.TextProperty) return;
+            if (_requiresLocalChoice) _localChoiceMade = !string.IsNullOrWhiteSpace(_lookIn.Text);
+            if (!_applyingSavedSearch) { _loadedSearchName = null; _loadedSearchHasScope = false; }
+            UpdateScopeNotice();
+        };
+        _useLocalHome.Click += (_, _) =>
+        {
+            _lookIn.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            _localChoiceMade = !string.IsNullOrWhiteSpace(_lookIn.Text);
+            UpdateScopeNotice();
+            _lookIn.CaretIndex = _lookIn.Text.Length;
+            _lookIn.Focus();
+        };
         _completion = new PathCompletion(_lookIn, _lookInHost, () => _services.Settings.ShowHidden, () => root);
         _completion.Chosen += path =>
         {
@@ -187,7 +216,8 @@ public sealed class FindWindow : Window, IViewActions
         root_.Children.Add(dock);
         root_.Children.Add(_overlay);
         Content = ThemeLayers.Over(root_, results);
-        if (_services.Settings.SavedSearches.FirstOrDefault(s => s.LoadOnOpen) is { } preset) Apply(preset.Criteria);
+        if (_services.Settings.SavedSearches.FirstOrDefault(s => s.LoadOnOpen) is { } preset) Apply(preset.Criteria, preset.Name);
+        else UpdateScopeNotice();
 
         _find.Click += (_, _) => StartSearch(RefineMode.Replace);
         _stop.Click += (_, _) => Stop();
@@ -296,7 +326,11 @@ public sealed class FindWindow : Window, IViewActions
         actions.Children.Add(buttons);
         _status.Margin = new Thickness(12, 0, 0, 0);
         actions.Children.Add(_status);
-        return new StackPanel { Children = { grid, actions, _error } };
+        Grid.SetColumn(_useLocalHome, 1);
+        _useLocalHome.Margin = new Thickness(8, 0, 0, 0);
+        _scopeHost.Children.Add(_scopeNotice);
+        _scopeHost.Children.Add(_useLocalHome);
+        return new StackPanel { Children = { _scopeHost, grid, actions, _error } };
     }
 
     /// <summary>A small button that lists a field's history; choosing an entry puts it in the field.</summary>
@@ -533,20 +567,79 @@ public sealed class FindWindow : Window, IViewActions
     }
 
     /// <summary>Puts saved criteria in the window (where to search only when they say, and not within results).</summary>
-    internal void Apply(SearchCriteria c)
+    internal void Apply(SearchCriteria c, string? savedSearchName = null)
     {
-        _names.Text = string.IsNullOrWhiteSpace(c.Names) ? "*" : c.Names;
-        if (_within is null && c.LookIn.Length > 0) _lookIn.Text = c.LookIn;
-        _subfolders.IsChecked = c.Subfolders;
-        _hidden.IsChecked = c.IncludeHidden;
-        _archives.IsChecked = c.InsideArchives;
-        _text.Text = c.Text;
-        _matchCase.IsChecked = c.MatchCase;
-        _wholeWords.IsChecked = c.WholeWords;
-        _regex.IsChecked = c.Regex;
-        _hex.IsChecked = c.Hex;
-        _unicode.IsChecked = c.Unicode;
-        SetAdvanced(c.Advanced.Clone());
+        _applyingSavedSearch = savedSearchName is not null;
+        try
+        {
+            _names.Text = string.IsNullOrWhiteSpace(c.Names) ? "*" : c.Names;
+            if (_within is null && c.LookIn.Length > 0)
+            {
+                _lookIn.Text = c.LookIn;
+                if (_requiresLocalChoice) _localChoiceMade = !string.IsNullOrWhiteSpace(_lookIn.Text);
+            }
+            _subfolders.IsChecked = c.Subfolders;
+            _hidden.IsChecked = c.IncludeHidden;
+            _archives.IsChecked = c.InsideArchives;
+            _text.Text = c.Text;
+            _matchCase.IsChecked = c.MatchCase;
+            _wholeWords.IsChecked = c.WholeWords;
+            _regex.IsChecked = c.Regex;
+            _hex.IsChecked = c.Hex;
+            _unicode.IsChecked = c.Unicode;
+            SetAdvanced(c.Advanced.Clone());
+        }
+        finally { _applyingSavedSearch = false; }
+        _loadedSearchName = savedSearchName;
+        _loadedSearchHasScope = savedSearchName is not null && _within is null && !string.IsNullOrWhiteSpace(c.LookIn);
+        UpdateScopeNotice();
+    }
+
+    private static string OriginDescription(Location origin) => origin.Scheme switch
+    {
+        Schemes.Sftp => "SFTP folder",
+        Schemes.Ftp => "FTP folder",
+        Schemes.Zip or Schemes.Archive => "folder inside an archive",
+        Schemes.Computer => "This PC view",
+        Schemes.Network => "network share list",
+        Schemes.Mtp => "portable-device folder",
+        _ => "current " + origin.Scheme + " view",
+    };
+
+    private void UpdateScopeNotice()
+    {
+        if (_within is not null)
+        {
+            _scopeNotice.Text = _loadedSearchName is { } name
+                ? $"Loaded saved search \"{Formatters.SafeName(name)}\". The search remains within this result-set snapshot; its saved folders do not replace that scope."
+                : "Find will search only this result-set snapshot.";
+        }
+        else if (_requiresLocalChoice)
+        {
+            string origin = OriginDescription(_origin!);
+            _scopeNotice.Text = _loadedSearchName is { } name && _loadedSearchHasScope
+                ? $"Opened from the {origin}. Loaded saved search \"{Formatters.SafeName(name)}\"; Look in now names its local folders. Find will not search the original provider."
+                : _loadedSearchName is { } noScopeName
+                    ? _localChoiceMade
+                        ? $"Opened from the {origin}. Loaded saved search \"{Formatters.SafeName(noScopeName)}\" without folders; Look in keeps your previously chosen local scope."
+                        : $"Opened from the {origin}. Loaded saved search \"{Formatters.SafeName(noScopeName)}\", but it has no local folders. Choose a local scope before searching."
+                : _localChoiceMade
+                    ? $"Opened from the {origin}. Find will search the local folders shown in Look in, not the original provider."
+                    : $"Find cannot search the {origin}. Choose local folders in Look in, choose drives, or use local home before searching.";
+        }
+        else
+        {
+            _scopeNotice.Text = _loadedSearchName is { } name
+                ? _loadedSearchHasScope
+                    ? $"Loaded saved search \"{Formatters.SafeName(name)}\". Look in shows its search folders instead of the previously open folder."
+                    : $"Loaded saved search \"{Formatters.SafeName(name)}\". Look in still shows the previously open folder."
+                : string.Empty;
+        }
+        _scopeNotice.IsVisible = !string.IsNullOrEmpty(_scopeNotice.Text);
+        _scopeNotice.Classes.Set("warning", _requiresLocalChoice && !_localChoiceMade);
+        _scopeHost.IsVisible = _scopeNotice.IsVisible;
+        _useLocalHome.IsVisible = _requiresLocalChoice && !_localChoiceMade;
+        UpdateButtons();
     }
 
     private async Task SaveSearchAsync()
@@ -596,7 +689,7 @@ public sealed class FindWindow : Window, IViewActions
             list[index].LoadOnOpen = on;
             changed = true;
         }
-        if (r.Index >= 0) Apply(list[r.Index].Criteria);
+        if (r.Index >= 0) Apply(list[r.Index].Criteria, list[r.Index].Name);
         foreach (int index in r.Deleted.OrderByDescending(i => i)) saved.Remove(list[index]);
         if (changed || r.Deleted.Count > 0) _services.SaveSettings();
         if (r.Index >= 0) ShowNotification($"Loaded \"{list[r.Index].Name}\". Enter searches.");
@@ -610,6 +703,11 @@ public sealed class FindWindow : Window, IViewActions
     {
         if (_closed) return;
         ShowError(null);
+        if (_requiresLocalChoice && !_localChoiceMade)
+        {
+            ShowError("Choose local folders in Look in before searching; Find cannot search the original provider.");
+            return;
+        }
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
         var criteria = Criteria;
         var ignored = _services.Settings.SearchIgnoredFolders.Where(f => f.Enabled).Select(f => f.Folder).ToList();
@@ -878,7 +976,7 @@ public sealed class FindWindow : Window, IViewActions
     private void UpdateButtons()
     {
         bool searching = IsSearching || _comparing;
-        _find.IsEnabled = true;
+        _find.IsEnabled = !_requiresLocalChoice || _localChoiceMade;
         _stop.IsEnabled = searching;
         _skip.IsEnabled = searching && _within is null;
     }

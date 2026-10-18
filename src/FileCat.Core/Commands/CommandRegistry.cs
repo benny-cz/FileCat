@@ -479,7 +479,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MarkUnselectMask, "Unmarks the items whose names match a mask, such as *.txt.");
         r.Describe(CommandIds.MarkInvert, "Marks the files that are not marked, and unmarks those that are.");
         r.Describe(CommandIds.MarkAll, "Marks every item in the list.");
-        r.Describe(CommandIds.FindFiles, "Searches by name, content, size, and date, in this folder and below or on any drive.");
+        r.Describe(CommandIds.FindFiles, "Searches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching.");
         r.Describe(CommandIds.QuickView, "The target panel shows the file under the cursor as you move through the list.");
         r.Describe(CommandIds.OpenTerminal, "Opens a terminal in this panel's folder.");
         r.Describe(CommandIds.ToggleHidden, "Shows or hides hidden and system items in every panel.");

@@ -71,12 +71,16 @@ public sealed partial class MainViewModel
             View.FocusActivePanel();
             return;
         }
-        var root = tab?.Location is { IsFileSystem: true } l ? l.Path : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var origin = tab?.Location;
+        var root = FindInitialRoot(origin);
         // In a result set, Find searches within its items and the matches form a narrower set (plan §11).
         var within = tab?.Location is { Scheme: Schemes.ResultSet } rl ? Services.ResultSets.Get(rl) : null;
         // A window of its own, so the panels stay free while it searches (plan §11, Salamander's Find).
-        FindWindow.Open(this, root, within);
+        FindWindow.Open(this, root, within, origin);
     }
+
+    internal static string FindInitialRoot(Location? origin) => origin is { IsFileSystem: true } l ? l.Path
+        : origin is null ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) : string.Empty;
 
     internal void OpenResultSet(ResultSet set, CancellationTokenSource? running)
     {
