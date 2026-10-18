@@ -54,7 +54,9 @@ public sealed class ViewerWindow : Window
     private string? _pageSearchStatus;
     /// <summary>Why pages cannot be drawn here, once that is known.</summary>
     private string? _pageUnavailable;
-    private readonly ToggleButton _actualSize = new() { Content = "Actual size", IsVisible = false };
+    private readonly ToggleButton _fitPicture = new() { Content = "Fit", IsVisible = false };
+    private readonly ToggleButton _actualSize = new() { Content = "100%", IsVisible = false };
+    private readonly TextBlock _pictureZoom = new() { IsVisible = false, Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
     private Task? _pictureLoad;
@@ -193,9 +195,16 @@ public sealed class ViewerWindow : Window
         toolbar.Children.Add(_modeText);
         toolbar.Children.Add(_modeHex);
         toolbar.Children.Add(_modeInfo);
+        toolbar.Children.Add(_fitPicture);
         toolbar.Children.Add(_actualSize);
+        toolbar.Children.Add(_pictureZoom);
         ToolTip.SetTip(_modePicture, "The picture (Ctrl+P)");
-        ToolTip.SetTip(_actualSize, "Actual size or fitted to the window (Z). The mouse wheel zooms around the pointer and dragging moves the picture; + and − zoom, 0 fits, 1 is actual size, a double click switches.");
+        ToolTip.SetTip(_fitPicture, "Fit the whole picture in the window (0)");
+        ToolTip.SetTip(_actualSize, "Show at 100%: one source pixel per device pixel, subject to the decoder's resolution cap (1 or Z)");
+        Avalonia.Automation.AutomationProperties.SetName(_fitPicture, "Fit picture to window");
+        Avalonia.Automation.AutomationProperties.SetName(_actualSize, "Picture at 100 percent");
+        Avalonia.Automation.AutomationProperties.SetName(_pictureZoom, "Picture zoom percentage");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureZoom, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
@@ -283,18 +292,10 @@ public sealed class ViewerWindow : Window
             _status.Text = why + " Its source is shown instead.";
         };
         _pageView.KeyRequested = OnPageKey;
-        _actualSize.IsCheckedChanged += (_, _) =>
-        {
-            _picture.Fit = _actualSize.IsChecked != true;
-            Dispatcher.UIThread.Post(UpdateStatus, DispatcherPriority.Background);
-        };
+        _fitPicture.Click += (_, _) => { _picture.Fit = true; UpdatePictureZoomControls(); };
+        _actualSize.Click += (_, _) => { _picture.ShowActualSize(); UpdatePictureZoomControls(); };
         _picture.SizeChanged += (_, _) => { if (_isPicture) UpdateStatus(); };
-        // Zooming with the wheel or the keys leaves the fitted view: the button says so too.
-        _picture.ZoomChanged += () =>
-        {
-            _actualSize.IsChecked = !_picture.Fit;
-            if (_isPicture) UpdateStatus();
-        };
+        _picture.ZoomChanged += () => { UpdatePictureZoomControls(); if (_isPicture) UpdateStatus(); };
         _wrap.IsCheckedChanged += (_, _) =>
         {
             if (_isInfo) _info.Wrap = _wrap.IsChecked == true;
@@ -499,7 +500,8 @@ public sealed class ViewerWindow : Window
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
         _modePicture.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
-        _actualSize.IsVisible = true;
+        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = true;
+        UpdatePictureZoomControls();
         foreach (var part in _textOnly) part.IsVisible = false;
         _wrap.IsEnabled = false;
         _picture.Focus();
@@ -613,7 +615,7 @@ public sealed class ViewerWindow : Window
         _isPicture = false;
         _picture.IsVisible = false;
         _modePicture.IsChecked = false;
-        _actualSize.IsVisible = false;
+        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = false;
         foreach (var part in _textOnly) part.IsVisible = true;
     }
 
@@ -784,6 +786,13 @@ public sealed class ViewerWindow : Window
         else _text.Focus();
     }
 
+    private void UpdatePictureZoomControls()
+    {
+        _fitPicture.IsChecked = _picture.Fit;
+        _actualSize.IsChecked = !_picture.Fit && Math.Abs(_picture.Zoom - 1) < 0.001;
+        _pictureZoom.Text = _picture.Fit ? $"Fit · {_picture.Zoom * 100:0}%" : $"Zoom {_picture.Zoom * 100:0}%";
+    }
+
     private void UpdateStatus()
     {
         if (_isPicture)
@@ -909,7 +918,8 @@ public sealed class ViewerWindow : Window
                 ShowPicture();
                 break;
             case Key.Z when e.KeyModifiers == KeyModifiers.None && _isPicture:
-                _actualSize.IsChecked = _actualSize.IsChecked != true;
+                if (_picture.Fit || Math.Abs(_picture.Zoom - 1) > 0.001) _picture.ShowActualSize();
+                else _picture.Fit = true;
                 break;
             case Key.I when e.KeyModifiers == KeyModifiers.Control:
                 _ = ShowInfoAsync();

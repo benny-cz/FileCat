@@ -1,6 +1,10 @@
 using System.Buffers.Binary;
+using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.Views;
@@ -16,6 +20,26 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class PictureViewerTests
 {
+    [AvaloniaFact]
+    public void Small_picture_fit_and_original_scale_are_distinct_modes_at_the_same_zoom()
+    {
+        var view = new FileCat.App.Controls.PictureView();
+        view.Measure(new Size(300, 200));
+        view.Arrange(new Rect(0, 0, 300, 200));
+        try
+        {
+            view.Show(DecodeHere(Encode(8, 8, SKEncodedImageFormat.Png), 64));
+            Assert.True(view.Fit);
+            Assert.Equal(1, view.Zoom, 3);
+            view.ShowActualSize();
+            Assert.False(view.Fit);
+            Assert.Equal(1, view.Zoom, 3);
+            view.Fit = true;
+            Assert.True(view.Fit);
+        }
+        finally { view.Clear(); }
+    }
+
     /// <summary>A picture with its left half red and its right half blue.</summary>
     private static byte[] Encode(int width, int height, SKEncodedImageFormat format)
     {
@@ -168,14 +192,23 @@ public sealed class PictureViewerTests
             // The wheel zooms around the pointer: the point of the picture under it stays under it (away from the edges,
             // where the picture is kept from leaving empty space).
             var view = viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().Single(v => v.IsEffectivelyVisible);
+            var fit = viewer.GetVisualDescendants().OfType<ToggleButton>().Single(b => b.Content as string == "Fit");
+            var actual = viewer.GetVisualDescendants().OfType<ToggleButton>().Single(b => b.Content as string == "100%");
+            var zoomLabel = viewer.GetVisualDescendants().OfType<TextBlock>().Single(b =>
+                Avalonia.Automation.AutomationProperties.GetName(b) == "Picture zoom percentage");
             await Task.Delay(50, ct);
             Assert.True(view.Fit);
+            Assert.True(fit.IsChecked);
+            Assert.False(actual.IsChecked);
             double fitted = view.Zoom;
             var at = new Avalonia.Point(view.Bounds.Width / 2 + 20, view.Bounds.Height / 2 - 10);
             var before = view.Offset;
             double pictureX = (at.X - before.X) / fitted;
             view.ZoomBy(3, at);
             Assert.False(view.Fit);
+            Assert.False(fit.IsChecked);
+            Assert.False(actual.IsChecked);
+            Assert.StartsWith("Zoom ", zoomLabel.Text);
             Assert.Equal(fitted * Math.Pow(1.25, 3), view.Zoom, 3);
             Assert.Equal(pictureX, (at.X - view.Offset.X) / view.Zoom, 1);
             // Dragging moves the enlarged picture; it never leaves empty space at its edges.
@@ -188,7 +221,24 @@ public sealed class PictureViewerTests
             // 0 fits again.
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.Digit0, Avalonia.Input.RawInputModifiers.None);
             Assert.True(view.Fit);
+            Assert.True(fit.IsChecked);
+            Assert.False(actual.IsChecked);
             Assert.Equal(fitted, view.Zoom, 3);
+            foreach (double level in new[] { 0.5, 1.25, 2.0 })
+            {
+                view.SetZoom(level);
+                Assert.False(fit.IsChecked);
+                Assert.False(actual.IsChecked);
+                Assert.Contains($"{level * 100:0}%", zoomLabel.Text);
+            }
+            actual.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(fit.IsChecked);
+            Assert.True(actual.IsChecked);
+            Assert.Equal(1, view.Zoom, 3);
+            fit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(fit.IsChecked);
+            Assert.False(actual.IsChecked);
+            Assert.True(view.Fit);
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F4, Avalonia.Input.RawInputModifiers.None);
             Assert.Null(viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().FirstOrDefault(v => v.IsEffectivelyVisible));
         }

@@ -64,6 +64,12 @@ public sealed class PictureView : Border
     /// <summary>How large the picture is drawn, relative to its own pixels (what the status line says).</summary>
     public double Zoom => Picture is { } p && p.Width > 0 ? _scale * Scaling * p.Bitmap.PixelSize.Width / p.Width : 1;
 
+    /// <summary>Shows original-scale dimensions; a downsampled decode cannot restore lost source pixels.</summary>
+    public void ShowActualSize() => ZoomTo(1, Center);
+
+    /// <summary>Choose a numeric zoom without changing the fitted-mode command (tests and future zoom presets).</summary>
+    internal void SetZoom(double zoom) => ZoomTo(zoom, Center);
+
     private double Scaling => TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
 
     private Point Center => new(Bounds.Width / 2, Bounds.Height / 2);

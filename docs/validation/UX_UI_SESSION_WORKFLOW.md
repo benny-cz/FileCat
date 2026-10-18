@@ -65,8 +65,9 @@ The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
 settled. The isolated test passed; the assertion now waits up to 10 seconds
 for the Loaded bindings and still reports any persistent unnamed controls.
-The 59 related cases pass. A full App rerun on the current FCUX-049 build is
-in progress; do not count the earlier run as a passing complete suite.
+The 59 related cases pass. The full App rerun through FCUX-049 passes with
+2,254 passes, 63 skips and no failures. The later FCUX-050/051/055 changes
+still need a complete App run.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -94,6 +95,7 @@ in progress; do not count the earlier run as a passing complete suite.
 | 22 | FCUX-049 — live viewer theme changes | Attached text and hex controls re-resolve semantic brushes on theme change and release static subscriptions on detach. Two focused and 116 related App cases pass; native theme and high-contrast acceptance remain open. |
 | 23 | FCUX-050 — Psychedelic effect boundaries | The menu and work surfaces are opaque, decoration stays below content, focus/grid brushes stay fixed, and disabled animation freezes visual time. Three focused and 54 related App cases pass; native cycle/contrast/motion acceptance remains open. |
 | 24 | FCUX-051 — desktop motion preference | Windows, macOS and GNOME motion probes refresh while an animated theme is active; startup/reactivation wait for the first preference read. Thirty-two related App cases pass. Native platform toggles, fallback and screen-reader acceptance remain open. |
+| 25 | FCUX-055 — picture zoom state | Fit and 100% are separate controls; custom 50%, 125% and 200% display their percentage with neither mode checked. A small image keeps Fit and 100% distinct even when both render at the same scale. Twelve focused and 74 related App cases pass, with 12 platform skips. Native scale and assistive-technology acceptance remain open. This is a prerequisite for preserving zoom through FCUX-052 refresh. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
 After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
