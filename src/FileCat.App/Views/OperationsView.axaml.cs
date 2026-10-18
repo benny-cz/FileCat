@@ -195,12 +195,12 @@ public partial class OperationsView : UserControl
         c.UpdateSummary();
     }
 
-    private async void OnDismissInterrupted(object? sender, RoutedEventArgs e)
+    private void OnHideInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Center is not { } c || Main is not { } main) return;
-        if (!await main.DismissInterruptedAsync(item.Job)) return;
         c.Interrupted.Remove(item);
         c.UpdateSummary();
+        main.Notify("The recovery notice is hidden until FileCat restarts. Its journal and files are unchanged.");
     }
 
     private async void OnReviewNewInterrupted(object? sender, RoutedEventArgs e)

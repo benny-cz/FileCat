@@ -22,6 +22,24 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedRenameTests(ITestOutputHelper output)
 {
+    [AvaloniaFact]
+    public async Task Hide_for_now_keeps_the_journal_and_temporary_item_for_the_next_startup()
+    {
+        using var f = await Fixture.Create();
+        f.Vm.Operations.LoadInterrupted([f.Interrupted]);
+        f.Vm.Operations.IsOpen = true;
+        f.Window.UpdateLayout();
+        var hide = Assert.Single(f.Window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Hide for now");
+        hide.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        Assert.Empty(f.Vm.Operations.Interrupted);
+        Assert.False(f.Ended);
+        Assert.True(JournalRecovery.IsInterrupted(f.Interrupted));
+        Assert.Equal("reviewed", File.ReadAllText(f.Via));
+        f.Vm.Operations.LoadInterrupted(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
+        Assert.Single(f.Vm.Operations.Interrupted);
+    }
+
     [AvaloniaTheory]
     [InlineData("unchanged")]
     [InlineData("cancel")]

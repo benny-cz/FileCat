@@ -43,6 +43,14 @@ endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate history-disclosure, synchronization-group or
 general navigation-supersession findings. Native S1 acceptance remains open.
 
+### FCUX-020 in progress
+
+The former Dismiss button is now Hide for now. It removes only the current
+notice, leaves the journal and files unchanged, and reappears on the next
+startup scan. A headless UI test covers the journal and temporary item. Next,
+add an explicit reviewed-close path with a bounded persistent diagnostic report
+and complete retained-detail copy/export, including cleanup with kept files.
+
 ### FCUX-019 implementation record
 
 Clear finished history and Remove history row now disclose report/unused Undo

@@ -71,7 +71,8 @@
                     <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
                             ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
                     <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
-                    <Button Content="Dismiss" Tag="{Binding}" Click="OnDismissInterrupted" />
+                    <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted"
+                            ToolTip.Tip="Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged" />
                   </StackPanel>
                 </Grid>
               </Border>

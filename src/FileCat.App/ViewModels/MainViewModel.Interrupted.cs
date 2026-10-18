@@ -237,15 +237,4 @@ public sealed partial class MainViewModel
         finally { _interruptedActions.Remove(job.JournalPath); }
     }
 
-    internal async Task<bool> DismissInterruptedAsync(InterruptedJob job)
-    {
-        if (!EditSessionsActive || !_interruptedActions.Add(job.JournalPath)) return false;
-        try
-        {
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction)) return false;
-            return await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job, "Dismissed by the user."), CheckSessionAction);
-        }
-        catch (OperationCanceledException) { return false; }
-        finally { _interruptedActions.Remove(job.JournalPath); }
-    }
 }
