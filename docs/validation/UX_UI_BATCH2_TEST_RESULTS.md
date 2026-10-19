@@ -497,6 +497,15 @@ Skip recovery policy. Continue completed the 8 MiB JPG move, kept TXT at
 source and removed the staging file. FileCat desktop-process interruption,
 cross-volume and other provider acceptance remain open.
 
+A third isolated guest fixture removed the intent fields from a valid journal
+and retained its CRC. Startup refused equivalent continuation and offered
+**Review a new transfer** with an explicit explanation. The final review showed
+the newly chosen `draft.txt` → `approved.txt` mapping. Cancel retained the
+legacy journal and source and left the destination untouched. Reopening the
+form and approving **Start new copy** placed the expected content at the
+reviewed destination while retaining the source. The native runner records
+both paths in `legacy-cancel` and `legacy-new-copy` JSON results.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;

@@ -64,6 +64,19 @@ the excluded note and cleanup of the interrupted staging file. Only the
 guest-local validation root is used; the process terminated by this test is
 the runner's Core worker, not the FileCat desktop process.
 
+For an incomplete legacy record, run `seed-legacy legacy-fixture.json` in the
+guest, then launch an isolated FileCat instance using its reported `--data`,
+`--left` and `--right` paths. `legacy-review <source.xml>` opens the new-transfer
+form and `legacy-start-review <source.xml>` advances to its final confirmation.
+Keep the seed report beside `legacy-cancel <report.json>`: it checks that the
+confirmation says this is a new transfer, that Cancel retains the journal and
+source, and that the destination stays empty. Then run
+`legacy-new-copy <report.json>` to review the form again and explicitly approve
+the new copy. It checks the destination mapping and both files' contents.
+The fixture uses a real journal with its transfer-intent fields removed and
+CRC rewritten, so startup follows the legacy path without inventing a ZIP or
+modifying user data.
+
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the

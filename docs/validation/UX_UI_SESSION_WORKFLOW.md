@@ -102,6 +102,12 @@ filter, verification, rate and queue choices in review, and completed the
 FileCat desktop process, cross-volume moves and other providers still need
 native acceptance.
 
+A separate incomplete-journal guest fixture followed the legacy path. It
+offered a newly reviewed copy with explicit missing-intent text and the chosen
+source-to-target mapping. Cancel kept the journal, source and empty target;
+approving a second new-copy review placed `approved.txt` at the selected
+destination while preserving `draft.txt` at source.
+
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
 FCUX-036 and UXBUG-002 still need native scaling and assistive-technology

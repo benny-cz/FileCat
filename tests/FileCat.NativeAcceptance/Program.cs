@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
@@ -9,19 +10,20 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "interrupt-live" or "inspect-live")
+if (mode is "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live")
 {
     try
     {
         if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
+        else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
         else if (mode == "interrupt-live") await InterruptLiveRecoveryAsync(reportPath);
         else return await InspectLiveRecoveryAsync(reportPath) ? 0 : 1;
         return 0;
@@ -451,6 +453,87 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "legacy-cancel")
+        {
+            var fixture = await ReadRecoveryFixtureAsync(reportPath, legacy: true);
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var names = review.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            var explicitNewTransfer = names.Any(name => name.Contains(
+                    "describe the new transfer you selected", StringComparison.Ordinal))
+                && names.Any(name => name.Contains("Start new copy", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(fixture.Destination, StringComparison.OrdinalIgnoreCase))
+                && names.Any(name => name.Contains("approved.txt", StringComparison.Ordinal));
+            var noEquivalentContinuation = FindVisible(review, "button", "Continue copy") is null
+                && FindVisible(review, "button", "Continue copy…") is null;
+            var cancel = FindVisible(review, "button", "Cancel")
+                ?? throw new InvalidOperationException("Legacy review Cancel is unavailable.");
+            if (!explicitNewTransfer || !noEquivalentContinuation)
+                throw new InvalidOperationException("Legacy review did not distinguish a new copy from continuation.");
+            NativeWindow.ClickAt(CenterX(cancel), CenterY(cancel));
+            await Task.Delay(500);
+            var after = ParseSource(await ReadSourceAsync(client, sessionId));
+            var reviewClosed = FindVisible(after, "button", "Start new copy") is null;
+            var journal = JournalRecovery.Scan(Path.Combine(fixture.Data, "local", "journal"));
+            var oldJournalRetained = journal.Count == 1 && !journal[0].CanContinueTransfer;
+            var sourceIntact = await File.ReadAllTextAsync(Path.Combine(
+                fixture.Source, "draft.txt")) == "legacy source remains";
+            var destinationUntouched = !File.Exists(Path.Combine(
+                fixture.Destination, "approved.txt"));
+            var passed = reviewClosed && oldJournalRetained && sourceIntact
+                && destinationUntouched;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, explicitNewTransfer, noEquivalentContinuation, reviewClosed,
+                oldJournalRetained, sourceIntact, destinationUntouched
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "legacy-new-copy")
+        {
+            var fixture = await ReadRecoveryFixtureAsync(reportPath, legacy: true);
+            NativeWindow.FocusRecovery("legacy-source");
+            NativeWindow.ScrollAt(800, 770, -3);
+            await ClickButtonAsync(client, sessionId, "Review a new transfer…");
+            var form = ParseSource(await ReadSourceAsync(client, sessionId));
+            var formNotice = form.Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    "This is a new transfer", StringComparison.Ordinal) == true);
+            if (!formNotice)
+                throw new InvalidOperationException("Legacy transfer form did not explain the missing intent.");
+            var copy = form.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Copy"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && (string?)element.Attribute("IsEnabled") == "True")
+                ?? throw new InvalidOperationException("New transfer Copy action is unavailable.");
+            NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var approval = FindVisible(review, "button", "Start new copy")
+                ?? throw new InvalidOperationException("Final new-copy review is unavailable.");
+            var mappingVisible = review.Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    Path.Combine(fixture.Destination, "approved.txt"),
+                    StringComparison.OrdinalIgnoreCase) == true);
+            if (!mappingVisible)
+                throw new InvalidOperationException("Final new-copy mapping changed before approval.");
+            NativeWindow.ClickAt(CenterX(approval), CenterY(approval));
+            var target = Path.Combine(fixture.Destination, "approved.txt");
+            for (var attempt = 0; attempt < 100 && !File.Exists(target); attempt++)
+                await Task.Delay(100);
+            var destinationCorrect = File.Exists(target)
+                && await File.ReadAllTextAsync(target) == "legacy source remains";
+            var sourceRetained = await File.ReadAllTextAsync(Path.Combine(
+                fixture.Source, "draft.txt")) == "legacy source remains";
+            var passed = formNotice && mappingVisible && destinationCorrect && sourceRetained;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, formNotice, mappingVisible, destinationCorrect, sourceRetained
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode is "recovery-continue" or "live-continue")
         {
             var live = mode == "live-continue";
@@ -458,7 +541,7 @@ try
             var review = ParseSource(await ReadSourceAsync(client, sessionId));
             if (FindVisible(review, "button", "Continue move") is null)
             {
-                NativeWindow.FocusRecovery(live);
+                NativeWindow.FocusRecovery(live ? "live-source" : "source");
                 NativeWindow.ScrollAt(800, 770, -3);
                 await ClickButtonAsync(client, sessionId, "Continue move…");
                 review = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -531,7 +614,7 @@ try
         }
         else if (mode is "recovery-review" or "live-review")
         {
-            NativeWindow.FocusRecovery(mode == "live-review");
+            NativeWindow.FocusRecovery(mode == "live-review" ? "live-source" : "source");
             NativeWindow.ScrollAt(800, 770, -3);
             await Task.Delay(250);
             await ClickButtonAsync(client, sessionId, "Continue move…");
@@ -541,6 +624,31 @@ try
         {
             NativeWindow.FocusRecovery();
             await Task.Delay(300);
+        }
+        else if (mode == "legacy-review")
+        {
+            NativeWindow.FocusRecovery("legacy-source");
+            NativeWindow.ScrollAt(800, 770, -3);
+            await Task.Delay(250);
+            await ClickButtonAsync(client, sessionId, "Review a new transfer…");
+            await Task.Delay(500);
+        }
+        else if (mode == "legacy-start-review")
+        {
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = source.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "FileCat — legacy-source", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("Legacy FileCat window is unavailable.");
+            var copy = window.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Copy"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && (string?)element.Attribute("IsEnabled") == "True")
+                ?? throw new InvalidOperationException("New transfer Copy action is unavailable.");
+            NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            await Task.Delay(500);
         }
 
         var xml = await ReadSourceAsync(client, sessionId);
@@ -687,6 +795,56 @@ static async Task SeedRecoveryFixtureAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
+static async Task SeedLegacyRecoveryAsync(string reportPath)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "LegacyRecovery", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "legacy-source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    Directory.CreateDirectory(source);
+    Directory.CreateDirectory(destination);
+    var sourceFile = Path.Combine(source, "draft.txt");
+    await File.WriteAllTextAsync(sourceFile, "legacy source remains");
+    var journalDirectory = Path.Combine(data, "local", "journal");
+    var jobs = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journalDirectory)
+    {
+        MaxConcurrent = 0
+    };
+    var request = new JobRequest
+    {
+        Kind = JobKind.Copy,
+        Sources = [ItemRef.ForFileSystemPath(sourceFile, EntryKind.File)],
+        Destination = Location.FileSystem(destination),
+        NewName = "approved.txt",
+        Options = new TransferOptions { Verify = VerifyMode.ReadBack,
+            Conflicts = ConflictPolicy.Replace },
+        Mode = QueueMode.Queue
+    };
+    var job = jobs.Submit(request);
+    if (job.State != JobState.Queued)
+        throw new InvalidOperationException("Legacy fixture job unexpectedly started.");
+    string journal;
+    using (var writer = JobJournal.Create(journalDirectory, job)) journal = writer.Path;
+    var begin = JobJournal.ReadAll(journal).Single().Node;
+    begin.Remove("transferIntent");
+    begin.Remove("transferIntentProblem");
+    var json = begin.ToJsonString();
+    await File.WriteAllTextAsync(journal,
+        $"{Crc32.HashToUInt32(Encoding.UTF8.GetBytes(json)):x8} {json}\n", new UTF8Encoding(false));
+    var interrupted = JournalRecovery.Scan(journalDirectory).Single();
+    if (interrupted.CanContinueTransfer || !interrupted.SourcesKnown
+        || interrupted.TransferIntentProblem is null)
+        throw new InvalidOperationException("Legacy fixture incorrectly allows equivalent continuation.");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, journal,
+        interrupted.TransferIntentProblem
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
 static async Task InterruptLiveRecoveryAsync(string reportPath)
 {
     var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -762,15 +920,18 @@ static async Task<bool> InspectLiveRecoveryAsync(string reportPath)
     return passed;
 }
 
-static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath, bool live = false)
+static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath,
+    bool live = false, bool legacy = false)
 {
+    if (live && legacy)
+        throw new ArgumentException("A recovery fixture cannot be both live and legacy.");
     var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "",
-        live ? "live-fixture.json" : "recovery-fixture.json");
+        live ? "live-fixture.json" : legacy ? "legacy-fixture.json" : "recovery-fixture.json");
     using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
     var root = document.RootElement.GetProperty("root").GetString() ?? "";
     var expectedRoot = Path.Combine(Environment.GetFolderPath(
         Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
-        live ? "LiveRecovery" : "Recovery")
+        live ? "LiveRecovery" : legacy ? "LegacyRecovery" : "Recovery")
         + Path.DirectorySeparatorChar;
     if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Recovery fixture is outside the isolated guest test root.");
@@ -899,10 +1060,11 @@ internal static partial class NativeWindow
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
 
-    internal static void FocusRecovery(bool live = false)
+    internal static void FocusRecovery(string sourceFolder = "source")
     {
-        var title = live ? "FileCat — live-source — Admin (administrator, not elevated)"
-            : "FileCat — source — Admin (administrator, not elevated)";
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source"))
+            throw new ArgumentOutOfRangeException(nameof(sourceFolder));
+        var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var window = FindWindow(null, title);
         if (window == 0)
             throw new InvalidOperationException("Isolated recovery window is unavailable.");
