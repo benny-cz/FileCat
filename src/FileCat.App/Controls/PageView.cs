@@ -132,7 +132,7 @@ public sealed class PageView : NativeControlHost
     public void FocusPage() => _engine?.Focus();
 
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
-    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
     {
         var engine = _engine;
         var page = _page;
@@ -157,9 +157,13 @@ internal interface IPageEngine : IDisposable
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
-    Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) => Task.FromResult<bool?>(null);
+    Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+        Task.FromResult<PageFindResult?>(null);
     void ClearFind() { }
 }
+
+/// <summary>A directional rendered-page find, with a native total when the engine supplies one.</summary>
+public readonly record struct PageFindResult(bool Found, int? MatchCount = null, bool CountComplete = false);
 
 internal static class PageEngines
 {
@@ -220,8 +224,11 @@ internal sealed class WindowsPageEngine : IPageEngine
     public void Show(HtmlPage page) => _view.Show(page);
     public void SetSize(int width, int height) => _view.SetSize(width, height);
     public void Focus() => _view.Focus();
-    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
-        _view.FindAsync(text, matchCase, forward, ct);
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    {
+        bool? found = await _view.FindAsync(text, matchCase, forward, ct);
+        return found is { } value ? new PageFindResult(value) : null;
+    }
     public void ClearFind() => _view.ClearFind();
     public void Dispose() => _view.Dispose();
 

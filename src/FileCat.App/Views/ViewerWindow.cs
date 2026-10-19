@@ -108,6 +108,7 @@ public sealed class ViewerWindow : Window
     private bool _pageFoundMatch;
     private bool _pageTriedFind;
     private bool _pageFindUnavailable;
+    private PageFindResult? _pageCountResult;
     private CancellationTokenSource? _checksumCts;
     private readonly Border _checksumPanel = new() { IsVisible = false, Padding = new Thickness(10), Classes = { "banner" } };
     private readonly ComboBox _checksumScope = new() { MinWidth = 230 };
@@ -1444,18 +1445,19 @@ public sealed class ViewerWindow : Window
         UpdateStatus();
         try
         {
-            bool? found = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward, cts.Token);
+            PageFindResult? result = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward, cts.Token);
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts) || !_isPage ||
                 !ReferenceEquals(page, _htmlPage) || generation != _sourceGeneration) return;
-            _pageSearchStatus = found switch
+            _pageSearchStatus = result switch
             {
-                true => $"Found \"{pattern}\" in the page.",
-                false => $"\"{pattern}\" was not found in this page.",
+                { Found: true } => $"Found \"{pattern}\" in the page.",
+                { Found: false } => $"\"{pattern}\" was not found in this page.",
                 null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
             };
-            _pageTriedFind = found is not null;
-            _pageFindUnavailable = found is null;
-            _pageFoundMatch |= found == true;
+            _pageTriedFind = result is not null;
+            _pageFindUnavailable = result is null;
+            _pageFoundMatch |= result?.Found == true;
+            if (result is { MatchCount: not null }) _pageCountResult = result;
             UpdateMatchControls();
             UpdateStatus();
         }
@@ -1498,6 +1500,7 @@ public sealed class ViewerWindow : Window
             _pageTriedFind = false;
             _pageFoundMatch = false;
             _pageFindUnavailable = false;
+            _pageCountResult = null;
             _stopCount.IsVisible = false;
         }
         UpdateMatchControls();
@@ -1577,11 +1580,21 @@ public sealed class ViewerWindow : Window
         }
         if (_isPage)
         {
-            _matchCount.Text = _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
+            _matchCount.Text = _pageCountResult is { MatchCount: { } total } pageCount
+                ? pageCount.CountComplete ? $"{total:N0} {(total == 1 ? "match" : "matches")}" : $"At least {total:N0} matches · count limited"
+                : _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
                 : _searchCts is not null ? "Searching page…"
                 : _pageFindUnavailable ? "Page search or count unavailable"
                 : _pageTriedFind ? "0 matches from here · total unavailable in Page mode"
                 : "Press Next or Previous to find";
+            if (_pageCountResult is { } counted)
+            {
+                string detail = counted.CountComplete
+                    ? "The browser counted all matches in the rendered page."
+                    : "The browser found more than 1,024 matches; this is a lower bound.";
+                ToolTip.SetTip(_matchCount, detail);
+                Avalonia.Automation.AutomationProperties.SetHelpText(_matchCount, detail);
+            }
             return;
         }
         if (_countResult is { } count)

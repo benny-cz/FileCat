@@ -18,6 +18,7 @@ namespace FileCat.App.Controls;
 internal sealed unsafe partial class LinuxPageEngine : IPageEngine
 {
     private const string Scheme = "filecat";
+    private const uint MaxFindMatches = 1024;
     private static readonly ConcurrentDictionary<nint, LinuxPageEngine> Live = new();
     private static long s_nextId;
     private static readonly Lazy<string?> s_missing = new(() => Native.Load());
@@ -26,9 +27,10 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private nint _context, _view, _window;
     private nint _findController;
     private readonly SemaphoreSlim _findSerial = new(1, 1);
-    private volatile TaskCompletionSource<bool?>? _findPending;
+    private volatile TaskCompletionSource<PageFindResult?>? _findPending;
     private string? _findPattern;
     private bool _findCase;
+    private bool _findFresh;
     private volatile HtmlPage? _page;
     private volatile string? _title;
     private int _blocked;
@@ -106,15 +108,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         return 0;
     });
 
-    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+    public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         FindCoreAsync(text, matchCase, forward, ct);
 
-    private int BeginFindOnGtk(string text, bool matchCase, bool forward, TaskCompletionSource<bool?> done)
+    private int BeginFindOnGtk(string text, bool matchCase, bool forward, TaskCompletionSource<PageFindResult?> done)
     {
         if (_disposed != 0 || _findController == 0) { done.TrySetResult(null); return 0; }
         _findPending = done;
         if (_findPattern == text && _findCase == matchCase)
         {
+            _findFresh = false;
             if (forward) Native.webkit_find_controller_search_next(_findController);
             else Native.webkit_find_controller_search_previous(_findController);
         }
@@ -122,18 +125,20 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             _findPattern = text;
             _findCase = matchCase;
+            _findFresh = true;
             uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u);
-            fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, 1024);
+            fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, MaxFindMatches);
         }
         return 0;
     }
 
-    private int CancelFindOnGtk(TaskCompletionSource<bool?> done)
+    private int CancelFindOnGtk(TaskCompletionSource<PageFindResult?> done)
     {
         if (ReferenceEquals(_findPending, done))
         {
             _findPending = null;
             _findPattern = null;
+            _findFresh = false;
             if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
         }
         return 0;
@@ -145,6 +150,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         _findPending?.TrySetResult(null);
         _findPending = null;
         _findPattern = null;
+        _findFresh = false;
         if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
         return 0;
     });
@@ -210,14 +216,27 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnFoundText(nint controller, uint count, nint data)
     {
-        try { Of(data)?._findPending?.TrySetResult(true); }
+        try { Of(data)?._findPending?.TrySetResult(FindResultFromCount(count)); }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
     }
+
+    internal static PageFindResult FindResultFromCount(uint count) => count switch
+    {
+        // WebKitGTK uses G_MAXUINT when the actual count exceeds max_match_count.
+        uint.MaxValue => new(true, checked((int)MaxFindMatches + 1), false),
+        > 0 and <= MaxFindMatches => new(true, (int)count, true),
+        _ => new(true), // A successful directional result without a trustworthy total.
+    };
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnFindFailed(nint controller, nint data)
     {
-        try { Of(data)?._findPending?.TrySetResult(false); }
+        try
+        {
+            var engine = Of(data);
+            engine?._findPending?.TrySetResult(engine._findFresh
+                ? new PageFindResult(false, 0, true) : new PageFindResult(false));
+        }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
     }
 

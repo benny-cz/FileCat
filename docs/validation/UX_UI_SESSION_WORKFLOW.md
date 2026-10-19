@@ -32,9 +32,12 @@ As of 19 October 2026, code and regression coverage for all 76 audit findings
 and nine queued bugs are present. The [latest source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
 passes producer checks and all four platform lanes. Continue with the native
 desktop, provider, scaling, clipboard and assistive-technology acceptance named
-for each finding in the implementation status. Page-mode Find still exposes a
-truthful lower bound because the platform page engines do not return an exact
-match count. The queue below records the order in which code changes landed.
+for each finding in the implementation status. Page-mode Find now exposes the
+WebKitGTK count when complete and labels its 1,024-match limit; Windows and
+macOS still show a directional lower bound. The queue below records the order
+in which code changes landed. The native Windows Computer Use helper fails
+before opening an app window (`failed to write kernel assets`, OS error 3), so
+desktop acceptance on this host remains unavailable.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
@@ -154,7 +157,7 @@ passes with 2,296 passes, 63 skips and no failures.
 | 16 | UXBUG-007 — resizable search windows | Registry, Advanced criteria, and Ignored folders dialogs have a visible pointer/keyboard resize grip, responsive content, host bounds, and reopen behavior. Seventy-two related tests pass; native pointer and scaling acceptance remains open. |
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
-| 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts; Page exposes the same navigation and a truthful lower bound because native engines do not return totals. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity. Native acceptance and an exact Page total remain open. |
+| 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts. Page shows WebKitGTK's rendered-page total when complete, a labelled lower bound past its limit, and a directional lower bound on Windows/macOS. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity; new GTK signal and Page status tests cover exact and limited totals. Native acceptance and exact Page totals on Windows/macOS remain open. |
 | 20 | UXBUG-009 — Details selects the active operation | Reopening Details selects and reveals active work over a retained finished selection; open-drawer choices remain stable as jobs arrive. The eight-finished-job regression and a new genuinely Running job regression pass; the earlier 44 related App cases pass. Native pointer, keyboard, and screen-reader acceptance remain open. |
 | 21 | FCUX-048 — listing background context menu | Whitespace right-click opens captured-location actions without targeting marked or focused files. Five focused and 63 related App cases pass with one platform skip. Native location-provider, pointer and keyboard acceptance remain open. |
 | 22 | FCUX-049 — live viewer theme changes | Attached text and hex controls re-resolve semantic brushes on theme change and release static subscriptions on detach. Two focused and 116 related App cases pass; native theme and high-contrast acceptance remain open. |

@@ -138,16 +138,24 @@ public sealed class LinuxPageEngineTests
             engine.Loaded += (ok, _) => loaded.TrySetResult(ok);
             engine.Show(HtmlPage.ForMarkdown(source, path));
             Assert.True(await loaded.Task.WaitAsync(TimeSpan.FromSeconds(60), ct));
-            Assert.True(await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
-            Assert.True(await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
-            Assert.True(await engine.FindAsync("Alpha", true, false, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
-            Assert.False(await engine.FindAsync("absent phrase", false, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal(new PageFindResult(true, 2, true), await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal(new PageFindResult(true, 2, true), await engine.FindAsync("Alpha", true, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal(new PageFindResult(true, 2, true), await engine.FindAsync("Alpha", true, false, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal(new PageFindResult(false, 0, true), await engine.FindAsync("absent phrase", false, true, ct).WaitAsync(TimeSpan.FromSeconds(15), ct));
             Assert.Equal("README.md", engine.Title);
         }
         finally
         {
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
+    }
+
+    [Fact]
+    public void WebKit_match_limit_is_never_displayed_as_an_exact_total()
+    {
+        Assert.Equal(new PageFindResult(true, 1025, false), LinuxPageEngine.FindResultFromCount(uint.MaxValue));
+        Assert.Equal(new PageFindResult(true, 1024, true), LinuxPageEngine.FindResultFromCount(1024));
+        Assert.Equal(new PageFindResult(true), LinuxPageEngine.FindResultFromCount(0));
     }
 
     /// <summary>A 1×1 PNG.</summary>

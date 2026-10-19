@@ -52,21 +52,23 @@ public sealed class ViewerPageSearchTests
         next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await WaitFor(() => engine.Requests.Count == 1);
         Assert.Equal(("needle", false, true), engine.Requests[0].Query);
-        engine.Requests[0].Done.SetResult(true);
-        await WaitFor(() => matchCount.Text?.StartsWith("At least 1 match", StringComparison.Ordinal) == true);
+        engine.Requests[0].Done.SetResult(new PageFindResult(true, 2, true));
+        await WaitFor(() => matchCount.Text == "2 matches");
+        Assert.Contains("counted all matches", AutomationProperties.GetHelpText(matchCount));
         Assert.Contains("Found \"needle\"", viewer.StatusText);
 
         Assert.True(page.KeyRequested(Key.F3, KeyModifiers.None));
         Dispatcher.UIThread.RunJobs();
         await WaitFor(() => engine.Requests.Count == 2);
-        engine.Requests[1].Done.SetResult(false);
+        engine.Requests[1].Done.SetResult(new PageFindResult(false));
         await WaitFor(() => viewer.StatusText.Contains("was not found", StringComparison.Ordinal));
         Assert.Contains("was not found", viewer.StatusText);
+        Assert.Equal("2 matches", matchCount.Text);
 
         previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await WaitFor(() => engine.Requests.Count == 3);
         Assert.Equal(("needle", false, false), engine.Requests[2].Query);
-        engine.Requests[2].Done.SetResult(true);
+        engine.Requests[2].Done.SetResult(new PageFindResult(true, 2, true));
         await WaitFor(() => viewer.StatusText.Contains("Found \"needle\"", StringComparison.Ordinal));
         Assert.Contains("Found \"needle\"", viewer.StatusText);
 
@@ -89,16 +91,27 @@ public sealed class ViewerPageSearchTests
         Field<TextBox>(viewer, "_search").Text = "missing";
         var noMatch = Find(viewer, forward: true);
         await WaitFor(() => fixture.Engine.Requests.Count == 1);
-        fixture.Engine.Requests[0].Done.SetResult(false);
+        fixture.Engine.Requests[0].Done.SetResult(new PageFindResult(false));
         await noMatch;
         Assert.Contains("total unavailable", Field<TextBlock>(viewer, "_matchCount").Text);
         Assert.Contains("0 matches from here", Field<TextBlock>(viewer, "_matchCount").Text);
         Field<TextBox>(viewer, "_search").Text = "needle";
         var found = Find(viewer, forward: true);
         await WaitFor(() => fixture.Engine.Requests.Count == 2);
-        fixture.Engine.Requests[1].Done.SetResult(true);
+        fixture.Engine.Requests[1].Done.SetResult(new PageFindResult(true));
         await found;
         Assert.Contains("At least 1 match", Field<TextBlock>(viewer, "_matchCount").Text);
+        var limited = Find(viewer, forward: true);
+        await WaitFor(() => fixture.Engine.Requests.Count == 3);
+        fixture.Engine.Requests[2].Done.SetResult(new PageFindResult(true, 1025, false));
+        await limited;
+        Assert.Equal($"At least {1025:N0} matches · count limited", Field<TextBlock>(viewer, "_matchCount").Text);
+        Field<TextBox>(viewer, "_search").Text = "absent";
+        var completeZero = Find(viewer, forward: true);
+        await WaitFor(() => fixture.Engine.Requests.Count == 4);
+        fixture.Engine.Requests[3].Done.SetResult(new PageFindResult(false, 0, true));
+        await completeZero;
+        Assert.Equal("0 matches", Field<TextBlock>(viewer, "_matchCount").Text);
         Field<ToggleButton>(viewer, "_modeHex").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.DoesNotContain("At least 1 match", Field<TextBlock>(viewer, "_matchCount").Text);
     }
@@ -116,7 +129,7 @@ public sealed class ViewerPageSearchTests
         var pending = Find(viewer, forward: true);
         await WaitFor(() => fixture.Engine.Requests.Count == 1);
         typeof(ViewerWindow).GetMethod("SetMode", Private)!.Invoke(viewer, [false]);
-        fixture.Engine.Requests[0].Done.TrySetResult(true);
+        fixture.Engine.Requests[0].Done.TrySetResult(new PageFindResult(true));
         await pending;
         Assert.False(viewer.IsPageShown);
         Assert.DoesNotContain("Found \"old\"", viewer.StatusText);
@@ -187,7 +200,7 @@ public sealed class ViewerPageSearchTests
 
     private sealed class ControlledEngine : IPageEngine
     {
-        public List<((string Pattern, bool Case, bool Forward) Query, TaskCompletionSource<bool?> Done)> Requests { get; } = [];
+        public List<((string Pattern, bool Case, bool Forward) Query, TaskCompletionSource<PageFindResult?> Done)> Requests { get; } = [];
         public IPlatformHandle Handle { get; } = new PlatformHandle(0, "page-search-test");
         public string? Title => "Search page";
         public int BlockedCount => 0;
@@ -197,9 +210,9 @@ public sealed class ViewerPageSearchTests
         public void Show(HtmlPage page) { }
         public void SetSize(int width, int height) { }
         public void Focus() { }
-        public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+        public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
         {
-            var done = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
             Requests.Add(((text, matchCase, forward), done));
             return done.Task.WaitAsync(ct);
         }

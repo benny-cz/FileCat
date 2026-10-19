@@ -70,7 +70,7 @@ try
     while (settle.Elapsed < TimeSpan.FromSeconds(2) || string.IsNullOrEmpty(markdown.Title) && settle.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
     Console.WriteLine($"markdown loaded: {loaded} ({reason}); title: {markdown.Title}; refused: {markdown.BlockedCount}");
     passed &= loaded == true && markdown.Title == "README.md" && markdown.BlockedCount == 0;
-    async Task<bool?> FindMarkdown(string pattern, bool forward)
+    async Task<PageFindResult?> FindMarkdown(string pattern, bool forward)
     {
         var find = markdown.FindAsync(pattern, matchCase: true, forward, CancellationToken.None);
         var deadline = Stopwatch.StartNew();
@@ -82,7 +82,7 @@ try
     var previousFind = await FindMarkdown("Alpha", false);
     var absentFind = await FindMarkdown("absent phrase", true);
     Console.WriteLine($"markdown find: {firstFind}, {secondFind}, {previousFind}, absent {absentFind}");
-    passed &= firstFind == true && secondFind == true && previousFind == true && absentFind == false && markdown.Title == "README.md";
+    passed &= firstFind?.Found == true && secondFind?.Found == true && previousFind?.Found == true && absentFind?.Found == false && markdown.Title == "README.md";
     markdown.Dispose();
 
     // Release plan §6.3 (I12): the title once came late and was missed (CI run 36711390817); the fix observes it. Many

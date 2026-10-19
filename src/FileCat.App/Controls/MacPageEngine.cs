@@ -30,7 +30,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private static string? s_rulesFailed;
     private static bool s_rulesCompiling;
     private sealed record FindRequest(MacPageEngine Engine, string Text, bool MatchCase, bool Forward,
-        long Generation, TaskCompletionSource<bool?> Done)
+        long Generation, TaskCompletionSource<PageFindResult?> Done)
     {
         public CancellationTokenRegistration Cancellation { get; set; }
     }
@@ -169,11 +169,11 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         if (window != 0) ObjC.Send(window, "makeFirstResponder:", _view);
     }
 
-    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
     {
         if (_disposed || _view == 0 || !ObjC.Responds(_view, "findString:withConfiguration:completionHandler:"))
-            return Task.FromResult<bool?>(null);
-        var done = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return Task.FromResult<PageFindResult?>(null);
+        var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (ct.IsCancellationRequested) { done.SetCanceled(ct); return done.Task; }
         var request = new FindRequest(this, text, matchCase, forward, _findGeneration, done);
         request.Cancellation = ct.Register(() => done.TrySetCanceled(ct));
@@ -218,7 +218,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             {
                 request.Cancellation.Dispose();
                 request.Done.TrySetResult(request.Engine._disposed || request.Generation != request.Engine._findGeneration
-                    ? null : result != 0 && ObjC.SendReturnsBool(result, "matchFound"));
+                    ? null : new PageFindResult(result != 0 && ObjC.SendReturnsBool(result, "matchFound")));
             }
             StartNextFind();
         }
