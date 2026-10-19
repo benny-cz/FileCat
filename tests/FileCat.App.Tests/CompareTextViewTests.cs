@@ -274,6 +274,7 @@ public sealed class CompareTextViewTests
                 Assert.Contains($"{60_000:N0} UTF-16 characters", AutomationProperties.GetName(action));
                 Assert.Contains($"{CompareTextView.MaximumLineCharacters:N0}-character main-row shaping limit", AutomationProperties.GetHelpText(action));
             });
+            await Wait(() => PointerTargetIsReachable(window, actions[1]));
             Click(window, actions[1]);
             var detail = window.GetVisualDescendants().OfType<CompareLineDetails>().Single();
             await Wait(() => detail.IsReady);
@@ -452,6 +453,17 @@ public sealed class CompareTextViewTests
         ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : block.Text ?? "";
     private static Button Button(Control root, string name) => root.GetVisualDescendants().OfType<Button>()
         .Single(b => AutomationProperties.GetName(b) == name);
+    private static bool PointerTargetIsReachable(Window window, Control control)
+    {
+        Layout(window);
+        if (!control.GetVisualAncestors().Contains(window)) return false;
+        var point = control.TranslatePoint(
+            new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window);
+        if (point is null || !new Rect(window.ClientSize).Contains(point.Value)) return false;
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        var hit = window.InputHitTest(point.Value) as Visual;
+        return ReferenceEquals(hit, control) || hit?.GetVisualAncestors().Contains(control) == true;
+    }
     private static void Click(Window window, Control control)
     {
         Layout(window);

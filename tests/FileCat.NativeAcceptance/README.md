@@ -179,6 +179,14 @@ keys to mark `b.txt` and `c.txt`, returns focus to `b.txt` without Shift, then
 uses two more Shift+Down keys to unmark both. It checks native focus and mark
 states after each phase and verifies unchanged fixture bytes. Use another
 fresh seed and interactive session for each run.
+For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
+app, then run `checksum-native <report.json>` in the interactive guest desktop.
+It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews
+the one-byte checksum scope, and verifies the complete known SHA-256, CRC-32,
+byte count and source revision text. It also checks that Compute leaves the
+clipboard unchanged and explicit Copy publishes the complete visible result.
+The runner closes the viewer and verifies the fixture files are unchanged;
+`selection-stop` then closes the isolated app.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

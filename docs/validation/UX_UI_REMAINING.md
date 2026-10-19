@@ -35,8 +35,10 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007/008, test native Previous search and checksum selection, Stop,
-   clipboard output and provider cancellation. For FCUX-009, include long
+   For FCUX-007, test native Previous search, visible Stop, changed-query
+   ownership and provider cancellation. For FCUX-008, test native whole-file
+   choice, Stop, incomplete and changed sources, scaled/narrow layout, and
+   clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
    supported desktops. For FCUX-010, inspect large-listing latency, complete
    marked-item review and actual spoken navigation with a supported screen

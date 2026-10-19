@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -880,6 +880,126 @@ try
             {
                 passed, markedRange, focusReturned, unmarkedRange, unchangedFiles,
                 marked = Marked(marked), finalMarked = Marked(unmarked)
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "checksum-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            var sourceFile = Path.Combine(fixture.Source, "a.txt");
+            const string sourceContent = "selection fixture a.txt";
+            if (await File.ReadAllTextAsync(sourceFile) != sourceContent
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated checksum fixture is not pristine.");
+            NativeWindow.FocusRecovery("selection-source");
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            var row = source.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == "a.txt"
+                && element.Ancestors().Any(parent =>
+                    (string?)parent.Attribute("ClassName") == "FileList"
+                    && ((string?)parent.Attribute("Name"))?.Contains(
+                        "selection-source", StringComparison.OrdinalIgnoreCase) == true));
+            NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3 opens the selected file.
+            XDocument opened = source;
+            XElement? Viewer(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.Contains("a.txt", StringComparison.Ordinal) == true
+                && ((string?)element.Attribute("Name"))?.Contains("FileCat Viewer", StringComparison.Ordinal) == true);
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                await Task.Delay(150);
+                opened = ParseSource(await ReadSourceAsync(client, sessionId));
+                if (Viewer(opened) is not null) break;
+            }
+            var viewer = Viewer(opened) ?? throw new InvalidOperationException("The native file viewer did not open.");
+            var hexButton = viewer.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Hex"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            NativeWindow.ClickAt(CenterX(hexButton), CenterY(hexButton));
+            var hexSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var hex = Viewer(hexSource)?.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "HexView"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("The native hex document is unavailable.");
+            NativeWindow.ClickAt(CenterX(hex), CenterY(hex));
+            await SendSessionKeysAsync(client, sessionId, "\uE009\uE011\uE000"); // Ctrl+Home to first byte.
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE011\uE000"); // Shift+Home selects one byte.
+            var selected = ParseSource(await ReadSourceAsync(client, sessionId));
+            var selectedHex = Viewer(selected)?.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "HexView"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            bool oneByteSelected = ((string?)selectedHex?.Attribute("HelpText"))?.Contains(
+                "Selected bytes 0 through 0, 1 bytes", StringComparison.Ordinal) == true;
+            if (!oneByteSelected)
+                throw new InvalidOperationException("Native hex selection did not expose exactly one byte: "
+                    + (string?)selectedHex?.Attribute("HelpText"));
+            await SendSessionKeysAsync(client, sessionId, "\uE009k\uE000"); // Ctrl+K opens scope review.
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var reviewViewer = Viewer(review)
+                ?? throw new InvalidOperationException("The checksum review window is unavailable.");
+            bool selectedScope = reviewViewer.Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    "Selected range · 1 bytes at 0x0", StringComparison.Ordinal) == true);
+            if (!selectedScope)
+                throw new InvalidOperationException("One-byte checksum scope is not visible in the native review.");
+            uint clipboardBefore = NativeWindow.ClipboardSequence();
+            var compute = reviewViewer.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Compute"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            NativeWindow.ClickAt(CenterX(compute), CenterY(compute));
+            var expectedSha = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData([(byte)'s'])).ToLowerInvariant();
+            var expectedCrc = Crc32.HashToUInt32([(byte)'s']).ToString("x8");
+            string resultText = "";
+            XDocument completed = review;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                await Task.Delay(150);
+                completed = ParseSource(await ReadSourceAsync(client, sessionId));
+                var resultId = await FindXPathAsync(client, sessionId,
+                    "//Edit[@Name='Checksum results']", "checksum results");
+                resultText = await ReadElementTextAsync(client, sessionId, resultId);
+                if (resultText.Contains(expectedSha, StringComparison.Ordinal)) break;
+            }
+            bool exactResult = resultText.Contains("selected range 0x0–0x0, 1 of 1 bytes read",
+                    StringComparison.Ordinal)
+                && resultText.Contains("SHA-256: " + expectedSha, StringComparison.Ordinal)
+                && resultText.Contains("CRC-32: " + expectedCrc, StringComparison.Ordinal)
+                && resultText.Contains($"Revision evidence unchanged during read: {sourceContent.Length} bytes",
+                    StringComparison.Ordinal);
+            bool clipboardPreserved = NativeWindow.ClipboardSequence() == clipboardBefore;
+            var completedViewer = Viewer(completed)
+                ?? throw new InvalidOperationException("The completed checksum viewer is unavailable.");
+            var copy = completedViewer.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Copy results"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            bool copyEnabled = (string?)copy.Attribute("IsEnabled") == "True";
+            if (copyEnabled) NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            uint clipboardAfter = NativeWindow.ClipboardSequence();
+            for (int attempt = 0; copyEnabled && clipboardAfter == clipboardBefore && attempt < 30; attempt++)
+            {
+                await Task.Delay(100);
+                clipboardAfter = NativeWindow.ClipboardSequence();
+            }
+            string? copiedText = NativeWindow.ReadClipboardText();
+            bool explicitCopy = copyEnabled && clipboardAfter != clipboardBefore
+                && copiedText == resultText;
+            var close = completedViewer.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Close checksums"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            NativeWindow.ClickAt(CenterX(close), CenterY(close));
+            await SendSessionKeysAsync(client, sessionId, "\uE03A"); // F10 closes the viewer.
+            bool unchangedFiles = await File.ReadAllTextAsync(sourceFile) == sourceContent
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = oneByteSelected && selectedScope && exactResult
+                && clipboardPreserved && explicitCopy && unchangedFiles;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, oneByteSelected, selectedScope, exactResult, clipboardPreserved,
+                explicitCopy, copyEnabled, clipboardBefore, clipboardAfter,
+                copiedText, unchangedFiles, resultText
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -1877,6 +1997,14 @@ static async Task SendSessionKeysAsync(HttpClient client, string sessionId, stri
         value = text.Select(character => character.ToString()).ToArray()
     });
     sent.EnsureSuccessStatusCode();
+}
+
+static async Task<string> ReadElementTextAsync(HttpClient client, string sessionId, string elementId)
+{
+    using var response = await client.GetAsync($"session/{sessionId}/element/{elementId}/text");
+    response.EnsureSuccessStatusCode();
+    using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+    return body.RootElement.GetProperty("value").GetString() ?? "";
 }
 
 static async Task<string> ReadEditorProgramAsync(HttpClient client, string sessionId)
