@@ -120,6 +120,10 @@ panel lists, two distinct source file rows with positive screen rectangles
 inside their list, and an empty destination state. The runner marks `a.txt`,
 moves keyboard focus to `b.txt`, and checks that mark and focus remain
 distinct. It can be repeated against the same fixture.
+Run `breadcrumb-native <report.json>` on that fixture to send Alt+Up,
+inspect the focused ancestor and its full-path accessible name, open its
+submenu with Right, and require Open here, Open in new tab and Copy path with
+the same target. Escape must return keyboard focus to the source list.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -189,6 +189,66 @@ try
                     nextSelected = (string?)focused.Attribute("IsSelected"),
                     nextFocused = (string?)focused.Attribute("HasKeyboardFocus")
                 }
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "breadcrumb-native")
+        {
+            NativeWindow.FocusRecovery("clipboard-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE00C\uE00C"); // Dismiss any prior menu.
+            NativeWindow.FocusRecovery("clipboard-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE00A\uE013\uE000"); // Alt+Up.
+            await Task.Delay(350);
+            var opened = ParseSource(await ReadSourceAsync(client, sessionId));
+            var sourceList = opened.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
+            const string listPrefix = "Panel 1, source, ";
+            var sourceName = (string?)sourceList.Attribute("Name") ?? "";
+            if (!sourceName.StartsWith(listPrefix, StringComparison.Ordinal))
+                throw new InvalidOperationException("Source list has no complete location name.");
+            var parentPath = Path.GetDirectoryName(sourceName[listPrefix.Length..])
+                ?? throw new InvalidOperationException("Source has no ancestor folder.");
+            var groups = opened.Descendants().Where(element =>
+                (string?)element.Attribute("ClassName") == "MenuItem"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "Ancestor ", StringComparison.Ordinal) == true).ToArray();
+            var first = groups.FirstOrDefault();
+            bool ancestorReady = groups.Length >= 2 && first is not null
+                && ((string?)first.Attribute("Name"))?.EndsWith(
+                    ": " + parentPath, StringComparison.OrdinalIgnoreCase) == true
+                && (string?)first.Attribute("HasKeyboardFocus") == "True"
+                && (string?)first.Attribute("IsOffscreen") == "False"
+                && ReadNativeRect(first).HasArea;
+            await SendSessionKeysAsync(client, sessionId, "\uE014"); // Open the focused ancestor's actions.
+            await Task.Delay(250);
+            var expanded = ParseSource(await ReadSourceAsync(client, sessionId));
+            var actions = new[] { "Open here", "Open in new tab", "Copy path" };
+            bool actionsReady = actions.All(verb => expanded.Descendants().Any(element =>
+                (string?)element.Attribute("ClassName") == "MenuItem"
+                && string.Equals((string?)element.Attribute("Name"), verb + ": " + parentPath,
+                    StringComparison.OrdinalIgnoreCase)
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && ReadNativeRect(element).HasArea));
+            await SendSessionKeysAsync(client, sessionId, "\uE00C\uE00C");
+            var closed = ParseSource(await ReadSourceAsync(client, sessionId));
+            var closedList = closed.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
+            bool returnedToList = (string?)closedList.Attribute("HasKeyboardFocus") == "True"
+                && !closed.Descendants().Any(element =>
+                    (string?)element.Attribute("ClassName") == "MenuItem"
+                    && ((string?)element.Attribute("Name"))?.StartsWith(
+                        "Ancestor ", StringComparison.Ordinal) == true
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+            bool passed = ancestorReady && actionsReady && returnedToList;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, parentPath, ancestorCount = groups.Length,
+                firstAncestorName = (string?)first?.Attribute("Name"),
+                ancestorReady, actionsReady, returnedToList
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
