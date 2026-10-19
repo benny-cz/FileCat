@@ -20,8 +20,16 @@ range, marking exactly `e.txt` and `f.txt` after the first tab's `d.txt`
 anchor. Other native gesture/focus routes remain open.
 The fresh-file refresh route now also passed twice: after removing the
 anchored `d.txt` and adding `0.txt`, Ctrl+R kept `b.txt` focused and a
-Shift-click on `c.txt` marked only `b.txt` and `c.txt`. Ctrl-click,
-Shift+arrows and focus-loss routes remain open.
+Shift-click on `c.txt` marked only `b.txt` and `c.txt`. A separate guest-local
+Ctrl-click journey passed: `d.txt` toggled on, `b.txt` toggled on, `d.txt`
+toggled off, and the following Shift-click on `c.txt` marked exactly `b.txt`
+and `c.txt` from the retained anchor on two fresh fixtures. Shift+arrows and
+focus-loss routes remain open.
+
+The current local Core and App Release suites both exited successfully with
+16 workers at `757d5777`. Their platform-specific skips still need native
+acceptance. CI for that head and the preceding validation commits remains in
+progress; [UX_UI_REMAINING.md](UX_UI_REMAINING.md) tracks the live gate.
 
 **Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
 and eleven subsequently queued bugs have an implemented code path and regression

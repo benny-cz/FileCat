@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -781,6 +781,60 @@ try
             {
                 passed, bFocusedBefore, refreshedRows, bFocusedAfter,
                 correctRange, filesMatch, marked
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "selection-ctrl-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            var names = new[] { "a.txt", "b.txt", "c.txt", "d.txt" };
+            if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
+                    != "selection fixture " + name)
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated selection fixture is not pristine.");
+            NativeWindow.FocusRecovery("selection-source");
+            XElement SourceList(XDocument document) => document.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "selection-source", StringComparison.OrdinalIgnoreCase) == true);
+            XElement Row(XDocument document, string name) => SourceList(document).Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == name);
+            string[] Marked(XDocument document) => names.Where(name =>
+                (string?)Row(document, name).Attribute("IsSelected") == "True").ToArray();
+
+            var initial = ParseSource(await ReadSourceAsync(client, sessionId));
+            var b = Row(initial, "b.txt");
+            NativeWindow.ClickAt(CenterX(b), CenterY(b));
+            var anchored = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool unmarkedAnchor = Marked(anchored).Length == 0
+                && (string?)Row(anchored, "b.txt").Attribute("HasKeyboardFocus") == "True";
+            var d = Row(anchored, "d.txt");
+            NativeWindow.CtrlClickAt(CenterX(d), CenterY(d));
+            var first = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool firstToggle = Marked(first).SequenceEqual(["d.txt"]);
+            b = Row(first, "b.txt");
+            NativeWindow.CtrlClickAt(CenterX(b), CenterY(b));
+            var second = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool secondToggle = Marked(second).SequenceEqual(["b.txt", "d.txt"]);
+            d = Row(second, "d.txt");
+            NativeWindow.CtrlClickAt(CenterX(d), CenterY(d));
+            var third = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool thirdToggle = Marked(third).SequenceEqual(["b.txt"]);
+            var c = Row(third, "c.txt");
+            NativeWindow.ShiftClickAt(CenterX(c), CenterY(c));
+            var final = ParseSource(await ReadSourceAsync(client, sessionId));
+            var marked = Marked(final);
+            bool retainedAnchor = marked.SequenceEqual(["b.txt", "c.txt"]);
+            bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
+                    == "selection fixture " + name)
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = unmarkedAnchor && firstToggle && secondToggle && thirdToggle
+                && retainedAnchor && unchangedFiles;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, unmarkedAnchor, firstToggle, secondToggle, thirdToggle,
+                retainedAnchor, unchangedFiles, marked
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -2393,6 +2447,13 @@ internal static partial class NativeWindow
         KeybdEvent(0x10, 0, 0, 0); // VK_SHIFT
         try { ClickAt(x, y); }
         finally { KeybdEvent(0x10, 0, 0x0002, 0); }
+    }
+
+    internal static void CtrlClickAt(int x, int y)
+    {
+        KeybdEvent(0x11, 0, 0, 0); // VK_CONTROL
+        try { ClickAt(x, y); }
+        finally { KeybdEvent(0x11, 0, 0x0002, 0); }
     }
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;

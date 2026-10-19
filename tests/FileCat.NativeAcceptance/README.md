@@ -168,6 +168,12 @@ clicks `d.txt` as the anchor, moves keyboard focus to `b.txt`, deletes `d.txt`
 and creates `0.txt` in the owned folder, then rereads with Ctrl+R. Shift-click
 on `c.txt` must mark only `b.txt` and `c.txt`, with exact fixture bytes and no
 destination changes.
+`selection-ctrl-native <report.json>` uses a fresh fixture to click `b.txt`,
+Ctrl-click `d.txt` on, Ctrl-click `b.txt` on, and Ctrl-click `d.txt` off. A
+native Shift-click on `c.txt` must then use the original `b.txt` anchor, mark
+only `b.txt` and `c.txt`, and leave every fixture file unchanged. Run the
+gesture and `selection-stop` in the guest's interactive desktop session so
+native input and graceful window close target that session.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

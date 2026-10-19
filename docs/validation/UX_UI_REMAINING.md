@@ -13,15 +13,19 @@ implemented code path and automated regression coverage. This is **not** audit
 completion: the acceptance checks below remain open. The last fully green
 [cross-platform CI run](https://github.com/benny-cz/FileCat/actions/runs/39290466271)
 is at `a9738fcc`. Runs for `9495910c`, `bacbfa39` and `b80cfc71` failed;
-newer runs and the next validation head must finish before their changes have
-a cross-platform pass. The common App failure was a virtual-row test that
+the latest head `757d5777` and its preceding validation runs are still in
+progress, so their changes do not yet have a cross-platform pass. The common
+App failure was a virtual-row test that
 expected the focused row to be evicted; the corrected check uses a nonfocused
 row and enough scrolling to reach the bounded cache. The macOS Core failures
 exposed a timing-based secret-store assertion and loss of already captured
 command stderr when a descendant held a pipe open. Both were corrected and
-need the next macOS CI result. The complete local Core Release suite exited
-successfully with 16 workers after running outside the restricted filesystem
-sandbox; its platform skips do not establish non-Windows native behavior.
+need the next macOS CI result. The complete local Core and App Release suites
+both exited successfully with 16 workers after running outside the restricted
+filesystem sandbox; their platform skips do not establish non-Windows native
+behavior. CI run
+[`39312790272`](https://github.com/benny-cz/FileCat/actions/runs/39312790272)
+is the validation run for the current head.
 
 The Windows 11 VMware guest is available for isolated native checks. Its
 repeatable runner is [FileCat.NativeAcceptance](../../tests/FileCat.NativeAcceptance/README.md).
@@ -48,6 +52,10 @@ Its refresh journey passed twice after deleting the anchor file and creating a
 new file in the fixture: reread kept `b.txt` focused and Shift-click on `c.txt`
 marked exactly `b.txt` and `c.txt`, without attaching the old anchor to a new
 row.
+A guest-local Ctrl-click journey passed twice on fresh fixtures: toggling `d.txt` on, `b.txt` on,
+then `d.txt` off left only `b.txt` marked; Shift-clicking `c.txt` still used
+the original `b.txt` anchor and marked exactly those two files. The runner
+verified unchanged source and destination bytes.
 The user manually confirmed the PE scrollbar
 freeze fix on the supplied EXE. Native spoken screen-reader interaction,
 macOS/Linux desktop behavior, provider-specific cases and display scaling
@@ -63,9 +71,10 @@ comparison native runner and its evidence were committed at `6fa480db`.
 
 1. **Close the current validation gate.** The strengthened native FCUX-009
    comparison check passed again on a fresh VM instance and was pushed at
-   `6fa480db`. Push and check the virtual-row assertion, secret-store test and
-   command-output corrections on all CI platforms; fix any failing lane
-   before declaring that batch verified. The remaining FCUX-009 gates are
+   `6fa480db`. The virtual-row assertion, secret-store test and command-output
+   corrections are pushed at `c2df4a02`; both full local suites pass. Check
+   the pending Windows, Ubuntu, macOS and Windows ARM64 CI lanes and fix any
+   failing lane before declaring that batch verified. The remaining FCUX-009 gates are
    font fallback, pointer selection, spoken automation and macOS/Linux desktop
    behavior.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, provision an
@@ -79,7 +88,7 @@ comparison native runner and its evidence were committed at `6fa480db`.
    anchors, modal focus/decision ownership and full synchronization endpoints
    at narrow and scaled layouts. FCUX-002's Windows sort-reversal pointer
    filtered-anchor, cross-tab and changed-file refresh cases passed;
-   Ctrl-click, Shift+arrows and focus-loss transitions still need native checks.
+   Shift+arrows and focus-loss transitions still need native checks.
    FCUX-003's default and opt-in Windows rename journeys passed; its
    remaining native gates are scaled/narrow layout,
    keyboard and spoken review, and stale external-editor results. Preserve
