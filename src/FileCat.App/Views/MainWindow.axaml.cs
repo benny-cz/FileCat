@@ -29,6 +29,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private bool _forceClose;
     private Task? _interruptedStartup;
     private readonly CommandSearchBar _commandSearch;
+    private readonly WindowPlacement? _savedPlacement;
+    private WindowPlacement? _normalPlacement;
+    private readonly DispatcherTimer _normalPlacementTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
+    private bool _placementTrackingReady;
     private bool _toolbarRefreshPending;
     private sealed record ToolbarPresentationState(CommandAvailability Availability, string Title, bool Checked);
 
@@ -38,6 +42,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         ReadabilityPolicy.ApplyDensity(vm.Services.Settings.RowDensity);
         InitializeComponent();
+        _savedPlacement = placement;
         _vm = vm;
         DataContext = vm;
         Classes.Set("comfortable", ReadabilityPolicy.Comfortable(vm.Services.Settings.RowDensity));
@@ -76,6 +81,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         ThemeManager.ThemeChanged += OnThemeChanged;
         Closed += (_, _) =>
         {
+            _normalPlacementTimer.Stop();
             ThemeManager.ThemeChanged -= OnThemeChanged;
             vm.CommandAvailabilityChanged -= OnCommandAvailabilityChanged;
             vm.PropertyChanged -= OnViewModelPropertyChanged;
@@ -100,12 +106,26 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
         WorkspaceHost.SizeChanged += (_, _) => UpdateLayoutStrip();
         MainMenu.SizeChanged += (_, _) => FitCommandSearch();
-        if (placement is { Width: > 200, Height: > 200 })
+        ApplySavedPlacement();
+        _normalPlacementTimer.Tick += (_, _) =>
         {
-            Width = placement.Width;
-            Height = placement.Height;
-            if (placement.Maximized) WindowState = WindowState.Maximized;
-        }
+            _normalPlacementTimer.Stop();
+            RememberNormalPlacement();
+        };
+        SizeChanged += (_, _) => QueueNormalPlacement();
+        PositionChanged += (_, _) => QueueNormalPlacement();
+        PropertyChanged += (_, change) =>
+        {
+            if (change.Property != WindowStateProperty) return;
+            if (WindowState == WindowState.Normal) QueueNormalPlacement();
+            else _normalPlacementTimer.Stop();
+        };
+        Opened += (_, _) =>
+        {
+            if (_normalPlacement is null) ApplySavedPlacement(); // Some backends report screens only after opening.
+            _placementTrackingReady = true;
+            if (WindowState == WindowState.Normal) QueueNormalPlacement();
+        };
 
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AltChords.Attach(this);
@@ -1025,14 +1045,65 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void SavePlacement()
     {
-        var p = new WindowPlacement
+        if (WindowState == WindowState.Normal) RememberNormalPlacement();
+        var normal = _normalPlacement ?? new WindowPlacement
         {
             Width = Bounds.Width,
             Height = Bounds.Height,
             X = Position.X,
             Y = Position.Y,
+        };
+        var p = new WindowPlacement
+        {
+            Width = normal.Width,
+            Height = normal.Height,
+            X = normal.X,
+            Y = normal.Y,
             Maximized = WindowState == WindowState.Maximized,
         };
         _vm.SaveWorkspace(p);
+    }
+
+    private void ApplySavedPlacement()
+    {
+        if (WindowPlacementPolicy.Restore(_savedPlacement, DisplayAreas()) is not { } restored) return;
+        _normalPlacement = new WindowPlacement
+        {
+            X = restored.X, Y = restored.Y, Width = restored.Width, Height = restored.Height,
+        };
+        MinWidth = Math.Min(MinWidth, restored.Width);
+        MinHeight = Math.Min(MinHeight, restored.Height);
+        Width = restored.Width;
+        Height = restored.Height;
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Position = new PixelPoint((int)restored.X, (int)restored.Y);
+        if (restored.Maximized) WindowState = WindowState.Maximized;
+    }
+
+    private IReadOnlyList<DisplayWorkArea> DisplayAreas()
+    {
+        var all = Screens.All;
+        var primary = Screens.Primary;
+        return all.OrderBy(screen => !ReferenceEquals(screen, primary))
+            .Select(screen => new DisplayWorkArea(screen.WorkingArea.X, screen.WorkingArea.Y,
+                screen.WorkingArea.Width, screen.WorkingArea.Height, screen.Scaling)).ToArray();
+    }
+
+    private void QueueNormalPlacement()
+    {
+        if (!_placementTrackingReady || WindowState != WindowState.Normal) return;
+        _normalPlacementTimer.Stop();
+        _normalPlacementTimer.Start();
+    }
+
+    private void RememberNormalPlacement()
+    {
+        if (!_placementTrackingReady || WindowState != WindowState.Normal ||
+            !double.IsFinite(Bounds.Width) || !double.IsFinite(Bounds.Height) ||
+            Bounds.Width < 200 || Bounds.Height < 150) return;
+        _normalPlacement = new WindowPlacement
+        {
+            X = Position.X, Y = Position.Y, Width = Bounds.Width, Height = Bounds.Height,
+        };
     }
 }

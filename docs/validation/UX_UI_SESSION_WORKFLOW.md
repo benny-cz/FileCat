@@ -106,8 +106,10 @@ tab/workspace/docking/navigation run passes. FCUX-063 now disables subordinate
 Settings options with their parents while retaining the draft value, and makes
 column-profile buttons reflect limits, required Name, duplicate choices and
 first/last positions. The related selection passes 58 cases with one platform
-skip. Native scaling, readability, pointer and assistive-technology acceptance
-remain open. FCUX-064 follows.
+skip. FCUX-064 now saves normal-window geometry separately from maximized state
+and restores it on an available display; 33 related App cases pass. Native
+scaling, window-manager, pointer and assistive-technology acceptance remain
+open. FCUX-065 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -155,9 +157,10 @@ passes with 2,296 passes, 63 skips and no failures.
 | 34 | FCUX-061 — clipped cell inspection | Full safe hover values and a keyboard/context-menu inspection dialog pass six focused, 53 related, and 59 combined post-refinement list/profile cases. Native acceptance remains open. |
 | 35 | FCUX-062 — distinguishable tabs | Collision-aware parent/provider cues and distinct navigation/root lock labels pass 39 related tab/workspace/docking/navigation cases. Native width, speech and remote/archive acceptance remain open. |
 | 36 | FCUX-063 — dependent controls | Indented subordinate Settings choices retain values while disabled; column-editor actions track the draft and explain disabled states. The combined Settings/column/dialog run passes 58 cases with one skip. Native accessibility acceptance remains open. |
+| 37 | FCUX-064 — window restoration | Saved normal size and position survive maximization and are clamped or recentered on available displays. Three focused and 33 related App cases pass; native multi-monitor/DPI/window-manager acceptance remains open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-Continue with FCUX-064 onward in the audit's S3 order. Active Undo ownership, full synchronization
+Continue with FCUX-065 onward in the audit's S3 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
