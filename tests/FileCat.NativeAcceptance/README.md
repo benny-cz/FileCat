@@ -134,6 +134,16 @@ requires byte-for-byte restoration at the original path, removal of the moved
 target, and preservation of the unrelated file. It then opens the retained
 Undo report from Operations and requires Copy all to publish the complete
 restored outcome with both paths. Finish with `clipboard-stop`.
+For the Windows Recycle Bin inverse, use another fresh `seed-clipboard`
+fixture and launch its isolated FileCat instance. Run `recycle-review
+<source.xml>` to select `a.txt`, press F8 and require the explicit Recycle Bin
+review while both files still exist. Run `recycle-native <report.json>` with
+that review open: it approves the reviewed Recycle action, checks the isolated
+file disappeared while `b.txt` and the destination stayed intact, checks the
+full path in Ctrl+Z's Recycle inverse review, verifies Cancel keeps the file
+recycled, then approves Undo and checks byte-for-byte restoration. It reopens
+the retained Undo report from Operations and requires Copy all to include the
+restored path and outcome. Finish with `clipboard-stop`.
 Run `accessibility-list <report.json>` with this fixture and its FileCat
 window open. The native Windows UI Automation tree must expose both named
 panel lists, two distinct source file rows with positive screen rectangles

@@ -11,7 +11,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "recycle-review" or "recycle-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
@@ -2058,6 +2058,155 @@ try
             await Task.Delay(300);
             if (NativeWindow.ClipboardSequence() == before)
                 throw new InvalidOperationException("Explorer did not publish a new clipboard generation.");
+        }
+        else if (mode == "recycle-review")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            string sourceFile = Path.Combine(fixture.Source, "a.txt");
+            if (await File.ReadAllTextAsync(sourceFile) != "external copy must keep source"
+                || !File.Exists(Path.Combine(fixture.Source, "b.txt"))
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated Recycle Bin fixture is not pristine.");
+            NativeWindow.FocusRecovery("clipboard-source");
+            var before = ParseSource(await ReadSourceAsync(client, sessionId));
+            var sourceList = before.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(fixture.Source,
+                    StringComparison.OrdinalIgnoreCase) == true);
+            var row = sourceList.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == "a.txt");
+            NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            await SendSessionKeysAsync(client, sessionId, "\uE038"); // F8 uses FileCat's Recycle command.
+            XDocument review = ParseSource(await ReadSourceAsync(client, sessionId));
+            for (int attempt = 0; attempt < 30 && !review.Descendants().Any(element =>
+                     ((string?)element.Attribute("Name"))?.Contains("Recycle Bin?",
+                         StringComparison.Ordinal) == true); attempt++)
+            {
+                await Task.Delay(150);
+                review = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            await File.WriteAllTextAsync(reportPath, review.ToString());
+            bool safeReview = review.Descendants().Any(element =>
+                    ((string?)element.Attribute("Name"))?.Contains("Recycle Bin?",
+                        StringComparison.Ordinal) == true)
+                && FindVisible(review, "button", "Cancel") is not null
+                && FindVisible(review, "button", "Delete") is not null
+                && File.Exists(sourceFile);
+            if (!safeReview)
+                throw new InvalidOperationException("The isolated Recycle action did not keep an explicit, safe review.");
+        }
+        else if (mode == "recycle-native")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            string sourceFile = Path.Combine(fixture.Source, "a.txt");
+            string otherFile = Path.Combine(fixture.Source, "b.txt");
+            const string expected = "external copy must keep source";
+            if (await File.ReadAllTextAsync(sourceFile) != expected
+                || await File.ReadAllTextAsync(otherFile) != "subset member must remain"
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The reviewed Recycle fixture changed before approval.");
+            XElement Window(XDocument document) => document.Descendants().First(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture));
+            var pending = ParseSource(await ReadSourceAsync(client, sessionId));
+            var cancelDelete = FindVisible(Window(pending), "button", "Cancel")
+                ?? throw new InvalidOperationException("The Recycle review has no Cancel action.");
+            var approveDelete = Window(pending).Descendants().LastOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Delete"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && Math.Abs(CenterY(element) - CenterY(cancelDelete)) <= 8)
+                ?? throw new InvalidOperationException("The Recycle review has no explicit Delete action.");
+            NativeWindow.ClickAt(CenterX(approveDelete), CenterY(approveDelete));
+            for (int attempt = 0; attempt < 80 && File.Exists(sourceFile); attempt++)
+                await Task.Delay(150);
+            bool recycled = !File.Exists(sourceFile)
+                && await File.ReadAllTextAsync(otherFile) == "subset member must remain"
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            if (!recycled) throw new InvalidOperationException("The isolated file was not moved to the Recycle Bin.");
+            async Task<XDocument> OpenReview()
+            {
+                NativeWindow.FocusRecovery("clipboard-source");
+                await SendSessionKeysAsync(client, sessionId, "\uE009z\uE000"); // Ctrl+Z.
+                var current = ParseSource(await ReadSourceAsync(client, sessionId));
+                for (int attempt = 0; attempt < 40 &&
+                     FindVisible(Window(current), "button", "Run these inverse actions") is null; attempt++)
+                {
+                    await Task.Delay(150);
+                    current = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                return current;
+            }
+            var first = await OpenReview();
+            bool exactInverse = Window(first).Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    "Restore from Recycle Bin: \"" + sourceFile + "\"",
+                    StringComparison.OrdinalIgnoreCase) == true);
+            var cancelUndo = FindVisible(Window(first), "button", "Cancel")
+                ?? throw new InvalidOperationException("The Recycle Undo review has no Cancel action.");
+            NativeWindow.ClickAt(CenterX(cancelUndo), CenterY(cancelUndo));
+            await Task.Delay(250);
+            bool cancelKeptRecycled = !File.Exists(sourceFile);
+            var second = await OpenReview();
+            var approveUndo = FindVisible(Window(second), "button", "Run these inverse actions")
+                ?? throw new InvalidOperationException("Canceled Recycle Undo could not be reviewed again.");
+            NativeWindow.ClickAt(CenterX(approveUndo), CenterY(approveUndo));
+            for (int attempt = 0; attempt < 80 && !File.Exists(sourceFile); attempt++)
+                await Task.Delay(150);
+            bool restored = File.Exists(sourceFile)
+                && await File.ReadAllTextAsync(sourceFile) == expected
+                && await File.ReadAllTextAsync(otherFile) == "subset member must remain"
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            await SendSessionKeysAsync(client, sessionId, "\uE009j\uE000"); // Operations.
+            XDocument operations = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? reportButton = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                reportButton = FindVisible(Window(operations), "button", "Undo report");
+                if (reportButton is not null) break;
+                await Task.Delay(150);
+                operations = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            if (reportButton is null)
+                throw new InvalidOperationException("The Recycle inverse has no retained Undo report.");
+            NativeWindow.ClickAt(CenterX(reportButton), CenterY(reportButton));
+            XDocument reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? reportWindow = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                reportWindow = reportSource.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "window"
+                    && ((string?)element.Attribute("Name"))?.Contains("Undo report", StringComparison.Ordinal) == true);
+                if (reportWindow is not null && FindVisible(reportWindow, "button", "Copy all") is not null) break;
+                await Task.Delay(150);
+                reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var copy = reportWindow is null ? null : FindVisible(reportWindow, "button", "Copy all");
+            if (copy is null) throw new InvalidOperationException("The Recycle Undo report has no Copy all action.");
+            uint priorClipboard = NativeWindow.ClipboardSequence();
+            NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            string? reportText = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                await Task.Delay(150);
+                if (NativeWindow.ClipboardSequence() == priorClipboard) continue;
+                reportText = NativeWindow.ReadClipboardText();
+                if (reportText is not null) break;
+            }
+            bool retainedReport = reportText is not null
+                && reportText.Contains("1 restored", StringComparison.Ordinal)
+                && reportText.Contains("Restored", StringComparison.Ordinal)
+                && reportText.Contains(sourceFile, StringComparison.OrdinalIgnoreCase);
+            await SendSessionKeysAsync(client, sessionId, "\uE00A\uE034\uE000"); // Close report.
+            bool passed = recycled && exactInverse && cancelKeptRecycled && restored && retainedReport;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, recycled, exactInverse, cancelKeptRecycled, restored,
+                retainedReport, reportCharacters = reportText?.Length, sourceFile, otherFile
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
         }
         else if (mode == "undo-native")
         {
