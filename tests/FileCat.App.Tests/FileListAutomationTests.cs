@@ -126,6 +126,7 @@ public sealed class FileListAutomationTests
         Dispatcher.UIThread.RunJobs();
         Assert.False(old.IsEnabled());
         Assert.True(old.IsOffscreen());
+        Assert.Equal(peer.CachedItemCount, f.List.AutomationOwnerCount);
         Assert.False(((ISelectionItemProvider)old).IsSelected);
         Assert.Throws<InvalidOperationException>(() => ((ISelectionItemProvider)old).AddToSelection());
         Assert.Throws<InvalidOperationException>(old.SetFocus);
@@ -460,6 +461,7 @@ public sealed class FileListAutomationTests
         var children = peer.GetChildren();
         Assert.InRange(children.Count, 1, FileListAutomationPeer.VisiblePeerLimit + 4);
         Assert.InRange(peer.CachedItemCount, 1, FileListAutomationPeer.CachedPeerLimit);
+        Assert.Equal(peer.CachedItemCount, f.List.AutomationOwnerCount);
         int cachedBefore = peer.CachedItemCount;
         var error = Assert.Throws<NotSupportedException>(() => peer.GetSelection());
         Assert.Contains("Review marked items", error.Message);
@@ -467,6 +469,27 @@ public sealed class FileListAutomationTests
         using var review = new MarkedItemsReview(f.Tab);
         Assert.Equal(64, review.CurrentItems.Count);
         Assert.Contains(1_000_000.ToString("N0"), review.Summary);
+        Assert.Equal(0, f.Provider.ItemReferencesRequested);
+    }
+
+    [AvaloniaFact]
+    public async Task Scrolling_many_virtual_rows_retires_old_actions_and_keeps_native_screen_owners_bounded()
+    {
+        using var f = new FileListFixture(new FileListFixture.ListProvider { SyntheticCount = 5_000 });
+        await f.Load();
+        var peer = Peer(f.List);
+        var original = Row(peer, "item-0000000");
+        for (int i = 0; i < 50; i++)
+        {
+            peer.SetScrollPercent(ScrollPatternIdentifiers.NoScroll, i * 2);
+            Dispatcher.UIThread.RunJobs();
+            _ = peer.GetChildren();
+            Assert.InRange(f.List.AutomationOwnerCount, 1, FileListAutomationPeer.CachedPeerLimit);
+            Assert.Equal(peer.CachedItemCount, f.List.AutomationOwnerCount);
+        }
+        Assert.False(original.IsEnabled());
+        Assert.True(original.IsOffscreen());
+        Assert.Throws<InvalidOperationException>(() => ((IInvokeProvider)original).Invoke());
         Assert.Equal(0, f.Provider.ItemReferencesRequested);
     }
 

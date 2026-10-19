@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -113,7 +113,86 @@ try
 
     try
     {
-        if (mode == "editor-picker-cancel")
+        if (mode == "accessibility-list")
+        {
+            var document = ParseSource(await ReadSourceAsync(client, sessionId));
+            var lists = document.Descendants().Where(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && (string?)element.Attribute("LocalizedControlType") == "list"
+                && (string?)element.Attribute("IsOffscreen") == "False").ToArray();
+            var source = lists.Single(list => ((string?)list.Attribute("Name"))?.Contains(
+                "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
+            var destination = lists.Single(list => ((string?)list.Attribute("Name"))?.Contains(
+                "destination", StringComparison.OrdinalIgnoreCase) == true);
+            var sourceBounds = ReadNativeRect(source);
+            var destinationBounds = ReadNativeRect(destination);
+            var rows = source.Descendants().Where(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item").ToArray();
+            var fileRows = new[] { "a.txt", "b.txt" }.Select(name => rows.Single(element =>
+                (string?)element.Attribute("Name") == name)).ToArray();
+            bool sourceRowsValid = fileRows.All(row =>
+                (string?)row.Attribute("IsOffscreen") == "False"
+                && (string?)row.Attribute("IsKeyboardFocusable") == "True"
+                && bool.TryParse((string?)row.Attribute("IsSelected"), out _)
+                && ReadNativeRect(row).IsInside(sourceBounds));
+            bool destinationValid = destinationBounds.HasArea
+                && ((string?)destination.Attribute("HelpText"))?.Contains(
+                    "Empty location", StringComparison.Ordinal) == true;
+            bool uniqueIds = fileRows.Select(row => (string?)row.Attribute("AutomationId"))
+                .Distinct(StringComparer.Ordinal).Count() == fileRows.Length;
+            if ((string?)fileRows[1].Attribute("IsSelected") == "True")
+            {
+                NativeWindow.ClickAt(CenterX(fileRows[1]), CenterY(fileRows[1]));
+                await SendSessionKeysAsync(client, sessionId, "\uE016");
+            }
+            NativeWindow.ClickAt(CenterX(fileRows[0]), CenterY(fileRows[0]));
+            if ((string?)fileRows[0].Attribute("IsSelected") == "False")
+                await SendSessionKeysAsync(client, sessionId, "\uE016"); // Insert marks the focused row.
+            await SendSessionKeysAsync(client, sessionId, "\uE015"); // Move focus without moving its mark.
+            var changed = ParseSource(await ReadSourceAsync(client, sessionId));
+            var changedSource = changed.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
+            var marked = changedSource.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "a.txt"
+                && (string?)element.Attribute("LocalizedControlType") == "list item");
+            var focused = changedSource.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "b.txt"
+                && (string?)element.Attribute("LocalizedControlType") == "list item");
+            bool focusAndMarkDistinct = (string?)marked.Attribute("IsSelected") == "True"
+                && (string?)marked.Attribute("HasKeyboardFocus") == "False"
+                && (string?)focused.Attribute("IsSelected") == "False"
+                && (string?)focused.Attribute("HasKeyboardFocus") == "True"
+                && (string?)marked.Attribute("AutomationId") ==
+                    (string?)fileRows[0].Attribute("AutomationId")
+                && (string?)focused.Attribute("AutomationId") ==
+                    (string?)fileRows[1].Attribute("AutomationId");
+            bool passed = sourceBounds.HasArea && sourceRowsValid && destinationValid
+                && uniqueIds && focusAndMarkDistinct;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, source = sourceBounds, destination = destinationBounds,
+                rows = fileRows.Select(row => new
+                {
+                    name = (string?)row.Attribute("Name"),
+                    id = (string?)row.Attribute("AutomationId"),
+                    bounds = ReadNativeRect(row),
+                    selected = (string?)row.Attribute("IsSelected"),
+                    focused = (string?)row.Attribute("HasKeyboardFocus")
+                }),
+                sourceRowsValid, destinationValid, uniqueIds, focusAndMarkDistinct,
+                afterNavigation = new
+                {
+                    markedSelected = (string?)marked.Attribute("IsSelected"),
+                    markedFocused = (string?)marked.Attribute("HasKeyboardFocus"),
+                    nextSelected = (string?)focused.Attribute("IsSelected"),
+                    nextFocused = (string?)focused.Attribute("HasKeyboardFocus")
+                }
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "editor-picker-cancel")
         {
             var before = await EnsureToolsSettingsAsync(client, sessionId);
             var editorBefore = FindVisible(before, "edit", "Editor (F4) program");
@@ -1543,6 +1622,21 @@ static int CenterX(XElement element) => int.Parse((string?)element.Attribute("x"
 
 static int CenterY(XElement element) => int.Parse((string?)element.Attribute("y") ?? "0")
     + int.Parse((string?)element.Attribute("height") ?? "0") / 2;
+
+static NativeRect ReadNativeRect(XElement element) => new(
+    int.Parse((string?)element.Attribute("x") ?? "0", CultureInfo.InvariantCulture),
+    int.Parse((string?)element.Attribute("y") ?? "0", CultureInfo.InvariantCulture),
+    int.Parse((string?)element.Attribute("width") ?? "0", CultureInfo.InvariantCulture),
+    int.Parse((string?)element.Attribute("height") ?? "0", CultureInfo.InvariantCulture));
+
+internal readonly record struct NativeRect(int X, int Y, int Width, int Height)
+{
+    public bool HasArea => Width > 0 && Height > 0;
+    public bool IsInside(NativeRect outer) => HasArea && outer.HasArea
+        && X >= outer.X && Y >= outer.Y
+        && (long)X + Width <= (long)outer.X + outer.Width
+        && (long)Y + Height <= (long)outer.Y + outer.Height;
+}
 
 internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth,
     int TableRegionWidth, int DocumentWidth, bool TableRegionFocusable);

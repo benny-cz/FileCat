@@ -114,6 +114,12 @@ focuses FileCat's destination pane, sends Ctrl+V, and checks the source and
 destination contents byte for byte. It fails on a missing file, changed source
 or incomplete copy. `clipboard-stop <report.json>` gracefully closes only the
 validated isolated FileCat process when a new Git build must be deployed.
+Run `accessibility-list <report.json>` with this fixture and its FileCat
+window open. The native Windows UI Automation tree must expose both named
+panel lists, two distinct source file rows with positive screen rectangles
+inside their list, and an empty destination state. The runner marks `a.txt`,
+moves keyboard focus to `b.txt`, and checks that mark and focus remain
+distinct. It can be repeated against the same fixture.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

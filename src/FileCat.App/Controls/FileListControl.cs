@@ -47,6 +47,9 @@ public sealed class FileListControl : Control
 
     private readonly ScrollBar _vbar;
     private readonly ScrollBar _hbar;
+    // Each cached virtual row peer needs an attached visual owner so Avalonia's native bridges can
+    // convert its logical bounds to screen coordinates. These inert owners are bounded by the peer cache.
+    private readonly Canvas _automationOwners;
     private readonly WheelRowAccumulator _wheelRows = new();
     private bool _updatingScrollBar;
     private bool _updatingHorizontalScrollBar;
@@ -208,6 +211,9 @@ public sealed class FileListControl : Control
         };
         VisualChildren.Add(_renameErrorBox);
         LogicalChildren.Add(_renameErrorBox);
+        _automationOwners = new Canvas { IsHitTestVisible = false, Focusable = false };
+        VisualChildren.Add(_automationOwners);
+        LogicalChildren.Add(_automationOwners);
         _metadataHandler = () => Dispatcher.UIThread.Post(() =>
         {
             ClearTip();
@@ -829,6 +835,7 @@ public sealed class FileListControl : Control
     {
         _vbar.Measure(availableSize);
         _hbar.Measure(availableSize);
+        _automationOwners.Measure(availableSize);
         if (IsRenaming) _renameEditor.Measure(availableSize);
         if (_renameErrorBox.IsVisible) _renameErrorBox.Measure(availableSize);
         double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
@@ -860,6 +867,7 @@ public sealed class FileListControl : Control
         _vbar.Arrange(new Rect(finalSize.Width - sbw, _headerHeight, sbw,
             Math.Max(0, finalSize.Height - _headerHeight - (_hbar.IsVisible ? hbh : 0))));
         _hbar.Arrange(new Rect(0, Math.Max(_headerHeight, finalSize.Height - hbh), _horizontalViewport, hbh));
+        _automationOwners.Arrange(new Rect(finalSize));
         ArrangeRename(finalSize, _vbar.IsVisible ? sbw : 0);
         return finalSize;
     }
@@ -1563,6 +1571,16 @@ public sealed class FileListControl : Control
 
     internal ListingModel? AutomationListing => _viewEventsAttached && _listing is { IsDisposed: false } ? _listing : null;
     internal int TopRow => _topRow;
+    internal int AutomationOwnerCount => _automationOwners.Children.Count;
+    internal bool IsAutomationOwnerHost(AutomationPeer peer) =>
+        peer is ControlAutomationPeer control && ReferenceEquals(control.Owner, _automationOwners);
+    internal Control AddAutomationOwner()
+    {
+        var owner = new Control { IsHitTestVisible = false, Focusable = false };
+        _automationOwners.Children.Add(owner);
+        return owner;
+    }
+    internal void RemoveAutomationOwner(Control owner) => _automationOwners.Children.Remove(owner);
 
     internal Rect VisibleRowBounds(int row)
     {

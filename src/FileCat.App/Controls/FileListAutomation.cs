@@ -66,13 +66,19 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
             if (listing.FocusedIndex >= 0 && (listing.FocusedIndex < _list.TopRow || listing.FocusedIndex >= end))
                 children.Add(Item(listing.FocusedStoreIndex));
         }
-        if (base.GetChildrenCore() is { } controls) children.AddRange(controls);
+        if (base.GetChildrenCore() is { } controls)
+            children.AddRange(controls.Where(control => !_list.IsAutomationOwnerHost(control)));
         return children;
     }
 
     private void EnsureStore()
     {
         if (ReferenceEquals(_store, _list.AutomationListing?.Store)) return;
+        foreach (var item in _items.Values)
+        {
+            item.Retire();
+            _list.RemoveAutomationOwner(item.Owner);
+        }
         _store = _list.AutomationListing?.Store;
         _storeRevision++;
         _items.Clear();
@@ -96,11 +102,23 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
                 (listing.MarkedCount > DirectSelectionLimit || !listing.IsMarked(i)) &&
                 (listing.GetVisibleIndex(i) < _list.TopRow || listing.GetVisibleIndex(i) >= end), -1);
             if (evict < 0) evict = _items.Keys.First();
+            var retired = _items[evict];
+            retired.Retire();
+            _list.RemoveAutomationOwner(retired.Owner);
             _items.Remove(evict);
         }
-        item = new FileListItemAutomationPeer(this, _list, listing, _store, storeIndex, _storeRevision);
-        _items.Add(storeIndex, item);
-        return item;
+        var owner = _list.AddAutomationOwner();
+        try
+        {
+            item = new FileListItemAutomationPeer(this, _list, listing, _store, storeIndex, _storeRevision, owner);
+            _items.Add(storeIndex, item);
+            return item;
+        }
+        catch
+        {
+            _list.RemoveAutomationOwner(owner);
+            throw;
+        }
     }
 
     public bool CanSelectMultiple => true;
@@ -231,8 +249,8 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     }
 }
 
-/// <summary>A lightweight peer with no Avalonia row control, no metadata production, and no ownership of file I/O.</summary>
-internal sealed class FileListItemAutomationPeer : AutomationPeer, ISelectionItemProvider, IInvokeProvider
+/// <summary>A bounded visual-owner peer with no metadata production or ownership of file I/O.</summary>
+internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelectionItemProvider, IInvokeProvider
 {
     private readonly FileListAutomationPeer _parent;
     private readonly FileListControl _list;
@@ -242,12 +260,14 @@ internal sealed class FileListItemAutomationPeer : AutomationPeer, ISelectionIte
     private readonly string _id;
     private readonly string _name;
     private readonly string _kind;
+    private bool _retired;
     private bool _selected;
     private string _status;
     private string _help;
     private Rect _bounds;
 
-    internal FileListItemAutomationPeer(FileListAutomationPeer parent, FileListControl list, ListingModel listing, EntryStore store, int index, int revision)
+    internal FileListItemAutomationPeer(FileListAutomationPeer parent, FileListControl list, ListingModel listing, EntryStore store, int index, int revision, Control owner)
+        : base(owner)
     {
         _parent = parent;
         _list = list;
@@ -264,7 +284,8 @@ internal sealed class FileListItemAutomationPeer : AutomationPeer, ISelectionIte
         _bounds = Bounds;
     }
 
-    private bool Current => !_listing.IsDisposed && ReferenceEquals(_list.AutomationListing, _listing) && ReferenceEquals(_listing.Store, _store);
+    internal void Retire() => _retired = true;
+    private bool Current => !_retired && !_listing.IsDisposed && ReferenceEquals(_list.AutomationListing, _listing) && ReferenceEquals(_listing.Store, _store);
     private int Row => Current ? _listing.GetVisibleIndex(_index) : -1;
     public bool IsSelected => Current && _listing.IsMarked(_index);
     public ISelectionProvider SelectionContainer => _parent;
