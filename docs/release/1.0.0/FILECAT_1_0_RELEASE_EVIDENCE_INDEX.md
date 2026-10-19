@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**864 evidence entries; none is final candidate qualification.** No candidate exists.
+**865 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 

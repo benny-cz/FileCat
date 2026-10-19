@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current issue register
 
-Updated 2026-10-16. **517 Remediated preliminarily, two Closed for preliminary scope, 23 unresolved statuses; 542 total.**
+Updated 2026-10-19. **518 Remediated preliminarily, two Closed for preliminary scope, 23 unresolved statuses; 543 total.**
 These are issue statuses, not remaining test counts. Subsequent scope closures require their own linked evidence; consolidation itself did not promote a status.
 Remediated does not mean complete candidate qualification. All original findings, comparison results, commits, failure details and closure limits remain in the [frozen full register](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md).
 
