@@ -131,7 +131,9 @@ Ctrl+Z, checks the full source and destination identities, measures the
 multi-line inverse row before and after dragging the review wider, cancels and
 verifies the move still exists, then reopens the review and approves it. It
 requires byte-for-byte restoration at the original path, removal of the moved
-target, and preservation of the unrelated file. Finish with `clipboard-stop`.
+target, and preservation of the unrelated file. It then opens the retained
+Undo report from Operations and requires Copy all to publish the complete
+restored outcome with both paths. Finish with `clipboard-stop`.
 Run `accessibility-list <report.json>` with this fixture and its FileCat
 window open. The native Windows UI Automation tree must expose both named
 panel lists, two distinct source file rows with positive screen rectangles

@@ -2146,10 +2146,54 @@ try
             bool restored = File.Exists(sourceFile) && !File.Exists(targetFile)
                 && await File.ReadAllTextAsync(sourceFile) == expected
                 && await File.ReadAllTextAsync(otherFile) == "subset member must remain";
-            bool passed = fullInverse && inverseWrapped && resizeWorked && cancelKeptMove && restored;
+            await SendSessionKeysAsync(client, sessionId, "\uE009j\uE000"); // Open Operations.
+            XDocument operations = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? reportButton = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                reportButton = FindVisible(Window(operations), "button", "Undo report");
+                if (reportButton is not null) break;
+                await Task.Delay(150);
+                operations = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            if (reportButton is null)
+                throw new InvalidOperationException("The completed inverse has no retained Undo report in Operations.");
+            NativeWindow.ClickAt(CenterX(reportButton), CenterY(reportButton));
+            XDocument reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? reportWindow = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                reportWindow = reportSource.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "window"
+                    && ((string?)element.Attribute("Name"))?.Contains("Undo report", StringComparison.Ordinal) == true);
+                if (reportWindow is not null && FindVisible(reportWindow, "button", "Copy all") is not null) break;
+                await Task.Delay(150);
+                reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var copyReport = reportWindow is null ? null : FindVisible(reportWindow, "button", "Copy all");
+            if (copyReport is null)
+                throw new InvalidOperationException("The retained Undo report has no Copy all action.");
+            var clipboardBefore = NativeWindow.ClipboardSequence();
+            NativeWindow.ClickAt(CenterX(copyReport), CenterY(copyReport));
+            string? reportText = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                await Task.Delay(150);
+                if (NativeWindow.ClipboardSequence() == clipboardBefore) continue;
+                reportText = NativeWindow.ReadClipboardText();
+                if (reportText is not null) break;
+            }
+            bool retainedReport = reportText is not null
+                && reportText.Contains("1 restored", StringComparison.Ordinal)
+                && reportText.Contains(sourceFile, StringComparison.OrdinalIgnoreCase)
+                && reportText.Contains(targetFile, StringComparison.OrdinalIgnoreCase)
+                && reportText.Contains("Restored", StringComparison.Ordinal);
+            await SendSessionKeysAsync(client, sessionId, "\uE00A\uE034\uE000"); // Alt+F4 closes the report.
+            bool passed = fullInverse && inverseWrapped && resizeWorked && cancelKeptMove && restored && retainedReport;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, fullInverse, inverseWrapped, resizeWorked, cancelKeptMove, restored,
+                retainedReport, reportCharacters = reportText?.Length,
                 sourceFile, targetFile, originalGrip, expanded, originalRow, expandedRow, reviewNames
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
