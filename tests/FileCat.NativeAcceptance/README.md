@@ -96,6 +96,23 @@ The fixture uses a real journal with its transfer-intent fields removed and
 CRC rewritten, so startup follows the legacy path without inventing a ZIP or
 modifying user data.
 
+For native Windows clipboard interchange, run `seed-clipboard
+clipboard-fixture.json` in the guest and launch the current Git-built FileCat
+with its reported `--data`, `--left` and `--right` paths. Keep that seed report
+beside every following report. `clipboard-cut <source.xml>` selects the single
+source file, sends Ctrl+X, and checks that FileCat published its exact path as
+a Windows shell file drop without removing the source. With an Explorer window
+open, `explorer-navigate <source.xml>` visits that source folder;
+`explorer-copy <source.xml>` selects its file and sends Ctrl+C.
+`clipboard-native <report.json>` verifies that Explorer replaced the clipboard
+with exactly that path in `CF_HDROP`. Finally, `clipboard-paste <report.json>`
+focuses FileCat's destination pane, sends Ctrl+V, and checks the source and
+destination contents byte for byte. It fails on a missing file, changed source
+or incomplete copy. `clipboard-stop <report.json>` gracefully closes only the
+validated isolated FileCat process when a new Git build must be deployed.
+These modes use a fresh guest-local fixture; they never touch the host
+clipboard or a user folder.
+
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the

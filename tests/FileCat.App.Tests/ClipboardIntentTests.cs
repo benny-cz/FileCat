@@ -67,6 +67,111 @@ public sealed class ClipboardIntentTests
         Assert.Equal(new Dictionary<string, string> { ["a.txt"] = "source-a", ["b.txt"] = "source-b" }, Manifest(f.A));
     }
 
+    [AvaloniaFact]
+    public async Task Incomplete_external_file_conversion_uses_only_a_complete_native_copy_manifest()
+    {
+        var clipboard = ControlledClipboard.Create();
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        var coordinator = new FileClipboard(count => count == 1 ? [path] : null,
+            () => 17);
+        clipboard.External(new IncompleteFileTransfer(1));
+
+        var snapshot = await coordinator.ReadAsync(clipboard.Api);
+
+        Assert.Null(snapshot.Publication);
+        Assert.Equal(path, Assert.Single(snapshot.Files).FileSystemPath);
+        Assert.Equal((uint)17, snapshot.WindowsSequence);
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
+    public async Task Native_drop_cannot_explain_multiple_unreadable_file_items()
+    {
+        var clipboard = ControlledClipboard.Create();
+        clipboard.External(new IncompleteFileTransfer(2));
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        var coordinator = new FileClipboard(_ => [path], () => 17);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.ReadAsync(clipboard.Api));
+
+        Assert.Contains("complete selection", error.Message);
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
+    public async Task Extra_windows_shell_wrapper_does_not_hide_a_complete_native_file_list()
+    {
+        var clipboard = ControlledClipboard.Create();
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        clipboard.External(new IncompleteFileTransfer(2, StorageItem(path)));
+        var coordinator = new FileClipboard(_ => [path], () => 17);
+
+        var snapshot = await coordinator.ReadAsync(clipboard.Api);
+
+        Assert.Null(snapshot.Publication);
+        Assert.Equal(path, Assert.Single(snapshot.Files).FileSystemPath);
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
+    public async Task Native_file_drop_must_agree_with_every_resolved_backend_path()
+    {
+        var clipboard = ControlledClipboard.Create();
+        var resolved = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        var native = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "b.txt");
+        clipboard.External(new IncompleteFileTransfer(2, StorageItem(resolved)));
+        var coordinator = new FileClipboard(_ => [native], () => 17);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.ReadAsync(clipboard.Api));
+
+        Assert.Contains("complete selection", error.Message);
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
+    public async Task Native_file_drop_is_rejected_if_clipboard_changes_during_read()
+    {
+        var clipboard = ControlledClipboard.Create();
+        clipboard.External(new IncompleteFileTransfer(1));
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        uint sequence = 17;
+        var coordinator = new FileClipboard(_ =>
+        {
+            sequence = 18;
+            return [path];
+        }, () => sequence);
+
+        await Assert.ThrowsAsync<FileClipboard.ChangedException>(
+            () => coordinator.ReadAsync(clipboard.Api));
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
+    public async Task Owned_cut_never_uses_native_file_drop_to_recover_an_incomplete_backend_read()
+    {
+        var clipboard = ControlledClipboard.Create();
+        int nativeReads = 0;
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        var coordinator = new FileClipboard(_ =>
+        {
+            nativeReads++;
+            return [path];
+        }, () => 17);
+        var revision = coordinator.BeginWrite();
+        await coordinator.PublishAsync(clipboard.Api, revision, [StorageItem(path)], [path], true);
+        coordinator.EndWrite(revision);
+        clipboard.ReadOverride = new IncompleteFileTransfer(1);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.ReadAsync(clipboard.Api));
+
+        Assert.Contains("complete selection", error.Message);
+        Assert.Equal(0, nativeReads);
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
     [AvaloniaTheory]
     [InlineData("text")]
     [InlineData("empty")]
@@ -632,6 +737,25 @@ public sealed class ClipboardIntentTests
                 }
                 return await source.TryGetRawAsync(format);
             }
+        }
+    }
+
+    private sealed class IncompleteFileTransfer : IAsyncDataTransfer
+    {
+        public IncompleteFileTransfer(int count, IStorageItem? firstReadable = null)
+        {
+            Items = Enumerable.Range(0, count).Select(index =>
+                (IAsyncDataTransferItem)new TestFileItem(index == 0 ? firstReadable : null)).ToArray();
+        }
+
+        public IReadOnlyList<DataFormat> Formats { get; } = [DataFormat.File];
+        public IReadOnlyList<IAsyncDataTransferItem> Items { get; }
+        public void Dispose() { }
+
+        private sealed class TestFileItem(IStorageItem? value) : IAsyncDataTransferItem
+        {
+            public IReadOnlyList<DataFormat> Formats { get; } = [DataFormat.File];
+            public Task<object?> TryGetRawAsync(DataFormat format) => Task.FromResult<object?>(value);
         }
     }
 

@@ -9,6 +9,7 @@ Scope: audit findings **FCUX-069**, **FCUX-070**, **FCUX-007**, and **FCUX-008**
 - Move authority belongs to the exact clipboard publication still owned by this running FileCat instance. It does not follow historical path membership. The entire materialized file list must match the publication, using FileCat's ordinal resource identities; a subset, an extra item, or a case change does not authorize Move.
 - Clipboard formats are materialized from one caller-owned data-transfer object, which is disposed after materialization. In-process ownership is checked before and after the asynchronous reads and again after destination admission. Copy/Cut preparation has an invocation revision, and native writes are serialized so an older delayed write cannot replace a later publication.
 - Another application's file publication, a restart, and a backend without in-process ownership support import as Copy. The unsupported-Cut fallback is explained immediately. FileCat does not claim to export or import a native preferred/performed Move effect.
+- On Windows, a bounded `CF_HDROP` read can reconcile an external shell file list when Avalonia advertises one extra wrapper item. The converted paths must agree with the native list, and the clipboard sequence must remain stable through Paste admission. This fallback never grants Cut authority; a conflicting or wider incomplete selection is refused.
 - File Paste captures the destination location before its first await. Switching panels, moving the tab, or navigating the same tab cannot redirect its job. Closing the invoking tab cancels the pending Paste. A vanished original destination is reported instead of recreated or redirected.
 - Text-path Paste also captures the starting location, but a later navigation invocation, newer Paste, or tab closure supersedes it. The navigation generation changes before provider preparation, so a still-pending newer navigation also wins.
 - An in-flight Cut publication admits at most one Move. A completed Move cannot replay. A canceled, failed, or partially completed Move requires review in Operations or a fresh Cut of the remaining originals. Job completion updates its own publication and cannot consume a newer Copy/Cut.
@@ -52,7 +53,7 @@ dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj --no-restore -c R
 
 UI tests require the repository's existing Avalonia headless test setup. Run the corresponding class filters after building `tests/FileCat.App.Tests/FileCat.App.Tests.csproj`.
 
-### Recorded focused results
+### Earlier recorded focused results
 
 The final focused App run passed **98/98** cases with no failures or skips in 20 seconds; its recorded result file was `clipboard-content-passing.trx`. The **26** `ContentSearchBackwardTests` cases also passed in the complete final Core run. Together these findings have **124 passing cases**; these counts overlap the complete suites and do not claim that the entire repository or every native platform passed.
 
@@ -78,12 +79,24 @@ dotnet test tests/FileCat.App.Tests/FileCat.App.Tests.csproj --no-restore --no-b
 
 The solution build and overall regression comparison are recorded separately in `UX_UI_IMPLEMENTATION_STATUS.md`.
 
+On 19 October 2026, the expanded `ClipboardIntentTests` selection passed 39
+cases with one case skipped on Windows. A Windows 11 VM then passed the native
+FileCat Cut → Explorer Copy of the same path → FileCat Paste journey. Its
+runner verified the exact `CF_HDROP` path, preserved source and matching
+destination bytes. The native runner and its
+Git-build setup are documented in
+[`tests/FileCat.NativeAcceptance/README.md`](../../tests/FileCat.NativeAcceptance/README.md).
+
 ## Verification boundaries
 
-These tests are headless component and file-system integration checks. They do not establish native Explorer/Finder/Linux clipboard exchange, desktop clipboard-manager behavior, native keyboard/pointer routing, screen-reader announcements, or visual quality at every platform scale.
+The headless tests alone do not establish native file-manager exchange. The
+Windows Explorer single-file journey above adds that native gate. Finder,
+Linux file managers, multi-file subset selection, desktop clipboard managers,
+screen-reader announcements and visual quality at every platform scale remain
+open.
 
 FCUX-012 remains a separate S2 item for horizontal access and selection identity during reflow. The search tests assert exact byte hit positions and continuation behavior; they do not certify long-line glyph reveal across native content surfaces.
 
-Avalonia 12.1.1 documents `TryGetInProcessDataAsync` as returning the exact currently owned transfer on Windows, macOS, and X11; unsupported backends return null. The implementation uses this capability for safe same-process Cut and explains Copy fallback elsewhere. Native release verification should repeat Cut A → external Copy A, Cut A+B → external Copy A, intervening text/image ownership, repeated/partial Move, and delayed Paste with navigation on each supported backend, asserting actual job kind, destinations, and source survival.
+Avalonia 12.1.1 documents `TryGetInProcessDataAsync` as returning the exact currently owned transfer on Windows, macOS, and X11; unsupported backends return null. The implementation uses this capability for safe same-process Cut and explains Copy fallback elsewhere. Remaining native release verification should repeat Cut A+B → external Copy A, intervening text/image ownership, repeated/partial Move, and delayed Paste with navigation on each supported backend, asserting actual job kind, destinations, and source survival.
 
 Sources used for the API contract: the pinned Avalonia 12.1.1 XML reference documentation for `IClipboard` and `IAsyncDataTransfer`, and the official [Avalonia IClipboard reference](https://docs.avaloniaui.net/api/avalonia/input/platform/iclipboard). Native preferred/performed transfer effects are intentionally outside this implementation's supported exchange behavior.

@@ -18,8 +18,8 @@ suite passed 4,428 cases with 150 skips. The bulk case now has a bounded
 focused Undo lifecycle cases pass. The final
 dialog-focus correction passed 28 focused App cases twice and the complete
 2,346-pass App rerun; seven focused viewer-refresh cases passed after waiting
-for the replacement page's visible rows. Native desktop,
-provider, scaling, clipboard and assistive-technology acceptance remains open.
+for the replacement page's visible rows. Native provider, scaling,
+non-Windows clipboard and assistive-technology acceptance remains open.
 Page-mode Find now shows WebKitGTK's rendered-page total when complete, or a
 labelled lower bound beyond 1,024 matches. Windows WebView2 and macOS WKWebView
 continue to show a truthful directional lower bound with the pinned browser
@@ -107,6 +107,18 @@ target remained unpublished. Relaunch displayed the partial-file cleanup
 and conservative Skip policy. Continue reproduced the complete source bytes,
 kept the copy source and cleared staging. Cross-volume behavior and other
 providers remain open.
+
+The Windows 11 guest also completed FCUX-069 against Explorer rather than a
+simulated clipboard. FileCat Cut published an exact one-file shell drop;
+Explorer Copy of that same path replaced it. The VM checked the native
+`CF_HDROP` manifest, then FileCat Paste copied the file into the right-hand
+destination while preserving the original and matching its bytes. This
+journey exposed an Avalonia Windows conversion that advertised two file items
+for Explorer's one-file drop but resolved one. FileCat now reconciles that
+specific extra-wrapper case against the complete, bounded native manifest,
+the resolved path and the clipboard sequence. Any conflicting or wider
+incomplete set is refused. Cross-platform native clipboard exchange, multi-file
+Explorer subsets and Windows preferred/performed effects remain open.
 
 **Earlier implementation record:** FCUX-068 shows queue movement only for queued jobs, disables the
 first queued job with a reason and preserves synchronization step order; 51 related
@@ -257,7 +269,7 @@ reports an empty list without claiming the search never matched.
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
 | --- | --- | --- | --- |
 | FCUX-001 — interrupted transfer intent | Journal a versioned, bounded snapshot of the destination, source mappings, resolved filter definitions, layout/name, verification, preservation, rate and queue choices. Continue shows that scope and uses conservative Skip. Legacy/incomplete records require a newly reviewed transfer. Existing source/staging/content guards remain in force. Filtered same-volume folder moves cannot bypass traversal through a rename shortcut. | `RecoverableTransferIntentTests`, `RecoveryTransferConflictTests`, `InterruptedTransferIntentUiTests`, existing `Interrupted*` tests, `MaskTests`. A Windows 11 guest resumed a journal-seeded filtered NTFS move, a genuinely interrupted Core worker, and an actually terminated FileCat desktop process. The desktop copy's retained staging contained a nonzero content marker, its journal retained the rate, and Continue reproduced all 32 MiB while cleaning staging. A guest legacy journal refused equivalent continuation; Cancel retained its source/journal and an explicitly reviewed new copy used the chosen mapping. | Cross-volume and other provider behavior remain open. Large or unsupported records deliberately cannot promise equivalent continuation. |
-| FCUX-069 — clipboard operation authority | Cut belongs to the current exact FileCat clipboard publication and complete ordinal resource identities. External/unverifiable publications import as Copy. Running/completed/partial moves cannot replay the original Cut; later publications retain their own lifecycle. | `ClipboardIntentTests`: controlled asynchronous publications plus actual source/destination manifests | Native clipboard exchange on each supported desktop backend. Native preferred/performed Move effects are outside the supported exchange contract. |
+| FCUX-069 — clipboard operation authority | Cut belongs to the current exact FileCat clipboard publication and complete ordinal resource identities. External/unverifiable publications import as Copy. Running/completed/partial moves cannot replay the original Cut; later publications retain their own lifecycle. On Windows, an Explorer file drop that Avalonia advertises with one extra wrapper is accepted only after its converted paths agree with a bounded native `CF_HDROP` list and the clipboard sequence stays stable. | `ClipboardIntentTests`: controlled asynchronous publications, incomplete/mismatched native manifests, changing sequence, owned-Cut refusal and actual source/destination manifests. A Windows 11 VM completed FileCat Cut → Explorer Copy of the same path → FileCat Paste; native manifest and matching source/destination bytes passed. | Native clipboard exchange on macOS and Linux, multi-file Explorer subsets, and preferred/performed Move effects remain open. |
 | FCUX-070 — delayed Paste destination | Capture destination and invoking tab before clipboard reads. File Paste uses that location or explains refusal; tab closure cancels it. Text navigation also respects newer navigation/Paste intent, including pending provider preparation. | `ClipboardIntentTests`: held reads, navigation, panel/tab movement, closure, source survival and actual request destinations | Native clipboard/backend timing. |
 | FCUX-002 — range anchor identity | Bind range anchors to the listing store and item identity, resolve through the current view, and retire unavailable/foreign anchors. Reset gestures on focus/window deactivation. | `FileListSelectionTests`: real key/pointer events across sort, filter, tab and focus transitions | Native input-device and platform focus routing. |
 | FCUX-003 — hidden marks in rename | Show hidden count and explicit unchecked inclusion control. Capture both scopes, regenerate counter/name mapping when scope changes, and reject stale external-editor results. Preserve marks and the original operation origin across tab navigation. | `BulkRenameScopeTests`, existing `BulkRenameDialogTests`: inclusion/exclusion, counters, navigation, actual filesystem results | The separate preview size/validation findings FCUX-038/039 and shared small-dialog layout FCUX-011 are covered below. Native acceptance remains open. |

@@ -11,21 +11,55 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|explorer-navigate|explorer-copy|clipboard-paste|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "seed-desktop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
         if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
         else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
         else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
+        else if (mode == "seed-clipboard") await SeedClipboardInteropAsync(reportPath);
+        else if (mode == "clipboard-native")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var drop = NativeWindow.ReadClipboardFileDrop();
+            var expected = Path.Combine(fixture.Source, "a.txt");
+            bool passed = drop.Sequence != 0 && drop.FileDrop
+                && drop.Paths.Count == 1
+                && string.Equals(drop.Paths[0], expected, StringComparison.OrdinalIgnoreCase);
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, drop.Sequence, drop.FileDrop, drop.Paths
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "clipboard-stop")
+        {
+            await ReadClipboardFixtureAsync(reportPath);
+            int processId = NativeWindow.ClipboardAppProcessId();
+            using var app = Process.GetProcessById(processId);
+            var buildRoot = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
+            var allowedExecutables = new[] { "ReviewHighlights", "ClipboardFix" }
+                .Select(folder => Path.Combine(buildRoot, folder, "FileCat.exe"));
+            if (!allowedExecutables.Any(path => string.Equals(app.MainModule?.FileName,
+                    path, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("The clipboard target is not the isolated VM build.");
+            if (!app.CloseMainWindow() || !app.WaitForExit(10_000))
+                throw new InvalidOperationException("The isolated clipboard FileCat process did not close gracefully.");
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed = app.HasExited, processId
+            }));
+        }
         else if (mode == "interrupt-live") await InterruptLiveRecoveryAsync(reportPath);
         else if (mode == "inspect-desktop") return await InspectDesktopRecoveryAsync(reportPath) ? 0 : 1;
         else return await InspectLiveRecoveryAsync(reportPath) ? 0 : 1;
@@ -833,6 +867,101 @@ try
             await ClickButtonAsync(client, sessionId, "Copy");
             await ClickButtonAsync(client, sessionId, "Options");
         }
+        else if (mode == "clipboard-cut")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var beforeCut = XDocument.Parse(await ReadSourceAsync(client, sessionId));
+            var clipboardWindow = beforeCut.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("Clipboard FileCat window is unavailable.");
+            var sourceTab = clipboardWindow.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "text"
+                && (string?)element.Attribute("Name") == "clipboard-source"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("Clipboard source tab is unavailable.");
+            NativeWindow.FocusRecovery("clipboard-source");
+            NativeWindow.ClickAt(CenterX(sourceTab), CenterY(sourceTab));
+            if (!NativeWindow.IsRecoveryForeground("clipboard-source"))
+                throw new InvalidOperationException("FileCat did not retain foreground focus for Cut.");
+            await SendSessionKeysAsync(client, sessionId, "\uE015\uE009x\uE000");
+            var sourceFile = Path.Combine(fixture.Source, "a.txt");
+            bool published = false;
+            for (var attempt = 0; attempt < 20 && !published; attempt++)
+            {
+                await Task.Delay(250);
+                try
+                {
+                    var drop = NativeWindow.ReadClipboardFileDrop();
+                    published = drop.FileDrop && drop.Paths.Count == 1
+                        && string.Equals(drop.Paths[0], sourceFile,
+                            StringComparison.OrdinalIgnoreCase);
+                }
+                catch (InvalidOperationException) { }
+            }
+            if (!published || !File.Exists(sourceFile))
+                throw new InvalidOperationException(
+                    "FileCat Cut did not publish the exact source file while retaining its original.");
+        }
+        else if (mode == "explorer-navigate")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            NativeWindow.FocusExplorer();
+            await SendSessionKeysAsync(client, sessionId, "\uE009l\uE000");
+            await SendSessionKeysAsync(client, sessionId, fixture.Source);
+            await SendSessionKeysAsync(client, sessionId, "\uE007");
+            await Task.Delay(700);
+        }
+        else if (mode == "explorer-copy")
+        {
+            NativeWindow.FocusExplorer();
+            await ClickXPathAsync(client, sessionId,
+                "//Window[@Name='clipboard-source - File Explorer']//ListItem[@Name='a']",
+                "Explorer source file");
+            var before = NativeWindow.ClipboardSequence();
+            await SendSessionKeysAsync(client, sessionId, "\uE009c\uE000");
+            await Task.Delay(300);
+            if (NativeWindow.ClipboardSequence() == before)
+                throw new InvalidOperationException("Explorer did not publish a new clipboard generation.");
+        }
+        else if (mode == "clipboard-paste")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var beforePaste = XDocument.Parse(await ReadSourceAsync(client, sessionId));
+            var window = beforePaste.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("Clipboard FileCat window is unavailable.");
+            var destinationTab = window.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "text"
+                && (string?)element.Attribute("Name") == "destination"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("Clipboard destination tab is unavailable.");
+            NativeWindow.FocusRecovery("clipboard-source");
+            NativeWindow.ClickAt(CenterX(destinationTab), CenterY(destinationTab));
+            if (!NativeWindow.IsRecoveryForeground("clipboard-source"))
+                throw new InvalidOperationException("FileCat did not retain foreground focus for Paste.");
+            await SendSessionKeysAsync(client, sessionId, "\uE009v\uE000");
+            var sourceFile = Path.Combine(fixture.Source, "a.txt");
+            var targetFile = Path.Combine(fixture.Destination, "a.txt");
+            for (var attempt = 0; attempt < 40 && !File.Exists(targetFile); attempt++)
+                await Task.Delay(250);
+            const string expected = "external copy must keep source";
+            if (!File.Exists(sourceFile)
+                || await File.ReadAllTextAsync(sourceFile) != expected
+                || !File.Exists(targetFile)
+                || await File.ReadAllTextAsync(targetFile) != expected)
+                throw new InvalidOperationException(
+                    "Explorer Copy followed by FileCat Paste did not preserve the source and copy matching bytes to the destination.");
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed = true, sourceRetained = true, destinationBytesMatch = true,
+                sourceFile, targetFile
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return 0;
+        }
         else if (mode == "desktop-review")
         {
             NativeWindow.FocusRecovery("desktop-source");
@@ -1084,6 +1213,25 @@ static async Task SeedDesktopInterruptionAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
+static async Task SeedClipboardInteropAsync(string reportPath)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "ClipboardInterop", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "clipboard-source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    Directory.CreateDirectory(source);
+    Directory.CreateDirectory(destination);
+    var file = Path.Combine(source, "a.txt");
+    await File.WriteAllTextAsync(file, "external copy must keep source");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, file
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
 static byte[] DesktopMarkerBytes() => Encoding.ASCII.GetBytes("FILECAT_DESKTOP_COPY_BYTES_WRITTEN");
 
 static bool TryReadMarker(string path, byte[] marker)
@@ -1244,6 +1392,26 @@ static async Task<RecoveryFixture> ReadDesktopFixtureAsync(string reportPath)
     return new RecoveryFixture(source, destination, data);
 }
 
+static async Task<RecoveryFixture> ReadClipboardFixtureAsync(string reportPath)
+{
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "", "clipboard-fixture.json");
+    using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
+    var root = document.RootElement.GetProperty("root").GetString() ?? "";
+    var expectedRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "ClipboardInterop")
+        + Path.DirectorySeparatorChar;
+    if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Clipboard fixture is outside the isolated guest test root.");
+    var source = document.RootElement.GetProperty("source").GetString() ?? "";
+    var destination = document.RootElement.GetProperty("destination").GetString() ?? "";
+    var data = document.RootElement.GetProperty("data").GetString() ?? "";
+    if (!string.Equals(source, Path.Combine(root, "clipboard-source"), StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(destination, Path.Combine(root, "destination"), StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(data, Path.Combine(root, "data"), StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Clipboard fixture paths do not match its isolated root.");
+    return new RecoveryFixture(source, destination, data);
+}
+
 static async Task<XDocument> EnsureToolsSettingsAsync(HttpClient client, string sessionId)
 {
     var current = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -1325,6 +1493,8 @@ internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWi
     int TableRegionWidth, int DocumentWidth, bool TableRegionFocusable);
 
 internal readonly record struct RecoveryFixture(string Source, string Destination, string Data);
+internal readonly record struct ClipboardDropResult(uint Sequence, bool FileDrop,
+    IReadOnlyList<string> Paths);
 
 internal static partial class NativeWindow
 {
@@ -1333,7 +1503,28 @@ internal static partial class NativeWindow
     private const uint Wheel = 0x0800;
 
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial nint FindWindow(string? className, string title);
+    private static partial nint FindWindow(string? className, string? title);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint window, int command);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetClipboardSequenceNumber();
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool OpenClipboard(nint window);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseClipboard();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetClipboardData(uint format);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint DragQueryFile(nint drop, uint index, StringBuilder? path, uint length);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -1342,6 +1533,15 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetForegroundWindow(nint window);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool BringWindowToTop(nint window);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachThreadInput(uint attachThread, uint attachToThread,
+        [MarshalAs(UnmanagedType.Bool)] bool attach);
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();
@@ -1363,19 +1563,140 @@ internal static partial class NativeWindow
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
 
+    internal static uint ClipboardSequence() => GetClipboardSequenceNumber();
+
+    internal static ClipboardDropResult ReadClipboardFileDrop()
+    {
+        bool opened = false;
+        for (var attempt = 0; attempt < 20 && !(opened = OpenClipboard(0)); attempt++)
+            Thread.Sleep(50);
+        if (!opened) throw new InvalidOperationException("The interactive Windows clipboard is busy.");
+        try
+        {
+            var drop = GetClipboardData(15); // CF_HDROP
+            if (drop == 0) return new ClipboardDropResult(ClipboardSequence(), false, []);
+            uint count = DragQueryFile(drop, uint.MaxValue, null, 0);
+            if (count > 1000) throw new InvalidOperationException("Unexpectedly large test file drop.");
+            var paths = new List<string>((int)count);
+            for (uint index = 0; index < count; index++)
+            {
+                uint length = DragQueryFile(drop, index, null, 0);
+                if (length == 0 || length > 32767) throw new InvalidOperationException("Invalid test file-drop path length.");
+                var path = new StringBuilder((int)length + 1);
+                if (DragQueryFile(drop, index, path, length + 1) != length)
+                    throw new InvalidOperationException("Incomplete test file-drop path.");
+                paths.Add(path.ToString());
+            }
+            return new ClipboardDropResult(ClipboardSequence(), true, paths);
+        }
+        finally { CloseClipboard(); }
+    }
+
+    internal static bool IsRecoveryForeground(string sourceFolder)
+    {
+        var window = FindWindow(null,
+            $"FileCat — {sourceFolder} — Admin (administrator, not elevated)");
+        if (window == 0 && sourceFolder == "clipboard-source")
+            window = FindWindow(null,
+                "FileCat — destination — Admin (administrator, not elevated)");
+        if (window == 0) return false;
+        GetWindowThreadProcessId(window, out var processId);
+        return IsForegroundProcess(processId);
+    }
+
+    internal static int ClipboardAppProcessId()
+    {
+        var window = FindWindow(null,
+            "FileCat — clipboard-source — Admin (administrator, not elevated)");
+        if (window == 0) window = FindWindow(null,
+            "FileCat — destination — Admin (administrator, not elevated)");
+        if (window == 0) throw new InvalidOperationException("Isolated clipboard window is unavailable.");
+        GetWindowThreadProcessId(window, out var processId);
+        return checked((int)processId);
+    }
+
+    private static bool IsForegroundProcess(uint processId)
+    {
+        var foreground = GetForegroundWindow();
+        return foreground != 0
+            && GetWindowThreadProcessId(foreground, out var activeProcessId) != 0
+            && activeProcessId == processId;
+    }
+
+    private static bool ActivateWindow(nint window, uint processId)
+    {
+        ShowWindow(window, 9); // SW_RESTORE
+        var current = GetForegroundWindow();
+        var currentThread = current == 0 ? 0 : GetWindowThreadProcessId(current, out _);
+        var targetThread = GetWindowThreadProcessId(window, out _);
+        var attached = currentThread != 0 && targetThread != 0
+            && currentThread != targetThread
+            && AttachThreadInput(currentThread, targetThread, true);
+        try
+        {
+            BringWindowToTop(window);
+            SetForegroundWindow(window);
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(currentThread, targetThread, false);
+        }
+        return IsForegroundProcess(processId);
+    }
+
+    internal static void FocusExplorer()
+    {
+        var window = FindWindow("CabinetWClass", "clipboard-source - File Explorer");
+        if (window == 0) window = FindWindow("CabinetWClass", null);
+        if (window == 0) throw new InvalidOperationException("Explorer window is unavailable.");
+        GetWindowThreadProcessId(window, out var processId);
+        using var process = Process.GetProcessById((int)processId);
+        if (!string.Equals(process.ProcessName, "explorer", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The Explorer window belongs to another process.");
+        ShowWindow(window, 9); // SW_RESTORE
+        if (!GetWindowRect(window, out var rect))
+            throw new InvalidOperationException("Cannot read the Explorer window bounds.");
+        if (rect.Left < -10000 || rect.Top < -10000)
+        {
+            ShowWindow(window, 5); // SW_SHOW
+            const uint showWindow = 0x0040;
+            if (!SetWindowPos(window, 0, 120, 100, 1200, 800, showWindow)
+                || !GetWindowRect(window, out rect)
+                || rect.Left < -10000 || rect.Top < -10000)
+                throw new InvalidOperationException("Explorer remained offscreen after restoration.");
+        }
+        if (ActivateWindow(window, processId)) return;
+        ClickAt(rect.Left + 75, rect.Top + 15);
+        if (!IsForegroundProcess(processId))
+            throw new InvalidOperationException("Cannot focus Explorer in the VM.");
+    }
+
     internal static void FocusRecovery(string sourceFolder = "source")
     {
-        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source"))
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source"))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var window = FindWindow(null, title);
+        if (window == 0 && sourceFolder == "clipboard-source")
+            window = FindWindow(null,
+                "FileCat — destination — Admin (administrator, not elevated)");
         if (window == 0)
             throw new InvalidOperationException("Isolated recovery window is unavailable.");
         GetWindowThreadProcessId(window, out var processId);
         using var process = Process.GetProcessById((int)processId);
         if (!string.Equals(process.ProcessName, "FileCat", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Recovery window belongs to another process.");
-        if (SetForegroundWindow(window) && GetForegroundWindow() == window)
+        if (sourceFolder == "clipboard-source")
+        {
+            var buildRoot = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
+            if (!new[] { "ReviewHighlights", "ClipboardFix" }.Any(folder =>
+                string.Equals(process.MainModule?.FileName,
+                    Path.Combine(buildRoot, folder, "FileCat.exe"),
+                    StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Clipboard window is not an isolated VM build.");
+        }
+        if (ActivateWindow(window, processId))
             return;
         const uint noMove = 0x0002;
         const uint noSize = 0x0001;
@@ -1386,8 +1707,13 @@ internal static partial class NativeWindow
         try
         {
             ClickAt(rect.Left + 75, rect.Top + 15);
-            if (GetForegroundWindow() != window)
-                throw new InvalidOperationException("Cannot focus the isolated recovery window.");
+            if (!IsForegroundProcess(processId))
+            {
+                var foreground = GetForegroundWindow();
+                GetWindowThreadProcessId(foreground, out var actualProcessId);
+                throw new InvalidOperationException(
+                    $"Cannot focus the isolated recovery window; expected process {processId}, foreground process {actualProcessId}.");
+            }
         }
         finally
         {
