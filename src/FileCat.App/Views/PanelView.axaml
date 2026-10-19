@@ -18,7 +18,8 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:TabViewModel">
                 <Button Classes="tab" Classes.current="{Binding IsActiveTab}" Click="OnTabClick" Tag="{Binding}"
-                        ToolTip.Tip="{Binding DisplayPath}" PointerReleased="OnTabPointerReleased">
+                        ToolTip.Tip="{Binding TabTooltip}" AutomationProperties.Name="{Binding TabAccessibleName}"
+                        AutomationProperties.HelpText="{Binding TabLockDescription}" PointerReleased="OnTabPointerReleased">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{Binding TabHeader}" MaxWidth="220" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="⟳" IsVisible="{Binding IsLoading}" Classes="muted" />

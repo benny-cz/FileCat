@@ -99,8 +99,11 @@ the wider viewer/editor rerun passed 342 cases with 14 platform skips. Its final
 complete App rerun passed 2,320 cases with 63 platform skips. FCUX-061 now offers full safe values for
 clipped list cells on hover and a read-only inspection dialog from the keyboard
 or item menu. Six focused and 53 related list/profile cases pass, along with the
-combined post-refinement 59-case selection. Native scaling, readability, pointer and
-assistive-technology acceptance remain open. FCUX-062 follows.
+combined post-refinement 59-case selection. FCUX-062 now distinguishes same-named
+local, archive and remote tabs with short parent cues; navigation locks and
+return-to-root locks have distinct visible and accessible meanings. Its 39-case
+tab/workspace/docking/navigation run passes. Native scaling, readability,
+pointer and assistive-technology acceptance remain open. FCUX-063 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -146,9 +149,10 @@ passes with 2,296 passes, 63 skips and no failures.
 | 32 | FCUX-059 — readability preferences | Compact/Comfortable chrome density, separate list/content font sizes and visible viewer size controls pass six focused and 365 related cases with two skips. A pinned complete App snapshot passed; final density-token rerun and native acceptance remain open. |
 | 33 | FCUX-060 — viewer/editor hierarchy | Stable mode and primary rows, on-demand Find and complete More menus pass two focused and 342 related viewer/editor cases with 14 skips. Complete App rerun passes 2,320 cases with 63 skips; native acceptance remains open. |
 | 34 | FCUX-061 — clipped cell inspection | Full safe hover values and a keyboard/context-menu inspection dialog pass six focused, 53 related, and 59 combined post-refinement list/profile cases. Native acceptance remains open. |
+| 35 | FCUX-062 — distinguishable tabs | Collision-aware parent/provider cues and distinct navigation/root lock labels pass 39 related tab/workspace/docking/navigation cases. Native width, speech and remote/archive acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-Continue with FCUX-062 onward in the audit's S3 order. Active Undo ownership, full synchronization
+Continue with FCUX-063 onward in the audit's S3 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.

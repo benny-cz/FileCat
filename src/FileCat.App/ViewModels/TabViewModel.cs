@@ -105,7 +105,20 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isActiveTab;
 
     /// <summary>Saved root of a locked tab (the "return to root" variant).</summary>
-    public Location? LockedRoot { get; set; }
+    private Location? _lockedRoot;
+    public Location? LockedRoot
+    {
+        get => _lockedRoot;
+        set
+        {
+            if (_lockedRoot == value) return;
+            _lockedRoot = value;
+            OnPropertyChanged(nameof(LockedRoot));
+            OnPropertyChanged(nameof(TabLockDescription));
+            OnPropertyChanged(nameof(TabTooltip));
+            OnPropertyChanged(nameof(TabAccessibleName));
+        }
+    }
 
     public bool IsQuickSearchActive => QuickSearch is not null;
 
@@ -141,17 +154,57 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>The tab's name as the tab strip shows it: control and bidirectional characters escaped, as the file list shows names (§18.3).</summary>
-    public string TabHeader => (IsLocked ? "🔒 " : string.Empty) + Formatters.SafeName(Title);
+    private string _tabQualifier = string.Empty;
+    /// <summary>The shortest location cue needed to distinguish equal titles in this panel.</summary>
+    internal string TabQualifier
+    {
+        get => _tabQualifier;
+        set
+        {
+            if (_tabQualifier == value) return;
+            _tabQualifier = value;
+            OnPropertyChanged(nameof(TabHeader));
+            OnPropertyChanged(nameof(TabAccessibleName));
+        }
+    }
+
+    /// <summary>The compact, safely escaped tab-strip label.</summary>
+    public string TabHeader => (IsLocked ? ReturnToRoot ? "⌂ " : "🔒 " : string.Empty) + Formatters.SafeName(Title) +
+        (TabQualifier.Length == 0 ? string.Empty : " · " + Formatters.SafeName(TabQualifier));
+
+    public string TabLockDescription => !IsLocked ? "Unlocked tab" : ReturnToRoot
+        ? "Root lock: revisiting returns to " + Formatters.SafeName(LockedRoot?.Path ?? "the saved root")
+        : "Navigation lock: opening another location creates a new tab";
+
+    public string TabTooltip => Formatters.SafeName(DisplayPath) + "\n" + TabLockDescription;
+    public string TabAccessibleName => TabHeader + ", " + TabLockDescription + ", " + Formatters.SafeName(DisplayPath);
 
     /// <summary>The path as shown beside the command line, escaped like <see cref="TabHeader"/>; <see cref="DisplayPath"/> stays the real one.</summary>
     public string ShownPath => Formatters.SafeName(DisplayPath);
 
-    partial void OnDisplayPathChanged(string value) => OnPropertyChanged(nameof(ShownPath));
+    partial void OnDisplayPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(ShownPath));
+        OnPropertyChanged(nameof(TabTooltip));
+        OnPropertyChanged(nameof(TabAccessibleName));
+    }
 
-    partial void OnTitleChanged(string value) => OnPropertyChanged(nameof(TabHeader));
+    partial void OnTitleChanged(string value)
+    {
+        OnPropertyChanged(nameof(TabHeader));
+        OnPropertyChanged(nameof(TabAccessibleName));
+    }
 
-    partial void OnIsLockedChanged(bool value) => OnPropertyChanged(nameof(TabHeader));
+    partial void OnIsLockedChanged(bool value) => NotifyLockPresentation();
+    partial void OnReturnToRootChanged(bool value) => NotifyLockPresentation();
+
+    private void NotifyLockPresentation()
+    {
+        OnPropertyChanged(nameof(TabHeader));
+        OnPropertyChanged(nameof(TabLockDescription));
+        OnPropertyChanged(nameof(TabTooltip));
+        OnPropertyChanged(nameof(TabAccessibleName));
+    }
 
     partial void OnQuickSearchChanged(string? value)
     {

@@ -1,5 +1,9 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 
@@ -8,6 +12,143 @@ namespace FileCat.App.Tests;
 /// <summary>A panel's tabs: the active one stays in sight, and "⋯" lists them all when they do not fit.</summary>
 public sealed class TabStripTests
 {
+    [AvaloniaFact]
+    public void Colliding_titles_use_the_shortest_distinct_parent_provider_or_archive_cue()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[0];
+            TabViewModel Add(string path)
+            {
+                var tab = new TabViewModel(services, panel) { Title = "build", DisplayPath = path };
+                panel.AttachTab(tab);
+                return tab;
+            }
+
+            var clientA = Add(@"C:\ClientA\build");
+            var clientB = Add(@"D:\ClientB\build");
+            var remote = Add("sftp://alex@server/home/build");
+            var archive = Add("zip://archive.zip!/home/build");
+            Assert.Equal("build · ClientA", clientA.TabHeader);
+            Assert.Equal("build · ClientB", clientB.TabHeader);
+            Assert.Equal("build · alex@server / home", remote.TabHeader);
+            Assert.Equal("build · archive.zip! / home", archive.TabHeader);
+
+            var duplicate = Add(@"C:\ClientA\build");
+            Assert.NotEqual(clientA.TabHeader, duplicate.TabHeader);
+            Assert.Contains("#1", clientA.TabHeader);
+            Assert.Contains("#2", duplicate.TabHeader);
+            panel.MoveTab(duplicate, 0);
+            Assert.NotEqual(clientA.TabHeader, duplicate.TabHeader);
+            panel.CloseTab(duplicate);
+            Assert.Equal("build · ClientA", clientA.TabHeader);
+
+            remote.Title = "other";
+            archive.Title = "other";
+            clientB.Title = "other";
+            Assert.Equal("build", clientA.TabHeader);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Lock_modes_have_distinct_visible_labels_and_full_keyboard_accessible_meanings()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[0];
+            var tab = panel.ActiveTab!;
+            string path = tab.DisplayPath;
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(v => ReferenceEquals(v.DataContext, panel));
+            Dispatcher.UIThread.RunJobs();
+            var button = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => ReferenceEquals(b.Tag, tab));
+
+            tab.IsLocked = true;
+            tab.ReturnToRoot = false;
+            Assert.StartsWith("🔒 ", tab.TabHeader);
+            Assert.Contains("Navigation lock", tab.TabTooltip);
+            Assert.Contains("creates a new tab", AutomationProperties.GetHelpText(button));
+            Assert.Contains(path, AutomationProperties.GetName(button));
+
+            tab.ReturnToRoot = true;
+            tab.LockedRoot = FileCat.Core.Resources.Location.FileSystem(path);
+            Dispatcher.UIThread.RunJobs();
+            Assert.StartsWith("⌂ ", tab.TabHeader);
+            Assert.Contains("revisiting returns to", tab.TabTooltip);
+            Assert.Contains(path, AutomationProperties.GetHelpText(button));
+            Assert.Contains("Root lock", AutomationProperties.GetName(button));
+
+            tab.IsLocked = false;
+            Assert.DoesNotContain("lock", tab.TabHeader, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Unlocked tab", AutomationProperties.GetHelpText(button));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Returning_to_a_locked_root_updates_the_tab_identity_and_keeps_its_saved_root()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string saved = Directory.CreateDirectory(Path.Combine(root, "saved-root")).FullName;
+            string child = Directory.CreateDirectory(Path.Combine(saved, "child")).FullName;
+            var panel = vm.Workspace.Panels[0];
+            var tab = panel.ActiveTab!;
+            var savedLocation = FileCat.Core.Resources.Location.FileSystem(saved);
+            tab.Navigate(savedLocation);
+            await FileListFixture.Wait(() => tab.DisplayPath == saved);
+            tab.IsLocked = true;
+            tab.ReturnToRoot = true;
+            tab.LockedRoot = savedLocation;
+            tab.Navigate(FileCat.Core.Resources.Location.FileSystem(child));
+            await FileListFixture.Wait(() => tab.DisplayPath == child);
+            Assert.Contains("child", tab.TabHeader);
+
+            panel.OpenTab(FileCat.Core.Resources.Location.FileSystem(Path.Combine(root, "files")));
+            panel.ActiveTab = tab;
+            await FileListFixture.Wait(() => tab.DisplayPath == saved);
+            Assert.Equal(savedLocation, tab.LockedRoot);
+            Assert.Contains("saved-root", tab.TabHeader);
+            Assert.DoesNotContain("child", tab.TabHeader);
+            Assert.Contains(saved, tab.TabTooltip);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Visually_equal_escaped_names_get_safe_distinct_qualifiers()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[0];
+            var hidden = new TabViewModel(services, panel)
+            {
+                Title = "docs\u202E.exe",
+                DisplayPath = "sftp://serverA/ClientA/docs\u202E.exe",
+            };
+            var literal = new TabViewModel(services, panel)
+            {
+                Title = "docs\\u202E.exe",
+                DisplayPath = "sftp://serverB/ClientB/docs\\u202E.exe",
+            };
+            panel.AttachTab(hidden);
+            panel.AttachTab(literal);
+            Assert.StartsWith("docs\\u202E.exe · ", hidden.TabHeader);
+            Assert.StartsWith("docs\\u202E.exe · ", literal.TabHeader);
+            Assert.NotEqual(hidden.TabHeader, literal.TabHeader);
+            Assert.DoesNotContain('\u202E', hidden.TabHeader);
+            Assert.Contains("ClientA", hidden.TabHeader);
+            Assert.Contains("ClientB", literal.TabHeader);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task The_active_tab_stays_in_sight_and_overflowing_tabs_offer_the_list()
     {

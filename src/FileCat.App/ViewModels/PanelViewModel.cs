@@ -14,12 +14,86 @@ public sealed partial class PanelViewModel : ObservableObject
         Workspace = workspace;
         Services = services;
         Id = id ?? Guid.NewGuid().ToString("N");
+        Tabs.CollectionChanged += (_, _) => RefreshTabLabels();
     }
 
     public string Id { get; }
     public WorkspaceViewModel Workspace { get; }
     public AppServices Services { get; }
     public ObservableCollection<TabViewModel> Tabs { get; } = [];
+    private readonly HashSet<TabViewModel> _observedTabs = [];
+
+    private void RefreshTabLabels()
+    {
+        foreach (var old in _observedTabs.Where(tab => !Tabs.Contains(tab)).ToArray())
+        {
+            old.PropertyChanged -= OnTabIdentityChanged;
+            _observedTabs.Remove(old);
+        }
+        foreach (var tab in Tabs.Where(tab => !_observedTabs.Contains(tab)))
+        {
+            tab.PropertyChanged += OnTabIdentityChanged;
+            _observedTabs.Add(tab);
+        }
+
+        foreach (var group in Tabs.GroupBy(tab => Formatters.SafeName(tab.Title), StringComparer.OrdinalIgnoreCase))
+        {
+            var peers = group.ToArray();
+            if (peers.Length == 1)
+            {
+                peers[0].TabQualifier = string.Empty;
+                continue;
+            }
+            var cues = peers.ToDictionary(tab => tab, LocationCues);
+            int maxDepth = cues.Values.Max(parts => parts.Length);
+            foreach (var tab in peers)
+            {
+                string qualifier = string.Empty;
+                for (int depth = 1; depth <= maxDepth; depth++)
+                {
+                    string candidate = Cue(cues[tab], depth);
+                    if (peers.Count(other => string.Equals(Cue(cues[other], depth), candidate,
+                            StringComparison.OrdinalIgnoreCase)) != 1) continue;
+                    qualifier = candidate;
+                    break;
+                }
+                if (qualifier.Length == 0)
+                {
+                    string candidate = Cue(cues[tab], maxDepth);
+                    int instance = peers.TakeWhile(other => !ReferenceEquals(other, tab))
+                        .Count(other => string.Equals(Cue(cues[other], maxDepth), candidate,
+                            StringComparison.OrdinalIgnoreCase)) + 1;
+                    qualifier = candidate + " #" + instance;
+                }
+                tab.TabQualifier = qualifier;
+            }
+        }
+    }
+
+    private void OnTabIdentityChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TabViewModel.Title) or nameof(TabViewModel.DisplayPath) or
+            nameof(TabViewModel.IsLocked) or nameof(TabViewModel.ReturnToRoot) or nameof(TabViewModel.LockedRoot))
+            RefreshTabLabels();
+    }
+
+    private static string[] LocationCues(TabViewModel tab)
+    {
+        string path = tab.DisplayPath;
+        // Backslash is a path separator for local Windows paths, but a legal name character on remote Unix paths.
+        bool windowsPath = OperatingSystem.IsWindows() && tab.Location?.IsFileSystem == true ||
+            path.Length > 1 && char.IsLetter(path[0]) && path[1] == ':';
+        if (windowsPath) path = path.Replace('\\', '/');
+        string[] parts = path.TrimEnd('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length > 0 && string.Equals(parts[^1], tab.Title, StringComparison.OrdinalIgnoreCase))
+            parts = parts[..^1];
+        string scheme = tab.Location?.Scheme ?? "tab";
+        return [scheme, .. parts];
+    }
+
+    private static string Cue(string[] parts, int depth) =>
+        string.Join(" / ", parts.TakeLast(Math.Min(depth, parts.Length)));
 
     [ObservableProperty] private TabViewModel? _activeTab;
     [ObservableProperty] private bool _isActive;
@@ -45,7 +119,7 @@ public sealed partial class PanelViewModel : ObservableObject
             newValue.IsActiveTab = true;
             // Locked "return to root" tabs go back to their saved location when revisited.
             if (newValue.IsLocked && newValue.ReturnToRoot && newValue.LockedRoot is { } root && newValue.Location != root)
-                newValue.Listing.Load(root);
+                newValue.Navigate(root, record: false);
         }
         Workspace.OnPanelTabChanged(this);
     }
