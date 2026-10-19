@@ -2,7 +2,18 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
-**Current work:** FCUX-068 shows queue movement only for queued jobs, disables the
+**Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
+and nine subsequently queued bugs have an implemented code path and regression
+coverage. The complete local Release runs passed 4,428 Core cases (150 platform
+skips) and 2,346 App cases (63 platform skips), with zero failures, using 16
+workers where the test runner supports them. The cross-platform CI run at
+`c084909b` passed its producer, Windows, Ubuntu, macOS and Windows ARM64 jobs.
+Subsequent CI and test-timing corrections are being verified. Native desktop,
+provider, scaling, clipboard and assistive-technology acceptance remains open;
+Page-mode Find reports a truthful lower bound because its native engines do not
+expose an exact match total.
+
+**Earlier implementation record:** FCUX-068 shows queue movement only for queued jobs, disables the
 first queued job with a reason and preserves synchronization step order; 51 related
 App and 28 job-engine Core cases pass, with one Core platform skip. FCUX-067 keeps
 support actions within About, names their exact folder targets and opens them
@@ -74,8 +85,8 @@ F9 user commands have a structured nested-menu editor and a lossless Advanced
 route; Settings search navigates among labels and explanations across tabs.
 The Keyboard tab opens the searchable reference and captures shortcut changes
 inside the Settings draft. Command and association rows offer argument tokens
-and nonexecuting previews. Native interaction acceptance remains open. The reported Markdown Page
-table-width bug is fixed: tables use available viewer width and scroll within
+and nonexecuting previews. Native interaction acceptance remains open. UXBUG-001,
+the reported Markdown Page table-width bug, is fixed: tables use available viewer width and scroll within
 their own keyboard-focusable region on narrow windows. The [session workflow](UX_UI_SESSION_WORKFLOW.md)
 records the wide/narrow geometry check and remaining native acceptance.
 
