@@ -31,8 +31,9 @@ FCUX-002 gestures.
 
 The current local Core and App Release suites both exited successfully with
 16 workers at `757d5777`. Their platform-specific skips still need native
-acceptance. CI for that head and the preceding validation commits remains in
-progress; [UX_UI_REMAINING.md](UX_UI_REMAINING.md) tracks the live gate.
+acceptance. Cross-platform CI is green for `c2df4a02` and `fe5d3bbe`;
+subsequent validation runs are still in progress. [UX_UI_REMAINING.md](UX_UI_REMAINING.md)
+tracks the live gate.
 
 **Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
 and eleven subsequently queued bugs have an implemented code path and regression
