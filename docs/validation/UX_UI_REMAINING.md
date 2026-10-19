@@ -33,8 +33,8 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
    changed-query ownership, provider cancellation and non-Windows input.
-   For FCUX-008, test native whole-file
-   choice, Stop, incomplete and changed sources, scaled/narrow layout, and
+   For FCUX-008, test native Stop, incomplete and changed sources,
+   scaled/narrow layout, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
    supported desktops. For FCUX-010, inspect large-listing latency, complete

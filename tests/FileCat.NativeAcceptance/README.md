@@ -242,6 +242,11 @@ byte count and source revision text. It also checks that Compute leaves the
 clipboard unchanged and explicit Copy publishes the complete visible result.
 The runner closes the viewer and verifies the fixture files are unchanged;
 `selection-stop` then closes the isolated app.
+On a new fixture, `checksum-whole-native <report.json>` begins with the same
+one-byte selection, explicitly switches the scope to Whole file, and checks
+the full 23-byte SHA-256, CRC-32, byte count, revision evidence, unchanged
+clipboard until Copy, and unchanged fixture bytes. Finish with
+`selection-stop`.
 For FCUX-007, use another fresh `seed-selection` fixture and run
 `search-native <report.json>` on its launched isolated app. The interactive
 runner creates a 13 MiB guest-local text file with `NEEDLE` near 1 MiB and
