@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|explorer-navigate|explorer-copy|clipboard-paste|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -867,9 +867,10 @@ try
             await ClickButtonAsync(client, sessionId, "Copy");
             await ClickButtonAsync(client, sessionId, "Options");
         }
-        else if (mode == "clipboard-cut")
+        else if (mode is "clipboard-cut" or "clipboard-cut-two")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
+            bool two = mode == "clipboard-cut-two";
             var beforeCut = XDocument.Parse(await ReadSourceAsync(client, sessionId));
             var clipboardWindow = beforeCut.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
@@ -885,8 +886,10 @@ try
             NativeWindow.ClickAt(CenterX(sourceTab), CenterY(sourceTab));
             if (!NativeWindow.IsRecoveryForeground("clipboard-source"))
                 throw new InvalidOperationException("FileCat did not retain foreground focus for Cut.");
-            await SendSessionKeysAsync(client, sessionId, "\uE015\uE009x\uE000");
+            await SendSessionKeysAsync(client, sessionId,
+                two ? "\uE009a\uE000\uE009x\uE000" : "\uE015\uE009x\uE000");
             var sourceFile = Path.Combine(fixture.Source, "a.txt");
+            var secondFile = Path.Combine(fixture.Source, "b.txt");
             bool published = false;
             for (var attempt = 0; attempt < 20 && !published; attempt++)
             {
@@ -894,15 +897,16 @@ try
                 try
                 {
                     var drop = NativeWindow.ReadClipboardFileDrop();
-                    published = drop.FileDrop && drop.Paths.Count == 1
-                        && string.Equals(drop.Paths[0], sourceFile,
-                            StringComparison.OrdinalIgnoreCase);
+                    var expectedPaths = two ? new[] { sourceFile, secondFile } : [sourceFile];
+                    published = drop.FileDrop && drop.Paths.Count == expectedPaths.Length
+                        && expectedPaths.All(path => drop.Paths.Contains(path,
+                            StringComparer.OrdinalIgnoreCase));
                 }
                 catch (InvalidOperationException) { }
             }
-            if (!published || !File.Exists(sourceFile))
+            if (!published || !File.Exists(sourceFile) || (two && !File.Exists(secondFile)))
                 throw new InvalidOperationException(
-                    "FileCat Cut did not publish the exact source file while retaining its original.");
+                    "FileCat Cut did not publish the complete selected source set while retaining the originals.");
         }
         else if (mode == "explorer-navigate")
         {
@@ -925,9 +929,10 @@ try
             if (NativeWindow.ClipboardSequence() == before)
                 throw new InvalidOperationException("Explorer did not publish a new clipboard generation.");
         }
-        else if (mode == "clipboard-paste")
+        else if (mode is "clipboard-paste" or "clipboard-paste-subset")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
+            bool subset = mode == "clipboard-paste-subset";
             var beforePaste = XDocument.Parse(await ReadSourceAsync(client, sessionId));
             var window = beforePaste.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
@@ -955,9 +960,16 @@ try
                 || await File.ReadAllTextAsync(targetFile) != expected)
                 throw new InvalidOperationException(
                     "Explorer Copy followed by FileCat Paste did not preserve the source and copy matching bytes to the destination.");
+            var otherSource = Path.Combine(fixture.Source, "b.txt");
+            if (subset && (!File.Exists(otherSource)
+                || await File.ReadAllTextAsync(otherSource) != "subset member must remain"
+                || File.Exists(Path.Combine(fixture.Destination, "b.txt"))))
+                throw new InvalidOperationException(
+                    "Pasting the Explorer subset changed or copied the other cut source.");
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed = true, sourceRetained = true, destinationBytesMatch = true,
+                passed = true, subset, sourceRetained = true, destinationBytesMatch = true,
+                otherCutSourceRetained = subset,
                 sourceFile, targetFile
             }, new JsonSerializerOptions { WriteIndented = true }));
             return 0;
@@ -1226,6 +1238,7 @@ static async Task SeedClipboardInteropAsync(string reportPath)
     Directory.CreateDirectory(destination);
     var file = Path.Combine(source, "a.txt");
     await File.WriteAllTextAsync(file, "external copy must keep source");
+    await File.WriteAllTextAsync(Path.Combine(source, "b.txt"), "subset member must remain");
     await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
     {
         root, source, destination, data, file

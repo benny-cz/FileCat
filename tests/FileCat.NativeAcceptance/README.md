@@ -99,9 +99,10 @@ modifying user data.
 For native Windows clipboard interchange, run `seed-clipboard
 clipboard-fixture.json` in the guest and launch the current Git-built FileCat
 with its reported `--data`, `--left` and `--right` paths. Keep that seed report
-beside every following report. `clipboard-cut <source.xml>` selects the single
-source file, sends Ctrl+X, and checks that FileCat published its exact path as
-a Windows shell file drop without removing the source. With an Explorer window
+beside every following report. The fixture contains `a.txt` and `b.txt`.
+`clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
+FileCat published its exact path as a Windows shell file drop without removing
+the source. With an Explorer window
 open, `explorer-navigate <source.xml>` visits that source folder;
 `explorer-copy <source.xml>` selects its file and sends Ctrl+C.
 `clipboard-native <report.json>` verifies that Explorer replaced the clipboard
@@ -110,6 +111,11 @@ focuses FileCat's destination pane, sends Ctrl+V, and checks the source and
 destination contents byte for byte. It fails on a missing file, changed source
 or incomplete copy. `clipboard-stop <report.json>` gracefully closes only the
 validated isolated FileCat process when a new Git build must be deployed.
+For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
+to mark and Cut both files. Then run the same Explorer navigation, Copy and
+native-manifest checks for `a.txt`, followed by
+`clipboard-paste-subset <report.json>`. The latter also requires `b.txt` to
+remain at the source and be absent from the destination.
 These modes use a fresh guest-local fixture; they never touch the host
 clipboard or a user folder.
 

@@ -86,17 +86,21 @@ runner verified the exact `CF_HDROP` path, preserved source and matching
 destination bytes. The native runner and its
 Git-build setup are documented in
 [`tests/FileCat.NativeAcceptance/README.md`](../../tests/FileCat.NativeAcceptance/README.md).
+Another fresh VM fixture passed Cut A+B → Explorer Copy A → FileCat Paste:
+both originals remained, `a.txt` arrived with matching bytes, and `b.txt`
+was absent from the destination. The full local Windows App Release suite
+passed 2,354 cases with 63 platform skips and zero failures.
 
 ## Verification boundaries
 
 The headless tests alone do not establish native file-manager exchange. The
-Windows Explorer single-file journey above adds that native gate. Finder,
-Linux file managers, multi-file subset selection, desktop clipboard managers,
+Windows Explorer single-file and subset journeys above add that native gate.
+Finder, Linux file managers, desktop clipboard managers,
 screen-reader announcements and visual quality at every platform scale remain
 open.
 
 FCUX-012 remains a separate S2 item for horizontal access and selection identity during reflow. The search tests assert exact byte hit positions and continuation behavior; they do not certify long-line glyph reveal across native content surfaces.
 
-Avalonia 12.1.1 documents `TryGetInProcessDataAsync` as returning the exact currently owned transfer on Windows, macOS, and X11; unsupported backends return null. The implementation uses this capability for safe same-process Cut and explains Copy fallback elsewhere. Remaining native release verification should repeat Cut A+B → external Copy A, intervening text/image ownership, repeated/partial Move, and delayed Paste with navigation on each supported backend, asserting actual job kind, destinations, and source survival.
+Avalonia 12.1.1 documents `TryGetInProcessDataAsync` as returning the exact currently owned transfer on Windows, macOS, and X11; unsupported backends return null. The implementation uses this capability for safe same-process Cut and explains Copy fallback elsewhere. Remaining native release verification should repeat intervening text/image ownership, repeated/partial Move, and delayed Paste with navigation on each supported backend, asserting actual job kind, destinations, and source survival.
 
 Sources used for the API contract: the pinned Avalonia 12.1.1 XML reference documentation for `IClipboard` and `IAsyncDataTransfer`, and the official [Avalonia IClipboard reference](https://docs.avaloniaui.net/api/avalonia/input/platform/iclipboard). Native preferred/performed transfer effects are intentionally outside this implementation's supported exchange behavior.
