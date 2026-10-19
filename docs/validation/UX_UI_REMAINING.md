@@ -12,8 +12,14 @@ All 76 numbered audit findings and eleven subsequently queued bugs have an
 implemented code path and automated regression coverage. This is **not** audit
 completion: the acceptance checks below remain open. The last fully green
 [cross-platform CI run](https://github.com/benny-cz/FileCat/actions/runs/39290466271)
-is at `a9738fcc`. Newer runs for `9495910c`, `bacbfa39`, `b80cfc71` and the
-current head must finish before their changes have a cross-platform pass.
+is at `a9738fcc`. Runs for `9495910c`, `bacbfa39` and `b80cfc71` failed;
+newer runs and the next validation head must finish before their changes have
+a cross-platform pass. The common App failure was a virtual-row test that
+expected the focused row to be evicted; the corrected check uses a nonfocused
+row and enough scrolling to reach the bounded cache. The macOS Core failures
+exposed a timing-based secret-store assertion and loss of already captured
+command stderr when a descendant held a pipe open. Both were corrected and
+need the next macOS CI result.
 
 The Windows 11 VMware guest is available for isolated native checks. Its
 repeatable runner is [FileCat.NativeAcceptance](../../tests/FileCat.NativeAcceptance/README.md).
@@ -24,29 +30,42 @@ screen geometry and mark/focus semantics, breadcrumb menu accessibility, and
 keyboard panel resize/cancel. The long-line comparison fixture also passed
 native full-value, second-difference, exact Copy and wrapping checks; a VM
 screen capture showed both differing suffixes in the primary aligned view.
+FCUX-003 native bulk rename passed twice with fresh guest-local fixtures:
+the default review and resulting bytes excluded a filtered hidden mark, and
+explicit inclusion reviewed and renamed both files in the displayed order.
 The user manually confirmed the PE scrollbar
 freeze fix on the supplied EXE. Native spoken screen-reader interaction,
 macOS/Linux desktop behavior, provider-specific cases and display scaling
 are still open where named below.
 
+The VM currently has one guest-local writable NTFS volume (`C:`). Its `D:` is
+optical and `Y:`/`Z:` are VMware host-shared folders. A real FCUX-001
+cross-volume acceptance test needs a second disposable guest-local writable
+volume; do not use a host-shared folder as a substitute for that check. The
+comparison native runner and its evidence were committed at `6fa480db`.
+
 ## Next actions, in severity order
 
 1. **Close the current validation gate.** The strengthened native FCUX-009
-   check passed again on a fresh VM instance. Commit and push its runner and
-   status updates, then check CI for the recent commits. Fix any failing lane
-   before declaring that batch verified. The remaining FCUX-009 gates are font
-   fallback, pointer selection, spoken automation and macOS/Linux desktop
+   comparison check passed again on a fresh VM instance and was pushed at
+   `6fa480db`. Push and check the virtual-row assertion, secret-store test and
+   command-output corrections on all CI platforms; fix any failing lane
+   before declaring that batch verified. The remaining FCUX-009 gates are
+   font fallback, pointer selection, spoken automation and macOS/Linux desktop
    behavior.
-2. **Finish S1 operation and decision journeys.** For FCUX-001, test a real
+2. **Finish S1 operation and decision journeys.** For FCUX-001, provision an
+   isolated second guest-local writable volume, then test a real
    cross-volume interrupted transfer and supported nonlocal providers, with
    process interruption, retained intent, source/target bytes and staging
    cleanup. For FCUX-018, verify real Windows inverse identities, Recycle Bin
    effects, close/restart ownership and retained reports. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. For FCUX-002/003/004/005, exercise native range
-   anchors, hidden-mark rename scope, modal focus/decision ownership and full
-   synchronization endpoints at narrow and scaled layouts. Preserve captured
-   scope and mapping throughout each test.
+   anchors, modal focus/decision ownership and full synchronization endpoints
+   at narrow and scaled layouts. FCUX-003's default and opt-in Windows rename
+   journeys passed; its remaining native gates are scaled/narrow layout,
+   keyboard and spoken review, and stale external-editor results. Preserve
+   captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, retain its passing lossless Settings round-trip coverage in the
    final CI gate; its structured editor extension is tracked with FCUX-036.

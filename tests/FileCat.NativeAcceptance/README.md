@@ -4,6 +4,9 @@ This runner exercises actual Win32 pointer input against a running FileCat
 window. It requires a logged-in Windows desktop, FileCat, and the locally
 installed Windows Application Driver listening on `127.0.0.1:4723`. It does
 not connect the driver to a network interface.
+When launching the app or this runner with VMware `vmrun runProgramInGuest`,
+pass `-interactive`; otherwise the process starts in Session 0 and cannot
+inspect or control the guest user's desktop.
 
 Run `FileCat.NativeAcceptance.exe find-resize <report.json>` in the Windows
 desktop session. The runner opens **Find files** if needed, drags its lower-right
@@ -136,6 +139,14 @@ full native source values, navigates to the second difference, verifies a
 source-faithful Copy, and checks that wrapping keeps the selected changed row
 on screen. `compare-stop <report.json>` gracefully closes only that isolated
 FileCat process, including a comparison window that outlives the main window.
+For FCUX-003, start from a fresh `seed-clipboard` fixture and launch the
+Git-built app with the reported paths. `rename-native <report.json>` marks
+both files, filters `a.txt` out, verifies the default one-file preview, and
+renames only visible `b.txt` after reviewing the generated name. With a second
+fresh fixture, `rename-hidden-native <report.json>` explicitly includes the
+hidden mark and verifies both reviewed mappings and the resulting file bytes.
+Run `rename-stop <report.json>` to close only the path-verified isolated app
+before starting another fixture.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

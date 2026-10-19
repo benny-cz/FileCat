@@ -478,10 +478,15 @@ public sealed class FileListAutomationTests
         using var f = new FileListFixture(new FileListFixture.ListProvider { SyntheticCount = 5_000 });
         await f.Load();
         var peer = Peer(f.List);
-        var original = Row(peer, "item-0000000");
-        for (int i = 0; i < 50; i++)
+        // The focused first item stays discoverable while offscreen; use a nonfocused row
+        // and visit enough distinct rows to actually exceed the fixed peer cache.
+        var original = Row(peer, "item-0000001");
+        int capacity = f.List.VisibleRowCapacity;
+        int maximumTop = 5_000 - capacity;
+        for (int top = 0; top < maximumTop && original.IsEnabled();
+             top += Math.Max(1, capacity + 1))
         {
-            peer.SetScrollPercent(ScrollPatternIdentifiers.NoScroll, i * 2);
+            peer.SetScrollPercent(ScrollPatternIdentifiers.NoScroll, top * 100.0 / maximumTop);
             Dispatcher.UIThread.RunJobs();
             _ = peer.GetChildren();
             Assert.InRange(f.List.AutomationOwnerCount, 1, FileListAutomationPeer.CachedPeerLimit);

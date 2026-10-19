@@ -9,6 +9,18 @@ namespace FileCat.Core.Tests;
 public sealed class ApplyCommandOutputDeadlineTests(ITestOutputHelper output)
 {
     [Fact]
+    public void A_still_open_output_reader_exposes_its_bounded_captured_tail()
+    {
+        var tail = new ApplyCommandExecutor.OutputTailCollector();
+        tail.Append("early error".AsSpan());
+        Assert.Equal("early error", tail.Snapshot());
+        tail.Append(new string('x', 3_000).AsSpan());
+        Assert.Equal(new string('x', 2_000), tail.Snapshot());
+        tail.Append("last error".AsSpan());
+        Assert.Equal(new string('x', 1_990) + "last error", tail.Snapshot());
+    }
+
+    [Fact]
     public async Task Exited_command_does_not_wait_for_a_descendant_holding_its_output_pipes()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "This control uses the Unix shell and an owned sleep child.");

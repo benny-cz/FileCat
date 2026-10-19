@@ -2,6 +2,16 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**Latest native acceptance (19 October 2026):** FCUX-003 passed two fresh
+Windows 11 VM journeys. The filtered hidden mark was excluded by default;
+after review, only the visible file was renamed and both file contents matched
+the submitted scope. Explicit inclusion regenerated a two-row counter mapping
+and renamed both files with exact contents. The repeatable
+`rename-native`/`rename-hidden-native` runner checks these UI and disk results.
+Scaled/narrow layout, spoken/keyboard review and stale external-editor
+acceptance remain open. The live remaining gates are maintained in
+[UX_UI_REMAINING.md](UX_UI_REMAINING.md).
+
 **Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
 and eleven subsequently queued bugs have an implemented code path and regression
 coverage. The complete local Release runs passed 4,428 Core cases (150 platform

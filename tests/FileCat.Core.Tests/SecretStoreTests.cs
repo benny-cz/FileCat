@@ -10,6 +10,8 @@ public sealed class SecretStoreTests
     {
         private readonly ConcurrentDictionary<string, string> _values = new();
         public ConcurrentQueue<string> Calls { get; } = new();
+        public ManualResetEventSlim DeleteStarted { get; } = new(false);
+        public ManualResetEventSlim FinishDelete { get; } = new(false);
         public override bool IsPersistent => true;
 
         protected override string? ReadCore(string key)
@@ -26,20 +28,28 @@ public sealed class SecretStoreTests
 
         protected override void DeleteCore(string key)
         {
-            Thread.Sleep(200);
+            DeleteStarted.Set();
+            if (!FinishDelete.Wait(TimeSpan.FromSeconds(10)))
+                throw new TimeoutException("The test did not release the slow secret store.");
             Calls.Enqueue("delete");
             _values.TryRemove(key, out _);
         }
     }
 
     [Fact]
-    public void Removal_returns_at_once_and_a_later_save_waits_for_it()
+    public async Task Removal_returns_at_once_and_a_later_save_waits_for_it()
     {
         var store = new SlowStore();
         store.Write("k", "old", "Old label");
-        var started = System.Diagnostics.Stopwatch.StartNew();
-        store.Delete("k");
-        Assert.True(started.ElapsedMilliseconds < 150, "Delete waited for the store.");
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var caller = Task.Run(() => store.Delete("k"), ct);
+            Assert.True(await Task.Run(() => store.DeleteStarted.Wait(TimeSpan.FromSeconds(10), ct), ct),
+                "Delete did not reach the store.");
+            await caller.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        }
+        finally { store.FinishDelete.Set(); }
         store.Write("k", "new");
         Assert.Equal("new", store.Read("k"));
         Assert.Equal(["write Old label", "delete", "write FileCat: k", "read"], store.Calls);
