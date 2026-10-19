@@ -64,6 +64,21 @@ the excluded note and cleanup of the interrupted staging file. Only the
 guest-local validation root is used; the process terminated by this test is
 the runner's Core worker, not the FileCat desktop process.
 
+For an actual FileCat desktop-process interruption, run
+`seed-desktop desktop-fixture.json` and launch the isolated build with the
+reported `--data`, `--left` and `--right` paths. `desktop-prepare <source.xml>`
+focuses `photo.jpg`, opens Copy and expands Options. Place the seed report
+beside `desktop-interrupt <report.json>`; it enters a 64 KiB/s limit, starts
+the 32 MiB copy, waits for a journal and staging file, and terminates only
+the FileCat process whose executable is in the guest validation folder.
+After Windows releases the staging handle, it requires the nonzero source
+marker in staging, a recoverable journal with the rate choice, an intact
+source and no published target. `inspect-desktop <report.json>` can recheck
+that state. Relaunch FileCat on the same fixture and run
+`desktop-continue <report.json>` to review the rate and conservative Skip
+policy, approve Continue copy, compare the complete source and target bytes,
+and require staging cleanup. The runner never targets a host process.
+
 For an incomplete legacy record, run `seed-legacy legacy-fixture.json` in the
 guest, then launch an isolated FileCat instance using its reported `--data`,
 `--left` and `--right` paths. `legacy-review <source.xml>` opens the new-transfer

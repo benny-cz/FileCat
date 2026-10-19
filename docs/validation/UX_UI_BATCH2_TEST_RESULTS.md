@@ -494,8 +494,19 @@ its test process after copied bytes were recorded. FileCat recognized the
 resulting journal and warned that one partial staging file would be cleaned.
 The review retained the filter, read-back verification, rate, Queue start and
 Skip recovery policy. Continue completed the 8 MiB JPG move, kept TXT at
-source and removed the staging file. FileCat desktop-process interruption,
-cross-volume and other provider acceptance remain open.
+source and removed the staging file. Cross-volume and other provider
+acceptance remain open.
+
+A fourth isolated VM fixture ran the transfer through FileCat's own Copy
+dialog at a chosen 64 KiB/s rate. The native runner waited for a journal and
+staging file, then terminated only that validation FileCat process. Once
+Windows released its copy handle, a nonzero marker in staging proved source
+content had been copied; the full target was still unpublished. The journal
+retained equivalent continuation and the rate choice. Relaunch displayed
+the staged-file cleanup and conservative Skip policy. Continue copied the
+complete 32 MiB source bytes, kept the copy source and excluded note, and
+removed staging. The repeatable `desktop-interrupt` and `desktop-continue`
+runner modes both passed on the final fixture.
 
 A third isolated guest fixture removed the intent fields from a valid journal
 and retained its CRC. Startup refused equivalent continuation and offered

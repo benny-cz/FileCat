@@ -98,9 +98,13 @@ the target while the excluded TXT stayed at source. A further guest run killed
 the test process after its Core worker recorded copied bytes. FileCat then
 recognized the durable journal and one partial staging file, preserved the
 filter, verification, rate and queue choices in review, and completed the
-8 MiB JPG move while leaving TXT at source and clearing staging. Killing the
-FileCat desktop process, cross-volume moves and other providers still need
-native acceptance.
+8 MiB JPG move while leaving TXT at source and clearing staging. A separate
+guest fixture terminated FileCat itself during a 32 MiB copy. The retained
+staging file contained a nonzero source marker, the journal preserved the
+64 KiB/s choice, and the target was unpublished. Relaunch showed the
+partial-file cleanup and Skip policy; Continue reproduced the full source
+content, retained the copy source, and removed staging. Cross-volume moves
+and other providers still need native acceptance.
 
 A separate incomplete-journal guest fixture followed the legacy path. It
 offered a newly reviewed copy with explicit missing-intent text and the chosen

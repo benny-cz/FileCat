@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,21 +11,23 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live")
+if (mode is "seed-recovery" or "seed-legacy" or "seed-desktop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
         if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
         else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
+        else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
         else if (mode == "interrupt-live") await InterruptLiveRecoveryAsync(reportPath);
+        else if (mode == "inspect-desktop") return await InspectDesktopRecoveryAsync(reportPath) ? 0 : 1;
         else return await InspectLiveRecoveryAsync(reportPath) ? 0 : 1;
         return 0;
     }
@@ -522,6 +525,149 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "desktop-interrupt")
+        {
+            var fixture = await ReadDesktopFixtureAsync(reportPath);
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = source.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "FileCat — desktop-source", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("Desktop interruption window is unavailable.");
+            if (!window.Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    fixture.Source, StringComparison.OrdinalIgnoreCase) == true))
+                throw new InvalidOperationException("The desktop window does not show this isolated source fixture.");
+            var processId = int.Parse((string?)window.Attribute("ProcessId") ?? "0");
+            using var app = Process.GetProcessById(processId);
+            var expectedExecutable = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
+                "ReviewHighlights", "FileCat.exe");
+            if (!string.Equals(app.MainModule?.FileName, expectedExecutable,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The target desktop process is not the isolated VM build.");
+            if (!window.Descendants().Any(element =>
+                ((string?)element.Attribute("Name"))?.Contains(
+                    "Copy \"photo.jpg\"", StringComparison.Ordinal) == true))
+                throw new InvalidOperationException("The test photo is not the selected transfer source.");
+            var rate = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Speed limit (MB/s):']", "speed limit");
+            await SendKeysAsync(client, sessionId, rate,
+                0.0625.ToString(CultureInfo.CurrentCulture));
+            var changed = ParseSource(await ReadSourceAsync(client, sessionId));
+            var form = changed.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("Transfer form closed before submission.");
+            var copy = form.Descendants().Where(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Copy"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && (string?)element.Attribute("IsEnabled") == "True").LastOrDefault()
+                ?? throw new InvalidOperationException("The transfer form Copy action is unavailable.");
+            NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            var journalDirectory = Path.Combine(fixture.Data, "local", "journal");
+            string? partial = null;
+            var marker = DesktopMarkerBytes();
+            for (var attempt = 0; attempt < 300 && partial is null; attempt++)
+            {
+                if (Directory.Exists(fixture.Destination))
+                    partial = Directory.EnumerateFiles(fixture.Destination,
+                        $"{JournalRecovery.StagedPrefix}*.tmp", SearchOption.AllDirectories)
+                        .FirstOrDefault(path => new FileInfo(path).Length > 0);
+                if (partial is null) await Task.Delay(100);
+            }
+            if (partial is null || !Directory.Exists(journalDirectory)
+                || !Directory.EnumerateFiles(journalDirectory, "*.fcj").Any()
+                || File.Exists(Path.Combine(fixture.Destination, "photo.jpg")))
+                throw new InvalidOperationException("The desktop copy did not reach journaled staging.");
+            // CopyFile2 may hold the destination exclusively while it writes. A nonzero
+            // file length alone only proves preallocation, so verify the marker after exit.
+            await Task.Delay(400);
+            if (File.Exists(Path.Combine(fixture.Destination, "photo.jpg")))
+                throw new InvalidOperationException("The desktop copy finished before interruption.");
+            var partialBytes = new FileInfo(partial).Length;
+            app.Kill();
+            await app.WaitForExitAsync();
+            bool copiedMarker = false;
+            for (var attempt = 0; attempt < 100 && !copiedMarker; attempt++)
+            {
+                copiedMarker = TryReadMarker(partial, marker);
+                if (!copiedMarker) await Task.Delay(100);
+            }
+            var interrupted = JournalRecovery.Scan(journalDirectory);
+            for (var attempt = 0; attempt < 100 &&
+                 (interrupted.Count != 1 || !interrupted[0].CanContinueTransfer ||
+                  interrupted[0].TransferIntent?.RateLimit != 65536); attempt++)
+            {
+                await Task.Delay(100);
+                interrupted = JournalRecovery.Scan(journalDirectory);
+            }
+            var retained = interrupted.Count == 1 && interrupted[0].CanContinueTransfer
+                && interrupted[0].TransferIntent?.RateLimit == 65536;
+            var sourceIntact = new FileInfo(Path.Combine(fixture.Source, "photo.jpg")).Length
+                == 32 * 1024 * 1024;
+            var unpublished = !File.Exists(Path.Combine(fixture.Destination, "photo.jpg"));
+            var passed = retained && sourceIntact && unpublished && partialBytes > 0
+                && copiedMarker;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, desktopProcessExited = app.HasExited, partialBytes, copiedMarker,
+                retained, journalCount = interrupted.Count,
+                rateLimit = interrupted.SingleOrDefault()?.TransferIntent?.RateLimit,
+                sourceIntact, unpublished
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "desktop-continue")
+        {
+            var fixture = await ReadDesktopFixtureAsync(reportPath);
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            if (FindVisible(review, "button", "Continue copy") is null)
+            {
+                NativeWindow.FocusRecovery("desktop-source");
+                NativeWindow.ScrollAt(800, 770, -3);
+                await ClickButtonAsync(client, sessionId, "Continue copy…");
+                review = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var names = review.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            var scopeVisible = names.Any(name => name.Contains(
+                    "Speed limit: " + 65536.ToString("N0", CultureInfo.CurrentCulture) + " bytes/s",
+                    StringComparison.Ordinal))
+                && names.Any(name => name.Contains("Skip existing files (recovery policy)",
+                    StringComparison.Ordinal))
+                && names.Any(name => name.Contains(fixture.Destination, StringComparison.OrdinalIgnoreCase))
+                && names.Any(name => name.Contains("Key choices before approval",
+                    StringComparison.Ordinal))
+                && names.Any(name => name.Contains("partial file", StringComparison.OrdinalIgnoreCase));
+            if (!scopeVisible)
+                throw new InvalidOperationException("Desktop recovery review lost its rate, mapping or partial cleanup.");
+            await ClickButtonAsync(client, sessionId, "Continue copy");
+            var target = Path.Combine(fixture.Destination, "photo.jpg");
+            for (var attempt = 0; attempt < 2400 && !File.Exists(target); attempt++)
+                await Task.Delay(100);
+            bool targetComplete = false;
+            if (File.Exists(target) && new FileInfo(target).Length == 32 * 1024 * 1024)
+            {
+                var targetBytes = await File.ReadAllBytesAsync(target);
+                var sourceBytes = await File.ReadAllBytesAsync(Path.Combine(fixture.Source, "photo.jpg"));
+                targetComplete = targetBytes.AsSpan().SequenceEqual(sourceBytes);
+            }
+            var sourceRetained = File.Exists(Path.Combine(fixture.Source, "photo.jpg"))
+                && await File.ReadAllTextAsync(Path.Combine(fixture.Source, "note.txt"))
+                    == "excluded source remains";
+            var partialCleaned = !Directory.EnumerateFiles(fixture.Destination,
+                $"{JournalRecovery.StagedPrefix}*.tmp", SearchOption.AllDirectories).Any();
+            var passed = targetComplete && sourceRetained && partialCleaned;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, scopeVisible, targetComplete, sourceRetained, partialCleaned
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode == "legacy-new-copy")
         {
             var fixture = await ReadRecoveryFixtureAsync(reportPath, legacy: true);
@@ -656,6 +802,43 @@ try
         {
             NativeWindow.FocusRecovery();
             await Task.Delay(300);
+        }
+        else if (mode == "focus-desktop")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            await Task.Delay(300);
+        }
+        else if (mode == "desktop-select")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE015\uE015");
+            await Task.Delay(300);
+        }
+        else if (mode == "desktop-copy-form")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            await ClickButtonAsync(client, sessionId, "Copy");
+            await Task.Delay(500);
+        }
+        else if (mode == "desktop-options")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            await ClickButtonAsync(client, sessionId, "Options");
+            await Task.Delay(300);
+        }
+        else if (mode == "desktop-prepare")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE015\uE015");
+            await ClickButtonAsync(client, sessionId, "Copy");
+            await ClickButtonAsync(client, sessionId, "Options");
+        }
+        else if (mode == "desktop-review")
+        {
+            NativeWindow.FocusRecovery("desktop-source");
+            NativeWindow.ScrollAt(800, 770, -3);
+            await ClickButtonAsync(client, sessionId, "Continue copy…");
+            await Task.Delay(500);
         }
         else if (mode == "legacy-review")
         {
@@ -877,6 +1060,45 @@ static async Task SeedLegacyRecoveryAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
+static async Task SeedDesktopInterruptionAsync(string reportPath)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "DesktopInterruption", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "desktop-source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    Directory.CreateDirectory(source);
+    Directory.CreateDirectory(destination);
+    var photo = Path.Combine(source, "photo.jpg");
+    await using (var file = new FileStream(photo, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+    {
+        file.SetLength(32 * 1024 * 1024);
+        await file.WriteAsync(DesktopMarkerBytes());
+    }
+    await File.WriteAllTextAsync(Path.Combine(source, "note.txt"), "excluded source remains");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, photo, intendedRateLimit = 65536
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
+static byte[] DesktopMarkerBytes() => Encoding.ASCII.GetBytes("FILECAT_DESKTOP_COPY_BYTES_WRITTEN");
+
+static bool TryReadMarker(string path, byte[] marker)
+{
+    try
+    {
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        var prefix = new byte[marker.Length];
+        return file.Read(prefix) == prefix.Length && prefix.AsSpan().SequenceEqual(marker);
+    }
+    catch (IOException) { return false; }
+    catch (UnauthorizedAccessException) { return false; }
+}
+
 static async Task InterruptLiveRecoveryAsync(string reportPath)
 {
     var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -952,6 +1174,35 @@ static async Task<bool> InspectLiveRecoveryAsync(string reportPath)
     return passed;
 }
 
+static async Task<bool> InspectDesktopRecoveryAsync(string reportPath)
+{
+    var fixture = await ReadDesktopFixtureAsync(reportPath);
+    var interrupted = JournalRecovery.Scan(Path.Combine(fixture.Data, "local", "journal"));
+    var staged = Directory.EnumerateFiles(fixture.Destination,
+        $"{JournalRecovery.StagedPrefix}*.tmp", SearchOption.AllDirectories)
+        .Select(path => new FileInfo(path).Length).ToArray();
+    bool copiedMarker = false;
+    foreach (var path in Directory.EnumerateFiles(fixture.Destination,
+        $"{JournalRecovery.StagedPrefix}*.tmp", SearchOption.AllDirectories))
+        copiedMarker |= TryReadMarker(path, DesktopMarkerBytes());
+    var passed = interrupted.Count == 1 && interrupted[0].CanContinueTransfer
+        && interrupted[0].TransferIntent?.RateLimit == 65536
+        && staged.Any(length => length > 0) && copiedMarker
+        && File.Exists(Path.Combine(fixture.Source, "photo.jpg"))
+        && !File.Exists(Path.Combine(fixture.Destination, "photo.jpg"));
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        passed, journalCount = interrupted.Count,
+        canContinue = interrupted.SingleOrDefault()?.CanContinueTransfer,
+        rateLimit = interrupted.SingleOrDefault()?.TransferIntent?.RateLimit,
+        problem = interrupted.SingleOrDefault()?.TransferIntentProblem,
+        stagedBytes = staged, copiedMarker,
+        sourceExists = File.Exists(Path.Combine(fixture.Source, "photo.jpg")),
+        targetExists = File.Exists(Path.Combine(fixture.Destination, "photo.jpg"))
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    return passed;
+}
+
 static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath,
     bool live = false, bool legacy = false)
 {
@@ -971,6 +1222,26 @@ static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath,
         document.RootElement.GetProperty("source").GetString() ?? "",
         document.RootElement.GetProperty("destination").GetString() ?? "",
         document.RootElement.GetProperty("data").GetString() ?? "");
+}
+
+static async Task<RecoveryFixture> ReadDesktopFixtureAsync(string reportPath)
+{
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "", "desktop-fixture.json");
+    using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
+    var root = document.RootElement.GetProperty("root").GetString() ?? "";
+    var expectedRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "DesktopInterruption")
+        + Path.DirectorySeparatorChar;
+    if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Desktop fixture is outside the isolated guest test root.");
+    var source = document.RootElement.GetProperty("source").GetString() ?? "";
+    var destination = document.RootElement.GetProperty("destination").GetString() ?? "";
+    var data = document.RootElement.GetProperty("data").GetString() ?? "";
+    if (!string.Equals(source, Path.Combine(root, "desktop-source"), StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(destination, Path.Combine(root, "destination"), StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(data, Path.Combine(root, "data"), StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Desktop fixture paths do not match its isolated root.");
+    return new RecoveryFixture(source, destination, data);
 }
 
 static async Task<XDocument> EnsureToolsSettingsAsync(HttpClient client, string sessionId)
@@ -1094,7 +1365,7 @@ internal static partial class NativeWindow
 
     internal static void FocusRecovery(string sourceFolder = "source")
     {
-        if (sourceFolder is not ("source" or "live-source" or "legacy-source"))
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source"))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var window = FindWindow(null, title);
