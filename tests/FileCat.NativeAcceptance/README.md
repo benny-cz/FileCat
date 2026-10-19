@@ -230,7 +230,10 @@ marks `b.txt`, holds Shift through Down and requires `b.txt` to become unmarked
 while focus moves to `c.txt`. It verifies Shift is physically down, activates
 that fixture's Explorer window, releases Shift there, then returns to FileCat.
 The next Shift+Down must start a new mark gesture on `c.txt`, leaving all
-fixture bytes and the destination unchanged. Finish with `selection-stop`.
+fixture bytes and the destination unchanged. It then starts an unmark gesture
+on `c.txt`, gives focus to the command line, releases Shift, and returns to
+the list with Escape rather than a mouse click. A fresh Shift+Up must mark
+only `d.txt`. Finish with `selection-stop`.
 For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
 app, then run `checksum-native <report.json>` in the interactive guest desktop.
 It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews

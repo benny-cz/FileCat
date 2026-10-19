@@ -1009,15 +1009,37 @@ try
             var resumed = ParseSource(await ReadSourceAsync(client, sessionId));
             bool freshGesture = Marked(resumed).SequenceEqual(["c.txt"])
                 && (string?)Row(resumed, "d.txt").Attribute("HasKeyboardFocus") == "True";
+            if (!freshGesture)
+                throw new InvalidOperationException("Returning from Explorer reused the previous mark gesture.");
+
+            var c = Row(resumed, "c.txt");
+            NativeWindow.ClickAt(CenterX(c), CenterY(c));
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE015"); // Unmark c; focus d.
+            var held = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool unmarkedBeforeFocusLoss = Marked(held).Length == 0
+                && (string?)Row(held, "d.txt").Attribute("HasKeyboardFocus") == "True";
+            var commandLine = FindVisible(held, "edit", "Command line")
+                ?? throw new InvalidOperationException("The FileCat command line is unavailable for focus testing.");
+            NativeWindow.ClickAt(CenterX(commandLine), CenterY(commandLine));
+            await SendSessionKeysAsync(client, sessionId, "\uE000"); // Release Shift outside the file list.
+            await SendSessionKeysAsync(client, sessionId, "\uE00C"); // Empty command line Escape restores list focus.
+            var returned = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool listRefocused = (string?)Row(returned, "d.txt").Attribute("HasKeyboardFocus") == "True";
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE013\uE000"); // Fresh Shift+Up marks d.
+            var afterFocusLoss = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool freshAfterFocusLoss = Marked(afterFocusLoss).SequenceEqual(["d.txt"])
+                && (string?)Row(afterFocusLoss, "c.txt").Attribute("HasKeyboardFocus") == "True";
             bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
                     == "selection fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
             bool passed = changedWindow && firstUnmarked && shiftHeldOnSwitch
-                && freshGesture && unchangedFiles;
+                && freshGesture && unmarkedBeforeFocusLoss && listRefocused
+                && freshAfterFocusLoss && unchangedFiles;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, changedWindow, firstUnmarked, shiftHeldOnSwitch, freshGesture, unchangedFiles,
-                markedAfterReturn = Marked(resumed)
+                unmarkedBeforeFocusLoss, listRefocused, freshAfterFocusLoss,
+                markedAfterReturn = Marked(resumed), markedAfterFocusLoss = Marked(afterFocusLoss)
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

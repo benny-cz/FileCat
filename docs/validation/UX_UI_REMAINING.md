@@ -22,9 +22,8 @@ increments to `main`.
    Windows close/restart ownership and report behavior for empty-file and
    link inverse kinds, including incomplete or kept attempts. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
-   on each supported desktop. FCUX-002 still needs in-window focus loss and
-   window-deactivation repetition at narrow and scaled layouts, plus the
-   non-Windows native routes. FCUX-003
+   on each supported desktop. FCUX-002 still needs the native range and focus
+   journeys at narrow and scaled layouts, plus the non-Windows routes. FCUX-003
    still needs scaled/narrow layout, keyboard and spoken review, and stale
    external-editor results. For FCUX-004/005, exercise modal focus/decision
    ownership and full synchronization endpoints. Preserve captured scope and
