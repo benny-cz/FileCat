@@ -23,8 +23,11 @@ anchored `d.txt` and adding `0.txt`, Ctrl+R kept `b.txt` focused and a
 Shift-click on `c.txt` marked only `b.txt` and `c.txt`. A separate guest-local
 Ctrl-click journey passed: `d.txt` toggled on, `b.txt` toggled on, `d.txt`
 toggled off, and the following Shift-click on `c.txt` marked exactly `b.txt`
-and `c.txt` from the retained anchor on two fresh fixtures. Shift+arrows and
-focus-loss routes remain open.
+and `c.txt` from the retained anchor on two fresh fixtures. A further two
+fresh guest-local fixtures passed Shift+Down marking of `b.txt` and `c.txt`,
+ordinary Up focus movement without changing marks, and Shift+Down unmarking
+of both. Only the focus-loss/deactivation route remains open among these
+FCUX-002 gestures.
 
 The current local Core and App Release suites both exited successfully with
 16 workers at `757d5777`. Their platform-specific skips still need native

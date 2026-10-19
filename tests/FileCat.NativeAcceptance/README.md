@@ -174,6 +174,11 @@ native Shift-click on `c.txt` must then use the original `b.txt` anchor, mark
 only `b.txt` and `c.txt`, and leave every fixture file unchanged. Run the
 gesture and `selection-stop` in the guest's interactive desktop session so
 native input and graceful window close target that session.
+`selection-keyboard-native <report.json>` clicks `b.txt`, uses two Shift+Down
+keys to mark `b.txt` and `c.txt`, returns focus to `b.txt` without Shift, then
+uses two more Shift+Down keys to unmark both. It checks native focus and mark
+states after each phase and verifies unchanged fixture bytes. Use another
+fresh seed and interactive session for each run.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by
