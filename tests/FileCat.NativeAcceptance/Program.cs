@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -648,6 +648,68 @@ try
             {
                 passed, filtered, revealed, correctFallback, unchangedFiles,
                 hiddenOrder = VisibleNames(hidden), restoredOrder = VisibleNames(restored), marked
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "selection-tab-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            var second = Path.Combine(fixture.Source, "second");
+            if (new[] { "a.txt", "b.txt", "c.txt", "d.txt" }.Any(name =>
+                    File.ReadAllText(Path.Combine(fixture.Source, name)) != "selection fixture " + name)
+                || new[] { "e.txt", "f.txt" }.Any(name =>
+                    File.ReadAllText(Path.Combine(second, name)) != "second tab fixture " + name))
+                throw new InvalidOperationException("The isolated two-tab fixture is not pristine.");
+            NativeWindow.FocusRecovery("selection-source");
+            XElement List(XDocument document, string path) => document.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.EndsWith(path,
+                    StringComparison.OrdinalIgnoreCase) == true);
+            XElement Row(XElement list, string name) => list.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == name);
+            var first = ParseSource(await ReadSourceAsync(client, sessionId));
+            var d = Row(List(first, fixture.Source), "d.txt");
+            NativeWindow.ClickAt(CenterX(d), CenterY(d));
+            await SendSessionKeysAsync(client, sessionId, "\uE009t\uE000"); // New tab at the same folder.
+            await Task.Delay(150);
+            var newTab = ParseSource(await ReadSourceAsync(client, sessionId));
+            var folder = Row(List(newTab, fixture.Source), "second");
+            NativeWindow.ClickAt(CenterX(folder), CenterY(folder));
+            await SendSessionKeysAsync(client, sessionId, "\uE007"); // Open second folder.
+            XDocument entered = newTab;
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                await Task.Delay(150);
+                entered = ParseSource(await ReadSourceAsync(client, sessionId));
+                if (entered.Descendants().Any(element =>
+                    (string?)element.Attribute("ClassName") == "FileList"
+                    && ((string?)element.Attribute("Name"))?.EndsWith(second,
+                        StringComparison.OrdinalIgnoreCase) == true))
+                    break;
+            }
+            var secondList = List(entered, second);
+            await SendSessionKeysAsync(client, sessionId, "\uE011\uE015"); // Home, then Down to e.txt.
+            var focused = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool eFocused = (string?)Row(List(focused, second), "e.txt")
+                .Attribute("HasKeyboardFocus") == "True";
+            var f = Row(List(focused, second), "f.txt");
+            NativeWindow.ShiftClickAt(CenterX(f), CenterY(f));
+            var selected = ParseSource(await ReadSourceAsync(client, sessionId));
+            var active = List(selected, second);
+            var marked = new[] { "e.txt", "f.txt" }.Where(name =>
+                (string?)Row(active, name).Attribute("IsSelected") == "True").ToArray();
+            bool correctRange = marked.SequenceEqual(["e.txt", "f.txt"]);
+            bool unchangedFiles = new[] { "a.txt", "b.txt", "c.txt", "d.txt" }.All(name =>
+                    File.ReadAllText(Path.Combine(fixture.Source, name)) == "selection fixture " + name)
+                && new[] { "e.txt", "f.txt" }.All(name =>
+                    File.ReadAllText(Path.Combine(second, name)) == "second tab fixture " + name)
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = eFocused && correctRange && unchangedFiles;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, eFocused, correctRange, unchangedFiles, marked,
+                source = fixture.Source, second
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -1860,14 +1922,18 @@ static async Task SeedSelectionFixtureAsync(string reportPath)
     var root = Path.Combine(local, "FileCatValidation", "Selection", Guid.NewGuid().ToString("N"));
     var source = Path.Combine(root, "selection-source");
     var destination = Path.Combine(root, "destination");
+    var second = Path.Combine(source, "second");
     var data = Path.Combine(root, "data");
     Directory.CreateDirectory(source);
     Directory.CreateDirectory(destination);
+    Directory.CreateDirectory(second);
     foreach (var name in new[] { "a.txt", "b.txt", "c.txt", "d.txt" })
         await File.WriteAllTextAsync(Path.Combine(source, name), "selection fixture " + name);
+    foreach (var name in new[] { "e.txt", "f.txt" })
+        await File.WriteAllTextAsync(Path.Combine(second, name), "second tab fixture " + name);
     await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
     {
-        root, source, destination, data
+        root, source, second, destination, data
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 

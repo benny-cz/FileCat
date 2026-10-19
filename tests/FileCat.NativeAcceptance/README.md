@@ -157,7 +157,12 @@ path-verified app after the check. On another fresh fixture,
 `selection-filter-native <report.json>` clicks `b.txt`, filters it out,
 restores the full list and Shift-clicks `d.txt`. The retired anchor must not
 return; only the fallback range `c.txt`–`d.txt` may be marked. Other FCUX-002
-transitions still need their separate native checks.
+transitions still need their separate native checks. `selection-tab-native
+<report.json>` uses a fresh fixture with `second/e.txt` and `second/f.txt`:
+after clicking `d.txt` in the first tab it opens a second tab, enters that
+folder, focuses `e.txt` with the keyboard and Shift-clicks `f.txt`. The new
+tab must mark exactly `e.txt` and `f.txt` without inheriting the old tab's
+row coordinate.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

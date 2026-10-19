@@ -15,7 +15,9 @@ FCUX-002 also passed a native four-file sort reversal: a click on `b.txt`
 survived the changed row order, and Shift-clicking `c.txt` marked exactly
 those two items. A second native journey hid and revealed `b.txt`; its retired
 anchor did not return, and Shift-clicking `d.txt` marked only `c.txt` and
-`d.txt`. Cross-tab, refresh and other native gesture/focus routes remain open.
+`d.txt`. A shorter second tab also retained its own focus and Shift-click
+range, marking exactly `e.txt` and `f.txt` after the first tab's `d.txt`
+anchor. Refresh and other native gesture/focus routes remain open.
 
 **Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
 and eleven subsequently queued bugs have an implemented code path and regression
