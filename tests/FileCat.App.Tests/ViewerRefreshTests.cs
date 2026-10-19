@@ -161,7 +161,10 @@ public sealed class ViewerRefreshTests
             File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(10));
             await CheckForChanges(viewer);
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F5, Avalonia.Input.RawInputModifiers.None);
-            await Until(() => !ReferenceEquals(first, Field<PagedReader>(viewer, "_reader")));
+            // The reader is published before the view restores its scroll position.
+            // Wait for Refresh to finish, as a user would see through the reenabled action.
+            await Until(() => !ReferenceEquals(first, Field<PagedReader>(viewer, "_reader")) &&
+                            Field<Button>(viewer, "_refresh").IsEnabled);
             var current = Field<PagedReader>(viewer, "_reader");
             Assert.NotSame(first, current);
             Assert.InRange(text.TopOffset, anchor - 100, anchor + 100);
