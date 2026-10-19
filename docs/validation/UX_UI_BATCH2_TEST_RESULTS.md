@@ -506,6 +506,14 @@ form and approving **Start new copy** placed the expected content at the
 reviewed destination while retaining the source. The native runner records
 both paths in `legacy-cancel` and `legacy-new-copy` JSON results.
 
+The updated recovery confirmation places a themed key-choices block above the
+complete scrollable review. Thirteen focused Windows App UI cases pass for
+transfer and cleanup summaries without changing approval safety. A fresh VM
+build visibly placed **Start a new copy**, the destination, `draft.txt` →
+`approved.txt`, matching/conflict/verification choices and the full-review
+heading above the fixed Cancel and approval buttons. The repeatable
+`legacy-highlight` native assertion passed for those controls and their order.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;

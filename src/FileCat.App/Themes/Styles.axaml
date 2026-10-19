@@ -253,6 +253,13 @@
   <Style Selector="Border.dialogBody">
     <Setter Property="Padding" Value="18,10" />
   </Style>
+  <Style Selector="Border.reviewHighlights">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Padding" Value="12,9" />
+  </Style>
   <!-- An expander (the copy dialog's Options): a quiet row in the dialog's own colors, not a dark bar that looks like a box to type in. -->
   <!-- (The template's borders take these through template bindings, which a style on the borders themselves cannot outrank.) -->
   <Style Selector="Expander">

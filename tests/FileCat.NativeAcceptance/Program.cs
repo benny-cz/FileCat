@@ -10,9 +10,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -486,6 +486,38 @@ try
             {
                 passed, explicitNewTransfer, noEquivalentContinuation, reviewClosed,
                 oldJournalRetained, sourceIntact, destinationUntouched
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "legacy-highlight")
+        {
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = source.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "FileCat — legacy-source", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("Legacy FileCat window is unavailable.");
+            XElement? Text(string name) => window.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "text"
+                && (string?)element.Attribute("Name") == name);
+            var heading = Text("Key choices before approval");
+            var action = Text("Action: Start a new copy · 1 of 1 recorded source roots available");
+            var mapping = Text("Source → target name: draft.txt → approved.txt");
+            var fullReview = Text("Full review and source mapping");
+            var approval = FindVisible(window, "button", "Start new copy");
+            var passed = heading is not null && action is not null && mapping is not null
+                && fullReview is not null && approval is not null
+                && (string?)heading.Attribute("IsOffscreen") == "False"
+                && (string?)mapping.Attribute("IsOffscreen") == "False"
+                && CenterY(heading) < CenterY(mapping)
+                && CenterY(mapping) < CenterY(fullReview)
+                && CenterY(fullReview) < CenterY(approval);
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, headingVisible = heading is not null,
+                actionVisible = action is not null, mappingVisible = mapping is not null,
+                fullReviewVisible = fullReview is not null, approvalVisible = approval is not null
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

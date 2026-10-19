@@ -59,6 +59,26 @@ public sealed class InterruptedTransferIntentUiTests
         string action = flow switch { "move" => "Continue move", "cleanup" => "Delete partial files", "new-copy" => "Start new copy", _ => "Continue copy" };
         await f.WaitButton(action);
         Dispatcher.UIThread.RunJobs();
+        var highlights = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewHighlights"));
+        var keyChoices = string.Join("\n", highlights.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(block => block.Text));
+        Assert.Contains("Action: ", keyChoices);
+        if (flow == "cleanup")
+        {
+            Assert.Contains("Reviewed partial files to delete: 1", keyChoices);
+            Assert.Contains("Reviewed interrupted renames to finish: 0", keyChoices);
+        }
+        else
+        {
+            Assert.Contains("Destination: ", keyChoices);
+            Assert.Contains("Files matching: ", keyChoices);
+            Assert.Contains("Existing items: ", keyChoices);
+            Assert.Contains("Verification: ", keyChoices);
+        }
+        if (flow == "new-copy") Assert.Contains("Start a new copy", keyChoices);
+        if (flow == "new-copy") Assert.Contains("Source → target name: owned.txt → owned.txt", keyChoices);
+        if (flow == "copy-partial") Assert.Contains("First delete 1 interrupted partial file", keyChoices);
         var cancel = Assert.IsType<Button>(f.Button("Cancel"));
         var proceed = Assert.IsType<Button>(f.Button(action));
         Assert.True(cancel.IsDefault); Assert.True(cancel.IsFocused);
@@ -88,6 +108,14 @@ public sealed class InterruptedTransferIntentUiTests
         f.Services.Settings.DefaultVerify = "Native";
         var run = f.Vm.RunInterruptedAgainAsync(interrupted);
         await f.WaitButton("Continue move");
+        var highlighted = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewHighlights"));
+        var summary = string.Join("\n", highlighted.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(block => block.Text));
+        Assert.Contains("Files matching: *.jpg", summary);
+        Assert.Contains("Verification: Read back copied content", summary);
+        Assert.Contains("Existing items: Skip existing files", summary);
+        Assert.Contains("First delete 1 interrupted partial file", summary);
         Assert.Contains("*.jpg", f.Text);
         Assert.Contains("Read back and compare copied content", f.Text);
         Assert.Contains("skipping does not verify", f.Text);
@@ -193,6 +221,11 @@ public sealed class InterruptedTransferIntentUiTests
         await Fixture.Wait(() => f.Button("Copy")?.IsEnabled == true);
         f.Click("Copy");
         await f.WaitButton("Start new copy");
+        var highlighted = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewHighlights"));
+        Assert.Contains("Source → target name: draft.txt → approved.txt",
+            string.Join("\n", highlighted.GetVisualDescendants()
+                .OfType<SelectableTextBlock>().Select(block => block.Text)));
         Assert.True(JournalRecovery.IsInterrupted(interrupted));
         Assert.Single(f.Services.Jobs.Jobs);
         Assert.Equal("the complete", File.ReadAllText(target));

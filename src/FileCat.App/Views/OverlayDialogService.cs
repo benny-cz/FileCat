@@ -327,17 +327,19 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         ConfirmCoreAsync(title, message, confirmText, danger, cancelText, CancellationToken.None);
 
     /// <summary>Closes only this confirmation when its owning review is stopped.</summary>
-    public Task<bool> ConfirmWithCancellationAsync(string title, string message, string confirmText, bool danger, CancellationToken cancellationToken) =>
-        ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken);
+    public Task<bool> ConfirmWithCancellationAsync(string title, string message, string confirmText, bool danger,
+        CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null) =>
+        ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken, highlights);
 
-    private async Task<bool> ConfirmCoreAsync(string title, string message, string confirmText, bool danger, string cancelText, CancellationToken cancellationToken)
+    private async Task<bool> ConfirmCoreAsync(string title, string message, string confirmText, bool danger,
+        string cancelText, CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null)
     {
         if (cancellationToken.IsCancellationRequested) return false;
         message = OneLineBreak(message);
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = !danger, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true, IsDefault = danger };
-        var text = MessageBody(message);
+        var text = highlights is { Count: > 0 } ? HighlightedReviewBody(highlights, message) : MessageBody(message);
         Session? session = null;
         void Finish(bool r)
         {
@@ -392,6 +394,27 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             });
             paragraph = false;
         }
+        return body;
+    }
+
+    private static Control HighlightedReviewBody(IReadOnlyList<string> highlights, string message)
+    {
+        var summary = new StackPanel { Spacing = 4 };
+        summary.Children.Add(new TextBlock
+        {
+            Text = "Key choices before approval", FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+        foreach (var line in highlights)
+            summary.Children.Add(new SelectableTextBlock { Text = line, TextWrapping = TextWrapping.Wrap });
+        var body = new StackPanel { MaxWidth = 620, Spacing = 12 };
+        body.Children.Add(new Border { Classes = { "reviewHighlights" }, Child = summary });
+        body.Children.Add(new TextBlock
+        {
+            Text = "Full review and source mapping", FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+        body.Children.Add(MessageBody(message));
         return body;
     }
 

@@ -73,6 +73,10 @@ confirmation says this is a new transfer, that Cancel retains the journal and
 source, and that the destination stays empty. Then run
 `legacy-new-copy <report.json>` to review the form again and explicitly approve
 the new copy. It checks the destination mapping and both files' contents.
+On a build with highlighted recovery confirmations, run
+`legacy-highlight <report.json>` while the final review is open. It requires
+the visible key-choice heading, new-copy action, one-root name mapping, full
+review heading and approval button in their expected native reading order.
 The fixture uses a real journal with its transfer-intent fields removed and
 CRC rewritten, so startup follows the legacy path without inventing a ZIP or
 modifying user data.

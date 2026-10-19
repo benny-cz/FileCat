@@ -44,6 +44,42 @@ internal static class InterruptedJobText
             "\n\nSource → destination mapping for every available root:\n" + mapping;
     }
 
+    public static IReadOnlyList<string> ApprovalHighlights(JobKind kind, Location destination,
+        IReadOnlyList<ItemRef> sources, int recordedSources, string? newName,
+        TransferOptions options, QueueMode mode, bool newTransfer, int partialFiles)
+    {
+        string action = (newTransfer ? "Start a new " : "Continue the recorded ") +
+            (kind == JobKind.Move ? "move" : "copy");
+        string conflict = options.Conflicts switch
+        {
+            ConflictPolicy.Skip => "Skip existing files",
+            ConflictPolicy.Replace => "Replace existing files",
+            ConflictPolicy.ReplaceIfNewer => "Replace only if newer",
+            ConflictPolicy.KeepBothRenameIncoming => "Keep both; rename incoming",
+            ConflictPolicy.KeepBothRenameExisting => "Keep both; rename existing",
+            _ => "Ask about each conflict",
+        };
+        var highlights = new List<string>
+        {
+            $"Action: {action} · {sources.Count:N0} of {recordedSources:N0} recorded source roots available",
+            $"Destination: {Formatters.SafeName(destination.Path)}",
+            $"Files matching: {(options.Filter is null ? "All files" : Formatters.SafeName(options.Filter.Text))}",
+            $"Existing items: {conflict} · Verification: {(options.Verify == VerifyMode.ReadBack ? "Read back copied content" : "Size and metadata")}",
+            $"Start: {(mode == QueueMode.Queue ? "Queue" : "Now")}",
+        };
+        if (sources.Count == 1)
+        {
+            var item = sources[0];
+            string name = newName is { Length: > 0 } ? newName : item.Name;
+            string target = options.Flatten || string.IsNullOrEmpty(item.RelativeFolder)
+                ? name : Path.Combine(item.RelativeFolder, name);
+            highlights.Insert(2, $"Source → target name: {Formatters.SafeName(item.Name)} → {Formatters.SafeName(target)}");
+        }
+        if (partialFiles > 0)
+            highlights.Add($"First delete {Formatters.Plural(partialFiles, "interrupted partial file", "interrupted partial files")}");
+        return highlights;
+    }
+
     /// <summary>
     /// What recovery leaves as it is, as paragraphs to append (empty when there is nothing to say): files that differ from
     /// their source in a way an interrupted copy does not explain are never deleted (release issue I19).

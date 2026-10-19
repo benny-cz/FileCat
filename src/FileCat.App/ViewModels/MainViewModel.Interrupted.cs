@@ -245,9 +245,12 @@ public sealed partial class MainViewModel
             string action = (newTransfer ? "Start new " : "Continue ") + (kind == JobKind.Move ? "move" : "copy");
             bool consequential = kind == JobKind.Move || partial.Count > 0 || options.Conflicts is
                 ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer or ConflictPolicy.KeepBothRenameExisting;
+            var highlights = InterruptedJobText.ApprovalHighlights(kind, destination, sources,
+                job.SourceCount, newName, options, mode, newTransfer, partial.Count);
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval of the reviewed recovery plan…");
             bool approved = Dialogs is OverlayDialogService overlay
-                ? await overlay.ConfirmWithCancellationAsync(action, message, action, consequential, scope.StopSource.Token)
+                ? await overlay.ConfirmWithCancellationAsync(action, message, action, consequential,
+                    scope.StopSource.Token, highlights)
                 : await Dialogs.ConfirmAsync(action, message, action, danger: consequential);
             scope.Check();
             if (!approved) return false;
@@ -341,9 +344,18 @@ public sealed partial class MainViewModel
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => "OK" };
+            var highlights = new List<string>
+            {
+                $"Action: {action}",
+                $"Reviewed partial files to delete: {partial.Count:N0}",
+                $"Reviewed interrupted renames to finish: {renames.Count:N0}",
+                $"Temporary names kept for manual review: {unreviewedRenames.Count:N0}" +
+                    (renameLimited ? " (review limit reached)" : "")
+            };
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval of the reviewed cleanup…");
             bool approved = Dialogs is OverlayDialogService overlay
-                ? await overlay.ConfirmWithCancellationAsync("Interrupted operation", message, action, partial.Count > 0 || renames.Count > 0, scope.StopSource.Token)
+                ? await overlay.ConfirmWithCancellationAsync("Interrupted operation", message, action,
+                    partial.Count > 0 || renames.Count > 0, scope.StopSource.Token, highlights)
                 : await Dialogs.ConfirmAsync("Interrupted operation", message, action, danger: partial.Count > 0 || renames.Count > 0);
             scope.Check();
             if (!approved) return false;

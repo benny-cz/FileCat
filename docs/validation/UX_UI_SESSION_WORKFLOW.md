@@ -29,7 +29,7 @@ does not imply that the whole audit has been closed.
 ### Implementation history and remaining acceptance
 
 As of 19 October 2026, code and regression coverage for all 76 audit findings
-and nine queued bugs are present. The [last fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
+and ten queued bugs are present. The [last fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
 passes producer checks and all four platform lanes. A later Linux run exposed
 that WebKitGTK reports a directional count, rather than the original total,
 on Next/Previous; commit `ddbc444b` caches the initial count, and its Linux
@@ -107,6 +107,12 @@ offered a newly reviewed copy with explicit missing-intent text and the chosen
 source-to-target mapping. Cancel kept the journal, source and empty target;
 approving a second new-copy review placed `approved.txt` at the selected
 destination while preserving `draft.txt` at source.
+
+UXBUG-010 now highlights the action and key transfer/cleanup choices at the
+top of these dense confirmations, with the complete selectable review below.
+Thirteen focused App cases pass; the Windows 11 VM showed the native summary,
+the `draft.txt` → `approved.txt` mapping, the full-review heading and approval
+control. The `legacy-highlight` runner mode asserts those visible positions.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
