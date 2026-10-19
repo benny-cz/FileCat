@@ -38,7 +38,7 @@ public sealed class HexEditorSemanticsTests
         Assert.Equal(10, f.Hex.PendingNibble);
         Assert.Contains("pending first nibble A", f.Peer.Value);
         f.Window.KeyPress(Key.F6, RawInputModifiers.None, PhysicalKey.F6, null);
-        Assert.Same(Field<Button>(f.Window, "_saveAs"), f.Window.FocusManager!.GetFocusedElement());
+        Assert.Same(Field<Button>(f.Window, "_advanced"), f.Window.FocusManager!.GetFocusedElement());
         f.Window.KeyPress(Key.F6, RawInputModifiers.None, PhysicalKey.F6, null);
         Assert.Same(f.Hex, f.Window.FocusManager.GetFocusedElement());
         Assert.Equal(10, f.Hex.PendingNibble);

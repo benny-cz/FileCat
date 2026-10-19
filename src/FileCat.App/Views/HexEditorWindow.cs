@@ -45,6 +45,10 @@ public sealed class HexEditorWindow : Window
     private readonly Button _redo = new() { Content = "Redo" };
     private readonly Button _replace = new() { Content = "Replace bytes…" };
     private readonly Button _goTo = new() { Content = "Go to…" };
+    private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 6, LineSpacing = 4 };
+    private readonly Button _advanced = new() { Content = "More…" };
+    private bool _findOpen;
     private readonly Button _smallerText = new() { Content = "Text −" };
     private readonly Button _largerText = new() { Content = "Text +" };
     private readonly TextBlock _contentSize = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
@@ -102,8 +106,38 @@ public sealed class HexEditorWindow : Window
         ToolTip.SetTip(_largerText, "Increase hex editor size (Ctrl+plus)");
         _smallerText.Click += (_, _) => SetContentSize(_hex.FontSize - 1);
         _largerText.Click += (_, _) => SetContentSize(_hex.FontSize + 1);
-        foreach (var c in new Control[] { _save, _saveAs, _stopCopy, _exportPatch, _applyPatch, Separator(), _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, Separator(), _search, _hexSearch, _matchCase, _stopSearch })
+        ToolTip.SetTip(_save, new RichTip("Save edited bytes", "Ctrl+S", "Writes through the recovery journal."));
+        ToolTip.SetTip(_undo, new RichTip("Undo last edit", "Ctrl+Z"));
+        ToolTip.SetTip(_redo, new RichTip("Redo edit", "Ctrl+Y"));
+        ToolTip.SetTip(_findToggle, new RichTip("Find bytes or text", "Ctrl+F", "The query stays when the Find row is hidden."));
+        Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide hex editor Find bar");
+        _findToggle.Click += (_, _) => SetFindOpen(!_findOpen, focus: !_findOpen);
+        Avalonia.Automation.AutomationProperties.SetName(_advanced, "More hex editor actions");
+        ToolTip.SetTip(_advanced, new RichTip("More editor actions", null, "Save As and patch actions."));
+        var moreMenu = new ContextMenu();
+        var saveAsItem = new MenuItem { Header = "Save As…" };
+        var exportItem = new MenuItem { Header = "Export patch…" };
+        var applyItem = new MenuItem { Header = "Apply patch…" };
+        var stopItem = new MenuItem { Header = "Stop copying" };
+        var stopSeparator = new Separator { IsVisible = false };
+        saveAsItem.Click += async (_, _) => await SaveAsAsync();
+        exportItem.Click += async (_, _) => await ExportPatchAsync();
+        applyItem.Click += async (_, _) => await ApplyPatchAsync();
+        stopItem.Click += (_, _) => _copyStop?.Cancel();
+        moreMenu.ItemsSource = new Control[] { saveAsItem, exportItem, applyItem, stopSeparator, stopItem };
+        _advanced.ContextMenu = moreMenu;
+        _advanced.Click += (_, _) =>
+        {
+            saveAsItem.IsEnabled = _saveAs.IsEnabled;
+            exportItem.IsEnabled = _exportPatch.IsEnabled;
+            applyItem.IsEnabled = _applyPatch.IsEnabled;
+            stopItem.IsVisible = _stopCopy.IsVisible;
+            stopSeparator.IsVisible = _stopCopy.IsVisible;
+            moreMenu.Open(_advanced);
+        };
+        foreach (var c in new Control[] { _save, _stopCopy, _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, _findToggle, _advanced })
             toolbar.Children.Add(c);
+        foreach (var c in new Control[] { _search, _hexSearch, _matchCase, _stopSearch }) _findBar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
         var restore = new Button { Content = "Restore original bytes" };
@@ -128,10 +162,12 @@ public sealed class HexEditorWindow : Window
         var footer = new Border { Classes = { "status" }, Child = statusRow, Padding = new Thickness(8, 4) };
         var main = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(_findBar, Dock.Top);
         DockPanel.SetDock(_recoveryBar, Dock.Top);
         DockPanel.SetDock(hint, Dock.Top);
         DockPanel.SetDock(footer, Dock.Bottom);
         main.Children.Add(toolbar);
+        main.Children.Add(_findBar);
         main.Children.Add(_recoveryBar);
         main.Children.Add(hint);
         main.Children.Add(footer);
@@ -151,7 +187,12 @@ public sealed class HexEditorWindow : Window
         _stopCopy.Click += (_, _) => _copyStop?.Cancel();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc).");
         _stopSearch.Click += (_, _) => _searchCts?.Cancel();
-        _search.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) InvalidateSearch(); };
+        _search.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
+            InvalidateSearch();
+        };
         _hexSearch.IsCheckedChanged += (_, _) => InvalidateSearch();
         _matchCase.IsCheckedChanged += (_, _) => InvalidateSearch();
         _replace.Click += async (_, _) => await ReplaceBytesAsync();
@@ -246,7 +287,6 @@ public sealed class HexEditorWindow : Window
         _hex.Focus();
     }
 
-    private static Control Separator() => new Border { Width = 1, Margin = new Thickness(4, 2), Background = Brushes.Gray, Opacity = 0.4 };
 
     /// <summary>Connects the view to the current file, overlay, and reader (after opening or Save As).</summary>
     private void Attach()
@@ -330,6 +370,18 @@ public sealed class HexEditorWindow : Window
 
     // ---- Keyboard ----------------------------------------------------------------------------------------------
 
+    private void SetFindOpen(bool open, bool focus = false)
+    {
+        _findOpen = open;
+        _findBar.IsVisible = open;
+        _findToggle.Content = open ? "Hide Find" : "Find…";
+        if (focus)
+        {
+            _search.Focus();
+            _search.SelectAll();
+        }
+    }
+
     private void SetContentSize(double requested)
     {
         double size = ReadabilityPolicy.ContentSize(requested);
@@ -357,7 +409,7 @@ public sealed class HexEditorWindow : Window
             else if (_recoveryBar.IsVisible)
                 Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_recoveryBar).OfType<Button>().FirstOrDefault(b => b.IsEffectivelyVisible && b.IsEnabled)?.Focus();
             else if (_save.IsEnabled) _save.Focus();
-            else _saveAs.Focus();
+            else _advanced.Focus();
             return;
         }
         if (focused is TextBox)
@@ -376,7 +428,7 @@ public sealed class HexEditorWindow : Window
             case Key.Z when ctrl: e.Handled = true; UndoRedo(redo: false); return;
             case Key.G when ctrl: e.Handled = true; await GoToAsync(); return;
             case Key.F when ctrl:
-            case Key.F7: e.Handled = true; _search.Focus(); _search.SelectAll(); return;
+            case Key.F7: e.Handled = true; SetFindOpen(true, focus: true); return;
             case Key.F3: e.Handled = true; await FindAsync(!shift); return;
             case Key.C when ctrl: e.Handled = true; await CopyAsync(); return;
             case Key.V when ctrl: e.Handled = true; await PasteAsync(); return;
@@ -658,7 +710,7 @@ public sealed class HexEditorWindow : Window
     {
         if (_closed) return;
         var pattern = _search.Text ?? "";
-        if (pattern.Length == 0) { _search.Focus(); return; }
+        if (pattern.Length == 0) { SetFindOpen(true, focus: true); return; }
         byte[]? bytes = _hexSearch.IsChecked == true ? ContentSearch.ParseHex(pattern) : null;
         if (_hexSearch.IsChecked == true && bytes is null) { Status("Hex search expects bytes such as \"4D 5A 90\"."); return; }
         _searchCts?.Cancel();

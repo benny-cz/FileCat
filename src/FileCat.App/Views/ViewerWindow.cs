@@ -67,6 +67,10 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _fitPicture = new() { Content = "Fit", IsVisible = false };
     private readonly ToggleButton _actualSize = new() { Content = "100%", IsVisible = false };
     private readonly TextBlock _pictureZoom = new() { IsVisible = false, Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _modeLabel = new() { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
+    private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
+    private bool _findOpen;
     private readonly Button _smallerText = new() { Content = "Text −" };
     private readonly Button _largerText = new() { Content = "Text +" };
     private readonly TextBlock _contentSize = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
@@ -216,6 +220,9 @@ public sealed class ViewerWindow : Window
         toolbar.Children.Add(_modeText);
         toolbar.Children.Add(_modeHex);
         toolbar.Children.Add(_modeInfo);
+        _modeLabel.Text = "Mode: Text";
+        Avalonia.Automation.AutomationProperties.SetName(_modeLabel, "Current viewer mode");
+        toolbar.Children.Add(_modeLabel);
         toolbar.Children.Add(_fitPicture);
         toolbar.Children.Add(_actualSize);
         toolbar.Children.Add(_pictureZoom);
@@ -235,7 +242,14 @@ public sealed class ViewerWindow : Window
         goTo.Click += async (_, _) => await GoToAsync();
         _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo,
             _encodingInfo, _previousMatch, _nextMatch, _matchCount, _stopCount]);
-        foreach (var part in _textOnly.Take(7)) toolbar.Children.Add(part);
+        foreach (var part in _textOnly.Take(4)) toolbar.Children.Add(part);
+        Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide viewer Find bar");
+        ToolTip.SetTip(_findToggle, new RichTip("Find in this view", "Ctrl+F", "Opens the focused Find row; the query stays when hidden."));
+        _findToggle.Click += (_, _) => SetFindOpen(!_findOpen, focus: !_findOpen);
+        toolbar.Children.Add(_findToggle);
+        _findBar.Children.Add(_search);
+        _findBar.Children.Add(_matchCase);
+        _findBar.Children.Add(_hexSearch);
         Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease text and hex size");
         Avalonia.Automation.AutomationProperties.SetName(_largerText, "Increase text and hex size");
         Avalonia.Automation.AutomationProperties.SetName(_contentSize, "Text and hex size");
@@ -251,12 +265,12 @@ public sealed class ViewerWindow : Window
         ToolTip.SetTip(_nextMatch, "Find the next match (F3)");
         _previousMatch.Click += async (_, _) => await FindAsync(forward: false);
         _nextMatch.Click += async (_, _) => await FindAsync(forward: true);
-        toolbar.Children.Add(_previousMatch);
-        toolbar.Children.Add(_nextMatch);
-        toolbar.Children.Add(_matchCount);
+        _findBar.Children.Add(_previousMatch);
+        _findBar.Children.Add(_nextMatch);
+        _findBar.Children.Add(_matchCount);
         ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
         _stopCount.Click += (_, _) => _countCts?.Cancel();
-        toolbar.Children.Add(_stopCount);
+        _findBar.Children.Add(_stopCount);
         ToolTip.SetTip(_refresh, _reopen is null ? "This source cannot be reopened from this viewer"
             : "Reopen this source and refresh the current view (F5)");
         Avalonia.Automation.AutomationProperties.SetName(_refresh, "Refresh viewer content");
@@ -266,24 +280,41 @@ public sealed class ViewerWindow : Window
         UpdateMatchControls();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc). Other navigation remains available.");
         _stopSearch.Click += (_, _) => _searchCts?.Cancel();
-        toolbar.Children.Add(_stopSearch);
-        var checksum = new Button { Content = "Checksum…" };
-        checksum.Click += (_, _) => ShowChecksum();
-        toolbar.Children.Add(checksum);
+        _findBar.Children.Add(_stopSearch);
         _copySource.Click += async (_, _) => await CopyContentAsync(displayed: false, explicitVisible: true);
         _copyDisplayed.Click += async (_, _) => await CopyContentAsync(displayed: true, explicitVisible: true);
         ToolTip.SetTip(_copySource, "Copy the selected source characters, or the captured visible lines. Original tabs and logical line endings are preserved. Ctrl+C; bounded to 1 MiB of source bytes.");
         ToolTip.SetTip(_copyDisplayed, "Copy the same text range using expanded tabs and visible control symbols. Ctrl+Shift+C. Wrapping and bounded segments do not add line endings.");
-        toolbar.Children.Add(_copySource);
-        toolbar.Children.Add(_copyDisplayed);
+        var advanced = new Button { Content = "More…" };
+        Avalonia.Automation.AutomationProperties.SetName(advanced, "More viewer actions");
+        ToolTip.SetTip(advanced, new RichTip("More viewer actions", null, "Checksums, source copying and byte editing."));
+        var advancedMenu = new ContextMenu();
+        var advancedItems = new List<MenuItem>();
+        MenuItem AddAdvanced(string title, Action action)
+        {
+            var item = new MenuItem { Header = title };
+            item.Click += (_, _) => action();
+            advancedItems.Add(item);
+            return item;
+        }
+        AddAdvanced("Checksum…", ShowChecksum);
+        var sourceCopy = AddAdvanced("Copy visible source text", () => _ = CopyContentAsync(displayed: false, explicitVisible: true));
+        var displayedCopy = AddAdvanced("Copy displayed text", () => _ = CopyContentAsync(displayed: true, explicitVisible: true));
         _copyNotice.StopRequested += () => _copyCts?.Cancel();
         if (source.LocalPath is not null && OperatingSystem.IsWindows())
         {
-            var editBytes = new Button { Content = "Edit bytes…" };
-            ToolTip.SetTip(editBytes, "Open this file in the hex editor at the current offset (F6)");
-            editBytes.Click += (_, _) => EditBytes();
-            toolbar.Children.Add(editBytes);
+            AddAdvanced("Edit bytes…", EditBytes);
         }
+        advancedMenu.ItemsSource = advancedItems;
+        advanced.ContextMenu = advancedMenu;
+        advanced.Click += (_, _) =>
+        {
+            sourceCopy.Header = _copySource.Content;
+            sourceCopy.IsEnabled = !_isPicture && !_isPage;
+            displayedCopy.IsEnabled = !_isPicture && !_isPage && (!_isHex || _isInfo);
+            advancedMenu.Open(advanced);
+        };
+        toolbar.Children.Add(advanced);
 
         // Recovered content with lost parts: say which bytes are zeros only because their data is gone (plan §17.1).
         Border? lostNotice = null;
@@ -302,8 +333,10 @@ public sealed class ViewerWindow : Window
         var content = new Panel { Children = { _text, _hex, _info, _picture, _pageView } };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(_findBar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
+        root.Children.Add(_findBar);
         _staleBanner.Child = _staleText;
         DockPanel.SetDock(_staleBanner, Dock.Top);
         root.Children.Add(_staleBanner);
@@ -380,7 +413,12 @@ public sealed class ViewerWindow : Window
         };
         // TextChanged is routed later by Avalonia. PropertyChanged invalidates synchronously, so a
         // queued notification for the text just searched cannot cancel the new Enter/F3 request.
-        _search.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) InvalidateSearch(); };
+        _search.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
+            InvalidateSearch();
+        };
         _matchCase.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
         _hexSearch.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
         _text.PositionChanged += () => SearchPositionChanged(_text);
@@ -548,6 +586,9 @@ public sealed class ViewerWindow : Window
         _copyCts?.Cancel();
         LeavePage();
         _isPicture = true;
+        _modeLabel.Text = "Mode: Picture";
+        _findToggle.IsVisible = false;
+        _findBar.IsVisible = false;
         _isInfo = false;
         _picture.IsVisible = true;
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
@@ -614,6 +655,8 @@ public sealed class ViewerWindow : Window
         LeavePicture();
         _isInfo = false;
         _isPage = true;
+        _modeLabel.Text = "Mode: Page";
+        _findBar.IsVisible = _findOpen;
         _pageView.IsVisible = true;
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
         _modePage.IsChecked = true;
@@ -657,7 +700,7 @@ public sealed class ViewerWindow : Window
             (Key.Escape, KeyModifiers.None) when _searchCts is not null => () => _searchCts?.Cancel(),
             (Key.Escape or Key.F10, KeyModifiers.None) => Close,
             (Key.F4, KeyModifiers.None) => () => SetMode(false),
-            (Key.F, KeyModifiers.Control) or (Key.F7, KeyModifiers.None) => () => { _search.Focus(); _search.SelectAll(); },
+            (Key.F, KeyModifiers.Control) or (Key.F7, KeyModifiers.None) => () => SetFindOpen(true, focus: true),
             (Key.F3, KeyModifiers.None) => () => _ = FindAsync(forward: true),
             (Key.F3, KeyModifiers.Shift) => () => _ = FindAsync(forward: false),
             (Key.F5, KeyModifiers.None) => () => _ = RefreshAsync(),
@@ -676,6 +719,8 @@ public sealed class ViewerWindow : Window
         _isPicture = false;
         _picture.IsVisible = false;
         _modePicture.IsChecked = false;
+        _findToggle.IsVisible = true;
+        _findBar.IsVisible = _findOpen;
         _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = false;
         foreach (var part in _textOnly) part.IsVisible = true;
     }
@@ -689,6 +734,8 @@ public sealed class ViewerWindow : Window
         LeavePicture();
         if (!_isInfo) _lastHit = -1;
         _isInfo = true;
+        _modeLabel.Text = "Mode: Info";
+        _findBar.IsVisible = _findOpen;
         _info.IsVisible = true;
         _text.IsVisible = _hex.IsVisible = false;
         _modeInfo.IsChecked = true;
@@ -825,6 +872,8 @@ public sealed class ViewerWindow : Window
         _info.IsVisible = false;
         _modeInfo.IsChecked = false;
         _isHex = hex;
+        _modeLabel.Text = hex ? "Mode: Hex" : "Mode: Text";
+        _findBar.IsVisible = _findOpen;
         _hex.IsVisible = hex;
         _text.IsVisible = !hex;
         _modeHex.IsChecked = hex;
@@ -853,6 +902,18 @@ public sealed class ViewerWindow : Window
         _fitPicture.IsChecked = _picture.Fit;
         _actualSize.IsChecked = !_picture.Fit && Math.Abs(_picture.Zoom - 1) < 0.001;
         _pictureZoom.Text = _picture.Fit ? $"Fit · {_picture.Zoom * 100:0}%" : $"Zoom {_picture.Zoom * 100:0}%";
+    }
+
+    private void SetFindOpen(bool open, bool focus = false)
+    {
+        _findOpen = open;
+        _findBar.IsVisible = open && !_isPicture;
+        _findToggle.Content = open ? "Hide Find" : "Find…";
+        if (focus && _findBar.IsVisible)
+        {
+            _search.Focus();
+            _search.SelectAll();
+        }
     }
 
     private void SetContentSize(double requested)
@@ -1228,8 +1289,7 @@ public sealed class ViewerWindow : Window
                 break;
             case Key.F when ctrl:
             case Key.F7:
-                _search.Focus();
-                _search.SelectAll();
+                SetFindOpen(true, focus: true);
                 break;
             case Key.F3:
                 await FindAsync(!shift);

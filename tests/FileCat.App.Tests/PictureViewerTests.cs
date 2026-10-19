@@ -188,6 +188,9 @@ public sealed class PictureViewerTests
             Assert.True(viewer.Picture is not null,
                 $"Picture worker did not publish a decoded image. {pictureMessage ?? viewer.StatusLine}");
             Assert.Equal((640, 400), (viewer.Picture!.Width, viewer.Picture.Height));
+            var modeLabel = viewer.GetVisualDescendants().OfType<TextBlock>().Single(t =>
+                Avalonia.Automation.AutomationProperties.GetName(t) == "Current viewer mode");
+            Assert.Equal("Mode: Picture", modeLabel.Text);
 
             // The wheel zooms around the pointer: the point of the picture under it stays under it (away from the edges,
             // where the picture is kept from leaving empty space).
@@ -241,6 +244,7 @@ public sealed class PictureViewerTests
             Assert.True(view.Fit);
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F4, Avalonia.Input.RawInputModifiers.None);
             Assert.Null(viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().FirstOrDefault(v => v.IsEffectivelyVisible));
+            Assert.Equal("Mode: Hex", modeLabel.Text);
         }
         finally
         {

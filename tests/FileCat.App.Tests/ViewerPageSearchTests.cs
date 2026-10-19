@@ -28,13 +28,16 @@ public sealed class ViewerPageSearchTests
         await fixture.OpenAsync();
         var viewer = fixture.Viewer;
         var engine = fixture.Engine;
+        Assert.Equal("Mode: Page", viewer.GetVisualDescendants().OfType<TextBlock>().Single(t =>
+            AutomationProperties.GetName(t) == "Current viewer mode").Text);
         var search = viewer.GetVisualDescendants().OfType<TextBox>()
             .Single(c => AutomationProperties.GetName(c) == "Find in file");
-        Assert.True(search.IsVisible);
+        Assert.False(search.IsEffectivelyVisible, "Find stays compact until requested");
         Assert.False(Field<CheckBox>(viewer, "_hexSearch").IsVisible);
         var page = Field<PageView>(viewer, "_pageView");
         Assert.True(page.KeyRequested!(Key.F, KeyModifiers.Control));
         Dispatcher.UIThread.RunJobs();
+        Assert.True(search.IsEffectivelyVisible);
         Assert.True(search.IsFocused);
         search.Text = "needle";
         Dispatcher.UIThread.RunJobs();

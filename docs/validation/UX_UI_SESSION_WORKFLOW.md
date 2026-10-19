@@ -87,10 +87,16 @@ command-search cases pass, including remapped Help and keyboard activation.
 FCUX-059 now adds Compact/Comfortable chrome density, separate saved content
 size, file-list row spacing and visible content-size controls in viewer,
 comparison and hex editor. Six focused cases pass, including 640-DIP primary
-and Settings action reachability. The previous complete App
-run ended with 2,309 passes, 63 skips and the obsolete Drive properties menu
-position assertion; that test was corrected, and a new complete App run is in
-progress. FCUX-060 follows. Native scaling and readability acceptance are open.
+and Settings action reachability. Its related App run passed 365 cases with two
+skips, and the pinned earlier FCUX-059 complete App snapshot passed 2,317 cases
+with 63 skips and zero failures. Final density tokens were verified in focused
+tests and will join the next full rerun. The complete Core run is in progress.
+FCUX-060 now groups viewer and
+editor commands into primary rows, on-demand Find rows and complete More menus.
+Its two focused hierarchy cases and six combined Page/Picture mode cases pass;
+the wider viewer/editor rerun passed 342 cases with 14 platform skips. The final
+complete App rerun is in progress. Native scaling, readability, pointer and
+assistive-technology acceptance remain open. FCUX-061 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
