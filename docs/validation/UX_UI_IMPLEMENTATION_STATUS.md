@@ -223,6 +223,10 @@ read `TextBlock.Text` after the issue detail became styled inlines. The test
 now reads the rendered runs and passes with the focused report checks. That
 complete attempt was stopped after its test host stopped making progress, so
 it is not counted as a complete pass; cross-platform CI remains the full gate.
+The preceding Ubuntu CI run exposed four archive-warning test cases where
+`SelectableTextBlock` had plain `Text` and an empty inline collection. The
+assertion now reads actual styled runs when present and plain text otherwise;
+all 21 focused archive-warning and operation-report cases pass on Windows.
 The preceding `b0c2023a` cross-volume/review batch passed producer policy and
 all Windows, Ubuntu, macOS and Windows ARM64 CI jobs. The expanded dialog batch
 awaits its own final-head CI run.

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -37,7 +38,11 @@ public sealed class UnpackCatalogTests(ITestOutputHelper output)
         Emit("warning-before-choice", name, approve, f, warned, before);
         Assert.True(warned); Assert.Equal(0, before);
         f.Window.UpdateLayout(); // The footer is attached before the scrollable warning body is realized.
-        Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), t => (t.Text ?? "").Contains(name.StartsWith("duplicate", StringComparison.Ordinal) ? "duplicate names" : "damaged after", StringComparison.Ordinal));
+        Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), t =>
+            (t is SelectableTextBlock { Inlines: { } inlines } && inlines.OfType<Run>().Any()
+                ? string.Concat(inlines.OfType<Run>().Select(run => run.Text)) : t.Text)?
+                .Contains(name.StartsWith("duplicate", StringComparison.Ordinal)
+                    ? "duplicate names" : "damaged after", StringComparison.Ordinal) == true);
         f.Click(approve ? "Extract listed members" : "Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         if (approve)
         {
