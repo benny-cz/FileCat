@@ -19,6 +19,10 @@ public sealed class ViewerThemeLifecycleTests
         string prior = ThemeManager.RequestedName;
         using var reader = new PagedReader(new MemoryContentSource("theme.txt", Encoding.UTF8.GetBytes(
             string.Join('\n', Enumerable.Range(0, 80).Select(i => $"line {i:D2} with enough text to inspect")))));
+        // A visible view requests its first page asynchronously. Load that page before
+        // recording the scroll anchor so the theme test observes an established layout.
+        var firstByte = new byte[1];
+        Assert.Equal(1, reader.Read(0, firstByte));
         var text = new TextViewer { Height = 200 };
         var hex = new HexView { Height = 200 };
         var window = new Window { Width = 900, Height = 500, Content = new StackPanel { Children = { text, hex } } };
@@ -33,6 +37,7 @@ public sealed class ViewerThemeLifecycleTests
             var selectedText = text.Selection;
             var selectedHex = hex.Selection;
             long textOffset = text.TopOffset, hexOffset = hex.CursorOffset;
+            Assert.True(textOffset > 0);
 
             foreach (string name in new[] { "Classic", "ClassicDark", "HighContrast", "DosCommander", "Classic" })
             {
