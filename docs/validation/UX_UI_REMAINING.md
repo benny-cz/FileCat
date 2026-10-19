@@ -8,9 +8,6 @@ increments to `main`.
 
 ## Open prerequisites
 
-- FCUX-001 cross-volume acceptance needs a second disposable guest-local
-  writable volume in the Windows VM. Its `D:` is optical and `Y:`/`Z:` are
-  host shares, so they cannot establish guest-local volume behavior.
 - Native macOS and Linux desktop sessions are needed for platform-specific
   clipboard, viewer, input, accessibility and window-manager checks.
 
@@ -19,11 +16,10 @@ increments to `main`.
 1. **Close the current validation gate.** Check the pending Windows, Ubuntu,
    macOS and Windows ARM64 CI lanes. Fix any failing lane before declaring the
    current batch verified. Require the same checks on the final head.
-2. **Finish S1 operation and decision journeys.** For FCUX-001, provision an
-   isolated second guest-local writable volume, then test a real
-   cross-volume interrupted transfer and supported nonlocal providers, with
-   process interruption, retained intent, source/target bytes and staging
-   cleanup. For FCUX-018, verify real Windows inverse identities, Recycle Bin
+2. **Finish S1 operation and decision journeys.** For FCUX-001, finish the
+   supported nonlocal-provider interruption and recovery cases, including
+   retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
+   real Windows inverse identities, Recycle Bin
    effects, close/restart ownership and retained reports. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs native focus-loss and
@@ -64,7 +60,8 @@ increments to `main`.
    need their remaining native scaling, keyboard, browser-engine or
    assistive-technology checks; UXBUG-006 needs Unix attribute acceptance;
    UXBUG-009 needs native Details selection; UXBUG-010/011 need scaled and
-   spoken dialog checks. Treat any new reproduction as an active regression,
+   spoken dialog checks, including the revised action, effect and full-review
+   hierarchy on the Windows VM. Treat any new reproduction as an active regression,
    with a test and a new commit.
 
 ## Evidence required to finish

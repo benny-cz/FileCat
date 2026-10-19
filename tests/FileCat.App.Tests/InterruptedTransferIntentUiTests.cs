@@ -46,6 +46,13 @@ public sealed class InterruptedTransferIntentUiTests
         var keyPoints = string.Join("\n", summary.GetVisualDescendants()
             .OfType<SelectableTextBlock>().Select(block => block.Text));
         Assert.Contains("Action: Start a new copy", keyPoints);
+        var primaryAction = Assert.Single(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => block.Classes.Contains("reviewPrimaryAction"));
+        Assert.StartsWith("Action: Start a new copy", primaryAction.Text);
+        Assert.True(primaryAction.Bounds.Top < summary.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().First(block => block.Text?.StartsWith("Destination:") == true).Bounds.Top);
+        Assert.Contains(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => block.Classes.Contains("reviewDecision") && block.Text?.StartsWith("Existing items:") == true);
         var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewWarnings"));
         var warnings = string.Join("\n", effects.GetVisualDescendants()
@@ -68,6 +75,13 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.False(run.IsCompleted);
         Assert.True(toggle.IsChecked);
         Assert.True(mapping.IsEffectivelyVisible);
+        Assert.Contains(mapping.GetVisualAncestors().OfType<Border>(),
+            border => border.Classes.Contains("reviewDetailSection"));
+        Assert.Contains(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => block.Classes.Contains("reviewDetailHeading") &&
+                     block.Text == "Source → destination mapping for every available root:");
+        Assert.True(f.Window.GetVisualDescendants().OfType<Border>()
+            .Count(border => border.Classes.Contains("reviewDetailSection")) >= 3);
         Assert.Contains("draft.txt", f.Text);
         f.Click("Cancel");
         Assert.False(await run);

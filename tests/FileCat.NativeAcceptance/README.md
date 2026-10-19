@@ -195,6 +195,24 @@ Previous button must reach the later match, then the earlier match across
 more than 4 MiB, then report no earlier match. The report records both
 visible offsets and checks the source markers and untouched destination.
 The runner closes the viewer; finish with `selection-stop`.
+For FCUX-001 cross-volume recovery, run `VM/provision-cross-volume.ps1`
+inside an elevated Windows guest with `-Mode Create -ReportPath` pointing to
+the guest-local `FileCatValidation/Runner/cross-volume.json`. It refuses an
+existing R: drive or report, creates one 512 MiB dynamic NTFS VHD under the
+guest-local validation folder, and gives the current guest user Modify access
+only under `R:\FileCatValidation`. Run `seed-cross-volume <cross-fixture.json>`
+in the guest and launch the isolated Git-built FileCat with the fixture's
+`--data`, `--left` (C:) and `--right` (R:) paths. In the interactive desktop,
+run `cross-prepare <report.json>` followed by `cross-interrupt <report.json>`.
+The latter sets a 64 KiB/s rate, waits for copied bytes in journaled staging,
+then terminates only the path-verified isolated app. Relaunch the same fixture
+and run `cross-continue <report.json>` to check the review, retained rate and
+mapping, final byte equality, excluded file and staging cleanup. Close the
+isolated app with `selection-stop`, then run the provisioning script with
+`-Mode Remove` and the original volume report path. Removal validates the
+report and detaches/deletes only its own VHD. Verify R: and the VHD are absent.
+Use fresh fixture folders for each run. The validation report and VHD live
+only in the guest; do not use a host share as the transfer destination.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

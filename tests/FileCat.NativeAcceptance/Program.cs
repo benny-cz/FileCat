@@ -11,15 +11,15 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
@@ -38,6 +38,7 @@ if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" 
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new { passed = true, app.Id }));
         }
         else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
+        else if (mode == "seed-cross-volume") await SeedDesktopInterruptionAsync(reportPath, crossVolume: true);
         else if (mode == "seed-clipboard") await SeedClipboardInteropAsync(reportPath);
         else if (mode == "seed-compare") await SeedCompareFixtureAsync(reportPath);
         else if (mode == "seed-selection") await SeedSelectionFixtureAsync(reportPath);
@@ -1578,8 +1579,8 @@ try
             var action = Text("Action: Start a new copy · 1 of 1 recorded source roots available");
             var mapping = Text("Source → target name: draft.txt → approved.txt");
             var effects = Text("Important effects");
-            var incomplete = Text("Original mapping and options are incomplete; this starts a newly reviewed transfer");
-            var skip = Text("Skipped existing files are kept, and their contents are not verified");
+            var incomplete = Text("• Original mapping and options are incomplete; this starts a newly reviewed transfer");
+            var skip = Text("• Skipped existing files are kept, and their contents are not verified");
             var showDetails = FindVisible(window, "button", "Show full review and source mapping");
             var cancel = FindVisible(window, "button", "Cancel");
             var approval = FindVisible(window, "button", "Start new copy");
@@ -1625,9 +1626,10 @@ try
             return passed ? 0 : 1;
         }
 
-        if (mode == "desktop-interrupt")
+        if (mode is "desktop-interrupt" or "cross-interrupt")
         {
-            var fixture = await ReadDesktopFixtureAsync(reportPath);
+            bool crossVolume = mode == "cross-interrupt";
+            var fixture = await ReadDesktopFixtureAsync(reportPath, crossVolume);
             var source = ParseSource(await ReadSourceAsync(client, sessionId));
             var window = source.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
@@ -1720,9 +1722,10 @@ try
             return passed ? 0 : 1;
         }
 
-        if (mode == "desktop-continue")
+        if (mode is "desktop-continue" or "cross-continue")
         {
-            var fixture = await ReadDesktopFixtureAsync(reportPath);
+            bool crossVolume = mode == "cross-continue";
+            var fixture = await ReadDesktopFixtureAsync(reportPath, crossVolume);
             var review = ParseSource(await ReadSourceAsync(client, sessionId));
             if (FindVisible(review, "button", "Continue copy") is null)
             {
@@ -1733,20 +1736,34 @@ try
             }
             var names = review.Descendants().Select(element =>
                 (string?)element.Attribute("Name") ?? "").ToArray();
-            var scopeVisible = names.Any(name => name.Contains(
-                    "Speed limit: " + 65536.ToString("N0", CultureInfo.CurrentCulture) + " bytes/s",
-                    StringComparison.Ordinal))
-                && names.Any(name => name.Contains("Skip existing files (recovery policy)",
+            var summaryVisible = names.Any(name => name.Contains("Skip existing files",
                     StringComparison.Ordinal))
                 && names.Any(name => name.Contains(fixture.Destination, StringComparison.OrdinalIgnoreCase))
                 && names.Any(name => name.Contains("Key choices before approval",
                     StringComparison.Ordinal))
                 && names.Any(name => name.Contains("partial file", StringComparison.OrdinalIgnoreCase));
+            var showFull = FindVisible(review, "button", "Show full review and source mapping")
+                ?? throw new InvalidOperationException("The complete recovery review is unavailable.");
+            NativeWindow.ClickAt(CenterX(showFull), CenterY(showFull));
+            review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var detailNames = review.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            var fullIntentVisible = detailNames.Any(name => name.Contains(
+                    "Speed limit: " + 65536.ToString("N0", CultureInfo.CurrentCulture) + " bytes/s",
+                    StringComparison.Ordinal))
+                && detailNames.Any(name => name.Contains(fixture.Source,
+                    StringComparison.OrdinalIgnoreCase))
+                && detailNames.Any(name => name.Contains(fixture.Destination,
+                    StringComparison.OrdinalIgnoreCase));
+            var scopeVisible = summaryVisible && fullIntentVisible;
             if (!scopeVisible)
                 throw new InvalidOperationException("Desktop recovery review lost its rate, mapping or partial cleanup.");
             await ClickButtonAsync(client, sessionId, "Continue copy");
             var target = Path.Combine(fixture.Destination, "photo.jpg");
-            for (var attempt = 0; attempt < 2400 && !File.Exists(target); attempt++)
+            // At the retained 64 KiB/s limit, 32 MiB takes about 512 seconds.
+            // Allow bounded overhead without treating an honest rate limit as a hang.
+            var deadline = Stopwatch.StartNew();
+            while (!File.Exists(target) && deadline.Elapsed < TimeSpan.FromSeconds(632))
                 await Task.Delay(100);
             bool targetComplete = false;
             if (File.Exists(target) && new FileInfo(target).Length == 32 * 1024 * 1024)
@@ -1763,7 +1780,8 @@ try
             var passed = targetComplete && sourceRetained && partialCleaned;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, scopeVisible, targetComplete, sourceRetained, partialCleaned
+                passed, summaryVisible, fullIntentVisible, scopeVisible,
+                targetComplete, sourceRetained, partialCleaned
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -1926,7 +1944,7 @@ try
             await ClickButtonAsync(client, sessionId, "Options");
             await Task.Delay(300);
         }
-        else if (mode == "desktop-prepare")
+        else if (mode is "desktop-prepare" or "cross-prepare")
         {
             NativeWindow.FocusRecovery("desktop-source");
             await SendSessionKeysAsync(client, sessionId, "\uE015\uE015");
@@ -2281,14 +2299,42 @@ static async Task SeedLegacyRecoveryAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
-static async Task SeedDesktopInterruptionAsync(string reportPath)
+static string CrossVolumeDestinationRoot()
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    var validationRoot = Path.Combine(local, "FileCatValidation");
+    var provisionReport = Path.Combine(validationRoot, "Runner", "cross-volume.json");
+    using var document = JsonDocument.Parse(File.ReadAllText(provisionReport));
+    var vhd = document.RootElement.GetProperty("vhd").GetString() ?? "";
+    var expectedVhdRoot = Path.Combine(validationRoot, "CrossVolume")
+        + Path.DirectorySeparatorChar;
+    var fullVhd = Path.GetFullPath(vhd);
+    if (!fullVhd.StartsWith(expectedVhdRoot, StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(Path.GetExtension(fullVhd), ".vhdx", StringComparison.OrdinalIgnoreCase)
+        || !File.Exists(fullVhd)
+        || document.RootElement.GetProperty("driveRoot").GetString() != @"R:\"
+        || document.RootElement.GetProperty("label").GetString() != "FileCatValidation")
+        throw new InvalidOperationException("The guest-local validation VHD report is unavailable or inconsistent.");
+    var drive = new DriveInfo(@"R:\");
+    if (!drive.IsReady || drive.DriveType != DriveType.Fixed || drive.DriveFormat != "NTFS"
+        || drive.VolumeLabel != "FileCatValidation")
+        throw new InvalidOperationException("R: is not the expected guest-local NTFS validation volume.");
+    var destinationRoot = @"R:\FileCatValidation";
+    if (!Directory.Exists(destinationRoot))
+        throw new InvalidOperationException("The validation destination folder is unavailable on R:.");
+    return destinationRoot;
+}
+
+static async Task SeedDesktopInterruptionAsync(string reportPath, bool crossVolume = false)
 {
     var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
     if (string.IsNullOrWhiteSpace(local))
         throw new InvalidOperationException("The guest user-local data folder is unavailable.");
     var root = Path.Combine(local, "FileCatValidation", "DesktopInterruption", Guid.NewGuid().ToString("N"));
     var source = Path.Combine(root, "desktop-source");
-    var destination = Path.Combine(root, "destination");
+    var destination = crossVolume
+        ? Path.Combine(CrossVolumeDestinationRoot(), Path.GetFileName(root), "destination")
+        : Path.Combine(root, "destination");
     var data = Path.Combine(root, "data");
     Directory.CreateDirectory(source);
     Directory.CreateDirectory(destination);
@@ -2301,7 +2347,7 @@ static async Task SeedDesktopInterruptionAsync(string reportPath)
     await File.WriteAllTextAsync(Path.Combine(source, "note.txt"), "excluded source remains");
     await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
     {
-        root, source, destination, data, photo, intendedRateLimit = 65536
+        root, source, destination, data, photo, crossVolume, intendedRateLimit = 65536
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
@@ -2509,9 +2555,11 @@ static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath,
         document.RootElement.GetProperty("data").GetString() ?? "");
 }
 
-static async Task<RecoveryFixture> ReadDesktopFixtureAsync(string reportPath)
+static async Task<RecoveryFixture> ReadDesktopFixtureAsync(string reportPath,
+    bool crossVolume = false)
 {
-    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "", "desktop-fixture.json");
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "",
+        crossVolume ? "cross-fixture.json" : "desktop-fixture.json");
     using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
     var root = document.RootElement.GetProperty("root").GetString() ?? "";
     var expectedRoot = Path.Combine(Environment.GetFolderPath(
@@ -2522,10 +2570,16 @@ static async Task<RecoveryFixture> ReadDesktopFixtureAsync(string reportPath)
     var source = document.RootElement.GetProperty("source").GetString() ?? "";
     var destination = document.RootElement.GetProperty("destination").GetString() ?? "";
     var data = document.RootElement.GetProperty("data").GetString() ?? "";
+    var expectedDestination = crossVolume
+        ? Path.Combine(CrossVolumeDestinationRoot(), Path.GetFileName(root), "destination")
+        : Path.Combine(root, "destination");
     if (!string.Equals(source, Path.Combine(root, "desktop-source"), StringComparison.OrdinalIgnoreCase)
-        || !string.Equals(destination, Path.Combine(root, "destination"), StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(destination, expectedDestination, StringComparison.OrdinalIgnoreCase)
         || !string.Equals(data, Path.Combine(root, "data"), StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Desktop fixture paths do not match its isolated root.");
+    if (crossVolume && string.Equals(Path.GetPathRoot(source), Path.GetPathRoot(destination),
+            StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("The cross-volume fixture uses the same source and target volume.");
     return new RecoveryFixture(source, destination, data);
 }
 

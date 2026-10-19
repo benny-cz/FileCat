@@ -412,14 +412,29 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     private static Control HighlightedReviewBody(IReadOnlyList<string> highlights, string message,
         string summaryHeading, string detailsHeading, bool collapseDetails, IReadOnlyList<string>? warnings)
     {
-        var summary = new StackPanel { Spacing = 4 };
+        var summary = new StackPanel { Spacing = 8 };
         summary.Children.Add(new TextBlock
         {
             Text = summaryHeading, FontWeight = FontWeight.SemiBold,
             TextWrapping = TextWrapping.Wrap
         });
-        foreach (var line in highlights)
-            summary.Children.Add(new SelectableTextBlock { Text = line, TextWrapping = TextWrapping.Wrap });
+        // Keep the complete wording selectable, but give the decision and its
+        // consequences a visual hierarchy instead of another paragraph of text.
+        for (int index = 0; index < highlights.Count; index++)
+        {
+            var line = new SelectableTextBlock { Text = highlights[index], TextWrapping = TextWrapping.Wrap };
+            if (index == 0)
+            {
+                line.Classes.Add("reviewPrimaryAction");
+                summary.Children.Add(new Border { Classes = { "reviewActionCard" }, Child = line });
+            }
+            else
+            {
+                line.Classes.Add(highlights[index].StartsWith("Existing items:", StringComparison.Ordinal)
+                    ? "reviewDecision" : "reviewFact");
+                summary.Children.Add(line);
+            }
+        }
         var body = new StackPanel { MaxWidth = 620, Spacing = 12 };
         body.Children.Add(new Border { Classes = { "reviewHighlights" }, Child = summary });
         if (warnings is { Count: > 0 })
@@ -427,10 +442,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             var effects = new StackPanel { Spacing = 4 };
             effects.Children.Add(new TextBlock { Text = "Important effects", FontWeight = FontWeight.SemiBold });
             foreach (var warning in warnings)
-                effects.Children.Add(new SelectableTextBlock { Text = warning, TextWrapping = TextWrapping.Wrap });
+                effects.Children.Add(new SelectableTextBlock { Text = "• " + warning, TextWrapping = TextWrapping.Wrap });
             body.Children.Add(new Border { Classes = { "reviewWarnings" }, Child = effects });
         }
-        var detail = MessageBody(message);
+        var detail = ReviewDetailBody(message);
         if (collapseDetails)
         {
             detail.IsVisible = false;
@@ -454,6 +469,29 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             Text = detailsHeading, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap
         });
         body.Children.Add(detail);
+        return body;
+    }
+
+    private static Control ReviewDetailBody(string message)
+    {
+        var body = new StackPanel { MaxWidth = 620, Spacing = 8 };
+        // The original review is still present verbatim and in order. Paragraph
+        // boundaries become visible groups; their heading remains selectable.
+        foreach (var paragraph in OneLineBreak(message).Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var section = new StackPanel { Spacing = 4 };
+            var lines = paragraph.Trim('\n').Split('\n');
+            for (int index = 0; index < lines.Length; index++)
+            {
+                if (lines[index].Length == 0) continue;
+                var line = new SelectableTextBlock { Text = lines[index], TextWrapping = TextWrapping.Wrap };
+                if (index == 0 && lines[index].EndsWith(':') && lines[index].Length < 180)
+                    line.Classes.Add("reviewDetailHeading");
+                section.Children.Add(line);
+            }
+            if (section.Children.Count > 0)
+                body.Children.Add(new Border { Classes = { "reviewDetailSection" }, Child = section });
+        }
         return body;
     }
 

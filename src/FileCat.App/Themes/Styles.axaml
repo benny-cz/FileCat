@@ -267,6 +267,27 @@
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="Padding" Value="12,9" />
   </Style>
+  <Style Selector="Border.reviewActionCard">
+    <Setter Property="Background" Value="{DynamicResource FcCard}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="BorderThickness" Value="0,0,0,2" />
+    <Setter Property="Padding" Value="0,0,0,7" />
+  </Style>
+  <Style Selector="SelectableTextBlock.reviewPrimaryAction">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="17" />
+  </Style>
+  <Style Selector="SelectableTextBlock.reviewDecision">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.reviewDetailSection">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="0,0,0,8" />
+  </Style>
+  <Style Selector="SelectableTextBlock.reviewDetailHeading">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
   <!-- An expander (the copy dialog's Options): a quiet row in the dialog's own colors, not a dark bar that looks like a box to type in. -->
   <!-- (The template's borders take these through template bindings, which a style on the borders themselves cannot outrank.) -->
   <Style Selector="Expander">
