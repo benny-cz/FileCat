@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.Controls;
@@ -13,6 +14,9 @@ namespace FileCat.App.Views;
 /// <summary>Full paths and actual inverse verbs, with a bounded, virtualized list for large operations.</summary>
 internal static class UndoReviewDialog
 {
+    private static readonly IDataTemplate ActionText = new FuncDataTemplate<string>((text, _) =>
+        OverlayDialogService.ReviewLine(text));
+
     internal static string Explanation(UndoPlan plan) =>
         $"{plan.Steps.Count:N0} recorded inverse actions. Changed files and occupied original names are kept and reported; nothing is overwritten to make Undo succeed. " +
         "Moving a folder back moves its current contents; no recursive unchanged-content snapshot is promised. " +
@@ -39,7 +43,7 @@ internal static class UndoReviewDialog
         var actions = new ListBox
         {
             ItemsSource = plan.Steps.Reverse().Select(s => Formatters.SafeName(UndoActions.Describe(s))).ToArray(),
-            ItemTemplate = DialogLayout.WrappingListText,
+            ItemTemplate = ActionText,
             MinHeight = 100, MaxHeight = 260, HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         AutomationProperties.SetName(actions, "Recorded Undo actions, with full affected paths");

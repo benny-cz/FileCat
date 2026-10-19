@@ -126,8 +126,11 @@ For the native FCUX-018 Move inverse, use another fresh `seed-clipboard`
 fixture, then run `clipboard-cut <source.xml>` and `clipboard-move
 <report.json>` in that order. The latter uses FileCat Paste and checks that
 the source is gone, the target has the exact bytes and the unrelated file
-remains. Run `undo-native <report.json>` without restarting FileCat. It opens
-Ctrl+Z, checks the full source and destination identities, measures the
+remains. For visual QA, `undo-review-native <source.xml>` opens and leaves the
+safe review pending so a VM screenshot can show the whole highlighted source
+and target paths. Run `undo-native <report.json>` without restarting FileCat;
+it accepts an already open review or opens one with Ctrl+Z. It checks the full
+source and destination identities, measures the
 multi-line inverse row before and after dragging the review wider, cancels and
 verifies the move still exists, then reopens the review and approves it. It
 requires byte-for-byte restoration at the original path, removal of the moved

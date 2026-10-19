@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
@@ -256,10 +257,15 @@ public sealed class UndoLifecycleUiTests
         var actions = f.Window.GetVisualDescendants().OfType<ListBox>()
             .Single(l => AutomationProperties.GetName(l) == "Recorded Undo actions, with full affected paths");
         f.Window.UpdateLayout();
-        var actionText = actions.GetVisualDescendants().OfType<TextBlock>()
-            .Single(t => t.Text?.StartsWith("Move back:", StringComparison.Ordinal) == true);
+        var actionText = actions.GetVisualDescendants().OfType<SelectableTextBlock>()
+            .Single(t => RenderedText(t).StartsWith("Move back:", StringComparison.Ordinal));
         Assert.Equal(TextWrapping.Wrap, actionText.TextWrapping);
         Assert.Equal(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(actions));
+        var styledPaths = actionText.Inlines!.OfType<Run>()
+            .Where(run => run.Foreground is not null && run.FontWeight == FontWeight.SemiBold)
+            .Select(run => run.Text ?? "").ToArray();
+        Assert.Contains(styledPaths, text => text.Contains(Path.GetDirectoryName(target)!, StringComparison.Ordinal));
+        Assert.Contains(styledPaths, text => text.Contains(Path.GetDirectoryName(source)!, StringComparison.Ordinal));
         Assert.True(actionText.Bounds.Height > actionText.FontSize * 1.5,
             $"The full inverse path should occupy multiple visible lines; height was {actionText.Bounds.Height}.");
         double originalWidth = actionText.Bounds.Width, originalHeight = actionText.Bounds.Height;
@@ -270,8 +276,8 @@ public sealed class UndoLifecycleUiTests
             Vector = new Avalonia.Vector(160, 40),
         });
         f.Window.UpdateLayout();
-        actionText = actions.GetVisualDescendants().OfType<TextBlock>()
-            .Single(t => t.Text?.StartsWith("Move back:", StringComparison.Ordinal) == true);
+        actionText = actions.GetVisualDescendants().OfType<SelectableTextBlock>()
+            .Single(t => RenderedText(t).StartsWith("Move back:", StringComparison.Ordinal));
         Assert.True(actionText.Bounds.Width >= originalWidth + 100);
         Assert.True(actionText.Bounds.Height <= originalHeight);
         var remainder = f.Window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Effects that Undo cannot reverse");
@@ -283,6 +289,9 @@ public sealed class UndoLifecycleUiTests
         f.Click("Cancel"); await review; Assert.True(original.CanUndo);
         Assert.Equal("alpha", File.ReadAllText(target)); Assert.False(File.Exists(source));
     }
+
+    private static string RenderedText(TextBlock block) => block.Inlines?.OfType<Run>().Any() == true
+        ? string.Concat(block.Inlines.OfType<Run>().Select(run => run.Text)) : block.Text ?? "";
 
     private sealed class Fixture : IDisposable
     {

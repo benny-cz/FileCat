@@ -27,6 +27,39 @@ namespace FileCat.App.Tests;
 public sealed class DialogViewportTests
 {
     [AvaloniaFact]
+    public async Task Undo_review_highlights_entire_quoted_paths_on_each_supported_path_shape()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 720);
+        try
+        {
+            ProductStyles(window);
+            string[] paths = [@"C:\review\folder\a.txt", "/home/review/folder/a.txt",
+                @"\\server\share\folder\a.txt"];
+            var lines = paths.Select(path => OverlayDialogService.ReviewLine(
+                $"Move back: \"{path}\" → \"{path}\"")).ToArray();
+            var body = new StackPanel();
+            foreach (var line in lines) body.Children.Add(line);
+            var pending = ((OverlayDialogService)vm.Dialogs).ShowCustomAsync("Review Undo", body,
+                [new("Cancel", false, IsCancel: true)], resizable: true);
+            Layout(window);
+            foreach (var (line, path) in lines.Zip(paths))
+            {
+                var runs = Assert.IsType<InlineCollection>(line.Inlines).OfType<Run>().ToArray();
+                Assert.Equal($"Move back: \"{path}\" → \"{path}\"", string.Concat(runs.Select(run => run.Text)));
+                int slash = path.LastIndexOfAny(['\\', '/']);
+                string directory = path[..(slash + 1)], name = path[(slash + 1)..];
+                Assert.Equal(2, runs.Count(run => run.Text == directory &&
+                    run.FontWeight == FontWeight.SemiBold && run.Foreground is not null));
+                Assert.Equal(2, runs.Count(run => run.Text == name &&
+                    run.FontWeight == FontWeight.Bold && run.Foreground is not null));
+            }
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            await pending;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Registry_import_preview_wraps_long_change_paths_and_reflows_with_dialog_width()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);

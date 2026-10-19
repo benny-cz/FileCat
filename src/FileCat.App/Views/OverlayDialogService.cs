@@ -539,6 +539,21 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 EmphasizePath(arrow + 3, text.Length);
             }
         }
+        // Undo actions quote complete, absolute paths rather than using a field
+        // label for each one. Keep the quote punctuation plain and emphasize
+        // the whole directory as well as its final name.
+        for (int cursor = 0; cursor < text.Length;)
+        {
+            int open = text.IndexOf('"', cursor);
+            if (open < 0) break;
+            int close = text.IndexOf('"', open + 1);
+            if (close < 0) break;
+            var path = text.AsSpan(open + 1, close - open - 1);
+            if (path.StartsWith('/') || path.StartsWith("\\\\", StringComparison.Ordinal) ||
+                path.Length >= 3 && char.IsLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/')
+                EmphasizePath(open + 1, close);
+            cursor = close + 1;
+        }
         if (weight.All(value => value == 0))
         {
             block.Text = text;
