@@ -5,9 +5,9 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -16,7 +16,7 @@ var reportPath = args[1];
 using var client = new HttpClient
 {
     BaseAddress = new Uri("http://127.0.0.1:4723/"),
-    Timeout = TimeSpan.FromSeconds(15),
+    Timeout = TimeSpan.FromSeconds(60),
     MaxResponseContentBufferSize = 8 * 1024 * 1024
 };
 
@@ -238,6 +238,117 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "markdown-resize")
+        {
+            var beforeSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var before = MeasureMarkdownLayout(beforeSource);
+            var originalWindow = NativeWindow.ReadViewerRect();
+            NativeWindow.ResizeViewerBy(350, 180);
+            MarkdownLayout expanded = default;
+            NativeWindow.Rect expandedWindow = default;
+            NativeWindow.Rect pointerRestoredWindow = default;
+            try
+            {
+                await Task.Delay(500);
+                var expandedSource = ParseSource(await ReadSourceAsync(client, sessionId));
+                expanded = MeasureMarkdownLayout(expandedSource);
+                expandedWindow = NativeWindow.ReadViewerRect();
+            }
+            finally
+            {
+                try
+                {
+                    var now = NativeWindow.ReadViewerRect();
+                    NativeWindow.ResizeViewerBy(originalWindow.Width - now.Width,
+                        originalWindow.Height - now.Height);
+                    pointerRestoredWindow = NativeWindow.ReadViewerRect();
+                }
+                finally
+                {
+                    NativeWindow.RestoreViewerRect(originalWindow);
+                }
+            }
+            var restoredWindow = NativeWindow.ReadViewerRect();
+            var passed = expandedWindow.Width >= originalWindow.Width + 250
+                && expandedWindow.Height >= originalWindow.Height + 100
+                && expanded.TableWidth >= before.TableWidth + 180
+                && expanded.ProseBlockHeight <= before.ProseBlockHeight - 20
+                && Math.Abs(pointerRestoredWindow.Width - originalWindow.Width) <= 40
+                && Math.Abs(pointerRestoredWindow.Height - originalWindow.Height) <= 30
+                && restoredWindow.Width == originalWindow.Width
+                && restoredWindow.Height == originalWindow.Height;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                originalWindow,
+                expandedWindow,
+                pointerRestoredWindow,
+                restoredWindow,
+                before,
+                expanded
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "markdown-search")
+        {
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            var viewer = GetMarkdownViewerElement(source);
+            var find = FindVisible(viewer, "edit", "Find in file");
+            if (find is null)
+            {
+                var toggle = FindVisible(viewer, "button", "Show or hide viewer Find bar")
+                    ?? throw new InvalidOperationException("Markdown Find toggle is unavailable.");
+                NativeWindow.ClickAt(CenterX(toggle), CenterY(toggle));
+                source = ParseSource(await ReadSourceAsync(client, sessionId));
+                viewer = GetMarkdownViewerElement(source);
+                find = FindVisible(viewer, "edit", "Find in file");
+            }
+            if (find is null)
+                throw new InvalidOperationException("Markdown Find field did not open.");
+            var next = FindVisible(viewer, "button", "Find next match")
+                ?? throw new InvalidOperationException("Markdown Next button is unavailable.");
+            var previous = FindVisible(viewer, "button", "Find previous match")
+                ?? throw new InvalidOperationException("Markdown Previous button is unavailable.");
+            var findId = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Find in file']", "Markdown Find field");
+            using (var clear = await client.PostAsJsonAsync(
+                $"session/{sessionId}/element/{findId}/clear", new { }))
+                clear.EnsureSuccessStatusCode();
+            await SendKeysAsync(client, sessionId, findId, "FileCat");
+            await Task.Delay(350);
+            NativeWindow.ClickAt(CenterX(next), CenterY(next));
+            await Task.Delay(500);
+            var searched = GetMarkdownViewerElement(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var matchStatus = searched.Descendants()
+                .Select(element => (string?)element.Attribute("Name") ?? "")
+                .FirstOrDefault(name => name.StartsWith(
+                    "At least 1 match · total unavailable in Page mode", StringComparison.Ordinal)) ?? "";
+            var previousEnabled = (string?)FindVisible(searched, "button", "Find previous match")?
+                .Attribute("IsEnabled") == "True";
+            var nextEnabled = (string?)FindVisible(searched, "button", "Find next match")?
+                .Attribute("IsEnabled") == "True";
+            NativeWindow.ClickAt(CenterX(previous), CenterY(previous));
+            await Task.Delay(500);
+            var reversed = GetMarkdownViewerElement(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var reverseStatus = reversed.Descendants()
+                .Select(element => (string?)element.Attribute("Name") ?? "")
+                .FirstOrDefault(name => name.StartsWith(
+                    "At least ", StringComparison.Ordinal) && name.Contains(
+                    "total unavailable in Page mode", StringComparison.Ordinal)) ?? "";
+            var passed = matchStatus.Length > 0 && reverseStatus.Length > 0
+                && previousEnabled && nextEnabled;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                matchStatus,
+                reverseStatus,
+                previousEnabled,
+                nextEnabled
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode is "find" or "advanced")
         {
             var name = mode == "find" ? "Find files…" : "Advanced…";
@@ -379,6 +490,50 @@ static XElement? FindVisible(XContainer source, string type, string name) =>
         && (string?)element.Attribute("Name") == name
         && (string?)element.Attribute("IsOffscreen") == "False");
 
+static MarkdownLayout MeasureMarkdownLayout(XDocument source)
+{
+    var viewer = GetMarkdownViewerElement(source);
+    var prose = viewer.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "text"
+        && ((string?)element.Attribute("Name"))?.StartsWith(
+            "Work starts with the 13 S1 findings", StringComparison.Ordinal) == true)
+        ?? throw new InvalidOperationException("Markdown prose is unavailable.");
+    var nextBlock = viewer.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "text"
+        && ((string?)element.Attribute("Name"))?.StartsWith(
+            "Implementation checkpoint", StringComparison.Ordinal) == true)
+        ?? throw new InvalidOperationException("Next Markdown prose block is unavailable.");
+    var first = viewer.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "column header"
+        && (string?)element.Attribute("Name") == "Audit finding")
+        ?? throw new InvalidOperationException("Markdown table first column is unavailable.");
+    var last = viewer.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "column header"
+        && (string?)element.Attribute("Name") == "Remaining acceptance")
+        ?? throw new InvalidOperationException("Markdown table last column is unavailable.");
+    var tableWidth = int.Parse((string?)last.Attribute("x") ?? "0")
+        + int.Parse((string?)last.Attribute("width") ?? "0")
+        - int.Parse((string?)first.Attribute("x") ?? "0");
+    var proseBlockHeight = int.Parse((string?)nextBlock.Attribute("y") ?? "0")
+        - int.Parse((string?)prose.Attribute("y") ?? "0");
+    return new MarkdownLayout(proseBlockHeight, tableWidth);
+}
+
+static XElement GetMarkdownViewerElement(XDocument source) =>
+    source.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "window"
+        && ((string?)element.Attribute("Name"))?.Contains(
+            "UX_UI_IMPLEMENTATION_STATUS.md", StringComparison.Ordinal) == true)
+        ?? throw new InvalidOperationException("Markdown fixture viewer is unavailable.");
+
+static int CenterX(XElement element) => int.Parse((string?)element.Attribute("x") ?? "0")
+    + int.Parse((string?)element.Attribute("width") ?? "0") / 2;
+
+static int CenterY(XElement element) => int.Parse((string?)element.Attribute("y") ?? "0")
+    + int.Parse((string?)element.Attribute("height") ?? "0") / 2;
+
+internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth);
+
 internal static partial class NativeWindow
 {
     private const uint LeftDown = 0x0002;
@@ -400,12 +555,54 @@ internal static partial class NativeWindow
     private static partial bool SetCursorPos(int x, int y);
 
     [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(nint window, nint insertAfter, int x, int y,
+        int width, int height, uint flags);
+
+    [LibraryImport("user32.dll")]
     private static partial uint GetWindowThreadProcessId(nint window, out uint processId);
 
     [LibraryImport("user32.dll", EntryPoint = "mouse_event")]
     private static partial void MouseEvent(uint flags, uint dx, uint dy, uint data, nuint extraInfo);
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
+
+    internal static Rect ReadViewerRect()
+    {
+        var window = GetMarkdownViewerWindow();
+        if (!GetWindowRect(window, out var rect))
+            throw new InvalidOperationException("Cannot read Markdown viewer dimensions.");
+        return rect;
+    }
+
+    internal static void ResizeViewerBy(int widthChange, int heightChange)
+    {
+        var window = GetMarkdownViewerWindow();
+        if (!GetWindowRect(window, out var rect))
+            throw new InvalidOperationException("Cannot read Markdown viewer dimensions.");
+        SetForegroundWindow(window);
+        Thread.Sleep(150);
+        Drag(rect.Right - 5, rect.Bottom - 5,
+            rect.Right - 5 + widthChange, rect.Bottom - 5 + heightChange);
+    }
+
+    internal static void RestoreViewerRect(Rect rect)
+    {
+        const uint noZOrder = 0x0004;
+        const uint noActivate = 0x0010;
+        if (!SetWindowPos(GetMarkdownViewerWindow(), 0, rect.Left, rect.Top,
+                rect.Width, rect.Height, noZOrder | noActivate))
+            throw new InvalidOperationException("Cannot restore Markdown viewer window bounds.");
+    }
+
+    internal static void ClickAt(int x, int y)
+    {
+        if (!SetCursorPos(x, y))
+            throw new InvalidOperationException("Cannot position guest pointer.");
+        Thread.Sleep(80);
+        MouseEvent(LeftDown, 0, 0, 0, 0);
+        MouseEvent(LeftUp, 0, 0, 0, 0);
+    }
 
     internal static async Task<ResizeResult> MeasureFindResizeAsync()
     {
@@ -441,6 +638,18 @@ internal static partial class NativeWindow
         using var process = Process.GetProcessById((int)processId);
         if (!string.Equals(process.ProcessName, "FileCat", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Find files belongs to another process.");
+        return window;
+    }
+
+    private static nint GetMarkdownViewerWindow()
+    {
+        var window = FindWindow(null, "UX_UI_IMPLEMENTATION_STATUS.md — FileCat Viewer");
+        if (window == 0)
+            throw new InvalidOperationException("Markdown fixture viewer is unavailable.");
+        GetWindowThreadProcessId(window, out var processId);
+        using var process = Process.GetProcessById((int)processId);
+        if (!string.Equals(process.ProcessName, "FileCat", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Markdown viewer belongs to another process.");
         return window;
     }
 

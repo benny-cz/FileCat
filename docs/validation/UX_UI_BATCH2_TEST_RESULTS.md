@@ -463,6 +463,18 @@ dismiss it. The native automation tree confirmed the Browse focus and that
 Settings remained open after dismissal. Broader keyboard and scaling cases
 remain open.
 
+### Windows 11 VMware Markdown Page check — 19 October 2026
+
+The guest opened the tracked implementation-status Markdown file in the Page
+viewer. The native acceptance runner searched for `FileCat`, activated Next and
+Previous, and observed enabled navigation buttons plus the visible “At least
+1 match · total unavailable in Page mode” status. A real pointer drag grew the
+viewer from 996 × 739 to 1,346 × 919 pixels. Native UI Automation measured the
+table from 916 to 1,251 pixels wide and the preceding prose block from 118 to
+93 pixels high as it reflowed. The runner restores the original window bounds
+afterward. Native narrow-window pointer, scaling and assistive-technology
+checks remain open.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;

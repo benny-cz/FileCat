@@ -23,6 +23,17 @@ in that location. Run `editor-keyboard <report.json>` to Tab from the program
 field to Browse, activate the picker with Enter, dismiss it with Escape, and
 confirm Settings remains open. These checks leave saved Settings unchanged.
 
+For Markdown acceptance, copy the tracked
+`docs/validation/UX_UI_IMPLEMENTATION_STATUS.md` from the Git checkout into a
+guest folder and open it in FileCat's Page viewer. Run
+`markdown-search <report.json>` to exercise Find, Next and Previous against
+the rendered page and verify its visible directional match status. Run
+`markdown-resize <report.json>` to drag the viewer wider, measure the native
+table width and prose reflow, drag it back and restore its exact original
+bounds. The runner allows a 60-second local UI Automation read because a
+long rendered Markdown table produces a large native accessibility tree.
+Both modes require the fixture viewer to be open on the guest desktop.
+
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the

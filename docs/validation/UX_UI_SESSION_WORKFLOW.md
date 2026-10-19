@@ -76,9 +76,19 @@ Browse, opened the picker with Enter, closed it with Escape and retained
 Settings. Broader native keyboard, scaling and assistive-technology checks
 remain open.
 
+The same guest passed repeatable Markdown Page acceptance against the tracked
+implementation-status file. Find, Next and Previous exposed enabled controls
+and a truthful “At least 1 match · total unavailable in Page mode” status.
+Dragging the viewer from 996 × 739 to 1,346 × 919 pixels widened the table
+from 916 to 1,251 pixels and reduced the height of the preceding prose block
+from 118 to 93 pixels as it reflowed. The runner restores the original bounds.
+Native narrow-window pointer, scaling and assistive-technology checks remain
+open.
+
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
-FCUX-036 and UXBUG-002 native acceptance checks remain open. The completed
+FCUX-036 and UXBUG-002 still need native scaling and assistive-technology
+acceptance after their guest interaction checks. The completed
 FCUX-011/012/013/014/076/072 and viewer FCUX-073 code scopes also keep their
 native acceptance gates open. The user confirmed the PE viewer scrollbar-drag
 fix on the supplied Windows EXE. FCUX-042, the newly reported Markdown resize
