@@ -242,6 +242,12 @@ Undo, archive-warning and report run passed 62 with one filesystem skip using
 visibly blue across wrapped lines, while the primary action and Cancel remain
 clear. The VM Move → Cancel → approved Undo and retained-report journey passed
 again with the styled row.
+At `b9457bad`, the complete Windows Release solution build passed with zero
+warnings and errors. The 16-worker solution test run exited successfully:
+4,429 Core passed/150 platform skips, 2,369 App passed/63 skips, 2,370 Remote
+passed/156 skips, and 423 Windows platform passed/46 skips, with zero failures
+in every project. Cross-platform CI for this code revision is still pending; these
+headless results do not close the native scaling and assistive-technology gates.
 A separate completed Move fixture checked the other resizable long-path
 review: Clear finished history. The native history row reflowed from 662 × 60
 px to 936 × 42 px when widened, Keep history remained reachable, and Cancel
