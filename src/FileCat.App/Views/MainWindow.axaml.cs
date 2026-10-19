@@ -84,7 +84,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 FocusActivePanel();
                 vm.RunFromSearch(id);
             },
-            vm.ChangeShortcutAsync, FocusActivePanel);
+            vm.ChangeShortcutAsync, FocusActivePanel,
+            e =>
+            {
+                if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return false;
+                string? command = vm.Services.Keymap.Resolve(chord, CommandContext.Panel);
+                if (command is null && OperatingSystem.IsMacOS() && KeyMapper.MacCommandAlias(chord) is { } alias)
+                    command = vm.Services.Keymap.Resolve(alias, CommandContext.Panel);
+                return command == CommandIds.Help;
+            },
+            () => vm.Services.Keymap.GetGestureText(CommandIds.Help),
+            vm.ShowKeyboardReferenceForSearchAsync);
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
         WorkspaceHost.SizeChanged += (_, _) => UpdateLayoutStrip();
         MainMenu.SizeChanged += (_, _) => FitCommandSearch();

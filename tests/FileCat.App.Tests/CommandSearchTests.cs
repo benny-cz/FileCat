@@ -181,6 +181,85 @@ public sealed class CommandSearchTests
     }
 
     [AvaloniaFact]
+    public async Task No_results_Help_opens_keyboard_reference_and_restores_the_search()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var box = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search commands");
+            Assert.True(window.FocusCommandSearch());
+            Type(window, "no matching command xyzzy");
+            Assert.Empty(window.CommandSearch.Shown);
+            Assert.Contains("Keyboard reference (F1)", window.CommandSearch.Hint);
+            var button = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => AutomationProperties.GetName(b) == "Open all commands and keyboard shortcuts");
+            Assert.True(button.IsVisible);
+            Assert.True(button.Focusable);
+
+            window.KeyPress(Key.F1, RawInputModifiers.None, PhysicalKey.F1, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen);
+            Assert.Empty(services.History.RecentCommands);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen && box.IsFocused, ct);
+            Assert.Equal("no matching command xyzzy", box.Text);
+            Assert.Empty(window.CommandSearch.Shown);
+            Assert.Contains("Keyboard reference (F1)", window.CommandSearch.Hint);
+            button.Focus();
+            Assert.True(button.IsFocused);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen, "the named button opens Help from the keyboard");
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen && box.IsFocused, ct);
+            Assert.Equal("no matching command xyzzy", box.Text);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Remapped_Help_dispatches_from_search_and_preserves_the_selected_result()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            services.Settings.KeyBindings[CommandIds.Help] = ["Ctrl+Shift+H"];
+            services.ReloadKeymap();
+            var box = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search commands");
+            Assert.True(window.FocusCommandSearch());
+            Type(window, "xyzzy");
+            Assert.Contains("Keyboard reference (Ctrl+Shift+H)", window.CommandSearch.Hint);
+            Assert.DoesNotContain("(F1)", window.CommandSearch.Hint);
+            window.KeyPress(Key.F1, RawInputModifiers.None, PhysicalKey.F1, null);
+            Assert.False(dialogs.IsOpen);
+            Assert.Equal("xyzzy", box.Text);
+            box.Text = "compare";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(window.CommandSearch.Shown.Count > 1);
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            var selected = window.CommandSearch.Selected?.Id;
+            Assert.NotNull(selected);
+            window.KeyPress(Key.H, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.H, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen && box.IsFocused, ct);
+            Assert.Equal("compare", box.Text);
+            Assert.Equal(selected, window.CommandSearch.Selected?.Id);
+            Assert.Empty(services.History.RecentCommands);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task A_click_on_a_result_runs_it_and_the_press_leaves_the_keyboard_in_the_box()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

@@ -24,14 +24,22 @@ internal sealed class CommandSearchBar
     private readonly Popup _popup;
     private readonly ListBox _list;
     private readonly TextBlock _hint;
+    private readonly Button _helpButton;
     private readonly Func<IReadOnlyList<CommandSearch.Entry>> _entries;
     private readonly Func<IReadOnlyList<string>> _recent;
     private readonly Action<string> _run;
     private readonly Func<string, Task> _changeShortcut;
     private readonly Action _leave;
+    private readonly Func<KeyEventArgs, bool> _isHelpGesture;
+    private readonly Func<string?> _helpGesture;
+    private readonly Func<Task<bool>> _openHelp;
+    private bool _helpPointerPending, _openingHelp;
+    private readonly record struct SearchDraft(string Query, string? SelectedId, int Caret);
+    private SearchDraft? _blurred;
     // What the commands were when the box took the keyboard: availability is for the panel active then.
     private IReadOnlyList<CommandSearch.Entry> _snapshot = [];
     private IReadOnlyList<CommandSearch.Entry> _results = [];
+    private string? _displayedQuery;
 
     /// <param name="host">Where the list's popup lives (any panel around the box).</param>
     /// <param name="entries">Every command the search offers, as it applies now.</param>
@@ -39,8 +47,12 @@ internal sealed class CommandSearchBar
     /// <param name="run">Runs a chosen command (the box has closed and the panel has the keyboard back).</param>
     /// <param name="changeShortcut">F2: changes the chosen command's shortcut.</param>
     /// <param name="leave">Gives the keyboard back to the panel (Esc).</param>
+    /// <param name="isHelpGesture">Matches the current user keymap's Help binding.</param>
+    /// <param name="helpGesture">The current display text for that binding.</param>
+    /// <param name="openHelp">Opens the keyboard reference; true means it was dismissed without running a command.</param>
     public CommandSearchBar(TextBox box, Panel host, Func<IReadOnlyList<CommandSearch.Entry>> entries, Func<IReadOnlyList<string>> recent,
-        Action<string> run, Func<string, Task> changeShortcut, Action leave)
+        Action<string> run, Func<string, Task> changeShortcut, Action leave,
+        Func<KeyEventArgs, bool> isHelpGesture, Func<string?> helpGesture, Func<Task<bool>> openHelp)
     {
         _box = box;
         _entries = entries;
@@ -48,6 +60,9 @@ internal sealed class CommandSearchBar
         _run = run;
         _changeShortcut = changeShortcut;
         _leave = leave;
+        _isHelpGesture = isHelpGesture;
+        _helpGesture = helpGesture;
+        _openHelp = openHelp;
         _list = new ListBox
         {
             Classes = { "choices" },
@@ -57,9 +72,14 @@ internal sealed class CommandSearchBar
         };
         AutomationProperties.SetName(_list, "Commands found");
         _hint = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4, 8, 4) };
+        _helpButton = new Button { Content = "Keyboard reference", Margin = new Thickness(8, 0, 8, 4) };
+        AutomationProperties.SetName(_helpButton, "Open all commands and keyboard shortcuts");
+        _helpButton.AddHandler(InputElement.PointerPressedEvent, (_, _) => _helpPointerPending = true, RoutingStrategies.Tunnel);
+        _helpButton.Click += (_, _) => _ = OpenHelpAsync();
+        var footer = new StackPanel { Children = { _hint, _helpButton } };
         var body = new DockPanel();
-        DockPanel.SetDock(_hint, Dock.Bottom);
-        body.Children.Add(_hint);
+        DockPanel.SetDock(footer, Dock.Bottom);
+        body.Children.Add(footer);
         body.Children.Add(_list);
         _popup = new Popup
         {
@@ -80,6 +100,8 @@ internal sealed class CommandSearchBar
         box.GotFocus += (_, _) => Open();
         box.LostFocus += (_, _) =>
         {
+            _blurred = Capture();
+            if (_helpPointerPending || _helpButton.IsFocused) return;
             _popup.IsOpen = false;
             _box.Text = string.Empty;
         };
@@ -104,6 +126,7 @@ internal sealed class CommandSearchBar
     private void Open()
     {
         _snapshot = _entries();
+        _displayedQuery = null;
         _popup.IsOpen = true;
         Update();
     }
@@ -111,25 +134,35 @@ internal sealed class CommandSearchBar
     private void Update()
     {
         string query = (_box.Text ?? string.Empty).Trim();
+        string? keepSelected = query == _displayedQuery
+            ? (_list.SelectedItem as CommandSearch.Entry)?.Id : null;
+        _displayedQuery = query;
         _results = CommandSearch.Rank(query, _snapshot, _recent());
         _list.ItemsSource = _results;
         _list.IsVisible = _results.Count > 0;
         if (_results.Count > 0)
         {
-            _list.SelectedIndex = 0;
-            _list.ScrollIntoView(0);
+            int selected = keepSelected is null ? -1 : _results.ToList().FindIndex(entry => entry.Id == keepSelected);
+            _list.SelectedIndex = Math.Max(0, selected);
+            _list.ScrollIntoView(_list.SelectedIndex);
         }
         _hint.Text = query.Length == 0
             ? _results.Count == 0
                 ? "Type what you want to do: \"recover\", \"new folder\", \"zip\", \"hidden files\"…"
                 : "Recently used · type to search all commands"
             : _results.Count == 0
-                ? $"No command matches \"{query}\". Other words may find it; F1 lists every shortcut."
+                ? $"No command matches \"{query}\". Other words may find it; use Keyboard reference{(_helpGesture() is { Length: > 0 } gesture ? $" ({gesture})" : "")} for all shortcuts."
                 : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_isHelpGesture(e) && e.Key is not (Key.Enter or Key.Escape or Key.F2))
+        {
+            _ = OpenHelpAsync();
+            e.Handled = true;
+            return;
+        }
         int count = _results.Count;
         switch (e.Key)
         {
@@ -158,6 +191,31 @@ internal sealed class CommandSearchBar
                 return;
         }
         e.Handled = true;
+    }
+
+    private SearchDraft Capture() => new(_box.Text ?? string.Empty,
+        _list.SelectedItem is CommandSearch.Entry entry ? entry.Id : null, _box.CaretIndex);
+
+    private async Task OpenHelpAsync()
+    {
+        if (_openingHelp) return;
+        var draft = _box.IsFocused ? Capture() : _blurred ?? Capture();
+        _openingHelp = true;
+        _helpPointerPending = false;
+        _popup.IsOpen = false;
+        _box.Text = string.Empty;
+        try
+        {
+            if (!await _openHelp() || TopLevel.GetTopLevel(_box) is null) return;
+            _box.Focus();
+            _box.Text = draft.Query;
+            _box.CaretIndex = Math.Min(draft.Caret, draft.Query.Length);
+            if (!_popup.IsOpen) Open();
+            else { _snapshot = _entries(); Update(); }
+            int selected = _results.ToList().FindIndex(entry => entry.Id == draft.SelectedId);
+            if (selected >= 0) Move(selected);
+        }
+        finally { _openingHelp = false; }
     }
 
     private void Move(int index)

@@ -489,14 +489,17 @@ public sealed partial class MainViewModel
         Execute(id);
     }
 
-    private async Task ShowKeyboardReferenceAsync()
+    private async Task ShowKeyboardReferenceAsync() => await ShowKeyboardReferenceForSearchAsync();
+
+    /// <summary>Returns true when Help was dismissed without running a command, so search can restore its draft.</summary>
+    internal async Task<bool> ShowKeyboardReferenceForSearchAsync()
     {
         // After a shortcut changes, the reference opens again on that command with the new shortcut shown.
         string? selected = null;
         while (true)
         {
             var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(), selected);
-            if (choice is null) return;
+            if (choice is null) return true;
             if (choice.ChangeShortcut)
             {
                 await ChangeShortcutAsync(choice.CommandId);
@@ -505,7 +508,7 @@ public sealed partial class MainViewModel
             }
             View.FocusActivePanel();
             await ExecuteAsync(choice.CommandId);
-            return;
+            return false;
         }
     }
 

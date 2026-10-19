@@ -48,7 +48,8 @@ public sealed class DriveListTests
             var menu = view.PlaceMenu(place);
             var actions = Assert.IsAssignableFrom<IEnumerable<Avalonia.Controls.Control>>(menu.ItemsSource)
                 .OfType<Avalonia.Controls.MenuItem>().ToArray();
-            Assert.Equal("Drive properties", actions[^1].Header);
+            Assert.Contains(actions, action => Equals(action.Header, "Drive properties"));
+            Assert.Equal("Pin to Places bar", actions[^1].Header);
         }
         finally
         {

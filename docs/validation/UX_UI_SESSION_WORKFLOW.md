@@ -78,7 +78,13 @@ related App cases passing. FCUX-057 corrects automatic-update Privacy wording,
 with 29 related cases passing and one platform skip. FCUX-058 adds a focused
 toolbar, complete More menu, compact/pinnable Places and classic layout choices;
 71 related cases pass, plus six focused model/persistence tests after the final
-place-key refinement. Its complete App rerun is in progress. FCUX-074 follows.
+place-key refinement. Its complete App rerun is in progress; one old drive-menu
+test needed an updated order assertion after the new Pin action, and the 28
+related command-search/drive cases pass. FCUX-074 routes the effective Help
+binding in command search, offers a named focusable Keyboard reference action,
+and restores the search query, caret and selected result on dismissal. All 26
+command-search cases pass, including remapped Help and keyboard activation.
+FCUX-059 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
