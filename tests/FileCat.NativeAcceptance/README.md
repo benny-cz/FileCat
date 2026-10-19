@@ -250,6 +250,11 @@ Previous button must reach the later match, then the earlier match across
 more than 4 MiB, then report no earlier match. The report records both
 visible offsets and checks the source markers and untouched destination.
 The runner closes the viewer; finish with `selection-stop`.
+For native UTF-16LE Previous search, use a separate fresh `seed-selection`
+fixture and run `search-utf16-native <report.json>`. It builds the same 13 MiB
+two-hit file with a UTF-16LE BOM and encoded markers, then checks both distant
+backward matches, the complete no-earlier-match status and unchanged bytes.
+Finish with `selection-stop`.
 For FCUX-001 cross-volume recovery, run `VM/provision-cross-volume.ps1`
 inside an elevated Windows guest with `-Mode Create -ReportPath` pointing to
 the guest-local `FileCatValidation/Runner/cross-volume.json`. It refuses an
