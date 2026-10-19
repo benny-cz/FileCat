@@ -83,6 +83,12 @@ public sealed class AppSettings : IVersionedState
     public bool ShowFunctionKeyBar { get; set; } = true;
     public bool ShowCommandLine { get; set; } = true;
     public bool ShowToolbar { get; set; } = true;
+    /// <summary>Retains the original full command toolbar instead of the focused primary/More layout.</summary>
+    public bool ClassicToolbar { get; set; }
+    /// <summary>Keep each panel's Places row short; all destinations remain in More and the location menu.</summary>
+    public bool CompactPlaces { get; set; } = true;
+    /// <summary>Stable identifiers for at most eight places deliberately kept on every panel's row.</summary>
+    public List<string> PinnedPlaces { get; set; } = [];
     /// <summary>Preferred height of the expanded operations drawer in logical pixels; clamped to the current window.</summary>
     public double OperationsDrawerHeight { get; set; } = 300;
     /// <summary>The place buttons above each panel: drives and everything else the location menu offers (D-52, D-53).</summary>

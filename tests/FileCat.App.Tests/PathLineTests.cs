@@ -152,6 +152,9 @@ public sealed class PathLineTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
+            // The classic panel header still reproduces the complete Places bar.
+            services.Settings.CompactPlaces = false;
+            vm.ApplySettings();
             var ct = TestContext.Current.CancellationToken;
             var panel = vm.Workspace.Panels[0];
             var tab = panel.ActiveTab!;

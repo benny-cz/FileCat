@@ -155,6 +155,8 @@ public sealed class PlaceBarRetirementTests(ITestOutputHelper output)
     {
         string root = Directory.CreateTempSubdirectory("filecat-place-retirement-").FullName;
         var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        // Exercise the full classic bar's lifetime with every bookmark realized.
+        services.Settings.CompactPlaces = false;
         var native = new NativeIcons(); services.Icons.Native = native;
         for (int i = 0; i < bookmarks; i++) services.History.Bookmarks.Add(new BookmarkEntry { Name = $"owned-place-{i:D4}", Location = Location.FileSystem(Path.Combine(root, $"owned-folder-{i:D4}")) });
         var vm = new MainViewModel(services);

@@ -21,9 +21,15 @@
                  Margin="8,2,6,2" PlaceholderText="Search commands"
                  AutomationProperties.Name="Search commands" />
       </Grid>
-      <!-- The toolbar (D-49): the commands used most, under the menu as in Salamander; View → Show the toolbar hides it. -->
+      <!-- Stable primary actions; More retains secondary commands. Classic layout remains an Appearance option. -->
       <Border x:Name="ToolbarRow" Classes="toolbar" IsVisible="{Binding ShowToolbar}">
-        <WrapPanel x:Name="Toolbar" />
+        <Grid ColumnDefinitions="*,Auto">
+          <ScrollViewer x:Name="ToolbarScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <WrapPanel x:Name="Toolbar" />
+          </ScrollViewer>
+          <Button x:Name="ToolbarMore" Grid.Column="1" Content="More ▾" Margin="4,2,4,2"
+                  AutomationProperties.Name="More toolbar commands" />
+        </Grid>
       </Border>
     </StackPanel>
 

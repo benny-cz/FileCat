@@ -49,6 +49,45 @@ public sealed partial class MainViewModel
     /// <summary>What the place buttons above each panel show: everything the location menu offers (D-53).</summary>
     public List<Place> BarPlaces() => Places(DriveButtons);
 
+    /// <summary>Pin a stable place identity in compact panel headers; the complete location menu is unaffected.</summary>
+    public bool SetPlacePinned(Place place, bool pinned)
+    {
+        if (Services.SettingsReadOnly)
+        {
+            Notify("Place pins cannot be saved while Settings is read-only.", true);
+            return false;
+        }
+        var keys = Services.Settings.PinnedPlaces ??= [];
+        string key = PlaceBarPolicy.Key(place);
+        bool present = keys.Contains(key, StringComparer.Ordinal);
+        if (present == pinned) return true;
+        if (pinned)
+        {
+            if (keys.Count >= PlaceBarPolicy.MaximumPins)
+            {
+                Notify($"Pin up to {PlaceBarPolicy.MaximumPins} places. Unpin one before adding another.", true);
+                return false;
+            }
+            keys.Add(key);
+        }
+        else keys.RemoveAll(existing => string.Equals(existing, key, StringComparison.Ordinal));
+        Services.SaveSettings();
+        return true;
+    }
+
+    public bool ClearPlacePins()
+    {
+        if (Services.SettingsReadOnly)
+        {
+            Notify("Place pins cannot be changed while Settings is read-only.", true);
+            return false;
+        }
+        if (Services.Settings.PinnedPlaces is not { Count: > 0 } pins) return true;
+        pins.Clear();
+        Services.SaveSettings();
+        return true;
+    }
+
     private void OnStateSaved()
     {
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) PlacesChanged?.Invoke();

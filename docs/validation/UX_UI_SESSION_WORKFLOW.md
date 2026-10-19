@@ -73,15 +73,20 @@ Native Shell, remote and assistive-technology acceptance
 remain open. FCUX-054 replaces the Viewer Go to window with the shared inline-
 validated dialog. Four focused and 338 related cases pass, with 12 platform
 skips in the related set. Native layout, input and remote capability acceptance remain open.
-FCUX-056 follows (FCUX-055 was completed as a Refresh prerequisite).
+FCUX-056 adds text comparison source selection/copy and scoped Find, with 81
+related App cases passing. FCUX-057 corrects automatic-update Privacy wording,
+with 29 related cases passing and one platform skip. FCUX-058 adds a focused
+toolbar, complete More menu, compact/pinnable Places and classic layout choices;
+71 related cases pass, plus six focused model/persistence tests after the final
+place-key refinement. Its complete App rerun is in progress. FCUX-074 follows.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
 settled. The isolated test passed; the assertion now waits up to 10 seconds
 for the Loaded bindings and still reports any persistent unnamed controls.
 The 59 related cases pass. The full App rerun through FCUX-049 passes with
-2,254 passes, 63 skips and no failures. The later FCUX-050/051/055 changes
-still need a complete App run.
+2,254 passes, 63 skips and no failures. The full App rerun through FCUX-054
+passes with 2,296 passes, 63 skips and no failures.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
@@ -113,9 +118,12 @@ still need a complete App run.
 | 26 | FCUX-052 — refresh changed viewer content | Refresh/F5 reopens the original provider item and stages new Text, Info, Picture or Page content before retiring the old source. Stale and failed refresh states remain visible; zoom, scroll and safe selections survive. Nine focused and 326 related App cases pass, with 12 platform skips in the related set. Native archive/remote/WebView2 and assistive-technology acceptance remain open. |
 | 27 | FCUX-053 — quick-view loading and fallback | Loading appears after a 140 ms debounce and 180 ms no-flicker interval with Cancel/Retry. A visible button opens the full viewer. Empty, denied, unsupported, oversized and failed picture states explain themselves while Hex remains available. Automatic picture pixels respond to pane size within a 1,024 physical-pixel cap. Fourteen focused and 68 related App cases pass. Native Shell and remote acceptance remain open. |
 | 28 | FCUX-054 — Viewer Go to dialog | A bounded shared prompt keeps invalid drafts open with inline errors and visible Go/Cancel. Offset, percentage and line parsing rejects invalid or unsupported targets before action. Four focused and 338 related App cases pass, with 12 platform skips in the related set. Native scaling, remote and assistive-technology acceptance remain open. |
+| 29 | FCUX-056 — compare selection and Find | Per-side source selection, bounded clipboard actions and scoped Find operate on aligned rows without UI line numbers. Eighty-one related App cases pass; native input and assistive-technology acceptance remain open. |
+| 30 | FCUX-057 — update Privacy wording | The checkbox names automatic checks, while Help checks and requested network locations are explained separately. Twenty-nine related tests pass with one platform skip; native wording acceptance remains open. |
+| 31 | FCUX-058 — command and Places hierarchy | Primary and More actions remain stable, classic toolbar and full Places are optional, and compact Places supports pinning without hiding locations from menus. Seventy-one related tests and six post-refinement focused cases pass; complete App rerun and native four/six-panel acceptance remain open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-After FCUX-037, continue FCUX-038 onward in the audit's S2 order. Active Undo ownership, full synchronization
+Continue with FCUX-074, then FCUX-059 onward in the audit's S3 order. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.

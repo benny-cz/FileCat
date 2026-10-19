@@ -3,6 +3,8 @@
 PLATFORM-003: known gaps are documented here and explained in the app wherever you run into them. When a command is
 unavailable for a location, FileCat's status line says why (for example, "Items can be pasted only into a file-system folder").
 
+The main toolbar defaults to ten stable actions: Back, Forward, Parent, Refresh, Copy, Move, New folder, Delete, Find and Jobs. **More** groups the other toolbar commands, including compare and Settings; menus, command search and shortcuts remain available. Settings → Appearance can restore the classic full toolbar. Each panel's compact Places row shows a short stable set and pinned destinations. Its **More places** menu retains every destination and lets you pin or clear pins; Alt+F1/Alt+F2 opens the complete location menu. Appearance can restore all Places buttons.
+
 ## Platforms
 
 | Platform | Tier | Notes |

@@ -65,6 +65,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             foreach (var pv in _panelViews.Values) pv.List.InvalidateVisual();
         };
+        ToolbarMore.Click += (_, _) => OpenToolbarMore();
+        ToolTip.SetTip(ToolbarMore, "More toolbar commands, grouped by task. All commands also remain in the menus and command search.");
         BuildMenu();
         BuildToolbar();
         MenuInteractionTrace.Install(this, MainMenu);
@@ -904,13 +906,18 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     };
 
     /// <summary>
-    /// The toolbar (D-49): the commands used most, grouped as Salamander groups its top toolbar. A button runs its command
-    /// as the key would (the panel keeps the keyboard), and its tooltip names the key.
+    /// The focused toolbar uses a stable primary order and a fixed More menu. The classic arrangement remains available.
+    /// A button runs its existing command as its shortcut would, and its tooltip names the current shortcut.
     /// </summary>
     private void BuildToolbar()
     {
         Toolbar.Children.Clear();
-        foreach (var id in MainMenuModel.Toolbar)
+        bool classic = _vm.Services.Settings.ClassicToolbar;
+        ToolbarMore.IsVisible = !classic;
+        ToolbarMore.ContextMenu = classic ? null : BuildToolbarMore();
+        ScrollViewer.SetHorizontalScrollBarVisibility(ToolbarScroll,
+            classic ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        foreach (var id in classic ? MainMenuModel.Toolbar : MainMenuModel.PrimaryToolbar)
         {
             if (id == "-")
             {
@@ -918,7 +925,15 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 continue;
             }
             if (_vm.Services.Commands.Get(id) is null || CommandIcons.Get(id) is not { } icon) continue;
-            var button = new Button { Classes = { "toolbar" }, Content = new Image { Source = icon, Width = 16, Height = 16 }, Tag = id };
+            var image = new Image { Source = icon, Width = 16, Height = 16 };
+            Control content = image;
+            if (!classic && PrimaryToolbarLabel(id) is { } label)
+                content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 4,
+                    Children = { image, new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center } },
+                };
+            var button = new Button { Classes = { "toolbar" }, Content = content, Tag = id };
             button.Click += (_, _) =>
             {
                 FocusActivePanel();
@@ -929,6 +944,34 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             Toolbar.Children.Add(wrapper);
             UpdateToolbarButton(button, wrapper, id);
         }
+    }
+
+    private static string? PrimaryToolbarLabel(string id) => id switch
+    {
+        CommandIds.Copy => "Copy",
+        CommandIds.Move => "Move",
+        CommandIds.MakeDirectory => "New folder",
+        CommandIds.Delete => "Delete",
+        CommandIds.FindFiles => "Find",
+        CommandIds.Operations => "Jobs",
+        _ => null,
+    };
+
+    private void OpenToolbarMore()
+    {
+        ToolbarMore.ContextMenu?.Open(ToolbarMore);
+    }
+
+    private ContextMenu BuildToolbarMore()
+    {
+        var groups = new List<Control>();
+        foreach (var section in MainMenuModel.SecondaryToolbar)
+        {
+            var owner = new MenuItem { Header = section.Header };
+            owner.ItemsSource = BuildItems(owner, section.Commands);
+            groups.Add(owner);
+        }
+        return new ContextMenu { ItemsSource = groups };
     }
 
     IClipboard? IViewActions.Clipboard => Clipboard;

@@ -148,6 +148,9 @@ public sealed class PanelKeysTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
+            // The classic option preserves the original icon-only full toolbar.
+            services.Settings.ClassicToolbar = true;
+            vm.ApplySettings();
             var ct = TestContext.Current.CancellationToken;
             await Task.Delay(50, ct);
             var buttons = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Button>()

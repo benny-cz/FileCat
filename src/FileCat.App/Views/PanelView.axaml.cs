@@ -183,6 +183,7 @@ public partial class PanelView : UserControl
     private MainViewModel? _main;
 
     private string? _placesShown;
+    private IReadOnlyList<Place> _allBarPlaces = [];
 
     /// <summary>
     /// The place buttons (D-52, D-53): everything the location menu (Alt+F1, Alt+F2) offers, one button each, in its
@@ -199,8 +200,11 @@ public partial class PanelView : UserControl
             _placesShown = null;
             return;
         }
-        var places = vm.BarPlaces();
-        string shown = string.Join("\n", places.Select(p => $"{p.Group}|{p.Title}|{p.Detail}|{p.BarLabel}|{p.Location}|{p.Location?.Session}"));
+        var all = vm.BarPlaces();
+        bool compact = vm.Services.Settings.CompactPlaces;
+        var places = PlaceBarPolicy.Select(all, vm.Services.Settings.PinnedPlaces ?? [], compact);
+        string shown = compact + "\n" + string.Join("\n", all.Select(p => $"{p.Group}|{p.Title}|{p.Detail}|{p.BarLabel}|{p.Location}|{p.Location?.Session}")) +
+            "\nVisible:" + string.Join("|", places.Select(PlaceBarPolicy.Key));
         if (!force && shown == _placesShown)
         {
             MarkCurrentPlace();
@@ -208,12 +212,13 @@ public partial class PanelView : UserControl
         }
         _placesShown = shown;
         ClearPlaceButtons();
+        _allBarPlaces = all;
         PlaceGroup? group = null;
         foreach (var place in places)
         {
             if (group is { } previous && previous != place.Group) DriveButtonsPanel.Children.Add(new Border { Classes = { "placeGap" } });
             group = place.Group;
-            DriveButtonsPanel.Children.Add(PlaceButton(place));
+            DriveButtonsPanel.Children.Add(PlaceButton(place, compact));
         }
         // Last: the places that do not fit the row.
         var more = new Button { Classes = { "drive" }, Content = new TextBlock { Text = "»", FontWeight = Avalonia.Media.FontWeight.Bold, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center } };
@@ -234,20 +239,27 @@ public partial class PanelView : UserControl
                 foreach (var image in content.Children.OfType<Image>()) image.Source = null;
             button.Content = null;
             button.Tag = null;
+            button.ContextMenu?.Close();
+            button.ContextMenu = null;
             ToolTip.SetTip(button, null);
             button.Click -= OnPlaceClick;
             button.PointerReleased -= OnPlacePointerReleased;
             button.ContextRequested -= OnPlaceContextRequested;
         }
         DriveButtonsPanel.Children.Clear();
+        _allBarPlaces = [];
     }
 
-    /// <summary>The » button's menu: the places the row has no room for, in their groups, each with its icon.</summary>
+    /// <summary>The » button lists every omitted destination, including compact-mode omissions and overflow.</summary>
     private void ShowMorePlaces(Button more)
     {
         var items = new List<Control>();
         PlaceGroup? group = null;
-        foreach (var place in DriveButtonsPanel.Hidden.Select(c => c.Tag).OfType<Place>())
+        var visible = DriveButtonsPanel.Children.OfType<Button>()
+            .Where(button => !DriveButtonsPanel.Hidden.Contains(button))
+            .Select(button => button.Tag).OfType<Place>().Select(PlaceBarPolicy.Key)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var place in _allBarPlaces.Where(place => !visible.Contains(PlaceBarPolicy.Key(place))))
         {
             if (group is { } previous && previous != place.Group) items.Add(new Separator());
             group = place.Group;
@@ -257,18 +269,49 @@ public partial class PanelView : UserControl
             item.Click += (_, _) => OpenPlace(place, newTab: false);
             items.Add(item);
         }
-        if (items.Count > 0) new ContextMenu { ItemsSource = items }.Open(more);
+        if (_main is { } vm && _allBarPlaces.Count > 0)
+        {
+            if (items.Count > 0) items.Add(new Separator());
+            var pinMenu = new MenuItem { Header = "Pin places to bar" };
+            var choices = new List<Control>();
+            foreach (var place in _allBarPlaces)
+            {
+                bool pinned = vm.Services.Settings.PinnedPlaces?.Contains(PlaceBarPolicy.Key(place), StringComparer.Ordinal) == true;
+                var choice = new MenuItem { Header = place.Title, ToggleType = MenuItemToggleType.CheckBox, IsChecked = pinned,
+                    IsEnabled = !vm.Services.SettingsReadOnly };
+                ToolTip.SetTip(choice, place.Detail);
+                choice.Click += (_, _) =>
+                {
+                    if (!vm.SetPlacePinned(place, !pinned)) choice.IsChecked = pinned;
+                };
+                choices.Add(choice);
+            }
+            pinMenu.ItemsSource = choices;
+            items.Add(pinMenu);
+            if (vm.Services.Settings.PinnedPlaces is { Count: > 0 })
+            {
+                var clear = new MenuItem { Header = "Clear pinned Places", IsEnabled = !vm.Services.SettingsReadOnly };
+                clear.Click += (_, _) => vm.ClearPlacePins();
+                items.Add(clear);
+            }
+        }
+        if (items.Count > 0)
+        {
+            more.ContextMenu = new ContextMenu { ItemsSource = items };
+            more.ContextMenu.Open(more);
+        }
     }
 
-    private Button PlaceButton(Place place)
+    private Button PlaceButton(Place place, bool compact)
     {
         var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 3 };
         if (place.Icon() is { } image) content.Children.Add(new Image { Source = image, Width = 16, Height = 16 });
-        if (place.BarLabel is { Length: > 0 } label)
+        string? barLabel = place.BarLabel is { Length: > 0 } label ? label : compact ? place.Title : null;
+        if (barLabel is { Length: > 0 })
             content.Children.Add(new TextBlock
             {
-                Text = label,
-                MaxWidth = 120,
+                Text = barLabel,
+                MaxWidth = compact ? 95 : 120,
                 TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             });
@@ -285,7 +328,7 @@ public partial class PanelView : UserControl
         Avalonia.Automation.AutomationProperties.SetHelpText(button, tip.Text);
         button.Click += OnPlaceClick;
         button.PointerReleased += OnPlacePointerReleased;
-        if (place.OpensInPanel) button.ContextRequested += OnPlaceContextRequested;
+        button.ContextRequested += OnPlaceContextRequested;
         return button;
     }
 
@@ -318,14 +361,23 @@ public partial class PanelView : UserControl
             item.Click += (_, _) => act();
             items.Add(item);
         }
-        Add("Open here", () => OpenPlace(place, newTab: false));
-        Add("Open in a new tab", () => OpenPlace(place, newTab: true));
+        Add(place.OpensInPanel ? "Open here" : "Open", () => OpenPlace(place, newTab: false));
+        if (place.OpensInPanel) Add("Open in a new tab", () => OpenPlace(place, newTab: true));
         if (place.Variants.Count > 0) items.Add(new Separator());
         foreach (var variant in place.Variants) Add(variant.Title, () => OpenPlace(variant, newTab: false));
         if (OperatingSystem.IsWindows() && place.Drive is { } drive && _main is { } vm)
         {
             items.Add(new Separator());
             Add("Drive properties", () => vm.ShowPropertiesForPath(drive.RootPath));
+        }
+        if (_main is { } main)
+        {
+            items.Add(new Separator());
+            bool pinned = main.Services.Settings.PinnedPlaces?.Contains(PlaceBarPolicy.Key(place), StringComparer.Ordinal) == true;
+            var pin = new MenuItem { Header = pinned ? "Unpin from Places bar" : "Pin to Places bar",
+                IsEnabled = !main.Services.SettingsReadOnly };
+            pin.Click += (_, _) => main.SetPlacePinned(place, !pinned);
+            items.Add(pin);
         }
         return new ContextMenu { ItemsSource = items };
     }

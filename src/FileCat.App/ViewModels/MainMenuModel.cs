@@ -10,17 +10,20 @@ public static class MainMenuModel
 {
     /// <summary>A menu's own submenu (the Registry's commands, dimmed everywhere else, stay out of the File menu's way).</summary>
     public sealed record Submenu(string Header, string[] Items);
+    public sealed record ToolbarSection(string Header, string[] Commands);
 
     public static readonly (string Header, object[] Items)[] Layout =
     [
         ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-            CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, "-",
-            CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
-            CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet,
+            new Submenu("_Archives", [CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive]), "-",
+            new Submenu("_Inspect", [CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes,
+                CommandIds.HiddenData, CommandIds.FileRecord]),
+            CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
+            new Submenu("_Working sets", [CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet]),
             new Submenu("_Registry", [CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
                 CommandIds.RegistryWritable, CommandIds.RegistryView]), "-",
-            CommandIds.Undo, CommandIds.Properties, CommandIds.HiddenData, CommandIds.FileRecord, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
+            CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
         ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.CountFolderSizes, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
             CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, CommandIds.ReviewMarks, "-",
@@ -49,8 +52,30 @@ public static class MainMenuModel
     ];
 
     /// <summary>
-    /// The toolbar's commands (D-49), grouped as Salamander groups its top toolbar: moving around, the panels, the
-    /// clipboard, file operations, archives, marking, finding and comparing, and the view; "-" separates the groups.
+    /// Focused toolbar actions keep a stable order; the More menu retains every other classic toolbar command.
+    /// This presentation model does not affect command IDs, admission, gestures or user key bindings.
+    /// </summary>
+    public static readonly string[] PrimaryToolbar =
+    [
+        CommandIds.Back, CommandIds.Forward, CommandIds.Parent, CommandIds.Refresh,
+        CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory, CommandIds.Delete,
+        CommandIds.FindFiles, CommandIds.Operations,
+    ];
+
+    public static readonly ToolbarSection[] SecondaryToolbar =
+    [
+        new("Navigate", [CommandIds.Root, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget,
+            CommandIds.SwapPanels, CommandIds.NewTab]),
+        new("Clipboard", [CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard]),
+        new("File and archive", [CommandIds.Rename, CommandIds.Properties, CommandIds.Pack, CommandIds.Unpack]),
+        new("Mark", [CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkInvert, CommandIds.MarkAll]),
+        new("Compare and inspect", [CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.QuickView,
+            CommandIds.OpenTerminal]),
+        new("View and Settings", [CommandIds.ToggleHidden, CommandIds.Settings, CommandIds.Help]),
+    ];
+
+    /// <summary>
+    /// The original full toolbar, available through the Appearance preference. "-" separates groups.
     /// </summary>
     public static readonly string[] Toolbar =
     [

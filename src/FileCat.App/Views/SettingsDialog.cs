@@ -44,6 +44,10 @@ public static class SettingsDialog
         var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var toolbar = new CheckBox { Content = "Show the toolbar", IsChecked = s.ShowToolbar };
+        var classicToolbar = new CheckBox { Content = "Classic full toolbar (all commands)", IsChecked = s.ClassicToolbar };
+        var toolbarNote = Note("The focused toolbar keeps frequent actions in a stable row; More holds the remaining commands. The classic option restores the complete toolbar. Menus and shortcuts work in either layout.");
+        var allPlaces = new CheckBox { Content = "Show all Places above each panel", IsChecked = !s.CompactPlaces };
+        var placesNote = Note("Compact Places shows a short, stable row and your pinned destinations. The » menu and Alt+F1/Alt+F2 still reach every place; pin or unpin from a place's menu.");
         var driveButtons = new CheckBox { Content = "Show place buttons above the panels (drives, folders, bookmarks, servers)", IsChecked = s.ShowDriveButtons };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         // With seconds first; the shorter forms stay for those who chose them, and a format typed into the settings file
@@ -51,7 +55,7 @@ public static class SettingsDialog
         var dateFormats = new List<string> { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" };
         if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
         var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
-        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", driveButtons), ("", cmdLine),
+        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", classicToolbar), ("", toolbarNote), ("", driveButtons), ("", allPlaces), ("", placesNote), ("", cmdLine),
             ("", Note("View → Theme… previews every theme. System high contrast takes priority. FileCat follows reduced-motion settings on Windows, macOS, and GNOME; on other desktops, turn off Animate theme effects here."))) });
 
         // ---- Behavior
@@ -466,6 +470,8 @@ public static class SettingsDialog
         s.DateFormat = dateFormat.SelectedItem as string ?? "Culture";
         s.ShowFunctionKeyBar = keyBar.IsChecked == true;
         s.ShowToolbar = toolbar.IsChecked == true;
+        s.ClassicToolbar = classicToolbar.IsChecked == true;
+        s.CompactPlaces = allPlaces.IsChecked != true;
         s.ShowDriveButtons = driveButtons.IsChecked == true;
         s.ShowCommandLine = cmdLine.IsChecked == true;
         s.ShowHidden = hidden.IsChecked == true;
