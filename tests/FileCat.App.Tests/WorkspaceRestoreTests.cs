@@ -1,6 +1,11 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Headless;
 using Avalonia.Interactivity;
+using Avalonia.Input;
+using Avalonia.VisualTree;
+using FileCat.App.Views;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.Resources;
@@ -11,6 +16,85 @@ namespace FileCat.App.Tests;
 
 public sealed class WorkspaceRestoreTests
 {
+    [AvaloniaFact]
+    public async Task Valid_one_panel_workspace_round_trips_without_creating_a_target()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var workspace = vm.Workspace;
+            workspace.RemovePanel(workspace.Panels[1]);
+            Assert.Single(workspace.Panels);
+            var saved = workspace.ToState(null);
+            string panelId = saved.Panels[0].Id;
+            string tree = saved.Tree!.ToString();
+            saved.Panels[0].TargetPanelId = "panel-that-no-longer-exists";
+
+            workspace.LoadState(saved);
+            var restored = Assert.Single(workspace.Panels);
+            Assert.Equal(panelId, restored.Id);
+            Assert.Equal(tree, workspace.LayoutTree.ToString());
+            Assert.Same(restored, workspace.ActivePanel);
+            Assert.Null(restored.TargetPanelId);
+            Assert.Null(workspace.ActiveTarget);
+            Assert.Empty(restored.RoleLabel);
+            Assert.Single(workspace.ToState(null).Panels);
+
+            var listing = restored.ActiveTab!.Listing;
+            await FileListFixture.Wait(() => listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount >= 2);
+            listing.SetFocus(1);
+            vm.Execute(CommandIds.Copy);
+            await FileListFixture.Wait(() => vm.Dialogs.IsOpen);
+            window.UpdateLayout();
+            var destination = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Destination");
+            Assert.Equal(string.Empty, destination.Text); // F5 asks for a destination instead of choosing one.
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(),
+                button => AutomationProperties.GetName(button)?.StartsWith("To panel ", StringComparison.Ordinal) == true);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await FileListFixture.Wait(() => !vm.Dialogs.IsOpen);
+            vm.Execute(CommandIds.Move);
+            await FileListFixture.Wait(() => vm.Dialogs.IsOpen);
+            window.UpdateLayout();
+            var moveDestination = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Destination");
+            Assert.Equal(string.Empty, moveDestination.Text); // F6 has the same deliberate destination step.
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await FileListFixture.Wait(() => !vm.Dialogs.IsOpen);
+
+            workspace.LoadState(null);
+            Assert.Equal(2, workspace.Panels.Count); // First launch still uses the normal two-panel default.
+            workspace.LoadState(new WorkspaceState
+            {
+                Panels = [new PanelState { Id = "unusable", Tabs = [new TabState { Location = null }] }],
+            });
+            Assert.Equal(2, workspace.Panels.Count);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Multi_panel_restore_retires_invalid_targets_without_changing_valid_ones()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var workspace = vm.Workspace;
+            workspace.AddPanel(Location.FileSystem(Path.Combine(root, "files")));
+            var saved = workspace.ToState(null);
+            saved.Panels[0].TargetPanelId = "missing";
+            saved.Panels[1].TargetPanelId = saved.Panels[1].Id;
+            saved.Panels[2].TargetPanelId = saved.Panels[0].Id;
+            workspace.LoadState(saved);
+            Assert.Equal(3, workspace.Panels.Count);
+            Assert.Null(workspace.Panels[0].TargetPanelId);
+            Assert.Null(workspace.Panels[1].TargetPanelId);
+            Assert.Equal(workspace.Panels[0].Id, workspace.Panels[2].TargetPanelId);
+            Assert.Equal(workspace.Panels[0], workspace.GetTarget(workspace.Panels[2]));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static WorkspaceState FourPanelWorkspace(Location folder)
     {
         string[] ids = ["panel-a", "panel-b", "panel-c", "panel-d"];

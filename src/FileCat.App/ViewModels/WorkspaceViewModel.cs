@@ -322,13 +322,22 @@ public sealed partial class WorkspaceViewModel : ObservableObject
                 panel.ActiveTab = panel.Tabs[Math.Clamp(ps.ActiveTab, 0, panel.Tabs.Count - 1)];
             }
         }
-        while (Panels.Count < 2)
+        // A valid saved one-panel layout is deliberate. Only missing or wholly unusable state gets the two-panel default.
+        bool useDefaultPanels = Panels.Count == 0;
+        while (useDefaultPanels && Panels.Count < 2)
         {
             var panel = new PanelViewModel(this, Services);
             Panels.Add(panel);
             panel.OpenTab(Panels.Count == 1 ? DefaultLocation() : new Location(Schemes.Computer, string.Empty));
         }
-        if (Panels.Count == 2) foreach (var p in Panels) p.TargetPanelId = null;
+        if (Panels.Count <= 2) foreach (var p in Panels) p.TargetPanelId = null;
+        else
+        {
+            var validIds = Panels.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var p in Panels)
+                if (p.TargetPanelId == p.Id || p.TargetPanelId is { } target && !validIds.Contains(target))
+                    p.TargetPanelId = null;
+        }
         // The saved tree when it shows exactly these panels; otherwise one split, as P2 laid them out.
         var ids = Panels.Select(p => p.Id).ToList();
         LayoutTree = PanelLayout.Matches(state?.Tree, ids)
