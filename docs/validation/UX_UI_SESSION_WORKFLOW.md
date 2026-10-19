@@ -128,7 +128,7 @@ passes with 2,296 passes, 63 skips and no failures.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-036 — advanced Settings editing | Provide supported editors and validation for advanced setting fields. |
+| 1 | FCUX-036 — advanced Settings editing | Structured/raw editors, previews and file import/export pass 30 related App cases with one platform skip; native picker, keyboard and scaling acceptance remain open. |
 | 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
 | 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |
@@ -177,7 +177,7 @@ endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.
 
-### FCUX-036 work in progress
+### FCUX-036 implementation record
 
 The Editor field now offers a local program picker, argument token insertion,
 an explicit batch shell-interpretation choice and a sample invocation preview.
@@ -199,8 +199,10 @@ opens the existing searchable reference and shortcut capture dialog against the
 Settings draft; Cancel leaves saved bindings untouched. Command and association
 rows now offer token insertion and an asynchronous no-write argument-vector
 preview that retires on edits and selection changes. Focused regressions cover
-these routes. Native keyboard/focus, picker and scaled layout acceptance, and
-an explicit file import/export route for Advanced text, remain open for FCUX-036.
+these routes. A shared Advanced text file route now reads bounded strict UTF-8
+and writes confirmed local exports atomically; focused import/export and the
+related Settings cases pass. Native keyboard/focus, picker and scaled layout
+acceptance remain open for FCUX-036.
 
 ### UXBUG-001 implementation record
 

@@ -110,6 +110,7 @@ internal sealed class UserCommandsEditor
         _structured.Children.Add(new TextBlock { Text = "Batch programs can interpret selected names as commands when shell interpretation is enabled. Prefer a normal executable.", TextWrapping = TextWrapping.Wrap, Classes = { "muted", "small" } });
         _rawPanel.Children.Add(new TextBlock { Text = "Advanced text supports nested Group > Name entries and the lossless @tools: JSON form.", TextWrapping = TextWrapping.Wrap });
         _rawPanel.Children.Add(_raw);
+        AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "command");
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
         View = new StackPanel { Margin = new Thickness(8), Spacing = 6, Children = { _advanced, _structured, _rawPanel, _error } };
         Refresh(_draft.FirstOrDefault());

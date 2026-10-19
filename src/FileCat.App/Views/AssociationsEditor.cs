@@ -175,6 +175,7 @@ internal sealed class AssociationsEditor
         _structured.Children.Add(preview);
         _rawPanel.Children.Add(new TextBlock { Text = "Advanced definitions use mask | action | program | arguments | options, or the lossless @tools: form.", TextWrapping = TextWrapping.Wrap });
         _rawPanel.Children.Add(_raw);
+        AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "association");
         _rawPanel.Children.Add(_rawError);
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
         View = new StackPanel { Margin = new Thickness(8), Spacing = 6, Children = { _advanced, _structured, _rawPanel } };

@@ -75,6 +75,7 @@ internal sealed class SavedFiltersEditor
         _structured.Children.Add(_mask);
         _rawPanel.Children.Add(new TextBlock { Text = "One filter per line: name = mask. Return to the list to check and edit individual fields.", TextWrapping = TextWrapping.Wrap });
         _rawPanel.Children.Add(_raw);
+        AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "filter");
         _rawPanel.Children.Add(_rawError);
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
         View = new StackPanel
