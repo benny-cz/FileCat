@@ -187,6 +187,14 @@ byte count and source revision text. It also checks that Compute leaves the
 clipboard unchanged and explicit Copy publishes the complete visible result.
 The runner closes the viewer and verifies the fixture files are unchanged;
 `selection-stop` then closes the isolated app.
+For FCUX-007, use another fresh `seed-selection` fixture and run
+`search-native <report.json>` on its launched isolated app. The interactive
+runner creates a 13 MiB guest-local text file with `NEEDLE` near 1 MiB and
+8 MiB, rereads the folder, opens Text view, and goes to the end. The visible
+Previous button must reach the later match, then the earlier match across
+more than 4 MiB, then report no earlier match. The report records both
+visible offsets and checks the source markers and untouched destination.
+The runner closes the viewer; finish with `selection-stop`.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

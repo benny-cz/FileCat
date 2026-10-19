@@ -35,8 +35,9 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, test native Previous search, visible Stop, changed-query
-   ownership and provider cancellation. For FCUX-008, test native whole-file
+   For FCUX-007, test native UTF-16 and editor Previous routes, visible Stop,
+   changed-query ownership, provider cancellation and non-Windows input.
+   For FCUX-008, test native whole-file
    choice, Stop, incomplete and changed sources, scaled/narrow layout, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all

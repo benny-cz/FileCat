@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -1000,6 +1000,140 @@ try
                 passed, oneByteSelected, selectedScope, exactResult, clipboardPreserved,
                 explicitCopy, copyEnabled, clipboardBefore, clipboardAfter,
                 copiedText, unchangedFiles, resultText
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "search-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            var sourceFile = Path.Combine(fixture.Source, "search.log");
+            if (File.Exists(sourceFile) || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated search fixture is not pristine.");
+            const int size = 13 * 1024 * 1024;
+            const int firstHit = 1024 * 1024 + 20;
+            const int secondHit = 8 * 1024 * 1024 + 20;
+            var bytes = new byte[size];
+            Array.Fill(bytes, (byte)'a');
+            for (int i = 79; i < bytes.Length; i += 80) bytes[i] = (byte)'\n';
+            foreach (int offset in new[] { firstHit, secondHit })
+                "NEEDLE"u8.CopyTo(bytes.AsSpan(offset));
+            await File.WriteAllBytesAsync(sourceFile, bytes);
+            NativeWindow.FocusRecovery("selection-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000"); // Reread the owned folder.
+            XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == "search.log"
+                && element.Ancestors().Any(parent =>
+                    (string?)parent.Attribute("ClassName") == "FileList"
+                    && ((string?)parent.Attribute("Name"))?.Contains(
+                        "selection-source", StringComparison.OrdinalIgnoreCase) == true));
+            for (int attempt = 0; attempt < 30 && Row(listing) is null; attempt++)
+            {
+                await Task.Delay(150);
+                listing = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var row = Row(listing) ?? throw new InvalidOperationException("The large search file is not listed.");
+            NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3 opens the viewer.
+            XElement? Viewer(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.Contains("search.log", StringComparison.Ordinal) == true
+                && ((string?)element.Attribute("Name"))?.Contains("FileCat Viewer", StringComparison.Ordinal) == true);
+            long? Offset(XDocument document)
+            {
+                var status = Viewer(document)?.Descendants().Select(element =>
+                    (string?)element.Attribute("Name") ?? "").FirstOrDefault(name =>
+                    name.Contains(" · offset 0x", StringComparison.Ordinal));
+                if (status is null) return null;
+                int start = status.IndexOf("offset 0x", StringComparison.Ordinal) + "offset 0x".Length;
+                int end = start;
+                while (end < status.Length && Uri.IsHexDigit(status[end])) end++;
+                return long.TryParse(status[start..end], NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture, out long offset) ? offset : null;
+            }
+            XDocument opened = listing;
+            for (int attempt = 0; attempt < 30 && Viewer(opened) is null; attempt++)
+            {
+                await Task.Delay(150);
+                opened = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var viewer = Viewer(opened) ?? throw new InvalidOperationException("The large-text viewer did not open.");
+            var textButton = viewer.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Text"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            NativeWindow.ClickAt(CenterX(textButton), CenterY(textButton));
+            var textSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var textView = Viewer(textSource)?.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "TextViewer"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("The native text document is unavailable.");
+            NativeWindow.ClickAt(CenterX(textView), CenterY(textView));
+            await SendSessionKeysAsync(client, sessionId, "\uE009\uE010\uE000"); // Ctrl+End.
+            var atEnd = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool startedNearEnd = Offset(atEnd) is >= 12 * 1024 * 1024;
+            if (!startedNearEnd)
+                throw new InvalidOperationException("The native text viewer did not reach the end of the large file.");
+            var currentViewer = Viewer(atEnd)!;
+            var toggle = FindVisible(currentViewer, "button", "Show or hide viewer Find bar")
+                ?? throw new InvalidOperationException("The viewer Find toggle is unavailable.");
+            NativeWindow.ClickAt(CenterX(toggle), CenterY(toggle));
+            var queryId = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Find in file']", "viewer Find field");
+            await SendKeysAsync(client, sessionId, queryId, "NEEDLE");
+            XDocument found = atEnd;
+            var findViewer = Viewer(ParseSource(await ReadSourceAsync(client, sessionId)))!;
+            var previous = FindVisible(findViewer, "button", "Find previous match")
+                ?? throw new InvalidOperationException("The visible Previous button is unavailable.");
+            NativeWindow.ClickAt(CenterX(previous), CenterY(previous));
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                await Task.Delay(150);
+                found = ParseSource(await ReadSourceAsync(client, sessionId));
+                if (Offset(found) is { } offset && Math.Abs(offset - secondHit) <= 2048) break;
+            }
+            long? firstPrevious = Offset(found);
+            bool foundSecond = firstPrevious is { } high && Math.Abs(high - secondHit) <= 2048;
+            NativeWindow.ClickAt(CenterX(previous), CenterY(previous));
+            XDocument earlier = found;
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                await Task.Delay(150);
+                earlier = ParseSource(await ReadSourceAsync(client, sessionId));
+                if (Offset(earlier) is { } offset && Math.Abs(offset - firstHit) <= 2048) break;
+            }
+            long? secondPrevious = Offset(earlier);
+            bool foundFirst = secondPrevious is { } low && Math.Abs(low - firstHit) <= 2048;
+            NativeWindow.ClickAt(CenterX(previous), CenterY(previous));
+            XDocument exhausted = earlier;
+            bool completeNegative = false;
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                await Task.Delay(150);
+                exhausted = ParseSource(await ReadSourceAsync(client, sessionId));
+                completeNegative = Viewer(exhausted)?.Descendants().Any(element =>
+                    ((string?)element.Attribute("Name"))?.Contains(
+                        "\"NEEDLE\" was not found before this position.", StringComparison.Ordinal) == true) == true;
+                if (completeNegative) break;
+            }
+            await SendSessionKeysAsync(client, sessionId, "\uE03A"); // F10 closes the viewer.
+            var marker = new byte[6];
+            await using var sourceStream = File.OpenRead(sourceFile);
+            bool sourceIntact = sourceStream.Length == size;
+            foreach (int offset in new[] { firstHit, secondHit })
+            {
+                sourceStream.Position = offset;
+                await sourceStream.ReadExactlyAsync(marker);
+                sourceIntact &= marker.AsSpan().SequenceEqual("NEEDLE"u8);
+            }
+            sourceIntact &= !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = startedNearEnd && foundSecond && foundFirst
+                && completeNegative && sourceIntact;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, startedNearEnd, firstPrevious, foundSecond, secondPrevious,
+                foundFirst, completeNegative, sourceIntact, firstHit, secondHit,
+                sourceFile
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
