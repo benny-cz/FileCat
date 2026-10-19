@@ -69,6 +69,8 @@ public static class SettingsDialog
         var confirmRecycle = new CheckBox { Content = "Ask before moving items to the Recycle Bin", IsChecked = s.ConfirmRecycle };
         var sizeOnSpace = new CheckBox { Content = "Space computes the size of a marked folder", IsChecked = s.SizeFolderOnSpace };
         var sizeSlow = new CheckBox { Content = "…also on network, removable, and cloud locations", IsChecked = s.SizeFolderOnSlowLocations };
+        BindDependentOption(sizeOnSpace, sizeSlow, supported: true,
+            "Turn on folder sizing with Space to use this option.");
         var anywhere = new CheckBox { Content = "Quick search matches anywhere in the name (instead of the beginning)", IsChecked = s.QuickSearchMatchAnywhere };
         var filtersEditor = new SavedFiltersEditor(s.SavedFilters);
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
@@ -322,12 +324,19 @@ public static class SettingsDialog
             IsChecked = s.ShellPictures,
             IsEnabled = helper,
         };
+        if (!helper)
+        {
+            ToolTip.SetTip(shellPictures, "This build has no Shell picture helper.");
+            ToolTip.SetShowOnDisabled(shellPictures, true);
+            Avalonia.Automation.AutomationProperties.SetHelpText(shellPictures, "This build has no Shell picture helper.");
+        }
         var shellSlow = new CheckBox
         {
             Content = "…also on network and removable drives (their handlers may contact other computers)",
             IsChecked = s.ShellPicturesOnNetworkAndRemovable,
-            IsEnabled = helper,
         };
+        BindDependentOption(shellPictures, shellSlow, helper,
+            "Turn on Shell pictures to use this option.", "This build has no Shell picture helper.");
         var shellNote = Note(helper
             ? "Shortcuts, internet shortcuts, libraries, themes, desktop.ini, and cloud placeholders are never handed to the Shell." +
               (vm.Services.ShellPictures?.DisabledReason is { } off ? " " + off : string.Empty)
@@ -527,6 +536,25 @@ public static class SettingsDialog
     }
 
     private static Control Form(params (string Label, Control Control)[] rows) => new DialogForm(rows) { Margin = new Thickness(8) };
+
+    /// <summary>Keep the subordinate draft choice while its parent is off, and explain why it is unavailable.</summary>
+    internal static void BindDependentOption(CheckBox parent, CheckBox child, bool supported,
+        string parentReason, string? unsupportedReason = null)
+    {
+        child.Margin = new Thickness(20, 0, 0, 0);
+        ToolTip.SetShowOnDisabled(child, true);
+        void Update()
+        {
+            child.IsEnabled = supported && parent.IsChecked == true;
+            string help = !supported ? unsupportedReason ?? "This option is unavailable in this build."
+                : parent.IsChecked == true ? "Additional option for " + parent.Content
+                : parentReason;
+            ToolTip.SetTip(child, help);
+            Avalonia.Automation.AutomationProperties.SetHelpText(child, help);
+        }
+        parent.IsCheckedChanged += (_, _) => Update();
+        Update();
+    }
 
     /// <summary>"name = mask" lines; every mask must parse, including references between saved filters.</summary>
     internal static List<SavedFilter> ParseSavedFilters(string? text, out string? error)

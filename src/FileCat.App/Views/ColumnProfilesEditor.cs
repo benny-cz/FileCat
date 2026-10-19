@@ -26,6 +26,9 @@ internal sealed class ColumnProfilesEditor
     private readonly TextBox _name = new();
     private readonly NumericUpDown _width = new() { Minimum = 0, Maximum = 2000, Increment = 10, FormatString = "0", MinWidth = 140 };
     private readonly ComboBox _add = new() { MinWidth = 180, ItemsSource = ColumnProfileSet.Choices.Select(c => c.Title).ToList(), SelectedIndex = 0 };
+    private readonly Dictionary<string, Button> _profileActions = [];
+    private readonly Dictionary<string, Button> _columnActions = [];
+    private readonly Button _addButton = new() { Content = "Add" };
     private bool _updating;
 
     public ColumnProfilesEditor(ColumnProfileSet set)
@@ -40,6 +43,7 @@ internal sealed class ColumnProfilesEditor
 
         _profileList.SelectionChanged += (_, _) => { if (!_updating) ShowProfile(); };
         _columnList.SelectionChanged += (_, _) => { if (!_updating) ShowColumn(); };
+        _add.SelectionChanged += (_, _) => UpdateActions();
         _name.TextChanged += (_, _) =>
         {
             if (_updating || Selected is not { } p) return;
@@ -54,7 +58,7 @@ internal sealed class ColumnProfilesEditor
             RefreshColumns();
         };
 
-        var profileButtons = Buttons(
+        var profileButtons = Buttons(_profileActions, "profile",
             ("New", () => AddProfile(new Profile("New profile", [("name", 0), ("size", 86), ("modified", 128)]))),
             ("Duplicate", () => { if (Selected is { } p) AddProfile(new Profile(p.Name + " copy", [.. p.Columns])); }),
             ("Remove", RemoveProfile),
@@ -67,9 +71,9 @@ internal sealed class ColumnProfilesEditor
             _profiles.AddRange(Load(ColumnProfiles.Defaults));
             RefreshProfiles(select: 0);
         };
-        var addButton = new Button { Content = "Add" };
-        addButton.Click += (_, _) => AddColumn();
-        var columnButtons = Buttons(
+        AutomationProperties.SetName(_addButton, "Add column");
+        _addButton.Click += (_, _) => AddColumn();
+        var columnButtons = Buttons(_columnActions, "column",
             ("Remove", RemoveColumn),
             ("Up", () => MoveColumn(-1)),
             ("Down", () => MoveColumn(1)));
@@ -85,7 +89,7 @@ internal sealed class ColumnProfilesEditor
             Children =
             {
                 Label("Columns"), _columnList,
-                DialogLayout.Actions(_add, addButton),
+                DialogLayout.Actions(_add, _addButton),
                 columnButtons,
                 DialogLayout.Actions(Label("Width"), _width, Note("pixels; 0 fills the remaining space")),
                 Note("Dragging a column border in a panel also stores its width here. The Name column is always kept."),
@@ -93,6 +97,7 @@ internal sealed class ColumnProfilesEditor
         };
         View = new DialogColumns(left, right) { Margin = new Thickness(8) };
         RefreshProfiles(select: 0);
+        UpdateActions();
     }
 
     public Control View { get; }
@@ -171,6 +176,7 @@ internal sealed class ColumnProfilesEditor
         _profileList.SelectedIndex = Math.Clamp(index, 0, _profiles.Count - 1);
         _updating = false;
         if (select is not null) ShowProfile();
+        UpdateActions();
     }
 
     private void ShowProfile()
@@ -179,6 +185,7 @@ internal sealed class ColumnProfilesEditor
         _name.Text = Selected?.Name ?? string.Empty;
         _updating = false;
         RefreshColumns(select: 0);
+        UpdateActions();
     }
 
     private void RefreshColumns(int? select = null)
@@ -203,16 +210,62 @@ internal sealed class ColumnProfilesEditor
         int i = _columnList.SelectedIndex;
         _width.Value = p is not null && i >= 0 && i < p.Columns.Count ? (decimal)Math.Max(0, p.Columns[i].Width) : 0;
         _updating = false;
+        UpdateActions();
     }
 
-    private static WrapPanel Buttons(params (string Text, Action Click)[] buttons)
+    private void UpdateActions()
+    {
+        if (_profileActions.Count == 0 || _columnActions.Count == 0) return;
+        int pi = _profileList.SelectedIndex;
+        int ci = _columnList.SelectedIndex;
+        var profile = Selected;
+        bool atLimit = _profiles.Count >= ColumnProfileSet.MaxProfiles;
+        ActionState(_profileActions["New"], !atLimit, "Maximum profiles reached (10).");
+        ActionState(_profileActions["Duplicate"], profile is not null && !atLimit,
+            atLimit ? "Maximum profiles reached (10)." : "Select a profile to duplicate.");
+        ActionState(_profileActions["Remove"], profile is not null && _profiles.Count > 1,
+            _profiles.Count <= 1 ? "At least one profile is required." : "Select a profile to remove.");
+        ActionState(_profileActions["Up"], pi > 0, "The first profile cannot move up.");
+        ActionState(_profileActions["Down"], pi >= 0 && pi < _profiles.Count - 1,
+            "The last profile cannot move down.");
+
+        bool choiceAvailable = profile is not null && _add.SelectedIndex >= 0 &&
+            _add.SelectedIndex < ColumnProfileSet.Choices.Count;
+        bool duplicate = choiceAvailable && profile!.Columns.Any(c => c.Key == ColumnProfileSet.Choices[_add.SelectedIndex].Key);
+        ActionState(_addButton, choiceAvailable && !duplicate,
+            duplicate ? "This column is already in the profile." : "Choose a profile and column to add.");
+        bool selectedColumn = profile is not null && ci >= 0 && ci < profile.Columns.Count;
+        bool requiredName = selectedColumn && profile!.Columns[ci].Key == "name";
+        ActionState(_columnActions["Remove"], selectedColumn && !requiredName,
+            requiredName ? "The Name column is required." : "Select a column to remove.");
+        ActionState(_columnActions["Up"], selectedColumn && ci > 0,
+            "The first column cannot move up.");
+        ActionState(_columnActions["Down"], selectedColumn && ci < profile!.Columns.Count - 1,
+            "The last column cannot move down.");
+        _name.IsEnabled = profile is not null;
+        _width.IsEnabled = selectedColumn;
+    }
+
+    private static void ActionState(Button button, bool enabled, string unavailableReason)
+    {
+        button.IsEnabled = enabled;
+        string help = enabled ? "Available" : unavailableReason;
+        ToolTip.SetTip(button, help);
+        ToolTip.SetShowOnDisabled(button, true);
+        AutomationProperties.SetHelpText(button, help);
+    }
+
+    private static WrapPanel Buttons(Dictionary<string, Button> actions, string noun,
+        params (string Text, Action Click)[] buttons)
     {
         var panel = DialogLayout.Actions();
         foreach (var (text, click) in buttons)
         {
             var b = new Button { Content = text };
+            AutomationProperties.SetName(b, text + " " + noun);
             b.Click += (_, _) => click();
             panel.Children.Add(b);
+            actions[text] = b;
         }
         return panel;
     }
