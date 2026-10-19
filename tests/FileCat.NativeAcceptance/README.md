@@ -247,6 +247,12 @@ one-byte selection, explicitly switches the scope to Whole file, and checks
 the full 23-byte SHA-256, CRC-32, byte count, revision evidence, unchanged
 clipboard until Copy, and unchanged fixture bytes. Finish with
 `selection-stop`.
+For the visible Stop route, create a fresh fixture and run
+`checksum-stop-native <report.json>`. The runner adds an isolated 768 MiB file,
+reviews its whole-file scope, starts Compute and presses the newly visible Stop
+control. It requires a canceled result without a hash, disabled Copy, unchanged
+clipboard, untouched fixture files and sampled source bytes. It removes the
+large file after closing the viewer; finish with `selection-stop`.
 For FCUX-007, use another fresh `seed-selection` fixture and run
 `search-native <report.json>` on its launched isolated app. The interactive
 runner creates a 13 MiB guest-local text file with `NEEDLE` near 1 MiB and
