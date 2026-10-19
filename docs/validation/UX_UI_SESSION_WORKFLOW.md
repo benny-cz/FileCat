@@ -71,7 +71,9 @@ The same Windows 11 guest then passed FCUX-036 editor Browse/Cancel and
 spaced-path preview checks. Selecting the existing .NET executable through the
 Windows picker showed its full path and a spaced sample filename in the
 nonexecuting preview. Canceling Settings restored the original editor value
-when reopened. The native keyboard, scaling and assistive-technology checks
+when reopened. A guest keyboard pass then moved Tab from the program field to
+Browse, opened the picker with Enter, closed it with Escape and retained
+Settings. Broader native keyboard, scaling and assistive-technology checks
 remain open.
 
 After resolving any outstanding validation failure, follow the audit's physical
@@ -174,7 +176,7 @@ passes with 2,296 passes, 63 skips and no failures.
 
 | Order | Remaining finding | First acceptance boundary |
 | --- | --- | --- |
-| 1 | FCUX-036 — advanced Settings editing | Structured/raw editors, previews and file import/export pass 30 related App cases with one platform skip. The Windows 11 VM passed editor picker Cancel, spaced-path preview and Settings draft restoration. Native keyboard, scaling and assistive-technology acceptance remain open. |
+| 1 | FCUX-036 — advanced Settings editing | Structured/raw editors, previews and file import/export pass 30 related App cases with one platform skip. The Windows 11 VM passed editor picker Cancel, spaced-path preview, Settings draft restoration and the Tab/Enter/Escape Browse path. Broader native keyboard, scaling and assistive-technology acceptance remain open. |
 | 2 | UXBUG-002 — Markdown Page search | Run native Linux WebKitGTK and macOS WKWebView search tests and desktop keyboard acceptance. Windows WebView2 and headless viewer behavior now pass. |
 | 3 | FCUX-037 — toolbar availability | Code and focused tests pass; native screen-reader, pointer and rapid-focus acceptance remain open. |
 | 4 | FCUX-038 — bulk rename review | Full virtualized row review and focused tests pass; native acceptance remains open. |

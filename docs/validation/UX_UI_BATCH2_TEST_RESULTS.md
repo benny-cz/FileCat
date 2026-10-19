@@ -457,8 +457,11 @@ A full-path selection of `C:\Program Files\dotnet\dotnet.exe` appeared in
 FileCat's invocation preview with the spaced sample filename. Canceling
 Settings and reopening it restored the original editor value. The reusable
 check compares the value through the native UI Automation interface and leaves
-saved Settings unchanged. Keyboard, scaling and assistive-technology acceptance
-for FCUX-036 remains open.
+saved Settings unchanged. A further guest check used Tab to focus Browse from
+the editor program field, Enter to open the Windows picker, and Escape to
+dismiss it. The native automation tree confirmed the Browse focus and that
+Settings remained open after dismissal. Broader keyboard and scaling cases
+remain open.
 
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or

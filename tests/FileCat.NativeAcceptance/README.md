@@ -19,7 +19,9 @@ program picker opens and Cancel returns to the unchanged Settings draft. Run
 `C:\Program Files\dotnet\dotnet.exe` sample, inspect the nonexecuting preview
 with a spaced filename, cancel Settings, and confirm the original editor value
 is restored when Settings reopens. The sample program must already be installed
-in that location. Both checks leave saved Settings unchanged.
+in that location. Run `editor-keyboard <report.json>` to Tab from the program
+field to Browse, activate the picker with Enter, dismiss it with Escape, and
+confirm Settings remains open. These checks leave saved Settings unchanged.
 
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic

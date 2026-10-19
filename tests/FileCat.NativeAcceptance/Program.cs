@@ -5,9 +5,9 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-value" or "editor-draft-cancel" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-value|editor-draft-cancel|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -124,6 +124,38 @@ try
                 settingsClosed,
                 savedEditorRestored = restored,
                 previewText
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "editor-keyboard")
+        {
+            await EnsureToolsSettingsAsync(client, sessionId);
+            await ClickXPathAsync(client, sessionId,
+                "//Edit[@Name='Editor (F4) program']", "editor program field");
+            await SendSessionKeysAsync(client, sessionId, "\uE004");
+            var tabbed = ParseSource(await ReadSourceAsync(client, sessionId));
+            var browseFocused = tabbed.Descendants().Any(element =>
+                (string?)element.Attribute("Name") == "Browse for editor…"
+                && (string?)element.Attribute("HasKeyboardFocus") == "True");
+            await SendSessionKeysAsync(client, sessionId, "\uE007");
+            var opened = ParseSource(await ReadSourceAsync(client, sessionId));
+            var pickerOpened = FindVisible(opened, "dialog", "Choose editor program") is not null;
+            if (pickerOpened)
+                await SendSessionKeysAsync(client, sessionId, "\uE00C");
+            var escaped = ParseSource(await ReadSourceAsync(client, sessionId));
+            var pickerClosed = FindVisible(escaped, "dialog", "Choose editor program") is null;
+            var settingsRetained = FindVisible(escaped, "edit", "Search settings") is not null;
+            if (settingsRetained)
+                await ClickButtonAsync(client, sessionId, "Cancel");
+            var passed = browseFocused && pickerOpened && pickerClosed && settingsRetained;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                browseFocused,
+                pickerOpened,
+                pickerClosed,
+                settingsRetained
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -278,6 +310,15 @@ static async Task<string> FindXPathAsync(HttpClient client, string sessionId, st
 static async Task SendKeysAsync(HttpClient client, string sessionId, string elementId, string text)
 {
     using var sent = await client.PostAsJsonAsync($"session/{sessionId}/element/{elementId}/value", new
+    {
+        value = text.Select(character => character.ToString()).ToArray()
+    });
+    sent.EnsureSuccessStatusCode();
+}
+
+static async Task SendSessionKeysAsync(HttpClient client, string sessionId, string text)
+{
+    using var sent = await client.PostAsJsonAsync($"session/{sessionId}/keys", new
     {
         value = text.Select(character => character.ToString()).ToArray()
     });
