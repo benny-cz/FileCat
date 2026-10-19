@@ -80,12 +80,21 @@ public sealed class ViewerWindowSizeTests
         try
         {
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var seed = new ViewerWindow(services, new MemoryContentSource("seed.txt", Encoding.UTF8.GetBytes("seed")), "seed.txt", hex: false);
+            seed.Show();
+            seed.Width = 850;
+            seed.Height = 600;
+            Dispatcher.UIThread.RunJobs();
+            seed.Close();
+            Assert.InRange(services.Settings.ViewerWidth!.Value, 849, 851);
             var viewer = new ViewerWindow(services, new MemoryContentSource("note.txt", Encoding.UTF8.GetBytes("note")), "note.txt", hex: false);
             viewer.Show();
-            viewer.Width = 850;
-            viewer.Height = 600;
-            Dispatcher.UIThread.RunJobs();
             viewer.CaptureRenderedFrame()?.Dispose();
+            // The backend can publish a maximized-sized frame before its
+            // WindowState notification. It must not replace the saved size.
+            viewer.Width = 2000;
+            viewer.Height = 1200;
+            Dispatcher.UIThread.RunJobs();
             viewer.WindowState = WindowState.Maximized;
             Dispatcher.UIThread.RunJobs();
             viewer.CaptureRenderedFrame()?.Dispose();

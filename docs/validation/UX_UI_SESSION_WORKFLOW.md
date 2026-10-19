@@ -29,15 +29,25 @@ does not imply that the whole audit has been closed.
 ### Implementation history and remaining acceptance
 
 As of 19 October 2026, code and regression coverage for all 76 audit findings
-and nine queued bugs are present. The [latest source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
-passes producer checks and all four platform lanes. Continue with the native
-desktop, provider, scaling, clipboard and assistive-technology acceptance named
+and nine queued bugs are present. The [last fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
+passes producer checks and all four platform lanes. A later Linux run exposed
+that WebKitGTK reports a directional count, rather than the original total,
+on Next/Previous; commit `ddbc444b` caches the initial count and is undergoing
+CI validation. Continue with the native desktop, provider, scaling, clipboard
+and assistive-technology acceptance named
 for each finding in the implementation status. Page-mode Find now exposes the
 WebKitGTK count when complete and labels its 1,024-match limit; Windows and
 macOS still show a directional lower bound. The queue below records the order
-in which code changes landed. The native Windows Computer Use helper fails
-before opening an app window (`failed to write kernel assets`, OS error 3), so
-desktop acceptance on this host remains unavailable.
+in which code changes landed. After a Codex restart, native Windows Computer Use
+became available. A live WebView2 Markdown viewer showed the Find toolbar,
+Previous/Next and the truthful Windows lower-bound status; expanding the window
+also expanded prose and table columns. F5 refreshed a changed Markdown file
+and cleared its visible changed-file banner. Narrow-width native pointer acceptance
+remains open. A maximize/restore/reopen check exposed a transient-size persistence
+bug. A second live run showed the large size can arrive before the window-state
+notification. Debounced capture now discards that pending size; the revised
+Windows build preserved a 1,592 × 1,414 viewer through maximize, restore,
+close and reopen, with its saved dimensions unchanged after exit.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The

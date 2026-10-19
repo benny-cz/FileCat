@@ -16,9 +16,21 @@ provider, scaling, clipboard and assistive-technology acceptance remains open.
 Page-mode Find now shows WebKitGTK's rendered-page total when complete, or a
 labelled lower bound beyond 1,024 matches. Windows WebView2 and macOS WKWebView
 continue to show a truthful directional lower bound with the pinned browser
-interfaces. The native Windows Computer Use helper still fails before opening
-a window (`failed to write kernel assets`, OS error 3), so it cannot supply
-desktop acceptance evidence from this host.
+interfaces. After restarting Codex, native Windows Computer Use became
+available. The live WebView2 Markdown viewer displayed Find, Previous/Next and
+the truthful directional lower-bound status, and expanding its window expanded
+both prose and table columns. F5 refreshed a changed Markdown file and cleared
+its changed-file banner. Native narrow-window pointer and cross-platform
+acceptance remain open. Maximizing, restoring and reopening exposed a transient
+window-size capture. A second live run showed that an early maximized-sized
+event precedes the window-state notification, so normal-size persistence now
+waits for stable geometry and discards pending sizes on a state change. The
+revised Windows build preserved a 1,592 × 1,414 window through maximize,
+restore, close and reopen, and the saved dimensions stayed unchanged after
+closing both windows. A Linux CI run exposed a
+second WebKitGTK detail: Next/Previous reports a directional count, so the
+initial rendered-page total is now cached across navigation. Its CI rerun is
+pending.
 
 **Earlier implementation record:** FCUX-068 shows queue movement only for queued jobs, disables the
 first queued job with a reason and preserves synchronization step order; 51 related

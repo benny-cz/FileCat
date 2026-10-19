@@ -136,7 +136,10 @@ public sealed class ViewerWindow : Window
     private Size _lastNormalWindowSize;
     private bool _windowOpened, _userSizedWindow;
     private bool _restoringWindowState;
+    private bool _normalSizePending;
     private readonly DispatcherTimer _restoreSizeTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly DispatcherTimer _normalSizeTimer = new(DispatcherPriority.Background)
         { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _readyForRefresh;
 
@@ -196,9 +199,20 @@ public sealed class ViewerWindow : Window
             _restoreSizeTimer.Stop();
             _restoringWindowState = false;
         };
+        _normalSizeTimer.Tick += (_, _) =>
+        {
+            _normalSizeTimer.Stop();
+            _normalSizePending = false;
+            if (!_restoringWindowState && WindowState == WindowState.Normal)
+                RememberNormalViewerSize(Bounds.Size);
+        };
         PropertyChanged += (_, change) =>
         {
             if (!_windowOpened || change.Property != WindowStateProperty) return;
+            // Some native backends send the maximized SizeChanged before
+            // publishing WindowState. Discard that uncommitted candidate.
+            _normalSizeTimer.Stop();
+            _normalSizePending = false;
             _restoringWindowState = true;
             _restoreSizeTimer.Stop();
             if (WindowState == WindowState.Normal) _restoreSizeTimer.Start();
@@ -207,13 +221,16 @@ public sealed class ViewerWindow : Window
         {
             if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
                 !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
-            _lastNormalWindowSize = args.NewSize;
-            if (Math.Abs(args.NewSize.Width - _initialWindowSize.Width) > 1 ||
-                Math.Abs(args.NewSize.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
+            _normalSizePending = true;
+            _normalSizeTimer.Stop();
+            _normalSizeTimer.Start();
         };
         Closed += (_, _) =>
         {
             _restoreSizeTimer.Stop();
+            _normalSizeTimer.Stop();
+            if (_normalSizePending && !_restoringWindowState && WindowState == WindowState.Normal)
+                RememberNormalViewerSize(Bounds.Size);
             SaveViewerSize();
         };
         TextDecoding.EnsureCodePages();
@@ -509,6 +526,14 @@ public sealed class ViewerWindow : Window
     }
 
     private static bool ValidViewerDimension(double value) => double.IsFinite(value) && value is >= 240 and <= 8192;
+
+    private void RememberNormalViewerSize(Size size)
+    {
+        if (!ValidViewerDimension(size.Width) || !ValidViewerDimension(size.Height)) return;
+        _lastNormalWindowSize = size;
+        if (Math.Abs(size.Width - _initialWindowSize.Width) > 1 ||
+            Math.Abs(size.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
+    }
 
     private void SaveViewerSize()
     {
