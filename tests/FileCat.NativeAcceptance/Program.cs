@@ -4,15 +4,33 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "focus-recovery" or "recovery-review" or "recovery-cancel" or "recovery-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|focus-recovery|recovery-review|recovery-cancel|recovery-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
+if (mode == "seed-recovery")
+{
+    try
+    {
+        await SeedRecoveryFixtureAsync(reportPath);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        await File.WriteAllTextAsync(reportPath, exception.ToString());
+        return 1;
+    }
+}
+
 using var client = new HttpClient
 {
     BaseAddress = new Uri("http://127.0.0.1:4723/"),
@@ -387,6 +405,91 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "recovery-cancel")
+        {
+            var fixture = await ReadRecoveryFixtureAsync(reportPath);
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var names = review.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            var scopeVisible = names.Any(name => name.Contains(
+                    "Files matching: *.jpg", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(
+                    "Verification: Read back and compare copied content", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(
+                    "Existing items: Skip existing files (recovery policy)", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(fixture.Destination, StringComparison.OrdinalIgnoreCase));
+            var cancelFocused = review.Descendants().Any(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Cancel"
+                && (string?)element.Attribute("HasKeyboardFocus") == "True");
+            if (!scopeVisible || !cancelFocused)
+                throw new InvalidOperationException("Recovery scope or default Cancel is unavailable.");
+            await SendSessionKeysAsync(client, sessionId, "\uE007");
+            await Task.Delay(300);
+            var after = ParseSource(await ReadSourceAsync(client, sessionId));
+            var reviewClosed = FindVisible(after, "button", "Continue move") is null;
+            var interruptedRetained = FindVisible(after, "button", "Continue move…") is not null
+                && JournalRecovery.Scan(Path.Combine(fixture.Data, "local", "journal"))
+                    .Single().CanContinueTransfer;
+            var sourceIntact = File.Exists(Path.Combine(fixture.Source, "photos", "photo.jpg"))
+                && File.Exists(Path.Combine(fixture.Source, "photos", "notes.txt"));
+            var destinationUntouched = !File.Exists(Path.Combine(
+                fixture.Destination, "photos", "photo.jpg"));
+            var passed = reviewClosed && interruptedRetained && sourceIntact && destinationUntouched;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                scopeVisible,
+                cancelFocused,
+                reviewClosed,
+                interruptedRetained,
+                sourceIntact,
+                destinationUntouched
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "recovery-continue")
+        {
+            var fixture = await ReadRecoveryFixtureAsync(reportPath);
+            NativeWindow.FocusRecovery();
+            NativeWindow.ScrollAt(800, 770, -3);
+            await ClickButtonAsync(client, sessionId, "Continue move…");
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            var scope = review.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            var scopeVisible = scope.Any(name => name.Contains(
+                    "Files matching: *.jpg", StringComparison.Ordinal))
+                && scope.Any(name => name.Contains(
+                    "Verification: Read back and compare copied content", StringComparison.Ordinal))
+                && scope.Any(name => name.Contains(
+                    "Existing items: Skip existing files (recovery policy)", StringComparison.Ordinal))
+                && scope.Any(name => name.Contains(fixture.Destination, StringComparison.OrdinalIgnoreCase));
+            if (!scopeVisible)
+                throw new InvalidOperationException("Recovery continuation scope changed before approval.");
+            await ClickButtonAsync(client, sessionId, "Continue move");
+            var targetPhoto = Path.Combine(fixture.Destination, "photos", "photo.jpg");
+            var sourcePhoto = Path.Combine(fixture.Source, "photos", "photo.jpg");
+            var sourceNotes = Path.Combine(fixture.Source, "photos", "notes.txt");
+            for (var attempt = 0; attempt < 100 &&
+                 (!File.Exists(targetPhoto) || File.Exists(sourcePhoto)); attempt++)
+                await Task.Delay(100);
+            var photoMoved = File.Exists(targetPhoto) && !File.Exists(sourcePhoto)
+                && await File.ReadAllTextAsync(targetPhoto) == "photo for recovery";
+            var noteExcluded = File.Exists(sourceNotes)
+                && await File.ReadAllTextAsync(sourceNotes) == "excluded note remains"
+                && !File.Exists(Path.Combine(fixture.Destination, "photos", "notes.txt"));
+            var passed = photoMoved && noteExcluded;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                scopeVisible,
+                photoMoved,
+                noteExcluded
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode is "find" or "advanced")
         {
             var name = mode == "find" ? "Find files…" : "Advanced…";
@@ -412,6 +515,19 @@ try
         {
             await ClickButtonAsync(client, sessionId, "Browse for editor…");
             await Task.Delay(500);
+        }
+        else if (mode == "recovery-review")
+        {
+            NativeWindow.FocusRecovery();
+            NativeWindow.ScrollAt(800, 770, -3);
+            await Task.Delay(250);
+            await ClickButtonAsync(client, sessionId, "Continue move…");
+            await Task.Delay(500);
+        }
+        else if (mode == "focus-recovery")
+        {
+            NativeWindow.FocusRecovery();
+            await Task.Delay(300);
         }
 
         var xml = await ReadSourceAsync(client, sessionId);
@@ -504,6 +620,77 @@ static XDocument ParseSource(string source)
     return XDocument.Load(xmlReader);
 }
 
+static async Task SeedRecoveryFixtureAsync(string reportPath)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "Recovery", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    var photos = Path.Combine(source, "photos");
+    Directory.CreateDirectory(photos);
+    Directory.CreateDirectory(destination);
+    await File.WriteAllTextAsync(Path.Combine(photos, "photo.jpg"), "photo for recovery");
+    await File.WriteAllTextAsync(Path.Combine(photos, "notes.txt"), "excluded note remains");
+    var journalDirectory = Path.Combine(data, "local", "journal");
+    // Zero worker slots make Submit a request builder; no copy or move can start.
+    var jobs = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journalDirectory)
+    {
+        MaxConcurrent = 0
+    };
+    var request = new JobRequest
+    {
+        Kind = JobKind.Move,
+        Sources = [ItemRef.ForFileSystemPath(photos, EntryKind.Directory)],
+        Destination = Location.FileSystem(destination),
+        Options = new TransferOptions
+        {
+            Filter = Mask.Parse("*.jpg"),
+            Verify = VerifyMode.ReadBack,
+            Conflicts = ConflictPolicy.Replace
+        },
+        Mode = QueueMode.Queue
+    };
+    var job = jobs.Submit(request);
+    if (job.State != JobState.Queued)
+        throw new InvalidOperationException("Fixture job unexpectedly started.");
+    using (JobJournal.Create(journalDirectory, job)) { }
+    var interrupted = JournalRecovery.Scan(journalDirectory).Single();
+    if (!interrupted.CanContinueTransfer || interrupted.TransferIntent is null)
+        throw new InvalidOperationException("Fixture did not retain recoverable transfer intent.");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root,
+        source,
+        destination,
+        data,
+        interrupted.JournalPath,
+        intendedFilter = "*.jpg",
+        intendedVerify = "ReadBack",
+        intendedConflicts = "Replace",
+        recoveryConflicts = "Skip"
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
+static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath)
+{
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "",
+        "recovery-fixture.json");
+    using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
+    var root = document.RootElement.GetProperty("root").GetString() ?? "";
+    var expectedRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "Recovery")
+        + Path.DirectorySeparatorChar;
+    if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Recovery fixture is outside the isolated guest test root.");
+    return new RecoveryFixture(
+        document.RootElement.GetProperty("source").GetString() ?? "",
+        document.RootElement.GetProperty("destination").GetString() ?? "",
+        document.RootElement.GetProperty("data").GetString() ?? "");
+}
+
 static async Task<XDocument> EnsureToolsSettingsAsync(HttpClient client, string sessionId)
 {
     var current = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -584,10 +771,13 @@ static int CenterY(XElement element) => int.Parse((string?)element.Attribute("y"
 internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth,
     int TableRegionWidth, int DocumentWidth, bool TableRegionFocusable);
 
+internal readonly record struct RecoveryFixture(string Source, string Destination, string Data);
+
 internal static partial class NativeWindow
 {
     private const uint LeftDown = 0x0002;
     private const uint LeftUp = 0x0004;
+    private const uint Wheel = 0x0800;
 
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint FindWindow(string? className, string title);
@@ -599,6 +789,9 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetForegroundWindow(nint window);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetForegroundWindow();
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -616,6 +809,35 @@ internal static partial class NativeWindow
     private static partial void MouseEvent(uint flags, uint dx, uint dy, uint data, nuint extraInfo);
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
+
+    internal static void FocusRecovery()
+    {
+        var window = FindWindow(null, "FileCat — source — Admin (administrator, not elevated)");
+        if (window == 0)
+            throw new InvalidOperationException("Isolated recovery window is unavailable.");
+        GetWindowThreadProcessId(window, out var processId);
+        using var process = Process.GetProcessById((int)processId);
+        if (!string.Equals(process.ProcessName, "FileCat", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Recovery window belongs to another process.");
+        if (SetForegroundWindow(window) && GetForegroundWindow() == window)
+            return;
+        const uint noMove = 0x0002;
+        const uint noSize = 0x0001;
+        const uint noActivate = 0x0010;
+        if (!GetWindowRect(window, out var rect)
+            || !SetWindowPos(window, -1, 0, 0, 0, 0, noMove | noSize | noActivate))
+            throw new InvalidOperationException("Cannot expose the isolated recovery window.");
+        try
+        {
+            ClickAt(rect.Left + 75, rect.Top + 15);
+            if (GetForegroundWindow() != window)
+                throw new InvalidOperationException("Cannot focus the isolated recovery window.");
+        }
+        finally
+        {
+            SetWindowPos(window, -2, 0, 0, 0, 0, noMove | noSize | noActivate);
+        }
+    }
 
     internal static Rect ReadViewerRect()
     {
@@ -652,6 +874,18 @@ internal static partial class NativeWindow
         Thread.Sleep(80);
         MouseEvent(LeftDown, 0, 0, 0, 0);
         MouseEvent(LeftUp, 0, 0, 0, 0);
+    }
+
+    internal static void ScrollAt(int x, int y, int detents)
+    {
+        if (!SetCursorPos(x, y))
+            throw new InvalidOperationException("Cannot position guest pointer for scrolling.");
+        Thread.Sleep(80);
+        for (var i = 0; i < Math.Abs(detents); i++)
+        {
+            MouseEvent(Wheel, 0, 0, unchecked((uint)(Math.Sign(detents) * 120)), 0);
+            Thread.Sleep(80);
+        }
     }
 
     internal static async Task<ResizeResult> MeasureFindResizeAsync()

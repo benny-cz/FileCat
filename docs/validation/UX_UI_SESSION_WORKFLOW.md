@@ -88,6 +88,15 @@ scroll region contracted from 901 to 601 pixels around 916 pixels of table
 content, and the prose block grew from 118 to 144 pixels. Native scaling and
 assistive-technology checks remain open.
 
+The guest also ran a native FCUX-001 recovery review in an isolated `--data`
+instance. FileCat Core's journal writer seeded a begin-only filtered move with
+`*.jpg`, read-back verification and Queue intent. Startup showed one
+interrupted operation. The review retained the original mapping and choices
+and explained the conservative Skip policy. Enter on the default Cancel kept
+the journal and both source files; approving a second review moved the JPG to
+the target while the excluded TXT stayed at source. A real process kill,
+cross-volume move and other providers still need native acceptance.
+
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
 FCUX-036 and UXBUG-002 still need native scaling and assistive-technology

@@ -37,6 +37,21 @@ allows a 60-second local UI Automation read because a
 long rendered Markdown table produces a large native accessibility tree.
 Both modes require the fixture viewer to be open on the guest desktop.
 
+For interrupted-transfer acceptance, run `seed-recovery recovery-fixture.json`
+in the guest. It creates a new isolated folder below the guest user's
+`AppData\Local\FileCatValidation\Recovery`, writes two small source files, and
+uses FileCat Core's real journal writer to retain a filtered move intent. The
+generator has zero worker slots, so it cannot start that move. Launch FileCat
+with `--new-instance --data <data> --left <source> --right <destination>` using
+the paths in the seed report. Run `recovery-review <source.xml>` to open the
+native continuation review, then `recovery-cancel <report.json>` with the seed
+report in the same folder. That mode presses Enter on default Cancel and checks
+the journal and files remain intact. Finally run
+`recovery-continue <report.json>` to approve the reviewed move and verify that
+only `photo.jpg` reaches the destination while excluded `notes.txt` stays at
+the source. These modes mutate only their isolated guest fixture. A seeded
+begin-only journal exercises startup recovery without killing a live process.
+
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the

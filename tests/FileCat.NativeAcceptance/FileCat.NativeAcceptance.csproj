@@ -6,4 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FileCat.Core/FileCat.Core.csproj" />
+  </ItemGroup>
 </Project>

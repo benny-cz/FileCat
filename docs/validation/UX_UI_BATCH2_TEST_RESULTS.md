@@ -478,6 +478,20 @@ contracted from 901 to 601 pixels around its 916-pixel table content, and the
 prose block grew from 118 to 144 pixels. Native scaling and assistive-
 technology checks remain open.
 
+### Windows 11 VMware interrupted-transfer review — 19 October 2026
+
+An isolated guest FileCat instance used `--data` and a begin-only journal
+created by FileCat Core's real writer. The recorded move selected a folder
+containing `photo.jpg` and `notes.txt`, filtered by `*.jpg`, with read-back
+verification and Queue intent. Native startup surfaced the interrupted job.
+Continue move showed the original source/destination mapping, the filter and
+verification choices, and conservative Skip recovery conflicts. Enter on
+default Cancel closed the review without changing source, destination or
+journal. A second review approved Continue move; `photo.jpg` arrived in the
+destination and was removed from source, while excluded `notes.txt` remained
+at source. The fixture did not kill a live process, so actual interruption,
+cross-volume and other provider acceptance remain open.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;
