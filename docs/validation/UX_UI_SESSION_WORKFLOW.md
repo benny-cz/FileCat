@@ -26,7 +26,15 @@ remaining work so the next “continue” resumes it. Work proceeds until all au
 findings and their required acceptance checks are complete; a successful batch
 does not imply that the whole audit has been closed.
 
-### Next queued implementation
+### Implementation history and remaining acceptance
+
+As of 19 October 2026, code and regression coverage for all 76 audit findings
+and nine queued bugs are present. The [latest source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
+passes producer checks and all four platform lanes. Continue with the native
+desktop, provider, scaling, clipboard and assistive-technology acceptance named
+for each finding in the implementation status. Page-mode Find still exposes a
+truthful lower bound because the platform page engines do not return an exact
+match count. The queue below records the order in which code changes landed.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The

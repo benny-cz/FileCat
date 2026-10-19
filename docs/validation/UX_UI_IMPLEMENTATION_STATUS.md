@@ -6,9 +6,12 @@ Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_U
 and nine subsequently queued bugs have an implemented code path and regression
 coverage. The complete local Release runs passed 4,428 Core cases (150 platform
 skips) and 2,346 App cases (63 platform skips), with zero failures, using 16
-workers where the test runner supports them. The cross-platform CI run at
-`c084909b` passed its producer, Windows, Ubuntu, macOS and Windows ARM64 jobs.
-Subsequent CI and test-timing corrections are being verified. Native desktop,
+workers where the test runner supports them. The [cross-platform CI run at
+`2a7c758e`](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
+passed producer checks, Windows, Ubuntu, macOS and Windows ARM64. The final
+dialog-focus correction passed 28 focused App cases twice and the complete
+2,346-pass App rerun; seven focused viewer-refresh cases passed after waiting
+for the replacement page's visible rows. Native desktop,
 provider, scaling, clipboard and assistive-technology acceptance remains open;
 Page-mode Find reports a truthful lower bound because its native engines do not
 expose an exact match total.
