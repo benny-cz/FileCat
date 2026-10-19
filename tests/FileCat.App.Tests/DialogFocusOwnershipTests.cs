@@ -1,9 +1,11 @@
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 
@@ -11,6 +13,38 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogFocusOwnershipTests
 {
+    [AvaloniaFact]
+    public async Task Long_confirmation_puts_explicit_key_points_before_copyable_full_details_and_keeps_safe_default()
+    {
+        var (window, host, _, dialogs) = Open();
+        try
+        {
+            const string details = "The source can change while mounted.\n\nRecover files to a different disk.";
+            var confirmation = dialogs.ConfirmReviewAsync("Recover deleted files", details,
+                ["Source: sample disk", "Read only scan", "Recover to another disk"], "Scan", danger: true);
+            Dispatcher.UIThread.RunJobs();
+            var card = Assert.Single(host.GetVisualDescendants().OfType<DialogCard>());
+            var summary = Assert.Single(card.GetVisualDescendants().OfType<Border>(),
+                border => border.Classes.Contains("reviewHighlights"));
+            Assert.Contains(summary.GetVisualDescendants().OfType<TextBlock>(), block => block.Text == "Key points");
+            var points = summary.GetVisualDescendants().OfType<SelectableTextBlock>().Select(block => block.Text ?? string.Empty).ToArray();
+            Assert.Equal(["Source: sample disk", "Read only scan", "Recover to another disk"], points);
+            var full = card.GetVisualDescendants().OfType<SelectableTextBlock>()
+                .Where(block => !summary.IsVisualAncestorOf(block)).Select(block => block.Text ?? string.Empty).ToArray();
+            Assert.Equal(["The source can change while mounted.", "Recover files to a different disk."], full);
+            Assert.Contains(card.GetVisualDescendants().OfType<TextBlock>(), block => block.Text == "Full details");
+            Assert.Equal("Recover deleted files content", AutomationProperties.GetName(
+                Assert.Single(card.GetVisualDescendants().OfType<ScrollViewer>())));
+            var cancel = Assert.Single(card.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Cancel");
+            var scan = Assert.Single(card.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Scan");
+            Assert.True(cancel.IsDefault);
+            Assert.False(scan.IsDefault);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Assert.False(await confirmation);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

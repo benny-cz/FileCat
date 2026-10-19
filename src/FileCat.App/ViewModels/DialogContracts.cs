@@ -97,6 +97,10 @@ public interface IDialogService
 {
     Task<PromptResult?> PromptAsync(PromptOptions options);
     Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel");
+    /// <summary>Show explicit decision facts ahead of the complete explanation. Nonvisual dialog hosts retain the full message.</summary>
+    Task<bool> ConfirmReviewAsync(string title, string message, IReadOnlyList<string> keyPoints,
+        string confirmText = "OK", bool danger = false, string cancelText = "Cancel") =>
+        ConfirmAsync(title, message, confirmText, danger, cancelText);
     Task AlertAsync(string title, string message);
     Task<ChoiceResult> ChooseAsync(ChoiceOptions options);
     /// <param name="selectedId">The command selected when it opens (after changing its shortcut).</param>

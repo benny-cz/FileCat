@@ -478,9 +478,19 @@ public sealed partial class MainViewModel
                     ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
                 "\n\nUse Review report first if you need to copy or save the full retained detail before this decision.";
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval to stop recovery reminders…");
+            var highlights = new List<string>
+            {
+                "Action: stop offering recovery for this interrupted operation",
+                "File changes: none; existing files are not repaired or deleted",
+                "A bounded report remains in Operations for this session",
+            };
+            if (renames > 0) highlights.Add($"Interrupted rename intents to inspect: {renames:N0}");
+            if (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut)
+                highlights.Add("Review limit reached; other affected files may be unknown");
             bool approved = Dialogs is OverlayDialogService overlay
                 ? await overlay.ConfirmWithCancellationAsync("Stop interrupted recovery reminders?", message,
-                    "Mark reviewed and stop reminders", renames > 0 || job.OpenIntents.Count > 0 || review.Limited || review.Copies.LimitReached, scope.StopSource.Token)
+                    "Mark reviewed and stop reminders", renames > 0 || job.OpenIntents.Count > 0 || review.Limited || review.Copies.LimitReached,
+                    scope.StopSource.Token, highlights, "Key points", "Full details")
                 : await Dialogs.ConfirmAsync("Stop interrupted recovery reminders?", message,
                     "Mark reviewed and stop reminders", danger: renames > 0 || job.OpenIntents.Count > 0 || review.Limited || review.Copies.LimitReached);
             scope.Check();

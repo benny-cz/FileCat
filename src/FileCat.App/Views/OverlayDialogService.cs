@@ -326,20 +326,29 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel") =>
         ConfirmCoreAsync(title, message, confirmText, danger, cancelText, CancellationToken.None);
 
+    public Task<bool> ConfirmReviewAsync(string title, string message, IReadOnlyList<string> keyPoints,
+        string confirmText = "OK", bool danger = false, string cancelText = "Cancel") =>
+        ConfirmCoreAsync(title, message, confirmText, danger, cancelText, CancellationToken.None, keyPoints,
+            "Key points", "Full details");
+
     /// <summary>Closes only this confirmation when its owning review is stopped.</summary>
     public Task<bool> ConfirmWithCancellationAsync(string title, string message, string confirmText, bool danger,
-        CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null) =>
-        ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken, highlights);
+        CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null,
+        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping") =>
+        ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken, highlights,
+            summaryHeading, detailsHeading);
 
     private async Task<bool> ConfirmCoreAsync(string title, string message, string confirmText, bool danger,
-        string cancelText, CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null)
+        string cancelText, CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null,
+        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping")
     {
         if (cancellationToken.IsCancellationRequested) return false;
         message = OneLineBreak(message);
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = !danger, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true, IsDefault = danger };
-        var text = highlights is { Count: > 0 } ? HighlightedReviewBody(highlights, message) : MessageBody(message);
+        var text = highlights is { Count: > 0 }
+            ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading) : MessageBody(message);
         Session? session = null;
         void Finish(bool r)
         {
@@ -397,12 +406,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return body;
     }
 
-    private static Control HighlightedReviewBody(IReadOnlyList<string> highlights, string message)
+    private static Control HighlightedReviewBody(IReadOnlyList<string> highlights, string message,
+        string summaryHeading, string detailsHeading)
     {
         var summary = new StackPanel { Spacing = 4 };
         summary.Children.Add(new TextBlock
         {
-            Text = "Key choices before approval", FontWeight = FontWeight.SemiBold,
+            Text = summaryHeading, FontWeight = FontWeight.SemiBold,
             TextWrapping = TextWrapping.Wrap
         });
         foreach (var line in highlights)
@@ -411,7 +421,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(new Border { Classes = { "reviewHighlights" }, Child = summary });
         body.Children.Add(new TextBlock
         {
-            Text = "Full review and source mapping", FontWeight = FontWeight.SemiBold,
+            Text = detailsHeading, FontWeight = FontWeight.SemiBold,
             TextWrapping = TextWrapping.Wrap
         });
         body.Children.Add(MessageBody(message));

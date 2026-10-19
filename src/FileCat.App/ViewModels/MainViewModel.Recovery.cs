@@ -289,7 +289,9 @@ public sealed partial class MainViewModel
         string text = $"The scan read what the file system records. Searching free space also reads all {Formatters.SizeWithUnit(search.FreeBytes)} of free space on {search.Volume}, " +
                       "once and in order, for deleted folders' lists of contents that FAT no longer points to." + open +
                       " That takes minutes on a USB stick and longer on large drives; nothing is written, and Esc stops it.";
-        if (!await Dialogs.ConfirmAsync("Search free space", text, "Search")) return;
+        if (!await Dialogs.ConfirmReviewAsync("Search free space", text,
+            [$"Read {Formatters.SizeWithUnit(search.FreeBytes)} of free space on {Formatters.SafeName(search.Volume)}",
+             "Read-only search; it may take minutes or longer", "Esc stops the search"], "Search")) return;
         Services.Recovery.SearchFreeSpace(location);
         tab.Refresh();
     }
@@ -362,7 +364,9 @@ public sealed partial class MainViewModel
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        if (!await Dialogs.ConfirmReviewAsync("Recover deleted files", text,
+            [$"Source: {Formatters.SafeName(name)}", "FileCat only reads the drive; Windows may still write to a mounted drive",
+             "Recover files to another disk; write nothing to this one"], "Scan"))
         {
             ReleaseHoldOff();
             return;
@@ -411,7 +415,9 @@ public sealed partial class MainViewModel
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        if (!await Dialogs.ConfirmReviewAsync("Recover deleted files", text,
+            [$"Source: {Formatters.SafeName(name)}", "FileCat only reads the disk; mounted Windows drives may still be written to",
+             "Recover files to another disk; write nothing to this one"], "Scan"))
         {
             ReleaseHoldOff();
             return;
@@ -637,7 +643,9 @@ public sealed partial class MainViewModel
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        if (!await Dialogs.ConfirmReviewAsync("Recover deleted files", text,
+            [$"Source: {Formatters.SafeName(name)}", "FileCat only reads this source; mounted programs may still write to it",
+             "Recover files to another disk; write nothing to this one"], "Scan"))
         {
             ReleaseHoldOff();
             return;
@@ -680,7 +688,9 @@ public sealed partial class MainViewModel
         string text = $"The scan looked where partitions usually start. Searching the disk also reads every megabyte of the {Formatters.SizeWithUnit(search.Unpartitioned)} " +
                       "that lie in no partition, for partitions that were deleted or whose table was lost, and for ones whose first sector is damaged. " +
                       "That takes minutes on a USB stick and can take hours on a large hard disk; nothing is written, and Esc stops it (what was found before stays).";
-        if (!await Dialogs.ConfirmAsync("Search for deleted partitions", text, "Search")) return;
+        if (!await Dialogs.ConfirmReviewAsync("Search for deleted partitions", text,
+            [$"Read {Formatters.SizeWithUnit(search.Unpartitioned)} outside known partitions",
+             "Read-only search; it may take hours on a large disk", "Esc stops the search; findings already made remain"], "Search")) return;
         Services.Recovery.SearchDisk(location);
         // What the search finds appears among the disk's partitions: it runs where they are listed.
         var partitions = new Location(Schemes.Recovery, string.Empty, location.Container);

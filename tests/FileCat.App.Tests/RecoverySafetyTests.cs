@@ -211,6 +211,8 @@ public sealed class RecoverySafetyTests
                 Assert.All(checkedSources, device => Assert.Equal(@"\\?\recording-disk-interface", device));
             }
             Assert.Equal(1, dialogs.ScanConfirmations);
+            Assert.Contains(dialogs.KeyPoints, point => point.StartsWith("Source: ", StringComparison.Ordinal));
+            Assert.Contains(dialogs.KeyPoints, point => point.Contains("Recover files to another disk", StringComparison.Ordinal));
             if (lateProcess == false)
             {
                 Assert.NotSame(original, panel.ActiveTab);
@@ -231,8 +233,15 @@ public sealed class RecoverySafetyTests
     private sealed class AdmissionDialogs(Action confirmed) : IDialogService
     {
         public int ScanConfirmations { get; private set; }
+        public IReadOnlyList<string> KeyPoints { get; private set; } = [];
         public List<string> Alerts { get; } = [];
         public bool IsOpen => false;
+        public Task<bool> ConfirmReviewAsync(string title, string message, IReadOnlyList<string> keyPoints,
+            string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
+        {
+            KeyPoints = keyPoints;
+            return ConfirmAsync(title, message, confirmText, danger, cancelText);
+        }
         public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
         {
             Assert.Equal("Scan", confirmText);

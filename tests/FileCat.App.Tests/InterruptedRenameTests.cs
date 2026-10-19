@@ -52,6 +52,12 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         ClickBanner("Mark reviewed…");
         await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
         f.Window.UpdateLayout();
+        var summary = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewHighlights"));
+        var keyPoints = string.Join("\n", summary.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(block => block.Text));
+        Assert.Contains("File changes: none", keyPoints);
+        Assert.Contains("Interrupted rename intents to inspect: 1", keyPoints);
         Assert.Contains("interrupted rename intent", string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)));
         Assert.False(await f.Vm.MarkInterruptedReviewedAsync(f.Interrupted)); // the first review owns this journal
         f.Click("Cancel");
