@@ -94,8 +94,13 @@ instance. FileCat Core's journal writer seeded a begin-only filtered move with
 interrupted operation. The review retained the original mapping and choices
 and explained the conservative Skip policy. Enter on the default Cancel kept
 the journal and both source files; approving a second review moved the JPG to
-the target while the excluded TXT stayed at source. A real process kill,
-cross-volume move and other providers still need native acceptance.
+the target while the excluded TXT stayed at source. A further guest run killed
+the test process after its Core worker recorded copied bytes. FileCat then
+recognized the durable journal and one partial staging file, preserved the
+filter, verification, rate and queue choices in review, and completed the
+8 MiB JPG move while leaving TXT at source and clearing staging. Killing the
+FileCat desktop process, cross-volume moves and other providers still need
+native acceptance.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The

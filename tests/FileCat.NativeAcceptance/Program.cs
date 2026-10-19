@@ -9,19 +9,21 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "focus-recovery" or "recovery-review" or "recovery-cancel" or "recovery-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "interrupt-live" or "inspect-live" or "focus-recovery" or "recovery-review" or "live-review" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|focus-recovery|recovery-review|recovery-cancel|recovery-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|interrupt-live|inspect-live|focus-recovery|recovery-review|live-review|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode == "seed-recovery")
+if (mode is "seed-recovery" or "interrupt-live" or "inspect-live")
 {
     try
     {
-        await SeedRecoveryFixtureAsync(reportPath);
+        if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
+        else if (mode == "interrupt-live") await InterruptLiveRecoveryAsync(reportPath);
+        else return await InspectLiveRecoveryAsync(reportPath) ? 0 : 1;
         return 0;
     }
     catch (Exception exception)
@@ -449,13 +451,18 @@ try
             return passed ? 0 : 1;
         }
 
-        if (mode == "recovery-continue")
+        if (mode is "recovery-continue" or "live-continue")
         {
-            var fixture = await ReadRecoveryFixtureAsync(reportPath);
-            NativeWindow.FocusRecovery();
-            NativeWindow.ScrollAt(800, 770, -3);
-            await ClickButtonAsync(client, sessionId, "Continue move…");
+            var live = mode == "live-continue";
+            var fixture = await ReadRecoveryFixtureAsync(reportPath, live);
             var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            if (FindVisible(review, "button", "Continue move") is null)
+            {
+                NativeWindow.FocusRecovery(live);
+                NativeWindow.ScrollAt(800, 770, -3);
+                await ClickButtonAsync(client, sessionId, "Continue move…");
+                review = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
             var scope = review.Descendants().Select(element =>
                 (string?)element.Attribute("Name") ?? "").ToArray();
             var scopeVisible = scope.Any(name => name.Contains(
@@ -471,21 +478,27 @@ try
             var targetPhoto = Path.Combine(fixture.Destination, "photos", "photo.jpg");
             var sourcePhoto = Path.Combine(fixture.Source, "photos", "photo.jpg");
             var sourceNotes = Path.Combine(fixture.Source, "photos", "notes.txt");
-            for (var attempt = 0; attempt < 100 &&
+            for (var attempt = 0; attempt < (live ? 2400 : 100) &&
                  (!File.Exists(targetPhoto) || File.Exists(sourcePhoto)); attempt++)
                 await Task.Delay(100);
-            var photoMoved = File.Exists(targetPhoto) && !File.Exists(sourcePhoto)
-                && await File.ReadAllTextAsync(targetPhoto) == "photo for recovery";
+            var photoContentValid = File.Exists(targetPhoto)
+                && (live ? new FileInfo(targetPhoto).Length == 8 * 1024 * 1024
+                    && (await File.ReadAllBytesAsync(targetPhoto)).All(value => value == 0)
+                    : await File.ReadAllTextAsync(targetPhoto) == "photo for recovery");
+            var photoMoved = photoContentValid && !File.Exists(sourcePhoto);
             var noteExcluded = File.Exists(sourceNotes)
                 && await File.ReadAllTextAsync(sourceNotes) == "excluded note remains"
                 && !File.Exists(Path.Combine(fixture.Destination, "photos", "notes.txt"));
-            var passed = photoMoved && noteExcluded;
+            var partialCleaned = !Directory.Exists(Path.GetDirectoryName(targetPhoto))
+                || Directory.GetFiles(Path.GetDirectoryName(targetPhoto)!, "*.tmp").Length == 0;
+            var passed = photoMoved && noteExcluded && partialCleaned;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed,
                 scopeVisible,
                 photoMoved,
-                noteExcluded
+                noteExcluded,
+                partialCleaned
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -516,9 +529,9 @@ try
             await ClickButtonAsync(client, sessionId, "Browse for editor…");
             await Task.Delay(500);
         }
-        else if (mode == "recovery-review")
+        else if (mode is "recovery-review" or "live-review")
         {
-            NativeWindow.FocusRecovery();
+            NativeWindow.FocusRecovery(mode == "live-review");
             NativeWindow.ScrollAt(800, 770, -3);
             await Task.Delay(250);
             await ClickButtonAsync(client, sessionId, "Continue move…");
@@ -674,14 +687,90 @@ static async Task SeedRecoveryFixtureAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
-static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath)
+static async Task InterruptLiveRecoveryAsync(string reportPath)
 {
-    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "",
-        "recovery-fixture.json");
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "LiveRecovery", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "live-source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    var photos = Path.Combine(source, "photos");
+    Directory.CreateDirectory(photos);
+    Directory.CreateDirectory(destination);
+    await using (var content = new FileStream(Path.Combine(photos, "photo.jpg"),
+        FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        content.SetLength(8 * 1024 * 1024);
+    await File.WriteAllTextAsync(Path.Combine(photos, "notes.txt"), "excluded note remains");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, intendedFilter = "*.jpg",
+        intendedVerify = "ReadBack", intendedRateLimit = 65536
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    var journalDirectory = Path.Combine(data, "local", "journal");
+    var providers = new ProviderRegistry();
+    providers.Register(new LocalFileSystemProvider());
+    var jobs = new JobManager(new PortableFileOperations(), providers, journalDirectory);
+    var request = new JobRequest
+    {
+        Kind = JobKind.Move,
+        Sources = [ItemRef.ForFileSystemPath(photos, EntryKind.Directory)],
+        Destination = Location.FileSystem(destination),
+        Options = new TransferOptions
+        {
+            Filter = Mask.Parse("*.jpg"),
+            Verify = VerifyMode.ReadBack,
+            RateLimit = 65536,
+            Conflicts = ConflictPolicy.Replace
+        },
+        Mode = QueueMode.Queue
+    };
+    var job = jobs.Submit(request);
+    for (var attempt = 0; attempt < 100 && job.BytesDone == 0; attempt++)
+        await Task.Delay(100);
+    if (job.BytesDone == 0 || job.State.IsFinished())
+        throw new InvalidOperationException("The live transfer did not reach an active partial-copy state.");
+    Process.GetCurrentProcess().Kill();
+    throw new UnreachableException();
+}
+
+static async Task<bool> InspectLiveRecoveryAsync(string reportPath)
+{
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "", "live-fixture.json");
     using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
     var root = document.RootElement.GetProperty("root").GetString() ?? "";
     var expectedRoot = Path.Combine(Environment.GetFolderPath(
-        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "Recovery")
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "LiveRecovery")
+        + Path.DirectorySeparatorChar;
+    if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Live fixture is outside the isolated guest test root.");
+    var source = document.RootElement.GetProperty("source").GetString() ?? "";
+    var destination = document.RootElement.GetProperty("destination").GetString() ?? "";
+    var data = document.RootElement.GetProperty("data").GetString() ?? "";
+    var interrupted = JournalRecovery.Scan(Path.Combine(data, "local", "journal"));
+    var recoverable = interrupted.Count == 1 && interrupted[0].CanContinueTransfer;
+    var retainedIntent = interrupted.Count == 1 && interrupted[0].TransferIntent is not null;
+    var sourceRetained = File.Exists(Path.Combine(source, "photos", "photo.jpg"))
+        && File.Exists(Path.Combine(source, "photos", "notes.txt"));
+    var targetUnpublished = !File.Exists(Path.Combine(destination, "photos", "photo.jpg"));
+    var passed = recoverable && retainedIntent && sourceRetained && targetUnpublished;
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        passed, recoverable, retainedIntent, sourceRetained, targetUnpublished
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    return passed;
+}
+
+static async Task<RecoveryFixture> ReadRecoveryFixtureAsync(string reportPath, bool live = false)
+{
+    var seed = Path.Combine(Path.GetDirectoryName(reportPath) ?? "",
+        live ? "live-fixture.json" : "recovery-fixture.json");
+    using var document = JsonDocument.Parse(await File.ReadAllTextAsync(seed));
+    var root = document.RootElement.GetProperty("root").GetString() ?? "";
+    var expectedRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
+        live ? "LiveRecovery" : "Recovery")
         + Path.DirectorySeparatorChar;
     if (!root.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Recovery fixture is outside the isolated guest test root.");
@@ -810,9 +899,11 @@ internal static partial class NativeWindow
 
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
 
-    internal static void FocusRecovery()
+    internal static void FocusRecovery(bool live = false)
     {
-        var window = FindWindow(null, "FileCat — source — Admin (administrator, not elevated)");
+        var title = live ? "FileCat — live-source — Admin (administrator, not elevated)"
+            : "FileCat — source — Admin (administrator, not elevated)";
+        var window = FindWindow(null, title);
         if (window == 0)
             throw new InvalidOperationException("Isolated recovery window is unavailable.");
         GetWindowThreadProcessId(window, out var processId);

@@ -52,6 +52,18 @@ only `photo.jpg` reaches the destination while excluded `notes.txt` stays at
 the source. These modes mutate only their isolated guest fixture. A seeded
 begin-only journal exercises startup recovery without killing a live process.
 
+For an actual Core worker interruption, run `interrupt-live live-fixture.json`
+in the guest. Its nonzero exit is expected: the runner terminates itself after
+the rate-limited copy has written bytes and a durable journal. Run
+`inspect-live live-inspect.json` with `live-fixture.json` beside that report;
+it checks that the source remains, the target is unpublished, and the journal
+can continue. Launch a separate FileCat instance with the live report's
+`--data`, `--left` and `--right` paths, then use `live-review <source.xml>` and
+`live-continue <report.json>`. The latter verifies the 8 MiB photo content,
+the excluded note and cleanup of the interrupted staging file. Only the
+guest-local validation root is used; the process terminated by this test is
+the runner's Core worker, not the FileCat desktop process.
+
 The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the

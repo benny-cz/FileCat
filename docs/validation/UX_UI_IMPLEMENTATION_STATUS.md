@@ -89,9 +89,20 @@ Continue move displayed the original source/destination mapping and options,
 plus recovery's conservative Skip rule. Enter activated the default Cancel,
 leaving the journal and both source files intact. On a second review, Continue
 move transferred `photo.jpg` to the destination and left excluded `notes.txt`
-at the source. This verifies the native filtered-move path on NTFS; a real
-process interruption, cross-volume behavior and other provider cases remain
-open.
+at the source. This verifies the native filtered-move path on NTFS;
+FileCat desktop-process interruption, cross-volume behavior and other
+provider cases remain open.
+
+A further guest run interrupted an active, rate-limited Core move by
+terminating only its test process after copied bytes were recorded. The
+journal remained recoverable, the source files survived and the destination
+file was unpublished. An isolated FileCat desktop instance surfaced the
+interrupted job and identified one partial staging file for cleanup. Its
+review preserved the `*.jpg` filter, read-back verification, rate choice,
+Queue start and Skip recovery policy. Continue completed the 8 MiB JPG move,
+kept the TXT at source and removed the partial staging file. Killing the
+FileCat desktop process itself, cross-volume behavior and other providers
+remain open.
 
 **Earlier implementation record:** FCUX-068 shows queue movement only for queued jobs, disables the
 first queued job with a reason and preserves synchronization step order; 51 related
@@ -241,7 +252,7 @@ reports an empty list without claiming the search never matched.
 
 | Audit finding | Implemented behavior | Regression coverage | Remaining acceptance |
 | --- | --- | --- | --- |
-| FCUX-001 — interrupted transfer intent | Journal a versioned, bounded snapshot of the destination, source mappings, resolved filter definitions, layout/name, verification, preservation, rate and queue choices. Continue shows that scope and uses conservative Skip. Legacy/incomplete records require a newly reviewed transfer. Existing source/staging/content guards remain in force. Filtered same-volume folder moves cannot bypass traversal through a rename shortcut. | `RecoverableTransferIntentTests`, `RecoveryTransferConflictTests`, `InterruptedTransferIntentUiTests`, existing `Interrupted*` tests, `MaskTests`. A Windows 11 guest resumed a journal-seeded filtered NTFS move: `photo.jpg` moved, excluded `notes.txt` remained, and default Cancel left source and journal untouched. | Actual process interruption, cross-volume and other provider behavior remain open. Large, legacy or unsupported records deliberately cannot promise equivalent continuation. |
+| FCUX-001 — interrupted transfer intent | Journal a versioned, bounded snapshot of the destination, source mappings, resolved filter definitions, layout/name, verification, preservation, rate and queue choices. Continue shows that scope and uses conservative Skip. Legacy/incomplete records require a newly reviewed transfer. Existing source/staging/content guards remain in force. Filtered same-volume folder moves cannot bypass traversal through a rename shortcut. | `RecoverableTransferIntentTests`, `RecoveryTransferConflictTests`, `InterruptedTransferIntentUiTests`, existing `Interrupted*` tests, `MaskTests`. A Windows 11 guest resumed a journal-seeded filtered NTFS move, then a genuinely interrupted Core worker with partial staging: only `photo.jpg` moved, excluded `notes.txt` remained, and partial staging was cleaned. Default Cancel left source and journal untouched. | FileCat desktop-process interruption, cross-volume and other provider behavior remain open. Large, legacy or unsupported records deliberately cannot promise equivalent continuation. |
 | FCUX-069 — clipboard operation authority | Cut belongs to the current exact FileCat clipboard publication and complete ordinal resource identities. External/unverifiable publications import as Copy. Running/completed/partial moves cannot replay the original Cut; later publications retain their own lifecycle. | `ClipboardIntentTests`: controlled asynchronous publications plus actual source/destination manifests | Native clipboard exchange on each supported desktop backend. Native preferred/performed Move effects are outside the supported exchange contract. |
 | FCUX-070 — delayed Paste destination | Capture destination and invoking tab before clipboard reads. File Paste uses that location or explains refusal; tab closure cancels it. Text navigation also respects newer navigation/Paste intent, including pending provider preparation. | `ClipboardIntentTests`: held reads, navigation, panel/tab movement, closure, source survival and actual request destinations | Native clipboard/backend timing. |
 | FCUX-002 — range anchor identity | Bind range anchors to the listing store and item identity, resolve through the current view, and retire unavailable/foreign anchors. Reset gestures on focus/window deactivation. | `FileListSelectionTests`: real key/pointer events across sort, filter, tab and focus transitions | Native input-device and platform focus routing. |

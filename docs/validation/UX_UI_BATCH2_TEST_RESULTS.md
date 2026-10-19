@@ -489,7 +489,12 @@ verification choices, and conservative Skip recovery conflicts. Enter on
 default Cancel closed the review without changing source, destination or
 journal. A second review approved Continue move; `photo.jpg` arrived in the
 destination and was removed from source, while excluded `notes.txt` remained
-at source. The fixture did not kill a live process, so actual interruption,
+at source. A second fixture started a rate-limited Core transfer and killed
+its test process after copied bytes were recorded. FileCat recognized the
+resulting journal and warned that one partial staging file would be cleaned.
+The review retained the filter, read-back verification, rate, Queue start and
+Skip recovery policy. Continue completed the 8 MiB JPG move, kept TXT at
+source and removed the staging file. FileCat desktop-process interruption,
 cross-volume and other provider acceptance remain open.
 
 Headless geometry and automation tests do not establish native screen-reader
