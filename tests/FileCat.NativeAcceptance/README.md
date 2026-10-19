@@ -13,7 +13,15 @@ Use `advanced-resize` with the same report argument to open Advanced criteria,
 repeat the drag, and require its eight tested inputs and actions to remain
 visible in the native UI Automation tree.
 
-The `snapshot`, `find`, and `advanced` modes are diagnostic: they write the
-native UI Automation tree, optionally opening the named FileCat control first.
-They are not passing acceptance checks. A screenshot and the JSON result should
-be reviewed together when recording native acceptance.
+Run `editor-picker-cancel <report.json>` to check that the Windows editor
+program picker opens and Cancel returns to the unchanged Settings draft. Run
+`editor-program-preview <report.json>` to select the existing
+`C:\Program Files\dotnet\dotnet.exe` sample, inspect the nonexecuting preview
+with a spaced filename, cancel Settings, and confirm the original editor value
+is restored when Settings reopens. The sample program must already be installed
+in that location. Both checks leave saved Settings unchanged.
+
+The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
+`editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
+or setup actions. They do not count as passing acceptance checks. Review the
+VM screenshot and JSON result together when recording native acceptance.

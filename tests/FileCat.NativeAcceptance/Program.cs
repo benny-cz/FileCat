@@ -5,9 +5,9 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-value" or "editor-draft-cancel" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-value|editor-draft-cancel|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -42,6 +42,123 @@ try
 
     try
     {
+        if (mode == "editor-picker-cancel")
+        {
+            var before = await EnsureToolsSettingsAsync(client, sessionId);
+            var editorBefore = FindVisible(before, "edit", "Editor (F4) program");
+            var browseBefore = FindVisible(before, "button", "Browse for editor…");
+            await ClickButtonAsync(client, sessionId, "Browse for editor…");
+            var pickerSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var picker = FindVisible(pickerSource, "dialog", "Choose editor program");
+            var pickerReady = picker is not null
+                && FindVisible(picker, "edit", "File name:") is not null
+                && FindVisible(picker, "button", "Open") is not null
+                && FindVisible(picker, "button", "Cancel") is not null;
+            if (picker is not null)
+                await ClickXPathAsync(client, sessionId,
+                    "//Window[@Name='Choose editor program']//Button[@Name='Cancel']", "picker Cancel");
+            var after = ParseSource(await ReadSourceAsync(client, sessionId));
+            var editorAfter = FindVisible(after, "edit", "Editor (F4) program");
+            var passed = editorBefore is not null && browseBefore is not null
+                && pickerReady && FindVisible(after, "dialog", "Choose editor program") is null
+                && editorAfter is not null
+                && (string?)editorBefore.Attribute("HelpText") == (string?)editorAfter.Attribute("HelpText")
+                && FindVisible(after, "button", "Browse for editor…") is not null;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                editorFieldBefore = editorBefore is not null,
+                browseBefore = browseBefore is not null,
+                pickerReady,
+                pickerClosed = FindVisible(after, "dialog", "Choose editor program") is null,
+                editorFieldAfter = editorAfter is not null,
+                programHintPreserved = (string?)editorBefore?.Attribute("HelpText") ==
+                    (string?)editorAfter?.Attribute("HelpText")
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "editor-program-preview")
+        {
+            var before = await EnsureToolsSettingsAsync(client, sessionId);
+            if (FindVisible(before, "edit", "Editor (F4) program") is null)
+                throw new InvalidOperationException("Editor program field is unavailable.");
+            var originalProgram = await ReadEditorProgramAsync(client, sessionId);
+            const string sampleProgram = @"C:\Program Files\dotnet\dotnet.exe";
+            if (string.Equals(originalProgram, sampleProgram, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The saved editor already equals the sample program.");
+            await ClickButtonAsync(client, sessionId, "Browse for editor…");
+            var picker = ParseSource(await ReadSourceAsync(client, sessionId));
+            if (FindVisible(picker, "dialog", "Choose editor program") is null)
+                throw new InvalidOperationException("Native editor picker did not open.");
+            var fileName = await FindXPathAsync(client, sessionId,
+                "//Window[@Name='Choose editor program']//Edit[@Name='File name:' and @HasKeyboardFocus='True']",
+                "picker file name");
+            await SendKeysAsync(client, sessionId, fileName, sampleProgram);
+            await ClickXPathAsync(client, sessionId,
+                "//Window[@Name='Choose editor program']//SplitButton[@Name='Open']", "picker Open");
+            var selected = ParseSource(await ReadSourceAsync(client, sessionId));
+            var pickerClosed = FindVisible(selected, "dialog", "Choose editor program") is null;
+            if (!pickerClosed)
+                throw new InvalidOperationException("Native editor picker did not close after Open.");
+            await ClickButtonAsync(client, sessionId, "Preview invocation");
+            var preview = ParseSource(await ReadSourceAsync(client, sessionId));
+            var previewText = preview.Descendants()
+                .Select(element => (string?)element.Attribute("Name") ?? "")
+                .FirstOrDefault(name => name.Contains("dotnet.exe", StringComparison.OrdinalIgnoreCase)
+                    && name.Contains("example file.txt", StringComparison.OrdinalIgnoreCase)) ?? "";
+            await ClickButtonAsync(client, sessionId, "Cancel");
+            var settingsClosed = FindVisible(ParseSource(await ReadSourceAsync(client, sessionId)),
+                "edit", "Search settings") is null;
+            await EnsureToolsSettingsAsync(client, sessionId);
+            var reopenedProgram = await ReadEditorProgramAsync(client, sessionId);
+            await ClickButtonAsync(client, sessionId, "Cancel");
+            var restored = string.Equals(originalProgram, reopenedProgram, StringComparison.Ordinal);
+            var passed = pickerClosed && previewText.Length > 0 && settingsClosed && restored;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                pickerClosed,
+                previewContainsProgram = previewText.Contains("dotnet.exe", StringComparison.OrdinalIgnoreCase),
+                previewContainsSpacedSample = previewText.Contains("example file.txt", StringComparison.OrdinalIgnoreCase),
+                settingsClosed,
+                savedEditorRestored = restored,
+                previewText
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "editor-value")
+        {
+            await EnsureToolsSettingsAsync(client, sessionId);
+            var editor = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Editor (F4) program']", "editor program field");
+            using var attribute = await client.GetAsync($"session/{sessionId}/element/{editor}/attribute/Value.Value");
+            attribute.EnsureSuccessStatusCode();
+            await File.WriteAllTextAsync(reportPath, await attribute.Content.ReadAsStringAsync());
+            return 0;
+        }
+
+        if (mode == "editor-draft-cancel")
+        {
+            await EnsureToolsSettingsAsync(client, sessionId);
+            var draft = await ReadEditorProgramAsync(client, sessionId);
+            await ClickButtonAsync(client, sessionId, "Cancel");
+            var closed = FindVisible(ParseSource(await ReadSourceAsync(client, sessionId)),
+                "edit", "Search settings") is null;
+            await EnsureToolsSettingsAsync(client, sessionId);
+            var reopened = await ReadEditorProgramAsync(client, sessionId);
+            var passed = closed && draft != reopened;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                settingsClosed = closed,
+                draft,
+                reopened
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode is "find-resize" or "advanced-resize")
         {
             if (!NativeWindow.IsFindOpen())
@@ -67,14 +184,7 @@ try
             var visibleControls = Array.Empty<string>();
             if (requiredControls.Length > 0)
             {
-                using var xmlText = new StringReader(await ReadSourceAsync(client, sessionId));
-                using var xmlReader = XmlReader.Create(xmlText, new XmlReaderSettings
-                {
-                    DtdProcessing = DtdProcessing.Prohibit,
-                    XmlResolver = null,
-                    MaxCharactersInDocument = 4 * 1024 * 1024
-                });
-                var source = XDocument.Load(xmlReader);
+                var source = ParseSource(await ReadSourceAsync(client, sessionId));
                 var find = source.Descendants().FirstOrDefault(element =>
                     (string?)element.Attribute("LocalizedControlType") == "window"
                     && (string?)element.Attribute("Name") == "Find files");
@@ -102,6 +212,26 @@ try
             await ClickButtonAsync(client, sessionId, name);
             await Task.Delay(500);
         }
+        else if (mode == "tools-menu")
+        {
+            await ClickXPathAsync(client, sessionId, "//MenuItem[@Name='Tools']", "Tools menu");
+            await Task.Delay(300);
+        }
+        else if (mode == "settings")
+        {
+            await ClickXPathAsync(client, sessionId, "//MenuItem[@Name='Settings…']", "Settings menu item");
+            await Task.Delay(500);
+        }
+        else if (mode == "settings-tools")
+        {
+            await ClickXPathAsync(client, sessionId, "//TabItem[@Name='Tools']", "Settings Tools tab");
+            await Task.Delay(300);
+        }
+        else if (mode == "editor-browse")
+        {
+            await ClickButtonAsync(client, sessionId, "Browse for editor…");
+            await Task.Delay(500);
+        }
 
         var xml = await ReadSourceAsync(client, sessionId);
         await File.WriteAllTextAsync(reportPath, xml);
@@ -121,19 +251,47 @@ catch (Exception exception)
 }
 
 static async Task ClickButtonAsync(HttpClient client, string sessionId, string name)
+    => await ClickXPathAsync(client, sessionId, $"//Button[@Name='{name}']", name);
+
+static async Task ClickXPathAsync(HttpClient client, string sessionId, string xpath, string label)
+{
+    var elementId = await FindXPathAsync(client, sessionId, xpath, label);
+    using var clicked = await client.PostAsJsonAsync($"session/{sessionId}/element/{elementId}/click", new { });
+    clicked.EnsureSuccessStatusCode();
+}
+
+static async Task<string> FindXPathAsync(HttpClient client, string sessionId, string xpath, string label)
 {
     using var found = await client.PostAsJsonAsync($"session/{sessionId}/element", new
     {
         @using = "xpath",
-        value = $"//Button[@Name='{name}']"
+        value = xpath
     });
     found.EnsureSuccessStatusCode();
     using var element = await JsonDocument.ParseAsync(await found.Content.ReadAsStreamAsync());
     var elementId = element.RootElement.GetProperty("value").GetProperty("ELEMENT").GetString();
     if (string.IsNullOrEmpty(elementId))
-        throw new InvalidOperationException($"{name} was not exposed by UI Automation.");
-    using var clicked = await client.PostAsJsonAsync($"session/{sessionId}/element/{elementId}/click", new { });
-    clicked.EnsureSuccessStatusCode();
+        throw new InvalidOperationException($"{label} was not exposed by UI Automation.");
+    return elementId;
+}
+
+static async Task SendKeysAsync(HttpClient client, string sessionId, string elementId, string text)
+{
+    using var sent = await client.PostAsJsonAsync($"session/{sessionId}/element/{elementId}/value", new
+    {
+        value = text.Select(character => character.ToString()).ToArray()
+    });
+    sent.EnsureSuccessStatusCode();
+}
+
+static async Task<string> ReadEditorProgramAsync(HttpClient client, string sessionId)
+{
+    var editor = await FindXPathAsync(client, sessionId,
+        "//Edit[@Name='Editor (F4) program']", "editor program field");
+    using var response = await client.GetAsync($"session/{sessionId}/element/{editor}/attribute/Value.Value");
+    response.EnsureSuccessStatusCode();
+    using var value = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+    return value.RootElement.GetProperty("value").GetString() ?? "";
 }
 
 static async Task<string> ReadSourceAsync(HttpClient client, string sessionId)
@@ -143,6 +301,42 @@ static async Task<string> ReadSourceAsync(HttpClient client, string sessionId)
     using var document = await JsonDocument.ParseAsync(await source.Content.ReadAsStreamAsync());
     return document.RootElement.GetProperty("value").GetString() ?? "";
 }
+
+static XDocument ParseSource(string source)
+{
+    using var xmlText = new StringReader(source);
+    using var xmlReader = XmlReader.Create(xmlText, new XmlReaderSettings
+    {
+        DtdProcessing = DtdProcessing.Prohibit,
+        XmlResolver = null,
+        MaxCharactersInDocument = 4 * 1024 * 1024
+    });
+    return XDocument.Load(xmlReader);
+}
+
+static async Task<XDocument> EnsureToolsSettingsAsync(HttpClient client, string sessionId)
+{
+    var current = ParseSource(await ReadSourceAsync(client, sessionId));
+    if (FindVisible(current, "dialog", "Choose editor program") is not null)
+    {
+        await ClickXPathAsync(client, sessionId,
+            "//Window[@Name='Choose editor program']//Button[@Name='Cancel']", "picker Cancel");
+        current = ParseSource(await ReadSourceAsync(client, sessionId));
+    }
+    if (FindVisible(current, "edit", "Search settings") is null)
+    {
+        await ClickXPathAsync(client, sessionId, "//MenuItem[@Name='Tools']", "Tools menu");
+        await ClickXPathAsync(client, sessionId, "//MenuItem[@Name='Settings…']", "Settings menu item");
+    }
+    await ClickXPathAsync(client, sessionId, "//TabItem[@Name='Tools']", "Settings Tools tab");
+    return ParseSource(await ReadSourceAsync(client, sessionId));
+}
+
+static XElement? FindVisible(XContainer source, string type, string name) =>
+    source.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == type
+        && (string?)element.Attribute("Name") == name
+        && (string?)element.Attribute("IsOffscreen") == "False");
 
 internal static partial class NativeWindow
 {

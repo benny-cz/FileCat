@@ -448,6 +448,18 @@ and VMware screen capture kept the host workstation available. This covers a
 repeatable native pointer path for UXBUG-007; display-scaling and assistive-
 technology acceptance remain open.
 
+### Windows 11 VMware Settings editor check — 19 October 2026
+
+The same guest ran `editor-picker-cancel` and `editor-program-preview` from the
+native acceptance runner. The Windows **Choose editor program** picker exposed
+its file-name, Open and Cancel controls; Cancel returned to the Tools draft.
+A full-path selection of `C:\Program Files\dotnet\dotnet.exe` appeared in
+FileCat's invocation preview with the spaced sample filename. Canceling
+Settings and reopening it restored the original editor value. The reusable
+check compares the value through the native UI Automation interface and leaves
+saved Settings unchanged. Keyboard, scaling and assistive-technology acceptance
+for FCUX-036 remains open.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;
