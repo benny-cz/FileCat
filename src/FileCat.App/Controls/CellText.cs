@@ -16,11 +16,14 @@ internal sealed class CellText : IDisposable
     private readonly FormattedText? _formatted;
     private readonly IBrush _brush;
 
-    private CellText(GlyphRun? run, FormattedText? formatted, IBrush brush, double width, double height, double maxWidth)
+    private CellText(GlyphRun? run, FormattedText? formatted, IBrush brush, string source,
+        bool truncated, double width, double height, double maxWidth)
     {
         _run = run;
         _formatted = formatted;
         _brush = brush;
+        Source = source;
+        IsTruncated = truncated;
         Width = width;
         Height = height;
         MaxWidth = maxWidth;
@@ -29,6 +32,9 @@ internal sealed class CellText : IDisposable
     public double Width { get; }
     public double Height { get; }
     public double MaxWidth { get; }
+    /// <summary>The exact safe string supplied by the caller, before ellipsis shaping.</summary>
+    public string Source { get; }
+    public bool IsTruncated { get; }
 
     public void Draw(DrawingContext dc, Point origin)
     {
@@ -52,11 +58,17 @@ internal sealed class CellText : IDisposable
             MaxLineCount = 1,
             Trimming = TextTrimming.CharacterEllipsis,
         };
-        return new CellText(null, ft, brush, ft.Width, ft.Height, Math.Max(1, maxWidth));
+        // The displayed layout is bounded. Inspect at most 1K untrimmed characters; a longer value is
+        // conservatively inspectable without shaping an unbounded provider string a second time.
+        string probe = s.Length > 1024 ? s[..1024] : s;
+        var full = new FormattedText(probe, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, emSize, brush);
+        bool clipped = probe.Length < s.Length || full.WidthIncludingTrailingWhitespace > maxWidth + 0.1;
+        return new CellText(null, ft, brush, s, clipped, ft.Width, ft.Height, Math.Max(1, maxWidth));
     }
 
-    internal static CellText FromRun(GlyphRun run, IBrush brush, double width, double height, double maxWidth) =>
-        new(run, null, brush, width, height, maxWidth);
+    internal static CellText FromRun(GlyphRun run, IBrush brush, string source, bool truncated,
+        double width, double height, double maxWidth) =>
+        new(run, null, brush, source, truncated, width, height, maxWidth);
 }
 
 /// <summary>
@@ -124,7 +136,8 @@ internal sealed class SimpleGlyphs
         }
         maxWidth = Math.Max(1, maxWidth);
         ReadOnlyMemory<char> chars = s.AsMemory();
-        if (width > maxWidth + 0.01)
+        bool truncated = width > maxWidth + 0.01;
+        if (truncated)
         {
             // Character ellipsis, like the fallback's trimming: keep what fits in front of "…".
             if (_ellipsisGlyph == 0) return null;
@@ -143,7 +156,7 @@ internal sealed class SimpleGlyphs
             width = used + _ellipsisAdvance;
         }
         var run = new GlyphRun(_face, _emSize, chars, infos, new Point(0, Baseline));
-        return CellText.FromRun(run, brush, width, LineHeight, maxWidth);
+        return CellText.FromRun(run, brush, s, truncated, width, LineHeight, maxWidth);
     }
 
     private bool TryGlyph(char c, out ushort glyph, out double advance)

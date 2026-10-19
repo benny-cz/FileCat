@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
@@ -55,6 +56,9 @@ public sealed class FileListControl : Control
     private sealed record SortRevealIntent(TabViewModel Tab, EntryStore Store, FileCat.Core.Resources.Location? Location,
         int FocusedStoreIndex, int ViewSpecVersion, long ViewportIntentGeneration, long NavigationGeneration);
     private readonly Dictionary<long, CellText> _textCache = new();
+    // Only cells in the most recently drawn viewport. Pointer hover never starts provider or metadata work.
+    private readonly Dictionary<(int Row, int Column), RenderedCell> _renderedCells = new();
+    private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped);
     private SimpleGlyphs? _glyphs;
     private SimpleGlyphs? _boldGlyphs;
 
@@ -146,6 +150,7 @@ public sealed class FileListControl : Control
     {
         Focusable = true;
         ClipToBounds = true;
+        ToolTip.SetShowDelay(this, 650);
         // FileCat draws its own focus cues (row outline, panel frame); the default adorner would duplicate them.
         FocusAdorner = null;
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
@@ -158,6 +163,7 @@ public sealed class FileListControl : Control
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
+                    ClearTip();
                     _viewportIntentGeneration++;
                     _topRow = top;
                     if (_refreshTopRow.HasValue) _refreshTopRow = top;
@@ -204,6 +210,7 @@ public sealed class FileListControl : Control
         LogicalChildren.Add(_renameErrorBox);
         _metadataHandler = () => Dispatcher.UIThread.Post(() =>
         {
+            ClearTip();
             InvalidateVisual();
             _automationPeer?.QueueUpdate(ListingChange.State);
         }, DispatcherPriority.Background);
@@ -255,6 +262,8 @@ public sealed class FileListControl : Control
     public event EventHandler? ActivateRequested;
 
     public event EventHandler<Point>? ContextMenuRequested;
+    /// <summary>Keyboard inspection of the focused row's already-rendered safe values.</summary>
+    public event EventHandler<string>? InspectRequested;
     /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
     public event EventHandler<Point>? BackgroundContextRequested;
 
@@ -569,6 +578,8 @@ public sealed class FileListControl : Control
     {
         foreach (var cell in _textCache.Values) cell.Dispose();
         _textCache.Clear();
+        _renderedCells.Clear();
+        ClearTip();
     }
 
     private void ResolveBrushes()
@@ -609,6 +620,11 @@ public sealed class FileListControl : Control
     private void OnListingChanged(object? sender, ListingChange change)
     {
         if (!ReferenceEquals(sender, _listing)) return;
+        if ((change & (ListingChange.Rows | ListingChange.Reset | ListingChange.RefreshRows)) != 0)
+        {
+            _renderedCells.Clear();
+            ClearTip();
+        }
         if ((change & ListingChange.Focus) != 0 && (change & ListingChange.Rows) == 0)
             _viewportIntentGeneration++;
         if ((change & ListingChange.Reset) != 0) _sortReveal = null;
@@ -779,6 +795,7 @@ public sealed class FileListControl : Control
     {
         double next = Math.Clamp(offset, 0, Math.Max(0, _contentExtent - _horizontalViewport));
         if (Math.Abs(next - _horizontalOffset) < 0.01) return;
+        ClearTip();
         _viewportIntentGeneration++;
         _horizontalOffset = next;
         _updatingHorizontalScrollBar = true;
@@ -890,6 +907,7 @@ public sealed class FileListControl : Control
 
     private void RenderCore(DrawingContext dc)
     {
+        _renderedCells.Clear();
         // Icons are made for the pixels this display gives a 16-point icon (crisp at 125%, 150%, 200%).
         Tab?.Services.Icons.SetScale(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         var bounds = new Rect(Bounds.Size);
@@ -1015,11 +1033,12 @@ public sealed class FileListControl : Control
             {
                 // Metadata changes state (pending -> value), so it is not cached with the static cells.
                 bool pending = false;
-                var mtext = Tab is { } owner ? owner.GetMetadataText(e, storeIndex, metadataId, out pending) : string.Empty;
+                var mtext = Tab is { } owner ? Formatters.SafeName(owner.GetMetadataText(e, storeIndex, metadataId, out pending)) : string.Empty;
                 if (mtext.Length == 0) continue;
                 using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
+                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated);
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
@@ -1034,6 +1053,7 @@ public sealed class FileListControl : Control
             }
             double x = c.RightAlign ? colX + colW - Padding - ft.Width : textX;
             ft.Draw(dc, new Point(x, y + (_rowHeight - ft.Height) / 2));
+            _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, ft.Source, ft.IsTruncated);
         }
 
         if (focused)
@@ -1119,6 +1139,12 @@ public sealed class FileListControl : Control
     {
         base.OnKeyDown(e);
         if (e.Handled || _listing is null || IsRenaming) return;
+        if (e.Key == Key.I && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            if (FocusedInspectionText() is { } report) InspectRequested?.Invoke(this, report);
+            e.Handled = true;
+            return;
+        }
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         bool other = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0;
         if (!shift && !other && _hbar.IsVisible && e.Key is Key.Left or Key.Right)
@@ -1394,8 +1420,8 @@ public sealed class FileListControl : Control
     private string? _tip;
 
     /// <summary>
-    /// Over a file's icon or its Verified cell: what checking it against the checksums and signatures beside it found,
-    /// claim by claim (D-57). Nothing elsewhere, so the list does not throw tips at a passing pointer.
+    /// Rendered, clipped cells supply their safe full value. Pointer movement never calls metadata providers.
+    /// Verification icons retain their own status tip; ordinary short cells stay quiet.
     /// </summary>
     private void UpdateTip(Point? pos)
     {
@@ -1408,12 +1434,72 @@ public sealed class FileListControl : Control
             var entry = listing.GetVisible(row);
             if ((overIcon || overCell) && entry.Kind == EntryKind.File && Tab is { HasSidecars: true } tab)
                 tip = tab.VerificationTip(entry, listing.GetStoreIndex(row));
+            if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
+                cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
+                cell.Clipped)
+                tip = CellTip(entry, _columns[col], cell.Text);
             if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
                 tip = IdentityTip(entry);
         }
+        if (tip is { Length: > 8192 }) tip = tip[..8192] + "…\nCtrl+Shift+I shows the complete focused row.";
         if (tip == _tip) return;
         _tip = tip;
         ToolTip.SetTip(this, tip);
+    }
+
+    private static string CellTip(in EntryData entry, ColumnSpec column, string text)
+    {
+        if (column.Field is ColumnField.Name or ColumnField.Extension)
+        {
+            string safe = Formatters.SafeName(entry.Name);
+            return $"Full name: {safe}" + (safe == entry.Name ? string.Empty :
+                "\n" + Formatters.DescribeHiddenNameCharacters(entry.Name));
+        }
+        return $"{Formatters.SafeName(column.Header)}: {text}";
+    }
+
+    private void ClearTip()
+    {
+        if (_tip is null) return;
+        _tip = null;
+        ToolTip.SetIsOpen(this, false);
+        ToolTip.SetTip(this, null);
+    }
+
+    /// <summary>Full values for the focused row, without starting metadata work from a key or pointer event.</summary>
+    internal string? FocusedInspectionText()
+    {
+        if (_listing is not { } listing) return null;
+        int row = listing.FocusedIndex;
+        if (row < 0 || row >= listing.VisibleCount) return null;
+        var entry = listing.GetVisible(row);
+        if (entry.Kind == EntryKind.Parent) return null;
+        int storeIndex = listing.GetStoreIndex(row);
+        string safeName = Formatters.SafeName(entry.Name);
+        var report = new StringBuilder("Focused item: ").AppendLine(safeName);
+        if (safeName != entry.Name) report.AppendLine(Formatters.DescribeHiddenNameCharacters(entry.Name));
+        for (int col = 0; col < _columns.Length; col++)
+        {
+            var spec = _columns[col];
+            string value;
+            if (spec.Field == ColumnField.Name) value = safeName;
+            else if (_renderedCells.TryGetValue((row, col), out var rendered) &&
+                rendered.StoreIndex == storeIndex && rendered.Name == entry.Name && rendered.Kind == entry.Kind)
+                value = rendered.Text;
+            else if (spec.Field == ColumnField.Metadata) value = "(not yet displayed)";
+            else value = CellString(entry, spec);
+            if (value.Length == 0) continue;
+            report.Append(Formatters.SafeName(spec.Header)).Append(": ");
+            if (report.Length + value.Length > 1_048_576)
+            {
+                int remaining = Math.Max(0, 1_048_576 - report.Length);
+                report.Append(value.AsSpan(0, remaining)).AppendLine("…");
+                report.Append("The inspection display is limited to 1 MiB.");
+                break;
+            }
+            report.AppendLine(value);
+        }
+        return report.ToString();
     }
 
     internal static string? IdentityTip(in EntryData entry)
@@ -1457,6 +1543,7 @@ public sealed class FileListControl : Control
         if (beyondEnd) _wheelRows.Reset();
         int rows = beyondEnd ? 0 : _wheelRows.Consume(e.Delta.Y);
         _topRow = (int)Math.Clamp((long)_topRow - rows, 0, maxTop);
+        if (_topRow != previousTop) ClearTip();
         ClampTop();
         if (rows != 0 && _topRow == previousTop) _wheelRows.Reset();
         if (_topRow != previousTop) _viewportIntentGeneration++;

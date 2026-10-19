@@ -28,6 +28,8 @@ public partial class PanelView : UserControl
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
         List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
+        List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
+        AutomationProperties.SetHelpText(List, "Ctrl+Shift+I inspects every full value in the focused row. Shift+F10 opens item actions.");
         List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point);
         List.GotFocus += (_, _) => Activated?.Invoke();
         // The number, or the tab strip beside the tabs, moves the whole panel.
@@ -1023,6 +1025,7 @@ public partial class PanelView : UserControl
         }
         if (request != _menuRequest) return;
         var menu = ContextMenuFactory.Build(vm);
+        AppendInspectionItem(menu);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {
             menu.Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft;
@@ -1031,5 +1034,37 @@ public partial class PanelView : UserControl
         _openItemMenu = menu;
         menu.Closed += (_, _) => { if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null; };
         menu.Open(List);
+    }
+
+    internal void AppendInspectionItem(ContextMenu menu)
+    {
+        if (menu.ItemsSource is IEnumerable<Control> original)
+        {
+            var items = original.ToList();
+            var inspect = new MenuItem { Header = "Inspect focused row…", IsEnabled = List.FocusedInspectionText() is not null };
+            ToolTip.SetTip(inspect, "Show every full displayed value for the focused item (Ctrl+Shift+I).");
+            inspect.Click += (_, _) => _ = ShowInspectionAsync(List.FocusedInspectionText());
+            items.Add(new Separator());
+            items.Add(inspect);
+            menu.ItemsSource = items;
+        }
+    }
+
+    private async Task ShowInspectionAsync(string? report)
+    {
+        if (report is null || _main is not { } vm || vm.Dialogs.IsOpen) return;
+        var text = new TextBox
+        {
+            Text = report,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            MinWidth = 420,
+            MinHeight = 240,
+            MaxHeight = 520,
+        };
+        AutomationProperties.SetName(text, "Full values of focused item");
+        await vm.Dialogs.ShowCustomAsync("Inspect focused item", text,
+            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], text, resizable: true);
     }
 }
