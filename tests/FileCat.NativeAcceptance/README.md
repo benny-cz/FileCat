@@ -225,6 +225,12 @@ keys to mark `b.txt` and `c.txt`, returns focus to `b.txt` without Shift, then
 uses two more Shift+Down keys to unmark both. It checks native focus and mark
 states after each phase and verifies unchanged fixture bytes. Use another
 fresh seed and interactive session for each run.
+`selection-deactivation-native <report.json>` uses another fresh fixture. It
+marks `b.txt`, holds Shift through Down and requires `b.txt` to become unmarked
+while focus moves to `c.txt`. It verifies Shift is physically down, activates
+that fixture's Explorer window, releases Shift there, then returns to FileCat.
+The next Shift+Down must start a new mark gesture on `c.txt`, leaving all
+fixture bytes and the destination unchanged. Finish with `selection-stop`.
 For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
 app, then run `checksum-native <report.json>` in the interactive guest desktop.
 It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews

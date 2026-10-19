@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-undo-native" or "selection-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-undo-native" or "selection-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -941,6 +941,83 @@ try
             {
                 passed, markedRange, focusReturned, unmarkedRange, unchangedFiles,
                 marked = Marked(marked), finalMarked = Marked(unmarked)
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "selection-deactivation-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            string[] names = ["a.txt", "b.txt", "c.txt", "d.txt"];
+            if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
+                    != "selection fixture " + name)
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated selection fixture is not pristine.");
+            using var explorer = Process.Start(new ProcessStartInfo("explorer.exe", fixture.Source)
+            {
+                UseShellExecute = true
+            });
+            await Task.Delay(750);
+            NativeWindow.FocusRecovery("selection-source");
+            XElement List(XDocument document) => document.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains("selection-source",
+                    StringComparison.OrdinalIgnoreCase) == true);
+            XElement Row(XDocument document, string name) => List(document).Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == name);
+            string[] Marked(XDocument document) => names.Where(name =>
+                (string?)Row(document, name).Attribute("IsSelected") == "True").ToArray();
+
+            var initial = ParseSource(await ReadSourceAsync(client, sessionId));
+            var b = Row(initial, "b.txt");
+            NativeWindow.ClickAt(CenterX(b), CenterY(b));
+            NativeWindow.CtrlClickAt(CenterX(b), CenterY(b));
+            var marked = ParseSource(await ReadSourceAsync(client, sessionId));
+            if (!Marked(marked).SequenceEqual(["b.txt"])
+                || (string?)Row(marked, "b.txt").Attribute("HasKeyboardFocus") != "True")
+                throw new InvalidOperationException("The native marked anchor did not focus b.txt.");
+
+            bool changedWindow;
+            bool firstUnmarked;
+            bool shiftHeldOnSwitch;
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE015"); // Hold Shift after Down.
+            try
+            {
+                firstUnmarked = false;
+                for (int attempt = 0; attempt < 5 && !firstUnmarked; attempt++)
+                {
+                    var first = ParseSource(await ReadSourceAsync(client, sessionId));
+                    firstUnmarked = Marked(first).Length == 0
+                        && (string?)Row(first, "c.txt").Attribute("HasKeyboardFocus") == "True";
+                    if (!firstUnmarked) await Task.Delay(100);
+                }
+                if (!firstUnmarked)
+                    throw new InvalidOperationException("The first Shift+Down did not unmark b.txt and focus c.txt.");
+                shiftHeldOnSwitch = NativeWindow.IsShiftDown();
+                if (!shiftHeldOnSwitch)
+                    throw new InvalidOperationException("WinAppDriver released Shift before the window switch.");
+                NativeWindow.FocusExplorer("selection-source");
+                changedWindow = !NativeWindow.IsRecoveryForeground("selection-source");
+                await SendSessionKeysAsync(client, sessionId, "\uE000"); // Release Shift in Explorer.
+            }
+            finally { NativeWindow.ReleaseShift(); }
+            if (!changedWindow || !firstUnmarked)
+                throw new InvalidOperationException($"The held-Shift gesture or native deactivation failed: " +
+                    $"firstUnmarked={firstUnmarked}, changedWindow={changedWindow}.");
+            NativeWindow.FocusRecovery("selection-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE015\uE000");
+            var resumed = ParseSource(await ReadSourceAsync(client, sessionId));
+            bool freshGesture = Marked(resumed).SequenceEqual(["c.txt"])
+                && (string?)Row(resumed, "d.txt").Attribute("HasKeyboardFocus") == "True";
+            bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
+                    == "selection fixture " + name)
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = changedWindow && firstUnmarked && shiftHeldOnSwitch
+                && freshGesture && unchangedFiles;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, changedWindow, firstUnmarked, shiftHeldOnSwitch, freshGesture, unchangedFiles,
+                markedAfterReturn = Marked(resumed)
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -3392,11 +3469,22 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll", EntryPoint = "keybd_event")]
     private static partial void KeybdEvent(byte virtualKey, byte scan, uint flags, nuint extraInfo);
 
+    [LibraryImport("user32.dll")]
+    private static partial short GetAsyncKeyState(int virtualKey);
+
+    internal static bool IsShiftDown() => (GetAsyncKeyState(0x10) & 0x8000) != 0;
+
     internal static void ShiftClickAt(int x, int y)
     {
         KeybdEvent(0x10, 0, 0, 0); // VK_SHIFT
         try { ClickAt(x, y); }
         finally { KeybdEvent(0x10, 0, 0x0002, 0); }
+    }
+
+    internal static void ReleaseShift()
+    {
+        KeybdEvent(0x10, 0, 0x0002, 0);
+        Thread.Sleep(50);
     }
 
     internal static void CtrlClickAt(int x, int y)
@@ -3516,10 +3604,11 @@ internal static partial class NativeWindow
         return IsForegroundProcess(processId);
     }
 
-    internal static void FocusExplorer()
+    internal static void FocusExplorer(string sourceFolder = "clipboard-source")
     {
-        var window = FindWindow("CabinetWClass", "clipboard-source - File Explorer");
-        if (window == 0) window = FindWindow("CabinetWClass", null);
+        var window = FindWindow("CabinetWClass", sourceFolder + " - File Explorer");
+        if (window == 0 && sourceFolder == "clipboard-source")
+            window = FindWindow("CabinetWClass", null);
         if (window == 0) throw new InvalidOperationException("Explorer window is unavailable.");
         GetWindowThreadProcessId(window, out var processId);
         using var process = Process.GetProcessById((int)processId);
