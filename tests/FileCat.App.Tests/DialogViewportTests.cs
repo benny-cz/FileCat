@@ -25,6 +25,39 @@ namespace FileCat.App.Tests;
 public sealed class DialogViewportTests
 {
     [AvaloniaTheory]
+    [InlineData(14)]
+    [InlineData(21)]
+    [InlineData(28)]
+    public async Task Highlighted_review_keeps_actions_visible_and_full_details_reachable_at_minimum_size(double fontSize)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420, fontSize: fontSize);
+        try
+        {
+            ProductStyles(window);
+            var message = string.Join("\n\n", Enumerable.Range(1, 16)
+                .Select(index => $"Detail {index}: the selected disk may change while mounted; recover files elsewhere."));
+            var review = vm.Dialogs.ConfirmReviewAsync("Recover deleted files", message,
+                ["Source: sample disk", "FileCat only reads this source", "Recover files to another disk"],
+                "Scan", danger: true);
+            Layout(window);
+            var card = Card(window);
+            AssertChrome(window, card);
+            var scroll = Body(card);
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
+            Assert.InRange(scroll.Extent.Width, 1, scroll.Viewport.Width + 1);
+            var last = card.GetVisualDescendants().OfType<SelectableTextBlock>().Last();
+            Assert.StartsWith("Detail 16:", last.Text);
+            scroll.Offset = new Vector(0, scroll.Extent.Height - scroll.Viewport.Height);
+            Layout(window);
+            AssertInside(last, Viewport(scroll));
+            AssertChrome(window, card);
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.False(await review);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
     [InlineData("copy", 14)]
     [InlineData("copy", 21)]
     [InlineData("copy", 28)]
