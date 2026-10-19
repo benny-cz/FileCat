@@ -7,6 +7,10 @@ namespace FileCat.Core.Tests;
 
 public sealed class JsonFileStoreFifoTests
 {
+    // A FIFO open without a reader blocks indefinitely. Allow CI scheduling pauses while
+    // still rejecting operations that wait for a peer on these deliberately unserved FIFOs.
+    private static readonly TimeSpan AdmissionDeadline = TimeSpan.FromSeconds(5);
+
     [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
     private static extern int MkFifo(string path, uint mode);
 
@@ -26,7 +30,7 @@ public sealed class JsonFileStoreFifoTests
         var clock = Stopwatch.StartNew();
         var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings,
             AppSettings.CurrentSchema, () => new AppSettings(), out var status);
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"State load took {clock.Elapsed}.");
+        Assert.True(clock.Elapsed < AdmissionDeadline, $"State load took {clock.Elapsed}.");
         Assert.Equal(StateLoadStatus.UnavailableReadOnly, status);
         Assert.Equal("backup", loaded.Theme);
         Assert.False(UnixFiles.Stat(fifo)!.Value.IsRegular);
@@ -45,7 +49,7 @@ public sealed class JsonFileStoreFifoTests
         var clock = Stopwatch.StartNew();
         var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings,
             AppSettings.CurrentSchema, () => new AppSettings(), out var status);
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"Backup admission took {clock.Elapsed}.");
+        Assert.True(clock.Elapsed < AdmissionDeadline, $"Backup admission took {clock.Elapsed}.");
         Assert.Equal(StateLoadStatus.UnavailableReadOnly, status);
         Assert.Equal("System", loaded.Theme);
         Assert.Equal("{invalid json", File.ReadAllText(path));
@@ -67,7 +71,7 @@ public sealed class JsonFileStoreFifoTests
         var clock = Stopwatch.StartNew();
         Assert.Throws<IOException>(() => JsonFileStore.Save(path,
             new AppSettings { Theme = "new" }, StateJsonContext.Default.AppSettings));
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"State save took {clock.Elapsed}.");
+        Assert.True(clock.Elapsed < AdmissionDeadline, $"State save took {clock.Elapsed}.");
         Assert.False(UnixFiles.Stat(fifo)!.Value.IsRegular);
         Assert.Empty(Directory.GetFiles(dir.Path, "*.tmp-*"));
         if (backup) Assert.Equal("previous", File.ReadAllText(path));
@@ -85,7 +89,7 @@ public sealed class JsonFileStoreFifoTests
 
         var clock = Stopwatch.StartNew();
         JsonFileStore.Save(path, new AppSettings { Theme = "after" }, StateJsonContext.Default.AppSettings);
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"State save took {clock.Elapsed}.");
+        Assert.True(clock.Elapsed < AdmissionDeadline, $"State save took {clock.Elapsed}.");
         Assert.False(UnixFiles.Stat(fifo)!.Value.IsRegular);
         Assert.Empty(Directory.GetFiles(dir.Path, "*.tmp-*"));
         var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings,

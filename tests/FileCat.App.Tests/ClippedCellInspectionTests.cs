@@ -93,6 +93,9 @@ public sealed class ClippedCellInspectionTests
         Assert.Equal(detail.Replace("\u200B", "\\u200B"), f.List.CellString(entry,
             new ColumnSpec(ColumnField.Details, "Details", 65)));
         Dispatcher.UIThread.RunJobs();
+        // Listing completion can precede the headless compositor's next frame.
+        // Render explicitly before asserting which cells were actually drawn.
+        f.Window.CaptureRenderedFrame()?.Dispose();
         var rendered = (System.Collections.IDictionary)typeof(FileListControl).GetField("_renderedCells",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(f.List)!;
         Assert.True(rendered.Contains((0, 2)), $"Details cell was not rendered; width={f.List.Bounds.Width}, x={X(f.List, 2)}");
