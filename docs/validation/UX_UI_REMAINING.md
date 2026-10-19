@@ -44,6 +44,10 @@ revealing `b.txt` retired that anchor, so Shift-clicking `d.txt` marked only
 Its cross-tab journey passed twice with a shorter second tab: an anchor clicked
 near the end of the first tab could not reach into the second; keyboard focus
 on `e.txt` followed by Shift-click on `f.txt` marked exactly those two files.
+Its refresh journey passed twice after deleting the anchor file and creating a
+new file in the fixture: reread kept `b.txt` focused and Shift-click on `c.txt`
+marked exactly `b.txt` and `c.txt`, without attaching the old anchor to a new
+row.
 The user manually confirmed the PE scrollbar
 freeze fix on the supplied EXE. Native spoken screen-reader interaction,
 macOS/Linux desktop behavior, provider-specific cases and display scaling
@@ -74,8 +78,8 @@ comparison native runner and its evidence were committed at `6fa480db`.
    on each supported desktop. For FCUX-002/003/004/005, exercise native range
    anchors, modal focus/decision ownership and full synchronization endpoints
    at narrow and scaled layouts. FCUX-002's Windows sort-reversal pointer
-   filtered-anchor and cross-tab cases passed; refresh, Ctrl-click,
-   Shift+arrows and focus-loss transitions still need native checks.
+   filtered-anchor, cross-tab and changed-file refresh cases passed;
+   Ctrl-click, Shift+arrows and focus-loss transitions still need native checks.
    FCUX-003's default and opt-in Windows rename journeys passed; its
    remaining native gates are scaled/narrow layout,
    keyboard and spoken review, and stale external-editor results. Preserve

@@ -163,6 +163,11 @@ after clicking `d.txt` in the first tab it opens a second tab, enters that
 folder, focuses `e.txt` with the keyboard and Shift-clicks `f.txt`. The new
 tab must mark exactly `e.txt` and `f.txt` without inheriting the old tab's
 row coordinate.
+`selection-refresh-native <report.json>` uses another fresh fixture. It
+clicks `d.txt` as the anchor, moves keyboard focus to `b.txt`, deletes `d.txt`
+and creates `0.txt` in the owned folder, then rereads with Ctrl+R. Shift-click
+on `c.txt` must mark only `b.txt` and `c.txt`, with exact fixture bytes and no
+destination changes.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by
