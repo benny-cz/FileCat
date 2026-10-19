@@ -128,6 +128,14 @@ Run `panel-resize-native <report.json>` to use command search for keyboard
 panel resizing, verify that the focused splitter exposes its orientation,
 neighboring panels and Escape hint to UI Automation, move the boundary with
 Right, then use Escape to restore its original screen position and list focus.
+For FCUX-009, run `seed-compare <fixture.json>` to create two disposable files
+with 2,000-character shared prefixes and different suffixes. Launch the
+Git-built FileCat with the reported source, destination and data paths, then
+run `compare-native <report.json>`. It marks both files, opens Compare, checks
+full native source values, navigates to the second difference, verifies a
+source-faithful Copy, and checks that wrapping keeps the selected changed row
+on screen. `compare-stop <report.json>` gracefully closes only that isolated
+FileCat process, including a comparison window that outlives the main window.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

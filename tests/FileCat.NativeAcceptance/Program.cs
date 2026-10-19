@@ -11,15 +11,15 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "compare-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "seed-compare" or "compare-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
@@ -39,6 +39,27 @@ if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" 
         }
         else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
         else if (mode == "seed-clipboard") await SeedClipboardInteropAsync(reportPath);
+        else if (mode == "seed-compare") await SeedCompareFixtureAsync(reportPath);
+        else if (mode == "compare-stop")
+        {
+            var expectedExecutable = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
+                "ReviewHighlights", "FileCat.exe");
+            using var app = Process.GetProcessesByName("FileCat").Single(process =>
+                string.Equals(process.MainModule?.FileName, expectedExecutable,
+                    StringComparison.OrdinalIgnoreCase));
+            for (var attempt = 0; attempt < 3 && !app.HasExited; attempt++)
+            {
+                _ = app.CloseMainWindow();
+                if (!app.WaitForExit(5_000)) app.Refresh(); // A comparison window can outlive the main window.
+            }
+            if (!app.HasExited)
+                throw new InvalidOperationException("The isolated comparison FileCat process did not close gracefully.");
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed = true, app.Id
+            }));
+        }
         else if (mode == "clipboard-native")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
@@ -294,6 +315,78 @@ try
                 passed, ready, changed, canceled, initialName,
                 resizedName = (string?)resized.Attribute("Name"),
                 initialRect, resizedRect, restoredRect = ReadNativeRect(finalThumb)
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "compare-native")
+        {
+            NativeWindow.FocusRecovery("compare-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009a\uE000"); // Mark both fixture files.
+            await SendSessionKeysAsync(client, sessionId, "\uE009i\uE000"); // Compare files.
+            await Task.Delay(500);
+            const string title = "Compare: a.txt ↔ b.txt";
+            var compared = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = compared.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("Name") == title);
+            XElement Row(XElement parent, int line) => parent.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") ==
+                    $"Changed: left line {line}, right line {line}");
+            bool firstSelected = (string?)Row(window, 1).Attribute("IsSelected") == "True";
+            var leftId = await FindXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Text[@Name='Left source line 1']", "left source line");
+            var rightId = await FindXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Text[@Name='Right source line 1']", "right source line");
+            var leftValue = await ReadElementAttributeAsync(client, sessionId, leftId, "Value.Value");
+            var rightValue = await ReadElementAttributeAsync(client, sessionId, rightId, "Value.Value");
+            var prefix = new string('x', 2_000);
+            bool completeFirstValues = leftValue == prefix + "LEFT"
+                && rightValue == prefix + "RIGHT";
+            await ClickXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Button[@Name='Next difference']", "next difference");
+            var next = ParseSource(await ReadSourceAsync(client, sessionId));
+            var nextWindow = next.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("Name") == title);
+            bool secondSelected = (string?)Row(nextWindow, 3).Attribute("IsSelected") == "True";
+            var leftSecondId = await FindXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Text[@Name='Left source line 3']", "second left source line");
+            var rightSecondId = await FindXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Text[@Name='Right source line 3']", "second right source line");
+            bool completeSecondValues =
+                await ReadElementAttributeAsync(client, sessionId, leftSecondId, "Value.Value") == prefix + "LOWER"
+                && await ReadElementAttributeAsync(client, sessionId, rightSecondId, "Value.Value") == prefix + "UPPER";
+            await ClickXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//Button[@Name='Copy line']", "copy source line");
+            await Task.Delay(100);
+            bool sourceFaithfulCopy = NativeWindow.ReadClipboardText() == prefix + "LOWER";
+            await ClickXPathAsync(client, sessionId,
+                $"//Window[@Name='{title}']//CheckBox[@Name='Wrap long source lines in the aligned comparison']",
+                "wrap long source lines");
+            var wrapped = ParseSource(await ReadSourceAsync(client, sessionId));
+            var wrappedWindow = wrapped.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("Name") == title);
+            var wrappedLeft = wrappedWindow.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Left source line 3");
+            var unwrappedLeft = nextWindow.Descendants().Single(element =>
+                (string?)element.Attribute("Name") == "Left source line 3");
+            var wrappedList = wrappedWindow.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list"
+                && (string?)element.Attribute("Name") == "Differences");
+            bool wrappedReadable = ReadNativeRect(wrappedLeft).Height > ReadNativeRect(unwrappedLeft).Height
+                && (string?)wrappedLeft.Attribute("IsOffscreen") == "False"
+                && ReadNativeRect(wrappedLeft).Intersects(ReadNativeRect(wrappedList))
+                && (string?)Row(wrappedWindow, 3).Attribute("IsSelected") == "True";
+            bool passed = firstSelected && completeFirstValues && secondSelected
+                && completeSecondValues && sourceFaithfulCopy && wrappedReadable;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, firstSelected, completeFirstValues, secondSelected,
+                completeSecondValues, sourceFaithfulCopy, wrappedReadable,
+                unwrappedRow = ReadNativeRect(unwrappedLeft),
+                wrappedRow = ReadNativeRect(wrappedLeft)
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -1297,7 +1390,13 @@ static async Task<string> ReadEditorProgramAsync(HttpClient client, string sessi
 {
     var editor = await FindXPathAsync(client, sessionId,
         "//Edit[@Name='Editor (F4) program']", "editor program field");
-    using var response = await client.GetAsync($"session/{sessionId}/element/{editor}/attribute/Value.Value");
+    return await ReadElementAttributeAsync(client, sessionId, editor, "Value.Value");
+}
+
+static async Task<string> ReadElementAttributeAsync(HttpClient client, string sessionId,
+    string elementId, string attribute)
+{
+    using var response = await client.GetAsync($"session/{sessionId}/element/{elementId}/attribute/{attribute}");
     response.EnsureSuccessStatusCode();
     using var value = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
     return value.RootElement.GetProperty("value").GetString() ?? "";
@@ -1468,6 +1567,27 @@ static async Task SeedClipboardInteropAsync(string reportPath)
     await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
     {
         root, source, destination, data, file
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
+static async Task SeedCompareFixtureAsync(string reportPath)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "Compare", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, "compare-source");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    Directory.CreateDirectory(source);
+    Directory.CreateDirectory(destination);
+    const int prefixLength = 2_000;
+    var prefix = new string('x', prefixLength);
+    await File.WriteAllTextAsync(Path.Combine(source, "a.txt"), prefix + "LEFT\nshared\n" + prefix + "LOWER");
+    await File.WriteAllTextAsync(Path.Combine(source, "b.txt"), prefix + "RIGHT\nshared\n" + prefix + "UPPER");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, prefixLength
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
@@ -1741,6 +1861,9 @@ internal readonly record struct NativeRect(int X, int Y, int Width, int Height)
         && X >= outer.X && Y >= outer.Y
         && (long)X + Width <= (long)outer.X + outer.Width
         && (long)Y + Height <= (long)outer.Y + outer.Height;
+    public bool Intersects(NativeRect other) => HasArea && other.HasArea
+        && X < (long)other.X + other.Width && other.X < (long)X + Width
+        && Y < (long)other.Y + other.Height && other.Y < (long)Y + Height;
 }
 
 internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth,
@@ -1776,6 +1899,16 @@ internal static partial class NativeWindow
 
     [LibraryImport("user32.dll")]
     private static partial nint GetClipboardData(uint format);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nuint GlobalSize(nint memory);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nint GlobalLock(nint memory);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GlobalUnlock(nint memory);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern uint DragQueryFile(nint drop, uint index, StringBuilder? path, uint length);
@@ -1818,6 +1951,33 @@ internal static partial class NativeWindow
     internal static bool IsFindOpen() => GetFileCatFindWindow() != 0;
 
     internal static uint ClipboardSequence() => GetClipboardSequenceNumber();
+
+    internal static string? ReadClipboardText()
+    {
+        bool opened = false;
+        for (var attempt = 0; attempt < 20 && !(opened = OpenClipboard(0)); attempt++)
+            Thread.Sleep(50);
+        if (!opened) throw new InvalidOperationException("The interactive Windows clipboard is busy.");
+        try
+        {
+            var handle = GetClipboardData(13); // CF_UNICODETEXT
+            if (handle == 0) return null;
+            var size = GlobalSize(handle);
+            if (size < 2 || size > 131_072 || size % 2 != 0)
+                throw new InvalidOperationException("Clipboard text exceeds the bounded test read.");
+            var pointer = GlobalLock(handle);
+            if (pointer == 0) throw new InvalidOperationException("Cannot lock clipboard text.");
+            try
+            {
+                var value = Marshal.PtrToStringUni(pointer, checked((int)size / 2)) ?? "";
+                var end = value.IndexOf('\0');
+                if (end < 0) throw new InvalidOperationException("Clipboard text has no terminator.");
+                return value[..end];
+            }
+            finally { GlobalUnlock(handle); }
+        }
+        finally { CloseClipboard(); }
+    }
 
     internal static ClipboardDropResult ReadClipboardFileDrop()
     {
@@ -1927,7 +2087,7 @@ internal static partial class NativeWindow
 
     internal static void FocusRecovery(string sourceFolder = "source")
     {
-        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source"))
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source"))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var window = FindWindow(null, title);
@@ -1940,7 +2100,7 @@ internal static partial class NativeWindow
         using var process = Process.GetProcessById((int)processId);
         if (!string.Equals(process.ProcessName, "FileCat", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Recovery window belongs to another process.");
-        if (sourceFolder == "clipboard-source")
+        if (sourceFolder is "clipboard-source" or "compare-source")
         {
             var buildRoot = Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");

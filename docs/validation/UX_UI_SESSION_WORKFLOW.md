@@ -105,6 +105,17 @@ and list focus. Those runner additions were pushed in `bacbfa39` and
 `b80cfc71`; their CI runs are pending. Native spoken screen-reader behavior,
 non-Windows desktop bridges and scaled-display acceptance remain open.
 
+The guest also passed FCUX-009's long-line comparison on a disposable pair of
+files with 2,000-character common prefixes and different suffixes. The native
+`compare-native` runner queried both complete source values for the first and
+second changed rows, used Next difference, copied the exact left source line
+without its number, and verified that Wrap left the selected changed row in
+the viewport. A captured VM desktop view showed both suffixes in the primary
+aligned text surface. The strengthened runner passed again after a fresh app
+launch. Font fallback, pointer selection and spoken/cross-platform acceptance
+remain open; [the live remaining-work list](UX_UI_REMAINING.md) tracks the next
+gates.
+
 The guest also ran a native FCUX-001 recovery review in an isolated `--data`
 instance. FileCat Core's journal writer seeded a begin-only filtered move with
 `*.jpg`, read-back verification and Queue intent. Startup showed one
