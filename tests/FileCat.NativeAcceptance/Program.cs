@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -249,6 +249,51 @@ try
                 passed, parentPath, ancestorCount = groups.Length,
                 firstAncestorName = (string?)first?.Attribute("Name"),
                 ancestorReady, actionsReady, returnedToList
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "panel-resize-native")
+        {
+            NativeWindow.FocusRecovery("clipboard-source");
+            await ClickXPathAsync(client, sessionId,
+                "//Edit[@Name='Search commands']", "command search");
+            await SendSessionKeysAsync(client, sessionId,
+                "\uE009a\uE000keyboard resize\uE007");
+            await Task.Delay(300);
+            var opened = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement Thumb(XDocument document) => document.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "thumb"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "Vertical panel boundary", StringComparison.Ordinal) == true);
+            var initial = Thumb(opened);
+            var initialName = (string?)initial.Attribute("Name") ?? "";
+            var initialRect = ReadNativeRect(initial);
+            bool ready = initialRect.HasArea
+                && (string?)initial.Attribute("HasKeyboardFocus") == "True"
+                && ((string?)initial.Attribute("HelpText"))?.Contains(
+                    "Escape restores", StringComparison.Ordinal) == true;
+            await SendSessionKeysAsync(client, sessionId, "\uE014"); // Right increases the first panel's share.
+            var resized = Thumb(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var resizedRect = ReadNativeRect(resized);
+            bool changed = resizedRect.X > initialRect.X
+                && (string?)resized.Attribute("Name") != initialName
+                && (string?)resized.Attribute("HasKeyboardFocus") == "True";
+            await SendSessionKeysAsync(client, sessionId, "\uE00C");
+            var restored = ParseSource(await ReadSourceAsync(client, sessionId));
+            var finalThumb = Thumb(restored);
+            var sourceList = restored.Descendants().Single(element =>
+                (string?)element.Attribute("ClassName") == "FileList"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
+            bool canceled = ReadNativeRect(finalThumb) == initialRect
+                && (string?)finalThumb.Attribute("Name") == initialName
+                && (string?)sourceList.Attribute("HasKeyboardFocus") == "True";
+            bool passed = ready && changed && canceled;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, ready, changed, canceled, initialName,
+                resizedName = (string?)resized.Attribute("Name"),
+                initialRect, resizedRect, restoredRect = ReadNativeRect(finalThumb)
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

@@ -124,6 +124,10 @@ Run `breadcrumb-native <report.json>` on that fixture to send Alt+Up,
 inspect the focused ancestor and its full-path accessible name, open its
 submenu with Right, and require Open here, Open in new tab and Copy path with
 the same target. Escape must return keyboard focus to the source list.
+Run `panel-resize-native <report.json>` to use command search for keyboard
+panel resizing, verify that the focused splitter exposes its orientation,
+neighboring panels and Escape hint to UI Automation, move the boundary with
+Right, then use Escape to restore its original screen position and list focus.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by
