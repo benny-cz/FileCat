@@ -29,8 +29,8 @@ does not imply that the whole audit has been closed.
 ### Implementation history and remaining acceptance
 
 As of 19 October 2026, code and regression coverage for all 76 audit findings
-and ten queued bugs are present. The [last fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
-passes producer checks and all four platform lanes. A later Linux run exposed
+and eleven queued bugs are present. The [most recent fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39290466271)
+passes producer checks and all four platform lanes. An earlier Linux run exposed
 that WebKitGTK reports a directional count, rather than the original total,
 on Next/Previous; commit `ddbc444b` caches the initial count, and its Linux
 lane passed. The viewer-geometry commit `8578a7d3` passed the complete
@@ -39,7 +39,7 @@ Windows ARM64; the Windows lane had one timeout in an existing 70-step Undo
 lifecycle test, while its other test projects passed. The same case and the
 complete Core suite pass locally (4,428 passed, 150 skipped). The bulk case now
 uses a bounded 60-second deadline with monotonic timing and progress details;
-all 14 focused Undo lifecycle cases pass. Its cross-platform CI rerun is pending.
+all 14 focused Undo lifecycle cases pass.
 Continue with the native desktop, provider, scaling, clipboard
 and assistive-technology acceptance named
 for each finding in the implementation status. Page-mode Find now exposes the
@@ -87,6 +87,23 @@ document stayed within the window at 680 pixels, the keyboard-focusable table
 scroll region contracted from 901 to 601 pixels around 916 pixels of table
 content, and the prose block grew from 118 to 144 pixels. Native scaling and
 assistive-technology checks remain open.
+
+Native Windows inspection found a real FCUX-010 bridge gap after the headless
+tests: visible file-row peers had zero screen rectangles. Cached peers now own
+bounded attached controls, which let Avalonia convert logical row geometry to
+screen coordinates. The live `accessibility-list` runner verified positive
+rectangles for both source files, stable distinct IDs, an empty destination,
+and a selected `a.txt` while focus moved to unselected `b.txt`. The complete
+local App suite passed with 16 workers. `9495910c` was pushed to main; its
+cross-platform CI run is pending. The same guest passed `breadcrumb-native`
+twice: Alt+Up focused the nearest full-path ancestor, Right exposed Open here,
+Open in new tab and Copy path with that target, and Escape returned to the
+source list. It also passed `panel-resize-native` twice: command search focused
+the named splitter, Right moved it eight physical pixels and updated the
+announced share from 50 to 51 percent, and Escape restored its exact rectangle
+and list focus. Those runner additions were pushed in `bacbfa39` and
+`b80cfc71`; their CI runs are pending. Native spoken screen-reader behavior,
+non-Windows desktop bridges and scaled-display acceptance remain open.
 
 The guest also ran a native FCUX-001 recovery review in an isolated `--data`
 instance. FileCat Core's journal writer seeded a begin-only filtered move with
