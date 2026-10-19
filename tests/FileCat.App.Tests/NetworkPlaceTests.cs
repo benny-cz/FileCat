@@ -38,14 +38,17 @@ public sealed class NetworkPlaceTests(ITestOutputHelper output)
             provider.Discover = (_, _, _) => Task.CompletedTask;
             var knownServers = provider.KnownServers;
             int rootRequests = 0;
-            provider.KnownServers = () =>
-            {
-                // Delay only this fixture's second root read; never a system/network setting or shared provider.
-                if (Interlocked.Increment(ref rootRequests) == 2 && returnDelayMs > 0) Thread.Sleep(returnDelayMs);
-                return knownServers?.Invoke() ?? [];
-            };
             // A server reached before: it is listed at once, before any device answers.
             services.History.Folders.Add(new HistoryEntry { Location = new Location(Schemes.Network, @"\\localhost") });
+            var knownSnapshot = knownServers?.Invoke()?.ToArray() ?? [];
+            Assert.Contains("localhost", knownSnapshot, StringComparer.OrdinalIgnoreCase);
+            provider.KnownServers = () =>
+            {
+                // Snapshot host-dependent mapped drives once. The return-path test then
+                // controls only its own callback, even if the host's network changes.
+                if (Interlocked.Increment(ref rootRequests) == 2 && returnDelayMs > 0) Thread.Sleep(returnDelayMs);
+                return knownSnapshot;
+            };
 
             // The place beside This PC.
             var network = Assert.Single(vm.Places(vm.DriveButtons), p => p.Location?.Scheme == Schemes.Network);
