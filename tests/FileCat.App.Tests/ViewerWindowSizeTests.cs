@@ -1,5 +1,6 @@
 using System.Text;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Headless;
 using Avalonia.Threading;
@@ -64,6 +65,40 @@ public sealed class ViewerWindowSizeTests
                 hex.Show();
                 hex.Close();
             }
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [AvaloniaFact]
+    public void Maximizing_then_restoring_viewer_does_not_save_the_maximized_size()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var viewer = new ViewerWindow(services, new MemoryContentSource("note.txt", Encoding.UTF8.GetBytes("note")), "note.txt", hex: false);
+            viewer.Show();
+            viewer.Width = 850;
+            viewer.Height = 600;
+            Dispatcher.UIThread.RunJobs();
+            viewer.CaptureRenderedFrame()?.Dispose();
+            viewer.WindowState = WindowState.Maximized;
+            Dispatcher.UIThread.RunJobs();
+            viewer.CaptureRenderedFrame()?.Dispose();
+            viewer.WindowState = WindowState.Normal;
+            // Native backends can publish a transient maximized-sized layout
+            // after the state has already changed back to Normal.
+            viewer.Width = 2000;
+            viewer.Height = 1200;
+            Dispatcher.UIThread.RunJobs();
+            viewer.CaptureRenderedFrame()?.Dispose();
+            viewer.Close();
+            Assert.InRange(services.Settings.ViewerWidth!.Value, 849, 851);
+            Assert.InRange(services.Settings.ViewerHeight!.Value, 599, 601);
         }
         finally
         {

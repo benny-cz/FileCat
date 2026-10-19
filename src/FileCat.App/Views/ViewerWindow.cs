@@ -135,6 +135,9 @@ public sealed class ViewerWindow : Window
     private Size _initialWindowSize;
     private Size _lastNormalWindowSize;
     private bool _windowOpened, _userSizedWindow;
+    private bool _restoringWindowState;
+    private readonly DispatcherTimer _restoreSizeTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _readyForRefresh;
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
@@ -188,15 +191,31 @@ public sealed class ViewerWindow : Window
             _lastNormalWindowSize = _initialWindowSize;
             _windowOpened = true;
         };
+        _restoreSizeTimer.Tick += (_, _) =>
+        {
+            _restoreSizeTimer.Stop();
+            _restoringWindowState = false;
+        };
+        PropertyChanged += (_, change) =>
+        {
+            if (!_windowOpened || change.Property != WindowStateProperty) return;
+            _restoringWindowState = true;
+            _restoreSizeTimer.Stop();
+            if (WindowState == WindowState.Normal) _restoreSizeTimer.Start();
+        };
         SizeChanged += (_, args) =>
         {
-            if (!_windowOpened || WindowState != WindowState.Normal ||
+            if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
                 !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
             _lastNormalWindowSize = args.NewSize;
             if (Math.Abs(args.NewSize.Width - _initialWindowSize.Width) > 1 ||
                 Math.Abs(args.NewSize.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
         };
-        Closed += (_, _) => SaveViewerSize();
+        Closed += (_, _) =>
+        {
+            _restoreSizeTimer.Stop();
+            SaveViewerSize();
+        };
         TextDecoding.EnsureCodePages();
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
 

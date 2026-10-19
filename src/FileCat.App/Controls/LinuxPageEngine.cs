@@ -31,6 +31,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private string? _findPattern;
     private bool _findCase;
     private bool _findFresh;
+    private PageFindResult? _findTotal;
     private volatile HtmlPage? _page;
     private volatile string? _title;
     private int _blocked;
@@ -126,6 +127,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             _findPattern = text;
             _findCase = matchCase;
             _findFresh = true;
+            _findTotal = null;
             uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u);
             fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, MaxFindMatches);
         }
@@ -139,6 +141,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             _findPending = null;
             _findPattern = null;
             _findFresh = false;
+            _findTotal = null;
             if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
         }
         return 0;
@@ -151,6 +154,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         _findPending = null;
         _findPattern = null;
         _findFresh = false;
+        _findTotal = null;
         if (_findController != 0) Native.webkit_find_controller_search_finish(_findController);
         return 0;
     });
@@ -216,7 +220,15 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnFoundText(nint controller, uint count, nint data)
     {
-        try { Of(data)?._findPending?.TrySetResult(FindResultFromCount(count)); }
+        try
+        {
+            var engine = Of(data);
+            if (engine is null) return;
+            // WebKit reports the total for a new search, but reports only the
+            // directional result count for search_next/search_previous.
+            if (engine._findFresh) engine._findTotal = FindResultFromCount(count);
+            engine._findPending?.TrySetResult(engine._findTotal ?? new PageFindResult(true));
+        }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
     }
 
