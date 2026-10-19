@@ -153,8 +153,11 @@ with its reported source, destination and data paths. Run
 `b.txt` as the range anchor, reverses the name sort, then Shift-clicks `c.txt`
 with native input. Only `b.txt` and `c.txt` may be marked, and the fixture
 files must remain unchanged. `selection-stop <report.json>` closes that
-path-verified app after the check. Other FCUX-002 transitions still need their
-separate native checks.
+path-verified app after the check. On another fresh fixture,
+`selection-filter-native <report.json>` clicks `b.txt`, filters it out,
+restores the full list and Shift-clicks `d.txt`. The retired anchor must not
+return; only the fallback range `c.txt`–`d.txt` may be marked. Other FCUX-002
+transitions still need their separate native checks.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

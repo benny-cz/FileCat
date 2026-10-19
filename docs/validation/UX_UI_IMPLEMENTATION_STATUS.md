@@ -13,8 +13,9 @@ acceptance remain open. The live remaining gates are maintained in
 [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
 FCUX-002 also passed a native four-file sort reversal: a click on `b.txt`
 survived the changed row order, and Shift-clicking `c.txt` marked exactly
-those two items. Cross-tab, filter, refresh and other native gesture/focus
-routes remain open.
+those two items. A second native journey hid and revealed `b.txt`; its retired
+anchor did not return, and Shift-clicking `d.txt` marked only `c.txt` and
+`d.txt`. Cross-tab, refresh and other native gesture/focus routes remain open.
 
 **Implementation checkpoint (19 October 2026):** All 76 numbered audit findings
 and eleven subsequently queued bugs have an implemented code path and regression
