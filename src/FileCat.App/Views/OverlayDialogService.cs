@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -334,13 +335,15 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     /// <summary>Closes only this confirmation when its owning review is stopped.</summary>
     public Task<bool> ConfirmWithCancellationAsync(string title, string message, string confirmText, bool danger,
         CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null,
-        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping") =>
+        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping",
+        bool collapseDetails = false, IReadOnlyList<string>? warnings = null) =>
         ConfirmCoreAsync(title, message, confirmText, danger, "Cancel", cancellationToken, highlights,
-            summaryHeading, detailsHeading);
+            summaryHeading, detailsHeading, collapseDetails, warnings);
 
     private async Task<bool> ConfirmCoreAsync(string title, string message, string confirmText, bool danger,
         string cancelText, CancellationToken cancellationToken, IReadOnlyList<string>? highlights = null,
-        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping")
+        string summaryHeading = "Key choices before approval", string detailsHeading = "Full review and source mapping",
+        bool collapseDetails = false, IReadOnlyList<string>? warnings = null)
     {
         if (cancellationToken.IsCancellationRequested) return false;
         message = OneLineBreak(message);
@@ -348,7 +351,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var ok = new Button { Content = confirmText, IsDefault = !danger, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true, IsDefault = danger };
         var text = highlights is { Count: > 0 }
-            ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading) : MessageBody(message);
+            ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading, collapseDetails, warnings) : MessageBody(message);
         Session? session = null;
         void Finish(bool r)
         {
@@ -407,7 +410,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     }
 
     private static Control HighlightedReviewBody(IReadOnlyList<string> highlights, string message,
-        string summaryHeading, string detailsHeading)
+        string summaryHeading, string detailsHeading, bool collapseDetails, IReadOnlyList<string>? warnings)
     {
         var summary = new StackPanel { Spacing = 4 };
         summary.Children.Add(new TextBlock
@@ -419,12 +422,38 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             summary.Children.Add(new SelectableTextBlock { Text = line, TextWrapping = TextWrapping.Wrap });
         var body = new StackPanel { MaxWidth = 620, Spacing = 12 };
         body.Children.Add(new Border { Classes = { "reviewHighlights" }, Child = summary });
-        body.Children.Add(new TextBlock
+        if (warnings is { Count: > 0 })
         {
-            Text = detailsHeading, FontWeight = FontWeight.SemiBold,
-            TextWrapping = TextWrapping.Wrap
+            var effects = new StackPanel { Spacing = 4 };
+            effects.Children.Add(new TextBlock { Text = "Important effects", FontWeight = FontWeight.SemiBold });
+            foreach (var warning in warnings)
+                effects.Children.Add(new SelectableTextBlock { Text = warning, TextWrapping = TextWrapping.Wrap });
+            body.Children.Add(new Border { Classes = { "reviewWarnings" }, Child = effects });
+        }
+        var detail = MessageBody(message);
+        if (collapseDetails)
+        {
+            detail.IsVisible = false;
+            var label = string.IsNullOrWhiteSpace(detailsHeading)
+                ? "details" : char.ToLowerInvariant(detailsHeading[0]) + detailsHeading[1..];
+            var toggle = new ToggleButton { Content = "Show " + label, Name = "ReviewDetailsToggle" };
+            Avalonia.Automation.AutomationProperties.SetHelpText(toggle,
+                "Open the complete review, including the source-to-destination mapping and safety notes.");
+            toggle.IsCheckedChanged += (_, _) =>
+            {
+                detail.IsVisible = toggle.IsChecked == true;
+                toggle.Content = (toggle.IsChecked == true ? "Hide " : "Show ") + label;
+                Avalonia.Automation.AutomationProperties.SetHelpText(toggle, toggle.IsChecked == true
+                    ? "Hide the complete review; key choices and important effects remain visible."
+                    : "Open the complete review, including the source-to-destination mapping and safety notes.");
+            };
+            body.Children.Add(toggle);
+        }
+        else body.Children.Add(new TextBlock
+        {
+            Text = detailsHeading, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap
         });
-        body.Children.Add(MessageBody(message));
+        body.Children.Add(detail);
         return body;
     }
 

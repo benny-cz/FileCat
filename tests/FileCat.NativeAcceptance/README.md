@@ -90,8 +90,11 @@ source, and that the destination stays empty. Then run
 the new copy. It checks the destination mapping and both files' contents.
 On a build with highlighted recovery confirmations, run
 `legacy-highlight <report.json>` while the final review is open. It requires
-the visible key-choice heading, new-copy action, one-root name mapping, full
-review heading and approval button in their expected native reading order.
+the visible choices, one-root name mapping, separate Important effects callout,
+and approval button in reading order. It opens the full-review disclosure and
+checks that the complete mapping becomes available without starting the copy.
+`legacy-stop <report.json>` gracefully closes only the isolated VM build after
+the review; it verifies that build's executable path before closing it.
 The fixture uses a real journal with its transfer-intent fields removed and
 CRC rewritten, so startup follows the legacy path without inventing a ZIP or
 modifying user data.

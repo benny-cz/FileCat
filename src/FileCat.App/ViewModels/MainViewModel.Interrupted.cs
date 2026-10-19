@@ -243,14 +243,18 @@ public sealed partial class MainViewModel
                 + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : "")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
             string action = (newTransfer ? "Start new " : "Continue ") + (kind == JobKind.Move ? "move" : "copy");
-            bool consequential = kind == JobKind.Move || partial.Count > 0 || options.Conflicts is
+            bool consequential = newTransfer || kind == JobKind.Move || partial.Count > 0 || options.Conflicts is
                 ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer or ConflictPolicy.KeepBothRenameExisting;
             var highlights = InterruptedJobText.ApprovalHighlights(kind, destination, sources,
-                job.SourceCount, newName, options, mode, newTransfer, partial.Count);
+                job.SourceCount, newName, options, mode, newTransfer);
+            var warnings = InterruptedJobText.ApprovalWarnings(kind, sources.Count, job.SourceCount,
+                options, newTransfer, partial.Count,
+                review.Unreviewed.Count, review.Copies.Differing.Count,
+                review.Limited || review.Copies.LimitReached);
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval of the reviewed recovery plan…");
             bool approved = Dialogs is OverlayDialogService overlay
                 ? await overlay.ConfirmWithCancellationAsync(action, message, action, consequential,
-                    scope.StopSource.Token, highlights)
+                    scope.StopSource.Token, highlights, collapseDetails: true, warnings: warnings)
                 : await Dialogs.ConfirmAsync(action, message, action, danger: consequential);
             scope.Check();
             if (!approved) return false;

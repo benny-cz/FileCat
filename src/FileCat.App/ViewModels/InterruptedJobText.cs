@@ -46,7 +46,7 @@ internal static class InterruptedJobText
 
     public static IReadOnlyList<string> ApprovalHighlights(JobKind kind, Location destination,
         IReadOnlyList<ItemRef> sources, int recordedSources, string? newName,
-        TransferOptions options, QueueMode mode, bool newTransfer, int partialFiles)
+        TransferOptions options, QueueMode mode, bool newTransfer)
     {
         string action = (newTransfer ? "Start a new " : "Continue the recorded ") +
             (kind == JobKind.Move ? "move" : "copy");
@@ -75,9 +75,48 @@ internal static class InterruptedJobText
                 ? name : Path.Combine(item.RelativeFolder, name);
             highlights.Insert(2, $"Source → target name: {Formatters.SafeName(item.Name)} → {Formatters.SafeName(target)}");
         }
-        if (partialFiles > 0)
-            highlights.Add($"First delete {Formatters.Plural(partialFiles, "interrupted partial file", "interrupted partial files")}");
         return highlights;
+    }
+
+    public static IReadOnlyList<string> ApprovalWarnings(JobKind kind, int availableSources,
+        int recordedSources, TransferOptions options, bool newTransfer, int partialFiles,
+        int unreviewedStaged, int differingCopies, bool reviewLimited)
+    {
+        var warnings = new List<string>();
+        if (newTransfer)
+            warnings.Add("Original mapping and options are incomplete; this starts a newly reviewed transfer");
+        if (availableSources < recordedSources)
+            warnings.Add($"{Formatters.Plural(recordedSources - availableSources, "unavailable recorded source root", "unavailable recorded source roots")} will be omitted");
+        if (partialFiles > 0)
+            warnings.Add($"First delete {Formatters.Plural(partialFiles, "interrupted partial file", "interrupted partial files")}");
+        switch (options.Conflicts)
+        {
+            case ConflictPolicy.Skip:
+                warnings.Add("Skipped existing files are kept, and their contents are not verified");
+                break;
+            case ConflictPolicy.Replace:
+                warnings.Add("Existing destination files may be replaced");
+                break;
+            case ConflictPolicy.ReplaceIfNewer:
+                warnings.Add("Existing destination files may be replaced when the source is newer");
+                break;
+            case ConflictPolicy.KeepBothRenameExisting:
+                warnings.Add("Existing destination items may be renamed to keep both copies");
+                break;
+        }
+        if (kind == JobKind.Move)
+        {
+            warnings.Add("Successfully moved source items are removed from their original location");
+            if (options.Conflicts == ConflictPolicy.Skip)
+                warnings.Add("A skipped destination does not authorize deleting its remaining source");
+        }
+        if (unreviewedStaged > 0)
+            warnings.Add($"Manual review: {Formatters.Plural(unreviewedStaged, "staged file", "staged files")} could not be fully checked");
+        if (differingCopies > 0)
+            warnings.Add($"Manual review: {Formatters.Plural(differingCopies, "copied file differs", "copied files differ")} from the source");
+        if (reviewLimited)
+            warnings.Add("Review limit reached; other affected files may be unknown");
+        return warnings;
     }
 
     /// <summary>

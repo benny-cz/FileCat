@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -22,6 +23,57 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedTransferIntentUiTests
 {
+    [AvaloniaFact]
+    public async Task New_copy_review_shows_consequences_first_and_discloses_complete_mapping_on_keyboard_request()
+    {
+        using var f = await Fixture.Open();
+        string source = Path.Combine(f.Source, "draft.txt");
+        File.WriteAllText(source, "original content");
+        var interrupted = Fixture.MakeLegacy(await f.Interrupt(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Location.FileSystem(f.Destination),
+        }));
+        var run = f.Vm.ReviewNewInterruptedTransferAsync(interrupted);
+        await f.WaitButton("Copy");
+        await Fixture.Wait(() => f.Button("Copy")?.IsEnabled == true);
+        f.Click("Copy");
+        await f.WaitButton("Start new copy");
+        Dispatcher.UIThread.RunJobs();
+        var summary = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewHighlights"));
+        var keyPoints = string.Join("\n", summary.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(block => block.Text));
+        Assert.Contains("Action: Start a new copy", keyPoints);
+        var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewWarnings"));
+        var warnings = string.Join("\n", effects.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(block => block.Text));
+        Assert.Contains("Original mapping and options are incomplete", warnings);
+        Assert.Contains("Skipped existing files are kept, and their contents are not verified", warnings);
+        Assert.DoesNotContain("Original mapping and options are incomplete", keyPoints);
+        Assert.True(summary.Bounds.Top < effects.Bounds.Top);
+        var toggle = Assert.Single(f.Window.GetVisualDescendants().OfType<ToggleButton>(),
+            button => button.Name == "ReviewDetailsToggle");
+        Assert.False(toggle.IsChecked);
+        Assert.Equal("Show full review and source mapping", toggle.Content);
+        Assert.True(effects.Bounds.Bottom <= toggle.Bounds.Top);
+        var mapping = Assert.Single(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => block.Text?.StartsWith("Source → destination mapping for every available root:", StringComparison.Ordinal) == true);
+        Assert.False(mapping.IsEffectivelyVisible);
+        Assert.True(toggle.Focus());
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(run.IsCompleted);
+        Assert.True(toggle.IsChecked);
+        Assert.True(mapping.IsEffectivelyVisible);
+        Assert.Contains("draft.txt", f.Text);
+        f.Click("Cancel");
+        Assert.False(await run);
+        Assert.Equal("original content", File.ReadAllText(source));
+    }
+
     [AvaloniaTheory]
     [InlineData("move", -1)]
     [InlineData("copy-partial", -1)]
@@ -78,7 +130,18 @@ public sealed class InterruptedTransferIntentUiTests
         }
         if (flow == "new-copy") Assert.Contains("Start a new copy", keyChoices);
         if (flow == "new-copy") Assert.Contains("Source → target name: owned.txt → owned.txt", keyChoices);
-        if (flow == "copy-partial") Assert.Contains("First delete 1 interrupted partial file", keyChoices);
+        if (flow != "cleanup")
+        {
+            var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+                border => border.Classes.Contains("reviewWarnings"));
+            var warnings = string.Join("\n", effects.GetVisualDescendants()
+                .OfType<SelectableTextBlock>().Select(block => block.Text));
+            if (flow == "copy-partial") Assert.Contains("First delete 1 interrupted partial file", warnings);
+            if (flow == "move") Assert.Contains("Successfully moved source items are removed", warnings);
+            if (policy == 2) Assert.Contains("Existing destination files may be replaced", warnings);
+            if (policy == 3) Assert.Contains("replaced when the source is newer", warnings);
+            if (policy == 5) Assert.Contains("renamed to keep both copies", warnings);
+        }
         var cancel = Assert.IsType<Button>(f.Button("Cancel"));
         var proceed = Assert.IsType<Button>(f.Button(action));
         Assert.True(cancel.IsDefault); Assert.True(cancel.IsFocused);
@@ -115,7 +178,10 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Contains("Files matching: *.jpg", summary);
         Assert.Contains("Verification: Read back copied content", summary);
         Assert.Contains("Existing items: Skip existing files", summary);
-        Assert.Contains("First delete 1 interrupted partial file", summary);
+        var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewWarnings"));
+        Assert.Contains("First delete 1 interrupted partial file", string.Join("\n",
+            effects.GetVisualDescendants().OfType<SelectableTextBlock>().Select(block => block.Text)));
         Assert.Contains("*.jpg", f.Text);
         Assert.Contains("Read back and compare copied content", f.Text);
         Assert.Contains("skipping does not verify", f.Text);

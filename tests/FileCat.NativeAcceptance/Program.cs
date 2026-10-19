@@ -11,20 +11,32 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-clipboard" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
         if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
         else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
+        else if (mode == "legacy-stop")
+        {
+            var expectedExecutable = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
+                "ReviewHighlights", "FileCat.exe");
+            using var app = Process.GetProcessesByName("FileCat").Single(process =>
+                string.Equals(process.MainModule?.FileName, expectedExecutable,
+                    StringComparison.OrdinalIgnoreCase));
+            if (!app.CloseMainWindow() || !app.WaitForExit(10_000))
+                throw new InvalidOperationException("The isolated legacy FileCat process did not close gracefully.");
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new { passed = true, app.Id }));
+        }
         else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
         else if (mode == "seed-clipboard") await SeedClipboardInteropAsync(reportPath);
         else if (mode == "clipboard-native")
@@ -541,20 +553,50 @@ try
             var heading = Text("Key choices before approval");
             var action = Text("Action: Start a new copy · 1 of 1 recorded source roots available");
             var mapping = Text("Source → target name: draft.txt → approved.txt");
-            var fullReview = Text("Full review and source mapping");
+            var effects = Text("Important effects");
+            var incomplete = Text("Original mapping and options are incomplete; this starts a newly reviewed transfer");
+            var skip = Text("Skipped existing files are kept, and their contents are not verified");
+            var showDetails = FindVisible(window, "button", "Show full review and source mapping");
+            var cancel = FindVisible(window, "button", "Cancel");
             var approval = FindVisible(window, "button", "Start new copy");
-            var passed = heading is not null && action is not null && mapping is not null
-                && fullReview is not null && approval is not null
+            var initiallyClear = heading is not null && action is not null && mapping is not null
+                && effects is not null && incomplete is not null && skip is not null
+                && showDetails is not null && cancel is not null && approval is not null
+                && (string?)cancel.Attribute("HasKeyboardFocus") == "True"
                 && (string?)heading.Attribute("IsOffscreen") == "False"
                 && (string?)mapping.Attribute("IsOffscreen") == "False"
                 && CenterY(heading) < CenterY(mapping)
-                && CenterY(mapping) < CenterY(fullReview)
-                && CenterY(fullReview) < CenterY(approval);
+                && CenterY(mapping) < CenterY(effects)
+                && CenterY(effects) < CenterY(showDetails)
+                && CenterY(showDetails) < CenterY(approval);
+            if (showDetails is not null)
+            {
+                NativeWindow.ClickAt(CenterX(showDetails), CenterY(showDetails));
+                await Task.Delay(250);
+            }
+            var expanded = ParseSource(await ReadSourceAsync(client, sessionId));
+            var expandedWindow = expanded.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "FileCat — legacy-source", StringComparison.Ordinal) == true);
+            var hideDetails = expandedWindow is null ? null : FindVisible(expandedWindow,
+                "button", "Hide full review and source mapping");
+            var completeMapping = expandedWindow?.Descendants().FirstOrDefault(element =>
+                ((string?)element.Attribute("Name"))?.StartsWith(
+                    "Source → destination mapping for every available root:", StringComparison.Ordinal) == true);
+            var stillAwaitingApproval = expandedWindow is not null
+                && FindVisible(expandedWindow, "button", "Start new copy") is not null;
+            var passed = initiallyClear && hideDetails is not null
+                && completeMapping is not null && stillAwaitingApproval;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, headingVisible = heading is not null,
+                passed, initiallyClear, headingVisible = heading is not null,
                 actionVisible = action is not null, mappingVisible = mapping is not null,
-                fullReviewVisible = fullReview is not null, approvalVisible = approval is not null
+                effectsVisible = effects is not null, incompleteVisible = incomplete is not null,
+                skipVisible = skip is not null, showDetailsVisible = showDetails is not null,
+                cancelInitiallyFocused = (string?)cancel?.Attribute("HasKeyboardFocus") == "True",
+                expanded = hideDetails is not null, completeMappingPresent = completeMapping is not null,
+                stillAwaitingApproval
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

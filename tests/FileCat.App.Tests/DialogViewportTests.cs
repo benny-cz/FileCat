@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -25,10 +26,13 @@ namespace FileCat.App.Tests;
 public sealed class DialogViewportTests
 {
     [AvaloniaTheory]
-    [InlineData(14)]
-    [InlineData(21)]
-    [InlineData(28)]
-    public async Task Highlighted_review_keeps_actions_visible_and_full_details_reachable_at_minimum_size(double fontSize)
+    [InlineData(14, false)]
+    [InlineData(21, false)]
+    [InlineData(28, false)]
+    [InlineData(14, true)]
+    [InlineData(21, true)]
+    [InlineData(28, true)]
+    public async Task Highlighted_review_keeps_actions_visible_and_full_details_reachable_at_minimum_size(double fontSize, bool collapseDetails)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420, fontSize: fontSize);
         try
@@ -36,12 +40,23 @@ public sealed class DialogViewportTests
             ProductStyles(window);
             var message = string.Join("\n\n", Enumerable.Range(1, 16)
                 .Select(index => $"Detail {index}: the selected disk may change while mounted; recover files elsewhere."));
-            var review = vm.Dialogs.ConfirmReviewAsync("Recover deleted files", message,
-                ["Source: sample disk", "FileCat only reads this source", "Recover files to another disk"],
-                "Scan", danger: true);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var keyPoints = new[] { "Source: sample disk", "FileCat only reads this source", "Recover files to another disk" };
+            var review = collapseDetails
+                ? dialogs.ConfirmWithCancellationAsync("Recover deleted files", message, "Scan", true,
+                    CancellationToken.None, keyPoints, collapseDetails: true)
+                : dialogs.ConfirmReviewAsync("Recover deleted files", message, keyPoints, "Scan", danger: true);
             Layout(window);
             var card = Card(window);
             AssertChrome(window, card);
+            if (collapseDetails)
+            {
+                var toggle = Assert.Single(card.GetVisualDescendants().OfType<ToggleButton>(),
+                    button => button.Name == "ReviewDetailsToggle");
+                Assert.False(toggle.IsChecked);
+                toggle.IsChecked = true;
+                Layout(window);
+            }
             var scroll = Body(card);
             Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
             Assert.InRange(scroll.Extent.Width, 1, scroll.Viewport.Width + 1);
@@ -51,7 +66,7 @@ public sealed class DialogViewportTests
             Layout(window);
             AssertInside(last, Viewport(scroll));
             AssertChrome(window, card);
-            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            dialogs.CancelAll();
             Assert.False(await review);
         }
         finally { AccessibilityTests.Close(services, window, root); }
