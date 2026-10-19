@@ -100,7 +100,21 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                     session.Layer.IsVisualAncestorOf(target) && ReferenceEquals(TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement(), target))
                     target.BringIntoView();
             }, DispatcherPriority.Loaded);
-        });
+        }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+        bool layoutRevealQueued = false;
+        session.Layer.LayoutUpdated += (_, _) =>
+        {
+            if (layoutRevealQueued || !IsCurrent(session)) return;
+            var focused = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement() as TextBox;
+            if (focused is null || !session.Layer.IsVisualAncestorOf(focused)) return;
+            layoutRevealQueued = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                layoutRevealQueued = false;
+                if (IsCurrent(session) && ReferenceEquals(TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement(), focused))
+                    RevealShortEditorInDialog(focused);
+            }, DispatcherPriority.Background);
+        };
         session.Layer.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {
             if (e.Key == Key.Escape && IsCurrent(session))
@@ -161,8 +175,25 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 var caret = presenter.TextLayout.HitTestTextPosition(editor.CaretIndex);
                 if (presenter.TranslatePoint(caret.TopLeft, editor) is not { } position) return;
                 editor.BringIntoView(new Rect(position, new Size(Math.Max(1, caret.Width), Math.Max(1, caret.Height))));
+                RevealShortEditorInDialog(editor);
             }, DispatcherPriority.Loaded);
         }, DispatcherPriority.Loaded);
+    }
+
+    private static void RevealShortEditorInDialog(TextBox editor)
+    {
+        // A native text presenter may consume the caret request inside its own
+        // viewport. Later validation text can also move the editor after focus.
+        var body = editor.GetVisualAncestors().OfType<ScrollViewer>()
+            .FirstOrDefault(view => view.Name == "DialogBodyScroll");
+        if (body is null || editor.Bounds.Height > body.Viewport.Height) return;
+        var viewport = body.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
+        if (viewport is null || editor.TranslatePoint(default, viewport) is not { } field) return;
+        double delta = field.Y < 0 ? field.Y :
+            Math.Max(0, field.Y + editor.Bounds.Height - viewport.Bounds.Height);
+        if (Math.Abs(delta) > 0.5)
+            body.Offset = new Vector(body.Offset.X, Math.Clamp(body.Offset.Y + delta,
+                0, Math.Max(0, body.Extent.Height - body.Viewport.Height)));
     }
 
     private bool IsCurrent(Session? session) => session is not null && _sessions.Count > 0 && ReferenceEquals(_sessions[^1], session);

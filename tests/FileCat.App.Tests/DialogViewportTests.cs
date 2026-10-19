@@ -79,7 +79,18 @@ public sealed class DialogViewportTests
                 _ => card.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Edit names in editor…"),
             };
             Assert.True(last.Focus(NavigationMethod.Tab));
-            Layout(window);
+            // Caret and outer-dialog reveal each post at Loaded priority; wait for
+            // both layout passes before checking the final viewport geometry.
+            for (int attempt = 0; attempt < 300; attempt++)
+            {
+                Layout(window);
+                var viewport = Viewport(scroll);
+                if (last.TranslatePoint(default, viewport) is { } p &&
+                    p.X >= -0.6 && p.Y >= -0.6 &&
+                    p.X + last.Bounds.Width <= viewport.Bounds.Width + 0.6 &&
+                    p.Y + last.Bounds.Height <= viewport.Bounds.Height + 0.6) break;
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
             Assert.True(scroll.Offset.Y > 0, "Keyboard focus must reveal the lower field.");
             AssertInside(last, Viewport(scroll));
             AssertChrome(window, card);
