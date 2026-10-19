@@ -32,8 +32,10 @@ As of 19 October 2026, code and regression coverage for all 76 audit findings
 and nine queued bugs are present. The [last fully green source CI run](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
 passes producer checks and all four platform lanes. A later Linux run exposed
 that WebKitGTK reports a directional count, rather than the original total,
-on Next/Previous; commit `ddbc444b` caches the initial count and is undergoing
-CI validation. Continue with the native desktop, provider, scaling, clipboard
+on Next/Previous; commit `ddbc444b` caches the initial count, and its Linux
+lane passed. The latest viewer-geometry commit `8578a7d3` passed the complete
+local App suite (2,348 passed, 63 skipped) and is undergoing four-platform CI.
+Continue with the native desktop, provider, scaling, clipboard
 and assistive-technology acceptance named
 for each finding in the implementation status. Page-mode Find now exposes the
 WebKitGTK count when complete and labels its 1,024-match limit; Windows and
@@ -47,7 +49,12 @@ remains open. A maximize/restore/reopen check exposed a transient-size persisten
 bug. A second live run showed the large size can arrive before the window-state
 notification. Debounced capture now discards that pending size; the revised
 Windows build preserved a 1,592 × 1,414 viewer through maximize, restore,
-close and reopen, with its saved dimensions unchanged after exit.
+close and reopen, with its saved dimensions unchanged after exit. Native Windows
+pointer checks expanded and shrank Registry Find, Advanced criteria and
+Ignored folders. The latter two kept their inputs reachable by scrolling at
+minimum size. A temporary NTFS stream was removed through FileCat's Delete
+command and confirmed absent on disk; its parent's Streams cell was blank as
+soon as the user returned to the folder, without a restart.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The
@@ -161,13 +168,13 @@ passes with 2,296 passes, 63 skips and no failures.
 | 10 | UXBUG-004 — Markdown prose width on resize | Prose and tables now share available Page width. Forty-eight Markdown tests pass; a rendered Chrome check measured both at 505 px narrow and 1,441 px wide. Native WebView2 desktop acceptance remains open. |
 | 11 | FCUX-043 — recovery preparation state | Reviewing, Awaiting approval, Applying and Submitted are visible. Stop before approval preserves the journal; Stop after a cleanup effect retains a report. Six focused cases pass; full App and native delayed-device acceptance remain open. |
 | 12 | FCUX-044 — Find scope | Unsupported SFTP, FTP, archive, and virtual origins show no local root and require deliberate local selection. Presets name their source; result-set scope stays fixed. Twelve focused cases and a related 47-case Find/Registry selection pass; native acceptance remains open. |
-| 13 | UXBUG-005 — viewer window size | Deliberate normal-size changes persist across restart and viewer modes; saved dimensions are validated and display-clamped. Two focused and 27 related App cases pass; native display/DPI acceptance remains open. |
-| 14 | UXBUG-006 — Streams count after deletion | Targeted metadata retirement makes the parent row requery its actual Streams/Attributes count after Delete, including partial failures. The physical-key App regression and 89 related cases pass; native acceptance remains open. |
+| 13 | UXBUG-005 — viewer window size | Deliberate normal-size changes persist across restart and viewer modes; saved dimensions are validated and display-clamped. Three focused cases cover state-transition transients. Native Windows preserved the normal viewer size through maximize, restore, close and reopen; multi-monitor and DPI acceptance remain open. |
+| 14 | UXBUG-006 — Streams count after deletion | Targeted metadata retirement makes the parent row requery its actual Streams/Attributes count after Delete, including partial failures. The physical-key App regression and 89 related cases pass. Native Windows removed a temporary NTFS stream via Delete and showed a blank Streams cell on the parent without restarting; Unix attribute acceptance remains open. |
 | 15 | FCUX-045 — Find completion | Visible completion and qualification, plus search-specific empty states, are implemented; 98 related Release tests pass. Full App and native acceptance remain open. |
-| 16 | UXBUG-007 — resizable search windows | Registry, Advanced criteria, and Ignored folders dialogs have a visible pointer/keyboard resize grip, responsive content, host bounds, and reopen behavior. Seventy-two related tests pass; native pointer and scaling acceptance remains open. |
+| 16 | UXBUG-007 — resizable search windows | Registry, Advanced criteria, and Ignored folders dialogs have a visible pointer/keyboard resize grip, responsive content, host bounds, and reopen behavior. Seventy-two related tests pass. Native Windows pointer checks expanded and shrank all three; Registry controls stayed visible, and Advanced criteria and Ignored folders inputs remained reachable by scrolling at minimum size. Scaling and assistive-technology acceptance remain open. |
 | 17 | FCUX-046 — Find shortcut contexts | Stable contextual command IDs, current menu/hint gestures, overlap preview and focused tests pass; complete App Release run passes. Native keyboard acceptance remains open. |
 | 18 | FCUX-047 — fractional scroll | Shared wheel-fraction policy and one-row paging fixes pass 15 focused App cases across the list and three viewer controls, plus 117 adjacent regressions. The complete App rerun passes; native device acceptance remains open. |
-| 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts. Page shows WebKitGTK's rendered-page total when complete, a labelled lower bound past its limit, and a directional lower bound on Windows/macOS. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity; new GTK signal and Page status tests cover exact and limited totals. Native acceptance and exact Page totals on Windows/macOS remain open. |
+| 19 | UXBUG-008 — visible viewer Find results | Text, Hex and Info expose visible Previous/Next and bounded background match counts. Page shows WebKitGTK's rendered-page total when complete, a labelled lower bound past its limit, and a directional lower bound on Windows/macOS. The 240 related App and 111 Core cases cover zero, many, search boundaries, mode/query changes, cancellation, and keyboard/button parity; native GTK integration passed on Linux CI. Native Windows WebView2 controls/status passed; native macOS and exact Page totals on Windows/macOS remain open. |
 | 20 | UXBUG-009 — Details selects the active operation | Reopening Details selects and reveals active work over a retained finished selection; open-drawer choices remain stable as jobs arrive. The eight-finished-job regression and a new genuinely Running job regression pass; the earlier 44 related App cases pass. Native pointer, keyboard, and screen-reader acceptance remain open. |
 | 21 | FCUX-048 — listing background context menu | Whitespace right-click opens captured-location actions without targeting marked or focused files. Five focused and 63 related App cases pass with one platform skip. Native location-provider, pointer and keyboard acceptance remain open. |
 | 22 | FCUX-049 — live viewer theme changes | Attached text and hex controls re-resolve semantic brushes on theme change and release static subscriptions on detach. Two focused and 116 related App cases pass; native theme and high-contrast acceptance remain open. |
