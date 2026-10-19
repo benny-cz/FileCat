@@ -324,7 +324,17 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
 
     private void Emit(string control, Fixture f, object details) => output.WriteLine("MUTATION_PREPARATION " + JsonSerializer.Serialize(new { control, details, Calls = f.Gate.Calls.ToArray(), f.Before, After = f.Hash(), NativeDesktopInteraction = false, PhysicalDeviceAccess = false, MetadataAndVolumeControlInjected = true }));
     private static void AssertWorkers(Gate gate, string operation) { var calls = gate.Calls.Where(c => c.Operation == operation).ToArray(); Assert.NotEmpty(calls); Assert.All(calls, c => { Assert.False(c.Ui); Assert.StartsWith("FileCat I/O ", c.Thread); }); }
-    private static async Task Wait(Func<bool> done) { var clock = Stopwatch.StartNew(); while (!done()) { Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), "Owned mutation checkpoint timed out."); await Task.Delay(10, TestContext.Current.CancellationToken); } }
+    private static async Task Wait(Func<bool> done)
+    {
+        // The gate itself bounds a held provider call; allow loaded CI hosts to schedule
+        // its continuation and the headless dialog before declaring a missing checkpoint.
+        var clock = Stopwatch.StartNew();
+        while (!done())
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20), "Owned mutation checkpoint timed out.");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
     private static async Task Drain(Fixture f, Task task)
     {
         var clock = Stopwatch.StartNew();

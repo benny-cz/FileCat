@@ -95,8 +95,8 @@ public sealed class ClipboardIntentTests
     [AvaloniaFact]
     public async Task Distinct_case_resources_remain_distinct_in_a_cut_publication()
     {
-        if (OperatingSystem.IsWindows()) Assert.Skip("This fixture requires a case-sensitive file system.");
         using var f = await Fixture.Create();
+        if (File.Exists(Path.Combine(f.A, "A.txt"))) Assert.Skip("This fixture requires a case-sensitive file system.");
         File.WriteAllText(Path.Combine(f.A, "A.txt"), "upper-case");
         await f.Publish(true, "a.txt", "A.txt");
         f.NavigateDestination(f.B);

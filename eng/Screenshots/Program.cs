@@ -21,6 +21,11 @@ if (args.Length < 2)
     Console.Error.WriteLine("Screenshots <out-folder> <left-folder> [<right-folder>] [--themes a,b] [--size WxH] [--wait seconds] [--frames n --every ms]");
     return 2;
 }
+if (args.Contains("--glitch"))
+{
+    Console.Error.WriteLine("--glitch is no longer supported; theme effects no longer shift captured content.");
+    return 2;
+}
 string output = Directory.CreateDirectory(args[0]).FullName;
 // "computer" shows the drives (This PC); "reg:HKEY_CURRENT_USER\Software" a Registry key; "recovery:<image>[|<folder>]" a
 // disk image's deleted items (its first volume);
@@ -60,7 +65,7 @@ string state = Path.Combine(Path.GetTempPath(), "filecat-shots", Guid.NewGuid().
 var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: state));
 services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? MacIconSource.TryCreate() ?? FreedesktopIconSource.TryCreate();
 
-// The dispatcher's own loop runs (so timers fire: animations, glitches), with a render tick every 16 ms.
+// The dispatcher's own loop runs (so animation timers fire), with a render tick every 16 ms.
 void Pump(TimeSpan duration)
 {
     using var stop = new CancellationTokenSource(duration);
@@ -182,12 +187,6 @@ foreach (var theme in themes)
     for (int frame = 0; frame < frames; frame++)
     {
         if (frame > 0) Pump(TimeSpan.FromMilliseconds(every));
-        // --glitch: the psychedelic theme's glitch starts just before each frame.
-        if (args.Contains("--glitch"))
-        {
-            ThemeAnimation.TriggerGlitch();
-            Pump(TimeSpan.FromMilliseconds(120));
-        }
         using var bitmap = window.CaptureRenderedFrame();
         string file = Path.Combine(output, frames == 1 ? $"{theme}.png" : $"{theme}-{frame + 1}.png");
         bitmap?.Save(file, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);

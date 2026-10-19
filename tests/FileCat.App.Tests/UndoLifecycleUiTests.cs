@@ -207,12 +207,13 @@ public sealed class UndoLifecycleUiTests
     [AvaloniaFact]
     public async Task Show_affected_keeps_distinct_case_resources_in_the_inventory()
     {
-        if (OperatingSystem.IsWindows()) Assert.Skip("This fixture requires a case-sensitive filesystem.");
         using var f = await Fixture.Open();
         string source = Directory.CreateDirectory(Path.Combine(f.Root, "case-source")).FullName;
         string destination = Directory.CreateDirectory(Path.Combine(f.Root, "case-destination")).FullName;
         string lower = Path.Combine(source, "item.txt"), upper = Path.Combine(source, "Item.txt");
-        File.WriteAllText(lower, "lower bytes"); File.WriteAllText(upper, "upper bytes");
+        File.WriteAllText(lower, "lower bytes");
+        if (File.Exists(upper)) Assert.Skip("This fixture requires a case-sensitive filesystem.");
+        File.WriteAllText(upper, "upper bytes");
         Assert.Equal(2, Directory.GetFiles(source).Length);
         var original = f.Services.Jobs.Submit(new JobRequest { Kind = JobKind.Move,
             Sources = [ItemRef.ForFileSystemPath(lower, EntryKind.File), ItemRef.ForFileSystemPath(upper, EntryKind.File)], Destination = Location.FileSystem(destination) });
