@@ -845,7 +845,7 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>Tab operations following Total Commander (plan §4.1).</summary>
-    private ContextMenu BuildTabMenu(PanelViewModel panel, TabViewModel tab)
+    internal ContextMenu BuildTabMenu(PanelViewModel panel, TabViewModel tab)
     {
         var ws = panel.Workspace;
         var items = new List<Control>();
@@ -860,7 +860,7 @@ public partial class PanelView : UserControl
             };
             items.Add(mi);
         }
-        Add("Close tab", "tab.close", () => panel.CloseTab(tab), panel.Tabs.Count > 1);
+        Add("Close tab", "tab.close", () => panel.CloseTab(tab), panel.CanCloseTab(tab));
         Add("Close other tabs", "tab.closeOthers", () =>
         {
             foreach (var t in panel.Tabs.Where(t => !ReferenceEquals(t, tab) && !t.IsLocked).ToList()) panel.CloseTab(t);

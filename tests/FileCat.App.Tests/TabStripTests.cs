@@ -1,6 +1,10 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
@@ -12,6 +16,107 @@ namespace FileCat.App.Tests;
 /// <summary>A panel's tabs: the active one stays in sight, and "⋯" lists them all when they do not fit.</summary>
 public sealed class TabStripTests
 {
+    [AvaloniaFact]
+    public void Rejected_last_tab_middle_click_preserves_real_recent_history()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[0];
+            vm.Workspace.Activate(panel);
+            var only = panel.ActiveTab!;
+            var real = panel.OpenTab(FileCat.Core.Resources.Location.FileSystem(Path.Combine(root, "files")));
+            panel.CloseTab(real);
+            Assert.Same(only, panel.ActiveTab);
+            var history = vm.Workspace.RecentlyClosed.ToArray();
+            Assert.Single(history);
+
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(v => ReferenceEquals(v.DataContext, panel));
+            window.CaptureRenderedFrame();
+            var button = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => ReferenceEquals(b.Tag, only));
+            Point center = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            for (int i = 0; i < 20; i++)
+            {
+                window.MouseDown(center, MouseButton.Middle);
+                window.MouseUp(center, MouseButton.Middle);
+            }
+
+            Assert.Single(panel.Tabs);
+            Assert.Same(only, panel.ActiveTab);
+            Assert.Equal(history, vm.Workspace.RecentlyClosed);
+            Assert.False(vm.GetAvailability(CommandIds.CloseTab).Enabled);
+            Assert.False(view.BuildTabMenu(panel, only).Items.OfType<MenuItem>()
+                .Single(item => item.Header as string == "Close tab").IsEnabled);
+            vm.Execute(CommandIds.CloseTab);
+            Assert.Equal(history, vm.Workspace.RecentlyClosed);
+
+            vm.Workspace.ReopenClosed();
+            Assert.Equal(2, panel.Tabs.Count);
+            Assert.Equal(real.Location, panel.ActiveTab!.Location);
+            Assert.Empty(vm.Workspace.RecentlyClosed);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Eligible_close_paths_record_one_real_tab_and_follow_panel_moves()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var source = vm.Workspace.Panels[0];
+            var target = vm.Workspace.Panels[1];
+            vm.Workspace.Activate(source);
+            var moved = source.ActiveTab!;
+            vm.Workspace.MoveTabToPanel(moved, target);
+            Assert.False(source.CanCloseTab(source.ActiveTab!));
+            Assert.True(target.CanCloseTab(moved));
+            Assert.False(source.CanCloseTab(moved));
+            vm.Workspace.Activate(target);
+            Assert.True(vm.GetAvailability(CommandIds.CloseTab).Enabled);
+
+            var original = moved.ToState();
+            vm.Execute(CommandIds.CloseTab);
+            Assert.Single(vm.Workspace.RecentlyClosed);
+            Assert.Equal(original.Location, vm.Workspace.RecentlyClosed[0].Location);
+            vm.Workspace.ReopenClosed();
+            Assert.Equal(original.Location, target.ActiveTab!.Location);
+            Assert.Empty(vm.Workspace.RecentlyClosed);
+
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(v => ReferenceEquals(v.DataContext, target));
+            window.CaptureRenderedFrame();
+            var button = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => ReferenceEquals(b.Tag, target.ActiveTab));
+            Point center = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(center, MouseButton.Right);
+            window.MouseUp(center, MouseButton.Right);
+            var menu = view.BuildTabMenu(target, target.ActiveTab!);
+            var close = menu.Items.OfType<MenuItem>().Single(item => item.Header as string == "Close tab");
+            Assert.True(close.IsEnabled);
+            close.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Single(vm.Workspace.RecentlyClosed);
+            Assert.Equal(original.Location, vm.Workspace.RecentlyClosed[0].Location);
+            vm.Workspace.ReopenClosed();
+            Assert.Empty(vm.Workspace.RecentlyClosed);
+
+            window.CaptureRenderedFrame();
+            button = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => ReferenceEquals(b.Tag, target.ActiveTab));
+            center = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(center, MouseButton.Middle);
+            window.MouseUp(center, MouseButton.Middle);
+            Assert.Single(vm.Workspace.RecentlyClosed);
+            Assert.Equal(original.Location, vm.Workspace.RecentlyClosed[0].Location);
+            vm.Workspace.ReopenClosed();
+            Assert.Equal(original.Location, target.ActiveTab!.Location);
+            Assert.Empty(vm.Workspace.RecentlyClosed);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public void Colliding_titles_use_the_shortest_distinct_parent_provider_or_archive_cue()
     {

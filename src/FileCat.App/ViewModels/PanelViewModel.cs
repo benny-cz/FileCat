@@ -146,17 +146,15 @@ public sealed partial class PanelViewModel : ObservableObject
         ActiveTab = tab;
     }
 
-    /// <summary>Closes a tab; the last tab of a panel is replaced by a fresh one at the same location.</summary>
+    /// <summary>A panel always keeps its last tab, regardless of how a close is requested.</summary>
+    public bool CanCloseTab(TabViewModel tab) => Tabs.Count > 1 && Tabs.Contains(tab);
+
+    /// <summary>Closes an eligible tab and records it for reopening.</summary>
     public void CloseTab(TabViewModel tab)
     {
+        if (!CanCloseTab(tab)) return;
         int idx = Tabs.IndexOf(tab);
-        if (idx < 0) return;
         Workspace.RememberClosed(tab.ToState());
-        if (Tabs.Count == 1)
-        {
-            // Keep the panel usable: a panel always has one tab.
-            return;
-        }
         Tabs.RemoveAt(idx);
         if (ReferenceEquals(ActiveTab, tab)) ActiveTab = Tabs[Math.Min(idx, Tabs.Count - 1)];
         tab.Dispose();

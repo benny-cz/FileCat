@@ -131,7 +131,8 @@ public sealed partial class MainViewModel
             case CommandIds.ClosePanel:
                 return Workspace.Panels.Count > 1 ? CommandAvailability.Yes : CommandAvailability.No("The last panel cannot be closed.");
             case CommandIds.CloseTab:
-                return Workspace.ActivePanel?.Tabs.Count > 1 ? CommandAvailability.Yes : CommandAvailability.No("A panel always keeps one tab.");
+                return Workspace.ActivePanel is { ActiveTab: { } closing } activePanel && activePanel.CanCloseTab(closing)
+                    ? CommandAvailability.Yes : CommandAvailability.No("A panel always keeps one tab.");
         }
         return CommandAvailability.Yes;
 
