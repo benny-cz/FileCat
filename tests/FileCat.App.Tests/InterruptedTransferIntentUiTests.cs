@@ -4,11 +4,13 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
@@ -23,6 +25,10 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedTransferIntentUiTests
 {
+    private static string ReviewText(TextBlock block) => block.Inlines is { Count: > 0 } inlines
+        ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
+        : block.Text ?? string.Empty;
+
     [AvaloniaFact]
     public async Task New_copy_review_shows_consequences_first_and_discloses_complete_mapping_on_keyboard_request()
     {
@@ -44,19 +50,42 @@ public sealed class InterruptedTransferIntentUiTests
         var summary = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewHighlights"));
         var keyPoints = string.Join("\n", summary.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().Select(block => block.Text));
+            .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("Action: Start a new copy", keyPoints);
         var primaryAction = Assert.Single(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
             block => block.Classes.Contains("reviewPrimaryAction"));
-        Assert.StartsWith("Action: Start a new copy", primaryAction.Text);
+        Assert.StartsWith("Action: Start a new copy", ReviewText(primaryAction));
         Assert.True(primaryAction.Bounds.Top < summary.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().First(block => block.Text?.StartsWith("Destination:") == true).Bounds.Top);
+            .OfType<SelectableTextBlock>().First(block => ReviewText(block).StartsWith("Destination:")).Bounds.Top);
+        var destinationLine = Assert.Single(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => ReviewText(block).StartsWith("Destination:"));
+        var destinationRuns = Assert.IsType<InlineCollection>(destinationLine.Inlines).OfType<Run>().ToArray();
+        Assert.Contains(destinationRuns, run => run.Text == "Destination:" &&
+            run.FontWeight == FontWeight.SemiBold);
+        Assert.Contains(destinationRuns, run => run.Text?.Contains(Path.GetDirectoryName(f.Destination)!, StringComparison.Ordinal) == true &&
+            run.FontWeight == FontWeight.SemiBold && run.Foreground is not null);
+        Assert.Contains(destinationRuns, run => run.Text?.Contains(Path.GetFileName(f.Destination)) == true &&
+            run.FontWeight == FontWeight.Bold && run.Foreground is not null);
         Assert.Contains(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
-            block => block.Classes.Contains("reviewDecision") && block.Text?.StartsWith("Existing items:") == true);
+            block => block.Classes.Contains("reviewDecision") && ReviewText(block).StartsWith("Existing items:"));
+        var choices = Assert.Single(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => ReviewText(block).StartsWith("Existing items:"));
+        var choiceRuns = Assert.IsType<InlineCollection>(choices.Inlines).OfType<Run>().ToArray();
+        Assert.Contains(choiceRuns, run => run.Text == "Existing items:" &&
+            run.FontWeight == FontWeight.SemiBold);
+        Assert.Contains(choiceRuns, run => run.Text == "Verification:" &&
+            run.FontWeight == FontWeight.SemiBold);
+        var nameMapping = Assert.Single(summary.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => ReviewText(block).StartsWith("Source → target name:"));
+        var mappingRuns = Assert.IsType<InlineCollection>(nameMapping.Inlines).OfType<Run>().ToArray();
+        Assert.Contains(mappingRuns, run => run.Text == "draft.txt" &&
+            run.FontWeight == FontWeight.Bold);
+        Assert.Equal(2, mappingRuns.Count(run => run.Text == "draft.txt" &&
+            run.FontWeight == FontWeight.Bold));
         var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewWarnings"));
         var warnings = string.Join("\n", effects.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().Select(block => block.Text));
+            .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("Original mapping and options are incomplete", warnings);
         Assert.Contains("Skipped existing files are kept, and their contents are not verified", warnings);
         Assert.DoesNotContain("Original mapping and options are incomplete", keyPoints);
@@ -67,7 +96,7 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Equal("Show full review and source mapping", toggle.Content);
         Assert.True(effects.Bounds.Bottom <= toggle.Bounds.Top);
         var mapping = Assert.Single(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
-            block => block.Text?.StartsWith("Source → destination mapping for every available root:", StringComparison.Ordinal) == true);
+            block => ReviewText(block).StartsWith("Source → destination mapping for every available root:", StringComparison.Ordinal));
         Assert.False(mapping.IsEffectivelyVisible);
         Assert.True(toggle.Focus());
         f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
@@ -79,7 +108,12 @@ public sealed class InterruptedTransferIntentUiTests
             border => border.Classes.Contains("reviewDetailSection"));
         Assert.Contains(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
             block => block.Classes.Contains("reviewDetailHeading") &&
-                     block.Text == "Source → destination mapping for every available root:");
+                     ReviewText(block) == "Source → destination mapping for every available root:");
+        var mappedPaths = Assert.Single(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => ReviewText(block).StartsWith("• ") &&
+                     ReviewText(block).Contains("draft.txt → ", StringComparison.Ordinal));
+        Assert.True(Assert.IsType<InlineCollection>(mappedPaths.Inlines).OfType<Run>()
+            .Count(run => run.Text == "draft.txt" && run.FontWeight == FontWeight.Bold) >= 2);
         Assert.True(f.Window.GetVisualDescendants().OfType<Border>()
             .Count(border => border.Classes.Contains("reviewDetailSection")) >= 3);
         Assert.Contains("draft.txt", f.Text);
@@ -128,7 +162,7 @@ public sealed class InterruptedTransferIntentUiTests
         var highlights = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewHighlights"));
         var keyChoices = string.Join("\n", highlights.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().Select(block => block.Text));
+            .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("Action: ", keyChoices);
         if (flow == "cleanup")
         {
@@ -149,7 +183,7 @@ public sealed class InterruptedTransferIntentUiTests
             var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
                 border => border.Classes.Contains("reviewWarnings"));
             var warnings = string.Join("\n", effects.GetVisualDescendants()
-                .OfType<SelectableTextBlock>().Select(block => block.Text));
+                .OfType<SelectableTextBlock>().Select(ReviewText));
             if (flow == "copy-partial") Assert.Contains("First delete 1 interrupted partial file", warnings);
             if (flow == "move") Assert.Contains("Successfully moved source items are removed", warnings);
             if (policy == 2) Assert.Contains("Existing destination files may be replaced", warnings);
@@ -188,14 +222,14 @@ public sealed class InterruptedTransferIntentUiTests
         var highlighted = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewHighlights"));
         var summary = string.Join("\n", highlighted.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().Select(block => block.Text));
+            .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("Files matching: *.jpg", summary);
         Assert.Contains("Verification: Read back copied content", summary);
         Assert.Contains("Existing items: Skip existing files", summary);
         var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewWarnings"));
         Assert.Contains("First delete 1 interrupted partial file", string.Join("\n",
-            effects.GetVisualDescendants().OfType<SelectableTextBlock>().Select(block => block.Text)));
+            effects.GetVisualDescendants().OfType<SelectableTextBlock>().Select(ReviewText)));
         Assert.Contains("*.jpg", f.Text);
         Assert.Contains("Read back and compare copied content", f.Text);
         Assert.Contains("skipping does not verify", f.Text);
@@ -305,7 +339,7 @@ public sealed class InterruptedTransferIntentUiTests
             border => border.Classes.Contains("reviewHighlights"));
         Assert.Contains("Source → target name: draft.txt → approved.txt",
             string.Join("\n", highlighted.GetVisualDescendants()
-                .OfType<SelectableTextBlock>().Select(block => block.Text)));
+                .OfType<SelectableTextBlock>().Select(ReviewText)));
         Assert.True(JournalRecovery.IsInterrupted(interrupted));
         Assert.Single(f.Services.Jobs.Jobs);
         Assert.Equal("the complete", File.ReadAllText(target));
@@ -386,7 +420,7 @@ public sealed class InterruptedTransferIntentUiTests
             return Assert.Single(JournalRecovery.Scan(Path.GetDirectoryName(job.JournalPath)!));
         }
 
-        public string Text => string.Join("\n", Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        public string Text => string.Join("\n", Window.GetVisualDescendants().OfType<TextBlock>().Select(ReviewText));
         public bool HasDialog => Window.GetVisualDescendants().OfType<Border>().Any(b => b.Classes.Contains("backdrop"));
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public async Task WaitButton(string text)

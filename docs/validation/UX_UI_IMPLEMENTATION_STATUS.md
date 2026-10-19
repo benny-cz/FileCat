@@ -184,7 +184,27 @@ native acceptance of the revised hierarchy are still open. The revised
 Git-built dialog was also deployed to the isolated VM: its native
 `legacy-highlight` check passed the action, one-root mapping, bulleted effects,
 safe initial Cancel focus, full-review disclosure and pending-approval state.
-A VM-only screenshot was inspected to confirm the visual grouping.
+A VM-only screenshot was inspected to confirm the visual grouping. A follow-up
+made field keys and the entire source/destination path distinct, with the final
+filename additionally bold. The path uses the theme's link color, including in
+the generic multiline confirmation body; selectable text and its native UIA
+name appear exactly once. Resizing substantial reviews, confirmations and
+alerts now reflows their content across the available width instead of keeping
+an old 620-DIP cap. The same resize control was added to Undo and finished-
+history review, operation issue details, Registry import review and recent
+notifications. Registry import shows its scope and file on separate emphasized
+lines. The affected focused tests pass: 31 viewport, 14 interrupted-transfer,
+8 dialog-focus, 38 interrupted-rename, 9 Undo UI (one filesystem skip), and 5
+notification cases, all with 16 workers. The rebuilt VM's `legacy-highlight`
+check passed with safe initial Cancel focus and no duplicated lines; its
+`legacy-resize` check measured the destination text expanding from 635 to 855
+pixels wide and reflowing from 56 to 19 pixels tall, then restoring the dialog
+while approval remained pending. Native scaled and spoken review of these
+dialogs, and native inspection of the additional custom review windows, remain
+open.
+The preceding `b0c2023a` cross-volume/review batch passed producer policy and
+all Windows, Ubuntu, macOS and Windows ARM64 CI jobs. The expanded dialog batch
+awaits its own final-head CI run.
 
 The Windows 11 guest also completed FCUX-069 against Explorer rather than a
 simulated clipboard. FileCat Cut published an exact one-file shell drop;

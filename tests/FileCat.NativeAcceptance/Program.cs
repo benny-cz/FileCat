@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -1564,6 +1564,52 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "legacy-resize")
+        {
+            XElement FindGrip(XDocument source) => source.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("Name") == "Resize dialog"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("The recovery review resize grip is unavailable.");
+            XElement FindPath(XDocument source) => source.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "text"
+                && ((string?)element.Attribute("Name"))?.StartsWith("Destination: ", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("The recovery destination path is unavailable.");
+            var beforeSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var before = FindGrip(beforeSource);
+            var original = ReadNativeRect(before);
+            var originalPath = ReadNativeRect(FindPath(beforeSource));
+            if (!original.HasArea)
+                throw new InvalidOperationException("The recovery resize grip has no usable screen bounds.");
+            NativeWindow.DragAt(CenterX(before), CenterY(before),
+                CenterX(before) + 120, CenterY(before) + 80);
+            await Task.Delay(350);
+            var expandedSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var expandedGrip = FindGrip(expandedSource);
+            var expanded = ReadNativeRect(expandedGrip);
+            var expandedPath = ReadNativeRect(FindPath(expandedSource));
+            var expandedChoices = expandedSource.Descendants().Any(element =>
+                (string?)element.Attribute("Name") == "Key choices before approval"
+                && (string?)element.Attribute("IsOffscreen") == "False");
+            NativeWindow.DragAt(CenterX(expandedGrip), CenterY(expandedGrip),
+                CenterX(expandedGrip) - 120, CenterY(expandedGrip) - 80);
+            await Task.Delay(350);
+            var restoredSource = ParseSource(await ReadSourceAsync(client, sessionId));
+            var restored = ReadNativeRect(FindGrip(restoredSource));
+            var approvalPending = FindVisible(restoredSource, "button", "Start new copy") is not null
+                && FindVisible(restoredSource, "button", "Cancel") is not null;
+            var passed = expanded.X >= original.X + 30 && expanded.Y >= original.Y + 20
+                && expandedPath.Width >= originalPath.Width + 30
+                && Math.Abs(restored.X - original.X) <= 30
+                && Math.Abs(restored.Y - original.Y) <= 30
+                && expandedChoices && approvalPending;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, original, expanded, restored, originalPath, expandedPath,
+                expandedChoices, approvalPending
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode == "legacy-highlight")
         {
             var source = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -3040,6 +3086,9 @@ internal static partial class NativeWindow
         MouseEvent(LeftDown, 0, 0, 0, 0);
         MouseEvent(LeftUp, 0, 0, 0, 0);
     }
+
+    internal static void DragAt(int startX, int startY, int endX, int endY) =>
+        Drag(startX, startY, endX, endY);
 
     internal static void ScrollAt(int x, int y, int detents)
     {

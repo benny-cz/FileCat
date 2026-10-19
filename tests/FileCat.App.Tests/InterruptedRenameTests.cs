@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -23,6 +24,10 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedRenameTests(ITestOutputHelper output)
 {
+    private static string ReviewText(TextBlock block) => block.Inlines is { Count: > 0 } inlines
+        ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
+        : block.Text ?? string.Empty;
+
     [AvaloniaFact]
     public async Task Hide_for_now_keeps_the_journal_and_temporary_item_for_the_next_startup()
     {
@@ -55,10 +60,10 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         var summary = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
             border => border.Classes.Contains("reviewHighlights"));
         var keyPoints = string.Join("\n", summary.GetVisualDescendants()
-            .OfType<SelectableTextBlock>().Select(block => block.Text));
+            .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("File changes: none", keyPoints);
         Assert.Contains("Interrupted rename intents to inspect: 1", keyPoints);
-        Assert.Contains("interrupted rename intent", string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)));
+        Assert.Contains("interrupted rename intent", string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(ReviewText)));
         Assert.False(await f.Vm.MarkInterruptedReviewedAsync(f.Interrupted)); // the first review owns this journal
         f.Click("Cancel");
         await Wait(() => !f.HasDialog);
@@ -257,7 +262,16 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
     private void Emit(Fixture f, string control, object detail) => output.WriteLine("INTERRUPTED_RENAME " + JsonSerializer.Serialize(new { control, detail, Calls = f.Files.Calls.ToArray(), OwnedFileSystem = true, NativeDesktop = false, PhysicalSource = false, SyntheticIdentityAndResolvedPath = true, AtomicRenameIdentityQualified = false }));
     private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
     private static string? Bytes(string path) => File.Exists(path) ? File.ReadAllText(path) : Directory.Exists(path) ? string.Join(";", Directory.GetFiles(path).Order().Select(p => Path.GetFileName(p) + "=" + File.ReadAllText(p))) : null;
-    private static async Task Wait(Func<bool> done) { var clock = Stopwatch.StartNew(); while (!done()) { Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), "Owned rename checkpoint timed out."); await Task.Delay(10, TestContext.Current.CancellationToken); } }
+    private static async Task Wait(Func<bool> done)
+    {
+        // ARM64 CI can take longer to persist and retire the reviewed journal.
+        var clock = Stopwatch.StartNew();
+        while (!done())
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), "Owned rename checkpoint timed out.");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
 
     private static async Task AssertNamedWhenSettled(Window window)
     {

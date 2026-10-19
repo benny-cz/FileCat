@@ -13,7 +13,7 @@ internal static class OperationIssueDialog
 {
     internal static Task ShowAsync(MainViewModel main, Job job, JobIssue issue)
     {
-        var body = new StackPanel { Spacing = 8, MaxWidth = 780 };
+        var body = new StackPanel { Spacing = 8 };
         body.Children.Add(new TextBlock
         {
             Text = $"{issue.Severity} · {issue.Outcome}", FontWeight = Avalonia.Media.FontWeight.SemiBold,
@@ -44,17 +44,18 @@ internal static class OperationIssueDialog
         if (issue.Cause is { } cause) AddFact("Error class", cause);
 
         return main.Dialogs.ShowCustomAsync("Operation issue details", body,
-            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], resizable: true);
 
         void AddFact(string label, string value)
         {
-            body.Children.Add(new TextBlock { Text = label + ": " + Formatters.SafeName(value), TextWrapping = TextWrapping.Wrap });
+            body.Children.Add(OverlayDialogService.ReviewLine(label + ": " + Formatters.SafeName(value)));
         }
 
         void AddCopyField(string label, string raw, bool? local, bool isPath = true)
         {
             var row = new WrapPanel { ItemSpacing = 8, LineSpacing = 4 };
-            row.Children.Add(new TextBlock { Text = label + " (hidden characters escaped):", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+            row.Children.Add(new TextBlock { Text = label + " (hidden characters escaped):",
+                FontWeight = FontWeight.SemiBold, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
             var copy = new Button { Content = isPath ? "Copy exact " + label.ToLowerInvariant() : "Copy exact reason" };
             copy.Click += async (_, _) =>
             {

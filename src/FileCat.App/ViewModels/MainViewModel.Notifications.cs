@@ -26,12 +26,12 @@ public sealed partial class MainViewModel
             AcceptsReturn = true,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             MinWidth = 240,
-            MaxWidth = 620,
             MinHeight = 200,
             MaxHeight = 400,
         };
         AutomationProperties.SetName(text, "Recent notifications, newest first; Ctrl+A selects all and Ctrl+C copies");
         await Dialogs.ShowCustomAsync("Recent notifications", text,
-            [new DialogButton("Close", true, IsDefault: true, IsCancel: true)], text);
+            [new DialogButton("Close", true, IsDefault: true, IsCancel: true)], text,
+            resizable: true);
     }
 }

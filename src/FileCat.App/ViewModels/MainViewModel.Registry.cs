@@ -110,12 +110,15 @@ public sealed partial class MainViewModel
         };
         var body = new StackPanel { Spacing = 8, Children =
         {
-            new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = $"Scope: {Services.Providers.Display(scope)}\nFile: {path}\nAdd {plan.AddedKeys:N0} keys and {plan.AddedValues:N0} values; overwrite {plan.OverwrittenValues:N0} values; delete {plan.DeletedValues:N0} values and {plan.DeletedTrees:N0} subtrees. {plan.DataBytes:N0} incoming bytes.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
-            new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = "The file's paths must stay inside this scope. The selected Registry view applies to every change. Import is not atomic: completed steps remain if a later step fails. Existing values and subtrees are checked again before mutation.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
+            OverlayDialogService.ReviewLine($"Scope: {Services.Providers.Display(scope)}"),
+            OverlayDialogService.ReviewLine($"File: {path}"),
+            new TextBlock { Text = $"Add {plan.AddedKeys:N0} keys and {plan.AddedValues:N0} values; overwrite {plan.OverwrittenValues:N0} values; delete {plan.DeletedValues:N0} values and {plan.DeletedTrees:N0} subtrees. {plan.DataBytes:N0} incoming bytes.", TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.SemiBold },
+            new TextBlock { Text = "The file's paths must stay inside this scope. The selected Registry view applies to every change. Import is not atomic: completed steps remain if a later step fails. Existing values and subtrees are checked again before mutation.", TextWrapping = TextWrapping.Wrap },
             detail,
         } };
         var result = await Dialogs.ShowCustomAsync("Review Registry import", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Import changes", "import", IsDefault: true)]);
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Import changes", "import", IsDefault: true)],
+            resizable: true);
         if (result as string != "import") return;
         var job = Services.Jobs.Submit(new JobRequest
         {

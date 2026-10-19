@@ -96,6 +96,11 @@ On a build with highlighted recovery confirmations, run
 the visible choices, one-root name mapping, separate Important effects callout,
 and approval button in reading order. It opens the full-review disclosure and
 checks that the complete mapping becomes available without starting the copy.
+`legacy-resize <report.json>` drags the final review's resize grip wider and
+taller, then restores it. It checks that the destination path text receives
+the extra width, the key choices remain available, and approval is still
+pending. Run it after `legacy-highlight`, because that check also verifies the
+initial Cancel focus before interacting with the review.
 `legacy-stop <report.json>` gracefully closes only the isolated VM build after
 the review; it verifies that build's executable path before closing it.
 The fixture uses a real journal with its transfer-intent fields removed and

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -96,6 +97,8 @@ public sealed class NotificationCenterTests
             window.CaptureRenderedFrame();
             var report = window.GetVisualDescendants().OfType<TextBox>()
                 .Single(b => AutomationProperties.GetName(b)?.StartsWith("Recent notifications", StringComparison.Ordinal) == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<Thumb>(),
+                grip => grip.Name == "DialogResizeGrip" && AutomationProperties.GetName(grip) == "Resize dialog");
             Assert.True(report.IsReadOnly);
             Assert.Contains("C:\\Data\\file.txt", report.Text);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);

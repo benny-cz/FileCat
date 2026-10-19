@@ -1,10 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -362,6 +364,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         ok.Click += (_, _) => Finish(true);
         cancel.Click += (_, _) => Finish(false);
         var card = Card(title, text, ButtonRow(cancel, ok), 680);
+        if (highlights is { Count: > 0 } || message.Length > 600)
+            card.EnableResizing(host);
         card.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter && e.Source is not Button && IsCurrent(session))
@@ -388,8 +392,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     private static Control MessageBody(string message)
     {
         var lines = OneLineBreak(message).Split('\n');
-        if (lines.Length == 1) return new SelectableTextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
-        var body = new StackPanel { MaxWidth = 620 };
+        if (lines.Length == 1) return ReviewLine(message);
+        var body = new StackPanel();
         bool paragraph = false;
         foreach (var line in lines)
         {
@@ -398,12 +402,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 paragraph = body.Children.Count > 0;
                 continue;
             }
-            body.Children.Add(new SelectableTextBlock
-            {
-                Text = line,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, paragraph ? 10 : 0, 0, 0),
-            });
+            var block = ReviewLine(line);
+            block.Margin = new Thickness(0, paragraph ? 10 : 0, 0, 0);
+            body.Children.Add(block);
             paragraph = false;
         }
         return body;
@@ -422,7 +423,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         // consequences a visual hierarchy instead of another paragraph of text.
         for (int index = 0; index < highlights.Count; index++)
         {
-            var line = new SelectableTextBlock { Text = highlights[index], TextWrapping = TextWrapping.Wrap };
+            var line = ReviewLine(highlights[index]);
             if (index == 0)
             {
                 line.Classes.Add("reviewPrimaryAction");
@@ -435,14 +436,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 summary.Children.Add(line);
             }
         }
-        var body = new StackPanel { MaxWidth = 620, Spacing = 12 };
+        var body = new StackPanel { Spacing = 12 };
         body.Children.Add(new Border { Classes = { "reviewHighlights" }, Child = summary });
         if (warnings is { Count: > 0 })
         {
             var effects = new StackPanel { Spacing = 4 };
             effects.Children.Add(new TextBlock { Text = "Important effects", FontWeight = FontWeight.SemiBold });
             foreach (var warning in warnings)
-                effects.Children.Add(new SelectableTextBlock { Text = "• " + warning, TextWrapping = TextWrapping.Wrap });
+                effects.Children.Add(ReviewLine("• " + warning));
             body.Children.Add(new Border { Classes = { "reviewWarnings" }, Child = effects });
         }
         var detail = ReviewDetailBody(message);
@@ -474,7 +475,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     private static Control ReviewDetailBody(string message)
     {
-        var body = new StackPanel { MaxWidth = 620, Spacing = 8 };
+        var body = new StackPanel { Spacing = 8 };
         // The original review is still present verbatim and in order. Paragraph
         // boundaries become visible groups; their heading remains selectable.
         foreach (var paragraph in OneLineBreak(message).Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
@@ -484,7 +485,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             for (int index = 0; index < lines.Length; index++)
             {
                 if (lines[index].Length == 0) continue;
-                var line = new SelectableTextBlock { Text = lines[index], TextWrapping = TextWrapping.Wrap };
+                var line = ReviewLine(lines[index]);
                 if (index == 0 && lines[index].EndsWith(':') && lines[index].Length < 180)
                     line.Classes.Add("reviewDetailHeading");
                 section.Children.Add(line);
@@ -493,6 +494,85 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 body.Children.Add(new Border { Classes = { "reviewDetailSection" }, Child = section });
         }
         return body;
+    }
+
+    internal static SelectableTextBlock ReviewLine(string text)
+    {
+        var block = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
+        // Inlines retain one selectable line and its original accessibility
+        // wording. Only display spans are styled; the review text is untouched.
+        var weight = new byte[text.Length];
+        int keyStart = 0;
+        while (keyStart < text.Length)
+        {
+            int colon = text.IndexOf(':', keyStart);
+            if (colon < 0) break;
+            int segmentStart = text.LastIndexOf(" · ", colon, colon - keyStart + 1,
+                StringComparison.Ordinal);
+            int labelStart = segmentStart < 0 ? keyStart : segmentStart + 3;
+            var label = text.AsSpan(labelStart, colon - labelStart);
+            if (label.Length is >= 2 and <= 48 && char.IsLetter(label[0]) &&
+                label.IndexOfAny('\\', '/', '.') < 0 &&
+                !(char.IsDigit(label[^1]) && label.Contains(' ')))
+                for (int index = labelStart; index <= colon; index++) weight[index] = 1;
+            keyStart = colon + 1;
+            int nextPair = text.IndexOf(" · ", keyStart, StringComparison.Ordinal);
+            if (nextPair < 0) break;
+            keyStart = nextPair + 3;
+        }
+
+        int valueStart = text.StartsWith("Source → target name:", StringComparison.Ordinal)
+            ? text.IndexOf(':') + 1 : text.StartsWith("• ", StringComparison.Ordinal) ? 2 : -1;
+        foreach (var pathLabel in new[] { "Destination:", "Source:", "Source path:", "Target path:",
+                     "Issue path:", "File:", "Path:", "Target:", "Scope:" })
+            if (text.StartsWith(pathLabel, StringComparison.Ordinal))
+            {
+                EmphasizePath(pathLabel.Length, text.Length);
+                break;
+            }
+        if (valueStart >= 0)
+        {
+            int arrow = text.IndexOf(" → ", valueStart, StringComparison.Ordinal);
+            if (arrow >= 0)
+            {
+                EmphasizePath(valueStart, arrow);
+                EmphasizePath(arrow + 3, text.Length);
+            }
+        }
+        if (weight.All(value => value == 0))
+        {
+            block.Text = text;
+            return block;
+        }
+        block.Inlines = new InlineCollection();
+        for (int start = 0; start < text.Length;)
+        {
+            int end = start + 1;
+            while (end < text.Length && weight[end] == weight[start]) end++;
+            var run = new Run(text[start..end])
+            {
+                FontWeight = weight[start] == 2 ? FontWeight.Bold :
+                    weight[start] == 1 ? FontWeight.SemiBold : FontWeight.Normal
+            };
+            if (weight[start] is 2 or 3)
+            {
+                run.FontWeight = weight[start] == 2 ? FontWeight.Bold : FontWeight.SemiBold;
+                run[!Run.ForegroundProperty] = new DynamicResourceExtension("FcTextLink");
+            }
+            block.Inlines.Add(run);
+            start = end;
+        }
+        return block;
+
+        void EmphasizePath(int start, int end)
+        {
+            while (start < end && char.IsWhiteSpace(text[start])) start++;
+            while (end > start && char.IsWhiteSpace(text[end - 1])) end--;
+            if (start == end) return;
+            int slash = text.LastIndexOfAny(['\\', '/'], end - 1, end - start);
+            for (int index = start; index < end; index++)
+                weight[index] = (byte)(slash < start || index > slash ? 2 : 3);
+        }
     }
 
     public Task AlertAsync(string title, string message)
@@ -508,7 +588,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             tcs.TrySetResult();
         }
         ok.Click += (_, _) => Finish();
-        session = Show(Card(title, MessageBody(message), ButtonRow(ok), 680), ok, top: false, Finish);
+        var card = Card(title, MessageBody(message), ButtonRow(ok), 680);
+        if (message.Length > 600) card.EnableResizing(host);
+        session = Show(card, ok, top: false, Finish);
         return tcs.Task;
     }
 

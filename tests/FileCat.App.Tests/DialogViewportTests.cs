@@ -2,6 +2,7 @@ using System.Reflection;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
@@ -25,6 +26,128 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogViewportTests
 {
+    [AvaloniaFact]
+    public async Task Operation_issue_details_keeps_field_keys_and_paths_accessible_while_resizing()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 720);
+        try
+        {
+            ProductStyles(window);
+            var job = new Job(new JobRequest { Kind = JobKind.Copy }, "Copy", "local", [], []);
+            var issue = new JobIssue(IssueSeverity.Warning, @"C:\review\source.txt", "The target changed",
+                StepOutcome.Skipped)
+            {
+                SourcePath = @"C:\review\source.txt", TargetPath = @"C:\review\target.txt",
+                SourceIsLocal = true, TargetIsLocal = true, RequestedAction = "Copy source to target"
+            };
+            var pending = OperationIssueDialog.ShowAsync(vm, job, issue);
+            Layout(window);
+            var card = Card(window);
+            var grip = Assert.Single(card.GetVisualDescendants().OfType<Thumb>(),
+                thumb => thumb.Name == "DialogResizeGrip");
+            Assert.Contains(card.GetVisualDescendants().OfType<SelectableTextBlock>(),
+                block => block.Inlines?.OfType<Run>().Any(run => run.Text == "Requested action:" &&
+                    run.FontWeight == FontWeight.SemiBold) == true);
+            Assert.Contains(card.GetVisualDescendants().OfType<TextBox>(),
+                box => AutomationProperties.GetName(box) == "Source path with hidden characters escaped" &&
+                    box.Text == @"C:\review\source.txt");
+            double oldWidth = Body(card).Viewport.Width;
+            grip.RaiseEvent(new VectorEventArgs { RoutedEvent = Thumb.DragDeltaEvent,
+                Vector = new Vector(100, 0) });
+            Layout(window);
+            Assert.InRange(Body(card).Viewport.Width - oldWidth, 80, 110);
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            await pending;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Ordinary_long_confirmation_highlights_the_complete_path_and_reflows_when_resized()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 720);
+        try
+        {
+            ProductStyles(window);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            string path = @"C:\review\selected\file.txt";
+            string message = "Destination: " + path + "\nSHA-256 fingerprint: ABCD\n\n" + new string('x', 700);
+            var pending = dialogs.ConfirmAsync("Review destination", message, "Proceed", danger: true);
+            Layout(window);
+            var card = Card(window);
+            var grip = Assert.Single(card.GetVisualDescendants().OfType<Thumb>(),
+                thumb => thumb.Name == "DialogResizeGrip");
+            var line = Assert.Single(card.GetVisualDescendants().OfType<SelectableTextBlock>(),
+                block => string.Concat(block.Inlines?.OfType<Run>().Select(run => run.Text) ?? [block.Text]) ==
+                         "Destination: " + path);
+            var runs = Assert.IsType<InlineCollection>(line.Inlines).OfType<Run>().ToArray();
+            Assert.Contains(runs, run => run.Text?.Contains(@"C:\review\selected\", StringComparison.Ordinal) == true &&
+                run.FontWeight == FontWeight.SemiBold && run.Foreground is not null);
+            Assert.Contains(runs, run => run.Text == "file.txt" &&
+                run.FontWeight == FontWeight.Bold && run.Foreground is not null);
+            Assert.Contains(card.GetVisualDescendants().OfType<SelectableTextBlock>(), block =>
+                block.Inlines?.OfType<Run>().Any(run => run.Text == "SHA-256 fingerprint:" &&
+                    run.FontWeight == FontWeight.SemiBold) == true);
+            double oldWidth = line.Bounds.Width;
+            grip.RaiseEvent(new VectorEventArgs { RoutedEvent = Thumb.DragDeltaEvent,
+                Vector = new Vector(100, 0) });
+            Layout(window);
+            Assert.InRange(line.Bounds.Width - oldWidth, 80, 110);
+            dialogs.CancelAll();
+            Assert.False(await pending);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Long_review_and_alert_can_resize_by_pointer_and_keyboard(bool alert)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 720);
+        try
+        {
+            ProductStyles(window);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            string message = string.Join("\n\n", Enumerable.Range(1, 16)
+                .Select(index => $"Review detail {index}: source and destination remain visible."));
+            Task pending = alert
+                ? dialogs.AlertAsync("Review result", message)
+                : dialogs.ConfirmReviewAsync("Review transfer", message,
+                    ["Action: Copy the reviewed files", "Destination: reviewed folder"], "Copy", danger: true);
+            Layout(window);
+            var card = Card(window);
+            var grip = Assert.Single(card.GetVisualDescendants().OfType<Thumb>(),
+                thumb => thumb.Name == "DialogResizeGrip");
+            Assert.Equal("Resize dialog", AutomationProperties.GetName(grip));
+            Control content = alert
+                ? Body(card).GetVisualDescendants().OfType<StackPanel>().First()
+                : Assert.Single(card.GetVisualDescendants().OfType<Border>(),
+                    border => border.Classes.Contains("reviewHighlights"));
+            double width = card.Bounds.Width, height = card.Bounds.Height;
+            double contentWidth = content.Bounds.Width;
+            grip.RaiseEvent(new VectorEventArgs { RoutedEvent = Thumb.DragDeltaEvent,
+                Vector = new Vector(32, 24) });
+            Layout(window);
+            Assert.InRange(card.Bounds.Width - width, 31, 33);
+            Assert.InRange(card.Bounds.Height - height, 23, 25);
+            Assert.InRange(content.Bounds.Width - contentWidth, 20, 40);
+            Assert.True(grip.Focus());
+            window.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, null);
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            Layout(window);
+            Assert.InRange(card.Bounds.Width - width, 15, 17);
+            Assert.InRange(card.Bounds.Height - height, 7, 9);
+            window.Width = 520;
+            window.Height = 380;
+            Layout(window);
+            AssertChrome(window, card);
+            dialogs.CancelAll();
+            await pending;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(14, false)]
     [InlineData(21, false)]
@@ -61,7 +184,7 @@ public sealed class DialogViewportTests
             Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
             Assert.InRange(scroll.Extent.Width, 1, scroll.Viewport.Width + 1);
             var last = card.GetVisualDescendants().OfType<SelectableTextBlock>().Last();
-            Assert.StartsWith("Detail 16:", last.Text);
+            Assert.StartsWith("Detail 16:", AutomationProperties.GetName(last) ?? last.Text);
             scroll.Offset = new Vector(0, scroll.Extent.Height - scroll.Viewport.Height);
             Layout(window);
             AssertInside(last, Viewport(scroll));

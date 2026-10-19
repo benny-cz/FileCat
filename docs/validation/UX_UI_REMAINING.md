@@ -60,8 +60,9 @@ increments to `main`.
    need their remaining native scaling, keyboard, browser-engine or
    assistive-technology checks; UXBUG-006 needs Unix attribute acceptance;
    UXBUG-009 needs native Details selection; UXBUG-010/011 need scaled and
-   spoken dialog checks, including the revised action, effect and full-review
-   hierarchy on the Windows VM. Treat any new reproduction as an active regression,
+   spoken dialog checks, including keys, full paths, reflow and disclosure in
+   the revised review hierarchy and the other resizable review windows on the
+   Windows VM. Treat any new reproduction as an active regression,
    with a test and a new commit.
 
 ## Evidence required to finish

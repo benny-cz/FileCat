@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -33,6 +34,8 @@ public sealed class UndoLifecycleUiTests
 
         ClickHistory("Clear finished history…");
         await f.WaitButton("Clear finished history");
+        Assert.Contains(f.Window.GetVisualDescendants().OfType<Thumb>(),
+            grip => grip.Name == "DialogResizeGrip" && AutomationProperties.GetName(grip) == "Resize dialog");
         Assert.Contains("1 unused Undo record", f.Text);
         Assert.Contains("also removes their reports and unused Undo steps", f.Text);
         Assert.Contains("does not change files", f.Text);
@@ -83,6 +86,8 @@ public sealed class UndoLifecycleUiTests
         Assert.False(newer.CanUndo);
         var review = f.Vm.ExecuteAsync(CommandIds.Undo);
         await f.WaitButton("Run these inverse actions");
+        Assert.Contains(f.Window.GetVisualDescendants().OfType<Thumb>(),
+            grip => grip.Name == "DialogResizeGrip" && AutomationProperties.GetName(grip) == "Resize dialog");
         Assert.Contains("Review most recent undoable operation", f.Text);
         Assert.Contains("More recent finished operations are not covered by this Undo", f.Text);
         Assert.DoesNotContain("last operation", f.Text, StringComparison.OrdinalIgnoreCase);

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Automation;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -13,6 +14,10 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogFocusOwnershipTests
 {
+    private static string ReviewText(TextBlock block) => block.Inlines is { Count: > 0 } inlines
+        ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
+        : block.Text ?? string.Empty;
+
     [AvaloniaFact]
     public async Task Long_confirmation_puts_explicit_key_points_before_copyable_full_details_and_keeps_safe_default()
     {
@@ -27,10 +32,10 @@ public sealed class DialogFocusOwnershipTests
             var summary = Assert.Single(card.GetVisualDescendants().OfType<Border>(),
                 border => border.Classes.Contains("reviewHighlights"));
             Assert.Contains(summary.GetVisualDescendants().OfType<TextBlock>(), block => block.Text == "Key points");
-            var points = summary.GetVisualDescendants().OfType<SelectableTextBlock>().Select(block => block.Text ?? string.Empty).ToArray();
+            var points = summary.GetVisualDescendants().OfType<SelectableTextBlock>().Select(ReviewText).ToArray();
             Assert.Equal(["Source: sample disk", "Read only scan", "Recover to another disk"], points);
             var full = card.GetVisualDescendants().OfType<SelectableTextBlock>()
-                .Where(block => !summary.IsVisualAncestorOf(block)).Select(block => block.Text ?? string.Empty).ToArray();
+                .Where(block => !summary.IsVisualAncestorOf(block)).Select(ReviewText).ToArray();
             Assert.Equal(["The source can change while mounted.", "Recover files to a different disk."], full);
             Assert.Contains(card.GetVisualDescendants().OfType<TextBlock>(), block => block.Text == "Full details");
             Assert.Equal("Recover deleted files content", AutomationProperties.GetName(

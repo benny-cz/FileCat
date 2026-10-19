@@ -34,7 +34,7 @@ internal sealed class OperationHistoryRetirement
         if (Jobs.Count == 0) return false;
         if (!NeedsConfirmation) return true;
 
-        var body = new StackPanel { Spacing = 9, MaxWidth = 780 };
+        var body = new StackPanel { Spacing = 9 };
         body.Children.Add(new TextBlock
         {
             Text = $"Remove {Jobs.Count:N0} finished operation{(Jobs.Count == 1 ? "" : "s")} from this session's history?",
@@ -67,7 +67,8 @@ internal sealed class OperationHistoryRetirement
         AutomationProperties.SetName(rows, "Finished operations and records to remove");
         body.Children.Add(rows);
         return await main.Dialogs.ShowCustomAsync("Remove operation history", body,
-            [new("Keep history", false, IsDefault: true, IsCancel: true), new(action, true, IsDanger: true)], rows) is true;
+            [new("Keep history", false, IsDefault: true, IsCancel: true), new(action, true, IsDanger: true)], rows,
+            resizable: true) is true;
     }
 
     private static string Describe(Job job)

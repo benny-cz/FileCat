@@ -20,7 +20,7 @@ internal static class UndoReviewDialog
 
     public static async Task<bool> ShowAsync(MainViewModel vm, UndoPlan plan, bool mostRecentUndoable, bool newerOperationsExist)
     {
-        var content = new StackPanel { Spacing = 10, MaxWidth = 800 };
+        var content = new StackPanel { Spacing = 10 };
         content.Children.Add(new TextBlock { Text = Formatters.SafeName(plan.OriginalTitle), FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
         if (newerOperationsExist)
             content.Children.Add(new TextBlock
@@ -61,6 +61,7 @@ internal static class UndoReviewDialog
                 content.Children.Add(new TextBlock { Text = $"The first {plan.Remainder.Count:N0} irreversible effects are listed; {plan.RemainderCount - plan.Remainder.Count:N0} additional effects are counted.", TextWrapping = TextWrapping.Wrap });
         }
         return await vm.Dialogs.ShowCustomAsync(mostRecentUndoable ? "Review most recent undoable operation" : "Review Undo", content,
-            [new("Cancel", false, IsDefault: true, IsCancel: true), new("Run these inverse actions", true, IsDanger: true)], actions) is true;
+            [new("Cancel", false, IsDefault: true, IsCancel: true), new("Run these inverse actions", true, IsDanger: true)], actions,
+            resizable: true) is true;
     }
 }
