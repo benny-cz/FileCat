@@ -2,7 +2,7 @@ using Avalonia.Headless.XUnit;
 
 namespace FileCat.App.Tests;
 
-/// <summary>Reachable native enumeration deadlines, not an attribution of earlier machine-dependent failures.</summary>
+/// <summary>Known-server callback deadlines under controlled network discovery.</summary>
 public sealed class NetworkPlaceDeadlineTests(ITestOutputHelper output)
 {
     [AvaloniaTheory]

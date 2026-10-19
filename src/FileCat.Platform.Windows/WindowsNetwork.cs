@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Network;
@@ -24,6 +26,11 @@ public sealed class NetworkShareProvider : ResourceProvider
 
     /// <summary>Servers already reached (history, mapped drives): listed at once, before discovery answers.</summary>
     public Func<IEnumerable<string>>? KnownServers { get; set; }
+
+    // The app uses live multicast discovery; UI tests supply a controlled probe so a
+    // host network's availability cannot decide whether navigation itself works.
+    internal Func<Action<NetworkHost>, TimeSpan, CancellationToken, Task> Discover { get; set; } =
+        (found, wait, ct) => NetworkDiscovery.DiscoverAsync(found, wait, ct);
 
     public static Location Root { get; } = new(Schemes.Network, string.Empty);
 
@@ -88,7 +95,14 @@ public sealed class NetworkShareProvider : ResourceProvider
         }
         foreach (string server in KnownServers?.Invoke() ?? [])
             if (NetworkDiscovery.IsHostName(server)) Add(new NetworkHost(server, server, null, "known"));
-        await NetworkDiscovery.DiscoverAsync(Add, DiscoveryWait, ct).ConfigureAwait(false);
+        try { await Discover(Add, DiscoveryWait, ct).ConfigureAwait(false); }
+        catch (Exception ex) when (!ct.IsCancellationRequested && ex is (SocketException or NetworkInformationException
+                                   or HttpRequestException or IOException or ObjectDisposedException or UnauthorizedAccessException))
+        {
+            // Discovery is optional. A broken interface or probe must not hide servers
+            // already reached through history or mapped drives.
+            sink.ReportIssue("Network discovery could not finish. Previously reached servers remain available.");
+        }
         if (listed.Count == 0)
             sink.ReportIssue("No computer or file server answered on this network. Type \\\\server in the path to open one by its name: some devices do not announce themselves.");
     }

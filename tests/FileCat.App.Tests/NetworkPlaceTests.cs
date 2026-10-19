@@ -35,6 +35,7 @@ public sealed class NetworkPlaceTests(ITestOutputHelper output)
             var ct = TestContext.Current.CancellationToken;
             Register(services);
             var provider = (FileCat.Platform.Windows.NetworkShareProvider)services.Providers.For(FileCat.Platform.Windows.NetworkShareProvider.Root);
+            provider.Discover = (_, _, _) => Task.CompletedTask;
             var knownServers = provider.KnownServers;
             int rootRequests = 0;
             provider.KnownServers = () =>
@@ -60,7 +61,7 @@ public sealed class NetworkPlaceTests(ITestOutputHelper output)
             Assert.DoesNotContain(Rows(), e => e.Kind == EntryKind.Parent);
             var known = Assert.Single(Rows(), e => e.Name == "localhost");
             Assert.Equal(EntryKind.Server, known.Kind);
-            // Discovery waits a few seconds for answers, then the listing is complete.
+            // This UI test controls discovery; the Core discovery tests exercise actual probes.
             for (int i = 0; i < 400 && tab.Listing.State != ListingState.Complete; i++) await Task.Delay(20, ct);
             Assert.Equal(ListingState.Complete, tab.Listing.State);
 
@@ -129,6 +130,7 @@ public sealed class NetworkPlaceTests(ITestOutputHelper output)
             var ct = TestContext.Current.CancellationToken;
             Register(services);
             var provider = (FileCat.Platform.Windows.NetworkShareProvider)services.Providers.For(FileCat.Platform.Windows.NetworkShareProvider.Root);
+            provider.Discover = (_, _, _) => Task.CompletedTask;
             var known = provider.KnownServers;
             provider.KnownServers = () => [];
             try
