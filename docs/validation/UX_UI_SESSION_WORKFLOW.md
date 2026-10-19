@@ -60,6 +60,13 @@ Ignored folders. The latter two kept their inputs reachable by scrolling at
 minimum size. A temporary NTFS stream was removed through FileCat's Delete
 command and confirmed absent on disk; its parent's Streams cell was blank as
 soon as the user returned to the folder, without a restart.
+The latest build also ran in a Windows 11 VMware guest without taking over the
+host desktop. A guest-local pointer test expanded Find files from 1,056 × 759
+to 1,226 × 879 pixels and restored it exactly; the same test passed with
+Advanced criteria open, and its checked inputs/actions remained visible in the
+native UI Automation tree. The reusable runner lives in
+`tests/FileCat.NativeAcceptance`. The `684a9e7e` CI run passed producer checks
+and all four platform lanes.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The

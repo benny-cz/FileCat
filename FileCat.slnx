@@ -12,6 +12,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />
     <Project Path="tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj" />
+    <Project Path="tests/FileCat.NativeAcceptance/FileCat.NativeAcceptance.csproj" />
     <Project Path="tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj" />
     <Project Path="tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj" />
     <Project Path="tests/FileCat.WorkerProbe/FileCat.WorkerProbe.csproj" />

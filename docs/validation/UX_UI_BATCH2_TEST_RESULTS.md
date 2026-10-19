@@ -434,6 +434,20 @@ tests, and commit and push each verified change as described in the
 
 ## Acceptance that requires a native environment
 
+### Windows 11 VMware pointer check — 19 October 2026
+
+The current Git build was copied as ordinary build files into an isolated
+guest validation folder and launched on the Windows 11 desktop. The
+[`FileCat.NativeAcceptance` runner](../../tests/FileCat.NativeAcceptance/README.md)
+sent a real guest pointer drag to the lower-right **Find files** corner. It
+measured 1,056 × 759 pixels before, 1,226 × 879 expanded, and 1,056 × 759
+restored. The same drag passed with Advanced criteria open. The eight checked
+Advanced inputs and actions were still visible in the guest's native UI
+Automation tree after the resize. The runner's local WinAppDriver endpoint
+and VMware screen capture kept the host workstation available. This covers a
+repeatable native pointer path for UXBUG-007; display-scaling and assistive-
+technology acceptance remain open.
+
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or
 Windows/macOS filesystem and device behavior. The recorded skips remain visible;

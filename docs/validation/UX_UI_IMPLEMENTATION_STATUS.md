@@ -45,6 +45,17 @@ temporary NTFS file's alternate stream was deleted with the Delete key;
 Windows confirmed its removal on disk and FileCat's parent Streams cell was
 blank immediately on returning to the folder, without an app restart.
 
+The current `684a9e7e` build was also deployed directly from the Git checkout
+to a running Windows 11 VMware guest. A guest-local native acceptance runner
+used Win32 pointer input against FileCat's **Find files** resize grip: its
+window grew from 1,056 × 759 to 1,226 × 879 physical pixels and returned
+exactly to 1,056 × 759. The same drag passed while Advanced criteria was open;
+its eight checked inputs/actions remained visible in the guest's native UI
+Automation tree afterward. The VM test did not take focus from the host
+desktop. The [`684a9e7e` CI run](https://github.com/benny-cz/FileCat/actions/runs/39232794548)
+passed producer checks and all four platform lanes. Native scaling and
+assistive-technology checks remain open.
+
 **Earlier implementation record:** FCUX-068 shows queue movement only for queued jobs, disables the
 first queued job with a reason and preserves synchronization step order; 51 related
 App and 28 job-engine Core cases pass, with one Core platform skip. FCUX-067 keeps
