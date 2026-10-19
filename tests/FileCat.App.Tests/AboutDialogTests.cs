@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
@@ -46,10 +47,42 @@ public sealed class AboutDialogTests
             Assert.Contains("Made by Marek Střihavka (marek.strihavka@gmail.com)", copied, StringComparison.Ordinal);
             Assert.Contains("System: " + services.Platform.Name, copied, StringComparison.Ordinal);
             Assert.Contains("Settings: " + services.Paths.SettingsDirectory, copied, StringComparison.Ordinal);
+            Assert.Equal(AboutDialog.DetailsText(AboutDialog.Version(), AboutDialog.Facts(vm)), copied);
+            Assert.True(dialogs.IsOpen);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "Copied details.");
+
+            var panel = vm.Workspace.ActivePanel!;
+            var original = panel.ActiveTab!;
+            var originalLocation = original.Location;
+            foreach (var (label, path) in AboutDialog.SupportFolders(services.Paths.SettingsDirectory, services.Paths.LocalDirectory))
+            {
+                var open = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == label);
+                Assert.Contains(path, AutomationProperties.GetHelpText(open));
+                open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.True(dialogs.IsOpen);
+                Assert.Equal(FileCat.Core.Resources.Location.FileSystem(path), panel.ActiveTab!.Location);
+                Assert.Contains(original, panel.Tabs);
+                Assert.Equal(originalLocation, original.Location);
+                Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == $"Opened {path} in a new tab.");
+            }
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await FileListFixture.Wait(() => !dialogs.IsOpen);
         }
         finally
         {
             AccessibilityTests.Close(services, window, root);
         }
+    }
+
+    [Fact]
+    public void Support_folder_actions_name_their_exact_targets_and_collapse_identical_paths()
+    {
+        string settings = Path.Combine(Path.GetTempPath(), "filecat-settings");
+        string local = Path.Combine(Path.GetTempPath(), "filecat-local");
+        Assert.Equal([("Open settings folder", settings), ("Open local data folder", local)],
+            AboutDialog.SupportFolders(settings, local));
+        Assert.Equal([("Open data folder", settings)],
+            AboutDialog.SupportFolders(settings, settings + Path.DirectorySeparatorChar));
     }
 }

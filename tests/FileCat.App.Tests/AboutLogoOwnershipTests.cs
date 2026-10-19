@@ -63,13 +63,17 @@ public sealed class AboutLogoOwnershipTests(ITestOutputHelper output)
                     Assert.True(width > 0 && height > 0);
                     held.Add((body, image, bitmap));
                 }
-                if (route == "cancel") dialogs.CancelAll();
-                else
+                if (route is "copy" or "data")
                 {
-                    string button = route == "copy" ? "Copy details" : route == "data" ? "Show data folder" : "Close";
-                    window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == button)
+                    string action = route == "copy" ? "Copy details" : "Open local data folder";
+                    window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == action)
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Layout(); Assert.True(dialogs.IsOpen); Assert.False(task.IsCompleted);
+                    if (bitmap is not null) Assert.True(bitmap.PixelSize.Width > 0);
                 }
+                if (route == "cancel") dialogs.CancelAll();
+                else window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close")
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Layout(); Assert.False(dialogs.IsOpen);
                 Assert.Null(TopLevel.GetTopLevel(body));

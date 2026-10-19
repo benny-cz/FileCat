@@ -2,8 +2,10 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
-**Current work:** FCUX-066 now rejects a last-tab close before touching recent
-history; 30 related App cases pass. FCUX-065 preserves valid one-panel workspaces
+**Current work:** FCUX-067 keeps support actions within About, names their exact
+folder targets and opens them in new tabs; 46 related App cases pass. FCUX-066
+rejects a last-tab close before touching recent history; 30 related App cases
+pass. FCUX-065 preserves valid one-panel workspaces
 on reload; 43 related App cases pass. FCUX-064 restores saved normal window size and
 position within an available display, including after a maximized session; 33
 related App cases pass. FCUX-063 connects subordinate Settings controls to their
@@ -231,6 +233,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-064 — safe main-window restoration | Save normal bounds separately from maximized state; restore validated physical position and logical size to the best matching available display. Removed monitors recenter the window, changed DPI and oversized rectangles clamp to usable work area, and malformed dimensions fall back to the first-launch geometry. A short normal-state debounce avoids saving intermediate maximize geometry. | `WindowPlacementTests` covers secondary/removed displays, DPI and invalid/offscreen input, and an actual headless normal → maximized → close → reopen → restore cycle. Three focused and 33 related App cases pass. | Native Windows, Linux and macOS window-manager behavior, multi-monitor movement, DPI changes and manual restore acceptance remain open. |
 | FCUX-065 — one-panel workspace restoration | A valid saved one-panel workspace restores exactly as one panel with its original layout tree and no guessed target. The two-panel default is used only for missing or wholly unusable state. Invalid saved target IDs are cleared; valid targets in larger layouts remain. F5/F6 in one-panel mode ask for a destination. | `WorkspaceRestoreTests` covers actual remove/save/load round trip, default and unusable-state fallback, invalid/valid targets, and an F5 dialog with an empty destination. The 43-case workspace/target/docking/operation-scope selection passes. | Native one-panel docking and keyboard/pointer transfer acceptance remain open. |
 | FCUX-066 — last-tab history guard | The panel model checks close eligibility before recording a closed state; a panel's sole tab remains unchanged. Command and tab-menu availability use the same rule, including after a tab moves between panels. | `TabStripTests` sends repeated real middle-clicks to the only tab after recording a genuine closed tab, checks history and reopening, then exercises command, menu and middle-click closes after a panel move. Eight focused and 30 related tab/workspace/navigation cases pass. | Native pointer and assistive-technology acceptance remain open. |
+| FCUX-067 — About support actions | Copy details and precise settings/local-data folder actions live inside About while Close remains the dismissal action. Copy reports completion inline; opening either displayed folder creates a new tab without replacing the working one. Identical normalized paths produce one Open data folder action. | `AboutDialogTests` verifies exact support text, live status, retained dialog, accessible path help, both folder targets, new-tab preservation and identical-path collapse. `AboutLogoOwnershipTests` verifies repeated non-dismissing actions and final image disposal across themes. 31 focused and 46 related App cases pass. | Native clipboard and keyboard/screen-reader acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

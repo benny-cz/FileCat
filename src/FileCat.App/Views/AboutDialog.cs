@@ -1,8 +1,10 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -44,18 +46,43 @@ internal static class AboutDialog
             made.Children.Add(mail);
             body.Children.Add(made);
             body.Children.Add(FactsGrid(facts));
-            var answer = await vm.Dialogs.ShowCustomAsync("About FileCat", body,
-                [new DialogButton("Copy details", "copy"), new DialogButton("Show data folder", "data"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
-            switch (answer as string)
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var status = new TextBlock { IsVisible = false, Classes = { "muted" } };
+            AutomationProperties.SetName(status, "About support action status");
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            void Report(string message) { status.Text = message; status.IsVisible = true; }
+
+            var copy = new Button { Content = "Copy details" };
+            copy.Click += async (_, _) =>
             {
-                case "copy":
-                    vm.CopyTextToClipboard(DetailsText(version, facts));
-                    vm.Notify("The details are on the clipboard.");
-                    break;
-                case "data":
-                    vm.ActiveTab?.Navigate(FileCat.Core.Resources.Location.FileSystem(vm.Services.Paths.SettingsDirectory));
-                    break;
+                try
+                {
+                    if (vm.View.Clipboard is not { } clipboard) { Report("Clipboard unavailable."); return; }
+                    await clipboard.SetTextAsync(DetailsText(version, facts));
+                    Report("Copied details.");
+                }
+                catch (Exception)
+                {
+                    Report("Could not copy details to the clipboard.");
+                }
+            };
+            actions.Children.Add(copy);
+            foreach (var (label, path) in SupportFolders(vm.Services.Paths.SettingsDirectory, vm.Services.Paths.LocalDirectory))
+            {
+                var open = new Button { Content = label };
+                AutomationProperties.SetHelpText(open, $"Open {path} in a new tab without replacing the current tab.");
+                open.Click += (_, _) =>
+                {
+                    if (vm.Workspace.ActivePanel is not { } panel) { Report("No panel is available to open the folder."); return; }
+                    panel.OpenTab(FileCat.Core.Resources.Location.FileSystem(path));
+                    Report($"Opened {path} in a new tab.");
+                };
+                actions.Children.Add(open);
             }
+            body.Children.Add(actions);
+            body.Children.Add(status);
+            await vm.Dialogs.ShowCustomAsync("About FileCat", body,
+                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
         }
         finally
         {
@@ -99,6 +126,15 @@ internal static class AboutDialog
 
     internal static string DetailsText(string version, IEnumerable<(string Label, string Value)> facts) =>
         $"FileCat {version}\n{Tagline}\nMade by {Author} ({AuthorMail})\n" + string.Join("\n", facts.Select(f => $"{f.Label}: {f.Value}"));
+
+    internal static IReadOnlyList<(string Label, string Path)> SupportFolders(string settings, string local)
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        bool same = string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(settings)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(local)), comparison);
+        return same ? [("Open data folder", settings)] :
+            [("Open settings folder", settings), ("Open local data folder", local)];
+    }
 
     private static Control FactsGrid(List<(string Label, string Value)> facts)
     {
