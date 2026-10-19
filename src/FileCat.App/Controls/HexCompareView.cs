@@ -33,7 +33,7 @@ public sealed class HexCompareView : Control
     private readonly ScrollBar _vbar;
     private readonly WheelRowAccumulator _wheelRows = new();
     private readonly Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
-    private readonly double _fontSize = 12;
+    private double _fontSize = 12;
     private double _charWidth = 7, _rowHeight = 17;
     private PagedReader? _left, _right;
     /// <summary>Aligned stretches in file order, or one stretch over both files for the same offsets.</summary>
@@ -107,6 +107,24 @@ public sealed class HexCompareView : Control
     protected override AutomationPeer OnCreateAutomationPeer() => _automationPeer = new HexCompareViewAutomationPeer(this);
 
     public int BytesPerRow => _bytesPerRow;
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set
+        {
+            double size = ReadabilityPolicy.ContentSize(value);
+            if (_fontSize == size) return;
+            _wheelRows.Reset();
+            _fontSize = size;
+            var sample = new FormattedText("0", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, _typeface, size, Brushes.Black);
+            _charWidth = sample.WidthIncludingTrailingWhitespace;
+            _rowHeight = Math.Ceiling(size * 1.45);
+            Layout(Bounds.Width, keepTop: true, force: true);
+            InvalidateMeasure();
+            InvalidateVisual();
+        }
+    }
 
     /// <summary>The first row shown (tests).</summary>
     public long TopRow => _topRow;

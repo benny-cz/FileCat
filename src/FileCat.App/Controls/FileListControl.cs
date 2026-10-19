@@ -36,6 +36,9 @@ public sealed class FileListControl : Control
     public static readonly StyledProperty<double> FontSizeProperty =
         TextElement.FontSizeProperty.AddOwner<FileListControl>();
 
+    public static readonly StyledProperty<bool> ComfortableRowsProperty =
+        AvaloniaProperty.Register<FileListControl, bool>(nameof(ComfortableRows));
+
     private const double Padding = 6;
     private const double IconSize = 16;
     private const double MarkGutter = 5;
@@ -231,6 +234,12 @@ public sealed class FileListControl : Control
         set => SetValue(FontSizeProperty, value);
     }
 
+    public bool ComfortableRows
+    {
+        get => GetValue(ComfortableRowsProperty);
+        set => SetValue(ComfortableRowsProperty, value);
+    }
+
     private double HorizontalBarHeight => _hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12;
     public int VisibleRowCapacity => Math.Max(1, (int)(((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)) / _rowHeight));
     internal double HorizontalOffset => _horizontalOffset;
@@ -424,7 +433,7 @@ public sealed class FileListControl : Control
             _automationPeer?.QueueUpdate(ListingChange.State);
             InvalidateVisual();
         }
-        else if (change.Property == FontFamilyProperty || change.Property == FontSizeProperty)
+        else if (change.Property == FontFamilyProperty || change.Property == FontSizeProperty || change.Property == ComfortableRowsProperty)
         {
             UpdateTypefaces();
             InvalidateMeasure();
@@ -508,8 +517,8 @@ public sealed class FileListControl : Control
         _typeface = new Typeface(family);
         _boldTypeface = new Typeface(family, FontStyle.Normal, FontWeight.SemiBold);
         double size = FontSize > 0 ? FontSize : 13;
-        _rowHeight = Math.Ceiling(size * 1.62);
-        _headerHeight = Math.Ceiling(size * 1.75);
+        _rowHeight = Math.Ceiling(size * 1.62) + (ComfortableRows ? 6 : 0);
+        _headerHeight = Math.Ceiling(size * 1.75) + (ComfortableRows ? 4 : 0);
         _glyphs = SimpleGlyphs.TryCreate(_typeface, size);
         _boldGlyphs = SimpleGlyphs.TryCreate(_boldTypeface, size);
         _widthScale = Math.Max(1, SampleWidth(_typeface, size) / ReferenceSampleWidth);

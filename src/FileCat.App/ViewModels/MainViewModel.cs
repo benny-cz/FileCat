@@ -161,6 +161,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         ShowKeyBar = Services.Settings.ShowFunctionKeyBar;
         ListFontSize = Services.Settings.FontSize;
+        ComfortableDensity = ReadabilityPolicy.Comfortable(Services.Settings.RowDensity);
         ShowCommandLine = Services.Settings.ShowCommandLine;
         ShowToolbar = Services.Settings.ShowToolbar;
         ShowDriveButtons = Services.Settings.ShowDriveButtons;

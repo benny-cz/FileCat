@@ -6,6 +6,7 @@
     <Setter Property="Background" Value="{DynamicResource FcWindow}" />
     <Setter Property="Foreground" Value="{DynamicResource FcText}" />
     <Setter Property="FontFamily" Value="{DynamicResource FcFontFamily}" />
+    <Setter Property="FontSize" Value="{DynamicResource FcUiFontSize}" />
   </Style>
 
   <Style Selector="Border.panel">
@@ -25,19 +26,19 @@
     <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
   </Style>
   <Style Selector="TextBlock.small">
-    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontSize" Value="{DynamicResource FcSmallFontSize}" />
   </Style>
 
   <!-- Tab strip -->
   <Style Selector="Button.tab">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
-    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="Padding" Value="{DynamicResource FcTabPadding}" />
     <Setter Property="Margin" Value="0,0,1,0" />
     <Setter Property="CornerRadius" Value="4,4,0,0" />
     <Setter Property="BorderThickness" Value="0,0,0,2" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcTabHeight}" />
     <Setter Property="Focusable" Value="False" />
   </Style>
   <Style Selector="Button.tab.current">
@@ -59,7 +60,7 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="6,3" />
-    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcInputHeight}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <!-- The filter box, and while it filters: in the accent color, so a filtered panel is not taken for a whole folder. -->
@@ -117,7 +118,7 @@
 
   <!-- Command search in the menu bar: a field on the menu's glass, outlined in the focus color while typing -->
   <Style Selector="TextBox.commandSearch">
-    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcInputHeight}" />
     <Setter Property="Padding" Value="8,2" />
     <Setter Property="VerticalAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -136,10 +137,10 @@
     <Setter Property="Focusable" Value="False" />
     <Setter Property="Padding" Value="6,0" />
     <Setter Property="Margin" Value="4,2" />
-    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcRoleHeight}" />
     <Setter Property="VerticalAlignment" Value="Center" />
     <Setter Property="CornerRadius" Value="3" />
-    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="FontSize" Value="{DynamicResource FcRoleFontSize}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
@@ -179,7 +180,7 @@
   <!-- Status and key bar -->
   <Style Selector="Border.status">
     <Setter Property="Background" Value="{DynamicResource FcStatusBackground}" />
-    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="Padding" Value="{DynamicResource FcStatusPadding}" />
   </Style>
   <!-- Where a dragged tab goes: a bar in the accent between two tabs. -->
   <Style Selector="Border.tabDropMarker">
@@ -209,7 +210,7 @@
     <Setter Property="HorizontalContentAlignment" Value="Left" />
     <Setter Property="CornerRadius" Value="2" />
     <Setter Property="Focusable" Value="False" />
-    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcFKeyHeight}" />
   </Style>
   <!-- A disabled key keeps the bar's background (not Fluent's translucent one); only its text dims. -->
   <Style Selector="Button.fkey:disabled /template/ ContentPresenter#PART_ContentPresenter">
@@ -328,7 +329,7 @@
     <Setter Property="Focusable" Value="False" />
   </Style>
   <Style Selector="ListBox.choices ListBoxItem">
-    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="Padding" Value="{DynamicResource FcChoicePadding}" />
     <Setter Property="MinHeight" Value="0" />
     <!-- Room for the chosen row's edge, so choosing does not shift the rows. -->
     <Setter Property="BorderThickness" Value="1" />
@@ -384,9 +385,9 @@
 
   <!-- Dialog tabs (Settings): header text at the size of the rest of the dialog, not Fluent's page-title size. -->
   <Style Selector="TabItem">
-    <Setter Property="FontSize" Value="14" />
-    <Setter Property="MinHeight" Value="34" />
-    <Setter Property="Padding" Value="10,2" />
+    <Setter Property="FontSize" Value="{DynamicResource FcDialogTabFontSize}" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcDialogTabHeight}" />
+    <Setter Property="Padding" Value="{DynamicResource FcDialogTabPadding}" />
   </Style>
 
   <Style Selector="Menu">
@@ -406,11 +407,11 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="Padding" Value="4" />
+    <Setter Property="Padding" Value="{DynamicResource FcToolbarPadding}" />
     <Setter Property="Margin" Value="1" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="MinWidth" Value="0" />
-    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcToolbarHeight}" />
   </Style>
   <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
@@ -429,12 +430,12 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="Padding" Value="3,1" />
+    <Setter Property="Padding" Value="{DynamicResource FcDrivePadding}" />
     <Setter Property="Margin" Value="0,0,1,0" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="MinWidth" Value="0" />
-    <Setter Property="MinHeight" Value="0" />
-    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcDriveHeight}" />
+    <Setter Property="FontSize" Value="{DynamicResource FcDriveFontSize}" />
   </Style>
   <Style Selector="Button.drive:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
@@ -493,4 +494,5 @@
     <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
     <Setter Property="FontSize" Value="11.5" />
   </Style>
+
 </Styles>

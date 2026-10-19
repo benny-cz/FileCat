@@ -67,6 +67,9 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _fitPicture = new() { Content = "Fit", IsVisible = false };
     private readonly ToggleButton _actualSize = new() { Content = "100%", IsVisible = false };
     private readonly TextBlock _pictureZoom = new() { IsVisible = false, Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _smallerText = new() { Content = "Text −" };
+    private readonly Button _largerText = new() { Content = "Text +" };
+    private readonly TextBlock _contentSize = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
     private Task? _pictureLoad;
@@ -142,6 +145,8 @@ public sealed class ViewerWindow : Window
         PagedReader? preparedReader, Func<CancellationToken, Task<IContentSource?>>? reopen = null)
     {
         _services = services;
+        ReadabilityPolicy.ApplyDensity(services.Settings.RowDensity);
+        Classes.Set("comfortable", ReadabilityPolicy.Comfortable(services.Settings.RowDensity));
         _deviceKey = deviceKey ?? "viewer-content";
         if (deviceKey is null && source.LocalPath is { } path)
         {
@@ -201,6 +206,7 @@ public sealed class ViewerWindow : Window
         _text.Wrap = services.Settings.ViewerWrap;
         _text.SetReader(_reader, _guess.Encoding, 0);
         _hex.SetReader(_reader);
+        SetContentSize(ReadabilityPolicy.ContentSize(services.Settings.ContentFontSize));
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         toolbar.Children.Add(_modePage);
@@ -230,6 +236,17 @@ public sealed class ViewerWindow : Window
         _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo,
             _encodingInfo, _previousMatch, _nextMatch, _matchCount, _stopCount]);
         foreach (var part in _textOnly.Take(7)) toolbar.Children.Add(part);
+        Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease text and hex size");
+        Avalonia.Automation.AutomationProperties.SetName(_largerText, "Increase text and hex size");
+        Avalonia.Automation.AutomationProperties.SetName(_contentSize, "Text and hex size");
+        ToolTip.SetTip(_smallerText, "Decrease text and hex size (Ctrl+minus)");
+        ToolTip.SetTip(_largerText, "Increase text and hex size (Ctrl+plus)");
+        _smallerText.Click += (_, _) => SetContentSize(_text.FontSize - 1);
+        _largerText.Click += (_, _) => SetContentSize(_text.FontSize + 1);
+        toolbar.Children.Add(_smallerText);
+        toolbar.Children.Add(_contentSize);
+        toolbar.Children.Add(_largerText);
+        _textOnly.AddRange([_smallerText, _contentSize, _largerText]);
         ToolTip.SetTip(_previousMatch, "Find the previous match (Shift+F3)");
         ToolTip.SetTip(_nextMatch, "Find the next match (F3)");
         _previousMatch.Click += async (_, _) => await FindAsync(forward: false);
@@ -838,6 +855,17 @@ public sealed class ViewerWindow : Window
         _pictureZoom.Text = _picture.Fit ? $"Fit · {_picture.Zoom * 100:0}%" : $"Zoom {_picture.Zoom * 100:0}%";
     }
 
+    private void SetContentSize(double requested)
+    {
+        double size = ReadabilityPolicy.ContentSize(requested);
+        _text.FontSize = size;
+        _hex.FontSize = size;
+        _info.FontSize = size;
+        _contentSize.Text = $"{size:0} size";
+        _smallerText.IsEnabled = size > ReadabilityPolicy.MinimumContentSize;
+        _largerText.IsEnabled = size < ReadabilityPolicy.MaximumContentSize;
+    }
+
     private void UpdateStatus()
     {
         UpdateRefreshFeedback();
@@ -1221,15 +1249,11 @@ public sealed class ViewerWindow : Window
                 break;
             case Key.OemPlus when ctrl:
             case Key.Add when ctrl:
-                _text.FontSize += 1;
-                _hex.FontSize += 1;
-                _info.FontSize += 1;
+                SetContentSize(_text.FontSize + 1);
                 break;
             case Key.OemMinus when ctrl:
             case Key.Subtract when ctrl:
-                _text.FontSize -= 1;
-                _hex.FontSize -= 1;
-                _info.FontSize -= 1;
+                SetContentSize(_text.FontSize - 1);
                 break;
             default:
                 return;

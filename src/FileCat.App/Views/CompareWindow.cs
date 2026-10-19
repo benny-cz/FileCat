@@ -48,6 +48,9 @@ public sealed class CompareWindow : Window
     private readonly CompareTextView _textView;
     private readonly Grid _textBody = new() { RowDefinitions = RowDefinitions.Parse("*,1,*") };
     private readonly Button _fullLine = new() { Content = "Full-line details", VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _smallerText = new() { Content = "Text −" };
+    private readonly Button _largerText = new() { Content = "Text +" };
+    private readonly TextBlock _contentSize = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly WrapPanel _textTools = new() { Orientation = Orientation.Horizontal, IsVisible = false, Margin = new Thickness(8, 0, 8, 2) };
     private readonly WrapPanel _findBar = new() { Orientation = Orientation.Horizontal, IsVisible = false, Margin = new Thickness(8, 0, 8, 2) };
     private readonly ComboBox _copySide = new() { ItemsSource = new[] { "Left source", "Right source" }, SelectedIndex = 0, MinWidth = 120 };
@@ -136,9 +139,10 @@ public sealed class CompareWindow : Window
     /// </summary>
     public static CompareWindow Open(string leftName, IContentSource left, string rightName, IContentSource right,
         Func<(IContentSource Left, IContentSource Right)>? reopen = null,
-        Func<Task<(IContentSource Left, IContentSource Right)>>? reopenAsync = null)
+        Func<Task<(IContentSource Left, IContentSource Right)>>? reopenAsync = null,
+        double contentFontSize = ReadabilityPolicy.DefaultContentSize, bool comfortable = false)
     {
-        var window = new CompareWindow(leftName, left, rightName, right, reopen, reopenAsync);
+        var window = new CompareWindow(leftName, left, rightName, right, reopen, reopenAsync, contentFontSize, comfortable);
         s_open.Add(window);
         window.Closed += (_, _) => s_open.Remove(window);
         window.Show();
@@ -146,8 +150,10 @@ public sealed class CompareWindow : Window
     }
 
     internal CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right,
-        Func<(IContentSource, IContentSource)>? reopen, Func<Task<(IContentSource, IContentSource)>>? reopenAsync)
+        Func<(IContentSource, IContentSource)>? reopen, Func<Task<(IContentSource, IContentSource)>>? reopenAsync,
+        double contentFontSize = ReadabilityPolicy.DefaultContentSize, bool comfortable = false)
     {
+        ReadabilityPolicy.ApplyDensity(comfortable ? "Comfortable" : "Compact");
         _left = left;
         _right = right;
         _leftView = new ViewSource(left);
@@ -155,6 +161,8 @@ public sealed class CompareWindow : Window
         _leftName = leftName;
         _rightName = rightName;
         _textView = new CompareTextView(_rows);
+        SetContentSize(contentFontSize);
+        Classes.Set("comfortable", comfortable);
         _lineDetails = new CompareLineDetails(leftName, rightName);
         _reopen = reopen;
         _reopenAsync = reopenAsync;
@@ -209,8 +217,15 @@ public sealed class CompareWindow : Window
         {
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(8, 6, 8, 2),
-            Children = { _first, _previous, _next, _last, _differenceBox, _fullLine, _wrapLines, _again, _binary, _align, _selectBytes, _ignoreWhitespace, _ignoreCase, _collapse },
+            Children = { _first, _previous, _next, _last, _differenceBox, _fullLine, _smallerText, _contentSize, _largerText, _wrapLines, _again, _binary, _align, _selectBytes, _ignoreWhitespace, _ignoreCase, _collapse },
         };
+        Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease comparison content size");
+        Avalonia.Automation.AutomationProperties.SetName(_largerText, "Increase comparison content size");
+        Avalonia.Automation.AutomationProperties.SetName(_contentSize, "Comparison content size");
+        ToolTip.SetTip(_smallerText, "Decrease comparison content size (Ctrl+minus)");
+        ToolTip.SetTip(_largerText, "Increase comparison content size (Ctrl+plus)");
+        _smallerText.Click += (_, _) => SetContentSize(_hex.FontSize - 1);
+        _largerText.Click += (_, _) => SetContentSize(_hex.FontSize + 1);
         foreach (var child in bar.Children.OfType<Control>()) child.Margin = new Thickness(0, 0, child is Button { Content: Image } ? 2 : 10, 4);
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
@@ -417,9 +432,25 @@ public sealed class CompareWindow : Window
         e.Handled = true;
     }
 
+    private void SetContentSize(double requested)
+    {
+        double size = ReadabilityPolicy.ContentSize(requested);
+        _rows.FontSize = size;
+        _hex.FontSize = size;
+        _contentSize.Text = $"{size:0} size";
+        _smallerText.IsEnabled = size > ReadabilityPolicy.MinimumContentSize;
+        _largerText.IsEnabled = size < ReadabilityPolicy.MaximumContentSize;
+    }
+
     private void OnNavigationKey(object? sender, KeyEventArgs e)
     {
         if (_dialogs.IsOpen) return;
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.OemPlus or Key.Add or Key.OemMinus or Key.Subtract)
+        {
+            SetContentSize(_hex.FontSize + (e.Key is Key.OemPlus or Key.Add ? 1 : -1));
+            e.Handled = true;
+            return;
+        }
         if (_shown == Shown.Text && e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
         {
             SetFindOpen(true);

@@ -139,6 +139,7 @@
                            Background="{DynamicResource FcPanel}" ZIndex="1" />
         <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
                              FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
+                             ComfortableRows="{Binding $parent[Window].((vm:MainViewModel)DataContext).ComfortableDensity, FallbackValue=False}"
                              AutomationProperties.Name="File list" />
       </Panel>
     </DockPanel>

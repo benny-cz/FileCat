@@ -155,6 +155,8 @@ public sealed class FindWindow : Window, IViewActions
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         _dialogs = new OverlayDialogService(_overlay, () => _tab is null ? _names : _list);
         _list.FontSize = vm.ListFontSize;
+        _list.ComfortableRows = vm.ComfortableDensity;
+        Classes.Set("comfortable", vm.ComfortableDensity);
         AutomationName(_list, "Found items");
         AutomationName(_names, "Names");
         AutomationName(_lookIn, within is null ? "Look in" : "Search within");
@@ -1244,7 +1246,13 @@ public sealed class FindWindow : Window, IViewActions
         _message.Classes.Set("error", isError);
     }
 
-    public void ReloadChrome() => BuildMenu();
+    public void ReloadChrome()
+    {
+        Classes.Set("comfortable", _vm.ComfortableDensity);
+        _list.FontSize = _vm.ListFontSize;
+        _list.ComfortableRows = _vm.ComfortableDensity;
+        BuildMenu();
+    }
 
     IClipboard? IViewActions.Clipboard => Clipboard;
 

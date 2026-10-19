@@ -264,7 +264,9 @@ public sealed partial class MainViewModel
                 right.Dispose();
                 throw new OperationCanceledException("Comparison admission stopped.");
             }
-            Views.CompareWindow.Open(Display(a), left, Display(b), right, reopenAsync: OpenBothAsync);
+            Views.CompareWindow.Open(Display(a), left, Display(b), right, reopenAsync: OpenBothAsync,
+                contentFontSize: Services.Settings.ContentFontSize,
+                comfortable: ReadabilityPolicy.Comfortable(Services.Settings.RowDensity));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException or NotSupportedException)
         {

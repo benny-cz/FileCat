@@ -84,7 +84,13 @@ related command-search/drive cases pass. FCUX-074 routes the effective Help
 binding in command search, offers a named focusable Keyboard reference action,
 and restores the search query, caret and selected result on dismissal. All 26
 command-search cases pass, including remapped Help and keyboard activation.
-FCUX-059 follows.
+FCUX-059 now adds Compact/Comfortable chrome density, separate saved content
+size, file-list row spacing and visible content-size controls in viewer,
+comparison and hex editor. Six focused cases pass, including 640-DIP primary
+and Settings action reachability. The previous complete App
+run ended with 2,309 passes, 63 skips and the obsolete Drive properties menu
+position assertion; that test was corrected, and a new complete App run is in
+progress. FCUX-060 follows. Native scaling and readability acceptance are open.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings

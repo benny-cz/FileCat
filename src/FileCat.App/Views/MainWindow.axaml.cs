@@ -36,9 +36,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     public MainWindow(MainViewModel vm, WindowPlacement? placement)
     {
+        ReadabilityPolicy.ApplyDensity(vm.Services.Settings.RowDensity);
         InitializeComponent();
         _vm = vm;
         DataContext = vm;
+        Classes.Set("comfortable", ReadabilityPolicy.Comfortable(vm.Services.Settings.RowDensity));
         _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List);
         vm.Dialogs = _dialogs;
         vm.View = this;
@@ -857,6 +859,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     public void ReloadChrome()
     {
+        ReadabilityPolicy.ApplyDensity(_vm.Services.Settings.RowDensity);
+        Classes.Set("comfortable", ReadabilityPolicy.Comfortable(_vm.Services.Settings.RowDensity));
         BuildMenu();
         BuildToolbar(); // tooltips name the shortcuts, which may have changed
         FitCommandSearch(); // its hint names the shortcut

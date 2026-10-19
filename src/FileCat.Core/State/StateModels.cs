@@ -96,6 +96,9 @@ public sealed class AppSettings : IVersionedState
     public bool ShowTabsAlways { get; set; } = true;
     public string FontFamily { get; set; } = string.Empty;
     public double FontSize { get; set; } = 13;
+    /// <summary>Preferred text size in text, hex and comparison content; independent of list font size.</summary>
+    public double ContentFontSize { get; set; } = 13;
+    /// <summary>"Compact" retains the original chrome; "Comfortable" enlarges labels and targets without changing file icons.</summary>
     public string RowDensity { get; set; } = "Compact";
     /// <summary>"Culture" (system short date/time) or an invariant .NET format string.</summary>
     public string DateFormat { get; set; } = "Culture";

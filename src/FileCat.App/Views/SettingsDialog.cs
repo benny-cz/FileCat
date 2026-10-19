@@ -42,6 +42,10 @@ public static class SettingsDialog
         };
         var animations = new CheckBox { Content = "Animate theme effects", IsChecked = s.ThemeAnimations };
         var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        var contentFontSize = new NumericUpDown { Minimum = 9, Maximum = 32, Increment = 1,
+            Value = (decimal)ReadabilityPolicy.ContentSize(s.ContentFontSize), Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        var density = new ComboBox { ItemsSource = new[] { "Compact", "Comfortable" },
+            SelectedIndex = ReadabilityPolicy.Comfortable(s.RowDensity) ? 1 : 0, MinWidth = 220 };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var toolbar = new CheckBox { Content = "Show the toolbar", IsChecked = s.ShowToolbar };
         var classicToolbar = new CheckBox { Content = "Classic full toolbar (all commands)", IsChecked = s.ClassicToolbar };
@@ -55,7 +59,7 @@ public static class SettingsDialog
         var dateFormats = new List<string> { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" };
         if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
         var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
-        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", classicToolbar), ("", toolbarNote), ("", driveButtons), ("", allPlaces), ("", placesNote), ("", cmdLine),
+        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("Interface density", density), ("List font size", fontSize), ("Text, hex and comparison size", contentFontSize), ("", Note("Content size starts new viewers and comparisons at this value; Ctrl+plus/minus and the visible size controls adjust the open view.")), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", classicToolbar), ("", toolbarNote), ("", driveButtons), ("", allPlaces), ("", placesNote), ("", cmdLine),
             ("", Note("View → Theme… previews every theme. System high contrast takes priority. FileCat follows reduced-motion settings on Windows, macOS, and GNOME; on other desktops, turn off Animate theme effects here."))) });
 
         // ---- Behavior
@@ -467,6 +471,8 @@ public static class SettingsDialog
         s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";
         s.ThemeAnimations = animations.IsChecked == true;
         s.FontSize = (double)(fontSize.Value ?? 13);
+        s.ContentFontSize = ReadabilityPolicy.ContentSize((double)(contentFontSize.Value ?? 13));
+        s.RowDensity = density.SelectedIndex == 1 ? "Comfortable" : "Compact";
         s.DateFormat = dateFormat.SelectedItem as string ?? "Culture";
         s.ShowFunctionKeyBar = keyBar.IsChecked == true;
         s.ShowToolbar = toolbar.IsChecked == true;

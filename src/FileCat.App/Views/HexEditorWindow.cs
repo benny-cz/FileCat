@@ -45,6 +45,9 @@ public sealed class HexEditorWindow : Window
     private readonly Button _redo = new() { Content = "Redo" };
     private readonly Button _replace = new() { Content = "Replace bytes…" };
     private readonly Button _goTo = new() { Content = "Go to…" };
+    private readonly Button _smallerText = new() { Content = "Text −" };
+    private readonly Button _largerText = new() { Content = "Text +" };
+    private readonly TextBlock _contentSize = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _stopCopy = new() { Content = "Stop", IsVisible = false, Classes = { "danger" } };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200 };
@@ -70,6 +73,9 @@ public sealed class HexEditorWindow : Window
     private HexEditorWindow(AppServices services, ProtectedHexFile file)
     {
         _services = services;
+        ReadabilityPolicy.ApplyDensity(services.Settings.RowDensity);
+        Classes.Set("comfortable", ReadabilityPolicy.Comfortable(services.Settings.RowDensity));
+        SetContentSize(services.Settings.ContentFontSize);
         _file = file;
         _overlay = new HexPatchOverlay(file);
         _reader = new PagedReader(_overlay);
@@ -89,7 +95,14 @@ public sealed class HexEditorWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 6), ItemSpacing = 6, LineSpacing = 4 };
-        foreach (var c in new Control[] { _save, _saveAs, _stopCopy, _exportPatch, _applyPatch, Separator(), _undo, _redo, _replace, _goTo, Separator(), _search, _hexSearch, _matchCase, _stopSearch })
+        Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease editor content size");
+        Avalonia.Automation.AutomationProperties.SetName(_largerText, "Increase editor content size");
+        Avalonia.Automation.AutomationProperties.SetName(_contentSize, "Editor content size");
+        ToolTip.SetTip(_smallerText, "Decrease hex editor size (Ctrl+minus)");
+        ToolTip.SetTip(_largerText, "Increase hex editor size (Ctrl+plus)");
+        _smallerText.Click += (_, _) => SetContentSize(_hex.FontSize - 1);
+        _largerText.Click += (_, _) => SetContentSize(_hex.FontSize + 1);
+        foreach (var c in new Control[] { _save, _saveAs, _stopCopy, _exportPatch, _applyPatch, Separator(), _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, Separator(), _search, _hexSearch, _matchCase, _stopSearch })
             toolbar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
@@ -317,6 +330,15 @@ public sealed class HexEditorWindow : Window
 
     // ---- Keyboard ----------------------------------------------------------------------------------------------
 
+    private void SetContentSize(double requested)
+    {
+        double size = ReadabilityPolicy.ContentSize(requested);
+        _hex.FontSize = size;
+        _contentSize.Text = $"{size:0} size";
+        _smallerText.IsEnabled = size > ReadabilityPolicy.MinimumContentSize;
+        _largerText.IsEnabled = size < ReadabilityPolicy.MaximumContentSize;
+    }
+
     private async void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (_dialogs.IsOpen) return;
@@ -358,8 +380,8 @@ public sealed class HexEditorWindow : Window
             case Key.F3: e.Handled = true; await FindAsync(!shift); return;
             case Key.C when ctrl: e.Handled = true; await CopyAsync(); return;
             case Key.V when ctrl: e.Handled = true; await PasteAsync(); return;
-            case Key.OemPlus or Key.Add when ctrl: e.Handled = true; _hex.FontSize += 1; return;
-            case Key.OemMinus or Key.Subtract when ctrl: e.Handled = true; _hex.FontSize -= 1; return;
+            case Key.OemPlus or Key.Add when ctrl: e.Handled = true; SetContentSize(_hex.FontSize + 1); return;
+            case Key.OemMinus or Key.Subtract when ctrl: e.Handled = true; SetContentSize(_hex.FontSize - 1); return;
             case Key.F10: e.Handled = true; Close(); return;
         }
         if (focused != _hex || ctrl || alt) return;
