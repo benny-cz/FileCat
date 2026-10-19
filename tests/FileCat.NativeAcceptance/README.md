@@ -137,6 +137,12 @@ requires byte-for-byte restoration at the original path, removal of the moved
 target, and preservation of the unrelated file. It then opens the retained
 Undo report from Operations and requires Copy all to publish the complete
 restored outcome with both paths. Finish with `clipboard-stop`.
+For an empty-folder inverse, use a fresh `seed-clipboard` fixture and launch
+FileCat in the same way. Run `folder-undo-native <report.json>`: it focuses the
+destination listing, creates a folder with F7, requires the complete path in a
+wrapped Undo action, checks that Cancel leaves the folder in place, then
+approves Undo and requires the folder to disappear while both source files
+keep their exact bytes. Finish with `clipboard-stop`.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
