@@ -101,13 +101,9 @@ public sealed partial class MainViewModel
             RegistryAction.SetValue => $"{(c.Expected is null ? "+ value" : "↻ value")} {c.Key.Path}\\{(c.Name.Length == 0 ? "(Default)" : c.Name)} · {RegistryValueCodec.TypeName(c.Desired!.Type)}, {c.Desired.Data.Length:N0} bytes",
             _ => c.Action.ToString(),
         };
-        var detail = new TextBox
-        {
-            Text = string.Join(Environment.NewLine, plan.Changes.Take(200).Select(Describe)) +
-                   (plan.Changes.Count > 200 ? $"{Environment.NewLine}… {plan.Changes.Count - 200:N0} more changes" : ""),
-            IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
-            MinWidth = 620, MinHeight = 220, MaxHeight = 350,
-        };
+        var detail = RegistryImportPreview(
+            string.Join(Environment.NewLine, plan.Changes.Take(200).Select(Describe)) +
+            (plan.Changes.Count > 200 ? $"{Environment.NewLine}… {plan.Changes.Count - 200:N0} more changes" : ""));
         var body = new StackPanel { Spacing = 8, Children =
         {
             OverlayDialogService.ReviewLine($"Scope: {Services.Providers.Display(scope)}"),
@@ -129,6 +125,13 @@ public sealed partial class MainViewModel
         });
         Track(job, tab!);
     }
+
+    internal static TextBox RegistryImportPreview(string text) => new()
+    {
+        Text = text,
+        IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+        MinWidth = 220, MinHeight = 220, MaxHeight = 350,
+    };
 
     private static string? RegistryNameError(string name, bool key) =>
         name.Contains('\0') || name.Length > 16383 || key && (name.Length == 0 || name.Contains('\\'))

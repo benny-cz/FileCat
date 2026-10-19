@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Jobs;
@@ -38,10 +39,11 @@ internal static class UndoReviewDialog
         var actions = new ListBox
         {
             ItemsSource = plan.Steps.Reverse().Select(s => Formatters.SafeName(UndoActions.Describe(s))).ToArray(),
+            ItemTemplate = DialogLayout.WrappingListText,
             MinHeight = 100, MaxHeight = 260, HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         AutomationProperties.SetName(actions, "Recorded Undo actions, with full affected paths");
-        ScrollViewer.SetHorizontalScrollBarVisibility(actions, ScrollBarVisibility.Auto);
+        ScrollViewer.SetHorizontalScrollBarVisibility(actions, ScrollBarVisibility.Disabled);
         content.Children.Add(actions);
         if (plan.RemainderCount > 0)
         {
@@ -53,9 +55,10 @@ internal static class UndoReviewDialog
             var remainder = new ListBox
             {
                 ItemsSource = plan.Remainder.Select(r => Formatters.SafeName(r.Path + ": " + r.Reason)).ToArray(), MaxHeight = 140,
+                ItemTemplate = DialogLayout.WrappingListText,
             };
             AutomationProperties.SetName(remainder, "Effects that Undo cannot reverse");
-            ScrollViewer.SetHorizontalScrollBarVisibility(remainder, ScrollBarVisibility.Auto);
+            ScrollViewer.SetHorizontalScrollBarVisibility(remainder, ScrollBarVisibility.Disabled);
             content.Children.Add(remainder);
             if (plan.RemainderCount > plan.Remainder.Count)
                 content.Children.Add(new TextBlock { Text = $"The first {plan.Remainder.Count:N0} irreversible effects are listed; {plan.RemainderCount - plan.Remainder.Count:N0} additional effects are counted.", TextWrapping = TextWrapping.Wrap });

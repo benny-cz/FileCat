@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -2059,10 +2059,106 @@ try
             if (NativeWindow.ClipboardSequence() == before)
                 throw new InvalidOperationException("Explorer did not publish a new clipboard generation.");
         }
-        else if (mode is "clipboard-paste" or "clipboard-paste-subset")
+        else if (mode == "undo-native")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var sourceFile = Path.Combine(fixture.Source, "a.txt");
+            var targetFile = Path.Combine(fixture.Destination, "a.txt");
+            var otherFile = Path.Combine(fixture.Source, "b.txt");
+            const string expected = "external copy must keep source";
+            if (File.Exists(sourceFile) || !File.Exists(targetFile)
+                || await File.ReadAllTextAsync(targetFile) != expected
+                || await File.ReadAllTextAsync(otherFile) != "subset member must remain")
+                throw new InvalidOperationException("The isolated FileCat move is not ready for native Undo review.");
+
+            XElement Window(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("The isolated FileCat Undo window is unavailable.");
+            async Task<XDocument> OpenReview()
+            {
+                NativeWindow.FocusRecovery("clipboard-source");
+                await SendSessionKeysAsync(client, sessionId, "\uE009z\uE000"); // Ctrl+Z.
+                XDocument current = ParseSource(await ReadSourceAsync(client, sessionId));
+                for (int attempt = 0; attempt < 40 &&
+                     FindVisible(Window(current), "button", "Run these inverse actions") is null; attempt++)
+                {
+                    await Task.Delay(150);
+                    current = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                return current;
+            }
+
+            var first = await OpenReview();
+            var firstWindow = Window(first);
+            var cancel = FindVisible(firstWindow, "button", "Cancel")
+                ?? throw new InvalidOperationException("Undo review has no safe Cancel action.");
+            var approval = FindVisible(firstWindow, "button", "Run these inverse actions")
+                ?? throw new InvalidOperationException("Undo review has no explicit inverse approval.");
+            var reviewNames = firstWindow.Descendants()
+                .Select(element => (string?)element.Attribute("Name") ?? "")
+                .Where(name => name.Contains("source", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("destination", StringComparison.OrdinalIgnoreCase))
+                .Distinct().Take(30).ToArray();
+            bool fullInverse = reviewNames.Any(name =>
+                name.Contains(sourceFile, StringComparison.OrdinalIgnoreCase)
+                && name.Contains(targetFile, StringComparison.OrdinalIgnoreCase));
+            XElement InverseRow(XElement window) => window.Descendants().First(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && ((string?)element.Attribute("Name"))?.Contains(sourceFile, StringComparison.OrdinalIgnoreCase) == true
+                && ((string?)element.Attribute("Name"))?.Contains(targetFile, StringComparison.OrdinalIgnoreCase) == true);
+            var originalRow = ReadNativeRect(InverseRow(firstWindow));
+            var grip = firstWindow.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("Name") == "Resize dialog"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("Undo review resize grip is unavailable.");
+            var originalGrip = ReadNativeRect(grip);
+            NativeWindow.DragAt(CenterX(grip), CenterY(grip),
+                CenterX(grip) + 110, CenterY(grip) + 70);
+            await Task.Delay(350);
+            var expandedWindow = Window(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var expandedGrip = expandedWindow.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("Name") == "Resize dialog"
+                && (string?)element.Attribute("IsOffscreen") == "False")
+                ?? throw new InvalidOperationException("Undo review resize grip disappeared.");
+            var expanded = ReadNativeRect(expandedGrip);
+            var expandedRow = ReadNativeRect(InverseRow(expandedWindow));
+            bool inverseWrapped = originalRow.Height >= 32
+                && expandedRow.Width >= originalRow.Width + 30
+                && expandedRow.Height <= originalRow.Height;
+            bool resizeWorked = expanded.X >= originalGrip.X + 30
+                && expanded.Y >= originalGrip.Y + 20
+                && FindVisible(expandedWindow, "button", "Run these inverse actions") is not null;
+            cancel = FindVisible(expandedWindow, "button", "Cancel")
+                ?? throw new InvalidOperationException("Undo review Cancel became unreachable after resizing.");
+            NativeWindow.ClickAt(CenterX(cancel), CenterY(cancel));
+            await Task.Delay(300);
+            bool cancelKeptMove = !File.Exists(sourceFile) && File.Exists(targetFile)
+                && await File.ReadAllTextAsync(targetFile) == expected;
+
+            var second = await OpenReview();
+            approval = FindVisible(Window(second), "button", "Run these inverse actions")
+                ?? throw new InvalidOperationException("Canceled Undo could not be reviewed again.");
+            NativeWindow.ClickAt(CenterX(approval), CenterY(approval));
+            for (int attempt = 0; attempt < 80 && (!File.Exists(sourceFile) || File.Exists(targetFile)); attempt++)
+                await Task.Delay(150);
+            bool restored = File.Exists(sourceFile) && !File.Exists(targetFile)
+                && await File.ReadAllTextAsync(sourceFile) == expected
+                && await File.ReadAllTextAsync(otherFile) == "subset member must remain";
+            bool passed = fullInverse && inverseWrapped && resizeWorked && cancelKeptMove && restored;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, fullInverse, inverseWrapped, resizeWorked, cancelKeptMove, restored,
+                sourceFile, targetFile, originalGrip, expanded, originalRow, expandedRow, reviewNames
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode is "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
             bool subset = mode == "clipboard-paste-subset";
+            bool move = mode == "clipboard-move";
             var beforePaste = XDocument.Parse(await ReadSourceAsync(client, sessionId));
             var window = beforePaste.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
@@ -2084,12 +2180,13 @@ try
             for (var attempt = 0; attempt < 40 && !File.Exists(targetFile); attempt++)
                 await Task.Delay(250);
             const string expected = "external copy must keep source";
-            if (!File.Exists(sourceFile)
-                || await File.ReadAllTextAsync(sourceFile) != expected
+            if (File.Exists(sourceFile) == move
+                || !move && await File.ReadAllTextAsync(sourceFile) != expected
                 || !File.Exists(targetFile)
                 || await File.ReadAllTextAsync(targetFile) != expected)
                 throw new InvalidOperationException(
-                    "Explorer Copy followed by FileCat Paste did not preserve the source and copy matching bytes to the destination.");
+                    move ? "FileCat Cut and Paste did not move the exact source bytes into the destination."
+                         : "Explorer Copy followed by FileCat Paste did not preserve the source and copy matching bytes to the destination.");
             var otherSource = Path.Combine(fixture.Source, "b.txt");
             if (subset && (!File.Exists(otherSource)
                 || await File.ReadAllTextAsync(otherSource) != "subset member must remain"
@@ -2098,7 +2195,8 @@ try
                     "Pasting the Explorer subset changed or copied the other cut source.");
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed = true, subset, sourceRetained = true, destinationBytesMatch = true,
+                passed = true, subset, move, sourceRetained = !move, sourceRemoved = move,
+                destinationBytesMatch = true,
                 otherCutSourceRetained = subset,
                 sourceFile, targetFile
             }, new JsonSerializerOptions { WriteIndented = true }));

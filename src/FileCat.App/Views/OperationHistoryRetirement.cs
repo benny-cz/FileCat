@@ -1,6 +1,8 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Jobs;
@@ -63,8 +65,10 @@ internal sealed class OperationHistoryRetirement
         var rows = new ListBox
         {
             ItemsSource = Jobs.Select(Describe).ToArray(), MinHeight = 80, MaxHeight = 230,
+            ItemTemplate = DialogLayout.WrappingListText,
         };
         AutomationProperties.SetName(rows, "Finished operations and records to remove");
+        ScrollViewer.SetHorizontalScrollBarVisibility(rows, ScrollBarVisibility.Disabled);
         body.Children.Add(rows);
         return await main.Dialogs.ShowCustomAsync("Remove operation history", body,
             [new("Keep history", false, IsDefault: true, IsCancel: true), new(action, true, IsDanger: true)], rows,

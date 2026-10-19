@@ -271,6 +271,9 @@ internal static class DialogLayout
     internal static readonly IDataTemplate WrappingText = new FuncDataTemplate<string>((text, _) =>
         new AccessText { Text = text, TextWrapping = TextWrapping.Wrap });
 
+    internal static readonly IDataTemplate WrappingListText = new FuncDataTemplate<string>((text, _) =>
+        new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+
     internal static WrapPanel Actions(params Control[] controls)
     {
         var row = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };

@@ -27,6 +27,42 @@ namespace FileCat.App.Tests;
 public sealed class DialogViewportTests
 {
     [AvaloniaFact]
+    public async Task Registry_import_preview_wraps_long_change_paths_and_reflows_with_dialog_width()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            ProductStyles(window);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            string change = "+ value " + string.Join("\\", Enumerable.Repeat("long-registry-subkey", 16)) +
+                "\\SelectedValue · REG_SZ, 40 bytes";
+            var detail = MainViewModel.RegistryImportPreview(change);
+            var pending = dialogs.ShowCustomAsync("Review Registry import", new StackPanel
+            {
+                Children = { OverlayDialogService.ReviewLine("File: C:\\review\\changes.reg"), detail },
+            }, [new("Cancel", false, IsCancel: true)], resizable: true);
+            Layout(window);
+            var card = Card(window);
+            var grip = Assert.Single(card.GetVisualDescendants().OfType<Thumb>(),
+                thumb => thumb.Name == "DialogResizeGrip");
+            var presenter = Assert.Single(detail.GetVisualDescendants().OfType<TextPresenter>());
+            int lines = presenter.TextLayout.TextLines.Count;
+            double width = detail.Bounds.Width;
+            Assert.True(lines > 1, $"The full Registry path should wrap, but it occupied {lines} line.");
+            Assert.Equal(TextWrapping.Wrap, detail.TextWrapping);
+            grip.RaiseEvent(new VectorEventArgs { RoutedEvent = Thumb.DragDeltaEvent,
+                Vector = new Vector(160, 0) });
+            Layout(window);
+            Assert.True(detail.Bounds.Width >= width + 100);
+            Assert.True(presenter.TextLayout.TextLines.Count < lines,
+                "More review width should reduce the number of wrapped Registry path lines.");
+            dialogs.CancelAll();
+            await pending;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Operation_issue_details_keeps_field_keys_and_paths_accessible_while_resizing()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 720);

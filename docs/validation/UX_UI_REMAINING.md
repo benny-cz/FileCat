@@ -19,8 +19,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, finish the
    supported nonlocal-provider interruption and recovery cases, including
    retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
-   real Windows inverse identities, Recycle Bin
-   effects, close/restart ownership and retained reports. For FCUX-069/070,
+   Windows Recycle Bin effects, close/restart ownership and retained reports,
+   plus other inverse kinds. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs native focus-loss and
    window-deactivation transitions at narrow and scaled layouts. FCUX-003
@@ -62,7 +62,8 @@ increments to `main`.
    UXBUG-009 needs native Details selection; UXBUG-010/011 need scaled and
    spoken dialog checks, including keys, full paths, reflow and disclosure in
    the revised review hierarchy and the other resizable review windows on the
-   Windows VM. Treat any new reproduction as an active regression,
+   Windows VM. Registry import and history review still need native narrow
+   and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
 
 ## Evidence required to finish

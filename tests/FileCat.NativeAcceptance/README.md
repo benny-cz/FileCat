@@ -122,6 +122,16 @@ focuses FileCat's destination pane, sends Ctrl+V, and checks the source and
 destination contents byte for byte. It fails on a missing file, changed source
 or incomplete copy. `clipboard-stop <report.json>` gracefully closes only the
 validated isolated FileCat process when a new Git build must be deployed.
+For the native FCUX-018 Move inverse, use another fresh `seed-clipboard`
+fixture, then run `clipboard-cut <source.xml>` and `clipboard-move
+<report.json>` in that order. The latter uses FileCat Paste and checks that
+the source is gone, the target has the exact bytes and the unrelated file
+remains. Run `undo-native <report.json>` without restarting FileCat. It opens
+Ctrl+Z, checks the full source and destination identities, measures the
+multi-line inverse row before and after dragging the review wider, cancels and
+verifies the move still exists, then reopens the review and approves it. It
+requires byte-for-byte restoration at the original path, removal of the moved
+target, and preservation of the unrelated file. Finish with `clipboard-stop`.
 Run `accessibility-list <report.json>` with this fixture and its FileCat
 window open. The native Windows UI Automation tree must expose both named
 panel lists, two distinct source file rows with positive screen rectangles

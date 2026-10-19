@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -124,7 +125,9 @@ public sealed class OperationReportTests
             Assert.Contains(fields, t => t.Text == issue.TargetPath);
             Assert.Contains(fields, t => t.Text == issue.Message);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
-                t => t.Text?.Contains("No transfer attempted for this item", StringComparison.Ordinal) == true);
+                t => (t is SelectableTextBlock { Inlines: { } inlines }
+                    ? string.Concat(inlines.OfType<Run>().Select(run => run.Text)) : t.Text)?
+                    .Contains("No transfer attempted for this item", StringComparison.Ordinal) == true);
 
             ButtonNamed("Copy exact source path").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await UntilClipboard(source);

@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
@@ -40,6 +41,12 @@ public sealed class UndoLifecycleUiTests
         Assert.Contains("also removes their reports and unused Undo steps", f.Text);
         Assert.Contains("does not change files", f.Text);
         Assert.Contains($"configured to keep {f.Services.Jobs.KeepFinished:N0} finished operations", f.Text);
+        var historyRows = f.Window.GetVisualDescendants().OfType<ListBox>()
+            .Single(l => AutomationProperties.GetName(l) == "Finished operations and records to remove");
+        Assert.Equal(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(historyRows));
+        var historyText = historyRows.GetVisualDescendants().OfType<TextBlock>().ToArray();
+        Assert.NotEmpty(historyText);
+        Assert.All(historyText, row => Assert.Equal(TextWrapping.Wrap, row.TextWrapping));
         f.Click("Keep history");
         await Fixture.Wait(() => !f.Vm.Dialogs.IsOpen);
         Assert.Contains(original, f.Services.Jobs.Jobs);
@@ -246,8 +253,33 @@ public sealed class UndoLifecycleUiTests
         var review = f.Vm.UndoJobAsync(original); await f.WaitButton("Run these inverse actions");
         Assert.Contains("overwritten destination contents cannot be restored", f.Text);
         Assert.Contains("Move back: \"" + target + "\" → \"" + source + "\"", Assert.Single(f.Actions));
+        var actions = f.Window.GetVisualDescendants().OfType<ListBox>()
+            .Single(l => AutomationProperties.GetName(l) == "Recorded Undo actions, with full affected paths");
+        f.Window.UpdateLayout();
+        var actionText = actions.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Text?.StartsWith("Move back:", StringComparison.Ordinal) == true);
+        Assert.Equal(TextWrapping.Wrap, actionText.TextWrapping);
+        Assert.Equal(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(actions));
+        Assert.True(actionText.Bounds.Height > actionText.FontSize * 1.5,
+            $"The full inverse path should occupy multiple visible lines; height was {actionText.Bounds.Height}.");
+        double originalWidth = actionText.Bounds.Width, originalHeight = actionText.Bounds.Height;
+        var grip = f.Window.GetVisualDescendants().OfType<Thumb>().Single(t => t.Name == "DialogResizeGrip");
+        grip.RaiseEvent(new Avalonia.Input.VectorEventArgs
+        {
+            RoutedEvent = Thumb.DragDeltaEvent,
+            Vector = new Avalonia.Vector(160, 40),
+        });
+        f.Window.UpdateLayout();
+        actionText = actions.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Text?.StartsWith("Move back:", StringComparison.Ordinal) == true);
+        Assert.True(actionText.Bounds.Width >= originalWidth + 100);
+        Assert.True(actionText.Bounds.Height <= originalHeight);
         var remainder = f.Window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Effects that Undo cannot reverse");
         Assert.Contains(remainder.ItemsSource!.Cast<string>(), s => s.Contains(target, StringComparison.Ordinal) && s.Contains("will not restore", StringComparison.Ordinal));
+        Assert.Equal(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(remainder));
+        var remainderText = remainder.GetVisualDescendants().OfType<TextBlock>().ToArray();
+        Assert.NotEmpty(remainderText);
+        Assert.All(remainderText, row => Assert.Equal(TextWrapping.Wrap, row.TextWrapping));
         f.Click("Cancel"); await review; Assert.True(original.CanUndo);
         Assert.Equal("alpha", File.ReadAllText(target)); Assert.False(File.Exists(source));
     }
