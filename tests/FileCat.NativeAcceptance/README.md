@@ -147,6 +147,14 @@ fresh fixture, `rename-hidden-native <report.json>` explicitly includes the
 hidden mark and verifies both reviewed mappings and the resulting file bytes.
 Run `rename-stop <report.json>` to close only the path-verified isolated app
 before starting another fixture.
+For FCUX-002, run `seed-selection <fixture.json>` and launch the Git-built app
+with its reported source, destination and data paths. Run
+`selection-native <report.json>` in the interactive guest desktop: it clicks
+`b.txt` as the range anchor, reverses the name sort, then Shift-clicks `c.txt`
+with native input. Only `b.txt` and `c.txt` may be marked, and the fixture
+files must remain unchanged. `selection-stop <report.json>` closes that
+path-verified app after the check. Other FCUX-002 transitions still need their
+separate native checks.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

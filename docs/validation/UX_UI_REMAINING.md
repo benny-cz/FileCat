@@ -19,7 +19,9 @@ expected the focused row to be evicted; the corrected check uses a nonfocused
 row and enough scrolling to reach the bounded cache. The macOS Core failures
 exposed a timing-based secret-store assertion and loss of already captured
 command stderr when a descendant held a pipe open. Both were corrected and
-need the next macOS CI result.
+need the next macOS CI result. The complete local Core Release suite exited
+successfully with 16 workers after running outside the restricted filesystem
+sandbox; its platform skips do not establish non-Windows native behavior.
 
 The Windows 11 VMware guest is available for isolated native checks. Its
 repeatable runner is [FileCat.NativeAcceptance](../../tests/FileCat.NativeAcceptance/README.md).
@@ -33,6 +35,9 @@ screen capture showed both differing suffixes in the primary aligned view.
 FCUX-003 native bulk rename passed twice with fresh guest-local fixtures:
 the default review and resulting bytes excluded a filtered hidden mark, and
 explicit inclusion reviewed and renamed both files in the displayed order.
+FCUX-002 native pointer acceptance passed a four-file sort reversal: a click
+anchored `b.txt`, Ctrl+F3 reversed the list, and a real Shift-click on `c.txt`
+marked exactly those two source files without changing their bytes.
 The user manually confirmed the PE scrollbar
 freeze fix on the supplied EXE. Native spoken screen-reader interaction,
 macOS/Linux desktop behavior, provider-specific cases and display scaling
@@ -62,7 +67,10 @@ comparison native runner and its evidence were committed at `6fa480db`.
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. For FCUX-002/003/004/005, exercise native range
    anchors, modal focus/decision ownership and full synchronization endpoints
-   at narrow and scaled layouts. FCUX-003's default and opt-in Windows rename
+   at narrow and scaled layouts. FCUX-002's Windows sort-reversal pointer
+   case passed; cross-tab, filter, refresh, Ctrl-click, Shift+arrows and
+   focus-loss transitions still need native checks. FCUX-003's default and
+   opt-in Windows rename
    journeys passed; its remaining native gates are scaled/narrow layout,
    keyboard and spoken review, and stale external-editor results. Preserve
    captured scope and mapping throughout each test.
