@@ -134,6 +134,11 @@ requires byte-for-byte restoration at the original path, removal of the moved
 target, and preservation of the unrelated file. It then opens the retained
 Undo report from Operations and requires Copy all to publish the complete
 restored outcome with both paths. Finish with `clipboard-stop`.
+On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
+before Undo. It opens Clear finished history from Operations, measures the
+long job row before and after widening the review, requires the Keep history
+action to remain reachable, then cancels and verifies the moved bytes remain
+at their destination. Finish with `clipboard-stop`.
 For the Windows Recycle Bin inverse, use another fresh `seed-clipboard`
 fixture and launch its isolated FileCat instance. Run `recycle-review
 <source.xml>` to select `a.txt`, press F8 and require the explicit Recycle Bin
