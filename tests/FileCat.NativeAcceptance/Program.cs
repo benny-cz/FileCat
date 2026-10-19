@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "recycle-review" or "recycle-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-undo-native" or "selection-native" or "selection-filter-native" or "selection-tab-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "checksum-native" or "search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "recycle-review" or "recycle-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|checksum-native|search-native|selection-stop|rename-native|rename-hidden-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -534,6 +534,66 @@ try
                 reviewedNames = Names(proposed), source = fixture.Source,
                 sourceNames = Directory.EnumerateFileSystemEntries(fixture.Source)
                     .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray()
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "rename-undo-native")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            string sourceFile = Path.Combine(fixture.Source, "b.txt");
+            string renamedFile = Path.Combine(fixture.Source, "reviewed_1.txt");
+            string otherFile = Path.Combine(fixture.Source, "a.txt");
+            const string expected = "subset member must remain";
+            if (File.Exists(sourceFile) || await File.ReadAllTextAsync(renamedFile) != expected
+                || await File.ReadAllTextAsync(otherFile) != "external copy must keep source"
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The reviewed bulk-rename fixture is not ready for Undo.");
+            XElement Window(XDocument document) => document.Descendants().First(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture));
+            async Task<XDocument> OpenReview()
+            {
+                NativeWindow.FocusRecovery("clipboard-source");
+                await SendSessionKeysAsync(client, sessionId, "\uE009z\uE000");
+                var current = ParseSource(await ReadSourceAsync(client, sessionId));
+                for (int attempt = 0; attempt < 40 &&
+                     FindVisible(Window(current), "button", "Run these inverse actions") is null; attempt++)
+                {
+                    await Task.Delay(150);
+                    current = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                return current;
+            }
+            var first = await OpenReview();
+            var inverseRow = Window(first).Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "Rename back: \"" + renamedFile + "\" → \"" + sourceFile + "\"",
+                    StringComparison.OrdinalIgnoreCase) == true);
+            bool exactInverse = inverseRow is not null && ReadNativeRect(inverseRow).Height >= 32;
+            var cancel = FindVisible(Window(first), "button", "Cancel")
+                ?? throw new InvalidOperationException("The rename Undo review has no safe Cancel action.");
+            NativeWindow.ClickAt(CenterX(cancel), CenterY(cancel));
+            await Task.Delay(250);
+            bool cancelKeptRename = !File.Exists(sourceFile) && File.Exists(renamedFile)
+                && await File.ReadAllTextAsync(renamedFile) == expected;
+            var second = await OpenReview();
+            var approve = FindVisible(Window(second), "button", "Run these inverse actions")
+                ?? throw new InvalidOperationException("The rename Undo review cannot be reopened.");
+            NativeWindow.ClickAt(CenterX(approve), CenterY(approve));
+            for (int attempt = 0; attempt < 80 && (!File.Exists(sourceFile) || File.Exists(renamedFile)); attempt++)
+                await Task.Delay(150);
+            bool restored = File.Exists(sourceFile) && !File.Exists(renamedFile)
+                && await File.ReadAllTextAsync(sourceFile) == expected
+                && await File.ReadAllTextAsync(otherFile) == "external copy must keep source"
+                && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool passed = exactInverse && cancelKeptRename && restored;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, exactInverse, cancelKeptRename, restored,
+                inverseRow = inverseRow is null ? default : ReadNativeRect(inverseRow),
+                sourceFile, renamedFile, otherFile
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

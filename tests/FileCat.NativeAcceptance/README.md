@@ -174,6 +174,11 @@ fresh fixture, `rename-hidden-native <report.json>` explicitly includes the
 hidden mark and verifies both reviewed mappings and the resulting file bytes.
 Run `rename-stop <report.json>` to close only the path-verified isolated app
 before starting another fixture.
+On a fresh fixture after `rename-native` (the default visible-only case), run
+`rename-undo-native <report.json>` before `rename-stop`. It requires a wrapped
+native Undo row naming both the reviewed new path and original path, verifies
+Cancel preserves the renamed bytes, then approves Undo and checks the exact
+original filename and bytes are restored without changing the other file.
 For FCUX-002, run `seed-selection <fixture.json>` and launch the Git-built app
 with its reported source, destination and data paths. Run
 `selection-native <report.json>` in the interactive guest desktop: it clicks
