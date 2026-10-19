@@ -213,18 +213,40 @@ public sealed class JobManager
         return true;
     }
 
-    public void MoveInQueue(Job job, int delta)
+    public bool CanMoveEarlier(Job job)
     {
         lock (_lock)
+            return job.State == JobState.Queued && _jobs.Contains(job) && !_syncByJob.ContainsKey(job) &&
+                   _jobs.Any(other => other.State == JobState.Queued && other.QueueOrder < job.QueueOrder);
+    }
+
+    /// <summary>One bounded snapshot for rendering all queue actions without probing the manager once per row.</summary>
+    public IReadOnlySet<Job> MovableQueuedJobs()
+    {
+        lock (_lock)
+            return _jobs.Where(job => job.State == JobState.Queued).OrderBy(job => job.QueueOrder)
+                .Skip(1).Where(job => !_syncByJob.ContainsKey(job)).ToHashSet();
+    }
+
+    /// <summary>Returns false if the operation is no longer queued or its requested move has no effect.</summary>
+    public bool MoveInQueue(Job job, int delta)
+    {
+        Job displaced;
+        lock (_lock)
         {
+            // A synchronization step follows its reviewed order, even while an unrelated queue is reordered.
+            if (job.State != JobState.Queued || _syncByJob.ContainsKey(job)) return false;
             var queued = _jobs.Where(j => j.State == JobState.Queued).OrderBy(j => j.QueueOrder).ToList();
             int i = queued.IndexOf(job);
             int k = i + delta;
-            if (i < 0 || k < 0 || k >= queued.Count) return;
+            if (i < 0 || k < 0 || k >= queued.Count || i == k) return false;
+            displaced = queued[k];
             (queued[i].QueueOrder, queued[k].QueueOrder) = (queued[k].QueueOrder, queued[i].QueueOrder);
         }
         JobChanged?.Invoke(job);
+        JobChanged?.Invoke(displaced);
         Schedule();
+        return true;
     }
 
     /// <summary>Publishes cancellation to every child before another schedule pass can admit a sibling.</summary>

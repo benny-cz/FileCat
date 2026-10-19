@@ -377,7 +377,11 @@ public partial class OperationsView : UserControl
 
     private void OnMoveUp(object? sender, RoutedEventArgs e)
     {
-        if (JobOf(sender) is { } j) Center?.Manager.MoveInQueue(j.Job, -1);
+        if (JobOf(sender) is not { } j || Center is not { } center) return;
+        if (center.Manager.MoveInQueue(j.Job, -1))
+            Main?.Notify($"Moved {Formatters.SafeName(j.Job.Title)} earlier in the queue.");
+        else
+            center.UpdateSummary(); // The job may have started between drawing the button and clicking it.
     }
 
     private async void OnLimit(object? sender, RoutedEventArgs e)

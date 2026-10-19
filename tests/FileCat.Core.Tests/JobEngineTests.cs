@@ -52,6 +52,45 @@ public sealed class JobEngineTests : IDisposable
         });
     }
 
+    [Fact]
+    public void Queue_move_only_changes_eligible_queued_order_and_preserves_sync_plan_steps()
+    {
+        _jobs.MaxConcurrent = 0; // Hold all requests in the queue without relying on timing or a large file.
+        string[] paths = Enumerable.Range(0, 3).Select(i => Path.Combine(_src, $"q{i}.txt")).ToArray();
+        foreach (string path in paths) File.WriteAllText(path, path);
+        var first = Submit(JobKind.Copy, [paths[0]], _dst);
+        var second = Submit(JobKind.Copy, [paths[1]], _dst);
+        var third = Submit(JobKind.Copy, [paths[2]], _dst);
+        Assert.All([first, second, third], job => Assert.Equal(JobState.Queued, job.State));
+        Assert.False(_jobs.CanMoveEarlier(first));
+        Assert.Equal([second, third], _jobs.MovableQueuedJobs().OrderBy(job => job.QueueOrder));
+        Assert.False(_jobs.MoveInQueue(first, -1));
+        Assert.True(_jobs.CanMoveEarlier(third));
+        Assert.True(_jobs.MoveInQueue(third, -1));
+        Assert.Equal([first, third, second], _jobs.Jobs.OrderBy(job => job.QueueOrder));
+        Assert.True(_jobs.MoveInQueue(third, -1));
+        Assert.False(_jobs.CanMoveEarlier(third));
+        Assert.False(_jobs.MoveInQueue(third, -1));
+
+        var group = _jobs.SubmitSyncGroup([new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [Item(paths[0])], Destination = Location.FileSystem(_dst), Mode = QueueMode.Queue,
+        }], _src, _dst, "Reviewed transfer");
+        var step = Assert.Single(group.Steps);
+        Assert.Equal(JobState.Queued, step.State);
+        Assert.False(_jobs.CanMoveEarlier(step));
+        Assert.DoesNotContain(step, _jobs.MovableQueuedJobs());
+        int order = step.QueueOrder;
+        Assert.False(_jobs.MoveInQueue(step, -1));
+        Assert.Equal(order, step.QueueOrder);
+
+        first.Cancel();
+        Assert.True(first.State.IsFinished());
+        Assert.False(_jobs.CanMoveEarlier(first));
+        Assert.False(_jobs.MoveInQueue(first, -1));
+        Assert.Equal([third, first, second, step], _jobs.Jobs.OrderBy(job => job.QueueOrder));
+    }
+
     /// <summary>
     /// Schedule runs on the submitting thread and on each finishing job's thread at once. Every submitted job must
     /// complete and create exactly one directory. JobChanged can also report other changes while the state is Running.

@@ -112,8 +112,11 @@ preserves a valid one-panel workspace and asks for a destination on F5/F6;
 43 related workspace/transfer cases pass. FCUX-066 now rejects the last-tab
 close before touching recent history; 30 related App cases pass. FCUX-067 keeps
 About support actions in the open dialog and opens precisely named state folders
-in new tabs; 46 related App cases pass. Native scaling, window-manager, pointer
-and assistive-technology acceptance remain open. FCUX-068 follows.
+in new tabs; 46 related App cases pass. FCUX-068 gates queue movement on real
+queued order, explains disabled moves and protects synchronization plans;
+51 related App and 28 Core cases pass with one Core skip. Native scaling,
+window-manager, pointer and assistive-technology acceptance remain open.
+Continue with remaining queued bugfix acceptance.
 
 The first full App run after UXBUG-009 finished with 2,246 passes, 63 skips
 and one interrupted-review accessibility assertion before two button bindings
@@ -165,9 +168,11 @@ passes with 2,296 passes, 63 skips and no failures.
 | 38 | FCUX-065 — one-panel workspace | A valid one-panel state round trips without an extra panel; missing/unusable state still defaults to two, and invalid target IDs clear. The 43-case related selection passes; native docking/transfer acceptance remains open. |
 | 39 | FCUX-066 — last-tab history | A rejected middle-click leaves real closed-tab history intact; command, context menu and middle-click use the same close rule after a tab move. Eight focused and 30 related App cases pass; native acceptance remains open. |
 | 40 | FCUX-067 — About support actions | Copy and folder actions keep About open; settings and local-data labels open their displayed paths in new tabs, while equal paths use one action. 31 focused and 46 related App cases pass; native clipboard/assistive-technology acceptance remains open. |
+| 41 | FCUX-068 — queue movement | Only queued jobs show Move earlier; the first and fixed sync steps explain why it is unavailable. Actual swaps announce the change. 28 related Core cases pass with one skip and 51 related App cases pass; native acceptance remains open. |
 
 FCUX-034/035 were completed within the earlier Settings preservation work.
-Continue with FCUX-068 onward in the audit's S3 order. Active Undo ownership, full synchronization
+The audit's listed FCUX findings through FCUX-068 are implemented. Continue with queued bugfix
+acceptance and native review. Active Undo ownership, full synchronization
 endpoint identities and delayed-Paste intent guards are already implemented;
 they do not close the separate general navigation-supersession finding. Native S1
 acceptance remains open.

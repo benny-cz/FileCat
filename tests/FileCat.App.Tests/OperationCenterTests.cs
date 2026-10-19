@@ -20,6 +20,63 @@ namespace FileCat.App.Tests;
 public sealed class OperationCenterTests
 {
     [AvaloniaFact]
+    public async Task Queue_action_is_only_enabled_when_it_will_move_a_queued_operation()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Jobs.MaxConcurrent = 0;
+            var center = vm.Operations;
+            string target = Directory.CreateDirectory(Path.Combine(root, "queue-target")).FullName;
+            Job Submit(int number)
+            {
+                string source = Path.Combine(root, "files", $"queue-{number}.txt");
+                File.WriteAllText(source, $"source-{number}");
+                return services.Jobs.Submit(new JobRequest
+                {
+                    Kind = JobKind.Copy,
+                    Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                    Destination = Location.FileSystem(target),
+                    Mode = QueueMode.Queue,
+                });
+            }
+
+            var first = Submit(1);
+            var second = Submit(2);
+            var third = Submit(3);
+            await Until(() => center.Jobs.Count == 3 && center.Jobs.All(row => row.Job.State == JobState.Queued));
+            center.Selected = center.Jobs.Single(row => row.Job == third);
+            center.IsOpen = true;
+            window.UpdateLayout();
+            var move = window.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Content as string == "Move earlier in queue");
+            Assert.True(move.IsVisible);
+            Assert.True(move.IsEnabled);
+            move.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => center.Jobs.Single(row => row.Job == third).CanMoveUpInQueue &&
+                              vm.Notification?.Contains("earlier in the queue", StringComparison.Ordinal) == true);
+            Assert.Equal([first, third, second], services.Jobs.Jobs.OrderBy(job => job.QueueOrder));
+            Assert.Equal(target, third.Request.Destination?.Path);
+
+            center.Selected = center.Jobs.Single(row => row.Job == first);
+            center.UpdateSummary();
+            window.UpdateLayout();
+            Assert.True(move.IsVisible);
+            Assert.False(move.IsEnabled);
+            Assert.True(ToolTip.GetShowOnDisabled(move));
+            Assert.Equal("This is the first queued operation.", ToolTip.GetTip(move));
+
+            first.Cancel();
+            await Until(() => first.State.IsFinished());
+            center.Selected = center.Jobs.Single(row => row.Job == first);
+            center.UpdateSummary();
+            window.UpdateLayout();
+            Assert.False(move.IsVisible);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public void Opening_details_promotes_new_running_job_over_completed_history()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-details-focus-" + Guid.NewGuid().ToString("N"));

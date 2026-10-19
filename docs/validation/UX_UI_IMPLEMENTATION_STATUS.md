@@ -2,8 +2,11 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
-**Current work:** FCUX-067 keeps support actions within About, names their exact
-folder targets and opens them in new tabs; 46 related App cases pass. FCUX-066
+**Current work:** FCUX-068 shows queue movement only for queued jobs, disables the
+first queued job with a reason and preserves synchronization step order; 51 related
+App and 28 job-engine Core cases pass, with one Core platform skip. FCUX-067 keeps
+support actions within About, names their exact folder targets and opens them
+in new tabs; 46 related App cases pass. FCUX-066
 rejects a last-tab close before touching recent history; 30 related App cases
 pass. FCUX-065 preserves valid one-panel workspaces
 on reload; 43 related App cases pass. FCUX-064 restores saved normal window size and
@@ -234,6 +237,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-065 — one-panel workspace restoration | A valid saved one-panel workspace restores exactly as one panel with its original layout tree and no guessed target. The two-panel default is used only for missing or wholly unusable state. Invalid saved target IDs are cleared; valid targets in larger layouts remain. F5/F6 in one-panel mode ask for a destination. | `WorkspaceRestoreTests` covers actual remove/save/load round trip, default and unusable-state fallback, invalid/valid targets, and an F5 dialog with an empty destination. The 43-case workspace/target/docking/operation-scope selection passes. | Native one-panel docking and keyboard/pointer transfer acceptance remain open. |
 | FCUX-066 — last-tab history guard | The panel model checks close eligibility before recording a closed state; a panel's sole tab remains unchanged. Command and tab-menu availability use the same rule, including after a tab moves between panels. | `TabStripTests` sends repeated real middle-clicks to the only tab after recording a genuine closed tab, checks history and reopening, then exercises command, menu and middle-click closes after a panel move. Eight focused and 30 related tab/workspace/navigation cases pass. | Native pointer and assistive-technology acceptance remain open. |
 | FCUX-067 — About support actions | Copy details and precise settings/local-data folder actions live inside About while Close remains the dismissal action. Copy reports completion inline; opening either displayed folder creates a new tab without replacing the working one. Identical normalized paths produce one Open data folder action. | `AboutDialogTests` verifies exact support text, live status, retained dialog, accessible path help, both folder targets, new-tab preservation and identical-path collapse. `AboutLogoOwnershipTests` verifies repeated non-dismissing actions and final image disposal across themes. 31 focused and 46 related App cases pass. | Native clipboard and keyboard/screen-reader acceptance remain open. |
+| FCUX-068 — meaningful queue movement | “Move earlier in queue” is visible only on queued jobs. The first queued job and fixed-order synchronization steps show a disabled action with an explanation; running/finished jobs do not offer it. The manager verifies eligibility under its lock and reports whether an actual swap occurred; successful moves announce the change. One queue snapshot updates all rows without per-row manager scans. | `JobEngineTests` covers first/eligible/no-op/finished jobs, order swaps, and synchronization order; `OperationCenterTests` covers actual selected-row enablement, disabled tooltip, finished-row hiding, destination preservation and notification. 28 job-engine Core cases pass with one skip; 51 related App cases pass. | Native queue timing, pointer and assistive-technology acceptance remain open. |
 
 The three viewer findings share source mapping and content ownership and are
 implemented together. The [viewer notes](UX_VIEWER_SOURCE_GEOMETRY.md),

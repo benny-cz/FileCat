@@ -65,6 +65,9 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _isIndeterminate;
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isFinished;
+    [ObservableProperty] private bool _isQueued;
+    [ObservableProperty] private bool _canMoveUpInQueue;
+    [ObservableProperty] private string _moveUpReason = string.Empty;
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canResume;
     [ObservableProperty] private string _resumeLabel = "Resume";
@@ -109,6 +112,7 @@ public sealed partial class JobViewModel : ObservableObject
         // A title and a summary name files (a verification's names its checksum file and who signed it): escaped as names are (§18.3).
         Title = Formatters.SafeName(j.Title);
         IsFinished = j.State.IsFinished();
+        IsQueued = j.State == JobState.Queued;
         IsActive = j.State.IsActive();
         NeedsDecision = j.State == JobState.AwaitingDecision;
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
@@ -559,8 +563,16 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         // A job ends on its own thread and its row learns of it from a refresh queued here; rows that lag catch up first,
         // so what is counted below and what the rows show are the same.
+        var movable = Manager.MovableQueuedJobs();
         foreach (var vm in Jobs)
+        {
             if (vm.IsFinished != vm.Job.State.IsFinished()) vm.Refresh();
+            vm.CanMoveUpInQueue = movable.Contains(vm.Job);
+            vm.MoveUpReason = vm.Job.State != JobState.Queued ? string.Empty
+                : vm.SyncGroup is not null ? "Synchronization steps keep their reviewed order."
+                : vm.CanMoveUpInQueue ? "Move this operation ahead of the previous queued operation."
+                : "This is the first queued operation.";
+        }
         var active = Jobs.Where(j => !j.Job.State.IsFinished()).ToList();
         ActiveCount = active.Count;
         Primary = active.FirstOrDefault(j => j.NeedsDecision) ?? active.FirstOrDefault(j => j.IsActive) ?? active.FirstOrDefault()
