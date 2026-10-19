@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Operations;
@@ -26,12 +27,14 @@ public sealed class UndoLifecycleTests : IDisposable
         var info = new PortableFileOperations().TryGetInfo(from)!;
         return new(UndoKind.MoveBack, from, to, info.Size, info.ModifiedUtc.Ticks);
     }
-    private static async Task Wait(Job job)
+    private static async Task Wait(Job job, TimeSpan? limit = null)
     {
-        var timeout = DateTime.UtcNow.AddSeconds(15);
+        var elapsed = Stopwatch.StartNew();
+        var timeout = limit ?? TimeSpan.FromSeconds(15);
         while (!job.State.IsFinished())
         {
-            Assert.True(DateTime.UtcNow < timeout, $"{job.Title} remained {job.State}");
+            Assert.True(elapsed.Elapsed < timeout,
+                $"{job.Title} remained {job.State} after {elapsed.Elapsed}; done={job.ItemsDone}, failed={job.ItemsFailed}, skipped={job.ItemsSkipped}, wait={job.WaitReason}");
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
@@ -160,7 +163,9 @@ public sealed class UndoLifecycleTests : IDisposable
         var jobs = Manager(new FailingMoveFiles(fail));
         var original = Original(steps);
         using var claim = Assert.IsType<UndoReservation>(original.TryReserveUndo());
-        var inverse = jobs.SubmitUndo(claim); await Wait(inverse);
+        // Seventy real filesystem inverses can exceed the small-job deadline
+        // on a contended Windows runner; keep a bounded bulk-work deadline.
+        var inverse = jobs.SubmitUndo(claim); await Wait(inverse, TimeSpan.FromSeconds(60));
         Assert.Equal(JobState.CompletedWithIssues, inverse.State);
         var report = Assert.IsType<UndoReport>(inverse.UndoReport);
         Assert.Equal(70, report.Outcomes.Count); Assert.Equal(68, report.Count(UndoOutcomeKind.Restored));

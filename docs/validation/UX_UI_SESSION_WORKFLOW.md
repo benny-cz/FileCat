@@ -33,8 +33,13 @@ and nine queued bugs are present. The [last fully green source CI run](https://g
 passes producer checks and all four platform lanes. A later Linux run exposed
 that WebKitGTK reports a directional count, rather than the original total,
 on Next/Previous; commit `ddbc444b` caches the initial count, and its Linux
-lane passed. The latest viewer-geometry commit `8578a7d3` passed the complete
-local App suite (2,348 passed, 63 skipped) and is undergoing four-platform CI.
+lane passed. The viewer-geometry commit `8578a7d3` passed the complete
+local App suite (2,348 passed, 63 skipped). Its CI passed Ubuntu, macOS and
+Windows ARM64; the Windows lane had one timeout in an existing 70-step Undo
+lifecycle test, while its other test projects passed. The same case and the
+complete Core suite pass locally (4,428 passed, 150 skipped). The bulk case now
+uses a bounded 60-second deadline with monotonic timing and progress details;
+all 14 focused Undo lifecycle cases pass. Its cross-platform CI rerun is pending.
 Continue with the native desktop, provider, scaling, clipboard
 and assistive-technology acceptance named
 for each finding in the implementation status. Page-mode Find now exposes the

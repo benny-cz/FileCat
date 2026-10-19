@@ -8,8 +8,14 @@ coverage. The complete local Release runs passed 4,428 Core cases (150 platform
 skips) and 2,348 App cases (63 platform skips), with zero failures, using 16
 workers where the test runner supports them. The [cross-platform CI run at
 `2a7c758e`](https://github.com/benny-cz/FileCat/actions/runs/39203860375)
-passed producer checks, Windows, Ubuntu, macOS and Windows ARM64. The current
-`8578a7d3` CI run is in progress. The final
+passed producer checks, Windows, Ubuntu, macOS and Windows ARM64. The
+[`8578a7d3` CI run](https://github.com/benny-cz/FileCat/actions/runs/39227087344)
+passed Ubuntu, macOS and Windows ARM64; Windows failed one existing 70-step
+Undo lifecycle test after its 15-second small-job deadline, while its other
+test projects passed. The same case passed locally, and the complete Core
+suite passed 4,428 cases with 150 skips. The bulk case now has a bounded
+60-second deadline and monotonic timing with progress diagnostics; all 14
+focused Undo lifecycle cases pass. The final
 dialog-focus correction passed 28 focused App cases twice and the complete
 2,346-pass App rerun; seven focused viewer-refresh cases passed after waiting
 for the replacement page's visible rows. Native desktop,
