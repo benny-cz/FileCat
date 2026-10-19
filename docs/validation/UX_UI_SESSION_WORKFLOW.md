@@ -82,8 +82,11 @@ and a truthful “At least 1 match · total unavailable in Page mode” status.
 Dragging the viewer from 996 × 739 to 1,346 × 919 pixels widened the table
 from 916 to 1,251 pixels and reduced the height of the preceding prose block
 from 118 to 93 pixels as it reflowed. The runner restores the original bounds.
-Native narrow-window pointer, scaling and assistive-technology checks remain
-open.
+A second guest pointer drag narrowed the viewer from 996 to 696 pixels. The
+document stayed within the window at 680 pixels, the keyboard-focusable table
+scroll region contracted from 901 to 601 pixels around 916 pixels of table
+content, and the prose block grew from 118 to 144 pixels. Native scaling and
+assistive-technology checks remain open.
 
 After resolving any outstanding validation failure, follow the audit's physical
 S2 order; its permanent IDs are references, not a numeric priority sort. The

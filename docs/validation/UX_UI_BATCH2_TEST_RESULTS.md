@@ -472,8 +472,11 @@ Previous, and observed enabled navigation buttons plus the visible “At least
 viewer from 996 × 739 to 1,346 × 919 pixels. Native UI Automation measured the
 table from 916 to 1,251 pixels wide and the preceding prose block from 118 to
 93 pixels high as it reflowed. The runner restores the original window bounds
-afterward. Native narrow-window pointer, scaling and assistive-technology
-checks remain open.
+afterward. A second pointer drag narrowed the viewer from 996 to 696 pixels.
+The document fitted at 680 pixels; the keyboard-focusable table scroll region
+contracted from 901 to 601 pixels around its 916-pixel table content, and the
+prose block grew from 118 to 144 pixels. Native scaling and assistive-
+technology checks remain open.
 
 Headless geometry and automation tests do not establish native screen-reader
 behavior, physical monitor scaling, native clipboard interoperability or

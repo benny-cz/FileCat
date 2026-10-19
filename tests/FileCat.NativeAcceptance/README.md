@@ -30,7 +30,10 @@ guest folder and open it in FileCat's Page viewer. Run
 the rendered page and verify its visible directional match status. Run
 `markdown-resize <report.json>` to drag the viewer wider, measure the native
 table width and prose reflow, drag it back and restore its exact original
-bounds. The runner allows a 60-second local UI Automation read because a
+bounds. Run `markdown-narrow <report.json>` to drag the viewer narrower and
+verify prose reflow, a document that stays within the window, and a
+keyboard-focusable table region with its own horizontal overflow. The runner
+allows a 60-second local UI Automation read because a
 long rendered Markdown table produces a large native accessibility tree.
 Both modes require the fixture viewer to be open on the guest desktop.
 

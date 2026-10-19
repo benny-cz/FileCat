@@ -5,9 +5,9 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
-if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "find-resize" or "advanced-resize"))
+if (args.Length != 2 || args[0] is not ("snapshot" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -290,6 +290,44 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "markdown-narrow")
+        {
+            var before = MeasureMarkdownLayout(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var originalWindow = NativeWindow.ReadViewerRect();
+            NativeWindow.ResizeViewerBy(-300, 0);
+            MarkdownLayout narrow = default;
+            NativeWindow.Rect narrowWindow = default;
+            try
+            {
+                await Task.Delay(500);
+                narrow = MeasureMarkdownLayout(ParseSource(await ReadSourceAsync(client, sessionId)));
+                narrowWindow = NativeWindow.ReadViewerRect();
+            }
+            finally
+            {
+                NativeWindow.RestoreViewerRect(originalWindow);
+            }
+            var restoredWindow = NativeWindow.ReadViewerRect();
+            var passed = narrowWindow.Width <= originalWindow.Width - 200
+                && narrow.DocumentWidth <= narrowWindow.Width
+                && narrow.TableRegionWidth <= before.TableRegionWidth - 180
+                && narrow.TableWidth > narrow.TableRegionWidth
+                && narrow.TableRegionFocusable
+                && narrow.ProseBlockHeight >= before.ProseBlockHeight + 20
+                && restoredWindow.Width == originalWindow.Width
+                && restoredWindow.Height == originalWindow.Height;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed,
+                originalWindow,
+                narrowWindow,
+                restoredWindow,
+                before,
+                narrow
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode == "markdown-search")
         {
             var source = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -511,12 +549,23 @@ static MarkdownLayout MeasureMarkdownLayout(XDocument source)
         (string?)element.Attribute("LocalizedControlType") == "column header"
         && (string?)element.Attribute("Name") == "Remaining acceptance")
         ?? throw new InvalidOperationException("Markdown table last column is unavailable.");
+    var tableRegion = first.Ancestors().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "region"
+        && (string?)element.Attribute("Name") == "Table; scroll horizontally if needed")
+        ?? throw new InvalidOperationException("Markdown table scroll region is unavailable.");
+    var document = viewer.Descendants().FirstOrDefault(element =>
+        (string?)element.Attribute("LocalizedControlType") == "document"
+        && (string?)element.Attribute("Name") == "UX_UI_IMPLEMENTATION_STATUS.md")
+        ?? throw new InvalidOperationException("Markdown document is unavailable.");
     var tableWidth = int.Parse((string?)last.Attribute("x") ?? "0")
         + int.Parse((string?)last.Attribute("width") ?? "0")
         - int.Parse((string?)first.Attribute("x") ?? "0");
     var proseBlockHeight = int.Parse((string?)nextBlock.Attribute("y") ?? "0")
         - int.Parse((string?)prose.Attribute("y") ?? "0");
-    return new MarkdownLayout(proseBlockHeight, tableWidth);
+    return new MarkdownLayout(proseBlockHeight, tableWidth,
+        int.Parse((string?)tableRegion.Attribute("width") ?? "0"),
+        int.Parse((string?)document.Attribute("width") ?? "0"),
+        (string?)tableRegion.Attribute("IsKeyboardFocusable") == "True");
 }
 
 static XElement GetMarkdownViewerElement(XDocument source) =>
@@ -532,7 +581,8 @@ static int CenterX(XElement element) => int.Parse((string?)element.Attribute("x"
 static int CenterY(XElement element) => int.Parse((string?)element.Attribute("y") ?? "0")
     + int.Parse((string?)element.Attribute("height") ?? "0") / 2;
 
-internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth);
+internal readonly record struct MarkdownLayout(int ProseBlockHeight, int TableWidth,
+    int TableRegionWidth, int DocumentWidth, bool TableRegionFocusable);
 
 internal static partial class NativeWindow
 {
