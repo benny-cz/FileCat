@@ -161,10 +161,12 @@ public sealed class ViewerRefreshTests
             File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(10));
             await CheckForChanges(viewer);
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F5, Avalonia.Input.RawInputModifiers.None);
-            // The reader is published before the view restores its scroll position.
-            // Wait for Refresh to finish, as a user would see through the reenabled action.
+            // The reader is published before Refresh finishes, and the new visible
+            // page can still load asynchronously after the action is reenabled.
+            // Wait for the restored row layout, then assert its exact anchor range.
             await Until(() => !ReferenceEquals(first, Field<PagedReader>(viewer, "_reader")) &&
-                            Field<Button>(viewer, "_refresh").IsEnabled);
+                            Field<Button>(viewer, "_refresh").IsEnabled &&
+                            text.TopOffset >= anchor - 100 && text.TopOffset <= anchor + 100);
             var current = Field<PagedReader>(viewer, "_reader");
             Assert.NotSame(first, current);
             Assert.InRange(text.TopOffset, anchor - 100, anchor + 100);
