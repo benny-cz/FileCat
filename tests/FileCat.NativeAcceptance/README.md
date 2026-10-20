@@ -166,6 +166,14 @@ fixture, replaces the original name with a different file after creating the
 link, and approves Undo. Both names and their distinct bytes must remain. The
 retained report's Copy all text must record one kept action, the complete link
 path, and the original-name identity reason.
+`symlink-undo-native <report.json>` uses the same fresh-file fixture to create
+a real symbolic link through FileCat. It verifies the selected kind in the
+preview, shared bytes, both complete paths in the wrapped inverse, safe Cancel,
+and removal of only the link after approval. On another fresh fixture,
+`symlink-undo-changed-native <report.json>` replaces the created link name with
+a regular file before Undo. Both exact byte sequences must remain, and the
+retained report must identify one kept action and explain that the recorded
+link was replaced.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
