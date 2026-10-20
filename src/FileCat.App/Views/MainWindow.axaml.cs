@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -45,6 +46,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _savedPlacement = placement;
         _vm = vm;
         DataContext = vm;
+        UpdateNotificationLiveSettings();
         Classes.Set("comfortable", ReadabilityPolicy.Comfortable(vm.Services.Settings.RowDensity));
         _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List);
         vm.Dialogs = _dialogs;
@@ -349,6 +351,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             ScheduleToolbarRefresh();
         if (e.PropertyName == nameof(MainViewModel.CurrentNotification))
         {
+            UpdateNotificationLiveSettings();
             _notificationTimer.Stop();
             if (_vm.CurrentNotification is { IsError: false })
             {
@@ -356,6 +359,16 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 _notificationTimer.Start();
             }
         }
+    }
+
+    private void UpdateNotificationLiveSettings()
+    {
+        AutomationProperties.SetLiveSetting(NotificationInfoText,
+            _vm.CurrentNotification is { IsError: false }
+                ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
+        AutomationProperties.SetLiveSetting(NotificationErrorText,
+            _vm.CurrentNotification?.IsError == true
+                ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Off);
     }
 
     private void OnCommandAvailabilityChanged(object? sender, EventArgs e) => ScheduleToolbarRefresh();

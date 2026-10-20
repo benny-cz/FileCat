@@ -125,8 +125,11 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var previous = _currentNotification;
             if (!SetProperty(ref _currentNotification, value)) return;
-            if (!string.Equals(previous?.Message, value?.Message, StringComparison.Ordinal))
+            bool messageChanged = !string.Equals(previous?.Message, value?.Message, StringComparison.Ordinal);
+            if (messageChanged)
                 OnPropertyChanged(nameof(Notification));
+            if (messageChanged || previous?.IsError != value?.IsError)
+                OnPropertyChanged(nameof(NotificationAnnouncement));
             if (previous?.IsError != value?.IsError)
             {
                 OnPropertyChanged(nameof(NotificationIsError));
@@ -139,6 +142,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     public string? Notification => CurrentNotification?.Message;
+    // Mac's native live-region bridge requires a non-null announcement name even while a
+    // notification is being dismissed. Include severity so a same-text error is still distinct.
+    public string NotificationAnnouncement => CurrentNotification is { } notice
+        ? (notice.IsError ? "Error: " : "Notice: ") + notice.Message
+        : "FileCat notification";
     public bool NotificationIsError => CurrentNotification?.IsError == true;
     public bool NotificationIsInfo => CurrentNotification is { IsError: false };
     public bool NotificationRestoreWorkspace => CurrentNotification?.ActionCommandId == CommandIds.RestorePreviousWorkspace;

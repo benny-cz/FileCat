@@ -100,9 +100,11 @@
           <Grid>
             <SelectableTextBlock x:Name="NotificationInfoText" Text="{Binding Notification}" TextWrapping="Wrap"
                                  IsVisible="{Binding NotificationIsInfo}" IsTabStop="False"
+                                 AutomationProperties.Name="{Binding NotificationAnnouncement}"
                                  AutomationProperties.LiveSetting="Polite" />
             <SelectableTextBlock x:Name="NotificationErrorText" Text="{Binding Notification}" TextWrapping="Wrap"
                                  IsVisible="{Binding NotificationIsError}" IsTabStop="False"
+                                 AutomationProperties.Name="{Binding NotificationAnnouncement}"
                                  AutomationProperties.LiveSetting="Assertive" />
           </Grid>
         </ScrollViewer>

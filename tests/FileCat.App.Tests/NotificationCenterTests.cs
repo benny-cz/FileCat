@@ -19,6 +19,43 @@ namespace FileCat.App.Tests;
 public sealed class NotificationCenterTests
 {
     [AvaloniaFact]
+    public void Live_notification_names_remain_nonempty_across_severity_and_dismissal()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var info = window.FindControl<SelectableTextBlock>("NotificationInfoText")!;
+            var error = window.FindControl<SelectableTextBlock>("NotificationErrorText")!;
+            Assert.Equal("FileCat notification", AutomationProperties.GetName(info));
+            Assert.Equal("FileCat notification", AutomationProperties.GetName(error));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(info));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(error));
+
+            vm.Notify("Same text");
+            Assert.Equal("Notice: Same text", AutomationProperties.GetName(info));
+            Assert.Equal("Notice: Same text", AutomationProperties.GetName(error));
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(info));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(error));
+            Assert.Equal("Same text", info.Text);
+
+            vm.Notify("Same text", true);
+            Assert.Equal("Error: Same text", AutomationProperties.GetName(info));
+            Assert.Equal("Error: Same text", AutomationProperties.GetName(error));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(info));
+            Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(error));
+            Assert.Equal("Same text", error.Text);
+
+            vm.ClearNotification();
+            Assert.Null(vm.Notification);
+            Assert.Equal("FileCat notification", AutomationProperties.GetName(info));
+            Assert.Equal("FileCat notification", AutomationProperties.GetName(error));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(info));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(error));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public void Severity_changes_and_repeated_messages_have_coherent_lifetimes_and_history()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

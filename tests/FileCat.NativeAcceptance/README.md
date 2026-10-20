@@ -528,6 +528,16 @@ notifications and requires the explicit “already been moved” refusal while
 the bytes remain unchanged. On success it restores the initial fixtures and
 replaces its test-owned clipboard publication with a sentinel.
 
+`python3 mac-ax-clipboard-partial-move.py SOURCE DESTINATION
+./mac-pasteboard-files ./mac-send-key REPORT.json` uses the same two-file
+fixture and signed app. It marks and Cut-publishes both exact file URLs,
+Pastes into a destination that already contains `a.txt`, opens the native
+conflict review and chooses Skip. It requires the original `a.txt` on both
+sides, only `b.txt` moved with exact bytes, and a second Paste refusal that
+states one of two items completed. It checks no replay effects, replaces its
+test-owned clipboard and restores the fixture and marks on success. Keep
+other foreground dialogs closed so native key events reach FileCat.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
