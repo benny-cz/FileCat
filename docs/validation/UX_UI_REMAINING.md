@@ -27,7 +27,8 @@ increments to `main`.
    and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
-   routes, scaled-display input and the non-Windows focus journeys. FCUX-003
+   routes, scaled-display input and deeper non-Windows focus journeys beyond
+   the basic Mac pointer/keyboard range. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken
    review, and stale
    external-editor results. For FCUX-004/005, exercise modal focus/decision

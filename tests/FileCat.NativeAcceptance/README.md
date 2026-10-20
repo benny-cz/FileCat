@@ -407,3 +407,12 @@ the Previous control, closes only the viewer through its accessible close
 button, and verifies the source's exact bytes remain unchanged. The viewer
 must be closed before starting this script; the destination may contain the
 result of the Copy test.
+
+`python3 mac-ax-selection-keyboard.py SOURCE REPORT.json` checks the native
+pointer anchor and keyboard range on the same two-file fixture, with no viewer
+open. It clicks `a.txt`, verifies the current-item label, presses Shift+Down
+to mark that exact six-byte file, moves Up without changing the mark, then
+presses Shift+Down again to clear it. It requires the source bytes to remain
+unchanged. The script launches a separate `osascript` process for each input
+or accessibility snapshot so the app can process the native event between
+observations. Start with no marks; the test ends with no marks.
