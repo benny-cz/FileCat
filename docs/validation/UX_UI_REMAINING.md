@@ -8,11 +8,11 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Mac Accessibility input and window inspection now work while the user session
-  is unlocked and a display-awake assertion is active. Obtain a Mac screen
-  capture route for visual layout checks; `screencapture` from SSH is denied.
-  Continue the remaining Mac input, clipboard, viewer and scaling journeys.
-  The Ubuntu VMware desktop remains available for its Linux checks.
+- Obtain a Mac screen capture route for visual layout checks;
+  `screencapture` from SSH is denied. Keep its user session unlocked and a
+  display-awake assertion active while finishing Mac input, clipboard, viewer
+  and scaling journeys. Finish the remaining Ubuntu Linux input, clipboard,
+  viewer and assistive-technology checks.
 
 ## Next actions, in severity order
 
@@ -37,7 +37,8 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
-   changed-query ownership, provider cancellation and non-Windows input.
+   changed-query ownership, provider cancellation, Ubuntu input and larger
+   Mac backward-search routes.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long

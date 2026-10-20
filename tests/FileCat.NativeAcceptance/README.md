@@ -398,3 +398,12 @@ then verifies Cancel leaves the target empty. It reopens the review, approves
 Copy, and requires exact `a.txt` bytes at the target while both sources stay
 unchanged and `b.txt` is excluded. A passing JSON receipt is written only after
 all UI and byte checks succeed. Run it on an isolated user-local fixture.
+
+`osascript mac-ax-viewer-find.applescript SOURCE REPORT.json` checks the Text
+viewer on that fixture's `a.txt`. It opens the viewer from the focused source
+row, reveals Find, replaces any existing query with real keyboard input, and
+uses Next to require the visible `1 match` status for `alpha`. It also checks
+the Previous control, closes only the viewer through its accessible close
+button, and verifies the source's exact bytes remain unchanged. The viewer
+must be closed before starting this script; the destination may contain the
+result of the Copy test.
