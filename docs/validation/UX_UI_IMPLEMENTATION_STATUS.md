@@ -19,7 +19,9 @@ hidden-item mappings. Bulk rename now exposes a resize grip and groups counter,
 search and case controls in an expandable section, giving the preview priority.
 The corrected native journey showed both mappings before approval and renamed
 both files with exact contents. Focused dialog, counter and scope tests passed
-18 cases with one Unix-only skip. Smaller/scaled and spoken review remain open.
+18 cases with one Unix-only skip. The complete local Release App suite at
+`c8a740d2` passed 2,369 cases with 63 platform skips and zero failures using
+16 workers. Smaller/scaled and spoken review remain open.
 FCUX-002 also passed a native four-file sort reversal: a click on `b.txt`
 survived the changed row order, and Shift-clicking `c.txt` marked exactly
 those two items. A second native journey hid and revealed `b.txt`; its retired
