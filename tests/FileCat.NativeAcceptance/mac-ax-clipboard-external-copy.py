@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Prove that a Finder Copy supersedes FileCat's earlier Cut on macOS.
 
-Usage: python3 mac-ax-clipboard-external-copy.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json
-Run only against an isolated, logged-in FileCat desktop fixture with c.txt
-already present when FileCat starts. The test removes c.txt on success and
-replaces the guest clipboard.
+Usage: python3 mac-ax-clipboard-external-copy.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json [same-file]
+Run only against an isolated, logged-in FileCat desktop fixture. In the
+external-file case, c.txt must exist when FileCat starts; the same-file case
+uses only a.txt and b.txt. The test restores those fixture files on success
+and replaces the guest clipboard.
 """
 
 import json
@@ -144,18 +145,22 @@ def await_file_publication(helper, expected, newer_than):
     raise AssertionError(f"Expected the exact test file publication {expected}; got {state!r}")
 
 
-def run(source, destination, helper, key_helper):
+def run(source, destination, helper, key_helper, same_file=False):
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     helper = helper.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
-    expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n", "c.txt": b"gamma\n"}
+    expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
+    if not same_file:
+        expected["c.txt"] = b"gamma\n"
     if {p.name: p.read_bytes() for p in source.iterdir()} != expected:
-        raise AssertionError("Source must contain only the isolated a.txt, b.txt and c.txt fixtures")
+        raise AssertionError("Source does not contain the exact files for this isolated scenario")
     if {p.name: p.read_bytes() for p in destination.iterdir()} != {"a.txt": b"alpha\n"}:
         raise AssertionError("Destination must contain only the previous isolated a.txt copy")
-    added_source = source / "c.txt"
-    added_target = destination / "c.txt"
+    copied_name = "b.txt" if same_file else "c.txt"
+    copied_source = source / copied_name
+    copied_target = destination / copied_name
+    copied_bytes = expected[copied_name]
     primary_error = None
     try:
         require_no_marks()
@@ -168,23 +173,25 @@ def run(source, destination, helper, key_helper):
         require_no_marks()
         send_key(key_helper, "cut")
         cut_generation = await_file_publication(helper, source / "b.txt", initial["changeCount"])
-        finder_copy(str(added_source), key_helper)
-        finder_generation = await_file_publication(helper, added_source, cut_generation)
+        finder_copy(str(copied_source), key_helper)
+        finder_generation = await_file_publication(helper, copied_source, cut_generation)
         paste_into_target(destination, key_helper)
         for _ in range(80):
-            if added_target.exists():
+            if copied_target.exists():
                 break
             time.sleep(0.25)
-        if not added_target.exists() or added_target.read_bytes() != b"gamma\n":
+        if not copied_target.exists() or copied_target.read_bytes() != copied_bytes:
             raise AssertionError("Finder's copied file was not pasted with exact bytes")
         if (source / "b.txt").read_bytes() != b"beta\n":
             raise AssertionError("The obsolete FileCat Cut moved or altered b.txt")
-        if added_source.read_bytes() != b"gamma\n" or (source / "a.txt").read_bytes() != b"alpha\n":
+        if copied_source.read_bytes() != copied_bytes or (source / "a.txt").read_bytes() != b"alpha\n":
             raise AssertionError("Finder's copied source or a.txt changed")
         if (destination / "a.txt").read_bytes() != b"alpha\n":
             raise AssertionError("The pre-existing destination file changed")
-        return {"passed": True, "platform": "macOS", "scenario": "Cut b.txt; Finder Copy c.txt; FileCat Paste",
+        return {"passed": True, "platform": "macOS",
+                "scenario": f"Cut b.txt; Finder Copy {copied_name}; FileCat Paste",
                 "cutPublishedExactFile": True, "finderReplacedPublication": True,
+                "samePathReplacement": same_file,
                 "publicationGenerationAdvanced": finder_generation > cut_generation > initial["changeCount"],
                 "externalCopyBytesMatch": True, "obsoleteCutSourcePreserved": True,
                 "otherSourceAndTargetBytesPreserved": True}
@@ -200,16 +207,17 @@ def run(source, destination, helper, key_helper):
             if primary_error is None:
                 raise
         if primary_error is None:
-            if added_target.exists():
-                added_target.unlink()
-            added_source.unlink()
+            if copied_target.exists():
+                copied_target.unlink()
+            if not same_file:
+                copied_source.unlink()
 
 
 def main():
-    if len(sys.argv) != 6:
-        raise SystemExit("Usage: mac-ax-clipboard-external-copy.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json")
+    if len(sys.argv) not in (6, 7) or len(sys.argv) == 7 and sys.argv[6] != "same-file":
+        raise SystemExit("Usage: mac-ax-clipboard-external-copy.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json [same-file]")
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]))
+        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]), len(sys.argv) == 7)
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     Path(sys.argv[5]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

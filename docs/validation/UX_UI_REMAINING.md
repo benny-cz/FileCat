@@ -29,7 +29,7 @@ increments to `main`.
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate Ubuntu native clipboard exchange, supported Move effects and
    delayed Paste destination on each desktop. Mac native ownership checks
-   still need the same-file replacement and partial/completed Move cases;
+   still need partial/completed Move cases;
    Windows still needs preferred/performed Move effects.
    FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the

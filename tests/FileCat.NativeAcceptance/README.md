@@ -477,7 +477,11 @@ target and `b.txt` to remain at the source. It restores a test-owned clipboard
 sentinel and removes both `c.txt` fixtures on success. Run only in the isolated
 validation bundle: the key helper checks its bundle identifier before Cut or
 Paste and Finder's identifier before Copy. CGEvent input avoids a macOS VM
-System Events behavior that sent Command+A immediately before Command+X.
+System Events behavior that sent Command+A immediately before Command+X. Pass
+`same-file` after the report path to test Finder Copy of the very same `b.txt`
+URL. That mode starts with only `a.txt` and `b.txt` in SOURCE, still requires
+only `a.txt` in DESTINATION, and removes the copied target `b.txt` after
+verifying that the original source survived.
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
