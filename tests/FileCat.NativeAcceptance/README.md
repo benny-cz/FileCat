@@ -149,6 +149,11 @@ wrapped inverse, verifies Cancel preserves the empty file, then approves Undo
 and checks that only the created file is removed. Both original source files
 must retain their exact contents. Rerun `folder-undo-native` after changing
 this shared native path.
+`file-undo-kept-native <report.json>` starts from another fresh fixture, changes
+the created file after FileCat records it, and approves the inverse. The file
+and exact changed bytes must remain. The retained Undo report must be available
+through Operations → Copy all and state one kept action, the full path and the
+changed-since-creation reason.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
