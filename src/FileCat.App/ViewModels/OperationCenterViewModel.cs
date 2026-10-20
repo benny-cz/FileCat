@@ -297,7 +297,13 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
         (Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && !CanRunAgain
-            ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable. Review a new transfer to choose its scope and options again.") : "");
+            ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable.") +
+              RecoveryGuidance : "");
+
+    private string RecoveryGuidance => CanReviewNewTransfer
+        ? Job.TransferIntentProblem?.Contains("Review a new transfer", StringComparison.OrdinalIgnoreCase) == true
+            ? "" : " Review a new transfer to choose its scope and options again."
+        : " The recorded scope cannot be prefilled here. Select the sources and destination again; cleanup and the recovery report remain available.";
 
     public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…" : "Clean up partial files";
     public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
@@ -307,7 +313,8 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
     public bool CanRunAgain => Job.CanContinueTransfer;
     public string ContinueLabel => Job.Kind == nameof(JobKind.Move) ? "Continue move…" : "Continue copy…";
-    public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
+    public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown &&
+        Job.Sources.All(RecoverableTransferIntent.ValidPath) && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
         RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
 
     private RecoveryActionPhase _actionPhase;

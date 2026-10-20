@@ -21,7 +21,9 @@ increments to `main`.
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, finish the
    supported nonlocal-provider interruption and recovery cases, including
-   retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
+   retained intent, source/target bytes and staging cleanup; the unsupported
+   remote-source/destination row now refuses a misleading prefilled review and
+   needs native provider acceptance. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, reports with failures beyond row 30,
    and incomplete or mixed-effect attempts. For FCUX-069/070,

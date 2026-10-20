@@ -29,6 +29,39 @@ public sealed class InterruptedTransferIntentUiTests
         ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
         : block.Text ?? string.Empty;
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Remote_source_or_destination_cannot_offer_a_local_recovery_transfer(bool remoteSource)
+    {
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+            "filecat-remote-recovery-review-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string localPath = Path.Combine(root, "local.txt");
+            File.WriteAllText(localPath, "owned source bytes");
+            var source = remoteSource
+                ? new ItemRef(new Location(Schemes.Sftp, "/owned", session: "test-profile"), "remote.txt", EntryKind.File)
+                : ItemRef.ForFileSystemPath(localPath, EntryKind.File);
+            var destination = remoteSource
+                ? Location.FileSystem(root)
+                : new Location(Schemes.Sftp, "/owned/destination", session: "test-profile");
+            var request = new JobRequest { Kind = JobKind.Copy, Sources = [source], Destination = destination };
+            using (JobJournal.Create(root, new Job(request, "Remote copy", "test", [], []))) { }
+            var interrupted = Assert.Single(JournalRecovery.Scan(root));
+            Assert.False(interrupted.CanContinueTransfer);
+            Assert.Contains("provider", interrupted.TransferIntentProblem, StringComparison.OrdinalIgnoreCase);
+
+            var row = new InterruptedJobViewModel(interrupted);
+            Assert.False(row.CanRunAgain);
+            Assert.False(row.CanReviewNewTransfer);
+            Assert.Contains("Select the sources and destination again", row.Details);
+            Assert.Contains("cleanup and the recovery report remain available", row.Details);
+            Assert.Equal("owned source bytes", File.ReadAllText(localPath));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [AvaloniaFact]
     public async Task New_copy_review_shows_consequences_first_and_discloses_complete_mapping_on_keyboard_request()
     {
@@ -321,6 +354,7 @@ public sealed class InterruptedTransferIntentUiTests
         string target = Path.Combine(f.Destination, "approved.txt"); File.WriteAllText(target, "the complete");
         var row = new InterruptedJobViewModel(interrupted);
         Assert.False(row.CanRunAgain); Assert.True(row.CanReviewNewTransfer);
+        Assert.Equal(1, row.Details.Split("Review a new transfer", StringSplitOptions.None).Length - 1);
         Assert.False(await f.Vm.RunInterruptedAgainAsync(interrupted));
         Assert.False(f.HasDialog); Assert.Single(f.Services.Jobs.Jobs);
         Assert.Equal("the complete", File.ReadAllText(target));

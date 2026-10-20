@@ -341,6 +341,15 @@ were verified absent. The runner and guarded provisioning script are tracked
 under `tests/FileCat.NativeAcceptance`. This closes the native Windows
 cross-volume copy case; nonlocal-provider cases remain open.
 
+The interrupted-operation row now refuses to offer a prefilled new transfer
+when a recorded source or destination belongs to a nonlocal provider. Its
+details direct the user to select the sources and destination again while
+retaining cleanup and report access. Local legacy journals still offer a new
+review without repeating that instruction in the row. The two remote-source
+and remote-destination journal cases and the related 16-case App UI suite pass.
+Supported nonlocal-provider interruption, bytes and staging acceptance still
+remain open.
+
 After the report that the recovery dialog still read as a wall of text, the
 review now gives its action a distinct selectable emphasis, makes the conflict
 choice stand out, shows consequential effects as bullets, and separates the
