@@ -54,6 +54,14 @@ focused `a.txt`, reviewed the full target folder, verified Cancel changed no
 target, and approved a Copy. The target had the exact `616c7068610a` bytes,
 both sources remained unchanged and `b.txt` was excluded. macOS screen capture
 from SSH still fails; other Mac pointer, scaling and viewer checks remain open.
+The preceding `537ccb0b` CI run exposed two asynchronous test races. Its
+Windows recovery test dispatched a synthetic click while the action was still
+disabled after Cancel; the test now waits for the owned reservation to end and
+the button to enable, as physical input must. Its ARM64 damaged-picture test
+allowed 10 seconds for a worker with a 30-second decode bound; the test now
+waits through that bound with a visible-state diagnostic on timeout. Both
+focused Release App tests pass locally; the complete suite and subsequent CI
+remain the validation gate.
 FCUX-018 also passed a fresh Windows 11 VM Create-and-edit empty-file Undo
 journey. Its inverse review showed the complete wrapped target path. Cancel
 left the zero-byte file unchanged, and approval removed it while both source

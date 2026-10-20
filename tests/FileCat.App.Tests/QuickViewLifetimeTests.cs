@@ -18,12 +18,14 @@ namespace FileCat.App.Tests;
 
 public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
 {
-    private static async Task WaitFor(Func<bool> condition)
+    private static async Task WaitFor(Func<bool> condition, TimeSpan? timeout = null, Func<string>? diagnostic = null)
     {
         var clock = Stopwatch.StartNew();
         while (!condition())
         {
-            if (clock.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Owned quick-view fixture did not reach its checkpoint.");
+            if (clock.Elapsed > (timeout ?? TimeSpan.FromSeconds(10)))
+                throw new TimeoutException("Owned quick-view fixture did not reach its checkpoint." +
+                    (diagnostic is null ? string.Empty : " Visible text: " + diagnostic()));
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
@@ -232,7 +234,11 @@ public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
             pane.Attach(vm.ActiveTab);
             preview.Show();
             await Load(pane);
-            await WaitFor(() => Labels(pane).Any(text => text.Contains("Picture preview failed", StringComparison.Ordinal)));
+            // The failure comes from a separate image worker. Its own bounded decode
+            // can take 30 seconds on a loaded ARM64 runner before showing the fallback.
+            await WaitFor(() => Labels(pane).Any(text => text.Contains("Picture preview failed", StringComparison.Ordinal)),
+                FileCat.App.Services.PictureDecoder.Timeout + TimeSpan.FromSeconds(30),
+                () => string.Join(" | ", Labels(pane)));
             Assert.True(pane.GetVisualDescendants().OfType<HexView>().Single().IsVisible);
             Assert.Contains(Labels(pane), text => text.Contains("Open full viewer (F3)", StringComparison.Ordinal));
         }

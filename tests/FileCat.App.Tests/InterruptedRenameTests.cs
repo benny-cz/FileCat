@@ -71,6 +71,11 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         Assert.Empty(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
         Assert.Equal("reviewed", File.ReadAllText(f.Via));
 
+        // Closing the overlay precedes the async handler's reservation release.
+        // A real pointer cannot invoke the disabled action until it becomes enabled;
+        // RaiseEvent bypasses that guard unless the test waits for it explicitly.
+        await Wait(() => !f.Vm.Operations.Interrupted.Single().IsActionBusy &&
+            f.Window.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "Mark reviewed…" && b.IsEnabled));
         ClickBanner("Mark reviewed…");
         await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
         f.Click("Mark reviewed and stop reminders");
@@ -90,8 +95,12 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
 
         Assert.True(f.Vm.Operations.HasReviewedRecovery);
 
-        void ClickBanner(string label) => f.Window.GetVisualDescendants().OfType<Button>()
-            .Single(b => b.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        void ClickBanner(string label)
+        {
+            var button = f.Window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == label);
+            Assert.True(button.IsEnabled, "The recovery action must be enabled before native input can invoke it.");
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
     }
 
     [AvaloniaFact]
