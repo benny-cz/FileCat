@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify Ubuntu Files replaces FileCat Cut with Copy or Cut of the same file path.
 
-Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut]
+Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut] [--filecat-two]
 Both panels must show the exact a.txt/b.txt test fixture. Requires
 linux-atspi-clipboard-owned-move.py beside this script, GNOME Files, and the
 same guest-only uinput sudo setup described in its README entry.
@@ -13,6 +13,7 @@ from pathlib import Path
 import runpy
 import subprocess
 import sys
+import traceback
 
 import gi
 gi.require_version("Atspi", "2.0")
@@ -53,7 +54,7 @@ def close_frame(frame):
         raise AssertionError("Could not close the exact Ubuntu Files test window")
 
 
-def run(source, destination, helper, external_chord="ctrl+c"):
+def run(source, destination, helper, external_chord="ctrl+c", filecat_two=False):
     assert external_chord in ("ctrl+c", "ctrl+x")
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
@@ -67,10 +68,13 @@ def run(source, destination, helper, external_chord="ctrl+c"):
     app = matches[0]
     source_row = wait_for(lambda: find(find_panel(app, 1, source), "list item", "b.txt"), "source b.txt row")
     assert source_row.grab_focus(), "Could not focus only source b.txt"
+    if filecat_two:
+        command(app, "Select all", helper)
     command(app, "Cut items to clipboard", helper)
+    cut_count = 2 if filecat_two else 1
     cut_notice = wait_for(lambda: next((node.get_name() for node in descendants(app)
-                                        if (node.get_name() or "").startswith("Cut 1 item")), None),
-                          "one-item Cut announcement")
+                                        if (node.get_name() or "").startswith(f"Cut {cut_count} item")), None),
+                          f"{cut_count}-item Cut announcement")
     assert manifest(source) == expected_source and manifest(destination) == expected_target, "Cut changed files before Paste"
 
     frame = None
@@ -110,9 +114,16 @@ def run(source, destination, helper, external_chord="ctrl+c"):
         assert manifest(destination) == {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
         (destination / "b.txt").unlink()
         assert manifest(source) == expected_source and manifest(destination) == expected_target
+        if filecat_two:
+            fresh_row = wait_for(lambda: find(find_panel(app, 1, source), "list item", "b.txt"),
+                                 "current source b.txt row")
+            assert fresh_row.grab_focus(), "Could not return to source marks"
+            command(app, "Unselect all", helper)
         publication = "Cut" if external_chord == "ctrl+x" else "Copy"
-        return {"passed": True, "platform": "Ubuntu", "scenario": f"FileCat Cut b.txt; Ubuntu Files {publication} b.txt; FileCat Paste",
+        selected = "a.txt+b.txt" if filecat_two else "b.txt"
+        return {"passed": True, "platform": "Ubuntu", "scenario": f"FileCat Cut {selected}; Ubuntu Files {publication} b.txt; FileCat Paste",
                 "externalPublication": publication,
+                "fileCatCutRoots": cut_count,
                 "cutNotice": cut_notice, "copyNotice": copy_notice, "externalSamePathImportedAsCopy": True,
                 "sourceSurvived": True, "targetBytesMatch": True, "unselectedBytesPreserved": True,
                 "fixtureRestored": True}
@@ -122,14 +133,17 @@ def run(source, destination, helper, external_chord="ctrl+c"):
 
 
 def main():
-    if len(sys.argv) not in (5, 6) or (len(sys.argv) == 6 and sys.argv[5] != "--files-cut"):
-        raise SystemExit("Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut]")
+    options = sys.argv[5:]
+    if len(sys.argv) < 5 or len(sys.argv) > 7 or len(set(options)) != len(options) or set(options) - {"--files-cut", "--filecat-two"}:
+        raise SystemExit("Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut] [--filecat-two]")
     report = Path(sys.argv[4])
     try:
         result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                     "ctrl+x" if len(sys.argv) == 6 else "ctrl+c")
+                     "ctrl+x" if "--files-cut" in options else "ctrl+c",
+                     "--filecat-two" in options)
     except Exception as exc:
-        result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
+        result = {"passed": False, "error": f"{type(exc).__name__}: {exc}",
+                  "traceback": traceback.format_exc()}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return 0 if result["passed"] else 1
 

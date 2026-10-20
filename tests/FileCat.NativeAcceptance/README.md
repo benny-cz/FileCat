@@ -412,6 +412,12 @@ Add `--files-cut` after the report path to make Ubuntu Files Cut the same
 `b.txt` path. FileCat must still import that external publication as Copy,
 retain the source and match the target bytes. Both modes have been run twice
 with exact fixture restoration.
+Add `--filecat-two` to first mark and Cut both `a.txt` and `b.txt` in
+FileCat, then replace that publication with Ubuntu Files Copy of only
+`b.txt`. Combining both options uses Ubuntu Files Cut instead. Both subset
+modes must copy only `b.txt`, preserve both source files and the existing
+target `a.txt`, and clear the test marks during teardown. They passed twice
+from the restored fixture.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
