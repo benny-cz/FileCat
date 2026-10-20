@@ -19,8 +19,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, finish the
    supported nonlocal-provider interruption and recovery cases, including
    retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
-   Windows close/restart ownership and report behavior for empty-file and
-   link inverse kinds, including incomplete or kept attempts. For FCUX-069/070,
+   Windows close/restart ownership and report behavior for link inverse kinds,
+   including incomplete or kept attempts. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
    routes, scaled-display input and the non-Windows focus journeys. FCUX-003

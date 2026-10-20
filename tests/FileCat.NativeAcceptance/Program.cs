@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -2719,14 +2719,17 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "folder-undo-native")
+        else if (mode is "folder-undo-native" or "file-undo-native")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
-            const string folderName = "undo-review-created-empty-folder";
-            string createdFolderPath = Path.Combine(fixture.Destination, folderName);
+            bool fileMode = mode == "file-undo-native";
+            string itemName = fileMode ? "undo-review-created-empty-file.txt"
+                : "undo-review-created-empty-folder";
+            string createdPath = Path.Combine(fixture.Destination, itemName);
             string sourceFile = Path.Combine(fixture.Source, "a.txt");
-            if (Directory.Exists(createdFolderPath) || await File.ReadAllTextAsync(sourceFile) != "external copy must keep source")
-                throw new InvalidOperationException("The isolated folder Undo fixture is not pristine.");
+            if (File.Exists(createdPath) || Directory.Exists(createdPath)
+                || await File.ReadAllTextAsync(sourceFile) != "external copy must keep source")
+                throw new InvalidOperationException("The isolated creation Undo fixture is not pristine.");
             XElement Window(XDocument document) => document.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
                 && (string?)element.Attribute("ProcessId") ==
@@ -2748,23 +2751,27 @@ try
                 (string?)element.Attribute("LocalizedControlType") == "list item"
                 && (string?)element.Attribute("Name") == "Go to parent location");
             NativeWindow.ClickAt(CenterX(destinationParentRow), CenterY(destinationParentRow));
-            await SendSessionKeysAsync(client, sessionId, "\uE037"); // F7 creates a folder in the active tab.
+            await SendSessionKeysAsync(client, sessionId, fileMode
+                ? "\uE008\uE034\uE000" // Shift+F4 creates and edits a file.
+                : "\uE037"); // F7 creates a folder.
             XDocument prompt = ParseSource(await ReadSourceAsync(client, sessionId));
-            for (int attempt = 0; attempt < 30 && FindVisible(prompt, "edit",
-                     "Folder name (use \\ for nested folders):") is null; attempt++)
+            string promptName = fileMode ? "File name (an existing file is opened instead):"
+                : "Folder name (use \\ for nested folders):";
+            for (int attempt = 0; attempt < 30 && FindVisible(prompt, "edit", promptName) is null; attempt++)
             {
                 await Task.Delay(150);
                 prompt = ParseSource(await ReadSourceAsync(client, sessionId));
             }
-            var nameBox = FindVisible(prompt, "edit", "Folder name (use \\ for nested folders):")
-                ?? throw new InvalidOperationException("The Create folder name field is unavailable.");
+            var nameBox = FindVisible(prompt, "edit", promptName)
+                ?? throw new InvalidOperationException("The creation name field is unavailable.");
             NativeWindow.ClickAt(CenterX(nameBox), CenterY(nameBox));
-            await SendSessionKeysAsync(client, sessionId, folderName);
-            await ClickButtonAsync(client, sessionId, "Create");
-            for (int attempt = 0; attempt < 40 && !Directory.Exists(createdFolderPath); attempt++)
+            await SendSessionKeysAsync(client, sessionId, itemName);
+            await ClickButtonAsync(client, sessionId, fileMode ? "Create and edit" : "Create");
+            bool Exists() => fileMode ? File.Exists(createdPath) : Directory.Exists(createdPath);
+            for (int attempt = 0; attempt < 40 && !Exists(); attempt++)
                 await Task.Delay(150);
-            if (!Directory.Exists(createdFolderPath))
-                throw new InvalidOperationException("FileCat did not create the reviewed empty folder.");
+            if (!Exists() || fileMode && new FileInfo(createdPath).Length != 0)
+                throw new InvalidOperationException("FileCat did not create the reviewed empty item.");
 
             async Task<XDocument> OpenReview()
             {
@@ -2782,29 +2789,31 @@ try
             var first = Window(await OpenReview());
             var inverse = first.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "list item"
-                && ((string?)element.Attribute("Name"))?.Contains("Remove created empty folder:",
+                && ((string?)element.Attribute("Name"))?.Contains(fileMode
+                    ? "Remove created empty file:" : "Remove created empty folder:",
                     StringComparison.Ordinal) == true
-                && ((string?)element.Attribute("Name"))?.Contains(createdFolderPath,
+                && ((string?)element.Attribute("Name"))?.Contains(createdPath,
                     StringComparison.OrdinalIgnoreCase) == true)
-                ?? throw new InvalidOperationException("Undo review omitted the complete created folder path.");
+                ?? throw new InvalidOperationException("Undo review omitted the complete created item path.");
             var inverseBounds = ReadNativeRect(inverse);
             var cancel = FindVisible(first, "button", "Cancel")
-                ?? throw new InvalidOperationException("Folder Undo review has no safe Cancel action.");
+                ?? throw new InvalidOperationException("Creation Undo review has no safe Cancel action.");
             NativeWindow.ClickAt(CenterX(cancel), CenterY(cancel));
-            bool cancelPreserved = Directory.Exists(createdFolderPath);
+            bool cancelPreserved = Exists()
+                && (!fileMode || new FileInfo(createdPath).Length == 0);
             var second = Window(await OpenReview());
             var approve = FindVisible(second, "button", "Run these inverse actions")
-                ?? throw new InvalidOperationException("Canceled folder Undo cannot be reviewed again.");
+                ?? throw new InvalidOperationException("Canceled creation Undo cannot be reviewed again.");
             NativeWindow.ClickAt(CenterX(approve), CenterY(approve));
-            for (int attempt = 0; attempt < 40 && Directory.Exists(createdFolderPath); attempt++)
+            for (int attempt = 0; attempt < 40 && Exists(); attempt++)
                 await Task.Delay(150);
-            bool removed = !Directory.Exists(createdFolderPath);
+            bool removed = !Exists();
             bool sourcePreserved = await File.ReadAllTextAsync(sourceFile) == "external copy must keep source"
                 && await File.ReadAllTextAsync(Path.Combine(fixture.Source, "b.txt")) == "subset member must remain";
             bool passed = inverseBounds.Height >= 32 && cancelPreserved && removed && sourcePreserved;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, createdFolderPath, inverseBounds, cancelPreserved, removed, sourcePreserved
+                passed, fileMode, createdPath, inverseBounds, cancelPreserved, removed, sourcePreserved
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

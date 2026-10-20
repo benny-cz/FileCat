@@ -143,6 +143,12 @@ destination listing, creates a folder with F7, requires the complete path in a
 wrapped Undo action, checks that Cancel leaves the folder in place, then
 approves Undo and requires the folder to disappear while both source files
 keep their exact bytes. Finish with `clipboard-stop`.
+On another fresh fixture, `file-undo-native <report.json>` uses Shift+F4 to
+create a zero-byte file through FileCat. It requires the complete path in the
+wrapped inverse, verifies Cancel preserves the empty file, then approves Undo
+and checks that only the created file is removed. Both original source files
+must retain their exact contents. Rerun `folder-undo-native` after changing
+this shared native path.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
