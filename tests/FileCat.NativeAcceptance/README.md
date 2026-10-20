@@ -425,7 +425,16 @@ through the logged-in desktop so CoreGraphics uses that session. The helper
 captures the active display, requires an existing output folder and never
 replaces another file. Keep that permission limited to the helper. macOS may
 also request separate permission to bypass its private-window picker for
-direct capture; leave that prompt for an explicit owner decision.
+direct capture; grant it only with the owner's explicit approval. The owner
+approved this dedicated helper's prompt on 20 October 2026, after which its
+capture showed the FileCat window without a permission overlay.
+
+`python3 mac-ax-markdown-resize.py SOURCE FileCatCapture.app REPORT.json`
+uses an isolated Markdown fixture and the approved helper to record narrow
+(760 × 620) and wide (1,220 × 700) native Page screenshots. It asserts the
+actual window sizes, unchanged source bytes and exact fixture cleanup. Inspect
+both screenshots for prose and table reflow; the runner does not claim a
+pixel-layout pass by itself.
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a

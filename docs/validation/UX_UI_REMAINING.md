@@ -8,11 +8,9 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Mac visual layout checks. The dedicated `FileCatCapture` helper has
-  Screen Recording permission, but macOS presented a separate direct screen
-  and audio capture consent; wait for an explicit owner decision or implement
-  a picker-based capture route. Keep the Mac session unlocked and its display
-  awake while finishing Mac input, clipboard, viewer
+- Finish Mac visual layout checks using the owner-approved `FileCatCapture`
+  helper in the unlocked desktop session. Keep the Mac display awake while
+  finishing Mac input, clipboard, viewer
   and scaling journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 
