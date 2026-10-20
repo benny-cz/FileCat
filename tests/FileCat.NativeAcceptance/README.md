@@ -111,6 +111,16 @@ For native Windows clipboard interchange, run `seed-clipboard
 clipboard-fixture.json` in the guest and launch the current Git-built FileCat
 with its reported `--data`, `--left` and `--right` paths. Keep that seed report
 beside every following report. The fixture contains `a.txt` and `b.txt`.
+`places-native <report.json>` measures the source panel's visible Places row
+at normal, narrow, wide and restored window sizes. It requires responsive
+membership and More overflow without changing the fixture. To verify a
+finished transfer average, run `clipboard-copy <source.xml>` to publish a
+FileCat-owned Copy of `a.txt`, then `clipboard-paste <report.json>` and
+`operation-open-details <source.xml>`. Run `operation-average-native
+<report.json>` while the finished Operations drawer is open. It checks exact
+source and target bytes, the visible finished average, and the average in
+Copy report and Open report's Copy all text. The two exports may have distinct
+capture timestamps; their remaining report bodies must match.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window

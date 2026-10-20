@@ -56,6 +56,8 @@ public sealed partial class Job
     public DateTime CreatedUtc { get; } = DateTime.UtcNow;
     public DateTime? StartedUtc { get; private set; }
     public DateTime? FinishedUtc { get; private set; }
+    /// <summary>Monotonic time since this job first ran; includes pauses, decisions and verification, but not queue time.</summary>
+    public TimeSpan ElapsedSinceStart => _clock.Elapsed;
     public Job? WaitingFor { get; internal set; }
     public string? WaitReason { get; internal set; }
     public int QueueOrder { get; internal set; }
@@ -311,7 +313,6 @@ public sealed partial class Job
     internal void SetState(JobState state)
     {
         if (_state == state) return;
-        _state = state;
         if (state == JobState.Running)
         {
             StartedUtc ??= DateTime.UtcNow;
@@ -324,6 +325,9 @@ public sealed partial class Job
             FinishedUtc = DateTime.UtcNow;
             _clock.Stop();
         }
+        // Publish the terminal state only after its timing is frozen. Readers
+        // exporting a finished report must never observe a still-running clock.
+        _state = state;
         Diagnostics.FileCatEventSource.Log.JobStateChanged(ShortId, state.ToString());
         Changed?.Invoke(this);
     }

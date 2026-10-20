@@ -6,6 +6,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -16,6 +17,88 @@ namespace FileCat.App.Tests;
 
 public sealed class OperationReportTests
 {
+    [Fact]
+    public async Task Completed_copy_keeps_its_average_speed_while_rename_and_skip_claim_no_transfer()
+    {
+        string root = Directory.CreateTempSubdirectory("fc-average-rate-").FullName;
+        try
+        {
+            string source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+            string moved = Directory.CreateDirectory(Path.Combine(root, "moved")).FullName;
+            string copied = Directory.CreateDirectory(Path.Combine(root, "copied")).FullName;
+            byte[] bytes = new byte[1 << 20];
+            new Random(42).NextBytes(bytes);
+            string sourcePath = Path.Combine(source, "payload.bin");
+            File.WriteAllBytes(sourcePath, bytes);
+            var providers = new ProviderRegistry();
+            providers.Register(new LocalFileSystemProvider());
+            var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(root, "journal"));
+
+            var move = manager.Submit(new JobRequest
+            {
+                Kind = JobKind.Move,
+                Sources = [ItemRef.ForFileSystemPath(sourcePath, EntryKind.File)],
+                Destination = Location.FileSystem(moved),
+            });
+            await Finished(move);
+            Assert.Equal(JobState.Completed, move.State);
+            Assert.Equal(0, move.DataBytesProcessed);
+            Assert.Contains("Average transfer speed: not applicable", OperationReport.ForClipboard(OperationReport.Capture(move)));
+            var moveView = new JobViewModel(move);
+            moveView.Refresh();
+            Assert.Empty(moveView.SpeedText);
+
+            string movedPath = Path.Combine(moved, "payload.bin");
+            var copy = manager.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(movedPath, EntryKind.File)],
+                Destination = Location.FileSystem(copied),
+                Options = new TransferOptions { Verify = VerifyMode.ReadBack },
+            });
+            await Finished(copy);
+            Assert.Equal(JobState.Completed, copy.State);
+            Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(copied, "payload.bin")));
+            var snapshot = OperationReport.Capture(copy);
+            Assert.True(snapshot.DataBytesProcessed > bytes.Length); // Includes the real verification reads.
+            Assert.True(snapshot.ElapsedSinceStart > TimeSpan.Zero);
+            string expectedRate = Assert.IsType<string>(Formatters.AverageDataRate(snapshot.DataBytesProcessed, snapshot.ElapsedSinceStart));
+            string report = Assert.IsType<string>(OperationReport.ForClipboard(snapshot));
+            Assert.Contains("Actual data processed: " + snapshot.DataBytesProcessed.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " bytes", report);
+            Assert.Contains("Average transfer speed: " + expectedRate, report);
+            var copyView = new JobViewModel(copy);
+            copyView.Refresh();
+            Assert.Equal(expectedRate + " on average", copyView.SpeedText);
+            await Task.Delay(30, TestContext.Current.CancellationToken);
+            Assert.Equal(snapshot.ElapsedSinceStart, OperationReport.Capture(copy).ElapsedSinceStart);
+            copyView.Refresh();
+            Assert.Equal(expectedRate + " on average", copyView.SpeedText);
+
+            manager.DecisionRequested += decision => decision.Resolve(new Decision(DecisionAction.Skip));
+            var skipped = manager.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(movedPath, EntryKind.File)],
+                Destination = Location.FileSystem(copied),
+            });
+            await Finished(skipped);
+            Assert.Equal(1, skipped.ItemsSkipped);
+            Assert.Equal(0, skipped.DataBytesProcessed);
+            Assert.Contains("Average transfer speed: not applicable", OperationReport.ForClipboard(OperationReport.Capture(skipped)));
+            var skippedView = new JobViewModel(skipped);
+            skippedView.Refresh();
+            Assert.Empty(skippedView.SpeedText);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+
+        static async Task Finished(Job job)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            while (!job.State.IsFinished()) await Task.Delay(10, timeout.Token);
+        }
+    }
+
     [Fact]
     public void Report_preserves_exact_paths_reasons_and_distinct_effects()
     {

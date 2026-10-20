@@ -7,6 +7,24 @@ namespace FileCat.App.Tests;
 public sealed class FormattersTests
 {
     [Fact]
+    public void Average_data_rate_reports_small_and_large_real_rates_without_inventing_zero_byte_work()
+    {
+        var saved = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            Assert.Null(Formatters.AverageDataRate(0, TimeSpan.FromSeconds(1)));
+            Assert.Null(Formatters.AverageDataRate(10, TimeSpan.Zero));
+            Assert.Equal("<1 byte/s", Formatters.AverageDataRate(1, TimeSpan.FromSeconds(10)));
+            Assert.Equal("512 bytes/s", Formatters.AverageDataRate(512, TimeSpan.FromSeconds(1)));
+            Assert.Equal("1 KB/s", Formatters.AverageDataRate(1024, TimeSpan.FromSeconds(1)));
+            Assert.Equal(Formatters.SizeWithUnit(long.MaxValue) + "/s",
+                         Formatters.AverageDataRate(long.MaxValue, TimeSpan.FromTicks(1)));
+        }
+        finally { CultureInfo.CurrentCulture = saved; }
+    }
+
+    [Fact]
     public void Panel_attribute_letters_are_uppercase()
     {
         var attributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System |

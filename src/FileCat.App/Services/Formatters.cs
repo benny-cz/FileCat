@@ -43,6 +43,17 @@ public static class Formatters
     /// <summary>Size with a unit for sentences and status lines ("85 bytes", "12.4 MB").</summary>
     public static string SizeWithUnit(long bytes) => bytes < 0 ? "unknown size" : bytes < 1024 ? (bytes == 1 ? "1 byte" : bytes.ToString("N0", CultureInfo.CurrentCulture) + " bytes") : bytes < 1_000_000 ? (bytes / 1024.0).ToString("0.#", CultureInfo.CurrentCulture) + " KB" : Size(bytes);
 
+    /// <summary>Actual data bytes per elapsed run time, excluding logical rename or skipped-byte progress.</summary>
+    internal static string? AverageDataRate(long bytes, TimeSpan elapsed)
+    {
+        if (bytes <= 0 || elapsed <= TimeSpan.Zero) return null;
+        double rate = bytes / elapsed.TotalSeconds;
+        if (!double.IsFinite(rate) || rate <= 0) return null;
+        if (rate < 1) return "<1 byte/s";
+        if (rate < 1024) return rate.ToString("0.#", CultureInfo.CurrentCulture) + " bytes/s";
+        return SizeWithUnit(rate >= long.MaxValue ? long.MaxValue : (long)Math.Round(rate)) + "/s";
+    }
+
     public static string ExactSize(long bytes) =>
         bytes < 0 ? "unknown" : bytes.ToString("N0", CultureInfo.CurrentCulture) + (bytes == 1 ? " byte" : " bytes");
 

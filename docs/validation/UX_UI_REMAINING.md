@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 20 October 2026. Maintain this file after every validated batch. The
+Updated: 21 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -87,11 +87,11 @@ increments to `main`.
    and history review still need native narrow
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
-7. **Close newly reported minor issues.** UXBUG-013 (Places row showing only a
-   few icons despite available width) has a responsive layout fix and focused
-   tests; verify it on the Windows VM at narrow and expanded widths, including
-   overflow and pinned places. UXBUG-014 (average transfer speed missing from
-   the completed operation report) needs implementation and test coverage.
+7. **Close newly reported minor issues.** UXBUG-013 still needs native
+   pinned-place interaction, scaled layouts and spoken acceptance after the
+   verified Windows normal/narrow/wide/restore row reflow and overflow.
+   UXBUG-014 still needs native Save report picker, scaled layout and spoken
+   acceptance after the verified Windows finished drawer and Open/Copy report.
 
 ## Evidence required to finish
 

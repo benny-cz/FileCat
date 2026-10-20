@@ -249,7 +249,8 @@ public sealed partial class JobViewModel : ObservableObject
             { Note: ProgressNote.Finishing } => "finishing…",
             _ => running ? string.Empty : "—",
         };
-        ElapsedText = j.StartedUtc is { } started ? Duration((j.FinishedUtc ?? DateTime.UtcNow) - started) : string.Empty;
+        var elapsed = j.ElapsedSinceStart;
+        ElapsedText = j.StartedUtc is not null ? Duration(elapsed) : string.Empty;
         TimingText = IsFinished ? (ElapsedText.Length > 0 ? "Took " + ElapsedText : string.Empty)
             : string.Join(" · ", new[] { TimeLeftText.Length > 0 ? "Time left: " + TimeLeftText : "", ElapsedText.Length > 0 ? "running for " + ElapsedText : "" }.Where(t => t.Length > 0));
         ItemsText = it > 0 || id > 0
@@ -273,8 +274,13 @@ public sealed partial class JobViewModel : ObservableObject
                 ? $"Last 90 s · peak {_speedHistorySamples.Peak:0.#} items/s"
                 : $"Last 90 s · peak {Formatters.Size((long)_speedHistorySamples.Peak)}/s";
         }
-        double average = j.StartedUtc is { } from && (DateTime.UtcNow - from).TotalSeconds is var seconds and > 1 ? units / seconds : 0;
-        SpeedText = !IsActive ? string.Empty
+        double average = elapsed.TotalSeconds > 0 ? units / elapsed.TotalSeconds : 0;
+        SpeedText = IsFinished
+            ? MeasuresItems && j.ItemsDone > 0 && average > 0
+                ? $"{average:0.#} items/s on average"
+                : Formatters.AverageDataRate(j.DataBytesProcessed, elapsed) is { } finalRate
+                    ? $"{finalRate} on average"
+                    : string.Empty
             : !running ? string.Empty
             : MeasuresItems
                 ? $"{_speedHistorySamples.Current:0.#} items/s now · {average:0.#} items/s on average"

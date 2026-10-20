@@ -88,6 +88,12 @@ public sealed class PlaceBarHierarchyTests
             Assert.True(all.Length > 4);
             Button[] Buttons() => [.. row.Children.OfType<Button>().Where(b => b.Tag is Place)];
             Assert.Equal(all.Length, Buttons().Length);
+            // Desktops expose different drive counts. Force a narrow panel so
+            // this menu test has a real overflow item on Linux as well.
+            window.Width = 640;
+            for (int i = 0; i < 100 && !row.Hidden.OfType<Button>().Any(b => b.Tag is Place); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Contains(row.Hidden.OfType<Button>(), b => b.Tag is Place);
             var omittedButton = row.Hidden.OfType<Button>().First(b => b.Tag is Place);
             var omitted = (Place)omittedButton.Tag!;
             var more = row.Children.OfType<Button>().Single(b => AutomationProperties.GetName(b) == "More places");
@@ -97,12 +103,13 @@ public sealed class PlaceBarHierarchyTests
             var pinMenu = menu.Items.OfType<MenuItem>().Single(item => item.Header as string == "Pin places to bar");
             var pin = pinMenu.Items.OfType<MenuItem>().Single(item => item.Header as string == omitted.Title);
             pin.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            for (int i = 0; i < 250 && row.Hidden.Contains(Buttons().Single(b => PlaceBarPolicy.Key((Place)b.Tag!) == PlaceBarPolicy.Key(omitted))); i++)
-                await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.Contains(PlaceBarPolicy.Key(omitted), services.Settings.PinnedPlaces);
             var saved = JsonSerializer.Deserialize(File.ReadAllText(services.Paths.SettingsFile), StateJsonContext.Default.AppSettings)!;
             Assert.Contains(PlaceBarPolicy.Key(omitted), saved.PinnedPlaces);
+            window.Width = 1280;
             var pinnedButton = Buttons().Single(b => PlaceBarPolicy.Key((Place)b.Tag!) == PlaceBarPolicy.Key(omitted));
+            for (int i = 0; i < 100 && row.Hidden.Contains(pinnedButton); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.DoesNotContain(pinnedButton, row.Hidden);
             var placeMenu = panel.PlaceMenu((Place)pinnedButton.Tag!);
             Assert.Contains(placeMenu.Items.OfType<MenuItem>(), item => item.Header as string == "Unpin from Places bar");

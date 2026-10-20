@@ -12,10 +12,12 @@ internal static class OperationReport
     internal const int ReadBatch = 256;
 
     internal sealed record Snapshot(Job Job, DateTime CapturedUtc, JobState State, JobIssueTotals Issues,
-        long ItemsDone, long ItemsSkipped, long ItemsFailed, long ItemsTotal, bool TotalsFinal);
+        long ItemsDone, long ItemsSkipped, long ItemsFailed, long ItemsTotal, bool TotalsFinal,
+        long DataBytesProcessed, TimeSpan ElapsedSinceStart);
 
     internal static Snapshot Capture(Job job) => new(job, DateTime.UtcNow, job.State, job.IssueTotals,
-        job.ItemsDone, job.ItemsSkipped, job.ItemsFailed, job.ItemsTotal, job.TotalsFinal);
+        job.ItemsDone, job.ItemsSkipped, job.ItemsFailed, job.ItemsTotal, job.TotalsFinal,
+        job.DataBytesProcessed, job.ElapsedSinceStart);
 
     internal static string? ForClipboard(Snapshot snapshot, int maximumCharacters = ClipboardCharacterLimit)
     {
@@ -49,6 +51,11 @@ internal static class OperationReport
         Line("Destination: " + (snapshot.Job.Request.Destination is { } destination ? Quoted(destination.ToString()) : "none"));
         Line($"Items: {Count(snapshot.ItemsDone)} done; {Count(snapshot.ItemsSkipped)} skipped; {Count(snapshot.ItemsFailed)} failed; " +
              (snapshot.TotalsFinal ? $"{Count(snapshot.ItemsTotal)} planned" : "total scope was still being counted"));
+        Line($"Actual data processed: {Count(snapshot.DataBytesProcessed)} bytes (copy/write and verification reads; excludes skipped bytes and same-volume rename credit)");
+        string? average = Formatters.AverageDataRate(snapshot.DataBytesProcessed, snapshot.ElapsedSinceStart);
+        Line("Average transfer speed" + (snapshot.State.IsFinished() ? "" : " so far") + ": " +
+             (average ?? (snapshot.DataBytesProcessed == 0 ? "not applicable (no actual data processed)" : "unavailable (no elapsed run time)")) +
+             " (actual data processed over elapsed run time, including pauses, decisions and verification)");
         Line($"Issues: {Count(snapshot.Issues.Total)} total; {Count(snapshot.Issues.Info)} info; {Count(snapshot.Issues.Warning)} warnings; {Count(snapshot.Issues.Error)} errors");
         Line($"Details: first {Count(snapshot.Issues.Retained)} retained; {Count(snapshot.Issues.Omitted)} omitted after the retention limit");
         Line("Quoted paths and reasons use JSON escaping; decoding the quoted value recovers the exact text.");
