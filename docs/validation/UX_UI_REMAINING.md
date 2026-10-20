@@ -29,8 +29,9 @@ increments to `main`.
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac and Ubuntu native ownership
-   checks still need interrupted Move effects; Windows still needs
-   preferred/performed Move effects.
+   checks still need actual process interruption during Move; Windows still
+   needs performed-effect handling and Explorer Cut presentation after
+   FileCat imports that publication as Copy.
    FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003

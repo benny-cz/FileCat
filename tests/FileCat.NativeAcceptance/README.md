@@ -122,6 +122,15 @@ focuses FileCat's destination pane, sends Ctrl+V, and checks the source and
 destination contents byte for byte. It fails on a missing file, changed source
 or incomplete copy. `clipboard-stop <report.json>` gracefully closes only the
 validated isolated FileCat process when a new Git build must be deployed.
+For an Explorer Cut publication, use a fresh fixture and the same isolated
+build. Run `explorer-navigate <source.xml>`, `explorer-cut <source.xml>`,
+`clipboard-cut-native <report.json>`, and
+`clipboard-paste-explorer-cut <report.json>`. The native report requires the
+exact `CF_HDROP` path and `Preferred DropEffect` value 2 (Move). Paste must
+copy exact bytes while keeping Explorer's source because an external Cut
+does not carry FileCat's own Move authority. The native report also records
+the optional `Performed DropEffect`; absence is reported as `null`, not
+inferred as a completed shell Move. Finish with `clipboard-stop`.
 For the native FCUX-018 Move inverse, use another fresh `seed-clipboard`
 fixture, then run `clipboard-cut <source.xml>` and `clipboard-move
 <report.json>` in that order. The latter uses FileCat Paste and checks that
@@ -547,6 +556,10 @@ sides, only `b.txt` moved with exact bytes, and a second Paste refusal that
 states one of two items completed. It checks no replay effects, replaces its
 test-owned clipboard and restores the fixture and marks on success. Keep
 other foreground dialogs closed so native key events reach FileCat.
+Pass `--cancel-conflict` after the report path to choose Cancel operation
+instead. That route requires zero completed roots, exact unchanged source
+and destination bytes, and refusal to replay the original Cut on another
+Paste. It also restores the test clipboard and Commander marks.
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check a partial owned Move and refusal to replay its original Cut on macOS.
 
-Usage: python3 mac-ax-clipboard-partial-move.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json
+Usage: python3 mac-ax-clipboard-partial-move.py SOURCE DESTINATION PASTEBOARD_HELPER KEY_HELPER REPORT.json [--cancel-conflict]
 Run only against the isolated FileCatValidation desktop fixture. On success the
 test restores the exact fixture bytes and retires its clipboard publication.
 """
@@ -42,28 +42,28 @@ tell application "System Events"
 end tell
 '''
 
-SKIP_CONFLICT = '''
-on chooseSkip(itemRef, depth)
+CHOOSE_CONFLICT = '''
+on chooseDecision(itemRef, depth)
     if depth > 25 then return false
     tell application "System Events"
         try
-            if (role of itemRef as text) is "AXButton" and (name of itemRef as text) is "Skip" then
+            if (role of itemRef as text) is "AXButton" and (name of itemRef as text) is "DECISION_NAME" then
                 click itemRef
                 return true
             end if
         end try
         try
             repeat with childRef in (UI elements of itemRef)
-                if my chooseSkip(childRef, depth + 1) then return true
+                if my chooseDecision(childRef, depth + 1) then return true
             end repeat
         end try
     end tell
     return false
-end chooseSkip
+end chooseDecision
 tell application "System Events"
     tell process "FileCat"
         set frontmost to true
-        return (my chooseSkip(window 1, 0) as text)
+        return (my chooseDecision(window 1, 0) as text)
     end tell
 end tell
 '''
@@ -74,11 +74,11 @@ on hasPartialNotice(itemRef, depth)
     tell application "System Events"
         try
             set itemName to name of itemRef as text
-            if itemName contains "previous move fully completed 1 of 2 items" then return true
+            if itemName contains "previous move fully completed COMPLETED_ROOTS of 2 items" then return true
         end try
         try
             set itemValue to value of itemRef as text
-            if itemValue contains "previous move fully completed 1 of 2 items" then return true
+            if itemValue contains "previous move fully completed COMPLETED_ROOTS of 2 items" then return true
         end try
         try
             repeat with childRef in (UI elements of itemRef)
@@ -110,7 +110,7 @@ def until(check, description, seconds=35):
     raise AssertionError(description)
 
 
-def run(source, destination, pasteboard_helper, key_helper):
+def run(source, destination, pasteboard_helper, key_helper, cancel_conflict=False):
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     pasteboard_helper = pasteboard_helper.resolve(strict=True)
@@ -127,6 +127,7 @@ def run(source, destination, pasteboard_helper, key_helper):
 
     clipboard["require_no_marks"]()
     clipboard["osa"]('set the clipboard to ' + clipboard["apple_string"]("FileCat partial Move " + str(uuid4())))
+    decided = False
     moved = False
     primary_error = None
     try:
@@ -152,23 +153,34 @@ def run(source, destination, pasteboard_helper, key_helper):
         clipboard["paste_into_target"](str(destination), key_helper)
         until(lambda: clipboard["osa"](OPEN_DECISION) == "true",
               "The existing a.txt conflict did not expose a review action")
-        if clipboard["osa"](SKIP_CONFLICT) != "true":
-            raise AssertionError("The conflict review did not offer Skip")
-        until(lambda: manifest(source) == partial_source and manifest(destination) == partial_target,
-              "Skip did not preserve a.txt and move only b.txt with exact bytes")
-        moved = True
+        choice = "Cancel operation" if cancel_conflict else "Skip"
+        if clipboard["osa"](CHOOSE_CONFLICT.replace("DECISION_NAME", choice)) != "true":
+            raise AssertionError(f"The conflict review did not offer {choice}")
+        decided = True
+        if cancel_conflict:
+            time.sleep(2)
+            if manifest(source) != original_source or manifest(destination) != original_target:
+                raise AssertionError("Cancel changed the original source or destination")
+        else:
+            until(lambda: manifest(source) == partial_source and manifest(destination) == partial_target,
+                  "Skip did not preserve a.txt and move only b.txt with exact bytes")
+            moved = True
 
         clipboard["paste_into_target"](str(destination), key_helper)
-        until(lambda: clipboard["osa"](PARTIAL_NOTICE) == "true",
-              "Replay did not explain that only one of two roots completed")
-        if manifest(source) != partial_source or manifest(destination) != partial_target:
-            raise AssertionError("A second Paste replayed or changed the partial Move")
+        completed = 0 if cancel_conflict else 1
+        until(lambda: clipboard["osa"](PARTIAL_NOTICE.replace("COMPLETED_ROOTS", str(completed))) == "true",
+              f"Replay did not explain that {completed} of two roots completed")
+        expected_source = original_source if cancel_conflict else partial_source
+        expected_target = original_target if cancel_conflict else partial_target
+        if manifest(source) != expected_source or manifest(destination) != expected_target:
+            raise AssertionError("A second Paste replayed or changed the earlier Move")
         return {"passed": True, "platform": "macOS",
-                "scenario": "Cut a.txt and b.txt; Skip existing a.txt; move b.txt; refuse replay",
+                "scenario": f"Cut a.txt and b.txt; {choice} for existing a.txt; refuse replay",
                 "cutPublishedBothExactFiles": True,
-                "conflictReviewExposedSkip": True,
-                "skippedAndMovedBytesExact": True,
-                "partialMoveReplayRefused": True}
+                "conflictReviewChoice": choice,
+                "completedRoots": completed,
+                "resultBytesExact": True,
+                "moveReplayRefused": True}
     except Exception as exc:
         primary_error = exc
         raise
@@ -182,22 +194,24 @@ def run(source, destination, pasteboard_helper, key_helper):
             if manifest(source) == partial_source and manifest(destination) == partial_target:
                 (destination / "b.txt").unlink()
                 (source / "b.txt").write_bytes(b"beta\n")
-                clipboard["focus_source"](str(source))
-                clipboard["filecat_action"]('key code 35 using {command down, shift down}')
-                clipboard["filecat_action"]('keystroke "Unselect all"')
-                clipboard["filecat_action"]('key code 36')
-                clipboard["require_no_marks"]()
             else:
                 raise AssertionError("Fixture changed unexpectedly; left it for inspection")
+        if decided:
+            clipboard["focus_source"](str(source))
+            clipboard["filecat_action"]('key code 35 using {command down, shift down}')
+            clipboard["filecat_action"]('keystroke "Unselect all"')
+            clipboard["filecat_action"]('key code 36')
+            clipboard["require_no_marks"]()
         if clipboard_error is not None and primary_error is None:
             raise clipboard_error
 
 
 def main():
-    if len(sys.argv) != 6:
+    if len(sys.argv) not in (6, 7) or len(sys.argv) == 7 and sys.argv[6] != "--cancel-conflict":
         raise SystemExit(__doc__)
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]))
+        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]),
+                     len(sys.argv) == 7)
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     Path(sys.argv[5]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
