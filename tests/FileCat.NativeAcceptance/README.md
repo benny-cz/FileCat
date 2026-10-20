@@ -121,6 +121,10 @@ FileCat-owned Copy of `a.txt`, then `clipboard-paste <report.json>` and
 source and target bytes, the visible finished average, and the average in
 Copy report and Open report's Copy all text. The two exports may have distinct
 capture timestamps; their remaining report bodies must match.
+Run `operation-save-native <report.json>` with the same finished drawer open.
+It chooses a new guest-local report path in the validation folder through the
+native Save picker, then requires the saved report's average, actual processed
+bytes, one completed item, and unchanged byte-exact source and target files.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
