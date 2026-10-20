@@ -30,8 +30,8 @@ increments to `main`.
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac and Ubuntu native ownership
    checks still need Mac process interruption during Move. Ubuntu's held
-   conflict survived a real process kill and restart; its reviewed recovery
-   continuation and in-flight data-copy interruption still need acceptance.
+   conflict survived a real process kill, restart and reviewed conservative
+   continuation; in-flight data-copy interruption still needs acceptance.
    Windows still
    needs Explorer Cut presentation after the completed Copy effect and
    supported external Move/delete-on-paste handling, if safely offered.

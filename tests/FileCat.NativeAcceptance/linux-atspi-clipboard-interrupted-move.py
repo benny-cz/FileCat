@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Interrupt an owned Move at a conflict, then inspect its desktop recovery.
 
-Usage: linux-atspi-clipboard-interrupted-move.py prepare|inspect|review|cancel-review SOURCE DESTINATION UINPUT_HELPER REPORT.json
+Usage: linux-atspi-clipboard-interrupted-move.py prepare|inspect|review|cancel-review|continue-plan|inspect-continuation SOURCE DESTINATION UINPUT_HELPER REPORT.json
 Run prepare only on the dedicated FileCatValidation guest. Relaunch that same
 FileCat binary with the same profile and panels before running inspect.
 """
@@ -31,14 +31,16 @@ ORIGINAL_SOURCE = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
 ORIGINAL_TARGET = {"a.txt": b"alpha\n"}
 
 
-def fixture(source, destination, helper):
+def fixture(source, destination, helper, *, completed=False):
     root = (Path.home() / "FileCatValidation").resolve(strict=True)
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     helper = helper.resolve(strict=True)
     if source != root / "source" or destination != root / "destination" or helper != root / "linux-uinput-key.py":
         raise AssertionError("Use only the dedicated FileCatValidation fixture")
-    if manifest(source) != ORIGINAL_SOURCE or manifest(destination) != ORIGINAL_TARGET:
+    expected_source = {"a.txt": ORIGINAL_SOURCE["a.txt"]} if completed else ORIGINAL_SOURCE
+    expected_target = {**ORIGINAL_TARGET, "b.txt": ORIGINAL_SOURCE["b.txt"]} if completed else ORIGINAL_TARGET
+    if manifest(source) != expected_source or manifest(destination) != expected_target:
         raise AssertionError("The dedicated source or destination bytes are not exact")
     return root, source, destination, helper
 
@@ -178,16 +180,63 @@ def cancel_review(root, source, destination):
             "sourceAndTargetBytesExact": True, "reviewClosedWithoutApproval": True}
 
 
+def continue_plan(root, source, destination):
+    review(root, source, destination)
+    desktop = Atspi.get_desktop(0)
+    apps = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
+    choices = [node for owner in apps if owner.get_name() == "FileCat"
+               for node in descendants(owner)
+               if node.get_role_name() == "button" and node.get_name() == "Continue move"]
+    if len(choices) != 1 or choices[0].get_n_actions() != 1 or not choices[0].do_action(0):
+        raise AssertionError("The reviewed Move's exact Continue action was unavailable")
+    time.sleep(1.0)
+    current_source = manifest(source)
+    current_target = manifest(destination)
+    if current_target.get("a.txt") != ORIGINAL_TARGET["a.txt"]:
+        raise AssertionError("Continuation changed the pre-existing target without review")
+    if current_source.get("a.txt") != ORIGINAL_SOURCE["a.txt"] and "a.txt" not in current_target:
+        raise AssertionError("Continuation lost the conflicted source")
+    if current_source.get("b.txt") != ORIGINAL_SOURCE["b.txt"] and current_target.get("b.txt") != ORIGINAL_SOURCE["b.txt"]:
+        raise AssertionError("Continuation lost the non-conflicted source")
+    visible = sorted({name for owner in apps if owner.get_name() == "FileCat"
+                      for node in descendants(owner) if (name := node.get_name())
+                      and any(term in name.lower() for term in
+                              ("conflict", "skip", "replace", "decision", "completed", "move"))})
+    return {"passed": True, "platform": "Ubuntu", "phase": "continue-plan",
+            "source": sorted(current_source), "destination": sorted(current_target),
+            "preexistingTargetUnchanged": True,
+            "nonConflictedBytesPresent": True, "relevantAccessibleNames": visible[:40]}
+
+
+def inspect_continuation(root, source, destination):
+    app = app_for(source, destination)
+    visible = sorted({name for node in descendants(app) if (name := node.get_name())
+                      and ("completed with issues" in name.lower()
+                           or "recovery tracking closed" in name.lower())})
+    if not any("1 done, 1 skipped" in name for name in visible):
+        raise AssertionError("The resumed Move did not show its exact done/skipped outcome")
+    if not any("recovery tracking closed" in name for name in visible):
+        raise AssertionError("The resumed Move did not close recovery tracking")
+    return {"passed": True, "platform": "Ubuntu", "phase": "inspect-continuation",
+            "sourceBytesExact": True, "destinationBytesExact": True,
+            "preexistingTargetKept": True, "nonConflictedSourceMoved": True,
+            "oneDoneOneSkipped": True, "recoveryTrackingClosed": True,
+            "relevantAccessibleNames": [name[:240] for name in visible[:8]]}
+
+
 def main():
-    if len(sys.argv) != 6 or sys.argv[1] not in ("prepare", "inspect", "review", "cancel-review"):
+    if len(sys.argv) != 6 or sys.argv[1] not in ("prepare", "inspect", "review", "cancel-review", "continue-plan", "inspect-continuation"):
         raise SystemExit(__doc__)
     report = Path(sys.argv[5])
     try:
-        root, source, destination, helper = fixture(Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]))
+        root, source, destination, helper = fixture(Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]),
+                                                    completed=sys.argv[1] == "inspect-continuation")
         result = (prepare(root, source, destination, helper) if sys.argv[1] == "prepare"
                   else inspect(root, source, destination) if sys.argv[1] == "inspect"
                   else review(root, source, destination) if sys.argv[1] == "review"
-                  else cancel_review(root, source, destination))
+                  else cancel_review(root, source, destination) if sys.argv[1] == "cancel-review"
+                  else continue_plan(root, source, destination) if sys.argv[1] == "continue-plan"
+                  else inspect_continuation(root, source, destination))
     except Exception as exc:
         result = {"passed": False, "phase": sys.argv[1], "error": f"{type(exc).__name__}: {exc}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

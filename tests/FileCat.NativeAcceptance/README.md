@@ -478,8 +478,13 @@ Run `review` to open that action and check retained source count, zero finished
 steps, destination and Cancel/Continue controls; `cancel-review` closes it
 without approving any transfer and checks the bytes again. Each phase writes
 its own JSON result. The held-conflict interruption, restart, review and
-Cancel phases passed on the logged-in Ubuntu VM; actual in-flight data copy
-and a reviewed recovery continuation remain separate acceptance cases.
+Cancel phases passed on the logged-in Ubuntu VM. After Cancel, run
+`continue-plan` to reopen the review and approve its recorded conservative
+Skip policy. Run `inspect-continuation` to require exact final trees:
+pre-existing `a.txt` remains on both sides, `b.txt` moves byte-exactly,
+the UI says one done/one skipped, and recovery tracking is closed. These
+continuation phases passed on the same VM. Actual in-flight data-copy
+interruption remains a separate acceptance case.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
