@@ -99,6 +99,19 @@ public sealed class BulkRenameDialogTests
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             Assert.True(dialogs.IsOpen);
             window.UpdateLayout(); // Realize the modal's scrollable body before querying visual controls.
+            Assert.Contains(window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Thumb>(),
+                grip => grip.Name == "DialogResizeGrip" && AutomationProperties.GetName(grip) == "Resize dialog");
+            var options = window.GetVisualDescendants().OfType<Expander>().Single(control =>
+                AutomationProperties.GetName(control) == "Counter, search and case options");
+            Assert.False(options.IsExpanded);
+            options.IsExpanded = true;
+            window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBox>(), box =>
+                AutomationProperties.GetName(box) == "Search for");
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBox>(), box =>
+                AutomationProperties.GetName(box) == "Counter start");
+            options.IsExpanded = false;
+            window.UpdateLayout();
             TextBox Box(string name) => window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == name);
             Button Confirm() => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Rename");
             var preview = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Preview of new names");

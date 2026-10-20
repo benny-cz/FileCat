@@ -284,9 +284,26 @@ public sealed partial class MainViewModel
             Spacing = 2,
             Children = { new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap }, input, error },
         };
+        var searchOptions = new Expander
+        {
+            Header = "Counter, search and case options",
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    DialogLayout.Actions(CounterField("Counter from", counterStart, counterStartError),
+                        CounterField("Step (negative counts down; zero repeats)", counterStep, counterStepError),
+                        CounterField("Digits (1–12)", counterDigits, counterDigitsError)),
+                    DialogLayout.Actions(Field("Search:", search), Field("Replace:", replace)),
+                    DialogLayout.Actions(regex, matchCase, Field("Case:", caseBox)),
+                },
+            },
+        };
+        AutomationProperties.SetName(searchOptions, "Counter, search and case options");
         var body = new StackPanel
         {
-            Spacing = 8,
+            Spacing = 6,
             Children =
             {
                 scopeNotice,
@@ -298,11 +315,7 @@ public sealed partial class MainViewModel
                     Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 720,
                     Text = "[N] name · [N2-5] characters 2 to 5 · [N3-] from 3 on · [E] extension · [C] counter · [P] folder · [YMD] date · [hms] time; other text is kept as typed",
                 },
-                DialogLayout.Actions(Field("Search:", search), Field("Replace:", replace)),
-                DialogLayout.Actions(regex, matchCase, Field("Case:", caseBox)),
-                DialogLayout.Actions(CounterField("Counter from", counterStart, counterStartError),
-                    CounterField("Step (negative counts down; zero repeats)", counterStep, counterStepError),
-                    CounterField("Digits (1–12)", counterDigits, counterDigitsError)),
+                searchOptions,
                 preview,
                 summary,
                 DialogLayout.Actions(editorButton),
@@ -314,7 +327,7 @@ public sealed partial class MainViewModel
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
             // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
             () => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
-                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
+                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes), resizable: true);
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();

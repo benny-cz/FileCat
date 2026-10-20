@@ -32,6 +32,10 @@ public sealed class BulkRenameCounterValidationTests
             var dialogs = (OverlayDialogService)vm.Dialogs;
             await Until(() => dialogs.IsOpen);
             window.UpdateLayout();
+            var options = window.GetVisualDescendants().OfType<Expander>().Single(control =>
+                AutomationProperties.GetName(control) == "Counter, search and case options");
+            options.IsExpanded = true;
+            window.UpdateLayout();
             TextBox Box(string name) => window.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == name);
             var rename = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Rename"));
             var review = window.GetVisualDescendants().OfType<BulkRenameReview>().Single();
@@ -76,6 +80,10 @@ public sealed class BulkRenameCounterValidationTests
             vm.Execute(CommandIds.BulkRename);
             var dialogs = (OverlayDialogService)vm.Dialogs;
             await Until(() => dialogs.IsOpen);
+            window.UpdateLayout();
+            var options = window.GetVisualDescendants().OfType<Expander>().Single(control =>
+                AutomationProperties.GetName(control) == "Counter, search and case options");
+            options.IsExpanded = true;
             window.UpdateLayout();
             TextBox Box(string name) => window.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == name);
             var rename = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Rename"));

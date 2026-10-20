@@ -190,6 +190,11 @@ On a third fresh fixture, `rename-narrow-native <report.json>` checks the
 default excluded-hidden scope in a measured 760 × 560 main window. The hidden
 mark disclosure, preview, name mask and Rename action must remain accessible;
 only the reviewed visible file may change, with its exact bytes preserved.
+`rename-hidden-narrow-native <report.json>` repeats the explicit inclusion on
+a fresh 760 × 560 fixture. It requires both reviewed mapping rows to be visible
+before approval, verifies the resizable dialog's essential controls, and checks
+both renamed files and exact contents. The less common counter, search and case
+controls can be expanded when needed so the preview has room at this size.
 Run `rename-stop <report.json>` to close only the path-verified isolated app
 before starting another fixture.
 On a fresh fixture after `rename-native` (the default visible-only case), run
