@@ -408,6 +408,10 @@ source survival and unchanged `a.txt` files; it removes the copied target
 and closes only its Files window. This covers the same-path publication
 replacement that could otherwise revive an obsolete Cut. Run it from the
 logged-in Wayland desktop with no other foreground dialog.
+Add `--files-cut` after the report path to make Ubuntu Files Cut the same
+`b.txt` path. FileCat must still import that external publication as Copy,
+retain the source and match the target bytes. Both modes have been run twice
+with exact fixture restoration.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,

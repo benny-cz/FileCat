@@ -27,7 +27,7 @@ increments to `main`.
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
-   validate Ubuntu external Cut and subset clipboard cases, supported cross-app Move effects and
+   validate Ubuntu external subset clipboard cases, supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac native ownership checks
    still need partial Move replay cases;
    Windows still needs preferred/performed Move effects.

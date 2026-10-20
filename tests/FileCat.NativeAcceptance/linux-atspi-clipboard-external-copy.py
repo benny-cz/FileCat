@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Verify Ubuntu Files replaces FileCat Cut with Copy of the same file path.
+"""Verify Ubuntu Files replaces FileCat Cut with Copy or Cut of the same file path.
 
-Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json
+Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut]
 Both panels must show the exact a.txt/b.txt test fixture. Requires
 linux-atspi-clipboard-owned-move.py beside this script, GNOME Files, and the
 same guest-only uinput sudo setup described in its README entry.
@@ -53,7 +53,8 @@ def close_frame(frame):
         raise AssertionError("Could not close the exact Ubuntu Files test window")
 
 
-def run(source, destination, helper):
+def run(source, destination, helper, external_chord="ctrl+c"):
+    assert external_chord in ("ctrl+c", "ctrl+x")
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -91,8 +92,8 @@ def run(source, destination, helper):
         assert wait_for(lambda: b_row.get_state_set().contains(Atspi.StateType.SELECTED)
                         and not a_row.get_state_set().contains(Atspi.StateType.SELECTED),
                         "only b.txt selected in Ubuntu Files")
-        send_key(helper, "ctrl+c")
-        assert manifest(source) == expected_source and manifest(destination) == expected_target, "Files Copy changed fixture bytes"
+        send_key(helper, external_chord)
+        assert manifest(source) == expected_source and manifest(destination) == expected_target, "Files clipboard publication changed fixture bytes"
         send_key(helper, "alt+tab")
         target_list = find_panel(app, 2, destination)
         assert target_list, "The FileCat target panel disappeared"
@@ -109,8 +110,10 @@ def run(source, destination, helper):
         assert manifest(destination) == {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
         (destination / "b.txt").unlink()
         assert manifest(source) == expected_source and manifest(destination) == expected_target
-        return {"passed": True, "platform": "Ubuntu", "scenario": "FileCat Cut b.txt; Ubuntu Files Copy b.txt; FileCat Paste",
-                "cutNotice": cut_notice, "copyNotice": copy_notice, "exactSamePathExternalCopy": True,
+        publication = "Cut" if external_chord == "ctrl+x" else "Copy"
+        return {"passed": True, "platform": "Ubuntu", "scenario": f"FileCat Cut b.txt; Ubuntu Files {publication} b.txt; FileCat Paste",
+                "externalPublication": publication,
+                "cutNotice": cut_notice, "copyNotice": copy_notice, "externalSamePathImportedAsCopy": True,
                 "sourceSurvived": True, "targetBytesMatch": True, "unselectedBytesPreserved": True,
                 "fixtureRestored": True}
     finally:
@@ -119,11 +122,12 @@ def run(source, destination, helper):
 
 
 def main():
-    if len(sys.argv) != 5:
-        raise SystemExit("Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json")
+    if len(sys.argv) not in (5, 6) or (len(sys.argv) == 6 and sys.argv[5] != "--files-cut"):
+        raise SystemExit("Usage: linux-atspi-clipboard-external-copy.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--files-cut]")
     report = Path(sys.argv[4])
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]))
+        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
+                     "ctrl+x" if len(sys.argv) == 6 else "ctrl+c")
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
