@@ -28,8 +28,8 @@ increments to `main`.
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
-   delayed Paste destination on each desktop. Mac native ownership checks
-   still need interrupted Move effects; Windows still needs
+   delayed Paste destination on each desktop. Mac and Ubuntu native ownership
+   checks still need interrupted Move effects; Windows still needs
    preferred/performed Move effects.
    FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the

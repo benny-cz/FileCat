@@ -419,6 +419,16 @@ modes must copy only `b.txt`, preserve both source files and the existing
 target `a.txt`, and clear the test marks during teardown. They passed twice
 from the restored fixture.
 
+`linux-atspi-clipboard-partial-move.py` uses the same exact two-file source,
+existing `a.txt` destination and guest-only uinput helper. From the logged-in
+desktop it selects and Cuts both files, Pastes to the destination, opens the
+conflict review through AT-SPI and chooses Skip. It checks that `a.txt`
+remains untouched on both sides, only `b.txt` moves with exact bytes, and a
+second Paste explains the 1-of-2 partial result without replaying it. On
+success it restores both fixture folders and clears Commander marks. Run it
+with `DISPLAY`, the desktop AT-SPI bus and the same limited sudo setup as
+the owned-Move runner. It passed twice from a restored fixture.
+
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
 opens Text view, exposes Find, enters `alpha` through AT-SPI editable text,
