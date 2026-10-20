@@ -277,9 +277,9 @@ public sealed partial class JobViewModel : ObservableObject
         double average = elapsed.TotalSeconds > 0 ? units / elapsed.TotalSeconds : 0;
         SpeedText = IsFinished
             ? MeasuresItems && j.ItemsDone > 0 && average > 0
-                ? $"{average:0.#} items/s on average"
+                ? $"Average item rate: {average:0.#} items/s"
                 : Formatters.AverageDataRate(j.DataBytesProcessed, elapsed) is { } finalRate
-                    ? $"{finalRate} on average"
+                    ? $"Average transfer speed: {finalRate}"
                     : string.Empty
             : !running ? string.Empty
             : MeasuresItems

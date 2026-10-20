@@ -118,7 +118,8 @@ finished transfer average, run `clipboard-copy <source.xml>` to publish a
 FileCat-owned Copy of `a.txt`, then `clipboard-paste <report.json>` and
 `operation-open-details <source.xml>`. Run `operation-average-native
 <report.json>` while the finished Operations drawer is open. It checks exact
-source and target bytes, the visible finished average, and the average in
+source and target bytes, the visible `Average transfer speed:` label in the
+selected finished operation's details, and the same average in
 Copy report and Open report's Copy all text. The two exports may have distinct
 capture timestamps; their remaining report bodies must match.
 Run `operation-save-native <report.json>` with the same finished drawer open.

@@ -412,7 +412,7 @@ try
                     NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture));
             var speed = window.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "text"
-                && ((string?)element.Attribute("Name"))?.EndsWith(" on average", StringComparison.Ordinal) == true
+                && ((string?)element.Attribute("Name"))?.StartsWith("Average transfer speed: ", StringComparison.Ordinal) == true
                 && ((string?)element.Attribute("Name"))?.Contains("/s", StringComparison.Ordinal) == true
                 && (string?)element.Attribute("IsOffscreen") == "False");
             string visibleSpeed = (string?)speed?.Attribute("Name") ?? "";

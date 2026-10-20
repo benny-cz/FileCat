@@ -68,11 +68,11 @@ public sealed class OperationReportTests
             Assert.Contains("Average transfer speed: " + expectedRate, report);
             var copyView = new JobViewModel(copy);
             copyView.Refresh();
-            Assert.Equal(expectedRate + " on average", copyView.SpeedText);
+            Assert.Equal("Average transfer speed: " + expectedRate, copyView.SpeedText);
             await Task.Delay(30, TestContext.Current.CancellationToken);
             Assert.Equal(snapshot.ElapsedSinceStart, OperationReport.Capture(copy).ElapsedSinceStart);
             copyView.Refresh();
-            Assert.Equal(expectedRate + " on average", copyView.SpeedText);
+            Assert.Equal("Average transfer speed: " + expectedRate, copyView.SpeedText);
 
             manager.DecisionRequested += decision => decision.Resolve(new Decision(DecisionAction.Skip));
             var skipped = manager.Submit(new JobRequest
