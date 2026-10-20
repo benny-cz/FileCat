@@ -50,8 +50,8 @@ public static class SettingsDialog
         var toolbar = new CheckBox { Content = "Show the toolbar", IsChecked = s.ShowToolbar };
         var classicToolbar = new CheckBox { Content = "Classic full toolbar (all commands)", IsChecked = s.ClassicToolbar };
         var toolbarNote = Note("The focused toolbar keeps frequent actions in a stable row; More holds the remaining commands. The classic option restores the complete toolbar. Menus and shortcuts work in either layout.");
-        var allPlaces = new CheckBox { Content = "Show all Places above each panel", IsChecked = !s.CompactPlaces };
-        var placesNote = Note("Compact Places shows a short, stable row and your pinned destinations. The » menu and Alt+F1/Alt+F2 still reach every place; pin or unpin from a place's menu.");
+        var allPlaces = new CheckBox { Content = "Keep the location menu order in the Places row", IsChecked = !s.CompactPlaces };
+        var placesNote = Note("When unchecked, common and pinned Places appear first. The row fills the available width; the » menu and Alt+F1/Alt+F2 reach places that do not fit. Pin or unpin from a place's menu.");
         var driveButtons = new CheckBox { Content = "Show place buttons above the panels (drives, folders, bookmarks, servers)", IsChecked = s.ShowDriveButtons };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         // With seconds first; the shorter forms stay for those who chose them, and a format typed into the settings file

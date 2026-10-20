@@ -451,6 +451,21 @@ second Paste must explain zero of two completed roots, and the marks must be
 cleared. The Skip route passed twice before this extension and again after
 it; the Cancel route passed on the same isolated fixture.
 
+`linux-atspi-clipboard-interrupted-move.py` uses the same exact guest fixture
+and helper. Run `prepare` on the dedicated FileCatValidation instance: it
+selects and Cuts both source files, Pastes into the existing `a.txt` conflict,
+verifies the review action and unchanged bytes, then sends SIGKILL only to the
+process whose executable and full arguments match the isolated app/profile.
+Relaunch that same FileCat binary with its original `--data`, `--left` and
+`--right` arguments. Run `inspect` to require the interrupted-operation notice,
+exact destination, explicit Continue action and unchanged source/target bytes.
+Run `review` to open that action and check retained source count, zero finished
+steps, destination and Cancel/Continue controls; `cancel-review` closes it
+without approving any transfer and checks the bytes again. Each phase writes
+its own JSON result. The held-conflict interruption, restart, review and
+Cancel phases passed on the logged-in Ubuntu VM; actual in-flight data copy
+and a reviewed recovery continuation remain separate acceptance cases.
+
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
 opens Text view, exposes Find, enters `alpha` through AT-SPI editable text,

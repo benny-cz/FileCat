@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace FileCat.App.ViewModels;
 
-/// <summary>Presentation only: every omitted place remains in More and in the location menu.</summary>
+/// <summary>Presentation order only: the panel width determines overflow, and every place remains reachable.</summary>
 internal static class PlaceBarPolicy
 {
     internal const int MaximumPins = 8;
@@ -33,6 +33,9 @@ internal static class PlaceBarPolicy
             if (first is not null) selected.Add(first);
         }
         for (int i = 0; selected.Count < target && i < all.Count; i++) selected.Add(all[i]);
-        return all.Where(selected.Contains).ToArray();
+        // Compact mode prioritizes common and pinned destinations when space is tight.
+        // Keep the rest in the bar too: a wide panel must not leave an empty row while
+        // available places are hidden in the overflow menu.
+        return all.Where(selected.Contains).Concat(all.Where(place => !selected.Contains(place))).ToArray();
     }
 }

@@ -29,7 +29,10 @@ increments to `main`.
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac and Ubuntu native ownership
-   checks still need actual process interruption during Move; Windows still
+   checks still need Mac process interruption during Move. Ubuntu's held
+   conflict survived a real process kill and restart; its reviewed recovery
+   continuation and in-flight data-copy interruption still need acceptance.
+   Windows still
    needs Explorer Cut presentation after the completed Copy effect and
    supported external Move/delete-on-paste handling, if safely offered.
    FCUX-002 still needs other narrow-window routes,
@@ -84,6 +87,11 @@ increments to `main`.
    and history review still need native narrow
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
+7. **Close newly reported minor issues.** UXBUG-013 (Places row showing only a
+   few icons despite available width) has a responsive layout fix and focused
+   tests; verify it on the Windows VM at narrow and expanded widths, including
+   overflow and pinned places. UXBUG-014 (average transfer speed missing from
+   the completed operation report) needs implementation and test coverage.
 
 ## Evidence required to finish
 
