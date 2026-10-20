@@ -385,6 +385,15 @@ Copy. Its JSON result records the reviewed identities and exact target bytes;
 an unselected file must stay at the source. Run it with a fresh data root and
 fixture so another FileCat window cannot satisfy its checks.
 
+`linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
+two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
+opens Text view, exposes Find, enters `alpha` through AT-SPI editable text,
+and checks Next's visible `1 match` and Previous's no-earlier-match feedback.
+The test identifies the viewer by its exact X11 title and owning FileCat PID,
+closes only that window through `wmctrl`, and checks that both fixture files
+retain their bytes. Run it with `DISPLAY` and `DBUS_SESSION_BUS_ADDRESS` set
+for the desktop user. `wmctrl` is required for graceful test cleanup.
+
 ## macOS logged-in desktop
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
