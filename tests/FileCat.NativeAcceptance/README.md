@@ -445,6 +445,13 @@ owner approved guest clipboard access. The runner captures the visible
 selection through the approved helper, verifies unchanged source bytes, and
 removes only its own fixture. Inspect `selectionCapture` for the selected text.
 
+`python3 mac-ax-selection-narrow.py SOURCE FileCatCapture.app REPORT.json`
+repeats the existing `mac-ax-selection-keyboard.py` pointer and Shift-range
+checks with the main window at 760 × 600, captures both panels, then restores
+the sampled size and position. The source must contain only the exact `a.txt`
+and `b.txt` fixtures and begin with no marks. The test verifies focus, mark
+count and unchanged source bytes; inspect the capture for narrow geometry.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
