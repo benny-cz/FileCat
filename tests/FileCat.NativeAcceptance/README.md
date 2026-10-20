@@ -236,7 +236,12 @@ both renamed files and exact contents. The less common counter, search and case
 controls can be expanded when needed so the preview has room at this size. The
 same check expands the owner to 1060 × 800, opens those options, drags the review
 resize grip, and requires both mapping rows and the approval buttons to stay
-visible as the preview grows. Run `rename-stop <report.json>` before another
+visible as the preview grows. `rename-hidden-compact-native <report.json>`
+starts a fresh fixture at a requested 640 × 420 owner size, checks that the
+hidden-mark choice, name mask and Cancel/Rename actions remain on screen, then
+expands to 760 × 560 to review and submit both exact mappings. It repeats the
+expanded-options and resize-grip checks and verifies both renamed file bytes.
+Run `rename-stop <report.json>` before another
 fixture. It closes only processes whose executable matches the guest-local
 validation build; a fixture left behind by a stale modal is terminated and
 reported so a new run cannot attach to it accidentally.
