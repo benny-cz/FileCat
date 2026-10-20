@@ -399,6 +399,16 @@ environment; the helper stores no credential. The test-owned Cut remains on
 the guest clipboard after the run. Keep unrelated desktop windows closed so
 they cannot intercept the native key.
 
+`linux-atspi-clipboard-external-copy.py` uses the same fixture and helper,
+with `linux-atspi-clipboard-owned-move.py` beside it. It Cuts only `b.txt`
+in FileCat, opens that folder in Ubuntu Files, selects only `b.txt` with
+physical Home/Right keys, Copies it, switches back to FileCat, and Pastes
+into the destination. The test requires Copy evidence, exact target bytes,
+source survival and unchanged `a.txt` files; it removes the copied target
+and closes only its Files window. This covers the same-path publication
+replacement that could otherwise revive an obsolete Cut. Run it from the
+logged-in Wayland desktop with no other foreground dialog.
+
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
 opens Text view, exposes Find, enters `alpha` through AT-SPI editable text,
