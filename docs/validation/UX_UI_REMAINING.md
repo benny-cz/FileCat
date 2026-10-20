@@ -20,7 +20,8 @@ increments to `main`.
    supported nonlocal-provider interruption and recovery cases, including
    retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
    Windows close/restart ownership and report behavior for symbolic-link and
-   junction inverses, plus incomplete attempts and changed link outcomes. For FCUX-069/070,
+   junction inverses, plus incomplete attempts and changed symbolic-link or
+   junction outcomes. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
    routes, scaled-display input and the non-Windows focus journeys. FCUX-003

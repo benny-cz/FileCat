@@ -161,6 +161,11 @@ name must appear through the new name. The complete wrapped Undo row must name
 both paths; Cancel preserves the link, and approval removes only the new name
 while the original retains its bytes. This also catches a stale symbolic-link
 preview after changing the radio selection.
+`hardlink-undo-changed-native <report.json>` starts another fresh hard-link
+fixture, replaces the original name with a different file after creating the
+link, and approves Undo. Both names and their distinct bytes must remain. The
+retained report's Copy all text must record one kept action, the complete link
+path, and the original-name identity reason.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
