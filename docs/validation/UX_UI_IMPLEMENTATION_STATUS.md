@@ -575,7 +575,8 @@ includes their severity, and only the currently visible notification region
 is live. A headless regression covers idle, info, same-text error and
 dismissal transitions; all six focused notification tests passed. The signed
 Mac build then completed the same conflict and replay journey without a
-process exit. The complete Release App rerun is underway.
+process exit. The complete Release App rerun passed 2,382 cases with 63
+platform skips and zero failures using 16 workers.
 
 The Ubuntu VMware guest also passed a repeatable native owned-Move test.
 `linux-atspi-clipboard-owned-move.py` focused only `b.txt` through AT-SPI,
