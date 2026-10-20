@@ -174,6 +174,14 @@ and removal of only the link after approval. On another fresh fixture,
 a regular file before Undo. Both exact byte sequences must remain, and the
 retained report must identify one kept action and explain that the recorded
 link was replaced.
+`junction-undo-native <report.json>` creates a new source folder on a fresh
+fixture, refreshes FileCat, then creates a real local-drive junction through
+its review. A target-file write must appear through the junction. The wrapped
+inverse names both complete paths; Cancel preserves the junction and approval
+removes only the junction. On another fresh fixture,
+`junction-undo-changed-native <report.json>` replaces the junction name with a
+real folder. Undo must keep both directories and their distinct bytes, with a
+retained one-kept report naming the complete path and replacement reason.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history

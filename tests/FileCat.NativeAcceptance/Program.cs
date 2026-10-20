@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -2919,6 +2919,202 @@ try
                 inverseBounds, cancelPreserved, removedLinkOnly, keptBoth,
                 truthfulKeptReport, reportCharacters = reportText?.Length,
                 sourceFile, linkPath
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode is "junction-undo-native" or "junction-undo-changed-native")
+        {
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            bool changedLink = mode == "junction-undo-changed-native";
+            string targetDir = Path.Combine(fixture.Source, "junction-target");
+            string linkDir = Path.Combine(fixture.Destination, "junction-target");
+            string targetFile = Path.Combine(targetDir, "inside.txt");
+            string linkFile = Path.Combine(linkDir, "inside.txt");
+            const string original = "junction target data";
+            const string changed = "junction target keeps changed data";
+            const string replacement = "this directory replaced the junction";
+            if (Directory.Exists(targetDir) || Directory.Exists(linkDir)
+                || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated junction fixture is not pristine.");
+            Directory.CreateDirectory(targetDir);
+            await File.WriteAllTextAsync(targetFile, original);
+            XElement Window(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("The isolated FileCat junction window is unavailable.");
+            NativeWindow.FocusRecovery("clipboard-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000"); // Refresh the new fixture folder.
+            var source = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? row = null;
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                row = Window(source).Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "list item"
+                    && (string?)element.Attribute("Name") == "junction-target"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                if (row is not null) break;
+                await Task.Delay(150);
+                source = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            if (row is null) throw new InvalidOperationException("The fixture folder did not appear in FileCat.");
+            NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            var search = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Search commands']", "command search");
+            await ClickXPathAsync(client, sessionId,
+                "//Edit[@Name='Search commands']", "command search");
+            await SendKeysAsync(client, sessionId, search, "\uE009a\uE000create link\uE007");
+            var dialog = ParseSource(await ReadSourceAsync(client, sessionId));
+            for (int attempt = 0; attempt < 30 && FindVisible(dialog, "edit", "Link path") is null; attempt++)
+            {
+                await Task.Delay(150);
+                dialog = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            if (FindVisible(dialog, "edit", "Link path") is null)
+                throw new InvalidOperationException("Create link did not expose the junction path field.");
+            await ClickXPathAsync(client, sessionId,
+                "//RadioButton[@Name='Junction (folders on local drives)']", "junction kind");
+            XElement? create = null;
+            bool junctionSummary = false;
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                var current = ParseSource(await ReadSourceAsync(client, sessionId));
+                create = FindVisible(Window(current), "button", "Create");
+                junctionSummary = current.Descendants().Any(element =>
+                    ((string?)element.Attribute("Name"))?.Contains(
+                        "junction will be created", StringComparison.Ordinal) == true);
+                if (create is not null && (string?)create.Attribute("IsEnabled") == "True"
+                    && junctionSummary) break;
+                await Task.Delay(150);
+            }
+            if (create is null || (string?)create.Attribute("IsEnabled") != "True" || !junctionSummary)
+                throw new InvalidOperationException("The junction preview was not ready for approval.");
+            NativeWindow.ClickAt(CenterX(create), CenterY(create));
+            for (int attempt = 0; attempt < 60 && !Directory.Exists(linkDir); attempt++)
+                await Task.Delay(150);
+            if (!Directory.Exists(linkDir) || await File.ReadAllTextAsync(linkFile) != original)
+                throw new InvalidOperationException("FileCat did not create the reviewed junction.");
+            await File.WriteAllTextAsync(targetFile, changed);
+            bool sharedData = await File.ReadAllTextAsync(linkFile) == changed;
+            if (changedLink)
+            {
+                Directory.Delete(linkDir);
+                Directory.CreateDirectory(linkDir);
+                await File.WriteAllTextAsync(linkFile, replacement);
+            }
+            bool distinctReplacement = !changedLink ||
+                await File.ReadAllTextAsync(targetFile) == changed
+                && await File.ReadAllTextAsync(linkFile) == replacement;
+            NativeWindow.FocusRecovery("clipboard-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009z\uE000"); // Ctrl+Z.
+            var review = ParseSource(await ReadSourceAsync(client, sessionId));
+            for (int attempt = 0; attempt < 40 &&
+                 FindVisible(Window(review), "button", "Run these inverse actions") is null; attempt++)
+            {
+                await Task.Delay(150);
+                review = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var first = Window(review);
+            var inverse = first.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && ((string?)element.Attribute("Name"))?.Contains("Remove created link:",
+                    StringComparison.Ordinal) == true
+                && ((string?)element.Attribute("Name"))?.Contains(linkDir,
+                    StringComparison.OrdinalIgnoreCase) == true
+                && ((string?)element.Attribute("Name"))?.Contains(targetDir,
+                    StringComparison.OrdinalIgnoreCase) == true)
+                ?? throw new InvalidOperationException("Junction Undo review omitted complete link and target paths.");
+            var inverseBounds = ReadNativeRect(inverse);
+            var cancel = FindVisible(first, "button", "Cancel")
+                ?? throw new InvalidOperationException("Junction Undo review has no safe Cancel action.");
+            NativeWindow.ClickAt(CenterX(cancel), CenterY(cancel));
+            bool cancelPreserved = Directory.Exists(linkDir)
+                && await File.ReadAllTextAsync(linkFile) == (changedLink ? replacement : changed)
+                && await File.ReadAllTextAsync(targetFile) == changed;
+            NativeWindow.FocusRecovery("clipboard-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009z\uE000");
+            var second = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? approve = null;
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                approve = FindVisible(Window(second), "button", "Run these inverse actions");
+                if (approve is not null) break;
+                await Task.Delay(150);
+                second = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            if (approve is null)
+                throw new InvalidOperationException("Canceled junction Undo cannot be reviewed again.");
+            NativeWindow.ClickAt(CenterX(approve), CenterY(approve));
+            if (!changedLink)
+                for (int attempt = 0; attempt < 60 && Directory.Exists(linkDir); attempt++)
+                    await Task.Delay(150);
+            bool removedLinkOnly = !Directory.Exists(linkDir)
+                && await File.ReadAllTextAsync(targetFile) == changed;
+            bool keptBoth = changedLink && Directory.Exists(linkDir)
+                && await File.ReadAllTextAsync(linkFile) == replacement
+                && await File.ReadAllTextAsync(targetFile) == changed;
+            string? reportText = null;
+            if (changedLink)
+            {
+                NativeWindow.FocusRecovery("clipboard-source");
+                await SendSessionKeysAsync(client, sessionId, "\uE009j\uE000"); // Operations.
+                var operations = ParseSource(await ReadSourceAsync(client, sessionId));
+                XElement? reportButton = null;
+                for (int attempt = 0; attempt < 40; attempt++)
+                {
+                    reportButton = FindVisible(Window(operations), "button", "Undo report");
+                    if (reportButton is not null) break;
+                    await Task.Delay(150);
+                    operations = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                if (reportButton is null)
+                    throw new InvalidOperationException("The replaced junction has no retained Undo report.");
+                NativeWindow.ClickAt(CenterX(reportButton), CenterY(reportButton));
+                var reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+                XElement? reportWindow = null;
+                for (int attempt = 0; attempt < 30; attempt++)
+                {
+                    reportWindow = reportSource.Descendants().FirstOrDefault(element =>
+                        (string?)element.Attribute("LocalizedControlType") == "window"
+                        && ((string?)element.Attribute("Name"))?.Contains("Undo report", StringComparison.Ordinal) == true);
+                    if (reportWindow is not null && FindVisible(reportWindow, "button", "Copy all") is not null)
+                        break;
+                    await Task.Delay(150);
+                    reportSource = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                var copy = reportWindow is null ? null : FindVisible(reportWindow, "button", "Copy all");
+                if (copy is null)
+                    throw new InvalidOperationException("The replaced junction report has no Copy all action.");
+                var clipboardBefore = NativeWindow.ClipboardSequence();
+                NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+                for (int attempt = 0; attempt < 30; attempt++)
+                {
+                    await Task.Delay(150);
+                    if (NativeWindow.ClipboardSequence() == clipboardBefore) continue;
+                    reportText = NativeWindow.ReadClipboardText();
+                    if (reportText is not null) break;
+                }
+                await SendSessionKeysAsync(client, sessionId, "\uE00A\uE034\uE000"); // Alt+F4.
+            }
+            bool truthfulKeptReport = !changedLink || reportText is not null
+                && reportText.Contains("1 kept", StringComparison.Ordinal)
+                && reportText.Contains("Kept:", StringComparison.Ordinal)
+                && reportText.Contains(linkDir, StringComparison.OrdinalIgnoreCase)
+                && reportText.Contains("no longer the link that was created", StringComparison.Ordinal);
+            bool sourcesPreserved = await File.ReadAllTextAsync(Path.Combine(fixture.Source, "a.txt")) ==
+                    "external copy must keep source"
+                && await File.ReadAllTextAsync(Path.Combine(fixture.Source, "b.txt")) ==
+                    "subset member must remain";
+            bool passed = junctionSummary && sharedData && distinctReplacement
+                && inverseBounds.Height >= 32 && cancelPreserved
+                && (changedLink ? keptBoth && !removedLinkOnly : removedLinkOnly)
+                && truthfulKeptReport && sourcesPreserved;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, changedLink, junctionSummary, sharedData, distinctReplacement,
+                inverseBounds, cancelPreserved, removedLinkOnly, keptBoth,
+                truthfulKeptReport, reportCharacters = reportText?.Length,
+                sourcesPreserved, targetDir, linkDir
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
