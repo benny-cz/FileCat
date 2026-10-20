@@ -47,7 +47,13 @@ and both source files were unchanged. The test uses the native accessibility
 tree and checks the disk result. The Mac ARM64 self-contained publish also
 started through a signed user-local `.app` after waking its idle display;
 the same build failed during Avalonia's render-timer setup while the display
-was asleep. Mac GUI inspection from SSH still needs a console-session bridge.
+was asleep. With an unlocked console and a display-awake assertion, macOS
+Accessibility exposed its FileCat window, source and target lists, exact row,
+Copy form and action buttons through SSH. A repeatable AppleScript native test
+focused `a.txt`, reviewed the full target folder, verified Cancel changed no
+target, and approved a Copy. The target had the exact `616c7068610a` bytes,
+both sources remained unchanged and `b.txt` was excluded. macOS screen capture
+from SSH still fails; other Mac pointer, scaling and viewer checks remain open.
 FCUX-018 also passed a fresh Windows 11 VM Create-and-edit empty-file Undo
 journey. Its inverse review showed the complete wrapped target path. Cancel
 left the zero-byte file unchanged, and approval removed it while both source

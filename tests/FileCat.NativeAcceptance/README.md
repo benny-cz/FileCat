@@ -384,3 +384,17 @@ destination folder, cancels without changing either tree, then approves one
 Copy. Its JSON result records the reviewed identities and exact target bytes;
 an unselected file must stay at the source. Run it with a fresh data root and
 fixture so another FileCat window cannot satisfy its checks.
+
+## macOS logged-in desktop
+
+`osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
+against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
+source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
+empty destination and a fresh app data root. The caller needs macOS
+Accessibility access. Keep a display-awake assertion active while testing;
+an idle or locked display removes the app's exposed window. The script focuses
+the exact row, checks both panel locations and the full Copy destination,
+then verifies Cancel leaves the target empty. It reopens the review, approves
+Copy, and requires exact `a.txt` bytes at the target while both sources stay
+unchanged and `b.txt` is excluded. A passing JSON receipt is written only after
+all UI and byte checks succeed. Run it on an isolated user-local fixture.

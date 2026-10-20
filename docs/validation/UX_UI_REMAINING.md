@@ -8,10 +8,11 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish the macOS console-session capture/input bridge. The Git-built app
-  starts when its display is awake, but the SSH session cannot capture or
-  enumerate its GUI windows. The Ubuntu VMware desktop is available for the
-  remaining Linux input, clipboard, viewer and assistive-technology checks.
+- Mac Accessibility input and window inspection now work while the user session
+  is unlocked and a display-awake assertion is active. Obtain a Mac screen
+  capture route for visual layout checks; `screencapture` from SSH is denied.
+  Continue the remaining Mac input, clipboard, viewer and scaling journeys.
+  The Ubuntu VMware desktop remains available for its Linux checks.
 
 ## Next actions, in severity order
 
@@ -87,7 +88,7 @@ increments to `main`.
   windows, keyboard and pointer routes, high contrast/reduced motion, and
   supported assistive technology for surfaces whose audit criteria require
   them. Use the current Win11 and Ubuntu VMs for their native checks; finish
-  the Mac console-session bridge for its native UI checks.
+  Mac visual capture and the remaining native UI checks.
 - Close a finding only when its audit criteria and status-table remaining
   acceptance pass, or record a justified equivalent route with the same
   consequential scenarios. Update this file and the implementation status
