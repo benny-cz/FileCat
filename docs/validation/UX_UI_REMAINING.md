@@ -73,8 +73,9 @@ increments to `main`.
    UXBUG-009 needs native Details selection; UXBUG-010/011 need scaled and
    spoken dialog checks, including keys, full paths, reflow and disclosure in
    the revised review hierarchy and the other resizable review windows on the
-   Windows VM. UXBUG-012 needs Mac Page keyboard focus and copy/select
-   acceptance beyond the verified Find input and navigation. Registry import
+   Windows VM. UXBUG-012 still needs other Mac Page focus routes and
+   assistive-technology acceptance beyond the verified Find, keyboard
+   Select All and rendered-text Copy journeys. Registry import
    and history review still need native narrow
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.

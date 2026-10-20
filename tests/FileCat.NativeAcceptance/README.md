@@ -436,6 +436,15 @@ actual window sizes, unchanged source bytes and exact fixture cleanup. Inspect
 both screenshots for prose and table reflow; the runner does not claim a
 pixel-layout pass by itself.
 
+`python3 mac-ax-page-copy.py SOURCE REPORT.json` opens an isolated Markdown
+fixture in Page mode, clicks its accessible web content, then presses
+Command+A and Command+C. It first places a unique test sentinel on the Mac
+guest clipboard; the report checks that Copy replaced it with the expected
+rendered heading, paragraph and table text, without Markdown markup. The
+owner approved guest clipboard access. The runner captures the visible
+selection through the approved helper, verifies unchanged source bytes, and
+removes only its own fixture. Inspect `selectionCapture` for the selected text.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an

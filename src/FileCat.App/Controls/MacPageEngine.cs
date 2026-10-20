@@ -453,8 +453,25 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         // ⌘ stands for Ctrl, as everywhere in FileCat on macOS.
         var modifiers = ((flags & (1 << 18)) != 0 || (flags & (1 << 20)) != 0 ? KeyModifiers.Control : 0) |
                         ((flags & (1 << 17)) != 0 ? KeyModifiers.Shift : 0) | ((flags & (1 << 19)) != 0 ? KeyModifiers.Alt : 0);
-        return handler(key.Value, modifiers);
+        if (handler(key.Value, modifiers)) return true;
+        // FileCat has no native Edit menu for AppKit to resolve these standard
+        // key equivalents. Dispatch them to the displayed WKWebView itself so
+        // Page selection and Copy work with the keyboard.
+        if (PageEditSelector(key.Value, modifiers) is { } edit && ObjC.Responds(view, edit))
+        {
+            ObjC.Send(view, edit, view);
+            return true;
+        }
+        return false;
     }
+
+    internal static string? PageEditSelector(Key key, KeyModifiers modifiers) =>
+        modifiers == KeyModifiers.Control ? key switch
+        {
+            Key.A => "selectAll:",
+            Key.C => "copy:",
+            _ => null,
+        } : null;
 
     private static bool IsOwn(string uri) =>
         uri.StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase) || uri == "about:blank";
