@@ -452,6 +452,14 @@ the sampled size and position. The source must contain only the exact `a.txt`
 and `b.txt` fixtures and begin with no marks. The test verifies focus, mark
 count and unchanged source bytes; inspect the capture for narrow geometry.
 
+`python3 mac-ax-copy-review-resize.py SOURCE DESTINATION FileCatCapture.app
+REPORT.json` opens a Copy review for `b.txt`, checks the full destination
+input, decision summary and footer actions at 640 × 480 and 980 × 680, and
+captures both sizes. It cancels without submitting Copy, verifies the exact
+source bytes and unchanged destination entries and bytes, and restores the
+review's original size before closing. `b.txt` must be absent from the target
+before the run; an existing `a.txt` is allowed.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an

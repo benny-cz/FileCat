@@ -52,7 +52,8 @@ increments to `main`.
    marked-item review and actual spoken navigation with a supported screen
    reader. Confirm macOS/Linux bridges separately.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
-   are shared dialogs and validation (FCUX-011, 034, 041, 054), comparison and
+   are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
+   form, 034, 041, 054), comparison and
    viewer semantics (012, 076, 072, 073, 056), theme/readability (013, 049,
    050, 051), safe listing and panel geometry (014, 022–028, 030–033, 047,
    048), external transfer (071, 075), operation evidence and recovery
