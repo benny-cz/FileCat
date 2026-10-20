@@ -524,17 +524,21 @@ public sealed partial class Job
         return d;
     }
 
-    /// <summary>Token-bucket rate limiting inside copy callbacks.</summary>
+    /// <summary>Cumulative per-file rate limiting inside copy callbacks.</summary>
     internal void Throttle(long bytesSinceStart, Stopwatch fileClock)
     {
-        long limit = RateLimit;
-        if (limit <= 0) return;
-        double expected = (double)bytesSinceStart / limit;
-        double actual = fileClock.Elapsed.TotalSeconds;
-        if (expected > actual)
+        // One copied buffer can exceed a second of the chosen allowance.
+        // Recheck after each bounded wait so large buffers cannot silently
+        // run faster than the limit, and live limit changes remain responsive.
+        while (true)
         {
-            var wait = TimeSpan.FromSeconds(Math.Min(1.0, expected - actual));
-            _cts.Token.WaitHandle.WaitOne(wait);
+            _cts.Token.ThrowIfCancellationRequested();
+            long limit = RateLimit;
+            if (limit <= 0) return;
+            double remaining = (double)bytesSinceStart / limit - fileClock.Elapsed.TotalSeconds;
+            if (remaining <= 0) return;
+            if (_cts.Token.WaitHandle.WaitOne(TimeSpan.FromSeconds(Math.Min(1.0, remaining))))
+                _cts.Token.ThrowIfCancellationRequested();
         }
     }
 

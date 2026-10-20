@@ -2,6 +2,26 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**21 October 2026 validation:** An isolated Ubuntu Copy with a 65,536 bytes/s
+limit exposed a large-buffer rate defect: each callback waited only once for
+at most one second, even when the copied buffer required a longer allowance.
+The Core callback now waits in bounded one-second slices until the full
+cumulative allowance has elapsed, rechecking cancellation and live limit
+changes between slices. Three focused rate tests cover the large-buffer,
+limit-change and cancellation cases. The complete Windows Core Release suite
+passed 4,431 tests with 150 platform skips before the third test was added;
+that third test then passed in the focused run. The Ubuntu desktop subsequently
+showed the chosen rate while a real Copy was active. Its preallocated staging
+file contained 15,728,640 exact source-prefix bytes and an unwritten zero tail;
+the final target was unpublished and a journal existed when the exact test
+process was killed. Restart exposed an explicit retained Copy review; opening
+and cancelling it left source, staging and journal intact. Reviewed continuation
+was then approved and began a fresh rate-limited Copy. Final byte, staging and
+report inspection remains pending. A Windows x64/ARM64 CI failure in the
+Places overflow test also exposed a host drive-count assumption. The test now
+accepts a pinned place through the overflow menu if it still cannot fit at
+the restored width; focused Places tests pass all three cases.
+
 **Latest native acceptance (20 October 2026):** FCUX-003 passed two fresh
 Windows 11 VM journeys. The filtered hidden mark was excluded by default;
 after review, only the visible file was renamed and both file contents matched
