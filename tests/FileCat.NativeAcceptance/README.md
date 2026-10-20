@@ -425,3 +425,13 @@ the exact `2 matches` status and the no-earlier-match message. It compares the
 complete source bytes, closes the viewer, removes only its own unchanged test
 file and refreshes the listing. Begin with no viewer open and no file named
 `native-backward-search.txt` in the fixture.
+
+`python3 mac-ax-markdown-find.py SOURCE REPORT.json` creates one short
+temporary Markdown file in the same isolated source folder. It opens Page
+mode, reveals Find, sends Command+A/Delete and types `marker` through native
+keyboard input, then checks two Next actions and Previous. It requires the
+visible directional lower-bound status, both accessible navigation buttons,
+unchanged Markdown bytes and a live FileCat process. The test closes the
+viewer, removes only its own unchanged fixture and refreshes the listing. A
+`--cleanup` fourth argument removes an exact test-owned fixture left by a
+native process crash; it refuses any other file content.

@@ -38,9 +38,8 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
-   changed-query ownership, provider cancellation and Ubuntu input. Mac Text
-   backward navigation across distant matches passed; Page and other source
-   modes still need native checks.
+   changed-query ownership, provider cancellation and Ubuntu input. Other Mac
+   source modes and assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
@@ -70,7 +69,9 @@ increments to `main`.
    UXBUG-009 needs native Details selection; UXBUG-010/011 need scaled and
    spoken dialog checks, including keys, full paths, reflow and disclosure in
    the revised review hierarchy and the other resizable review windows on the
-   Windows VM. Registry import and history review still need native narrow
+   Windows VM. UXBUG-012 needs Mac Page keyboard focus and copy/select
+   acceptance beyond the verified Find input and navigation. Registry import
+   and history review still need native narrow
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
 

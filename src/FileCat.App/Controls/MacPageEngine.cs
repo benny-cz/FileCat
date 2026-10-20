@@ -518,7 +518,6 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         [DllImport(LibObjC)] private static extern byte class_addMethod(nint cls, nint selector, nint implementation, string types);
         [DllImport(LibObjC)] private static extern byte class_addProtocol(nint cls, nint protocol);
         [DllImport(LibObjC)] private static extern nint class_getSuperclass(nint cls);
-        [DllImport(LibObjC)] private static extern nint object_getClass(nint obj);
 
         public static string? Load()
         {
@@ -604,13 +603,17 @@ internal sealed unsafe class MacPageEngine : IPageEngine
 
         public static void SendSuper(nint self, nint selector, nint argument)
         {
-            var super = new Super { Receiver = self, SuperClass = class_getSuperclass(object_getClass(self)) };
+            // Observing WKWebView.title can install an NSKVONotifying_ runtime
+            // subclass. Its immediate superclass is our override class, so
+            // looking up "super" from object_getClass(self) dispatches right
+            // back into KeyDown and eventually overflows the process stack.
+            var super = new Super { Receiver = self, SuperClass = class_getSuperclass(ViewClass) };
             ((delegate* unmanaged[Cdecl]<Super*, nint, nint, void>)s_msgSendSuper)(&super, selector, argument);
         }
 
         public static bool SendSuperReturnsBool(nint self, nint selector, nint argument)
         {
-            var super = new Super { Receiver = self, SuperClass = class_getSuperclass(object_getClass(self)) };
+            var super = new Super { Receiver = self, SuperClass = class_getSuperclass(ViewClass) };
             return ((delegate* unmanaged[Cdecl]<Super*, nint, nint, byte>)s_msgSendSuper)(&super, selector, argument) != 0;
         }
 
