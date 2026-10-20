@@ -39,7 +39,7 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
    changed-query ownership, provider cancellation and Ubuntu physical-keyboard
-   input beyond the verified AT-SPI Find/Next/Previous route. Other Mac source
+   input beyond the verified AT-SPI Text and Markdown Page routes. Other Mac source
    modes and assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and

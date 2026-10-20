@@ -394,6 +394,15 @@ closes only that window through `wmctrl`, and checks that both fixture files
 retain their bytes. Run it with `DISPLAY` and `DBUS_SESSION_BUS_ADDRESS` set
 for the desktop user. `wmctrl` is required for graceful test cleanup.
 
+`linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
+desktop and the helper script above. It creates one short, exact Markdown
+fixture in the source folder, refreshes the panel, opens Page view and enters
+`marker` through the accessible Find field. Two Next actions and Previous
+must find rendered text while WebKitGTK reports exactly `2 matches`. The
+runner verifies unchanged bytes, closes only the owned viewer window,
+removes its exact test file and refreshes the panel. Both scripts must be
+present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
+
 ## macOS logged-in desktop
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
