@@ -238,6 +238,10 @@ fixture bytes and the destination unchanged. It then starts an unmark gesture
 on `c.txt`, gives focus to the command line, releases Shift, and returns to
 the list with Escape rather than a mouse click. A fresh Shift+Up must mark
 only `d.txt`. Finish with `selection-stop`.
+`selection-deactivation-narrow-native <report.json>` repeats that journey on a
+new fixture after measuring a 720 × 540 main window. It asserts the same held
+modifier, window and command-line focus transitions, exact marks and untouched
+files at the narrow size. Finish with `selection-stop`.
 For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
 app, then run `checksum-native <report.json>` in the interactive guest desktop.
 It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews
