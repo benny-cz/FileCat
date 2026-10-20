@@ -385,6 +385,20 @@ Copy. Its JSON result records the reviewed identities and exact target bytes;
 an unselected file must stay at the source. Run it with a fresh data root and
 fixture so another FileCat window cannot satisfy its checks.
 
+`linux-atspi-clipboard-owned-move.py SOURCE DESTINATION UINPUT_HELPER
+REPORT.json` checks the native owned Cut/Paste path. Use source files
+`a.txt` = `alpha\n`, `b.txt` = `beta\n` and a destination containing only
+`a.txt` = `alpha\n`. The runner focuses only `b.txt`, invokes Cut and Paste
+through FileCat command search, requires the Cut notification, exact Move
+bytes, source removal and unchanged `a.txt` files, then restores the two
+fixture folders. `linux-uinput-key.py` sends its Enter events through a
+short-lived Linux virtual keyboard, so the guest needs `/dev/uinput` and
+`sudo` access. Give the runner a narrow passwordless `sudo` rule for this
+helper, or set `FILECAT_NATIVE_SUDO_PASSWORD` only in the guest process
+environment; the helper stores no credential. The test-owned Cut remains on
+the guest clipboard after the run. Keep unrelated desktop windows closed so
+they cannot intercept the native key.
+
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
 opens Text view, exposes Find, enters `alpha` through AT-SPI editable text,
