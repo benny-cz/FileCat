@@ -438,8 +438,9 @@ observations. Start with no marks; the test ends with no marks.
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
-query through native keyboard input, and checks Next/Previous visible offsets,
-the exact `2 matches` status and the no-earlier-match message. It compares the
+query through native keyboard input, and checks Next/Previous plus F3 and
+Shift+F3 visible offsets, the exact `2 matches` status and the no-earlier-match
+message. It compares the
 complete source bytes, closes the viewer, removes only its own unchanged test
 file and refreshes the listing. Begin with no viewer open and no file named
 `native-backward-search.txt` in the fixture.

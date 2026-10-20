@@ -159,6 +159,18 @@ end tell
             "count": parts[1], "searchResult": parts[2], "status": parts[0]}
 
 
+def send_f3(backward):
+    modifier = " using {shift down}" if backward else ""
+    osa(f'''
+tell application "System Events"
+    tell process "FileCat"
+        set frontmost to true
+        key code 99{modifier}
+    end tell
+end tell
+''')
+
+
 def run(source):
     source = source.resolve(strict=True)
     assert (source / "a.txt").read_bytes() == b"alpha\n"
@@ -195,6 +207,15 @@ def run(source):
         if backward["offset"] is None or abs(backward["offset"] - FIRST_OFFSET) > 65536:
             raise AssertionError(f"Previous did not return to first match: {backward}")
 
+        send_f3(backward=False)
+        keyboard_next = snapshot()
+        if keyboard_next["offset"] is None or abs(keyboard_next["offset"] - SECOND_OFFSET) > 65536:
+            raise AssertionError(f"F3 did not reach the second match: {keyboard_next}")
+        send_f3(backward=True)
+        keyboard_previous = snapshot()
+        if keyboard_previous["offset"] is None or abs(keyboard_previous["offset"] - FIRST_OFFSET) > 65536:
+            raise AssertionError(f"Shift+F3 did not return to the first match: {keyboard_previous}")
+
         find_click("AXButton", "Find previous match", viewer=True)
         before_first = snapshot()
         if "was not found before this position" not in before_first["searchResult"]:
@@ -208,7 +229,8 @@ def run(source):
                 "firstMatchByte": FIRST_OFFSET, "secondMatchByte": SECOND_OFFSET,
                 "firstVisibleOffset": first["offset"], "secondVisibleOffset": second["offset"],
                 "backwardVisibleOffset": backward["offset"], "visibleMatchStatus": before_first["count"],
-                "noEarlierMatchFeedback": True, "sourceBytesUnchanged": True}
+                "keyboardF3AndShiftF3Found": True, "noEarlierMatchFeedback": True,
+                "sourceBytesUnchanged": True}
     finally:
         close_viewer()
         if fixture.exists() and hashlib.sha256(fixture.read_bytes()).digest() == content_digest:
