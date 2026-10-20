@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|clipboard-paste|clipboard-paste-subset|clipboard-move|undo-native|undo-review-native|folder-undo-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -1158,10 +1158,11 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode is "checksum-native" or "checksum-whole-native" or "checksum-changed-native")
+        else if (mode is "checksum-native" or "checksum-whole-native" or "checksum-changed-native" or "checksum-narrow-native")
         {
             bool wholeFile = mode == "checksum-whole-native";
             bool changedSource = mode == "checksum-changed-native";
+            bool narrow = mode == "checksum-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var sourceFile = Path.Combine(fixture.Source, "a.txt");
             const string sourceContent = "selection fixture a.txt";
@@ -1191,6 +1192,14 @@ try
                 if (Viewer(opened) is not null) break;
             }
             var viewer = Viewer(opened) ?? throw new InvalidOperationException("The native file viewer did not open.");
+            NativeWindow.Rect narrowWindow = default;
+            if (narrow)
+            {
+                narrowWindow = NativeWindow.ResizeIsolatedViewer("a.txt", 600, 420);
+                opened = ParseSource(await ReadSourceAsync(client, sessionId));
+                viewer = Viewer(opened)
+                    ?? throw new InvalidOperationException("The resized checksum viewer is unavailable.");
+            }
             var hexButton = viewer.Descendants().Single(element =>
                 (string?)element.Attribute("Name") == "Hex"
                 && (string?)element.Attribute("IsOffscreen") == "False");
@@ -1285,6 +1294,9 @@ try
             bool clipboardPreserved = NativeWindow.ClipboardSequence() == clipboardBefore;
             var completedViewer = Viewer(completed)
                 ?? throw new InvalidOperationException("The completed checksum viewer is unavailable.");
+            bool resultVisible = completedViewer.Descendants().Any(element =>
+                (string?)element.Attribute("Name") == "Checksum results"
+                && (string?)element.Attribute("IsOffscreen") == "False");
             var copy = completedViewer.Descendants().Single(element =>
                 (string?)element.Attribute("Name") == "Copy results"
                 && (string?)element.Attribute("IsOffscreen") == "False");
@@ -1312,12 +1324,14 @@ try
             }
             bool unchangedFiles = await File.ReadAllTextAsync(sourceFile) == sourceContent
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 570 and <= 630
+                && narrowWindow.Height is >= 390 and <= 450;
             bool passed = oneByteSelected && selectedScope && (!wholeFile || wholeScopeChosen) && exactResult
-                && clipboardPreserved && explicitCopy && unchangedFiles;
+                && clipboardPreserved && explicitCopy && unchangedFiles && resultVisible && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, oneByteSelected, selectedScope, wholeFile, wholeScopeChosen,
-                changedSource,
+                changedSource, narrow, narrowApplied, narrowWindow, resultVisible,
                 exactResult, clipboardPreserved,
                 explicitCopy, copyEnabled, clipboardBefore, clipboardAfter,
                 copiedText, unchangedFiles, resultText
@@ -3893,6 +3907,31 @@ internal static partial class NativeWindow
         Thread.Sleep(150);
         if (!GetWindowRect(window, out var resized))
             throw new InvalidOperationException("Cannot read the resized selection window.");
+        return resized;
+    }
+
+    internal static Rect ResizeIsolatedViewer(string fileName, int width, int height)
+    {
+        var window = FindWindow(null, fileName + " — FileCat Viewer");
+        if (window == 0 || !GetWindowRect(window, out var before))
+            throw new InvalidOperationException("The isolated viewer window is unavailable.");
+        GetWindowThreadProcessId(window, out var processId);
+        using var process = Process.GetProcessById((int)processId);
+        var expectedExecutable = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
+            "ReviewHighlights", "FileCat.exe");
+        if (!string.Equals(process.MainModule?.FileName, expectedExecutable,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Viewer does not belong to the isolated VM build.");
+        ShowWindow(window, 9); // SW_RESTORE before applying physical pixel bounds.
+        const uint noZOrder = 0x0004;
+        const uint noActivate = 0x0010;
+        if (!SetWindowPos(window, 0, before.Left, before.Top, width, height,
+                noZOrder | noActivate))
+            throw new InvalidOperationException("Cannot resize the isolated viewer window.");
+        Thread.Sleep(150);
+        if (!GetWindowRect(window, out var resized))
+            throw new InvalidOperationException("Cannot read the resized viewer window.");
         return resized;
     }
 

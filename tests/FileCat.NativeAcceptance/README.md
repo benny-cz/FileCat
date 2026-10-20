@@ -250,6 +250,10 @@ byte count and source revision text. It also checks that Compute leaves the
 clipboard unchanged and explicit Copy publishes the complete visible result.
 The runner closes the viewer and verifies the fixture files are unchanged;
 `selection-stop` then closes the isolated app.
+On another fresh fixture, `checksum-narrow-native <report.json>` repeats the
+one-byte result and explicit Copy after measuring a 600 × 420 viewer window.
+The complete result and Copy control must remain visible and the source bytes
+and destination must remain unchanged. Finish with `selection-stop`.
 On a new fixture, `checksum-whole-native <report.json>` begins with the same
 one-byte selection, explicitly switches the scope to Whole file, and checks
 the full 23-byte SHA-256, CRC-32, byte count, revision evidence, unchanged
