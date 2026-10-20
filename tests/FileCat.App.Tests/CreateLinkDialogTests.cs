@@ -12,6 +12,43 @@ namespace FileCat.App.Tests;
 public sealed class CreateLinkDialogTests
 {
     [AvaloniaFact]
+    public async Task Switching_from_symbolic_to_hard_link_updates_the_owned_preview()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++)
+                await Task.Delay(20, ct);
+            listing.SetFocus(1);
+            vm.Execute(CommandIds.CreateLink);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            var radios = window.GetVisualDescendants().OfType<RadioButton>().ToArray();
+            var symbolic = radios.Single(b => b.Content as string == "Symbolic link");
+            var hard = radios.Single(b => b.Content as string == "Hard link (files on the same drive)");
+            var path = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Link path");
+            path.Text = Path.Combine(root, "files", "a-hard-link.txt");
+            symbolic.IsChecked = true;
+            hard.IsChecked = true;
+            Button confirm = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Create");
+            for (int i = 0; i < 250 && !confirm.IsEnabled; i++) await Task.Delay(20, ct);
+            Assert.True(hard.IsChecked);
+            Assert.True(confirm.IsEnabled);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                text.Text?.Contains("hard link will be created", StringComparison.Ordinal) == true);
+            Assert.Empty(services.Jobs.Jobs);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Create_link_blocks_a_link_in_place_of_its_target_and_creates_a_named_link()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

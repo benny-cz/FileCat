@@ -163,7 +163,9 @@ public sealed partial class MainViewModel
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         debounce.Tick += (_, _) => { debounce.Stop(); Refresh(); };
         pathBox.TextChanged += (_, _) => { ++generation; plannedFor = null; debounce.Stop(); if (open) debounce.Start(); };
-        foreach (var (_, button) in kinds) button.IsCheckedChanged += (_, _) => { if (button.IsChecked == true) Refresh(); };
+        // Radio groups may check the new choice before clearing the old one. Recheck
+        // after both transitions so Kind() cannot leave the prior preview selected.
+        foreach (var (_, button) in kinds) button.IsCheckedChanged += (_, _) => Refresh();
         relative.IsCheckedChanged += (_, _) => Refresh();
 
         var kindRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };

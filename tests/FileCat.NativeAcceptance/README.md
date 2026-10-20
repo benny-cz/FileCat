@@ -154,6 +154,13 @@ the created file after FileCat records it, and approves the inverse. The file
 and exact changed bytes must remain. The retained Undo report must be available
 through Operations → Copy all and state one kept action, the full path and the
 changed-since-creation reason.
+`hardlink-undo-native <report.json>` selects `a.txt`, uses FileCat's Create
+link review to create a hard-link name in the destination, and requires the
+preview to say hard link before Create is enabled. A write through the original
+name must appear through the new name. The complete wrapped Undo row must name
+both paths; Cancel preserves the link, and approval removes only the new name
+while the original retains its bytes. This also catches a stale symbolic-link
+preview after changing the radio selection.
 On a separate fresh Cut/Move fixture, run `history-wrap-native <report.json>`
 before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
