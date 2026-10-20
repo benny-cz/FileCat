@@ -483,6 +483,15 @@ URL. That mode starts with only `a.txt` and `b.txt` in SOURCE, still requires
 only `a.txt` in DESTINATION, and removes the copied target `b.txt` after
 verifying that the original source survived.
 
+`python3 mac-ax-clipboard-owned-move.py SOURCE DESTINATION
+./mac-pasteboard-files ./mac-send-key REPORT.json` uses the same signed,
+unlocked validation app and helpers. Start with only `a.txt` = `alpha\n` and
+`b.txt` = `beta\n` in SOURCE and only `a.txt` = `alpha\n` in DESTINATION. It
+Cut-publishes exactly `b.txt`, Pastes into the target panel, waits for the
+source to disappear and the target to contain the exact bytes, and confirms
+both `a.txt` files stayed unchanged. On success it restores the initial
+fixtures and replaces its test-owned clipboard publication with a sentinel.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an

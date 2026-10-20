@@ -201,16 +201,18 @@ def run(source, destination, helper, key_helper, same_file=False):
     finally:
         # Retire the test-owned file URL before removing that file. Never read or
         # reveal clipboard content belonging to a different application.
+        clipboard_error = None
         try:
             osa('set the clipboard to "FileCat native clipboard test complete"')
-        except Exception:
-            if primary_error is None:
-                raise
+        except Exception as exc:
+            clipboard_error = exc
         if primary_error is None:
             if copied_target.exists():
                 copied_target.unlink()
             if not same_file:
                 copied_source.unlink()
+            if clipboard_error is not None:
+                raise clipboard_error
 
 
 def main():
