@@ -483,8 +483,30 @@ Cancel phases passed on the logged-in Ubuntu VM. After Cancel, run
 Skip policy. Run `inspect-continuation` to require exact final trees:
 pre-existing `a.txt` remains on both sides, `b.txt` moves byte-exactly,
 the UI says one done/one skipped, and recovery tracking is closed. These
-continuation phases passed on the same VM. Actual in-flight data-copy
-interruption remains a separate acceptance case.
+continuation phases passed on the same VM.
+
+`linux-atspi-active-copy-interruption.py PHASE FIXTURE.json REPORT.json`
+checks a separate in-flight data Copy on the same logged-in Ubuntu VM. Use
+the dedicated `/home/benny/FileCatValidation/active-copy-fixture.json`
+manifest. `seed` creates a fresh 20 MB source and empty destination only
+after the previous fixture has completed and its app has stopped. Launch the
+FileCatValidation app with that manifest's exact `--data`, `--left` and
+`--right` paths. `open-form` sends F5 via the physical-key helper (supply
+`FILECAT_NATIVE_SUDO_PASSWORD` only to the guest process), and `open-options`
+exposes the speed field. `interrupt` sets 0.0625 MB/s, approves Copy, requires
+a visible rate-limited operation, an unpublished target, a durable journal,
+and a test-owned staging file whose written prefix matches the source. The
+local provider may preallocate the full file: its unwritten zero tail is
+checked separately. It then kills only the exact validation process.
+`inspect-interruption` checks the staging and journal without a running app.
+Restart the same exact profile; `inspect-recovery` checks retained intent,
+destination and explicit Continue action. `review` opens the mapping;
+`cancel-review` proves it can close without changing bytes or deleting the
+journal. `continue-review` reopens and approves the reviewed Copy. After its
+rate-limited transfer finishes, `inspect-completion` requires exact source
+and destination hashes, no staging file, a Completed status and closed recovery
+tracking. Each phase writes a JSON receipt; the test-owned fixture stays
+under FileCatValidation and no archive handoff is involved.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
