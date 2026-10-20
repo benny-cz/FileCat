@@ -253,6 +253,12 @@ reviews its whole-file scope, starts Compute and presses the newly visible Stop
 control. It requires a canceled result without a hash, disabled Copy, unchanged
 clipboard, untouched fixture files and sampled source bytes. It removes the
 large file after closing the viewer; finish with `selection-stop`.
+On another fresh fixture, `checksum-changed-native <report.json>` captures a
+one-byte scope, changes the source at the same length, then invokes Compute.
+The viewer may notice the changed revision before or when Compute starts; in
+either case it must refuse the stale scope visibly, publish no hash, disable
+Copy and preserve the clipboard. The runner restores the original source bytes
+and timestamp after closing the viewer; finish with `selection-stop`.
 For FCUX-007, use another fresh `seed-selection` fixture and run
 `search-native <report.json>` on its launched isolated app. The interactive
 runner creates a 13 MiB guest-local text file with `NEEDLE` near 1 MiB and
