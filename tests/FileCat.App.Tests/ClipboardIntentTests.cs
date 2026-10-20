@@ -85,6 +85,26 @@ public sealed class ClipboardIntentTests
     }
 
     [AvaloniaFact]
+    public async Task Direct_external_file_import_keeps_its_native_generation_for_outcome_reporting()
+    {
+        var clipboard = ControlledClipboard.Create();
+        var path = Path.Combine(Path.GetTempPath(), "filecat-native-drop", "a.txt");
+        uint sequence = 17;
+        var coordinator = new FileClipboard(_ => null, () => sequence);
+        clipboard.ExternalFiles(path);
+
+        var snapshot = await coordinator.ReadAsync(clipboard.Api);
+        Assert.Null(snapshot.Publication);
+        Assert.Equal((uint)17, snapshot.WindowsSequence);
+        Assert.True(await coordinator.IsCurrentAsync(clipboard.Api, snapshot));
+
+        // A later same-path shell publication cannot receive this Copy result.
+        sequence = 18;
+        Assert.False(await coordinator.IsCurrentAsync(clipboard.Api, snapshot));
+        Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+    }
+
+    [AvaloniaFact]
     public async Task Native_drop_cannot_explain_multiple_unreadable_file_items()
     {
         var clipboard = ControlledClipboard.Create();

@@ -11,15 +11,15 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-hidden-compact-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|clipboard-native|clipboard-cut-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|explorer-cut|clipboard-paste|clipboard-paste-subset|clipboard-paste-explorer-cut|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-hidden-compact-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|seed-clipboard-conflict|clipboard-native|clipboard-cut-native|clipboard-ole-effect-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|explorer-navigate|explorer-copy|explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste|clipboard-paste-subset|clipboard-paste-explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste-review|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
@@ -39,7 +39,8 @@ if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" 
         }
         else if (mode == "seed-desktop") await SeedDesktopInterruptionAsync(reportPath);
         else if (mode == "seed-cross-volume") await SeedDesktopInterruptionAsync(reportPath, crossVolume: true);
-        else if (mode == "seed-clipboard") await SeedClipboardInteropAsync(reportPath);
+        else if (mode is "seed-clipboard" or "seed-clipboard-conflict")
+            await SeedClipboardInteropAsync(reportPath, conflict: mode == "seed-clipboard-conflict");
         else if (mode == "seed-compare") await SeedCompareFixtureAsync(reportPath);
         else if (mode == "seed-selection") await SeedSelectionFixtureAsync(reportPath);
         else if (mode == "compare-stop")
@@ -109,6 +110,28 @@ if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" 
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, drop.Sequence, drop.FileDrop, drop.Paths, preferredEffect, performedEffect
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "clipboard-ole-effect-native")
+        {
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var drop = NativeWindow.ReadClipboardFileDrop();
+            string source = Path.Combine(fixture.Source, "a.txt");
+            string target = Path.Combine(fixture.Destination, "a.txt");
+            uint? preferredEffect = NativeWindow.ReadShellDropEffect("Preferred DropEffect");
+            uint? olePerformedEffect = NativeWindow.ReadOlePerformedEffect(drop.Sequence);
+            bool exactPaths = drop.FileDrop && drop.Paths.Count == 1
+                && string.Equals(drop.Paths[0], source, StringComparison.OrdinalIgnoreCase);
+            bool exactBytes = File.Exists(source) && File.Exists(target)
+                && await File.ReadAllTextAsync(source) == "external copy must keep source"
+                && await File.ReadAllTextAsync(target) == "external copy must keep source";
+            bool passed = exactPaths && exactBytes && preferredEffect == 2 && olePerformedEffect == 1;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, exactPaths, exactBytes, preferredEffect, olePerformedEffect,
+                source, target
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -2517,6 +2540,36 @@ try
             if (NativeWindow.ClipboardSequence() == before)
                 throw new InvalidOperationException("Explorer did not publish a new clipboard generation.");
         }
+        else if (mode == "clipboard-open-review")
+        {
+            NativeWindow.FocusRecovery("clipboard-source");
+            await ClickButtonAsync(client, sessionId, "Review decision…");
+            await Task.Delay(300);
+        }
+        else if (mode == "clipboard-cancel-native")
+        {
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+            var fixture = await ReadClipboardFixtureAsync(reportPath);
+            var drop = NativeWindow.ReadClipboardFileDrop();
+            uint? preferred = NativeWindow.ReadShellDropEffect("Preferred DropEffect");
+            if (!drop.FileDrop || drop.Paths.Count != 1 || preferred != 2)
+                throw new InvalidOperationException("The isolated Explorer Cut was replaced before cancellation.");
+            await ClickButtonAsync(client, sessionId, "Cancel operation");
+            await Task.Delay(1500);
+            string source = Path.Combine(fixture.Source, "a.txt");
+            string target = Path.Combine(fixture.Destination, "a.txt");
+            uint? performed = NativeWindow.ReadOlePerformedEffect(drop.Sequence);
+            bool exactFiles = await File.ReadAllTextAsync(source) == "external copy must keep source"
+                && await File.ReadAllTextAsync(target) == "existing destination must remain";
+            bool passed = exactFiles && performed is null
+                && NativeWindow.ClipboardSequence() == drop.Sequence;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, exactFiles, preferred, performed, clipboardUnchanged =
+                    NativeWindow.ClipboardSequence() == drop.Sequence, source, target
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
         else if (mode == "recycle-review")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
@@ -3467,7 +3520,7 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode is "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-move")
+        else if (mode is "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move")
         {
             var fixture = await ReadClipboardFixtureAsync(reportPath);
             bool subset = mode == "clipboard-paste-subset";
@@ -3489,6 +3542,12 @@ try
             if (!NativeWindow.IsRecoveryForeground("clipboard-source"))
                 throw new InvalidOperationException("FileCat did not retain foreground focus for Paste.");
             await SendSessionKeysAsync(client, sessionId, "\uE009v\uE000");
+            if (mode == "clipboard-paste-review")
+            {
+                await Task.Delay(500);
+                await File.WriteAllTextAsync(reportPath, await ReadSourceAsync(client, sessionId));
+                return 0;
+            }
             var sourceFile = Path.Combine(fixture.Source, "a.txt");
             var targetFile = Path.Combine(fixture.Destination, "a.txt");
             for (var attempt = 0; attempt < 40 && !File.Exists(targetFile); attempt++)
@@ -3809,7 +3868,7 @@ static async Task SeedDesktopInterruptionAsync(string reportPath, bool crossVolu
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
-static async Task SeedClipboardInteropAsync(string reportPath)
+static async Task SeedClipboardInteropAsync(string reportPath, bool conflict = false)
 {
     var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
     if (string.IsNullOrWhiteSpace(local))
@@ -3823,6 +3882,8 @@ static async Task SeedClipboardInteropAsync(string reportPath)
     var file = Path.Combine(source, "a.txt");
     await File.WriteAllTextAsync(file, "external copy must keep source");
     await File.WriteAllTextAsync(Path.Combine(source, "b.txt"), "subset member must remain");
+    if (conflict)
+        await File.WriteAllTextAsync(Path.Combine(destination, "a.txt"), "existing destination must remain");
     await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
     {
         root, source, destination, data, file
@@ -4213,6 +4274,18 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial uint RegisterClipboardFormat(string format);
 
+    [LibraryImport("ole32.dll")]
+    private static partial int OleInitialize(nint reserved);
+
+    [LibraryImport("ole32.dll")]
+    private static partial void OleUninitialize();
+
+    [DllImport("ole32.dll")]
+    private static extern int OleGetClipboard(out System.Runtime.InteropServices.ComTypes.IDataObject data);
+
+    [DllImport("ole32.dll")]
+    private static extern void ReleaseStgMedium(ref System.Runtime.InteropServices.ComTypes.STGMEDIUM medium);
+
     [LibraryImport("kernel32.dll")]
     private static partial nuint GlobalSize(nint memory);
 
@@ -4313,6 +4386,66 @@ internal static partial class NativeWindow
             finally { GlobalUnlock(handle); }
         }
         finally { CloseClipboard(); }
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal static uint? ReadOlePerformedEffect(uint expectedSequence)
+    {
+        Exception? error = null;
+        uint? readback = null;
+        var thread = new Thread(() =>
+        {
+            int initialized = OleInitialize(0);
+            if (initialized < 0)
+            {
+                error = Marshal.GetExceptionForHR(initialized);
+                return;
+            }
+            try
+            {
+                if (ClipboardSequence() != expectedSequence)
+                    throw new InvalidOperationException("Explorer clipboard changed before effect reading.");
+                int result = OleGetClipboard(out var data);
+                if (result < 0) Marshal.ThrowExceptionForHR(result);
+                try
+                {
+                    if (ClipboardSequence() != expectedSequence)
+                        throw new InvalidOperationException("Explorer clipboard changed while opening its data object.");
+                    uint format = RegisterClipboardFormat("Performed DropEffect");
+                    if (format == 0) throw new InvalidOperationException("Cannot register the performed-effect format.");
+                    var formatEtc = new System.Runtime.InteropServices.ComTypes.FORMATETC
+                    {
+                        cfFormat = unchecked((short)format),
+                        dwAspect = System.Runtime.InteropServices.ComTypes.DVASPECT.DVASPECT_CONTENT,
+                        lindex = -1,
+                        tymed = System.Runtime.InteropServices.ComTypes.TYMED.TYMED_HGLOBAL
+                    };
+                    try
+                    {
+                        data.GetData(ref formatEtc, out var stored);
+                        try
+                        {
+                            nint storedPointer = GlobalLock(stored.unionmember);
+                            if (storedPointer != 0)
+                            {
+                                try { readback = unchecked((uint)Marshal.ReadInt32(storedPointer)); }
+                                finally { GlobalUnlock(stored.unionmember); }
+                            }
+                        }
+                        finally { ReleaseStgMedium(ref stored); }
+                    }
+                    catch (COMException) { }
+                }
+                finally { Marshal.ReleaseComObject(data); }
+            }
+            catch (Exception exception) { error = exception; }
+            finally { OleUninitialize(); }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (error is not null) throw error;
+        return readback;
     }
 
     internal static string? ReadClipboardText()

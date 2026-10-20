@@ -128,9 +128,18 @@ build. Run `explorer-navigate <source.xml>`, `explorer-cut <source.xml>`,
 `clipboard-paste-explorer-cut <report.json>`. The native report requires the
 exact `CF_HDROP` path and `Preferred DropEffect` value 2 (Move). Paste must
 copy exact bytes while keeping Explorer's source because an external Cut
-does not carry FileCat's own Move authority. The native report also records
-the optional `Performed DropEffect`; absence is reported as `null`, not
-inferred as a completed shell Move. Finish with `clipboard-stop`.
+does not carry FileCat's own Move authority. Run `clipboard-ole-effect-native
+<report.json>` after Paste: it reads Explorer's OLE data object without
+changing it and requires `Performed DropEffect` value 1 (Copy), the same
+source file and exact target bytes. The Win32 clipboard view can omit this
+format even when the OLE data object stores it, so inspect the OLE report.
+For the cancellation gate, seed `seed-clipboard-conflict clipboard-fixture.json`
+on a fresh fixture, launch the isolated build, then run Explorer navigation,
+Cut, `clipboard-paste-review <review.xml>`,
+`clipboard-open-review <decision.xml>`, and
+`clipboard-cancel-native <report.json>`. The latter requires both byte-exact
+files, the same clipboard generation and no performed OLE effect. Finish
+each route with `clipboard-stop`.
 For the native FCUX-018 Move inverse, use another fresh `seed-clipboard`
 fixture, then run `clipboard-cut <source.xml>` and `clipboard-move
 <report.json>` in that order. The latter uses FileCat Paste and checks that

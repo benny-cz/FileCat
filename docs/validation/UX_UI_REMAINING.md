@@ -30,8 +30,8 @@ increments to `main`.
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac and Ubuntu native ownership
    checks still need actual process interruption during Move; Windows still
-   needs performed-effect handling and Explorer Cut presentation after
-   FileCat imports that publication as Copy.
+   needs Explorer Cut presentation after the completed Copy effect and
+   supported external Move/delete-on-paste handling, if safely offered.
    FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003

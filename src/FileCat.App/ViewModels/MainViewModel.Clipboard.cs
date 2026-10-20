@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
 {
     private readonly FileClipboard _fileClipboard = new();
     private readonly Dictionary<Job, FileClipboard.Publication> _clipboardMoves = [];
+    private readonly Dictionary<Job, (uint Sequence, string[] Paths)> _externalClipboardCopies = [];
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TabViewModel, PendingPaste> _pendingPastes = new();
 
     private sealed class PendingPaste { public long Revision; }
@@ -143,6 +144,12 @@ public sealed partial class MainViewModel
                 });
                 _jobOrigins[job] = (tab, destination);
                 if (move is not null) _clipboardMoves.Add(job, move);
+                else if (snapshot.Publication is null && snapshot.WindowsSequence is { } sequence
+                         && OperatingSystem.IsWindows()
+                         && snapshot.Files.All(file => file.FileSystemPath is { } path
+                             && Path.IsPathFullyQualified(path)))
+                    _externalClipboardCopies.Add(job, (sequence,
+                        snapshot.Files.Select(file => file.FileSystemPath!).ToArray()));
             }
             catch
             {
@@ -186,5 +193,16 @@ public sealed partial class MainViewModel
         _fileClipboard.CompleteMove(publication, job);
         if (publication.State == FileClipboard.MoveState.ReviewRequired)
             Notify($"Move fully completed {publication.CompletedRoots} of {publication.Paths.Count} cut items. Open Operations (Ctrl+J) to review or retry; select the remaining originals and Cut again to choose a new destination.", true);
+    }
+
+    private void OnExternalClipboardCopyFinished(Job job)
+    {
+        if (!_externalClipboardCopies.Remove(job, out var source)) return;
+        if (job.State != JobState.Completed
+            || job.CompletedRootIndices.Count != source.Paths.Length) return;
+        // An external Cut never grants FileCat authority to remove originals. Tell the shell's
+        // exact still-current data object that the completed result was Copy, without claiming
+        // an unoptimized Move or invoking delete-on-paste.
+        _ = WindowsClipboardFileDrop.TryReportCompletedCopyAsync(source.Sequence, source.Paths);
     }
 }

@@ -559,6 +559,7 @@ public sealed partial class MainViewModel
     private void OnJobFinished(Job job)
     {
         OnEditCommitFinished(job);
+        OnExternalClipboardCopyFinished(job);
         OnJobFinishedCore(job);
         OnClipboardMoveFinished(job);
     }

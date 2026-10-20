@@ -175,8 +175,10 @@ internal sealed class FileClipboard
                     Directory.Exists(path) ? EntryKind.Directory : EntryKind.File));
             }
         }
+        // Bind every external Windows file import to the native clipboard generation. The shell
+        // outcome report must never be sent to a later same-path Cut or Copy publication.
         var snapshot = new Snapshot(items, text, owner, publication, revision,
-            windowsPaths is null ? null : windowsSequence);
+            publication is null && items.Count > 0 && windowsSequence != 0 ? windowsSequence : null);
         if (!await IsCurrentAsync(clipboard, snapshot)) throw new ChangedException();
         if (publication is not null &&
             (items.Count != publication.Paths.Count || !publication.Paths.SetEquals(items.Select(i => NormalizePath(i.FileSystemPath!)))))
