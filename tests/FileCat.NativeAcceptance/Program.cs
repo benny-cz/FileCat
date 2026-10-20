@@ -67,12 +67,33 @@ if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" 
             var expectedExecutable = Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
                 "ReviewHighlights", "FileCat.exe");
-            using var app = Process.GetProcessesByName("FileCat").Single(process =>
+            var isolated = Process.GetProcessesByName("FileCat").Where(process =>
                 string.Equals(process.MainModule?.FileName, expectedExecutable,
-                    StringComparison.OrdinalIgnoreCase));
-            if (!app.CloseMainWindow() || !app.WaitForExit(10_000))
-                throw new InvalidOperationException("The isolated FileCat fixture did not close gracefully.");
-            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new { passed = true, app.Id }));
+                    StringComparison.OrdinalIgnoreCase)).ToArray();
+            var stopped = new List<object>();
+            foreach (var app in isolated)
+            {
+                using (app)
+                {
+                    bool graceful = false;
+                    for (var attempt = 0; attempt < 3 && !app.HasExited; attempt++)
+                    {
+                        _ = app.CloseMainWindow();
+                        if (app.WaitForExit(5_000)) graceful = true;
+                        else app.Refresh();
+                    }
+                    if (!app.HasExited)
+                    {
+                        // Only the exact guest-local validation executable is eligible.
+                        // A stale modal can otherwise contaminate the next fixture.
+                        app.Kill(entireProcessTree: true);
+                        if (!app.WaitForExit(10_000))
+                            throw new InvalidOperationException("The isolated FileCat fixture did not stop.");
+                    }
+                    stopped.Add(new { app.Id, graceful });
+                }
+            }
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new { passed = true, stopped }));
         }
         else if (mode == "clipboard-native")
         {
@@ -510,6 +531,70 @@ try
                         StringComparison.Ordinal) == true);
             if (!visibleScope || !defaultScope || !reviewedScope)
                 throw new InvalidOperationException("The native rename scope or preview did not match the fixture.");
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 720 and <= 800
+                && narrowWindow.Height is >= 520 and <= 600;
+            bool controlsVisible = !narrow ||
+                (string?)Hidden(proposed).Attribute("IsOffscreen") == "False"
+                && (string?)Preview(proposed).Attribute("IsOffscreen") == "False"
+                && Preview(proposed).Descendants().Count(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "text"
+                    && ((string?)element.Attribute("Name"))?.Contains('→') == true
+                    && (string?)element.Attribute("IsOffscreen") == "False") == expectedNames.Length
+                && proposed.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == "Name mask"
+                    && (string?)element.Attribute("IsOffscreen") == "False")
+                && proposed.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == "Rename"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+            bool expandedOptionsReflow = true;
+            NativeRect? originalPreviewBounds = null;
+            NativeRect? expandedPreviewBounds = null;
+            NativeRect? originalGripBounds = null;
+            NativeRect? expandedGripBounds = null;
+            NativeWindow.Rect expandedOwner = default;
+            bool counterVisible = false;
+            if (narrow && includeHidden)
+            {
+                const string optionsName = "Counter, search and case options";
+                XElement FindOptions(XDocument document) => document.Descendants().First(element =>
+                    (string?)element.Attribute("Name") == optionsName
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                XElement FindGrip(XDocument document) => document.Descendants().First(element =>
+                    (string?)element.Attribute("Name") == "Resize dialog"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                originalPreviewBounds = ReadNativeRect(Preview(proposed));
+                var options = FindOptions(proposed);
+                NativeWindow.ClickAt(CenterX(options), CenterY(options));
+                await Task.Delay(250);
+                expandedOwner = NativeWindow.ResizeRecoveryWindow("clipboard-source", 1060, 800);
+                var withOptions = ParseSource(await ReadSourceAsync(client, sessionId));
+                counterVisible = withOptions.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == "Counter from"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                var grip = FindGrip(withOptions);
+                originalGripBounds = ReadNativeRect(grip);
+                NativeWindow.DragAt(CenterX(grip), CenterY(grip),
+                    CenterX(grip) + 100, CenterY(grip) + 80);
+                await Task.Delay(350);
+                var expanded = ParseSource(await ReadSourceAsync(client, sessionId));
+                expandedGripBounds = ReadNativeRect(FindGrip(expanded));
+                expandedPreviewBounds = ReadNativeRect(Preview(expanded));
+                expandedOptionsReflow = counterVisible
+                    && expandedOwner.Width is >= 1020 and <= 1100
+                    && expandedOwner.Height is >= 760 and <= 840
+                    && expandedGripBounds.Value.X >= originalGripBounds.Value.X + 30
+                    && expandedGripBounds.Value.Y >= originalGripBounds.Value.Y + 20
+                    && expandedPreviewBounds.Value.Width >= originalPreviewBounds.Value.Width + 60
+                    && Names(expanded).SequenceEqual(expectedNames)
+                    && Preview(expanded).Descendants().Count(element =>
+                        (string?)element.Attribute("LocalizedControlType") == "text"
+                        && ((string?)element.Attribute("Name"))?.Contains('→') == true
+                        && (string?)element.Attribute("IsOffscreen") == "False") == expectedNames.Length
+                    && FindVisible(expanded, "button", "Rename") is not null
+                    && FindVisible(expanded, "button", "Cancel") is not null;
+                NativeWindow.ClickAt(CenterX(FindOptions(expanded)), CenterY(FindOptions(expanded)));
+                await Task.Delay(150);
+            }
             await ClickXPathAsync(client, sessionId,
                 "//Window[@Name='FileCat — clipboard-source — Admin (administrator, not elevated)']/Button[@Name='Rename' and @IsEnabled='True']",
                 "approve reviewed rename");
@@ -530,27 +615,15 @@ try
                     && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
                 if (filesMatch) break;
             }
-            bool narrowApplied = !narrow || narrowWindow.Width is >= 720 and <= 800
-                && narrowWindow.Height is >= 520 and <= 600;
-            bool controlsVisible = !narrow ||
-                (string?)Hidden(proposed).Attribute("IsOffscreen") == "False"
-                && (string?)Preview(proposed).Attribute("IsOffscreen") == "False"
-                && Preview(proposed).Descendants().Count(element =>
-                    (string?)element.Attribute("LocalizedControlType") == "text"
-                    && ((string?)element.Attribute("Name"))?.Contains('→') == true
-                    && (string?)element.Attribute("IsOffscreen") == "False") == expectedNames.Length
-                && proposed.Descendants().Any(element =>
-                    (string?)element.Attribute("Name") == "Name mask"
-                    && (string?)element.Attribute("IsOffscreen") == "False")
-                && proposed.Descendants().Any(element =>
-                    (string?)element.Attribute("Name") == "Rename"
-                    && (string?)element.Attribute("IsOffscreen") == "False");
             bool passed = visibleScope && defaultScope && reviewedScope && filesMatch
-                && narrowApplied && controlsVisible;
+                && narrowApplied && controlsVisible && expandedOptionsReflow;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, includeHidden, visibleScope, defaultScope, reviewedScope, filesMatch,
                 narrow, narrowApplied, narrowWindow, controlsVisible,
+                expandedOptionsReflow, expandedOwner, counterVisible,
+                originalGripBounds, expandedGripBounds,
+                originalPreviewBounds, expandedPreviewBounds,
                 reviewedNames = Names(proposed), source = fixture.Source,
                 sourceNames = Directory.EnumerateFileSystemEntries(fixture.Source)
                     .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray()

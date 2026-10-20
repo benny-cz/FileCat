@@ -13,9 +13,9 @@ increments to `main`.
 
 ## Next actions, in severity order
 
-1. **Close the current validation gate.** Check the pending Windows, Ubuntu,
-   macOS and Windows ARM64 CI lanes. Fix any failing lane before declaring the
-   current batch verified. Require the same checks on the final head.
+1. **Close the final validation gate.** Require green producer, Windows,
+   Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
+   failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, finish the
    supported nonlocal-provider interruption and recovery cases, including
    retained intent, source/target bytes and staging cleanup. For FCUX-018, verify
@@ -24,8 +24,8 @@ increments to `main`.
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
    routes, scaled-display input and the non-Windows focus journeys. FCUX-003
-   still needs scaled display and smaller or expanded-layout states, keyboard and
-   spoken review, and stale
+   still needs scaled display and smaller-layout states, keyboard and spoken
+   review, and stale
    external-editor results. For FCUX-004/005, exercise modal focus/decision
    ownership and full synchronization endpoints. Preserve captured scope and
    mapping throughout each test.

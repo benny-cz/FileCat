@@ -194,9 +194,13 @@ only the reviewed visible file may change, with its exact bytes preserved.
 a fresh 760 × 560 fixture. It requires both reviewed mapping rows to be visible
 before approval, verifies the resizable dialog's essential controls, and checks
 both renamed files and exact contents. The less common counter, search and case
-controls can be expanded when needed so the preview has room at this size.
-Run `rename-stop <report.json>` to close only the path-verified isolated app
-before starting another fixture.
+controls can be expanded when needed so the preview has room at this size. The
+same check expands the owner to 1060 × 800, opens those options, drags the review
+resize grip, and requires both mapping rows and the approval buttons to stay
+visible as the preview grows. Run `rename-stop <report.json>` before another
+fixture. It closes only processes whose executable matches the guest-local
+validation build; a fixture left behind by a stale modal is terminated and
+reported so a new run cannot attach to it accidentally.
 On a fresh fixture after `rename-native` (the default visible-only case), run
 `rename-undo-native <report.json>` before `rename-stop`. It requires a wrapped
 native Undo row naming both the reviewed new path and original path, verifies
