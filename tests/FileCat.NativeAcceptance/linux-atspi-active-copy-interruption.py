@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a rate-limited Copy interrupted in the isolated Ubuntu GUI.
 
-Usage: linux-atspi-active-copy-interruption.py seed|stop-completed|open-form|open-options|inspect-form|interrupt|interrupt-running|inspect-interruption|inspect-copy-state|inspect-recovery|review|cancel-review|continue-review|inspect-completion FIXTURE.json REPORT.json
+Usage: linux-atspi-active-copy-interruption.py seed|stop-completed|open-form|open-options|inspect-form|start-fast|interrupt|interrupt-running|inspect-interruption|inspect-copy-state|inspect-recovery|review|cancel-review|continue-review|inspect-completion|inspect-finished-details FIXTURE.json REPORT.json
 The seed phase creates only a new guest-local FileCatValidation fixture. Later
 phases require the exact FileCat executable, profile and panel arguments.
 """
@@ -203,6 +203,12 @@ def interrupt(fixture):
     field = find(app, "entry", "Speed limit (MB/s):")
     if field is None or not field.get_editable_text().set_text_contents("0.0625"):
         raise AssertionError("Could not set the reviewed 0.0625 MB/s speed limit")
+    submit_copy(app)
+    wait_for(lambda: partial_state_if_ready(fixture), "nonempty staging and durable journal", seconds=35)
+    return interrupt_running(fixture, expected_pid=pid, phase="interrupt")
+
+
+def submit_copy(app):
     def enabled_copy():
         for button in descendants(app):
             if button.get_role_name() != "button" or button.get_name() != "Copy":
@@ -217,9 +223,21 @@ def interrupt(fixture):
         return None
     choice = wait_for(enabled_copy, "enabled Copy approval", seconds=15)
     if choice is None or choice.get_n_actions() != 1 or not choice.do_action(0):
-        raise AssertionError("Could not start the rate-limited Copy")
-    wait_for(lambda: partial_state_if_ready(fixture), "nonempty staging and durable journal", seconds=35)
-    return interrupt_running(fixture, expected_pid=pid, phase="interrupt")
+        raise AssertionError("Could not start the reviewed Copy")
+
+
+def start_fast(fixture):
+    if any(Path(fixture["destination"]).iterdir()):
+        raise AssertionError("The fresh target is not empty")
+    submit_copy(app_for(fixture))
+    wait_for(lambda: (Path(fixture["destination"]) / "payload.bin").is_file(),
+             "the fresh Copy target", seconds=35)
+    wait_for(lambda: any((node.get_name() or "").startswith("Completed ")
+                         for node in descendants(app_for(fixture)) if node.get_role_name() == "label"),
+             "the fresh Copy's completed status", seconds=35)
+    completed_files(fixture)
+    return {"passed": True, "phase": "start-fast", "sourceBytesExact": True,
+            "destinationBytesExact": True}
 
 
 def interrupt_running(fixture, expected_pid=None, phase="interrupt-running"):
@@ -332,7 +350,7 @@ def continue_review(fixture):
             "sourceBytesExact": True, "explicitApproval": True}
 
 
-def inspect_completion(fixture):
+def completed_files(fixture):
     app = app_for(fixture)
     source = Path(fixture["source"]) / "payload.bin"
     destination = Path(fixture["destination"])
@@ -345,19 +363,42 @@ def inspect_completion(fixture):
         raise AssertionError("A staging file remained after successful continuation")
     labels = [node.get_name() for node in descendants(app)
               if node.get_role_name() == "label" and node.get_name()]
-    if not any("recovery tracking closed" in name.lower() for name in labels):
-        raise AssertionError("The UI did not close recovery tracking")
     if not any(name.startswith("Completed ") and "planned bytes accounted for" in name
                for name in labels):
         raise AssertionError("The UI did not report the resumed Copy as completed")
+    return labels
+
+
+def inspect_completion(fixture):
+    labels = completed_files(fixture)
+    if not any("recovery tracking closed" in name.lower() for name in labels):
+        raise AssertionError("The UI did not close recovery tracking")
     return {"passed": True, "phase": "inspect-completion", "sourceBytesExact": True,
             "destinationBytesExact": True, "stagingRemoved": True, "recoveryTrackingClosed": True,
             "relevantAccessibleNames": [name[:240] for name in labels
                 if "completed" in name.lower() or "recovery tracking" in name.lower()][:12]}
 
 
+def inspect_finished_details(fixture):
+    completed_files(fixture)
+    app = app_for(fixture)
+    if not find(app, "label", "Operations"):
+        details = find(app, "button", "Details (Ctrl+J)")
+        if details is None or details.get_n_actions() != 1 or not details.do_action(0):
+            raise AssertionError("Could not open the finished operation details")
+    def average_label():
+        return next((node.get_name() for node in descendants(app)
+                     if node.get_role_name() == "label" and
+                     (node.get_name() or "").startswith("Average transfer speed:")), None)
+    average = wait_for(average_label, "the visible finished average transfer speed", seconds=15)
+    if not average or average.partition(":")[2].strip() in ("", "0 bytes/s"):
+        raise AssertionError("The finished details have no actual average rate")
+    return {"passed": True, "phase": "inspect-finished-details", "averageTransferSpeed": average,
+            "sourceBytesExact": True, "destinationBytesExact": True}
+
+
 def main():
-    if len(sys.argv) != 4 or sys.argv[1] not in ("seed", "stop-completed", "open-form", "open-options", "inspect-form", "interrupt", "interrupt-running", "inspect-interruption", "inspect-copy-state", "inspect-recovery", "review", "cancel-review", "continue-review", "inspect-completion"):
+    if len(sys.argv) != 4 or sys.argv[1] not in ("seed", "stop-completed", "open-form", "open-options", "inspect-form", "start-fast", "interrupt", "interrupt-running", "inspect-interruption", "inspect-copy-state", "inspect-recovery", "review", "cancel-review", "continue-review", "inspect-completion", "inspect-finished-details"):
         raise SystemExit(__doc__)
     phase, fixture_path, report_path = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
     try:
@@ -365,6 +406,7 @@ def main():
                   stop_completed(checked_fixture(fixture_path)) if phase == "stop-completed" else
                   open_form(checked_fixture(fixture_path)) if phase == "open-form" else
                   open_options(checked_fixture(fixture_path)) if phase == "open-options" else
+                  start_fast(checked_fixture(fixture_path)) if phase == "start-fast" else
                   interrupt(checked_fixture(fixture_path)) if phase == "interrupt" else
                   interrupt_running(checked_fixture(fixture_path)) if phase == "interrupt-running" else
                   inspect_interruption(checked_fixture(fixture_path)) if phase == "inspect-interruption" else
@@ -374,6 +416,7 @@ def main():
                   cancel_review(checked_fixture(fixture_path)) if phase == "cancel-review" else
                   continue_review(checked_fixture(fixture_path)) if phase == "continue-review" else
                   inspect_completion(checked_fixture(fixture_path)) if phase == "inspect-completion" else
+                  inspect_finished_details(checked_fixture(fixture_path)) if phase == "inspect-finished-details" else
                   inspect_form(checked_fixture(fixture_path)))
     except Exception as exc:
         result = {"passed": False, "phase": phase, "error": f"{type(exc).__name__}: {exc}"}

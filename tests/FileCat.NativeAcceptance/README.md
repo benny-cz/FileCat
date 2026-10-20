@@ -507,6 +507,11 @@ rate-limited transfer finishes, `inspect-completion` requires exact source
 and destination hashes, no staging file, a Completed status and closed recovery
 tracking. Each phase writes a JSON receipt; the test-owned fixture stays
 under FileCatValidation and no archive handoff is involved.
+After a completed fixture is stopped, `seed`, `open-form`, and `start-fast`
+run a fresh unrestricted Copy on the current portable Git build on Ubuntu.
+`inspect-finished-details` opens the Operations drawer if needed and requires
+the visible `Average transfer speed:` label alongside exact source and target
+bytes. This additional route passed with `Average transfer speed: 187 MB/s`.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
