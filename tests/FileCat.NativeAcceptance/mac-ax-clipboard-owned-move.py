@@ -16,6 +16,34 @@ from uuid import uuid4
 
 clipboard = runpy.run_path(str(Path(__file__).with_name("mac-ax-clipboard-external-copy.py")))
 
+COMPLETED_NOTICE = '''
+on hasCompletedNotice(itemRef, depth)
+    if depth > 25 then return false
+    tell application "System Events"
+        try
+            set itemName to name of itemRef as text
+            if itemName contains "already been moved" then return true
+        end try
+        try
+            set itemValue to value of itemRef as text
+            if itemValue contains "already been moved" then return true
+        end try
+        try
+            repeat with childRef in (UI elements of itemRef)
+                if my hasCompletedNotice(childRef, depth + 1) then return true
+            end repeat
+        end try
+    end tell
+    return false
+end hasCompletedNotice
+tell application "System Events"
+    tell process "FileCat"
+        set frontmost to true
+        return (my hasCompletedNotice(window 1, 0) as text)
+    end tell
+end tell
+'''
+
 
 def run(source, destination, pasteboard_helper, key_helper):
     source = source.resolve(strict=True)
@@ -54,10 +82,20 @@ def run(source, destination, pasteboard_helper, key_helper):
             raise AssertionError("The moved source or destination changed after completion")
         if (source / "a.txt").read_bytes() != b"alpha\n" or (destination / "a.txt").read_bytes() != b"alpha\n":
             raise AssertionError("Unselected or pre-existing a.txt bytes changed")
+        clipboard["paste_into_target"](str(destination), key_helper)
+        clipboard["filecat_action"]('key code 35 using {command down, shift down}')
+        clipboard["filecat_action"]('keystroke "Recent notifications"')
+        clipboard["filecat_action"]('key code 36')
+        if clipboard["osa"](COMPLETED_NOTICE) != "true":
+            raise AssertionError("A second Paste did not explain that the Cut was already moved")
+        clipboard["filecat_action"]('key code 53')
+        if source_b.exists() or target_b.read_bytes() != b"beta\n":
+            raise AssertionError("A completed Cut was replayed by a second Paste")
         moved = True
         return {"passed": True, "platform": "macOS", "scenario": "FileCat Cut b.txt; FileCat Paste to target",
                 "cutPublishedExactFile": True, "publicationGenerationAdvanced": generation > before["changeCount"],
                 "ownedMoveCompleted": True, "movedBytesMatch": True,
+                "completedMoveReplayRefused": True,
                 "unselectedSourceAndTargetBytesPreserved": True}
     except Exception as exc:
         primary_error = exc

@@ -485,6 +485,69 @@ public sealed class ClipboardIntentTests
     }
 
     [AvaloniaFact]
+    public async Task Completed_cut_explains_replay_before_unreadable_native_files()
+    {
+        using var f = await Fixture.Create();
+        await f.Publish(true, "a.txt");
+        f.NavigateDestination(f.B);
+        await f.Paste();
+        await f.FinishedJob();
+        // A native clipboard may keep advertising the Cut URL after Move removed its source,
+        // while resolving zero storage items. The completed owner should remain explainable.
+        f.Clipboard.ReadOverride = new IncompleteFileTransfer(1);
+        int reads = f.Clipboard.ReadCount;
+        f.NavigateDestination(f.C);
+        await f.Paste();
+        Assert.Equal(reads, f.Clipboard.ReadCount);
+        Assert.Single(f.Services.Jobs.Jobs);
+        Assert.Contains("already been moved", f.Vm.Notification!);
+        Assert.False(File.Exists(Path.Combine(f.A, "a.txt")));
+        Assert.Equal("source-a", File.ReadAllText(Path.Combine(f.B, "a.txt")));
+        Assert.Empty(Manifest(f.C));
+    }
+
+    [AvaloniaFact]
+    public async Task New_external_copy_of_completed_cut_path_is_not_refused_as_old_move()
+    {
+        using var f = await Fixture.Create();
+        await f.Publish(true, "a.txt");
+        f.NavigateDestination(f.B);
+        await f.Paste();
+        await f.FinishedJob();
+        File.WriteAllText(Path.Combine(f.A, "a.txt"), "new-external-source");
+        f.Clipboard.ExternalFiles(Path.Combine(f.A, "a.txt"));
+        f.NavigateDestination(f.C);
+        await f.Paste();
+        Assert.Equal(JobKind.Copy, (await f.FinishedJob(2)).Kind);
+        Assert.Equal("new-external-source", File.ReadAllText(Path.Combine(f.A, "a.txt")));
+        Assert.Equal("source-a", File.ReadAllText(Path.Combine(f.B, "a.txt")));
+        Assert.Equal("new-external-source", File.ReadAllText(Path.Combine(f.C, "a.txt")));
+    }
+
+    [AvaloniaFact]
+    public async Task Partial_cut_explains_review_before_unreadable_native_files()
+    {
+        using var f = await Fixture.Create();
+        File.WriteAllText(Path.Combine(f.B, "b.txt"), "keep-target-b");
+        await f.Publish(true, "a.txt", "b.txt");
+        f.NavigateDestination(f.B);
+        await f.Paste();
+        var job = await f.AwaitingDecision();
+        job.Decision!.Resolve(new Decision(DecisionAction.Skip));
+        await f.FinishedJob();
+        f.Clipboard.ReadOverride = new IncompleteFileTransfer(2, StorageItem(Path.Combine(f.A, "b.txt")));
+        int reads = f.Clipboard.ReadCount;
+        f.NavigateDestination(f.C);
+        await f.Paste();
+        Assert.Equal(reads, f.Clipboard.ReadCount);
+        Assert.Single(f.Services.Jobs.Jobs);
+        Assert.Contains("1 of 2", f.Vm.Notification!);
+        Assert.Equal(new Dictionary<string, string> { ["b.txt"] = "source-b" }, Manifest(f.A));
+        Assert.Equal(new Dictionary<string, string> { ["a.txt"] = "source-a", ["b.txt"] = "keep-target-b" }, Manifest(f.B));
+        Assert.Empty(Manifest(f.C));
+    }
+
+    [AvaloniaFact]
     public async Task Clipboard_without_ownership_support_explains_copy_fallback_and_preserves_source()
     {
         using var f = await Fixture.Create();

@@ -106,6 +106,16 @@ internal sealed class FileClipboard
             if (ReferenceEquals(_publication, publication)) _publication = null;
             publication = null;
         }
+        if (publication is { Cut: true, State: not MoveState.Available })
+        {
+            // A completed move may have removed every source. Native backends can no longer resolve
+            // those file URLs, so explain this exact owned publication before attempting conversion.
+            // Recheck ownership first: a newer same-path external Copy must never inherit this refusal.
+            var guard = new Snapshot([], null, owner, publication, revision,
+                windowsSequence == 0 ? null : windowsSequence);
+            if (!await IsCurrentAsync(clipboard, guard)) throw new ChangedException();
+            throw new InvalidOperationException(MoveUnavailableReason(publication)!);
+        }
 
         var items = new List<ItemRef>();
         var resolvedPaths = new List<string>();
@@ -190,17 +200,19 @@ internal sealed class FileClipboard
     /// <summary>Called synchronously at mutation admission; a double Paste cannot move the same publication twice.</summary>
     public bool TryBeginMove(Publication publication, out string? reason)
     {
-        reason = publication.State switch
-        {
-            MoveState.Running => "These cut items are already being moved. Open Operations (Ctrl+J) to follow that move.",
-            MoveState.Completed => "These cut items have already been moved. Select and Cut or Copy the items again for another transfer.",
-            MoveState.ReviewRequired => $"The previous move fully completed {publication.CompletedRoots} of {publication.Paths.Count} items. Open Operations (Ctrl+J) to review or retry it, or select the remaining originals and Cut again.",
-            _ => null,
-        };
+        reason = MoveUnavailableReason(publication);
         if (reason is not null) return false;
         publication.State = MoveState.Running;
         return true;
     }
+
+    private static string? MoveUnavailableReason(Publication publication) => publication.State switch
+    {
+        MoveState.Running => "These cut items are already being moved. Open Operations (Ctrl+J) to follow that move.",
+        MoveState.Completed => "These cut items have already been moved. Select and Cut or Copy the items again for another transfer.",
+        MoveState.ReviewRequired => $"The previous move fully completed {publication.CompletedRoots} of {publication.Paths.Count} items. Open Operations (Ctrl+J) to review or retry it, or select the remaining originals and Cut again.",
+        _ => null,
+    };
 
     public void SubmissionFailed(Publication publication) => publication.State = MoveState.Available;
 

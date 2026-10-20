@@ -489,8 +489,10 @@ unlocked validation app and helpers. Start with only `a.txt` = `alpha\n` and
 `b.txt` = `beta\n` in SOURCE and only `a.txt` = `alpha\n` in DESTINATION. It
 Cut-publishes exactly `b.txt`, Pastes into the target panel, waits for the
 source to disappear and the target to contain the exact bytes, and confirms
-both `a.txt` files stayed unchanged. On success it restores the initial
-fixtures and replaces its test-owned clipboard publication with a sentinel.
+both `a.txt` files stayed unchanged. It Pastes again, opens Recent
+notifications and requires the explicit “already been moved” refusal while
+the bytes remain unchanged. On success it restores the initial fixtures and
+replaces its test-owned clipboard publication with a sentinel.
 
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
