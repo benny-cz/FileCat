@@ -8,9 +8,11 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Obtain a Mac screen capture route for visual layout checks;
-  `screencapture` from SSH is denied. Keep its user session unlocked and a
-  display-awake assertion active while finishing Mac input, clipboard, viewer
+- Finish Mac visual layout checks. The dedicated `FileCatCapture` helper has
+  Screen Recording permission, but macOS presented a separate direct screen
+  and audio capture consent; wait for an explicit owner decision or implement
+  a picker-based capture route. Keep the Mac session unlocked and its display
+  awake while finishing Mac input, clipboard, viewer
   and scaling journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 
@@ -40,8 +42,9 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
-   changed-query ownership, provider cancellation and Ubuntu physical-keyboard
-   input beyond the verified AT-SPI Text and Markdown Page routes. Other Mac source
+   changed-query ownership beyond the verified Mac Text route, provider
+   cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
+   Text and Markdown Page routes. Other Mac source
    modes and assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and

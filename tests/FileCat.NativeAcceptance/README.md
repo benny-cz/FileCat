@@ -405,6 +405,28 @@ present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
 
 ## macOS logged-in desktop
 
+`mac-capture.swift` and `mac-capture-Info.plist` build a dedicated, locally
+signed screenshot helper for visual acceptance on the isolated Mac. Copy both
+files into that machine's `FileCatValidation` folder, then build the app there:
+
+```sh
+capture_root="$HOME/FileCatValidation"
+mkdir -p "$capture_root/FileCatCapture.app/Contents/MacOS"
+swiftc -o "$capture_root/FileCatCapture.app/Contents/MacOS/FileCatCapture" "$capture_root/mac-capture.swift"
+cp "$capture_root/mac-capture-Info.plist" "$capture_root/FileCatCapture.app/Contents/Info.plist"
+codesign --force --sign - "$capture_root/FileCatCapture.app"
+open -a "$capture_root/FileCatCapture.app"
+```
+
+Grant Screen & System Audio Recording to `FileCatCapture` in macOS System
+Settings when it appears. Launch again with `open -a`; each successful run
+creates a new `native-screen-*.png` in the isolated validation folder. Launch
+through the logged-in desktop so CoreGraphics uses that session. The helper
+captures the active display, requires an existing output folder and never
+replaces another file. Keep that permission limited to the helper. macOS may
+also request separate permission to bypass its private-window picker for
+direct capture; leave that prompt for an explicit owner decision.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
@@ -440,7 +462,8 @@ text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
 query through native keyboard input, and checks Next/Previous plus F3 and
 Shift+F3 visible offsets, the exact `2 matches` status and the no-earlier-match
-message. It compares the
+message. Changing the query to `first` must retire the previous count and
+show `1 match` at the new offset. It compares the
 complete source bytes, closes the viewer, removes only its own unchanged test
 file and refreshes the listing. Begin with no viewer open and no file named
 `native-backward-search.txt` in the fixture.

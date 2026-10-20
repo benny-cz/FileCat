@@ -96,8 +96,8 @@ end tell
 ''')
 
 
-def enter_query():
-    osa('''
+def enter_query(query):
+    osa(f'''
 tell application "System Events"
     tell process "FileCat"
         set frontmost to true
@@ -108,10 +108,10 @@ tell application "System Events"
                     try
                         if (role of e as text) is "AXTextField" and (name of e as text) is "Find in file" then
                             click e
-                            keystroke "a" using {command down}
+                            keystroke "a" using {{command down}}
                             key code 51
-                            keystroke "NEEDLE"
-                            if (value of e as text) is not "NEEDLE" then error "Query input differed"
+                            keystroke {json.dumps(query)}
+                            if (value of e as text) is not {json.dumps(query)} then error "Query input differed"
                             return "typed"
                         end if
                     end try
@@ -139,7 +139,7 @@ tell application "System Events"
                         if (role of e as text) is "AXStaticText" then
                             set labelText to name of e as text
                             if labelText contains " · offset 0x" then set offsetText to labelText
-                            if labelText is "2 matches" then set countText to labelText
+                            if labelText is "1 match" or labelText is "2 matches" then set countText to labelText
                             if labelText contains "was not found before this position" then set searchResult to labelText
                         end if
                     end try
@@ -188,7 +188,7 @@ def run(source):
         find_click("AXRow", FIXTURE_NAME)
         find_click("AXButton", "View")
         find_click("AXButton", "Show or hide viewer Find bar", viewer=True)
-        enter_query()
+        enter_query("NEEDLE")
 
         find_click("AXButton", "Find next match", viewer=True)
         first = snapshot()
@@ -222,6 +222,14 @@ def run(source):
             raise AssertionError(f"Missing no-earlier-match feedback: {before_first}")
         if before_first["count"] != "2 matches":
             raise AssertionError(f"Missing exact visible match count: {before_first}")
+
+        enter_query("first")
+        find_click("AXButton", "Find next match", viewer=True)
+        changed = snapshot()
+        if changed["offset"] is None or abs(changed["offset"] - (FIRST_OFFSET + len(b"NEEDLE "))) > 65536:
+            raise AssertionError(f"Changed query returned a stale match: {changed}")
+        if changed["count"] != "1 match":
+            raise AssertionError(f"Changed query retained the old match count: {changed}")
         close_viewer()
         if hashlib.sha256(fixture.read_bytes()).digest() != content_digest:
             raise AssertionError("Search changed its source bytes")
@@ -229,7 +237,8 @@ def run(source):
                 "firstMatchByte": FIRST_OFFSET, "secondMatchByte": SECOND_OFFSET,
                 "firstVisibleOffset": first["offset"], "secondVisibleOffset": second["offset"],
                 "backwardVisibleOffset": backward["offset"], "visibleMatchStatus": before_first["count"],
-                "keyboardF3AndShiftF3Found": True, "noEarlierMatchFeedback": True,
+                "keyboardF3AndShiftF3Found": True, "changedQueryVisibleMatchStatus": changed["count"],
+                "noEarlierMatchFeedback": True,
                 "sourceBytesUnchanged": True}
     finally:
         close_viewer()
