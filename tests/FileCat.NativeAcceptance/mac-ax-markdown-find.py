@@ -164,6 +164,18 @@ end tell
             "previous": parts[3] == "true", "next": parts[4] == "true"}
 
 
+def send_f3(backward):
+    modifier = " using {shift down}" if backward else ""
+    osa(f'''
+tell application "System Events"
+    tell process "FileCat"
+        set frontmost to true
+        key code 99{modifier}
+    end tell
+end tell
+''')
+
+
 def run(source):
     source = source.resolve(strict=True)
     assert (source / "a.txt").read_bytes() == b"alpha\n"
@@ -200,12 +212,21 @@ def run(source):
         backward = snapshot()
         if 'Found "marker" in the page.' not in backward["status"]:
             raise AssertionError(f"Page Previous did not find a match: {backward}")
+        send_f3(backward=False)
+        keyboard_next = snapshot()
+        if 'Found "marker" in the page.' not in keyboard_next["status"]:
+            raise AssertionError(f"Page F3 did not find a match: {keyboard_next}")
+        send_f3(backward=True)
+        keyboard_previous = snapshot()
+        if 'Found "marker" in the page.' not in keyboard_previous["status"]:
+            raise AssertionError(f"Page Shift+F3 did not find a match: {keyboard_previous}")
         close_viewer()
         if fixture.read_bytes() != CONTENT:
             raise AssertionError("Page search changed the Markdown bytes")
         return {"passed": True, "platform": "macOS", "mode": "Page",
                 "query": "marker", "visibleMatchStatus": forward["count"],
-                "nextTwiceAndPreviousFound": True, "sourceBytesUnchanged": True}
+                "nextTwiceAndPreviousFound": True,
+                "keyboardF3AndShiftF3Found": True, "sourceBytesUnchanged": True}
     finally:
         # A native engine crash can remove the FileCat process before this
         # check returns. Still remove only our exact, isolated fixture.

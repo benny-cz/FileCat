@@ -429,8 +429,8 @@ file and refreshes the listing. Begin with no viewer open and no file named
 `python3 mac-ax-markdown-find.py SOURCE REPORT.json` creates one short
 temporary Markdown file in the same isolated source folder. It opens Page
 mode, reveals Find, sends Command+A/Delete and types `marker` through native
-keyboard input, then checks two Next actions and Previous. It requires the
-visible directional lower-bound status, both accessible navigation buttons,
+keyboard input, then checks two Next actions, Previous, F3 and Shift+F3. It
+requires the visible directional lower-bound status, both accessible buttons,
 unchanged Markdown bytes and a live FileCat process. The test closes the
 viewer, removes only its own unchanged fixture and refreshes the listing. A
 `--cleanup` fourth argument removes an exact test-owned fixture left by a

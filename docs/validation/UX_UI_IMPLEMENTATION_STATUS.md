@@ -80,9 +80,16 @@ WebView; forwarding unhandled keys to the superclass of the runtime class
 re-entered FileCat's own override. The key handlers now forward from the
 declared FileCat WebView subclass to WKWebView. A fresh signed macOS build
 passed the Markdown test twice with Command+A/Delete and typed input, two
-Next actions, Previous, accessible controls, a truthful directional lower
-bound and exact unchanged Markdown bytes. Mac Page copy/select and other
-assistive-technology journeys remain open.
+Next actions, Previous, F3 and Shift+F3, accessible controls, a truthful
+directional lower bound and exact unchanged Markdown bytes. Mac Page
+copy/select and other assistive-technology journeys remain open.
+The full local Release App run on the Page-key fix finished with 2,369 passes,
+63 platform skips and one Create Link preview assertion failure after 19 minutes.
+The earlier Windows CI run for `de8e5b54` showed the same assertion. The
+confirmation button is polled separately from the asynchronous preview; the
+test now waits for the reviewed hard-link text as well as button availability.
+The focused two-case set passed six consecutive runs. Final-head CI remains
+the validation gate.
 The preceding `537ccb0b` CI run exposed two asynchronous test races. Its
 Windows recovery test dispatched a synthetic click while the action was still
 disabled after Cancel; the test now waits for the owned reservation to end and

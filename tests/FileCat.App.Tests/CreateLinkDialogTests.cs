@@ -35,11 +35,15 @@ public sealed class CreateLinkDialogTests
             symbolic.IsChecked = true;
             hard.IsChecked = true;
             Button confirm = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Create");
-            for (int i = 0; i < 250 && !confirm.IsEnabled; i++) await Task.Delay(20, ct);
+            bool HasHardPreview() => window.GetVisualDescendants().OfType<TextBlock>().Any(text =>
+                text.Text?.Contains("hard link will be created", StringComparison.Ordinal) == true);
+            // The button's 200 ms availability poll may still show the previous
+            // choice while the owned asynchronous preview is recomputed.
+            for (int i = 0; i < 250 && !(confirm.IsEnabled && HasHardPreview()); i++)
+                await Task.Delay(20, ct);
             Assert.True(hard.IsChecked);
             Assert.True(confirm.IsEnabled);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
-                text.Text?.Contains("hard link will be created", StringComparison.Ordinal) == true);
+            Assert.True(HasHardPreview());
             Assert.Empty(services.Jobs.Jobs);
         }
         finally
