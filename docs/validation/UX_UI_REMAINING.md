@@ -27,8 +27,11 @@ increments to `main`.
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
-   validate native clipboard handoff, Move effects and delayed Paste destination
-   on each supported desktop. FCUX-002 still needs other narrow-window routes,
+   validate Ubuntu native clipboard exchange, supported Move effects and
+   delayed Paste destination on each desktop. Mac native ownership checks
+   still need the same-file replacement and partial/completed Move cases;
+   Windows still needs preferred/performed Move effects.
+   FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken

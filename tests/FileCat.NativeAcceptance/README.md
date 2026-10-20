@@ -460,6 +460,25 @@ source bytes and unchanged destination entries and bytes, and restores the
 review's original size before closing. `b.txt` must be absent from the target
 before the run; an existing `a.txt` is allowed.
 
+`mac-ax-clipboard-external-copy.py` checks an actual macOS clipboard handoff
+against the isolated, signed validation app. Preseed SOURCE with only
+`a.txt` = `alpha\n`, `b.txt` = `beta\n`, and `c.txt` = `gamma\n` **before**
+starting FileCat; DESTINATION must contain only `a.txt` = `alpha\n`. Build the
+two helpers on the guest with `swiftc mac-pasteboard-files.swift -o
+mac-pasteboard-files` and `swiftc mac-send-key.swift -o mac-send-key`, then run
+`python3 mac-ax-clipboard-external-copy.py SOURCE DESTINATION
+./mac-pasteboard-files ./mac-send-key REPORT.json`. The guest needs
+Accessibility permission for the native key helper and an unlocked desktop.
+The test sets a unique, test-owned clipboard sentinel, focuses `b.txt` without
+invoking the row, Cut-publishes exactly its file URL, asks Finder to Copy only
+`c.txt`, verifies the pasteboard generation and exact replacement URL, then
+focuses the target panel and Pastes. It requires `c.txt`'s exact bytes at the
+target and `b.txt` to remain at the source. It restores a test-owned clipboard
+sentinel and removes both `c.txt` fixtures on success. Run only in the isolated
+validation bundle: the key helper checks its bundle identifier before Cut or
+Paste and Finder's identifier before Copy. CGEvent input avoids a macOS VM
+System Events behavior that sent Command+A immediately before Command+X.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
