@@ -38,8 +38,9 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test native editor Previous routes, visible Stop,
-   changed-query ownership, provider cancellation, Ubuntu input and larger
-   Mac backward-search routes.
+   changed-query ownership, provider cancellation and Ubuntu input. Mac Text
+   backward navigation across distant matches passed; Page and other source
+   modes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long

@@ -58,7 +58,7 @@ A second macOS Accessibility journey opened `a.txt` in the Text viewer,
 revealed Find, replaced the query through keyboard input, and pressed Next.
 The visible status reported `1 match`; Previous and Next were both exposed.
 The viewer closed without changing the exact source bytes. This establishes a
-basic Mac Text search route; larger, backward, Page and spoken journeys remain.
+basic Mac Text search route; Page and spoken journeys remain.
 A third macOS Accessibility journey clicked `a.txt` to establish a real pointer
 anchor, pressed Shift+Down and verified that the six-byte file was marked,
 moved Up without changing the mark, then pressed Shift+Down to clear it.
@@ -67,6 +67,13 @@ after every step, and both source files retained their exact bytes. The
 repeatable `mac-ax-selection-keyboard.py` runs each native input and observation
 in a separate AppleScript process to allow the app event loop to settle.
 Other Mac tab, sort, scaling and assistive-technology routes remain open.
+A further macOS Text viewer run used a temporary, isolated source with two
+`NEEDLE` matches more than 4 MiB apart. Native Next reached byte offsets
+1,065,000 and 5,325,013; Previous returned to the first, then reported no
+earlier match. The accessibility tree showed `2 matches` while the search
+fixture bytes stayed unchanged. The repeatable test removes its own fixture
+after closing the viewer and refreshes the panel. Other source modes, changed
+queries, cancellation and Ubuntu input remain open.
 The preceding `537ccb0b` CI run exposed two asynchronous test races. Its
 Windows recovery test dispatched a synthetic click while the action was still
 disabled after Cancel; the test now waits for the owned reservation to end and
