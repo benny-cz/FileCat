@@ -24,7 +24,8 @@ increments to `main`.
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
    routes, scaled-display input and the non-Windows focus journeys. FCUX-003
-   still needs scaled/narrow layout, keyboard and spoken review, and stale
+   still needs scaled display and other narrow-layout states, keyboard and
+   spoken review, and stale
    external-editor results. For FCUX-004/005, exercise modal focus/decision
    ownership and full synchronization endpoints. Preserve captured scope and
    mapping throughout each test.

@@ -186,6 +186,10 @@ both files, filters `a.txt` out, verifies the default one-file preview, and
 renames only visible `b.txt` after reviewing the generated name. With a second
 fresh fixture, `rename-hidden-native <report.json>` explicitly includes the
 hidden mark and verifies both reviewed mappings and the resulting file bytes.
+On a third fresh fixture, `rename-narrow-native <report.json>` checks the
+default excluded-hidden scope in a measured 760 × 560 main window. The hidden
+mark disclosure, preview, name mask and Rename action must remain accessible;
+only the reviewed visible file may change, with its exact bytes preserved.
 Run `rename-stop <report.json>` to close only the path-verified isolated app
 before starting another fixture.
 On a fresh fixture after `rename-native` (the default visible-only case), run
