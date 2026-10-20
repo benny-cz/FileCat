@@ -8,8 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Native macOS and Linux desktop sessions are needed for platform-specific
-  clipboard, viewer, input, accessibility and window-manager checks.
+- Finish the macOS console-session capture/input bridge. The Git-built app
+  starts when its display is awake, but the SSH session cannot capture or
+  enumerate its GUI windows. The Ubuntu VMware desktop is available for the
+  remaining Linux input, clipboard, viewer and assistive-technology checks.
 
 ## Next actions, in severity order
 
@@ -84,8 +86,8 @@ increments to `main`.
 - Check 100%, 150% and 200% display scale, narrow/minimum and expanded
   windows, keyboard and pointer routes, high contrast/reduced motion, and
   supported assistive technology for surfaces whose audit criteria require
-  them. The current Win11 VM can cover Windows; interactive macOS and Linux
-  desktop access is still needed for their native acceptance.
+  them. Use the current Win11 and Ubuntu VMs for their native checks; finish
+  the Mac console-session bridge for its native UI checks.
 - Close a finding only when its audit criteria and status-table remaining
   acceptance pass, or record a justified equivalent route with the same
   consequential scenarios. Update this file and the implementation status

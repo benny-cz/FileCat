@@ -38,6 +38,16 @@ resize; approval renamed the two expected files with their original bytes.
 `rename-hidden-compact-native` records the physical bounds, visible controls,
 reviewed mappings, reflow and disk results. Scaled display, keyboard and
 spoken review remain open.
+The logged-in Ubuntu VMware desktop now runs a self-contained Linux
+publish from the Git checkout against a user-local fixture. A repeatable
+AT-SPI test focused `a.txt`, inspected the full destination in the Copy review,
+verified Cancel left both trees unchanged, then approved Copy. Only `a.txt`
+appeared at the target with the exact `616c7068610a` bytes; unselected `b.txt`
+and both source files were unchanged. The test uses the native accessibility
+tree and checks the disk result. The Mac ARM64 self-contained publish also
+started through a signed user-local `.app` after waking its idle display;
+the same build failed during Avalonia's render-timer setup while the display
+was asleep. Mac GUI inspection from SSH still needs a console-session bridge.
 FCUX-018 also passed a fresh Windows 11 VM Create-and-edit empty-file Undo
 journey. Its inverse review showed the complete wrapped target path. Cancel
 left the zero-byte file unchanged, and approval removed it while both source

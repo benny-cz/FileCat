@@ -371,3 +371,16 @@ The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 `editor-browse`, `editor-value`, and `editor-draft-cancel` modes are diagnostic
 or setup actions. They do not count as passing acceptance checks. Review the
 VM screenshot and JSON result together when recording native acceptance.
+
+## Linux logged-in desktop
+
+`linux-atspi-copy-review.py SOURCE DESTINATION REPORT.json` tests a Git-built
+FileCat running as the logged-in user. Use an isolated source folder containing
+`a.txt` with `alpha\n` and `b.txt` with `beta\n`, plus an empty destination.
+Set `DBUS_SESSION_BUS_ADDRESS` to that user's session bus and run with the
+system Python that provides `gi.repository.Atspi` 2.0. The test focuses the
+exact source row through accessibility, verifies the Copy review's complete
+destination folder, cancels without changing either tree, then approves one
+Copy. Its JSON result records the reviewed identities and exact target bytes;
+an unselected file must stay at the source. Run it with a fresh data root and
+fixture so another FileCat window cannot satisfy its checks.
