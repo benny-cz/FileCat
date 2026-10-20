@@ -200,6 +200,10 @@ with its reported source, destination and data paths. Run
 with native input. Only `b.txt` and `c.txt` may be marked, and the fixture
 files must remain unchanged. `selection-stop <report.json>` closes that
 path-verified app after the check. On another fresh fixture,
+`selection-narrow-native <report.json>` repeats the sort and Shift-click route
+after resizing the isolated main window to 720 × 540 physical pixels. The
+report requires the measured window size, exact two-file mark and untouched
+source and destination. Finish with `selection-stop`. On another fresh fixture,
 `selection-filter-native <report.json>` clicks `b.txt`, filters it out,
 restores the full list and Shift-clicks `d.txt`. The retired anchor must not
 return; only the fallback range `c.txt`–`d.txt` may be marked. Other FCUX-002
