@@ -27,8 +27,8 @@ increments to `main`.
    remote-source/destination row now refuses a misleading prefilled review and
    needs native provider acceptance. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
-   journal recovery after interruption, reports with failures beyond row 30,
-   and incomplete or mixed-effect attempts. For FCUX-069/070,
+   journal recovery after interruption, native inspection of a report with a
+   failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate native clipboard handoff, Move effects and delayed Paste destination
    on each supported desktop. FCUX-002 still needs its other narrow-window
    routes, scaled-display input and deeper non-Windows focus journeys beyond

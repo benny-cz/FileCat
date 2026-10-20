@@ -218,6 +218,42 @@ public sealed class UndoLifecycleUiTests
     }
 
     [AvaloniaFact]
+    public async Task A_failed_inverse_beyond_the_preview_is_visible_and_in_the_copied_complete_report()
+    {
+        using var f = await Fixture.Open();
+        var steps = Enumerable.Range(0, 70).Select(i => new UndoStep(UndoKind.MoveBack,
+            Path.Combine(f.Root, "current", i.ToString("D2"), "same.txt"),
+            Path.Combine(f.Root, "original", i.ToString("D2"), "same.txt"), 0, 0)).ToArray();
+        var plan = new UndoPlan(Guid.NewGuid(), "Seventy inverse actions", steps, [], 0);
+        var outcomes = steps.Select((step, index) => new UndoOutcome(step.Kind, step.From, step.To,
+            index == 45 ? UndoOutcomeKind.Failed : UndoOutcomeKind.Restored,
+            index == 45 ? "The destination was denied; no inverse was applied." : "Restored.")).ToArray();
+        var inverse = new Job(new JobRequest { Kind = JobKind.Undo, UndoPlan = plan }, "Undo batch", "local", [], []);
+        inverse.SetUndoReport(new UndoReport(plan, outcomes));
+
+        var report = Assert.IsType<ReportWindow>(f.Vm.ShowUndoResults(inverse));
+        try
+        {
+            await report.Reading!;
+            string shown = report.Text;
+            string failedPath = steps[45].From;
+            Assert.Contains("1 failed", shown);
+            Assert.Contains("69 restored", shown);
+            Assert.Contains("Failed: \"" + failedPath + "\"", shown);
+            Assert.Contains("The destination was denied", shown);
+            Assert.True(shown.IndexOf(failedPath, StringComparison.Ordinal) <
+                shown.IndexOf(steps[69].From, StringComparison.Ordinal));
+
+            var copy = Assert.Single(report.GetVisualDescendants().OfType<Button>(),
+                b => b.Content as string == "Copy all");
+            copy.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Fixture.Wait(() => report.StatusText == "The whole report is on the clipboard.");
+            Assert.Equal(shown, await ClipboardExtensions.TryGetTextAsync(report.Clipboard!));
+        }
+        finally { report.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Show_affected_keeps_distinct_case_resources_in_the_inventory()
     {
         using var f = await Fixture.Open();

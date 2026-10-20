@@ -158,7 +158,7 @@ public sealed class UndoLifecycleTests : IDisposable
     public async Task A_late_failure_and_guarded_keep_are_counted_and_retained_ahead_of_successes_with_full_paths()
     {
         var steps = Enumerable.Range(0, 70).Select(i => MoveStep(_dir.File($"current/{i:D2}/same.txt", "content"), Path.Combine(_dir.Path, "original", i.ToString("D2"), "same.txt"))).ToArray();
-        string fail = steps[1].From, changed = steps[2].From;
+        string fail = steps[45].From, changed = steps[46].From;
         File.WriteAllText(changed, "changed content after original operation");
         var jobs = Manager(new FailingMoveFiles(fail));
         var original = Original(steps);

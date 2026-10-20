@@ -161,6 +161,13 @@ both directories and their distinct bytes, and the retained Copy all report
 identified one kept action with the full path and replacement reason. The
 remaining FCUX-018 gates concern held inverses, close/restart, interrupted
 rename journals and large mixed or incomplete reports.
+The retained Undo report now has a focused App UI test with 70 outcomes and a
+failure at action 46, beyond the abbreviated preview. The displayed full-path
+failure, one-failed summary and Copy all text agree. The Core 70-action
+execution test also moves its actual failed and guarded-kept actions beyond
+row 30. The related Release suites passed 9 App cases (one platform skip) and
+14 Core cases with 16 workers. Native failure and mixed-result inspection
+remain open.
 FCUX-002 also passed a native four-file sort reversal: a click on `b.txt`
 survived the changed row order, and Shift-clicking `c.txt` marked exactly
 those two items. A second native journey hid and revealed `b.txt`; its retired
