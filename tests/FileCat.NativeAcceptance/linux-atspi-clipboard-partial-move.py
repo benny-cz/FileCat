@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify Ubuntu partial owned Move and refusal to replay the same Cut.
 
-Usage: linux-atspi-clipboard-partial-move.py SOURCE DESTINATION UINPUT_HELPER REPORT.json
+Usage: linux-atspi-clipboard-partial-move.py SOURCE DESTINATION UINPUT_HELPER REPORT.json [--cancel-conflict]
 Use the logged-in isolated FileCatValidation desktop and the same guest-only
 uinput sudo setup as linux-atspi-clipboard-owned-move.py. On success this
 runner restores both fixture folders and clears its Commander marks.
@@ -43,7 +43,7 @@ def notice(app, phrase):
                  if phrase in (node.get_name() or "")), None)
 
 
-def run(source, destination, helper):
+def run(source, destination, helper, cancel_conflict=False):
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -82,10 +82,13 @@ def run(source, destination, helper):
     command(app, "Paste items or go to pasted path", helper)
     review = wait_for(lambda: button(app, "Review decision"), "the existing a.txt review action")
     press(review, "conflict review")
-    skip = wait_for(lambda: button(app, "Skip"), "the safe Skip conflict decision")
-    press(skip, "Skip")
-    wait_for(lambda: manifest(source) == partial_source and manifest(destination) == partial_target,
-             "only b.txt to move after Skip", seconds=25)
+    choice = "Cancel operation" if cancel_conflict else "Skip"
+    decision = wait_for(lambda: button(app, choice), f"the {choice} conflict decision")
+    press(decision, choice)
+    expected_source = original_source if cancel_conflict else partial_source
+    expected_target = original_target if cancel_conflict else partial_target
+    wait_for(lambda: manifest(source) == expected_source and manifest(destination) == expected_target,
+             f"exact files after {choice}", seconds=25)
 
     # The same owned clipboard publication must retain its partial lifecycle.
     target_row = wait_for(lambda: find(find_panel(app, 2, destination), "list item", "a.txt"),
@@ -93,16 +96,18 @@ def run(source, destination, helper):
     if not target_row.grab_focus():
         raise AssertionError("Could not focus destination for a second Paste")
     command(app, "Paste items or go to pasted path", helper)
-    refusal = wait_for(lambda: notice(app, "previous move fully completed 1 of 2 items"),
+    completed = 0 if cancel_conflict else 1
+    refusal = wait_for(lambda: notice(app, f"previous move fully completed {completed} of 2 items"),
                        "partial Move replay refusal")
-    if manifest(source) != partial_source or manifest(destination) != partial_target:
-        raise AssertionError("Second Paste changed the partial Move result")
+    if manifest(source) != expected_source or manifest(destination) != expected_target:
+        raise AssertionError("Second Paste changed the earlier Move result")
 
     # Retire only this test's file movement; a failing run leaves its fixture
     # intact for inspection instead of hiding an unexpected effect.
-    (destination / "b.txt").rename(source / "b.txt")
-    wait_for(lambda: find(find_panel(app, 1, source), "list item", "b.txt"),
-             "restored source b.txt row")
+    if not cancel_conflict:
+        (destination / "b.txt").rename(source / "b.txt")
+        wait_for(lambda: find(find_panel(app, 1, source), "list item", "b.txt"),
+                 "restored source b.txt row")
     restored_row = find(find_panel(app, 1, source), "list item", "b.txt")
     if not restored_row.grab_focus():
         raise AssertionError("Could not return to source marks")
@@ -112,18 +117,20 @@ def run(source, destination, helper):
     if notice(app, "Marked "):
         raise AssertionError("Test marks remained after cleanup")
     return {"passed": True, "platform": "Ubuntu",
-            "scenario": "Cut a.txt and b.txt; Skip existing a.txt; move b.txt; refuse replay",
+            "scenario": f"Cut a.txt and b.txt; {choice} for existing a.txt; refuse replay",
             "cutNotice": cut_notice, "replayRefusal": refusal,
-            "skippedAndMovedBytesExact": True, "partialMoveReplayRefused": True,
+            "conflictReviewChoice": choice, "completedRoots": completed,
+            "resultBytesExact": True, "moveReplayRefused": True,
             "fixtureRestored": True}
 
 
 def main():
-    if len(sys.argv) != 5:
+    if len(sys.argv) not in (5, 6) or len(sys.argv) == 6 and sys.argv[5] != "--cancel-conflict":
         raise SystemExit(__doc__)
     report = Path(sys.argv[4])
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]))
+        result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
+                     len(sys.argv) == 6)
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

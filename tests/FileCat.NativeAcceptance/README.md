@@ -436,7 +436,11 @@ remains untouched on both sides, only `b.txt` moves with exact bytes, and a
 second Paste explains the 1-of-2 partial result without replaying it. On
 success it restores both fixture folders and clears Commander marks. Run it
 with `DISPLAY`, the desktop AT-SPI bus and the same limited sudo setup as
-the owned-Move runner. It passed twice from a restored fixture.
+the owned-Move runner. Pass `--cancel-conflict` after the report path to
+choose Cancel operation instead: the fixture must remain byte exact, the
+second Paste must explain zero of two completed roots, and the marks must be
+cleared. The Skip route passed twice before this extension and again after
+it; the Cancel route passed on the same isolated fixture.
 
 `linux-atspi-viewer-find.py SOURCE REPORT.json` uses the same isolated
 two-file source and the logged-in desktop's AT-SPI bus. It focuses `a.txt`,
