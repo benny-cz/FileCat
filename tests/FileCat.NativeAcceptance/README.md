@@ -22,6 +22,12 @@ visible error and matching accessible speed-field help in the still-open form,
 corrects the same field to `0.0625`, then checks the exact copied bytes and
 unchanged source. Its JSON report records the app and fixture hashes. It closes
 only the instance it launched.
+`win-ax-copy-option-correction.ps1` performs the same correction and exact-byte
+checks in the logged-in Windows VM with UI Automation. Pass an isolated
+`-AppPath` under `AppData\Local\FileCatValidation` and a guest-local
+`-ReportPath`; run it with VMware's `-interactive` switch. It checks both the
+visible error and the speed field's accessible HelpText, and closes only its
+own test instance.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
