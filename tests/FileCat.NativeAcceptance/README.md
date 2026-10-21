@@ -42,6 +42,13 @@ window PID before each click and preserves source/target fixtures on
 cancellation. Run it in the logged-in desktop session with an X11 pointer
 bridge; if Wayland blocks XTest movement, the JSON report explicitly marks the
 input bridge unavailable and does not count the pointer route as passed.
+On the Wayland Ubuntu VM, pass `linux-uinput-touch.py` as the optional third
+argument after the report. The runner sends two physical taps through a
+disposable uinput touchscreen and records the input type in JSON. Supply
+`FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process or use a scoped
+noninteractive sudo rule; the runner removes this variable before launching
+FileCat and passes authentication to `sudo` on stdin. The helper holds no
+credential or persistent input device.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Check the shared dialog's close X and backdrop with native Ubuntu pointer input.
 
-Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json
-Run in the logged-in desktop user's AT-SPI session with an X11 pointer bridge.
-Wayland sessions where XTest cannot move the pointer report an input-bridge
-failure rather than an application failure. The app and all fixture paths must
-remain inside ~/FileCatValidation.
+Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_TOUCH_HELPER]
+Run in the logged-in desktop user's AT-SPI session. XTest requires a working
+X11 pointer bridge; the optional owned uinput helper sends physical taps on
+Wayland. The app and all fixture paths must remain inside ~/FileCatValidation.
 """
 
 import hashlib
@@ -60,7 +59,18 @@ def activate_window(pid):
         raise AssertionError(f"The isolated app is not the active X11 window; PID {focused.stdout.strip()}")
 
 
-def native_click(x, y):
+def native_click(x, y, helper, sudo_password):
+    if helper is not None:
+        geometry = subprocess.run(["/usr/bin/xdotool", "getdisplaygeometry"],
+                                  check=True, capture_output=True, text=True, timeout=5)
+        width, height = (int(value) for value in geometry.stdout.split())
+        command = ["sudo", "-S" if sudo_password else "-n", sys.executable,
+                   str(helper), str(x), str(y), str(width), str(height)]
+        sent = subprocess.run(command, input=(sudo_password + "\n") if sudo_password else None,
+                              capture_output=True, text=True, timeout=15)
+        if sent.returncode:
+            raise AssertionError(f"Native uinput tap failed with exit {sent.returncode}")
+        return
     try:
         subprocess.run(["/usr/bin/xdotool", "mousemove", "--sync", str(x), str(y), "click", "1"],
                        check=True, timeout=5)
@@ -69,12 +79,18 @@ def native_click(x, y):
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json")
+    if len(sys.argv) not in (3, 4):
+        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_TOUCH_HELPER]")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
         raise SystemExit("Use an isolated FileCat binary below the user's FileCatValidation directory")
+    helper = Path(sys.argv[3]).resolve(strict=True) if len(sys.argv) == 4 else None
+    if helper is not None and (helper.name != "linux-uinput-touch.py" or validation not in helper.parents):
+        raise SystemExit("Use the owned uinput helper below the user's FileCatValidation directory")
+    # Only the runner receives this one-time guest credential; child processes,
+    # including the tested FileCat instance, inherit an environment without it.
+    sudo_password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     report = Path(sys.argv[2])
     fixture = validation / "DialogPointerFixture" / uuid4().hex
     source, target, data = (fixture / name for name in ("source", "target", "data"))
@@ -86,7 +102,8 @@ def main():
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     os.environ.setdefault("DISPLAY", ":0")
     process = None
-    result = {"passed": False, "app": str(app_path), "appSha256": app_hash}
+    result = {"passed": False, "app": str(app_path), "appSha256": app_hash,
+              "input": "uinput-touch" if helper is not None else "XTest-mouse"}
     try:
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
@@ -120,7 +137,8 @@ def main():
             result["closeAccessibleName"] = close.get_name()
             result["closeAccessibleDescription"] = close.get_description()
             activate_window(process.pid)
-            native_click(round(bounds.x + bounds.width / 2), round(bounds.y + bounds.height / 2))
+            native_click(round(bounds.x + bounds.width / 2), round(bounds.y + bounds.height / 2),
+                         helper, sudo_password)
             wait_for(lambda: not named(app, "button", "Close dialog"), "close X cancellation")
 
             close = new_folder()
@@ -130,7 +148,7 @@ def main():
             frame = windows[0].get_component().get_extents(Atspi.CoordType.SCREEN)
             outside = (round(frame.x + 20), round(frame.y + frame.height - 80))
             activate_window(process.pid)
-            native_click(*outside)
+            native_click(*outside, helper, sudo_password)
             wait_for(lambda: not named(app, "button", "Close dialog"), "backdrop cancellation")
             if list(source.iterdir()) or list(target.iterdir()):
                 raise AssertionError("A canceled Create folder prompt changed the fixture")

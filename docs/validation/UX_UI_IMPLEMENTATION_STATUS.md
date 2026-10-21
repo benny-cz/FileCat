@@ -1381,11 +1381,21 @@ and refused to
 claim a pointer result because the Wayland guest's XTest bridge cannot move
 the mouse. A stale GNOME Remote Desktop permission prompt was dismissed via
 its scoped accessible Cancel action; a retry still timed out in XTest before
-delivering the click. The native Ubuntu pointer route remains open. CI for the
+delivering the click. The native Ubuntu mouse route remains open. CI for the
 preceding pointer-dismiss commit had successful producer, Windows, Ubuntu and
 Windows ARM64 jobs; its Mac job was canceled by the later push, so the run was
 overall unsuccessful rather than a product-test failure. The vector-fix CI
 run is still in progress.
+
+The Ubuntu Wayland guest then used a disposable uinput touchscreen for actual
+physical pointer events. The native runner passed both X and backdrop taps
+against the Git-built isolated app: `Close dialog` had its cancel description
+and a 30-by-30 screen-pixel target, the backdrop point was outside the card,
+both dialogs closed, and neither source nor destination fixture changed. The
+report identifies the executable SHA-256 and `uinput-touch` input route. The
+runner now removes its temporary sudo credential from the environment before
+launching FileCat. An exact mouse-device route on Ubuntu, scaled visual checks
+and spoken labeling remain separate acceptance gates.
 
 ## Reproduction
 

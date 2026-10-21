@@ -97,10 +97,10 @@ increments to `main`.
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs a native visual check of the centered vector X at 100%,
    150% and 200% display scale, a foreground-owned Windows VM pointer run,
-   Ubuntu/macOS pointer routes and assistive-technology labeling beyond the
-   passing headless Registry, confirmation and nested-dialog checks. In the
-   current Ubuntu Wayland VM, XTest cannot move the native pointer; finish its
-   pointer route using a working guest input bridge or an X11 session.
+   an Ubuntu mouse-device and macOS pointer run, and spoken labeling beyond
+   the passing headless Registry, confirmation and nested-dialog checks. The
+   Ubuntu Wayland VM passed X and backdrop physical touchscreen taps with an
+   unchanged fixture; XTest mouse movement is unavailable in that session.
 
 ## Evidence required to finish
 
