@@ -97,8 +97,8 @@ increments to `main`.
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs native visual checks of the centered vector X at 150%
    and other scaled states, other dialog types, an Ubuntu mouse-device route,
-   and actual spoken labeling. Resolve why the Mac accessibility tree exposes
-   no children for the visible signed app before claiming its AX label.
+   and actual screen-reader speech on each desktop. The Mac AX label and
+   native X/backdrop pointer route passed through direct AXUIElement traversal.
 
 ## Evidence required to finish
 

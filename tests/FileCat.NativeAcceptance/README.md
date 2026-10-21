@@ -720,12 +720,17 @@ physical pixels of the button center. The report records screenshot paths,
 sample colors, centroid, window bounds and unchanged fixture state; only its
 own FileCat process and fixture are removed. This fixed-geometry visual route
 does not establish the control's accessibility label or other display scales.
-`mac-ax-dialog-pointer-dismiss.py` is the complementary System Events route:
-it requires the accessible X name, a usable pointer target and actual mouse
-cancellation. It captures a diagnostic screenshot on failure. The current Mac
-desktop returns zero child elements for the FileCat window in both the older
-and current signed bundles, so this AX gate remains open even though the
-visual pointer route passes.
+`mac-ax-dialog-pointer-dismiss.py` is the complementary native AX route. Copy
+`mac-ax-dialog-label.swift` beside it; the runner compiles that read-only
+AXUIElement probe in its isolated fixture, verifies the exact app PID, and
+requires one enabled `AXButton` named `Close dialog` with cancel help and a
+usable pointer target. It then clicks the X and backdrop with native CGEvent
+mouse input, requires both dialogs to close, and checks unchanged source and
+target. It captures a diagnostic screenshot on failure. System Events' `entire
+contents` enumeration can return zero for a visibly populated Avalonia window;
+the native AXUIElement children expose the control tree directly. This route
+checks the accessible label and pointer behavior; actual VoiceOver speech and
+other display scales need separate acceptance.
 
 `python3 mac-ax-finished-speed.py SOURCE DESTINATION REPORT.json` runs a
 one-file Copy in the signed validation app, then requires an explicitly

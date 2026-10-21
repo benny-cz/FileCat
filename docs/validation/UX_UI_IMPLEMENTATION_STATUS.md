@@ -1494,11 +1494,18 @@ CGEvent mouse input. Four approved screenshots proved open → closed → open �
 closed, while both fixture folders remained empty. The blue dialog accent
 changed from RGB (58, 150, 255) to (43, 43, 43) after each dismissal; the
 vector X's white-pixel centroid was (1931, 281.5) against a button center of
-(1932, 280) physical pixels. The repeated runner's JSON result passed. A
-separate Mac AX runner remains pending: System Events returns zero child
-elements for the visibly populated window in both the older and current
-signed bundles, so native AX labeling and spoken feedback were not inferred
-from the screenshot. Mac 100%/150% and other dialog types still need review.
+(1932, 280) physical pixels. The repeated runner's JSON result passed.
+System Events' `entire contents` query returns zero for this visibly
+populated Avalonia window, but direct native AXUIElement traversal reaches its
+descendants. On the same signed `8772a585` vector-X build, the direct probe
+found one enabled `AXButton` named `Close dialog`, with cancel help and a
+30 × 30 point target at (951, 126) inside the 1280 × 797 point window.
+Wrong-process and closed-dialog negative controls both failed closed. The
+revised `mac-ax-dialog-pointer-dismiss.py` then passed on a fresh fixture:
+native CGEvent clicks on X and backdrop each dismissed the dialog, and
+source/target stayed empty. Its app SHA-256 was
+`e452d757c9f49bb76242e9cb706935584067c472d8d13eeafcc3b250963f28d3`.
+Actual VoiceOver speech, Mac scaling and other dialog types still need review.
 
 The Windows 11 VM's previous validation FileCat was confirmed as the sole
 foreground owner and closed normally by exact executable path, leaving the

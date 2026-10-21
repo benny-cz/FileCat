@@ -2,14 +2,13 @@
 """Check native Mac close-X and backdrop pointer cancellation in an isolated app.
 
 Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json
-Requires the logged-in Mac desktop, System Events Accessibility, and cliclick.
+Requires the logged-in Mac desktop, native AXUIElement access, and cliclick.
 """
 
 import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import signal
 import subprocess
@@ -43,55 +42,21 @@ def app_pids():
 
 
 def open_folder():
-    return osa('''
-tell application "System Events"
-    tell process "FileCat"
-        set frontmost to true
-        set buttonNames to {}
-        repeat with e in entire contents of window 1
-            try
-                if (role of e as text) is "AXButton" then set end of buttonNames to (name of e as text)
-                if (role of e as text) is "AXButton" and (name of e as text) starts with "Create folder" then
-                    click e
-                    return "opened"
-                end if
-            end try
-        end repeat
-        return "window:" & (name of window 1 as text) & ";nodes:" & ((count of entire contents of window 1) as text) & ";buttons:" & (buttonNames as text)
-    end tell
-end tell
-''')
+    osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+    osa('tell application "System Events" to key code 98')  # F7
 
 
-def wait_open_folder():
-    end = time.monotonic() + 15
-    last = ""
-    while time.monotonic() < end:
-        last = open_folder()
-        if last == "opened":
-            return
-        time.sleep(0.3)
-    raise AssertionError("Create folder action unavailable: " + last)
-
-
-def close_bounds():
-    raw = osa('''
-tell application "System Events"
-    tell process "FileCat"
-        repeat with e in entire contents of window 1
-            try
-                if (role of e as text) is "AXButton" and (name of e as text) is "Close dialog" then
-                    set p to position of e
-                    set s to size of e
-                    return ((item 1 of p) as text) & "|" & ((item 2 of p) as text) & "|" & ((item 1 of s) as text) & "|" & ((item 2 of s) as text)
-                end if
-            end try
-        end repeat
-    end tell
-end tell
-return ""
-''')
-    return tuple(int(n) for n in raw.split("|")) if re.fullmatch(r"\d+\|\d+\|\d+\|\d+", raw) else None
+def close_bounds(helper, executable, pid, report):
+    run = subprocess.run([str(helper), str(executable), str(pid), str(report)],
+                         capture_output=True, text=True, timeout=15)
+    value = json.loads(report.read_text(encoding="utf-8"))
+    if run.returncode == 0:
+        match = value["matches"][0]
+        bounds = match["bounds"]
+        return (bounds["x"], bounds["y"], bounds["width"], bounds["height"]), match
+    if run.returncode == 1 and value.get("visited", 0) > 0 and not value.get("matches"):
+        return None
+    raise AssertionError("Native AX close check failed: " + value.get("error", run.stderr.strip()))
 
 
 def window_bounds():
@@ -129,6 +94,13 @@ def main():
     source, target, data = (fixture / name for name in ("source", "target", "data"))
     for folder in (source, target, data):
         folder.mkdir(parents=True)
+    ax_source = Path(__file__).with_name("mac-ax-dialog-label.swift")
+    if not ax_source.is_file():
+        raise SystemExit("The native AX dialog-label source is missing beside this runner")
+    ax_helper = fixture / "mac-ax-dialog-label"
+    subprocess.run(["/usr/bin/swiftc", "-o", str(ax_helper), str(ax_source)],
+                   check=True, capture_output=True, timeout=120)
+    ax_report = fixture / "dialog-label.json"
     digest = hashlib.sha256(executable.read_bytes()).hexdigest()
     result = {"passed": False, "bundle": str(bundle), "appSha256": digest,
               "input": "cliclick-CGEvent-mouse"}
@@ -146,19 +118,24 @@ def main():
             raise AssertionError("The launched FileCat process is outside the owned bundle")
         wait_for(lambda: int(osa('''tell application "System Events" to get count of windows of process "FileCat"''')) > 0,
                  "the isolated FileCat window")
-        wait_open_folder()
-        x, y, width, height = wait_for(close_bounds, "the dialog close button")
+        open_folder()
+        (x, y, width, height), first_match = wait_for(
+            lambda: close_bounds(ax_helper, executable, pid, ax_report), "the dialog close button")
         result["closeBounds"] = [x, y, width, height]
+        result["closeAccessibility"] = first_match
         if width < 25 or height < 25:
             raise AssertionError("The close control has an undersized Mac pointer target")
         click(round(x + width / 2), round(y + height / 2))
-        wait_for(lambda: not close_bounds(), "close-X cancellation")
-        wait_open_folder()
-        wait_for(close_bounds, "the reopened dialog close button")
+        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
+                 "close-X cancellation")
+        open_folder()
+        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
+                 "the reopened dialog close button")
         wx, wy, ww, wh = window_bounds()
         outside = [wx + 20, wy + wh - 80]
         click(*outside)
-        wait_for(lambda: not close_bounds(), "backdrop cancellation")
+        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
+                 "backdrop cancellation")
         if list(source.iterdir()) or list(target.iterdir()):
             raise AssertionError("A canceled Mac dialog changed the fixture")
         result.update({"passed": True, "nativeCloseX": True, "nativeBackdropClick": True,
