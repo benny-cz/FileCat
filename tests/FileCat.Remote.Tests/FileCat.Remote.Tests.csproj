@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\..\src\FileCat.Remote\FileCat.Remote.csproj" />
+    <ProjectReference Include="..\FileCat.RemoteCrashHarness\FileCat.RemoteCrashHarness.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

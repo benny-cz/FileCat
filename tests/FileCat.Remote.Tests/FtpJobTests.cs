@@ -152,6 +152,101 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_killed_FTP_upload_leaves_only_an_unpublished_stage_and_an_open_recovery_journal(bool move)
+    {
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        const int size = 8 * 1024 * 1024;
+        var source = Path.Combine(_dir, move ? "interrupted-move.bin" : "interrupted-copy.bin");
+        var expected = new byte[size];
+        new Random(move ? 241 : 240).NextBytes(expected);
+        await File.WriteAllBytesAsync(source, expected, ct);
+        var journalDirectory = Directory.CreateDirectory(Path.Combine(_dir, move ? "move-journal" : "copy-journal")).FullName;
+        var harness = CrashHarnessPath();
+        var start = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            CreateNoWindow = true,
+        };
+        start.ArgumentList.Add(harness);
+        start.ArgumentList.Add(server.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        start.ArgumentList.Add(source);
+        start.ArgumentList.Add(journalDirectory);
+        start.ArgumentList.Add(move ? "move" : "copy");
+        using var child = Process.Start(start) ?? throw new InvalidOperationException("Could not start the isolated FTP crash harness.");
+        try
+        {
+            string? staged = null;
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(30) && !child.HasExited)
+            {
+                staged = Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                    .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < size);
+                if (staged is not null) break;
+                await Task.Delay(25, ct);
+            }
+            string error = child.HasExited ? await child.StandardError.ReadToEndAsync(ct) : "worker still running";
+            Assert.True(staged is not null && !child.HasExited,
+                $"FTP upload did not reach a partial stage; exit={child.HasExited}; error={error}");
+            // Kill the exact process we started. This is a real crash, not a cooperative Cancel.
+            child.Kill(entireProcessTree: true);
+            Assert.True(child.WaitForExit(10_000), "The isolated transfer worker did not exit.");
+            Assert.False(File.Exists(Path.Combine(server.Root, Path.GetFileName(source))));
+            Assert.Equal(SHA256.HashData(expected), SHA256.HashData(await File.ReadAllBytesAsync(source, ct)));
+
+            IReadOnlyList<InterruptedJob> interrupted = [];
+            deadline.Restart();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                interrupted = JournalRecovery.Scan(journalDirectory);
+                if (interrupted.Count == 1) break;
+                await Task.Delay(25, ct);
+            }
+            var job = Assert.Single(interrupted);
+            Assert.Equal(move ? "Move" : "Copy", job.Kind);
+            Assert.Equal([source], JournalRecovery.LoadSources(job));
+            Assert.True(JournalRecovery.IsInterrupted(job));
+            Assert.StartsWith(".fc-" + Path.GetFileNameWithoutExtension(job.JournalPath)[^8..] + "-", Path.GetFileName(staged));
+            Assert.Equal([staged], Directory.GetFiles(server.Root));
+            Assert.InRange(new FileInfo(staged).Length, 1, size - 1);
+            Assert.Empty(JournalRecovery.FindStagedLeftovers(job)); // The remote stage is not a local file.
+            if (move)
+                Assert.Contains(job.OpenIntents, intent => intent.Operation == "upload-move" &&
+                    intent.Path == source && intent.Target == "/" + Path.GetFileName(source));
+            // A fresh startup must still show this unresolved remote operation. The UI keeps
+            // recovery tracking open until the user has inspected the server-side stage.
+            Assert.Equal(job.JournalPath, Assert.Single(JournalRecovery.Scan(journalDirectory)).JournalPath);
+        }
+        finally
+        {
+            if (!child.HasExited)
+            {
+                child.Kill(entireProcessTree: true);
+                child.WaitForExit(10_000);
+            }
+        }
+    }
+
+    private static string CrashHarnessPath()
+    {
+        var path = new DirectoryInfo(AppContext.BaseDirectory);
+        while (path is not null && !File.Exists(Path.Combine(path.FullName, "FileCat.slnx"))) path = path.Parent;
+        if (path is null) throw new InvalidOperationException("The Git checkout containing the FTP crash harness was not found.");
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
+        if (configuration is not ("Release" or "Debug"))
+            throw new InvalidOperationException("The FTP test configuration could not be determined.");
+        var dll = Path.Combine(path.FullName, "tests", "FileCat.RemoteCrashHarness", "bin", configuration, "net10.0",
+            "FileCat.RemoteCrashHarness.dll");
+        if (!File.Exists(dll)) throw new FileNotFoundException("Build the isolated FTP crash harness with the test project.", dll);
+        return dll;
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]

@@ -190,6 +190,13 @@
           "SSH.NET": "[2026.0.0, )"
         }
       },
+      "filecat.remotecrashharness": {
+        "type": "Project",
+        "dependencies": {
+          "FileCat.Core": "[0.1.0-preview, )",
+          "FileCat.Remote": "[0.1.0-preview, )"
+        }
+      },
       "BouncyCastle.Cryptography": {
         "type": "CentralTransitive",
         "requested": "[2.7.0, )",

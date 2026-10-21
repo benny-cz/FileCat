@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FileCat.Core/FileCat.Core.csproj" />
+    <ProjectReference Include="../../src/FileCat.Remote/FileCat.Remote.csproj" />
+  </ItemGroup>
+</Project>
