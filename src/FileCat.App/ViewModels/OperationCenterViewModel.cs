@@ -188,15 +188,23 @@ public sealed partial class JobViewModel : ObservableObject
             if (j.Kind == JobKind.Undo || j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
         }
         DetailText = Formatters.SafeName(string.Join(" · ", parts));
-        CurrentItem = j.CurrentItem is { } c ? Formatters.SafeName(Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c) : string.Empty;
-        Describe(j, estimate, bd, bt, id, it);
+        // The worker can advance from a verification label to the next file while this view refreshes.
+        // Use one snapshot for both the visible name and its phase, or a shorter next name can be
+        // sliced using the previous name's verification suffix.
+        string? current = j.CurrentItem;
+        string displayed = current is { } c
+            ? Formatters.SafeName(Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c)
+            : string.Empty;
+        CurrentItem = displayed;
+        Describe(j, estimate, bd, bt, id, it, displayed);
     }
 
     /// <summary>The richer view of a running operation (release issue I30).</summary>
-    private void Describe(Job j, ProgressEstimate estimate, long bd, long bt, long id, long it)
+    private void Describe(Job j, ProgressEstimate estimate, long bd, long bt, long id, long it, string currentItem)
     {
         bool running = j.State == JobState.Running && !j.IsPaused;
-        bool verifying = j.CurrentItem?.EndsWith("(verifying)", StringComparison.Ordinal) == true;
+        const string verifyingSuffix = " (verifying)";
+        bool verifying = currentItem.EndsWith(verifyingSuffix, StringComparison.Ordinal);
         PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
             : j.State == JobState.Completed ? "100%" : string.Empty;
         PhaseText = j.State switch
@@ -227,7 +235,7 @@ public sealed partial class JobViewModel : ObservableObject
         };
         // The file in hand; a large one shows how far its current step is: its copying, then its reading back.
         var file = j.CurrentFileProgress;
-        string name = verifying ? CurrentItem[..^" (verifying)".Length] : CurrentItem;
+        string name = verifying ? currentItem[..^verifyingSuffix.Length] : currentItem;
         ShowsFileProgress = running && file is { Size: >= OwnBarFrom, WorkTotal: > 0 };
         CurrentFileText = !IsActive || name.Length == 0 ? string.Empty : name;
         CurrentFilePercent = 0;

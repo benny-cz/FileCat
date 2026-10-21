@@ -9,6 +9,7 @@ it after prepare. Every filesystem mutation stays under FileCatValidation.
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import shlex
 import signal
@@ -20,8 +21,14 @@ from uuid import uuid4
 
 clipboard = runpy.run_path(str(Path(__file__).with_name("mac-ax-clipboard-external-copy.py")))
 ROOT = (Path.home() / "FileCatValidation").resolve(strict=True)
-FIXTURE = ROOT / "mac-interrupted-move-fixture.json"
-APP = ROOT / "FileCatValidation.app" / "Contents" / "MacOS" / "FileCat"
+fixture_name = os.environ.get("FILECAT_NATIVE_MOVE_FIXTURE", "mac-interrupted-move-fixture.json")
+bundle_name = os.environ.get("FILECAT_NATIVE_MAC_BUNDLE", "FileCatValidation.app")
+if not re.fullmatch(r"mac-interrupted-move-(?:fixture|[0-9a-f]{8})\.json", fixture_name):
+    raise SystemExit("Use a build-specific interrupted-Move manifest name in FileCatValidation")
+if not re.fullmatch(r"FileCatValidation(?:-[0-9a-f]{8})?\.app", bundle_name):
+    raise SystemExit("Use a signed FileCatValidation app bundle in FileCatValidation")
+FIXTURE = ROOT / fixture_name
+APP = ROOT / bundle_name / "Contents" / "MacOS" / "FileCat"
 SOURCE = ROOT / "source"
 DESTINATION = ROOT / "destination"
 PASTEBOARD_HELPER = ROOT / "mac-pasteboard-files"

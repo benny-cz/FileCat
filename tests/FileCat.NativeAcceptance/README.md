@@ -780,6 +780,12 @@ in the isolated, signed Mac validation app. Use its `seed`, `prepare`,
 `inspect`, `review`, `cancel-review`, `continue-review`, `inspect-completion`
 and `restore` phases with the dedicated fixture and one JSON receipt per
 phase; restart the exact app/profile between `prepare` and `inspect`. The
+default manifest is `~/FileCatValidation/mac-interrupted-move-fixture.json`
+and the default bundle is `FileCatValidation.app`. For another signed build,
+set `FILECAT_NATIVE_MOVE_FIXTURE=mac-interrupted-move-<8-hex-build>.json`
+and `FILECAT_NATIVE_MAC_BUNDLE=FileCatValidation-<8-hex-build>.app` on each
+phase, leaving an older fixture untouched. Both names must stay under
+`~/FileCatValidation` and match the runner's restricted patterns. The
 runner requires an unlocked desktop and the existing native pasteboard and
 key helpers. It checks the exact two-file Cut publication, held conflict,
 unchanged bytes before approval, retained journal and destination after

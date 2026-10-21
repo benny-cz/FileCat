@@ -109,6 +109,37 @@ public sealed class JobProgressViewTests
         Assert.False(view.HasSpeedHistory);
     }
 
+    [Fact]
+    public async Task A_worker_changing_files_during_refresh_keeps_the_displayed_name_and_phase_together()
+    {
+        var job = DisplayJob();
+        job.SetState(JobState.Running);
+        job.SetCurrent("b.bin");
+        var view = new JobViewModel(job);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var worker = Task.Run(() =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                job.SetCurrent("long-file.bin (verifying)");
+                job.SetCurrent("b.bin");
+            }
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            for (int i = 0; i < 20_000; i++)
+            {
+                view.Refresh();
+                Assert.Contains(view.CurrentFileText, new[] { "long-file.bin", "b.bin" });
+            }
+        }
+        finally
+        {
+            stop.Cancel();
+            await worker;
+        }
+    }
+
     [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task Opening_the_details_shows_the_running_operation()
     {
