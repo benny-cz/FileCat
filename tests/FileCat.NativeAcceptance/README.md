@@ -622,6 +622,13 @@ The test identifies the viewer by its exact X11 title and owning FileCat PID,
 closes only that window through `wmctrl`, and checks that both fixture files
 retain their bytes. Run it with `DISPLAY` and `DBUS_SESSION_BUS_ADDRESS` set
 for the desktop user. `wmctrl` is required for graceful test cleanup.
+Pass `--launch APP REPORT.json linux-uinput-key.py` to let the runner create
+its own two-file fixture, launch an isolated Git-built FileCat under
+`~/FileCatValidation`, send physical F3 and Shift+F3 through the uinput
+helper, verify both directional no-match messages and the retained exact
+count, then close its viewer and app. Grant the helper native input access as
+for the Hex editor check. The JSON report records the executable hash and
+fixture path.
 
 `linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
 desktop and the helper script above. It creates one short, exact Markdown

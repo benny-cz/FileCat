@@ -7,12 +7,14 @@ isolated SOURCE contains a.txt = b"alpha\n" and b.txt = b"beta\n". Requires
 gi.repository.Atspi 2.0 and wmctrl for graceful viewer-window closure.
 """
 
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import time
+from uuid import uuid4
 
 import gi
 
@@ -66,7 +68,16 @@ def close_viewer(app, title, expected_pid):
     wait_for(lambda: find(app, "frame", title) is None, "the viewer to close")
 
 
-def run(source):
+def send_key(helper, chord):
+    password = os.environ.get("FILECAT_NATIVE_SUDO_PASSWORD")
+    command = ["sudo", "-S" if password else "-n", sys.executable, str(helper), chord]
+    result = subprocess.run(command, input=(password + "\n") if password else None,
+                            capture_output=True, text=True, timeout=15)
+    if result.returncode:
+        raise AssertionError(f"Native {chord} input failed with exit {result.returncode}")
+
+
+def run(source, helper=None):
     source = source.resolve(strict=True)
     a_path = source / "a.txt"
     b_path = source / "b.txt"
@@ -113,6 +124,18 @@ def run(source):
                  "the no-earlier-match result")
         if find(viewer, "label", "1 match") is None:
             raise AssertionError("The exact count vanished after directional search")
+        if helper is not None:
+            helper = helper.resolve(strict=True)
+            if not str(helper).startswith(str(Path.home() / "FileCatValidation") + os.sep):
+                raise AssertionError("The keyboard helper is outside the validation folder")
+            send_key(helper, "f3")
+            wait_for(lambda: find(viewer, "label", '"alpha" was not found after this position.'),
+                     "the physical F3 no-later-match result")
+            send_key(helper, "shift+f3")
+            wait_for(lambda: find(viewer, "label", '"alpha" was not found before this position.'),
+                     "the physical Shift+F3 no-earlier-match result")
+            if find(viewer, "label", "1 match") is None:
+                raise AssertionError("The exact count vanished after physical-key search")
     finally:
         close_viewer(app, title, expected_pid)
 
@@ -121,17 +144,65 @@ def run(source):
     return {"passed": True, "platform": "Ubuntu", "mode": "Text",
             "query": "alpha", "visibleMatchStatus": "1 match",
             "previousReportedNoEarlierMatch": True, "sourceBytesUnchanged": True,
-            "viewerClosed": True}
+            "viewerClosed": True, "physicalF3AndShiftF3Verified": helper is not None}
+
+
+def launch_and_run(app_path, helper):
+    validation = (Path.home() / "FileCatValidation").resolve(strict=True)
+    app_path = app_path.resolve(strict=True)
+    if app_path.name != "FileCat" or validation not in app_path.parents:
+        raise AssertionError("Use an isolated FileCat binary below FileCatValidation")
+    root = validation / "TextViewerKeyboard" / uuid4().hex
+    source, target, data = (root / name for name in ("source", "target", "data"))
+    for folder in (source, target, data):
+        folder.mkdir(parents=True)
+    (source / "a.txt").write_bytes(b"alpha\n")
+    (source / "b.txt").write_bytes(b"beta\n")
+    with app_path.open("rb") as binary:
+        app_hash = hashlib.file_digest(binary, "sha256").hexdigest()
+    os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
+    os.environ.setdefault("DISPLAY", ":0")
+    with (root / "app.log").open("wb") as log:
+        process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
+                                    "--left", str(source), "--right", str(target)],
+                                   cwd=root, env=os.environ.copy(), stdout=log,
+                                   stderr=subprocess.STDOUT)
+        try:
+            desktop = Atspi.get_desktop(0)
+            wait_for(lambda: next((app for app in
+                     (desktop.get_child_at_index(i) for i in range(desktop.get_child_count()))
+                     if app.get_name() == "FileCat"
+                     and find(app, "list", f"Panel 1, source, {source}")), None),
+                     "isolated Text viewer fixture")
+            result = run(source, helper)
+            result.update({"app": str(app_path), "appSha256": app_hash,
+                           "fixture": str(root)})
+            return result
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: linux-atspi-viewer-find.py SOURCE REPORT.json")
+    if len(sys.argv) == 5 and sys.argv[1] == "--launch":
+        report = Path(sys.argv[3])
+        check = lambda: launch_and_run(Path(sys.argv[2]), Path(sys.argv[4]))
+    elif len(sys.argv) in (3, 4):
+        report = Path(sys.argv[2])
+        check = lambda: run(Path(sys.argv[1]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)
+    else:
+        raise SystemExit("Usage: linux-atspi-viewer-find.py SOURCE REPORT.json [UINPUT_HELPER] | --launch APP REPORT.json UINPUT_HELPER")
     try:
-        result = run(Path(sys.argv[1]))
+        result = check()
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
-    Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result))
     return 0 if result["passed"] else 1
 
