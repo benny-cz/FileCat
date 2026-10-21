@@ -7,6 +7,14 @@ not connect the driver to a network interface.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
+`win-ax-modal-guard.ps1` is a separate Windows UI Automation check that does
+not need Windows Application Driver. Run it in the interactive guest session
+with `-AppPath` pointing to an isolated `FileCat.exe` below the guest's
+`AppData\Local\FileCatValidation` directory and `-ReportPath` naming a local
+JSON report. It creates a fresh source/target/profile fixture, opens Copy,
+invokes the obscured toolbar and key-bar Copy/Delete actions through UI
+Automation, requires one unchanged review and no target, then cancels and
+checks the source hash. It closes only the test process it launched.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
