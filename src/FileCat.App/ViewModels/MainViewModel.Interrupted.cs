@@ -84,7 +84,9 @@ public sealed partial class MainViewModel
         scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Submitted
             ? "Recovery action submitted. Check its operation and tracking status above."
             : scope.Stopped ? "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
-            : string.Empty);
+            : scope.Phase == RecoveryActionPhase.Applying
+                ? "Recovery action ended before submission. Any completed cleanup is kept; review the journal and report."
+                : "Review closed without approval. The recovery journal remains available.");
         scope.Dispose();
     }
 

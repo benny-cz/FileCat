@@ -31,6 +31,18 @@ Places overflow test also exposed a host drive-count assumption. The test now
 accepts a pinned place through the overflow menu if it still cannot fit at
 the restored width; focused Places tests pass all three cases.
 
+**Mac interrupted Move, 21 October 2026:** The signed validation app Cut both
+exact fixture files and reached an existing-target conflict with no file
+mutation. The runner killed only that FileCat process, restarted its exact
+fresh data profile and found the retained journal, destination and explicit
+Continue move review. Opening the review preserved both trees and showed
+Cancel and Continue. Pressing Cancel then crashed the older Mac build in
+Avalonia's native `raiseLiveRegionChanged` while FileCat cleared the recovery
+action status. The action now ends with a nonempty, accurate review-closed
+status (or retained-effects status when applying had begun). Six cancellation
+routes and all 16 focused interrupted-transfer UI cases pass with the recovery
+row visible. A rebuilt signed Mac native Cancel/Continue retest remains open.
+
 **Latest native acceptance (20 October 2026):** FCUX-003 passed two fresh
 Windows 11 VM journeys. The filtered hidden mark was excluded by default;
 after review, only the visible file was renamed and both file contents matched

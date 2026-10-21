@@ -173,6 +173,10 @@ public sealed class InterruptedTransferIntentUiTests
         if (flow == "move") File.WriteAllText(source, content);
         if (flow is "copy-partial" or "cleanup") File.WriteAllText(target, "owned");
         if (flow == "new-copy") interrupted = Fixture.MakeLegacy(interrupted);
+        var row = new InterruptedJobViewModel(interrupted);
+        f.Vm.Operations.Interrupted.Add(row);
+        f.Vm.Operations.IsOpen = true;
+        Dispatcher.UIThread.RunJobs();
         Task<bool> run = flow switch
         {
             "cleanup" => f.Vm.CleanupInterruptedAsync(interrupted),
@@ -233,6 +237,10 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Equal(flow is "copy-partial" or "cleanup" ? "owned" : content, File.ReadAllText(target));
         Assert.Single(f.Services.Jobs.Jobs);
         Assert.True(JournalRecovery.IsInterrupted(interrupted));
+        Assert.Contains(row, f.Vm.Operations.Interrupted);
+        Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+        Assert.True(row.HasActionStatus);
+        Assert.Equal("Review closed without approval. The recovery journal remains available.", row.ActionStatus);
     }
 
     [AvaloniaFact]

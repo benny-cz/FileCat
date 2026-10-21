@@ -29,7 +29,10 @@ increments to `main`.
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Mac and Ubuntu native ownership
-   checks still need Mac process interruption during Move. Ubuntu's held
+   checks still need Mac process interruption during Move. The Mac held-conflict
+   interruption and restart passed, but Cancel in its recovery review exposed
+   a native live-region crash; retest Cancel and the reviewed continuation on
+   the rebuilt signed app. Ubuntu's held
    conflict survived a real process kill, restart and reviewed conservative
    continuation. Windows still needs Explorer Cut presentation after the
    completed Copy effect and
