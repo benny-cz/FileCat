@@ -3,12 +3,17 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 
-// The parent Core test owns this exact disposable root and kills only this child
-// after the first dependent inverse rename. No user files are selected here.
-if (args.Length != 1 || !Path.IsPathFullyQualified(args[0]) || !Directory.Exists(args[0])) return 2;
+// The parent Core test or native VM acceptance owns this exact disposable root
+// and kills only this child after the first dependent inverse rename.
+// --app-layout puts the journal where FileCat's isolated --data profile reads it.
+// No user files are selected here.
+if (args.Length is not (1 or 2) || !Path.IsPathFullyQualified(args[0]) || !Directory.Exists(args[0]) ||
+    (args.Length == 2 && args[1] != "--app-layout")) return 2;
 string root = args[0];
 string items = Directory.CreateDirectory(Path.Combine(root, "items")).FullName;
-string journal = Directory.CreateDirectory(Path.Combine(root, "journals")).FullName;
+string journal = Directory.CreateDirectory(args.Length == 2
+    ? Path.Combine(root, "data", "local", "journal")
+    : Path.Combine(root, "journals")).FullName;
 string marker = Path.Combine(root, "inverse-held.json");
 string[] paths = [Path.Combine(items, "a.txt"), Path.Combine(items, "b.txt"), Path.Combine(items, "c.txt")];
 for (int i = 0; i < paths.Length; i++) File.WriteAllText(paths[i], ((char)('A' + i)).ToString());

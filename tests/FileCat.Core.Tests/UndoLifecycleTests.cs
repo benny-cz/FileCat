@@ -283,8 +283,10 @@ public sealed class UndoLifecycleTests : IDisposable
         Assert.Equal(new[] { "A", "B", "C" }, files.Select(File.ReadAllText));
     }
 
-    [Fact]
-    public async Task A_killed_dependent_rename_inverse_recovers_its_actual_temporary_names()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_killed_dependent_rename_inverse_recovers_its_actual_temporary_names(bool appLayout)
     {
         var ct = TestContext.Current.CancellationToken;
         string root = _dir.Dir("real-undo-crash");
@@ -297,6 +299,7 @@ public sealed class UndoLifecycleTests : IDisposable
         };
         start.ArgumentList.Add(CrashHarnessPath());
         start.ArgumentList.Add(root);
+        if (appLayout) start.ArgumentList.Add("--app-layout");
         using var child = Process.Start(start) ?? throw new InvalidOperationException("Could not start the isolated inverse crash harness.");
         try
         {
@@ -317,7 +320,9 @@ public sealed class UndoLifecycleTests : IDisposable
             child.Kill(entireProcessTree: true);
             Assert.True(child.WaitForExit(10_000));
 
-            var journalDirectory = Path.Combine(root, "journals");
+            var journalDirectory = appLayout
+                ? Path.Combine(root, "data", "local", "journal")
+                : Path.Combine(root, "journals");
             var interrupted = Assert.Single(JournalRecovery.Scan(journalDirectory));
             Assert.Equal("Undo", interrupted.Kind);
             Assert.True(JournalRecovery.IsInterrupted(interrupted));
