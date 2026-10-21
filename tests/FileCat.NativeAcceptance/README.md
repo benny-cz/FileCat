@@ -684,6 +684,24 @@ editor.
 
 ## macOS logged-in desktop
 
+`python3 mac-visual-dialog-pointer-dismiss.py BUNDLE.app REPORT.json` runs
+against a newly signed Git-built FileCat bundle under `~/FileCatValidation` on
+the 2880 × 1800 Retina Mac. It launches an isolated empty source/target/data
+fixture, fixes the app window to 1280 × 800 points, sends F7, then uses
+`cliclick` CGEvent mouse clicks on the header X and backdrop. Four approved
+`FileCatCapture.app` screenshots are checked for the blue dialog accent's
+open/closed sequence and for the vector X's bright-pixel center within three
+physical pixels of the button center. The report records screenshot paths,
+sample colors, centroid, window bounds and unchanged fixture state; only its
+own FileCat process and fixture are removed. This fixed-geometry visual route
+does not establish the control's accessibility label or other display scales.
+`mac-ax-dialog-pointer-dismiss.py` is the complementary System Events route:
+it requires the accessible X name, a usable pointer target and actual mouse
+cancellation. It captures a diagnostic screenshot on failure. The current Mac
+desktop returns zero child elements for the FileCat window in both the older
+and current signed bundles, so this AX gate remains open even though the
+visual pointer route passes.
+
 `python3 mac-ax-finished-speed.py SOURCE DESTINATION REPORT.json` runs a
 one-file Copy in the signed validation app, then requires an explicitly
 labelled numeric average in the selected finished Operations details. It

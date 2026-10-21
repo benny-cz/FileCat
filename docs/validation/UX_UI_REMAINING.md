@@ -96,11 +96,14 @@ increments to `main`.
    and accessible field help passed native Mac, Ubuntu and Windows checks,
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs a native visual check of the centered vector X at 100%,
-   150% and 200% display scale, a foreground-owned Windows VM pointer run,
-   an Ubuntu mouse-device and macOS pointer run, and spoken labeling beyond
-   the passing headless Registry, confirmation and nested-dialog checks. The
-   Ubuntu Wayland VM passed X and backdrop physical touchscreen taps with an
+   150% and other scaled states, a foreground-owned Windows VM pointer run,
+   an Ubuntu mouse-device route and spoken labeling beyond the passing
+   headless Registry, confirmation and nested-dialog checks. The Ubuntu
+   Wayland VM passed X and backdrop physical touchscreen taps with an
    unchanged fixture; XTest mouse movement is unavailable in that session.
+   The Mac Retina visual mouse route passed both pointer exits and X centering
+   at its current 2× backing scale, but its accessibility tree is currently
+   empty for both old and new validation bundles, so AX labeling remains open.
 
 ## Evidence required to finish
 

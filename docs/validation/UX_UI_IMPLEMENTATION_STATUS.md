@@ -1367,9 +1367,8 @@ suite passes again after this correction. A guarded Windows VM runner is
 tracked for native Registry checks. Its foreground-process check refused to
 send F7 when an older FileCat window retained focus; the incidental empty
 Create folder prompt from the first exploratory run was canceled without
-creating anything. Native vector appearance at display scales, VM pointer
-checks and assistive-technology labeling remain open across Windows, Ubuntu
-and macOS. A complete local App suite attempt was stopped before a final
+creating anything. Scaled visual appearance, the Windows VM mouse route and
+assistive-technology labeling remain open. A complete local App suite attempt was stopped before a final
 result after 17 minutes; it is not counted as a pass. Final five-lane CI is
 pending on the next pushed head.
 
@@ -1396,6 +1395,20 @@ report identifies the executable SHA-256 and `uinput-touch` input route. The
 runner now removes its temporary sudo credential from the environment before
 launching FileCat. An exact mouse-device route on Ubuntu, scaled visual checks
 and spoken labeling remain separate acceptance gates.
+
+The isolated Mac checkout was fast-forwarded to `8772a585`; a locked, self-
+contained ARM64 publish was signed in a new validation bundle. On its 2880 ×
+1800 Retina desktop, a guarded visual runner fixed the app window to 1280 ×
+800 points, sent F7, clicked the visible X and then the backdrop with native
+CGEvent mouse input. Four approved screenshots proved open → closed → open →
+closed, while both fixture folders remained empty. The blue dialog accent
+changed from RGB (58, 150, 255) to (43, 43, 43) after each dismissal; the
+vector X's white-pixel centroid was (1931, 281.5) against a button center of
+(1932, 280) physical pixels. The repeated runner's JSON result passed. A
+separate Mac AX runner remains pending: System Events returns zero child
+elements for the visibly populated window in both the older and current
+signed bundles, so native AX labeling and spoken feedback were not inferred
+from the screenshot. Mac 100%/150% and other dialog types still need review.
 
 ## Reproduction
 
