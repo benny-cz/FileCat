@@ -87,8 +87,9 @@ increments to `main`.
 7. **Close newly reported minor issues.** UXBUG-013 still needs native
    pinned-place interaction, scaled layouts and spoken acceptance after the
    verified Windows normal/narrow/wide/restore row reflow and overflow.
-   UXBUG-014 still needs native scaled layout and spoken acceptance after the
-   verified Windows finished drawer and Open/Copy/Save report routes.
+   UXBUG-014 still needs native display-scale and spoken acceptance after the
+   verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
+   normal-width details, and Mac normal/narrow finished details.
 
 ## Evidence required to finish
 

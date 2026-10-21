@@ -553,6 +553,14 @@ editor. It also accepts an already open test-owned editor.
 
 ## macOS logged-in desktop
 
+`python3 mac-ax-finished-speed.py SOURCE DESTINATION REPORT.json` runs a
+one-file Copy in the signed validation app, then requires an explicitly
+labelled numeric average in the selected finished Operations details. It
+narrows the main window to 760 × 600 and checks the same accessible rate,
+restores the original size and exact two-folder fixture, and removes only the
+test-produced destination `b.txt`. Start with `a.txt` = `alpha\n` and `b.txt`
+= `beta\n` in SOURCE, only `a.txt` = `alpha\n` in DESTINATION, and no marks.
+
 `python3 mac-ax-hex-editor-backward.py SOURCE REPORT.json` opens a test-owned
 7 MiB binary in the signed validation app and uses the accessible Hex editor
 Next and Previous buttons to cross two matches more than 4 MiB apart. It
