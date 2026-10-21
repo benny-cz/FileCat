@@ -20,9 +20,8 @@ increments to `main`.
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
-   remaining supported provider failure paths, including live FTPS changes
-   that retain the same size and timestamp, races after the final destination
-   content check (no server-side compare-and-swap), and live FTP process
+   remaining supported provider failure paths, including races after the final
+   destination content check (no server-side compare-and-swap), and live FTP process
    interruption/restart, with exact source/target bytes,
    recovery choices and staged cleanup. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
@@ -96,6 +95,9 @@ increments to `main`.
    feedback on supported desktops. The same-dialog invalid-speed correction
    and accessible field help passed native Mac, Ubuntu and Windows checks,
    but screen-reader announcements remain to be heard and checked.
+   UXBUG-016 needs native pointer and scaled-layout acceptance for the shared
+   dialog close X and backdrop cancellation beyond the headless Registry,
+   confirmation and nested-dialog checks.
 
 ## Evidence required to finish
 

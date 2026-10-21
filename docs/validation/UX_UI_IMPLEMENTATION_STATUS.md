@@ -655,8 +655,15 @@ stage, then used a second SFTP connection to atomically replace the target
 with different bytes at the same size and modified time. The job refused
 publication, kept byte-exact source and changed target, removed the stage,
 reported the content conflict and cleaned the isolated folder. The focused
-guest test passed one case with no skips. Live FTPS same-metadata acceptance
-remains open.
+guest test passed one case with no skips. A second Ubuntu guest run from
+`7a4d63a5` used a disposable local pyftpdlib server for plain FTP and
+explicit-TLS FTPS, each with Copy and Move. During a rate-limited upload,
+another connection replaced the destination with different bytes while
+retaining its original size and modified time. All four real-server cases
+refused publication, kept the exact source and newer destination bytes and
+removed their hidden stages; the focused guest run passed four with no skips.
+The complete Windows Remote Release suite passed 2,394 with 157 platform/lab
+skips after this addition.
 
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and
@@ -1339,6 +1346,21 @@ the final ownership guard passed 43 navigation, clipboard and link cases with
 one platform-specific skip. The earlier
 complete Linux suite results remain in the linked execution reports. Windows
 native interaction and assistive-technology acceptance remain open.
+
+## UXBUG-016 — pointer dismissal for overlay dialogs
+
+Every shared in-window dialog has a visible, accessible close X in its header.
+Pressing the pointer on the dimmed backdrop cancels the current dialog through
+the same safe result as Esc; clicking inside the card does not dismiss it. The
+topmost overlay alone closes, leaving an underlying draft and focus intact.
+This covers Create in Registry and other chooser, prompt, confirmation and
+custom review dialogs. `OverlayDialogPointerDismissTests` sends actual pointer
+input to the close X and backdrop for the Registry chooser, verifies the custom
+cancel result, inner-only dismissal and preserved outer draft, and proves an
+inside click does not cancel a confirmation. Five focused cases and 51 related
+dialog, focus, lifetime and viewport cases pass on Windows with 16 workers.
+Native pointer checks at normal and scaled sizes and assistive-technology
+labeling remain open across Windows, Ubuntu and macOS.
 
 ## Reproduction
 

@@ -110,7 +110,8 @@ public sealed class DialogFocusOwnershipTests
             var inner = dialogs.ShowCustomAsync("Inner", new TextBlock { Text = "Inner message" }, [new DialogButton("Close", "close", IsCancel: true)]);
             var innerLayer = host.Children.Last();
             Assert.False(host.Children.First().IsEnabled);
-            innerLayer.GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            innerLayer.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close")
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             Assert.True(inner.IsCompletedSuccessfully);
             Assert.False(outer.IsCompleted);

@@ -129,8 +129,15 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         session.Layer.PointerPressed += (_, e) =>
         {
-            if (ReferenceEquals(e.Source, session.Layer)) e.Handled = true;
+            if (!ReferenceEquals(e.Source, session.Layer) || !IsCurrent(session)) return;
+            e.Handled = true;
+            onEscape();
         };
+        if (card is DialogCard dialogCard)
+            dialogCard.CloseRequested += () =>
+            {
+                if (IsCurrent(session)) onEscape();
+            };
         if (_sessions.Count > 0) _sessions[^1].Layer.IsEnabled = false;
         host.Children.Add(session.Layer);
         host.IsVisible = true;
@@ -963,7 +970,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             return true;
         });
         Apply();
-        session = Show(Card(o.Title, body, null, 720), filter, top: true, () => Finish(new ChoiceResult(-1, false, deleted) { PinToggled = [.. pinToggled] }));
+        session = Show(Card(o.Title, body, null, 720), filter, top: true,
+            () => Finish(new ChoiceResult(-1, false, deleted) { PinToggled = [.. pinToggled] }));
         return tcs.Task;
     }
 

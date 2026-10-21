@@ -17,6 +17,8 @@ namespace FileCat.App.Controls;
 /// </summary>
 internal sealed class DialogCard : Border
 {
+    internal event Action? CloseRequested;
+
     private readonly Border _bodyBorder;
     private readonly Control _body;
     private readonly WidthConstrainedContent _content;
@@ -39,11 +41,22 @@ internal sealed class DialogCard : Border
         {
             Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) },
         });
-        var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*"), ColumnSpacing = 10 };
+        var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*,Auto"), ColumnSpacing = 10 };
         titleLine.Children.Add(new Border { Classes = { "dialogAccent" }, Height = 20, VerticalAlignment = VerticalAlignment.Center });
         var titleText = new TextBlock { Text = title, Classes = { "dialogTitle" }, TextWrapping = TextWrapping.Wrap };
         Grid.SetColumn(titleText, 1);
         titleLine.Children.Add(titleText);
+        var close = new Button
+        {
+            Name = "DialogCloseButton", Content = "×", Width = 30, Height = 30,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
+        };
+        AutomationProperties.SetName(close, "Close dialog");
+        AutomationProperties.SetHelpText(close, "Cancel this dialog without applying changes. Esc also closes it.");
+        ToolTip.SetTip(close, "Close dialog (Esc)");
+        close.Click += (_, _) => CloseRequested?.Invoke();
+        Grid.SetColumn(close, 2);
+        titleLine.Children.Add(close);
 
         _content = new WidthConstrainedContent { Child = body };
         var scroll = new ScrollViewer
