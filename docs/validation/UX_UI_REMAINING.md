@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 21 October 2026. Maintain this file after every validated batch. The
+Updated: 22 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -31,7 +31,9 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-002 still needs other narrow-window routes,
+   FCUX-002 still needs narrow-window filter, refresh, tab, Ctrl and keyboard
+   routes beyond the now Git-built verified sort reversal and held-Shift
+   deactivation journeys,
    scaled-display input and deeper non-Windows focus journeys beyond the
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken

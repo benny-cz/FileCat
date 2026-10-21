@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**22 October 2026, Git-built Windows selection at narrow width:** The native
+runner now accepts `FILECAT_NATIVE_TEST_APP` for selection journeys and checks
+the exact executable path under the guest's validation root before focusing,
+resizing or stopping it. This avoids attaching a current fixture to the older
+`ReviewHighlights` build. On Win11 VMware, the guest checked out
+`369b5ced`, rebuilt the runner with zero warnings/errors, and ran two fresh
+fixtures against the Git-built app (SHA-256
+`0FFB1E3A06798D7D4C30C574F0FADF6FBE86DA704631EC354770717C6D271A68`).
+At 720 × 540 physical pixels, sorting from `a,b,c,d` to `d,c,b,a` and
+Shift-clicking marked exactly `b.txt` and `c.txt`; source bytes and the empty
+destination remained exact. A second narrow fixture held Shift across an
+Explorer window switch and focus loss: the old gesture marked nothing, then
+fresh gestures marked only `c.txt` and `d.txt` in their respective phases.
+Both reports passed, both app instances closed gracefully, and only other
+narrow/scaled and non-Windows focus journeys remain for FCUX-002.
+
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
 **21 October 2026, progress refresh race:** An Ubuntu CI verified-copy test
