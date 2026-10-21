@@ -152,18 +152,22 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading(bool retainSizeAndTime)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading(bool retainSizeAndTime, bool encrypted)
     {
-        using var server = TestFtpServer.TryStart();
-        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        using var server = TestFtpServer.TryStart(encrypted ? TestFtpServer.SelfSigned("FileCat replacement test").Pem : null);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
         var ct = TestContext.Current.CancellationToken;
-        var profile = server.Profile(RemoteProtocols.Ftp);
-        profile.PlainTextAccepted = true;
+        var profile = server.Profile(encrypted ? RemoteProtocols.FtpExplicitTls : RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = !encrypted;
         using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
             new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
-            new HostKeyTrust(Path.Combine(_dir, "replace-known-hosts")), new SessionSecretStore(), new FtpInteraction());
+            new HostKeyTrust(Path.Combine(_dir, "replace-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "replace-trusted-certificates")));
         var remote = new SftpProvider(connections, () => [profile], p => p);
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
@@ -195,7 +199,7 @@ public sealed class FtpJobTests : IDisposable
                     .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < 1024 * 1024);
                 if (staged is null) await Task.Delay(20, ct);
             }
-            Assert.NotNull(staged);
+            Assert.True(staged is not null, $"{job.State}: {string.Join("; ", job.Issues.Select(i => i.Message))}");
             Assert.Equal(JobState.Running, job.State);
             if (retainSizeAndTime)
             {
