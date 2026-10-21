@@ -699,7 +699,8 @@ uses an isolated Markdown fixture and the approved helper to record narrow
 (760 × 620) and wide (1,220 × 700) native Page screenshots. It asserts the
 actual window sizes, unchanged source bytes and exact fixture cleanup. Inspect
 both screenshots for prose and table reflow; the runner does not claim a
-pixel-layout pass by itself.
+pixel-layout pass by itself. The helper saves captures in
+`~/FileCatValidation`, and the runner watches that folder for new PNGs.
 
 `python3 mac-ax-page-copy.py SOURCE REPORT.json` opens an isolated Markdown
 fixture in Page mode, clicks its accessible web content, then presses
@@ -723,7 +724,8 @@ input, decision summary and footer actions at 640 × 480 and 980 × 680, and
 captures both sizes. It cancels without submitting Copy, verifies the exact
 source bytes and unchanged destination entries and bytes, and restores the
 review's original size before closing. `b.txt` must be absent from the target
-before the run; an existing `a.txt` is allowed.
+before the run; an existing `a.txt` is allowed. Its captures are also read
+from the helper's `~/FileCatValidation` output folder.
 
 `mac-ax-clipboard-external-copy.py` checks an actual macOS clipboard handoff
 against the isolated, signed validation app. Preseed SOURCE with only

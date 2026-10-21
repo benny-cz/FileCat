@@ -89,8 +89,9 @@ def capture(app, folder):
 def run(source, app):
     source = source.resolve(strict=True)
     app = app.resolve(strict=True)
-    if not app.is_dir():
-        raise AssertionError("Capture helper must be a macOS app")
+    if (not app.is_dir() or app.name != "FileCatCapture.app"
+            or app.parent != (Path.home() / "FileCatValidation").resolve(strict=True)):
+        raise AssertionError("Use the approved capture helper in FileCatValidation")
     if (source / "a.txt").read_bytes() != b"alpha\n":
         raise AssertionError("Unexpected a.txt fixture")
     if (source / "b.txt").read_bytes() != b"beta\n":
@@ -110,10 +111,10 @@ def run(source, app):
             raise AssertionError("Markdown did not open in Page mode")
         narrow_size = resize(760, 620)
         time.sleep(1)
-        narrow_png = capture(app, source.parent)
+        narrow_png = capture(app, app.parent)
         wide_size = resize(1220, 700)
         time.sleep(1)
-        wide_png = capture(app, source.parent)
+        wide_png = capture(app, app.parent)
         if fixture.read_bytes() != CONTENT:
             raise AssertionError("Resize changed Markdown source bytes")
         return {"passed": True, "platform": "macOS", "mode": "Page",

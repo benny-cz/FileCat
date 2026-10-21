@@ -185,7 +185,19 @@ direct-capture prompt, it produced a 2880 × 1800 screenshot of the FileCat
 two-panel window without a permission overlay. The helper's Screen Recording
 toggle is enabled. Two extra diagnostic grants were removed, leaving the
 pre-existing grants and this dedicated helper. Direct SSH `screencapture`
-remains denied. Mac viewer and dialog layout inspections remain open.
+remains denied. On a fresh, locked, self-contained and signed Mac ARM64 build
+from `a968d412` (executable SHA-256
+`b7ad4dfaeba9e13ccd0e86722afa6c954fc88ed372358dfc54e346892edc7ba8`),
+the approved helper captured Markdown Page at 760 × 620 and 1,220 × 700.
+After dismissing an unrelated Apple account notification, the unobstructed
+captures showed introductory prose changing from three lines to two and
+table columns expanding and reflowing within the viewer. The runner checked
+unchanged source bytes and removed only its temporary Markdown file. The same
+build's Copy review retained the full destination, summary and
+Cancel/Queue/Copy controls at 640 × 480 and 980 × 680; the visually inspected
+captures show the footer reachable at both sizes. Cancel restored the review
+size and preserved the exact source and destination fixture. Other Mac viewer,
+dialog and scaled-layout inspections remain open.
 A native Markdown Page search exposed a macOS stack overflow on typing into
 the Find field. The title observer had installed a runtime KVO subclass of the
 WebView; forwarding unhandled keys to the superclass of the runtime class

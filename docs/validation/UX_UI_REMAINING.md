@@ -8,10 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Mac visual layout checks using the owner-approved `FileCatCapture`
-  helper in the unlocked desktop session. Keep the Mac display awake while
-  finishing Mac input, clipboard, viewer
-  and scaling journeys. Finish the remaining Ubuntu Linux input, clipboard,
+- Finish Mac visual layout checks for the other viewers, dialogs and scaled
+  states using the owner-approved `FileCatCapture` helper in the unlocked
+  desktop session. Keep the Mac display awake while finishing Mac input and
+  clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 
 ## Next actions, in severity order

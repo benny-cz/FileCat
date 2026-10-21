@@ -128,6 +128,8 @@ def run(source, destination, app):
     source = source.resolve(strict=True)
     destination = destination.resolve(strict=True)
     app = app.resolve(strict=True)
+    if app != (Path.home() / "FileCatValidation" / "FileCatCapture.app").resolve(strict=True):
+        raise AssertionError("Use the approved capture helper in FileCatValidation")
     if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
         raise AssertionError("Unexpected isolated source bytes")
     if (destination / "b.txt").exists():
@@ -143,11 +145,11 @@ def run(source, destination, app):
         compact = set_dialog_size(640, 480)
         review_state(destination, summary)
         time.sleep(0.3)
-        compact_capture = capture(app, source.parent)
+        compact_capture = capture(app, app.parent)
         expanded = set_dialog_size(980, 680)
         review_state(destination, summary)
         time.sleep(0.3)
-        expanded_capture = capture(app, source.parent)
+        expanded_capture = capture(app, app.parent)
         if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
             raise AssertionError("Review changed source bytes")
         return {"passed": True, "platform": "macOS", "dialog": "Copy review",
