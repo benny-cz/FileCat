@@ -1,6 +1,8 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
@@ -13,6 +15,44 @@ namespace FileCat.App.Tests;
 
 public sealed class HexEditorSmokeTests
 {
+    [AvaloniaFact]
+    public async Task Exit_after_a_job_rechecks_hex_edits_made_while_waiting()
+    {
+        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        string file = Path.Combine(root, "dirty-after-exit-request.bin");
+        byte[] original = [1, 2, 3, 4];
+        File.WriteAllBytes(file, original);
+        try
+        {
+            Assert.Null(HexEditorWindow.OpenOrActivate(services, file));
+            var editor = Assert.Single(HexEditorWindow.OpenWindows);
+            var hex = editor.GetVisualDescendants().OfType<HexView>().Single();
+            hex.Focus();
+            editor.KeyTextInput("a");
+            editor.KeyTextInput("B");
+            Assert.True(editor.HasUnsavedWork);
+
+            main.CloseWhenIdle();
+            for (int i = 0; i < 100 && !vm.Dialogs.IsOpen; i++) await Task.Delay(10);
+            Assert.True(vm.Dialogs.IsOpen);
+            Assert.True(main.IsVisible);
+            var keep = Assert.Single(main.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Keep FileCat open");
+            keep.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            for (int i = 0; i < 100 && vm.Dialogs.IsOpen; i++) await Task.Delay(10);
+            Assert.False(vm.Dialogs.IsOpen);
+            Assert.True(main.IsVisible);
+            Assert.True(editor.HasUnsavedWork);
+            editor.CloseNow();
+            Assert.Equal(original, File.ReadAllBytes(file));
+        }
+        finally
+        {
+            foreach (var editor in HexEditorWindow.OpenWindows.ToArray())
+                if (editor.DisplayName == file) editor.CloseNow();
+            AccessibilityTests.Close(services, main, root);
+        }
+    }
+
     [AvaloniaFact]
     public void Hex_editor_types_both_columns_undoes_saves_in_place_and_holds_exit_while_dirty()
     {

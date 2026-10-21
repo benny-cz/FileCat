@@ -841,8 +841,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     public void CloseWhenIdle()
     {
-        _forceClose = true;
-        SavePlacement();
+        // Re-enter the ordinary close gate: the user may have opened an editor
+        // or started new work since choosing to exit after the old job.
         Close();
     }
 

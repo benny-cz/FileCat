@@ -405,6 +405,20 @@ the guest's `AppData\Local\FileCatValidation\win-undo-last.json`; all three
 decision gates passed. The review, report and idle status now describe
 unverified recorded paths accurately instead of claiming absent temporary
 items were kept. The affected App UI tests passed 38/38.
+The active-close policy now keeps the main window alive if a native inverse
+call is still running after Stop them and exit's ten-second wait. It requests
+stop, shows that FileCat will close after the current safe step, and uses the
+existing idle-close route when the job actually retires. A headless App UI
+test holds the real `DeleteFile` inverse call beyond the deadline, verifies
+the window and job remain active, then releases the call and verifies that
+the window closes only after the inverse finishes. The focused test passed
+1/1. Native Windows close/restart during a held call remains to be checked.
+The delayed exit path also re-enters the ordinary close guard when work
+finishes. A Hex editor opened and changed during the wait now presents its
+unsaved-edits decision; choosing Keep FileCat open preserves the editor and
+original file bytes. The one-shot exit intent retires before this check, so
+canceling the new prompt cannot cause a later job completion to close the
+window unexpectedly. Both affected close-policy UI regressions passed 2/2.
 The retained Undo report now has a focused App UI test with 70 outcomes and a
 failure at action 46, beyond the abbreviated preview. The displayed full-path
 failure, one-failed summary and Copy all text agree. The Core 70-action

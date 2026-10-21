@@ -623,7 +623,13 @@ public sealed partial class MainViewModel
                 break;
         }
         UpdateJobActivity();
-        if (_exitWhenIdle && !Services.Jobs.HasActiveWork) View.CloseWhenIdle();
+        if (_exitWhenIdle && !Services.Jobs.HasActiveWork)
+        {
+            // A new unsaved edit may have appeared while the operation ran.
+            // A canceled close review must also retire this one-shot exit intent.
+            _exitWhenIdle = false;
+            View.CloseWhenIdle();
+        }
     }
 
     private void FocusWhenPresent(TabViewModel tab, string name)

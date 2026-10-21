@@ -24,7 +24,8 @@ increments to `main`.
    destination content check (no server-side compare-and-swap), and native
    recovery choices plus safe review and cleanup of the remote stage after an
    FTP process crash. For FCUX-018, verify
-   Windows close/restart ownership during a held inverse, and inspection of a report with a
+   native Windows close/restart ownership during a held inverse after the
+   headless active-close test passed, and inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
