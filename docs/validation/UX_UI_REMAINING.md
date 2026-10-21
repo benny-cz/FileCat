@@ -13,8 +13,6 @@ increments to `main`.
   finishing Mac input, clipboard, viewer
   and scaling journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
-- Rerun the macOS checksum-result UI case and complete CI after correcting the
-  queued-job registration race exposed by the earlier macOS run.
 
 ## Next actions, in severity order
 

@@ -1030,8 +1030,11 @@ group and source tab were attached. Job submission now accepts a caller
 registration callback before `JobAdded` or the first scheduling pass. A job
 paused at admission also schedules when resumed. Two Core cancellation-order
 cases and a queued-pause/resume case pass, as do all 10 focused verification UI
-cases on Windows. The failing Mac case and the full final-head CI lanes are
-still being rerun.
+cases on Windows. The complete Windows Core Release suite passes 4,435 tests
+with 150 platform/lab skips. In a Git checkout on the arm64 Mac, the formerly
+failing case passes, all 10 verification UI cases pass, and 27 Core job
+retirement/registration cases pass using the pinned `10.0.101` SDK installed
+under the Mac validation directory. Full final-head CI remains pending.
 
 UXBUG-003 addresses the reported PE Info scrollbar-thumb freeze. Rapid thumb
 positions now coalesce to the latest location on a bounded 32 ms timer, rather
