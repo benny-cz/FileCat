@@ -187,6 +187,43 @@ return ""
     raise AssertionError(f"Editor never displayed {fragment!r}; last status {result!r}")
 
 
+def editor_match_count(fragment):
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        result = osa('''
+on findCount(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        try
+            if (role of itemRef as text) is "AXStaticText" then
+                set labelText to name of itemRef as text
+                if labelText contains "matches visited" or labelText contains "match visited" then return labelText
+            end if
+            repeat with childRef in (UI elements of itemRef)
+                set resultText to my findCount(childRef, depth + 1)
+                if resultText is not "" then return resultText
+            end repeat
+        end try
+    end tell
+    return ""
+end findCount
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Hex Editor" then
+                return my findCount(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+return ""
+''')
+        if fragment in result:
+            return result
+        time.sleep(0.2)
+    raise AssertionError(f"Editor never displayed match status {fragment!r}; last {result!r}")
+
+
 def editor_save_state():
     return osa('''
 on findState(itemRef, depth)
@@ -283,14 +320,21 @@ def run(source):
         open_editor()
         enter_query("NEEDLE")
         first = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
-        send_f3(backward=False)
+        first_count = editor_match_count("1 distinct match visited · total not counted")
+        editor_click("AXButton", "Find next match")
         second = editor_status(f"Found at 0x{SECOND_OFFSET:X}")
-        send_f3(backward=True)
+        second_count = editor_match_count("2 distinct matches visited · total not counted")
+        editor_click("AXButton", "Find previous match")
         previous = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
+        send_f3(backward=False)
+        editor_status(f"Found at 0x{SECOND_OFFSET:X}")
+        send_f3(backward=True)
+        editor_status(f"Found at 0x{FIRST_OFFSET:X}")
         send_f3(backward=True)
         before_first = editor_status("was not found before the cursor")
         enter_query("second")
         changed = editor_status(f"Found at 0x{SECOND_OFFSET + 7:X}")
+        changed_count = editor_match_count("1 distinct match visited · total not counted")
         save_state = editor_save_state()
         if "No unsaved changes" not in save_state:
             raise AssertionError(f"Search left unexpected editor edits: {save_state!r}")
@@ -299,9 +343,11 @@ def run(source):
             raise AssertionError("Editor remained open or changed the source bytes")
         return {"passed": True, "platform": "macOS", "mode": "Hex editor",
                 "firstHit": FIRST_OFFSET, "secondHit": SECOND_OFFSET,
-                "firstStatus": first, "secondStatus": second,
+                "firstStatus": first, "firstCount": first_count,
+                "secondStatus": second, "secondCount": second_count,
                 "previousStatus": previous, "noEarlierStatus": before_first,
-                "changedQueryStatus": changed, "saveState": save_state,
+                "changedQueryStatus": changed, "changedQueryCount": changed_count,
+                "saveState": save_state,
                 "editorClosed": True,
                 "sourceBytesUnchanged": True}
     finally:

@@ -552,6 +552,14 @@ input gate; the test reports the missing action without claiming a pass.
 
 ## macOS logged-in desktop
 
+`python3 mac-ax-hex-editor-backward.py SOURCE REPORT.json` opens a test-owned
+7 MiB binary in the signed validation app and uses the accessible Hex editor
+Next and Previous buttons to cross two matches more than 4 MiB apart. It
+checks the visible, bounded distinct-visited match count, F3 and Shift+F3,
+the no-earlier message and count reset after changing the query. The runner
+requires an unlocked desktop, verifies that the editor has no unsaved changes
+and leaves the source bytes intact, and removes only its own fixture.
+
 `mac-capture.swift` and `mac-capture-Info.plist` build a dedicated, locally
 signed screenshot helper for visual acceptance on the isolated Mac. Copy both
 files into that machine's `FileCatValidation` folder, then build the app there:

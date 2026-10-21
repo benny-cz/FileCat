@@ -15,15 +15,19 @@ headless test traverses two matches more than 4 MiB apart in both directions,
 checks no-earlier feedback, changed-query reset and unchanged source bytes.
 The focused Release App tests passed all six cases with 16 workers; the
 final full App suite passed 2,388 cases with 63 platform skips and no failures.
-A new
-isolated Windows VM build passed the native Hex editor run: its visible Next
+An isolated Windows VM build passed the native Hex editor run: its visible Next
 and Previous buttons reached 0x800014 and 0x100014 across a 13 MiB file, the
 status counted two distinct visited matches without claiming a file-wide
 total, F3 and Shift+F3 still worked, and a changed query reset the count to
 one at 0x80001B. The editor closed, exact source bytes remained and the
 test-owned fixture was removed. The runner selects the exact app process when
-multiple FileCat windows share a title. Final CI and other desktop acceptance
-remain in [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
+multiple FileCat windows share a title. The re-signed Mac validation app also
+passed a fresh native run: accessible Next and Previous crossed matches at
+0x104028 and 0x5140D5, the visible distinct-visited count advanced from one
+to two, F3 and Shift+F3 still worked, and a changed query reset the count to
+one at 0x5140DC. The editor reported no unsaved changes, closed, and left
+the exact test-owned source bytes intact. Final CI and other desktop
+acceptance remain in [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
 
 **21 October 2026 validation:** An isolated Ubuntu Copy with a 65,536 bytes/s
 limit exposed a large-buffer rate defect: each callback waited only once for

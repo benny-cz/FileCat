@@ -43,8 +43,8 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test the new Hex editor Previous/Next controls and bounded
-   match status on Mac/Linux and with scaled/spoken input after the Windows VM
-   pointer and keyboard run. Test Linux native editor Previous routes, visible
+   match status on Linux and with scaled/spoken input after the Windows VM and
+   Mac native pointer/keyboard runs. Test Linux native editor Previous routes, visible
    Stop, changed-query ownership beyond the verified Mac Text route, provider
    cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
    Text, Hex, Info and Markdown Page routes. Assistive-technology routes
