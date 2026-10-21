@@ -384,10 +384,27 @@ recovery review finds the actual temporary name. Because its intended target
 is occupied, finishing review restores that item to its pre-Undo name,
 reports the occupied target, leaves all three pre-Undo file bytes exact,
 removes the temporary name, and closes the reviewed journal. The focused
-child-process case passed 1/1. A native FileCat window close/restart and
-visible review of this same interrupted inverse remain open. The complete
-Windows Core Release suite passed 4,436, skipped 150 and failed 0 with 16
-available processors.
+child-process cases passed 2/2, including the app's actual journal layout.
+The complete Windows Core Release suite passed 4,437, skipped 150 and failed
+0 with 16 available processors. A native FileCat window close/restart during
+a held inverse remains open.
+On the Windows 11 VM, the Git-built `006e06ea` app (SHA-256
+`9E9EFE08293CF386DCB84AE5BFE650FC8F030EAD76B2E08CC7C41BFA79CAFB08`)
+also passed the repeatable `win-ax-dependent-undo-crash.ps1` journey. It
+launched the Core worker under a fresh isolated app-layout profile, killed
+only that worker at its held inverse rename, and opened the retained Undo row
+in the actual FileCat UI. Cancel left the journal and the exact `C`, `B` and
+temporary `A` bytes untouched. Approval restored the temporary `A` to
+`b.txt` because `a.txt` was occupied; `a.txt=C`, `b.txt=A`, `c.txt=B` and no
+temporary name remained. Two recorded temporary paths had never existed at
+the interruption point, so the journal correctly stayed open until a second
+explicit Mark reviewed decision closed it without changing those bytes.
+Native UI Automation verified the full source/target paths, recovery counts,
+the occupied-name warning and the retained report. The JSON receipt is in
+the guest's `AppData\Local\FileCatValidation\win-undo-last.json`; all three
+decision gates passed. The review, report and idle status now describe
+unverified recorded paths accurately instead of claiming absent temporary
+items were kept. The affected App UI tests passed 38/38.
 The retained Undo report now has a focused App UI test with 70 outcomes and a
 failure at action 46, beyond the abbreviated preview. The displayed full-path
 failure, one-failed summary and Copy all text agree. The Core 70-action
