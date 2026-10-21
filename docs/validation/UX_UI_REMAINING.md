@@ -89,8 +89,9 @@ increments to `main`.
    UXBUG-014 still needs native display-scale and spoken acceptance after the
    verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
    normal-width details, and Mac normal/narrow finished details. UXBUG-015
-   needs native invalid Copy-option correction, localized speed entry and
-   keyboard/spoken error feedback on supported desktops.
+   needs native invalid Copy-option correction on Windows and Ubuntu,
+   localized speed entry and keyboard/spoken error feedback on supported
+   desktops after the Mac speed-correction route passed.
 
 ## Evidence required to finish
 
