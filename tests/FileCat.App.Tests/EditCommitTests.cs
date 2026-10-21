@@ -94,6 +94,32 @@ public sealed class EditCommitTests(ITestOutputHelper output)
         Assert.Equal("mine", File.ReadAllText(f.Session.WorkingPath));
     }
 
+    [AvaloniaFact]
+    public async Task Remote_edit_detects_same_metadata_changes_and_binds_approved_content_to_the_job()
+    {
+        using var f = new Fixture("sftp");
+        var target = f.Server.Lookup("/owned/notes.txt", false)!;
+        var originalTime = target.Modified;
+        target.Data = "evil"u8.ToArray(); // Same length and time as the edited baseline.
+        f.Services.Jobs.MaxConcurrent = 0;
+        var commit = f.Commit();
+        await Wait(() => f.Button("Overwrite their change") is not null);
+        Assert.Empty(f.Services.Jobs.Jobs);
+        Assert.Equal(originalTime, target.Modified);
+        f.Click("Overwrite their change");
+        await commit.WaitAsync(TimeSpan.FromSeconds(10));
+        var job = Assert.Single(f.Services.Jobs.Jobs);
+        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("evil"u8)),
+            job.Request.ExpectedTargetSha256);
+        target.Data = "foes"u8.ToArray(); // Another same-metadata change after the explicit review.
+        f.Services.Jobs.MaxConcurrent = 4; f.Services.Jobs.Schedule();
+        await f.Finish();
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal("foes", f.TargetText);
+        Assert.Equal("mine", File.ReadAllText(f.Session.WorkingPath));
+        Assert.Contains(job.Issues, i => i.Message.Contains("content changed", StringComparison.Ordinal));
+    }
+
     [AvaloniaTheory]
     [InlineData("zip", "success")]
     [InlineData("zip", "changed")]

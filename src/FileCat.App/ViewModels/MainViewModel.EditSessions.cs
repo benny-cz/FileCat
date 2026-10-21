@@ -459,12 +459,12 @@ public sealed partial class MainViewModel
             return;
         }
         var folder = SftpProvider.At(profile, RemotePath.Parent(session.RemotePath) ?? "/");
-        ContentRevision? now;
+        (ContentRevision? Revision, string? Sha256) now;
         try
         {
             CheckSessionAction();
-            now = await Services.Io.Run(Services.Providers.For(folder).GetDeviceKey(folder), IoPriority.Normal, _ =>
-            { CheckSessionAction(); return RemoteRevision(folder, session.RemotePath); });
+            now = await Services.Io.Run(Services.Providers.For(folder).GetDeviceKey(folder), IoPriority.Normal, ct =>
+            { CheckSessionAction(); return RemoteRevisionAndHash(folder, session.RemotePath, ct); });
             CheckSessionAction();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
@@ -473,7 +473,11 @@ public sealed partial class MainViewModel
             return;
         }
         ContentRevision? expected = session.RemoteBaseline;
-        switch (EditSessionStore.CheckRemote(session, now))
+        string? expectedSha256 = session.BaseSha256;
+        var check = EditSessionStore.CheckRemote(session, now.Revision);
+        if (check == CommitCheck.Ready && !string.Equals(now.Sha256, session.BaseSha256, StringComparison.OrdinalIgnoreCase))
+            check = CommitCheck.MemberChanged;
+        switch (check)
         {
             case CommitCheck.ArchiveMissing:
                 var gone = await Dialogs.ShowCustomAsync("File not on the server",
@@ -482,6 +486,7 @@ public sealed partial class MainViewModel
                 if (gone as string == "copy") await SaveSessionCopyAsync(session);
                 if (gone as string != "create") return;
                 expected = null;
+                expectedSha256 = null;
                 break;
             case CommitCheck.MemberChanged:
                 var answer = await Dialogs.ShowCustomAsync("Edit conflict",
@@ -495,7 +500,8 @@ public sealed partial class MainViewModel
                      new DialogButton("Save my copy…", "copy", IsDefault: true)]);
                 if (answer as string == "copy") await SaveSessionCopyAsync(session);
                 if (answer as string != "overwrite") return;
-                expected = now;
+                expected = now.Revision;
+                expectedSha256 = now.Sha256;
                 break;
         }
         CheckSessionAction(); var copy = await PrepareEditCommitAsync(session);
@@ -506,6 +512,7 @@ public sealed partial class MainViewModel
             Destination = folder,
             NewName = session.DisplayName,
             ExpectedTarget = expected,
+            ExpectedTargetSha256 = expectedSha256,
             Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
             Description = $"Commit \"{session.DisplayName}\" to {profile.Display}",
         }, origin);
@@ -516,6 +523,23 @@ public sealed partial class MainViewModel
     {
         using var lease = Services.SftpProvider.Lease(folder, CancellationToken.None);
         return lease.Channel.Stat(path) is { IsDirectory: false } st ? new ContentRevision(st.Size, st.ModifiedUtc.Ticks) : null;
+    }
+
+    /// <summary>Read the current remote bytes as well as metadata before asking about an edit conflict.</summary>
+    private (ContentRevision? Revision, string? Sha256) RemoteRevisionAndHash(Location folder, string path, CancellationToken ct)
+    {
+        using var lease = Services.SftpProvider.Lease(folder, ct);
+        var channel = lease.Channel;
+        if (channel.Stat(path) is not { IsDirectory: false } before) return (null, null);
+        byte[] digest;
+        using (var stream = channel.OpenRead(path, before.Size))
+            digest = Core.FileSystem.PortableFileOperations.HashStream(stream,
+                System.Security.Cryptography.HashAlgorithmName.SHA256, ct,
+                progress: _ => CheckSessionAction(), expectedLength: before.Size);
+        var after = channel.Stat(path);
+        if (after is not { IsDirectory: false } latest || latest.Size != before.Size || latest.ModifiedUtc != before.ModifiedUtc)
+            throw new IOException("The server file changed while its edit baseline was checked; your edit is kept.");
+        return (new ContentRevision(before.Size, before.ModifiedUtc.Ticks), Convert.ToHexString(digest));
     }
 
     private void OnEditCommitFinished(Job job)

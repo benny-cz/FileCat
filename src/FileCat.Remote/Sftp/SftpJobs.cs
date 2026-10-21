@@ -538,6 +538,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         bool replace = false;
         TargetSnapshot? approvedTarget = null;
+        string? approvedSha256 = null;
         if (Job.Request.ExpectedTarget is { } expected)
         {
             // An edit commit: replace exactly the version the edit started from, never someone else's newer one.
@@ -549,6 +550,24 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     : "Not written: the file changed on the server after the edit started; your edit is kept.", StepOutcome.Failed, "conflict");
                 return false;
             }
+            if (Job.Request.ExpectedTargetSha256 is { } expectedSha256)
+            {
+                string? actualSha256 = null;
+                if (!Remote(dst, "check the edited destination content", () =>
+                    actualSha256 = HashRemoteTarget(dst, existing.Size)))
+                {
+                    Job.ItemFailed();
+                    return false;
+                }
+                if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, dst,
+                        "Not written: the file content changed on the server after the edit was reviewed; your edit is kept.",
+                        StepOutcome.Failed, "conflict");
+                    return false;
+                }
+            }
             replace = true;
         }
         else if (existing is not null)
@@ -558,6 +577,15 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 case DecisionAction.Replace:
                     replace = true;
                     approvedTarget = TargetSnapshot.Of(existing);
+                    if (!existing.IsDirectory && !existing.IsLink)
+                    {
+                        if (!Remote(dst, "check the destination content before replacing", () =>
+                            approvedSha256 = HashRemoteTarget(dst, existing.Size)))
+                        {
+                            Job.ItemFailed();
+                            return false;
+                        }
+                    }
                     break;
                 case DecisionAction.KeepBothRenameIncoming:
                     name = UniqueName(destFolder, name, false);
@@ -692,7 +720,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during verification, so the copy was not published.");
-                Publish(destFolder, name, temp!, replace, approvedTarget);
+                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256);
                 temp = null;
             });
         }
@@ -775,7 +803,20 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         public static TargetSnapshot Of(IRemoteEntry entry) => new(entry.IsDirectory, entry.IsLink, entry.Size, entry.ModifiedUtc);
     }
 
-    private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget)
+    private string HashRemoteTarget(string path, long length)
+    {
+        string? previousItem = Job.CurrentItem;
+        Job.SetCurrent(path + " (checking destination)");
+        try
+        {
+            using var content = Channel.OpenRead(path, length);
+            return Convert.ToHexString(PortableFileOperations.HashStream(content,
+                System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, expectedLength: length));
+        }
+        finally { Job.SetCurrent(previousItem); }
+    }
+
+    private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget, string? approvedSha256)
     {
         string dst = RemotePath.Combine(folder, name);
         if (!replace)
@@ -797,6 +838,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         if (approvedTarget is { } approved &&
             (current is null || TargetSnapshot.Of(current) != approved))
             throw new RefusedOperationException("Not written: the destination changed on the server during the upload. Review its current version before replacing it.");
+        string? expectedSha256 = Job.Request.ExpectedTargetSha256 ?? approvedSha256;
+        if (expectedSha256 is not null && current is { IsDirectory: false, IsLink: false } &&
+            !string.Equals(HashRemoteTarget(dst, current.Size), expectedSha256, StringComparison.OrdinalIgnoreCase))
+            throw new RefusedOperationException("Not written: the destination content changed on the server during the upload. Review its current version before replacing it; " +
+                (Job.Request.ExpectedTarget is null ? "the incoming copy was not published." : "your edit is kept."));
         Changed(folder);
         if (current is { IsLink: true })
         {

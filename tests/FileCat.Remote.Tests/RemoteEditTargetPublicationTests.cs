@@ -17,6 +17,8 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
     [InlineData(RemoteProtocols.Sftp, "unchanged", false)]
     [InlineData(RemoteProtocols.Ftp, "unchanged", true)]
     [InlineData(RemoteProtocols.Sftp, "length", true)]
+    [InlineData(RemoteProtocols.Sftp, "same-size-time", true)]
+    [InlineData(RemoteProtocols.Ftp, "same-size-time", false)]
     [InlineData(RemoteProtocols.Ftp, "time", false)]
     [InlineData(RemoteProtocols.Sftp, "gone", false)]
     [InlineData(RemoteProtocols.Ftp, "link", true)]
@@ -34,6 +36,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             switch (change)
             {
                 case "length": server.Lookup(Target, false)!.Data = "someone else's longer bytes"u8.ToArray(); break;
+                case "same-size-time": server.Lookup(Target, false)!.Data = "evil"u8.ToArray(); break;
                 case "time": server.Lookup(Target, false)!.Modified = server.Lookup(Target, false)!.Modified.AddSeconds(3); break;
                 case "gone": server.Dir("/owned").Children.Remove("notes.txt"); break;
                 case "link": server.Link(Target, "/sentinel"); break;
@@ -71,7 +74,9 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Assert.Equal(during, rig.Snapshot());
             Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
             Assert.Equal(0, job.BytesDone);
-            Assert.Contains(job.Issues, i => i.Message.Contains("destination changed on the server", StringComparison.Ordinal));
+            Assert.Contains(job.Issues, i => i.Message.Contains(
+                change == "same-size-time" ? "destination content changed on the server" : "destination changed on the server",
+                StringComparison.Ordinal));
         }
     }
 
@@ -81,10 +86,45 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         {
             var cases = new TheoryData<string, string, bool>();
             foreach (string protocol in new[] { RemoteProtocols.Sftp, RemoteProtocols.Ftp, RemoteProtocols.FtpExplicitTls, RemoteProtocols.FtpImplicitTls })
-                foreach (string change in new[] { "unchanged", "length", "time", "gone", "link", "directory", "appeared" })
+                foreach (string change in new[] { "unchanged", "length", "time", "same-size-time", "gone", "link", "directory", "appeared" })
                     foreach (bool atomic in new[] { false, true }) cases.Add(protocol, change, atomic);
             return cases;
         }
+    }
+
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp)]
+    [InlineData(RemoteProtocols.Ftp)]
+    public async Task Edit_refuses_same_metadata_content_change_before_upload(string protocol)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File(Target, "base");
+        var expected = new ContentRevision(4, server.Lookup(Target, false)!.Modified.Ticks);
+        server.Lookup(Target, false)!.Data = "evil"u8.ToArray();
+        Snapshot changed = rig.Snapshot();
+        string sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            ExpectedTarget = expected, ExpectedTargetSha256 = Hash("base"u8.ToArray()),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(changed, rig.Snapshot());
+        Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+        Assert.Equal(0, job.BytesDone);
+        Assert.DoesNotContain(rig.Calls, c => c.Operation is "CreateNew" or "Rename" or "TryReplace" or "Delete");
+        Assert.Contains(job.Issues, i => i.Message.Contains("content changed", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -105,6 +145,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             switch (change)
             {
                 case "length": server.Lookup(Target, false)!.Data = "theirs, longer"u8.ToArray(); break;
+                case "same-size-time": server.Lookup(Target, false)!.Data = "evil"u8.ToArray(); break;
                 case "time": server.Lookup(Target, false)!.Modified = server.Lookup(Target, false)!.Modified.AddSeconds(1); break;
                 case "gone": server.Dir("/owned").Children.Remove("notes.txt"); break;
                 case "link": server.Link(Target, "/sentinel"); break;
@@ -119,6 +160,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         {
             Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
             Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt", ExpectedTarget = expected,
+            ExpectedTargetSha256 = expected is null ? null : Hash("base"u8.ToArray()),
             Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
         });
         rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
@@ -142,7 +184,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Issues = job.Issues.Select(i => new { i.Message, Outcome = i.Outcome.ToString() }).ToArray(),
             SourceBefore = sourceHash, SourceAfter = sourceAfter, rig.SourcePath, rig.Root,
             Sentinel = sentinel, ActualOwnedWorkingFileAndUploadExecutor = true, ControlledInMemoryChannel = true,
-            NativeServerOrAtomicCASOrSameSizeRevertedOrCandidateQualified = false,
+            NativeServerOrAtomicCASOrPostCheckRaceQualified = false,
         }));
         Assert.NotNull(during);
         Assert.Equal(sourceHash, sourceAfter);

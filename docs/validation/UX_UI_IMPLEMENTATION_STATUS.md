@@ -634,9 +634,18 @@ unchanged and changed versions, disappearance, links and directories. A real
 pyftpdlib FTP Move changed the target while 1 MiB was uploading; the finished
 job failed without deleting the source, the newer target bytes remained and
 the stage was removed. The complete Remote Release suite passed 2,379 tests
-with 156 platform/lab skips. The metadata recheck is a best-effort remote
-guard, not an atomic server-side compare-and-swap; same-size/same-timestamp
-changes and a race after the final listing remain provider limits.
+with 156 platform/lab skips. The remote publication guard now also retains a
+SHA-256 fingerprint of an ordinary file selected for Replace and checks it
+again before publication. External edit preflight hashes the current server
+file, so unchanged size and timestamp with different bytes raises the
+edit-conflict review. The approved hash is carried into the job, checked before
+uploading and again before publication. Controlled SFTP, FTP and FTPS cases
+exercise same-size/same-timestamp changes before and during upload, exact
+source and target bytes, and staged cleanup; the focused Remote and App edit
+suites passed 75 and 39 cases respectively, and the complete Remote Release
+suite passed 2,391 with 156 platform/lab skips. These checks cannot be an atomic
+server-side compare-and-swap: a competing writer after the last check is
+still possible, and live-server same-metadata acceptance remains open.
 
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and

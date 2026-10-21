@@ -45,7 +45,7 @@ public sealed record RecoverableTransferIntent(JobKind Kind, Location Destinatio
         { problem = "The original source selection exceeds the complete recovery review limit."; return null; }
         if (request.Destination is not { IsFileSystem: true } destination || request.Sources.Any(s => s.FileSystemPath is null))
         { problem = "The original operation includes a provider whose transfer intent cannot be continued here."; return null; }
-        if (request.OnlyAsCompared || request.ExpectedTarget is not null || request.ExpectedTargets is not null || request.ExpectedContents is not null)
+        if (request.OnlyAsCompared || request.ExpectedTarget is not null || request.ExpectedTargetSha256 is not null || request.ExpectedTargets is not null || request.ExpectedContents is not null)
         { problem = "The original operation has comparison or edit-commit conditions that must be reviewed again."; return null; }
 
         var filter = request.Options.Filter?.CaptureSnapshot();

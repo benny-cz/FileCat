@@ -198,6 +198,11 @@ public sealed class JobRequest
     /// is replaced. Null means no destination is expected: then an existing one is not replaced either.
     /// </summary>
     public Resources.ContentRevision? ExpectedTarget { get; init; }
+    /// <summary>
+    /// SHA-256 of the remote file whose revision was approved for an external-edit commit. A remote server can
+    /// replace bytes while retaining the same length and modified time; the upload must check both forms of evidence.
+    /// </summary>
+    public string? ExpectedTargetSha256 { get; init; }
     /// <summary>For <see cref="JobKind.ApplyCommand"/>: the previewed invocations, one per source, run as shown.</summary>
     public IReadOnlyList<Tools.ApplyInvocation>? Invocations { get; init; }
     /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>

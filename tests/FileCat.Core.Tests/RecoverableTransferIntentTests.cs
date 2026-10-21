@@ -212,6 +212,10 @@ public sealed class RecoverableTransferIntentTests : IDisposable
             ExpectedTargets = new Dictionary<ItemRef, (long, long)> { [ordinary.Sources[0]] = (42, 123) } });
         Assert.False(special.CanContinueTransfer);
         Assert.Contains("conditions", special.TransferIntentProblem);
+        var hashedEdit = Record(new JobRequest { Kind = JobKind.Copy, Sources = ordinary.Sources, Destination = ordinary.Destination,
+            ExpectedTargetSha256 = new string('A', 64) });
+        Assert.False(hashedEdit.CanContinueTransfer);
+        Assert.Contains("conditions", hashedEdit.TransferIntentProblem);
     }
 
     [Fact]

@@ -45,6 +45,9 @@ public sealed class UploadVerificationBoundsTests(ITestOutputHelper output)
         };
         server.OnRead = path =>
         {
+            // Replacement safety now reads the approved target before uploading. This fixture
+            // mutates only the staged upload when read-back verification opens that stage.
+            if (!Path.GetFileName(path).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal)) return;
             remoteReads++;
             if (behavior is "remote-growth" or "both-growth")
             {
