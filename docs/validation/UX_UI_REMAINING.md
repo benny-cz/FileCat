@@ -19,10 +19,9 @@ increments to `main`.
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete.
-2. **Finish S1 operation and decision journeys.** For FCUX-001, repeat the
-   live SFTP interruption runner on a fresh fixture after its bounded
-   handle-release retry; cover nonlocal destinations and other supported
-   provider failure/cancellation cases. Verify exact source/target bytes,
+2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
+   nonlocal destinations and other supported provider failure/cancellation
+   cases. Verify exact source/target bytes,
    recovery choices and staged cleanup in each. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a

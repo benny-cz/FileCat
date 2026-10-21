@@ -511,14 +511,22 @@ unchanged-probe and unpublished-target checks. Ubuntu rehashed the original
 `slow.bin` afterward; it still matched
 `ee815a856e58c1cb389ae562dae630cc507417f6f2bb5bce8c017bc81b0de34f`.
 The first immediate post-kill runner verdict was false for the marker and
-journal scan; both were confirmed after restart. Its bounded retry is
-compiled but awaits a fresh live fixture. The cleanup UI did perform the
-intended action;
-its initial runner verdict was false because the saved report JSON-escaped
-the path. That assertion is corrected and the post-cleanup verifier passes.
-Live nonlocal destinations and the fresh interruption-runner repeat remain
-open. The prior `cb9f329b` source passed producer, Windows, Ubuntu, macOS
-and Windows ARM64 CI in run `39583832661`.
+journal scan; both were confirmed after restart. A second isolated live
+fixture (`c827fa2e58fa4a08be67ca1fe5dc0215`) passed the bounded retry:
+the native runner terminated only its exact FileCat process after 32,755
+staged bytes, then verified the copied marker, retained non-continuable
+journal, unpublished target and intact probe. After restart, the recovery
+UI, retained report and scoped cleanup confirmation passed again. The
+corrected cleanup assertion verified journal closure, removal of the exact
+staged file, and a retained reviewed report. The repeatable post-cleanup
+verifier also passed. Ubuntu rehashed the second source after cleanup at
+`7b581edd11963d6045c7c1a7a1f0a6b5b74d02d2bdc8cb49a1af964c02f3614a`,
+matching its initial manifest. The first run had copied the probe through
+FileCat; the repeat seeded the same 60-byte marker locally to focus on the
+post-kill and cleanup regressions. Live nonlocal destinations remain open.
+The prior `cb9f329b` source passed producer, Windows, Ubuntu, macOS and
+Windows ARM64 CI in run `39583832661`; `152101b5` CI run `39597252968`
+is in progress.
 
 After the report that the recovery dialog still read as a wall of text, the
 review now gives its action a distinct selectable emphasis, makes the conflict
