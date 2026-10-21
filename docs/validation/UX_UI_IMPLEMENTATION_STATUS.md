@@ -575,6 +575,13 @@ form preserves every choice through correction. The focused App run covers
 invalid filter and speed correction, Copy and Queue, field help, and the
 interrupted-upload warning/retention cases.
 
+A separately signed macOS arm64 build of `836bd04d` verified the field help
+through native AX: submitting `-1` kept the form open and exposed “Speed limit:
+enter a finite, nonnegative number of MB/s.” as both visible text and help on
+the focused speed field. Changing the same field to `0.0625` removed both;
+Cancel created no target and left the pre-existing destination byte-exact.
+Actual VoiceOver speech and localized desktop keyboard routes remain open.
+
 After the report that the recovery dialog still read as a wall of text, the
 review now gives its action a distinct selectable emphasis, makes the conflict
 choice stand out, shows consequential effects as bullets, and separates the

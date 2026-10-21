@@ -91,8 +91,9 @@ increments to `main`.
    verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
    normal-width details, and Mac normal/narrow finished details. UXBUG-015
    needs native invalid Copy-option correction on Windows and Ubuntu,
-   localized speed entry and keyboard/spoken error feedback on supported
-   desktops after the Mac speed-correction route passed.
+   localized speed entry, keyboard error navigation and actual spoken feedback
+   on supported desktops. The Mac AX field help is verified, but its VoiceOver
+   announcement remains to be heard and checked.
 
 ## Evidence required to finish
 
