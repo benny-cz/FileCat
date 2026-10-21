@@ -40,6 +40,25 @@ def label_containing(node, text):
                  if child.get_role_name() == "label" and text in child.get_name()), None)
 
 
+def switch_mode(viewer, name):
+    choice = next((child for child in descendants(viewer)
+                   if child.get_name() == name and child.get_role_name() in ("toggle button", "button")), None)
+    checked_action(choice, f"{name} mode")
+    wait_for(lambda: find(viewer, "label", f"Mode: {name}"), f"{name} mode label")
+
+
+def fresh_physical_find(viewer, entry, helper, query, chord, expected_count):
+    if not entry.set_text_contents(""):
+        raise AssertionError("Could not clear the viewer Find query")
+    wait_for(lambda: find(viewer, "label", expected_count) is None,
+             "the previous match count to retire")
+    if not entry.set_text_contents(query):
+        raise AssertionError("Could not set the viewer Find query")
+    send_key(helper, chord)
+    wait_for(lambda: find(viewer, "label", expected_count),
+             f"the physical {chord} result for {query!r}")
+
+
 def run(source, helper=None):
     source = source.resolve(strict=True)
     if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
@@ -97,25 +116,27 @@ def run(source, helper=None):
             # Reset the count first. A physical shortcut that never reaches the
             # viewer cannot pass merely because an earlier button search did.
             for chord in ("f3", "shift+f3"):
-                if not entry.set_text_contents(""):
-                    raise AssertionError("Could not clear the Page Find query")
-                wait_for(lambda: find(viewer, "label", "2 matches") is None,
-                         "the previous Page count to retire")
-                if not entry.set_text_contents("marker"):
-                    raise AssertionError("Could not restore the Page Find query")
-                send_key(helper, chord)
-                wait_for(lambda: find(viewer, "label", "2 matches"),
-                         f"the physical {chord} Page match count")
+                fresh_physical_find(viewer, entry, helper, "marker", chord, "2 matches")
                 wait_for(lambda: label_containing(viewer, 'Found "marker" in the page.'),
                          f"the physical {chord} Page result")
+            switch_mode(viewer, "Info")
+            fresh_physical_find(viewer, entry, helper, "No structure inspector", "f3", "1 match")
+            fresh_physical_find(viewer, entry, helper, "No structure inspector", "shift+f3", "1 match")
+            switch_mode(viewer, "Hex")
+            for chord in ("f3", "shift+f3"):
+                fresh_physical_find(viewer, entry, helper, "marker", chord, "2 matches")
         if fixture.read_bytes() != CONTENT:
             raise AssertionError("Page search changed the Markdown bytes")
         if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
             raise AssertionError("Page search changed the adjacent fixture bytes")
         return {"passed": True, "platform": "Ubuntu", "mode": "Page",
+                "modes": ["Page", "Info", "Hex"] if helper is not None else ["Page"],
                 "query": "marker", "visibleMatchStatus": "2 matches",
                 "nextTwiceAndPreviousFound": True, "sourceBytesUnchanged": True,
-                "physicalF3AndShiftF3Verified": helper is not None}
+                "physicalF3AndShiftF3Verified": helper is not None,
+                "infoAndHexPhysicalFindVerified": helper is not None,
+                "infoMatchStatus": "1 match" if helper is not None else None,
+                "hexMatchStatus": "2 matches" if helper is not None else None}
     finally:
         try:
             if find(app, "frame", title):

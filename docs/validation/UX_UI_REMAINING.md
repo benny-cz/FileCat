@@ -47,10 +47,8 @@ increments to `main`.
    For FCUX-007, test the Hex editor controls and bounded match status with
    scaled/spoken input after the Windows VM, Mac and Ubuntu normal desktop
    runs. Test visible Stop, changed-query ownership beyond the verified Text
-   and Hex routes, provider cancellation and Ubuntu physical-keyboard Find
-   shortcuts in the other viewer modes beyond the verified Text viewer,
-   Markdown Page viewer and Hex editor F3 and Shift+F3 routes.
-   Assistive-technology routes still need native checks.
+   and Hex routes, provider cancellation, scaled layouts and spoken Find
+   results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long

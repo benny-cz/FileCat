@@ -640,7 +640,9 @@ removes its exact test file and refreshes the panel. Both scripts must be
 present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
 Pass an optional `linux-uinput-key.py` path after the report to clear and
 restore the query, then require physical F3 and Shift+F3 each to produce a
-fresh exact `2 matches` result. `--launch APP REPORT.json UINPUT_HELPER`
+fresh exact `2 matches` Page result. The same owned viewer then switches to
+Info and Hex; each physical shortcut must create a fresh visible match count
+for that mode. `--launch APP REPORT.json UINPUT_HELPER`
 creates its own exact two-file source, data profile and target under
 `~/FileCatValidation`, starts the isolated Git-built app and closes only that
 owned process afterward. The guest's native-input helper needs its established
