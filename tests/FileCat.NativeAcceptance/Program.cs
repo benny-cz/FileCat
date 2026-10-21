@@ -11,9 +11,9 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|places-native|operation-open-details|operation-average-native|operation-save-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-hidden-compact-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|seed-clipboard-conflict|clipboard-native|clipboard-cut-native|clipboard-ole-effect-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|clipboard-copy|explorer-navigate|explorer-copy|explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste|clipboard-paste-subset|clipboard-paste-explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste-review|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|places-native|operation-open-details|operation-average-native|operation-save-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|hex-editor-search-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-hidden-compact-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|seed-clipboard-conflict|clipboard-native|clipboard-cut-native|clipboard-ole-effect-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|clipboard-copy|explorer-navigate|explorer-copy|explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste|clipboard-paste-subset|clipboard-paste-explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste-review|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
     return 2;
 }
 
@@ -1839,6 +1839,104 @@ try
                 passed, utf16, startedNearEnd, firstPrevious, foundSecond, secondPrevious,
                 foundFirst, completeNegative, sourceIntact, firstHit, secondHit,
                 sourceFile
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+        else if (mode == "hex-editor-search-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            const string fileName = "hex-editor-backward.bin";
+            var sourceFile = Path.Combine(fixture.Source, fileName);
+            if (Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated hex-editor fixture is not pristine.");
+            const int size = 13 * 1024 * 1024;
+            const int firstHit = 1024 * 1024 + 20;
+            const int secondHit = 8 * 1024 * 1024 + 20;
+            var bytes = new byte[size];
+            Array.Fill(bytes, (byte)'x');
+            "NEEDLE first"u8.CopyTo(bytes.AsSpan(firstHit));
+            "NEEDLE second"u8.CopyTo(bytes.AsSpan(secondHit));
+            if (File.Exists(sourceFile))
+            {
+                if (!(await File.ReadAllBytesAsync(sourceFile)).AsSpan().SequenceEqual(bytes))
+                    throw new InvalidOperationException("An existing hex-editor fixture differs from the owned test bytes.");
+                File.Delete(sourceFile);
+            }
+            await File.WriteAllBytesAsync(sourceFile, bytes);
+            NativeWindow.FocusRecovery("selection-source");
+            await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000");
+            XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
+            XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "list item"
+                && (string?)element.Attribute("Name") == fileName
+                && element.Ancestors().Any(parent =>
+                    (string?)parent.Attribute("ClassName") == "FileList"
+                    && ((string?)parent.Attribute("Name"))?.Contains(
+                        "selection-source", StringComparison.OrdinalIgnoreCase) == true));
+            for (int attempt = 0; attempt < 30 && Row(listing) is null; attempt++)
+            {
+                await Task.Delay(150);
+                listing = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var row = Row(listing) ?? throw new InvalidOperationException("The owned hex-editor file is not listed.");
+            NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            var commands = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Search commands']", "command search");
+            await ClickXPathAsync(client, sessionId,
+                "//Edit[@Name='Search commands']", "command search");
+            await SendKeysAsync(client, sessionId, commands, "\uE009a\uE000edit file bytes in hex\uE007");
+            XElement? Editor(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.Contains(fileName, StringComparison.Ordinal) == true
+                && ((string?)element.Attribute("Name"))?.Contains("FileCat Hex Editor", StringComparison.Ordinal) == true);
+            XDocument opened = listing;
+            for (int attempt = 0; attempt < 50 && Editor(opened) is null; attempt++)
+            {
+                await Task.Delay(150);
+                opened = ParseSource(await ReadSourceAsync(client, sessionId));
+            }
+            var editor = Editor(opened) ?? throw new InvalidOperationException("The native hex editor did not open.");
+            var toggle = FindVisible(editor, "button", "Show or hide hex editor Find bar")
+                ?? throw new InvalidOperationException("The editor Find action is unavailable.");
+            NativeWindow.ClickAt(CenterX(toggle), CenterY(toggle));
+            var query = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Find in file']", "editor Find field");
+            await SendKeysAsync(client, sessionId, query, "NEEDLE\uE007");
+            async Task<string> WaitForStatus(string expected)
+            {
+                for (int attempt = 0; attempt < 60; attempt++)
+                {
+                    var current = Editor(ParseSource(await ReadSourceAsync(client, sessionId)));
+                    var visible = current?.Descendants().Select(element =>
+                        (string?)element.Attribute("Name") ?? "")
+                        .FirstOrDefault(name => name.Contains(expected, StringComparison.Ordinal));
+                    if (visible is not null) return visible;
+                    await Task.Delay(150);
+                }
+                throw new InvalidOperationException($"Hex editor never displayed: {expected}");
+            }
+            string firstStatus = await WaitForStatus($"Found at 0x{firstHit:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3.
+            string secondStatus = await WaitForStatus($"Found at 0x{secondHit:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE033\uE000"); // Shift+F3.
+            string previousStatus = await WaitForStatus($"Found at 0x{firstHit:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE033\uE000");
+            string beforeFirst = await WaitForStatus("was not found before the cursor");
+            query = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Find in file']", "editor Find field");
+            await SendKeysAsync(client, sessionId, query, "\uE009a\uE000second\uE007");
+            string changedStatus = await WaitForStatus($"Found at 0x{secondHit + 7:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE03A"); // F10 closes the editor.
+            bool editorClosed = Editor(ParseSource(await ReadSourceAsync(client, sessionId))) is null;
+            bool sourceIntact = (await File.ReadAllBytesAsync(sourceFile)).AsSpan().SequenceEqual(bytes);
+            if (editorClosed && sourceIntact) File.Delete(sourceFile);
+            bool fixtureRemoved = !File.Exists(sourceFile);
+            bool passed = editorClosed && sourceIntact && fixtureRemoved
+                && secondHit - firstHit > 4 * 1024 * 1024;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, firstHit, secondHit, firstStatus, secondStatus, previousStatus,
+                beforeFirst, changedStatus, editorClosed, sourceIntact, fixtureRemoved
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

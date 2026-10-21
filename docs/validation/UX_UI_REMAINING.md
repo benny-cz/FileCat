@@ -42,7 +42,7 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, test native editor Previous routes, visible Stop,
+   For FCUX-007, test Mac/Linux native editor Previous routes, visible Stop,
    changed-query ownership beyond the verified Mac Text route, provider
    cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
    Text, Hex, Info and Markdown Page routes. Mac editor source mode,
