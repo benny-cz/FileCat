@@ -42,11 +42,11 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, test Mac/Linux native editor Previous routes, visible Stop,
+   For FCUX-007, test Linux native editor Previous routes, visible Stop,
    changed-query ownership beyond the verified Mac Text route, provider
    cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
-   Text, Hex, Info and Markdown Page routes. Mac editor source mode,
-   plus assistive-technology routes, still need native checks.
+   Text, Hex, Info and Markdown Page routes. Assistive-technology routes
+   still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
