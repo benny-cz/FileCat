@@ -11,7 +11,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -2412,6 +2412,158 @@ try
                 passed, processId, source, destination, sourceSize, partialBytes,
                 copiedMarker, retained, unpublished, probeIntact,
                 transferIntentProblem = interrupted.SingleOrDefault()?.TransferIntentProblem
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode is "sftp-upload-cleanup-native" or "sftp-upload-mark-native")
+        {
+            // A real interrupted upload leaves a server-side .fc-* file. These
+            // modes deliberately cannot claim to inspect that file: the caller
+            // verifies and removes it on the SFTP server before running Mark.
+            string fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
+                "sftp-live-fixture.json");
+            using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
+            var fixture = fixtureDoc.RootElement;
+            string id = fixture.GetProperty("id").GetString()!;
+            string appPath = fixture.GetProperty("app").GetString()!;
+            string data = fixture.GetProperty("data").GetString()!;
+            string root = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "SftpRecovery", id);
+            string source = Path.Combine(root, "upload-source", "up-slow.bin");
+            string remote = $"/home/benny/FileCatValidation/SftpRecovery/{id}/upload-destination";
+            string journalDirectory = Path.Combine(data, "local", "journal");
+            if (id.Length != 32 || !id.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f')
+                || !string.Equals(Path.GetFullPath(data), Path.Combine(root, "data"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !Path.GetFullPath(appPath).StartsWith(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "FileCatValidation") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(appPath), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+                || !File.Exists(source))
+                throw new InvalidOperationException("The live SFTP upload fixture is outside the isolated validation scope.");
+            string sourceHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                await File.ReadAllBytesAsync(source)));
+            var upload = JournalRecovery.Scan(journalDirectory).Single(job =>
+                job.Title.Contains("up-slow.bin", StringComparison.Ordinal)
+                && job.Title.Contains(remote, StringComparison.Ordinal));
+            int processId = NativeWindow.FocusRecovery(id, appPath);
+            XElement MainWindow(XDocument document) => document.Descendants().First(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture)
+                && ((string?)element.Attribute("Name"))?.StartsWith($"FileCat — {id}", StringComparison.Ordinal) == true);
+            string VisibleText(XDocument document) => string.Join("\n", document.Descendants()
+                .Where(element => (string?)element.Attribute("IsOffscreen") == "False")
+                .Select(element => (string?)element.Attribute("Name") ?? ""));
+            var current = ParseSource(await ReadSourceAsync(client, sessionId));
+            var main = MainWindow(current);
+            bool warningOnRow = VisibleText(current).Contains(
+                "Inspect the remote destination and its temporary files", StringComparison.Ordinal);
+            bool noFalseContinue = !main.Descendants().Any(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && ((string?)element.Attribute("Name") is "Continue copy…" or "Review a new transfer…"));
+            string actionName = mode == "sftp-upload-cleanup-native"
+                ? "Review local cleanup…" : "Mark interrupted recovery reviewed for " + upload.Title;
+            XElement? action = null;
+            bool actionInViewport = false;
+            int actionClickY = 0;
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                current = ParseSource(await ReadSourceAsync(client, sessionId));
+                main = MainWindow(current);
+                action = FindVisible(main, "button", actionName);
+                if (action is null)
+                    throw new InvalidOperationException("The live remote-upload recovery action is unavailable.");
+                var scroll = action.Ancestors().FirstOrDefault(element =>
+                    (string?)element.Attribute("VerticallyScrollable") == "True")
+                    ?? throw new InvalidOperationException("The recovery action has no scrollable viewport.");
+                int viewportTop = int.Parse((string?)scroll.Attribute("y") ?? "0", CultureInfo.InvariantCulture);
+                int viewportHeight = int.Parse((string?)scroll.Attribute("height") ?? "0", CultureInfo.InvariantCulture);
+                int center = CenterY(action);
+                int actionTop = int.Parse((string?)action.Attribute("y") ?? "0", CultureInfo.InvariantCulture);
+                int actionHeight = int.Parse((string?)action.Attribute("height") ?? "0", CultureInfo.InvariantCulture);
+                int clippedTop = Math.Max(actionTop, viewportTop);
+                int clippedBottom = Math.Min(actionTop + actionHeight, viewportTop + viewportHeight);
+                if (clippedBottom - clippedTop >= 4)
+                {
+                    actionInViewport = true;
+                    actionClickY = (clippedTop + clippedBottom) / 2;
+                    break;
+                }
+                bool moveDown = center > viewportTop + viewportHeight;
+                var thumb = scroll.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "thumb");
+                var line = scroll.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "button"
+                    && (string?)element.Attribute("Name") == (moveDown ? "Line down" : "Line up"));
+                if (thumb is not null)
+                    NativeWindow.DragAt(CenterX(thumb), CenterY(thumb), CenterX(thumb),
+                        CenterY(thumb) + (moveDown ? 5 : -5));
+                else if (line is not null)
+                    NativeWindow.ClickAt(CenterX(line), CenterY(line));
+                else
+                    NativeWindow.ScrollAt(CenterX(scroll), viewportTop + viewportHeight / 2,
+                        moveDown ? -1 : 1);
+                await Task.Delay(100);
+            }
+            if (action is null || !actionInViewport)
+                throw new InvalidOperationException("The recovery action could not be scrolled into view.");
+            NativeWindow.ClickAt(CenterX(action), actionClickY);
+            XDocument confirmation = current;
+            string approveName = mode == "sftp-upload-cleanup-native"
+                ? "Keep remote upload for review" : "Mark reviewed and stop reminders";
+            XElement? approve = null;
+            for (int attempt = 0; attempt < 20 && approve is null; attempt++)
+            {
+                await Task.Delay(150);
+                confirmation = ParseSource(await ReadSourceAsync(client, sessionId));
+                approve = FindVisible(confirmation, "button", approveName);
+            }
+            string confirmationText = VisibleText(confirmation);
+            bool serverWarning = confirmationText.Contains("server files", StringComparison.Ordinal)
+                && confirmationText.Contains("Target: " + remote, StringComparison.Ordinal);
+            if (!warningOnRow || !noFalseContinue || !serverWarning || approve is null)
+            {
+                await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+                {
+                    passed = false, warningOnRow, noFalseContinue, serverWarning,
+                    approveAvailable = approve is not null, confirmationText
+                }, new JsonSerializerOptions { WriteIndented = true }));
+                return 1;
+            }
+            NativeWindow.ClickAt(CenterX(approve), CenterY(approve));
+            bool journalState = false, reportState = false;
+            string reviewedDirectory = Path.Combine(journalDirectory, "reviewed");
+            for (int attempt = 0; attempt < 100 && !(journalState && reportState); attempt++)
+            {
+                var interrupted = JournalRecovery.Scan(journalDirectory);
+                journalState = mode == "sftp-upload-cleanup-native"
+                    ? interrupted.Any(job => job.JournalPath == upload.JournalPath)
+                    : interrupted.All(job => job.JournalPath != upload.JournalPath);
+                reportState = Directory.Exists(reviewedDirectory)
+                    && Directory.EnumerateFiles(reviewedDirectory, "review-*.json").Any(path =>
+                    {
+                        using var review = JsonDocument.Parse(File.ReadAllText(path));
+                        var value = review.RootElement;
+                        return value.GetProperty("JournalPath").GetString() == upload.JournalPath
+                            && value.GetProperty("Action").GetString() ==
+                                (mode == "sftp-upload-cleanup-native"
+                                    ? "Cleanup attempted; recovery remains open" : "Marked reviewed without file changes")
+                            && value.GetProperty("ClosureConfirmed").GetBoolean() ==
+                                (mode == "sftp-upload-mark-native")
+                            && value.GetProperty("Report").GetString()?.Contains(remote,
+                                StringComparison.Ordinal) == true;
+                    });
+                if (!(journalState && reportState)) await Task.Delay(100);
+            }
+            bool sourceIntact = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                await File.ReadAllBytesAsync(source))) == sourceHash;
+            bool passed = warningOnRow && noFalseContinue && serverWarning && journalState
+                && reportState && sourceIntact;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, mode, processId, warningOnRow, noFalseContinue, serverWarning,
+                journalState, reportState, sourceIntact, sourceHash, remote
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -5680,6 +5832,7 @@ internal static partial class NativeWindow
             Thread.Sleep(80);
         }
     }
+
 
     internal static async Task<ResizeResult> MeasureFindResizeAsync()
     {

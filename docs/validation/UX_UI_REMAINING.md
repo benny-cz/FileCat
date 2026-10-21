@@ -20,12 +20,9 @@ increments to `main`.
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
-   nonlocal destinations and other supported provider failure/cancellation
-   cases. For interrupted uploads, verify the server-side temporary file,
-   the new local-cleanup warning and journal retention, then inspect or
-   resolve the remote file before deliberately marking recovery reviewed.
-   Verify exact source/target bytes,
-   recovery choices and staged cleanup in each. For FCUX-018, verify
+   remaining supported provider failure and cancellation paths, including
+   changed remote state and FTP, with exact source/target bytes, recovery
+   choices and staged cleanup. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
@@ -91,7 +88,9 @@ increments to `main`.
    verified Windows normal/narrow/wide/restore row reflow and overflow.
    UXBUG-014 still needs native display-scale and spoken acceptance after the
    verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
-   normal-width details, and Mac normal/narrow finished details.
+   normal-width details, and Mac normal/narrow finished details. UXBUG-015
+   needs native invalid Copy-option correction, localized speed entry and
+   keyboard/spoken error feedback on supported desktops.
 
 ## Evidence required to finish
 

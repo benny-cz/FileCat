@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using Avalonia;
 using Avalonia.Automation;
@@ -153,7 +154,11 @@ public static class OperationDialogs
             body.Children.Add(includeHidden);
         }
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        AutomationProperties.SetName(error, "Transfer options error");
+        AutomationProperties.SetLiveSetting(error, AutomationLiveSetting.Assertive);
         body.Children.Add(error);
+        filter.TextChanged += (_, _) => error.IsVisible = false;
+        limit.TextChanged += (_, _) => error.IsVisible = false;
         body.Children.Add(Muted("Enter starts now · Queue waits for other operations on the same drive · the destination is fixed once started"));
 
         int destinationRevision = 0;
@@ -223,22 +228,14 @@ public static class OperationDialogs
         DestinationChanged();
         Dispatcher.UIThread.Post(() => dest.SelectAll(), DispatcherPriority.Input);
 
-        while (true)
+        TransferDialogResult? accepted = null;
+        bool TryAccept(bool queue)
         {
-            var closer = new DialogCloser();
-            using var stopRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null), DispatcherPriority.Input));
-            var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body,
-                [new DialogButton("Cancel", "cancel", IsCancel: true),
-                 new DialogButton("Queue", "queue") { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } },
-                 new DialogButton(verb, "start", IsDefault: true) { IsAvailable = CanSubmit, Validate = () => { if (CanSubmit()) return true; dest.Focus(); return false; } }], dest, closer: closer);
-            if (cancellationToken.IsCancellationRequested) result = null;
-            if (result is not ("start" or "queue"))
+            accepted = null;
+            if (!CanSubmit() || resolved is not { Valid: true } destinationResult)
             {
-                destinationOpen = false;
-                destinationRevision++;
-                destinationCancellation?.Cancel();
-                destinationDebounce.Stop();
-                return null;
+                dest.Focus();
+                return false;
             }
             Mask? mask = null;
             if (!string.IsNullOrWhiteSpace(filter.Text))
@@ -247,22 +244,33 @@ public static class OperationDialogs
                 {
                     error.Text = "Filter: " + maskError;
                     error.IsVisible = true;
-                    continue;
+                    filter.Focus();
+                    return false;
                 }
                 mask = m;
             }
             long rate = 0;
             if (!string.IsNullOrWhiteSpace(limit.Text))
             {
-                if (!double.TryParse(limit.Text, out var mb) || mb < 0)
+                const double bytesPerMb = 1024d * 1024d;
+                bool parsed = double.TryParse(limit.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var mb)
+                    || double.TryParse(limit.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out mb);
+                if (!parsed || !double.IsFinite(mb) || mb < 0 || mb >= long.MaxValue / bytesPerMb)
                 {
-                    error.Text = "Speed limit must be a number of megabytes per second.";
+                    error.Text = "Speed limit: enter a finite, nonnegative number of MB/s.";
                     error.IsVisible = true;
-                    continue;
+                    limit.Focus();
+                    return false;
                 }
-                rate = (long)(mb * 1024 * 1024);
+                if (mb > 0 && mb * bytesPerMb < 1)
+                {
+                    error.Text = "Speed limit: enter 0 for unlimited, or at least 1 byte per second.";
+                    error.IsVisible = true;
+                    limit.Focus();
+                    return false;
+                }
+                if (mb > 0) rate = (long)(mb * bytesPerMb);
             }
-            if (!CanSubmit() || resolved is not { Valid: true } destinationResult) { dest.Focus(); continue; }
             var options = new TransferOptions
             {
                 Conflicts = conflicts.SelectedIndex switch
@@ -279,16 +287,26 @@ public static class OperationDialogs
                 RateLimit = rate,
                 Flatten = flatten.IsChecked == true,
             };
-            destinationOpen = false;
-            destinationRevision++;
-            destinationCancellation?.Cancel();
-            destinationDebounce.Stop();
-            return new TransferDialogResult(dest.Text!.Trim(), options, result as string == "queue", includeHidden?.IsChecked != false)
+            error.IsVisible = false;
+            accepted = new TransferDialogResult(dest.Text!.Trim(), options, queue, includeHidden?.IsChecked != false)
             {
                 ResolvedDestination = destinationResult.Destination,
                 NewName = destinationResult.NewName,
             };
+            return true;
         }
+        var closer = new DialogCloser();
+        using var stopRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null), DispatcherPriority.Input));
+        var result = await vm.Dialogs.ShowCustomAsync(input.RecoveryReviewNotice is null ? verb : "Review a new " + verb.ToLowerInvariant(), body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true),
+             new DialogButton("Queue", "queue") { IsAvailable = CanSubmit, Validate = () => TryAccept(queue: true) },
+             new DialogButton(verb, "start", IsDefault: true) { IsAvailable = CanSubmit, Validate = () => TryAccept(queue: false) }],
+            dest, closer: closer);
+        destinationOpen = false;
+        destinationRevision++;
+        destinationCancellation?.Cancel();
+        destinationDebounce.Stop();
+        return !cancellationToken.IsCancellationRequested && result is ("start" or "queue") ? accepted : null;
     }
 
     /// <summary>A server's share or a mapped network drive (Windows): what may take long to answer.</summary>

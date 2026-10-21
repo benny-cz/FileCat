@@ -157,6 +157,24 @@ saved reviewed report and unchanged local bytes. Rehash `slow.bin` in the
 Ubuntu guest after cleanup against the original manifest. The cleanup
 verification is repeatable; the cleanup action requires an interrupted row.
 
+For a live SFTP-destination interruption, use the same isolated VM pair and
+fresh 32-lowercase-hex ID. Create a 16 MiB local `upload-source/up-slow.bin`
+with a unique prefix marker and a fresh empty Ubuntu `upload-destination` in
+the matching fixture root. Record the source SHA-256. In FileCat, open a Copy
+to `sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpRecovery/<id>/upload-destination`,
+set 0.0625 MB/s, and interrupt only the verified FileCat fixture process
+after the hidden `.fc-*` file has nonzero marker bytes and the journal is
+durable. Restart the same `--data` profile with a local panel at the fixture
+root. Put the fixture JSON beside the runner output and run
+`sftp-upload-cleanup-native <report.json>`. It checks that the row and decision
+warn about server files, the exact remote target is highlighted, local cleanup
+retains the journal and report, and the source hash does not change. Inspect
+the hidden file on Ubuntu by exact resolved path, owner, size, marker and
+checksum, and verify that the public target is absent. Resolve that exact
+test file before running `sftp-upload-mark-native <report.json>`, which checks
+the final warning, explicit closure, retained report and source hash. Neither
+runner mode contains a credential or claims to inspect the remote file.
+
 For native Windows clipboard interchange, run `seed-clipboard
 clipboard-fixture.json` in the guest and launch the current Git-built FileCat
 with its reported `--data`, `--left` and `--right` paths. Keep that seed report

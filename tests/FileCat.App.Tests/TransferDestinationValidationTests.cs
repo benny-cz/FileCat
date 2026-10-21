@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -11,6 +12,118 @@ namespace FileCat.App.Tests;
 
 public sealed class TransferDestinationValidationTests
 {
+    [AvaloniaFact]
+    public async Task Invalid_filter_stays_in_the_same_form_until_queue_options_are_corrected()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string source = Path.Combine(root, "files", "a.txt");
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            var pending = OperationDialogs.ShowTransferAsync(vm, new TransferDialogInput(JobKind.Copy,
+                [ItemRef.ForFileSystemPath(source, EntryKind.File)], "1 file",
+                target + Path.DirectorySeparatorChar, null, 0, false)
+                { BaseLocation = vm.ActiveTab?.Location });
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Expander>()
+                .Single(e => Equals(e.Header, "Options")).IsExpanded = true;
+            window.UpdateLayout();
+            var filter = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Only files matching:");
+            var queue = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Queue"));
+            var error = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(c => AutomationProperties.GetName(c) == "Transfer options error");
+            for (int i = 0; i < 250 && !queue.IsEnabled; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(queue.IsEnabled);
+            filter.Text = "@missing";
+            queue.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(dialogs.IsOpen);
+            Assert.False(pending.IsCompleted);
+            Assert.True(error.IsVisible);
+            Assert.Contains("Filter:", error.Text);
+            Assert.Same(filter, window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Only files matching:"));
+
+            filter.Text = "*.txt";
+            queue.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var result = Assert.IsType<TransferDialogResult>(await pending);
+            Assert.True(result.Queue);
+            Assert.NotNull(result.Options.Filter);
+            Assert.Empty(services.Jobs.Jobs);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("NaN", "0.0625")]
+    [InlineData("Infinity", "0,0625")]
+    [InlineData("-1", "0.0625")]
+    [InlineData("0.0000001", "0,0625")]
+    [InlineData("100000000000000000000", "0.0625")]
+    public async Task Invalid_speed_stays_in_the_same_form_and_local_or_dot_decimal_can_be_corrected(
+        string invalidSpeed, string correctedSpeed)
+    {
+        var priorCulture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("cs-CZ");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string source = Path.Combine(root, "files", "a.txt");
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            var pending = OperationDialogs.ShowTransferAsync(vm, new TransferDialogInput(JobKind.Copy,
+                [ItemRef.ForFileSystemPath(source, EntryKind.File)], "1 file",
+                target + Path.DirectorySeparatorChar, null, 0, false)
+                { BaseLocation = vm.ActiveTab?.Location });
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            await Until(() => dialogs.IsOpen);
+            window.UpdateLayout();
+            var options = window.GetVisualDescendants().OfType<Expander>()
+                .Single(e => Equals(e.Header, "Options"));
+            options.IsExpanded = true;
+            window.UpdateLayout();
+            var speed = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Speed limit (MB/s):");
+            var start = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Copy"));
+            var error = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(c => AutomationProperties.GetName(c) == "Transfer options error");
+            await Until(() => start.IsEnabled);
+            speed.Text = invalidSpeed;
+            start.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(dialogs.IsOpen);
+            Assert.False(pending.IsCompleted);
+            Assert.True(error.IsVisible);
+            Assert.Contains("Speed limit", error.Text);
+            Assert.Same(speed, window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Speed limit (MB/s):"));
+
+            speed.Text = correctedSpeed;
+            start.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var result = Assert.IsType<TransferDialogResult>(await pending);
+            Assert.Equal(65536, result.Options.RateLimit);
+            Assert.False(result.Queue);
+            Assert.Empty(services.Jobs.Jobs);
+
+            async Task Until(Func<bool> ready)
+            {
+                for (int i = 0; i < 250 && !ready(); i++)
+                    await Task.Delay(20, TestContext.Current.CancellationToken);
+                Assert.True(ready(), "The transfer form did not settle.");
+            }
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+            CultureInfo.CurrentCulture = priorCulture;
+        }
+    }
+
     [AvaloniaFact]
     public async Task Unsupported_destination_keeps_options_and_both_submission_buttons_in_the_form()
     {
