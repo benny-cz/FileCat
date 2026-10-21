@@ -693,6 +693,13 @@ complete source bytes, closes the viewer, removes only its own unchanged test
 file and refreshes the listing. Begin with no viewer open and no file named
 `native-backward-search.txt` in the fixture.
 
+`python3 mac-ax-viewer-hex-backward.py SOURCE REPORT.json` repeats the same
+distant-match, Previous/Next, F3/Shift+F3, visible count and changed-query
+checks in native Hex mode. It creates a distinct test-owned source file,
+requires exact byte offsets and unchanged content, closes the viewer, then
+removes only that exact fixture and refreshes the panel. Keep the companion
+Text runner beside it; both use the same isolated two-file source folder.
+
 `python3 mac-ax-markdown-find.py SOURCE REPORT.json` creates one short
 temporary Markdown file in the same isolated source folder. It opens Page
 mode, reveals Find, sends Command+A/Delete and types `marker` through native

@@ -45,8 +45,8 @@ increments to `main`.
    For FCUX-007, test native editor Previous routes, visible Stop,
    changed-query ownership beyond the verified Mac Text route, provider
    cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
-   Text and Markdown Page routes. Other Mac source
-   modes and assistive-technology routes still need native checks.
+   Text, Hex and Markdown Page routes. Mac Info and editor source modes,
+   plus assistive-technology routes, still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
