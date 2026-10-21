@@ -15,6 +15,13 @@ JSON report. It creates a fresh source/target/profile fixture, opens Copy,
 invokes the obscured toolbar and key-bar Copy/Delete actions through UI
 Automation, requires one unchanged review and no target, then cancels and
 checks the source hash. It closes only the test process it launched.
+`linux-atspi-copy-option-correction.py` runs in a logged-in Ubuntu desktop
+session against a Git-built executable under `~/FileCatValidation`. It creates
+its own fixture, opens Copy, expands Options, submits invalid `-1`, requires the
+visible error and matching accessible speed-field help in the still-open form,
+corrects the same field to `0.0625`, then checks the exact copied bytes and
+unchanged source. Its JSON report records the app and fixture hashes. It closes
+only the instance it launched.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app

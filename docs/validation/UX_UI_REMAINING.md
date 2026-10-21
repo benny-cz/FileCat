@@ -92,10 +92,10 @@ increments to `main`.
    UXBUG-014 still needs native display-scale and spoken acceptance after the
    verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
    normal-width details, and Mac normal/narrow finished details. UXBUG-015
-   needs native invalid Copy-option correction on Windows and Ubuntu,
-   localized speed entry, keyboard error navigation and actual spoken feedback
-   on supported desktops. The Mac AX field help is verified, but its VoiceOver
-   announcement remains to be heard and checked.
+   needs native invalid Copy-option correction on Windows, plus localized speed
+   entry, keyboard error navigation and actual spoken feedback on supported
+   desktops. Mac AX and Ubuntu AT-SPI field help are verified, but VoiceOver
+   and Linux screen-reader announcements remain to be heard and checked.
 
 ## Evidence required to finish
 
