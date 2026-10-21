@@ -649,7 +649,14 @@ suites passed 75 and 39 cases respectively, and the complete Remote Release
 suite passed 2,392 with 156 platform/lab skips; the complete Core Release suite
 passed 4,435 with 150 skips. These checks cannot be an atomic
 server-side compare-and-swap: a competing writer after the last check is
-still possible, and live SFTP/FTPS same-metadata acceptance remains open.
+still possible. A live Ubuntu OpenSSH run from Git head `3ddf9429`
+rate-limited a 4 MiB Move into an owned folder, waited for a nonempty hidden
+stage, then used a second SFTP connection to atomically replace the target
+with different bytes at the same size and modified time. The job refused
+publication, kept byte-exact source and changed target, removed the stage,
+reported the content conflict and cleaned the isolated folder. The focused
+guest test passed one case with no skips. Live FTPS same-metadata acceptance
+remains open.
 
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and
