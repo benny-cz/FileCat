@@ -410,7 +410,12 @@ native Undo row naming both the reviewed new path and original path, verifies
 Cancel preserves the renamed bytes, then approves Undo and checks the exact
 original filename and bytes are restored without changing the other file.
 For FCUX-002, run `seed-selection <fixture.json>` and launch the Git-built app
-with its reported source, destination and data paths. Run
+with its reported source, destination and data paths. Run the selection checks
+and `selection-stop` with `FILECAT_NATIVE_TEST_APP` set to
+that exact guest-local Git-built `FileCat.exe`. The runner requires the app to
+reside under the guest's `AppData\Local\FileCatValidation` directory and
+matches its process path, so another FileCat window cannot satisfy the check.
+Run
 `selection-native <report.json>` in the interactive guest desktop: it clicks
 `b.txt` as the range anchor, reverses the name sort, then Shift-clicks `c.txt`
 with native input. Only `b.txt` and `c.txt` may be marked, and the fixture

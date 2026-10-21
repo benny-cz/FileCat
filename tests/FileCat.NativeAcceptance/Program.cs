@@ -69,9 +69,11 @@ if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-re
         }
         else if (mode is "rename-stop" or "selection-stop")
         {
-            var expectedExecutable = Path.Combine(Environment.GetFolderPath(
+            var defaultExecutable = Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
                 "ReviewHighlights", "FileCat.exe");
+            var expectedExecutable = mode == "selection-stop"
+                ? SelectionTestAppPath() ?? defaultExecutable : defaultExecutable;
             var isolated = Process.GetProcessesByName("FileCat").Where(process =>
                 string.Equals(process.MainModule?.FileName, expectedExecutable,
                     StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -968,9 +970,9 @@ try
                     != "selection fixture " + name)
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             NativeWindow.Rect narrowWindow = narrow
-                ? NativeWindow.ResizeSelectionWindow(720, 540) : default;
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1025,7 +1027,7 @@ try
                     != "selection fixture " + name)
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1089,7 +1091,7 @@ try
                 || new[] { "e.txt", "f.txt" }.Any(name =>
                     File.ReadAllText(Path.Combine(second, name)) != "second tab fixture " + name))
                 throw new InvalidOperationException("The isolated two-tab fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             XElement List(XDocument document, string path) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.EndsWith(path,
@@ -1150,7 +1152,7 @@ try
                     != "selection fixture " + name)
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1221,7 +1223,7 @@ try
                     != "selection fixture " + name)
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1275,7 +1277,7 @@ try
                     != "selection fixture " + name)
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1326,9 +1328,9 @@ try
                 UseShellExecute = true
             });
             await Task.Delay(750);
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             NativeWindow.Rect narrowWindow = narrow
-                ? NativeWindow.ResizeSelectionWindow(720, 540) : default;
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement List(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains("selection-source",
@@ -1375,7 +1377,7 @@ try
             if (!changedWindow || !firstUnmarked)
                 throw new InvalidOperationException($"The held-Shift gesture or native deactivation failed: " +
                     $"firstUnmarked={firstUnmarked}, changedWindow={changedWindow}.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             await SendSessionKeysAsync(client, sessionId, "\uE008\uE015\uE000");
             var resumed = ParseSource(await ReadSourceAsync(client, sessionId));
             bool freshGesture = Marked(resumed).SequenceEqual(["c.txt"])
@@ -1427,7 +1429,7 @@ try
                 throw new InvalidOperationException("The isolated checksum Stop fixture is not pristine.");
             using (var stream = new FileStream(sourceFile, FileMode.CreateNew, FileAccess.Write,
                 FileShare.None, 4096, FileOptions.RandomAccess)) stream.SetLength(fileLength);
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000"); // Reread the owned folder.
             XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
             XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
@@ -1531,7 +1533,7 @@ try
             if (await File.ReadAllTextAsync(sourceFile) != sourceContent
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated checksum fixture is not pristine.");
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             var source = ParseSource(await ReadSourceAsync(client, sessionId));
             var row = source.Descendants().Single(element =>
                 (string?)element.Attribute("LocalizedControlType") == "list item"
@@ -1727,7 +1729,7 @@ try
             foreach (int offset in new[] { firstHit, secondHit })
                 markerBytes.AsSpan().CopyTo(bytes.AsSpan(offset));
             await File.WriteAllBytesAsync(sourceFile, bytes);
-            NativeWindow.FocusRecovery("selection-source");
+            NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
             await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000"); // Reread the owned folder.
             XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
             XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
@@ -5195,6 +5197,22 @@ static async Task<RecoveryFixture> ReadSelectionFixtureAsync(string reportPath)
     return new RecoveryFixture(source, destination, data);
 }
 
+static string? SelectionTestAppPath()
+{
+    var configured = Environment.GetEnvironmentVariable("FILECAT_NATIVE_TEST_APP");
+    if (string.IsNullOrWhiteSpace(configured)) return null;
+    var app = Path.GetFullPath(configured);
+    var root = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation")
+        + Path.DirectorySeparatorChar;
+    if (!app.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(Path.GetFileName(app), "FileCat.exe",
+            StringComparison.OrdinalIgnoreCase)
+        || !File.Exists(app))
+        throw new InvalidOperationException("The selected FileCat executable is outside the isolated Git build root.");
+    return app;
+}
+
 static async Task<XDocument> EnsureToolsSettingsAsync(HttpClient client, string sessionId)
 {
     var current = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -5715,14 +5733,30 @@ internal static partial class NativeWindow
         return (int)processId;
     }
 
-    internal static Rect ResizeSelectionWindow(int width, int height) =>
-        ResizeRecoveryWindow("selection-source", width, height);
+    internal static Rect ResizeSelectionWindow(int width, int height,
+        string? expectedExecutable = null) =>
+        ResizeRecoveryWindow("selection-source", width, height, expectedExecutable);
 
-    private static nint ValidatedRecoveryWindow(string sourceFolder)
+    private static nint ValidatedRecoveryWindow(string sourceFolder,
+        string? expectedExecutable = null)
     {
-        FocusRecovery(sourceFolder); // Also validates that this is the isolated VM build.
-        var window = FindWindow(null,
-            $"FileCat — {sourceFolder} — Admin (administrator, not elevated)");
+        FocusRecovery(sourceFolder, expectedExecutable); // Also validates the isolated VM build.
+        var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
+        nint window = 0;
+        if (expectedExecutable is null) window = FindWindow(null, title);
+        else
+        {
+            nint after = 0;
+            while ((after = FindWindowEx(0, after, null, title)) != 0)
+            {
+                GetWindowThreadProcessId(after, out var candidateId);
+                using var candidate = Process.GetProcessById((int)candidateId);
+                if (!string.Equals(candidate.MainModule?.FileName, expectedExecutable,
+                        StringComparison.OrdinalIgnoreCase)) continue;
+                window = after;
+                break;
+            }
+        }
         if (window == 0 && sourceFolder == "clipboard-source")
             window = FindWindow(null,
                 "FileCat — destination — Admin (administrator, not elevated)");
@@ -5739,9 +5773,10 @@ internal static partial class NativeWindow
         return bounds;
     }
 
-    internal static Rect ResizeRecoveryWindow(string sourceFolder, int width, int height)
+    internal static Rect ResizeRecoveryWindow(string sourceFolder, int width, int height,
+        string? expectedExecutable = null)
     {
-        var window = ValidatedRecoveryWindow(sourceFolder);
+        var window = ValidatedRecoveryWindow(sourceFolder, expectedExecutable);
         if (!GetWindowRect(window, out var before))
             throw new InvalidOperationException("The isolated FileCat window is unavailable.");
         ShowWindow(window, 9); // SW_RESTORE before applying physical pixel bounds.
