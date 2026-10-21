@@ -28,8 +28,7 @@ increments to `main`.
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
-   delayed Paste destination on each desktop, plus interruption during an
-   active Mac data transfer. Windows still needs Explorer Cut
+   delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
    FCUX-002 still needs other narrow-window routes,

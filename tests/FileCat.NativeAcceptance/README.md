@@ -794,6 +794,26 @@ result, closed recovery tracking and fixture restoration. Its
 `reseed-after-crash` phase preserves a failed profile and journal before
 resetting only this runner's exact two-file fixture for another build.
 
+`mac-ax-active-copy-interruption.py PHASE mac-active-copy-<8hex>.json REPORT.json`
+checks a real Mac data-transfer interruption in a separate 4 MiB fixture.
+Set `FILECAT_NATIVE_MAC_BUNDLE` to the signed validation bundle under
+`~/FileCatValidation` if it is not the default. `seed` creates an isolated
+source, empty destination and profile; launch the receipt's exact executable
+with `--new-instance --data DATA --left SOURCE --right DESTINATION`.
+`open-form` focuses the exact source row and opens Copy. `prepare` expands
+Options, sets 0.0625 MB/s, selects the modal approval rather than the main
+key-bar Copy button, requires a nonzero but incomplete staged prefix matching
+the source, an unpublished target and a journal retaining that exact rate and
+mapping, then kills only the exact app process. `inspect-interruption` records
+the durable state. Restart the same executable and profile. `inspect-recovery`,
+`review`, `cancel-review`, `continue-review`, `inspect-completion` and
+`stop-completed` verify the retained destination, explicit decisions, no
+mutation on Cancel, byte-identical completed Copy, removed staging, closed
+recovery tracking and exact-process shutdown. Keep the completed fixture and
+JSON receipts in `~/FileCatValidation`; a new manifest creates a separate
+fixture for another run. `inspect-window` and `inspect-form` expose bounded
+read-only accessibility diagnostics when a native control differs.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an
