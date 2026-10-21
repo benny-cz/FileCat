@@ -638,6 +638,13 @@ must find rendered text while WebKitGTK reports exactly `2 matches`. The
 runner verifies unchanged bytes, closes only the owned viewer window,
 removes its exact test file and refreshes the panel. Both scripts must be
 present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
+Pass an optional `linux-uinput-key.py` path after the report to clear and
+restore the query, then require physical F3 and Shift+F3 each to produce a
+fresh exact `2 matches` result. `--launch APP REPORT.json UINPUT_HELPER`
+creates its own exact two-file source, data profile and target under
+`~/FileCatValidation`, starts the isolated Git-built app and closes only that
+owned process afterward. The guest's native-input helper needs its established
+sudo access; supply `FILECAT_NATIVE_SUDO_PASSWORD` only to the guest process.
 
 `linux-atspi-hex-editor-find.py seed ROOT` creates a new 7 MiB file below
 `~/FileCatValidation/HexEditorFind` with two matches more than 4 MiB apart.
