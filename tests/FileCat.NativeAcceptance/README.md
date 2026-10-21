@@ -28,6 +28,12 @@ checks in the logged-in Windows VM with UI Automation. Pass an isolated
 `-ReportPath`; run it with VMware's `-interactive` switch. It checks both the
 visible error and the speed field's accessible HelpText, and closes only its
 own test instance.
+`win-ax-dialog-pointer-dismiss.ps1` opens the Registry chooser in an isolated
+Git-built app, verifies the accessible close X, then clicks the X and the
+backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
+guest-local `-ReportPath`. It checks the foreground process ID before sending
+F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
+that refuses to foreground the isolated app fails safely before the check.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app

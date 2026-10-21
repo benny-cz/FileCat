@@ -29,6 +29,10 @@ public sealed class OverlayDialogPointerDismissTests
                 button => button.Name == "DialogCloseButton");
             Assert.Equal("Close dialog", AutomationProperties.GetName(close));
             Assert.True(close.IsEffectivelyVisible && close.IsEffectivelyEnabled);
+            var icon = Assert.IsType<PathIcon>(close.Content);
+            var iconCenter = icon.TranslatePoint(new Point(icon.Bounds.Width / 2, icon.Bounds.Height / 2), close)!.Value;
+            Assert.InRange(Math.Abs(iconCenter.X - close.Bounds.Width / 2), 0, 0.5);
+            Assert.InRange(Math.Abs(iconCenter.Y - close.Bounds.Height / 2), 0, 0.5);
             if (closeButton) Click(window, Center(close, window));
             else Click(window, new Point(5, 5));
             Assert.Equal(-1, (await pending.WaitAsync(TimeSpan.FromSeconds(5))).Index);

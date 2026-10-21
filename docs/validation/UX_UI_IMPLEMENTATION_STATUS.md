@@ -1359,8 +1359,19 @@ input to the close X and backdrop for the Registry chooser, verifies the custom
 cancel result, inner-only dismissal and preserved outer draft, and proves an
 inside click does not cancel a confirmation. Five focused cases and 51 related
 dialog, focus, lifetime and viewport cases pass on Windows with 16 workers.
-Native pointer checks at normal and scaled sizes and assistive-technology
-labeling remain open across Windows, Ubuntu and macOS.
+The owner confirmed both pointer exits on the Windows workstation, then
+reported that the font-based X sat off center. It now uses a symmetric vector
+shape inside the 30-DIP button; the pointer regression measures the icon's
+rendered horizontal and vertical center within 0.5 DIP. The 51-case related
+suite passes again after this correction. A guarded Windows VM runner is
+tracked for native Registry checks. Its foreground-process check refused to
+send F7 when an older FileCat window retained focus; the incidental empty
+Create folder prompt from the first exploratory run was canceled without
+creating anything. Native vector appearance at display scales, VM pointer
+checks and assistive-technology labeling remain open across Windows, Ubuntu
+and macOS. A complete local App suite attempt was stopped before a final
+result after 17 minutes; it is not counted as a pass. Final five-lane CI is
+pending on the next pushed head.
 
 ## Reproduction
 

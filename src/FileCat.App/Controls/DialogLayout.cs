@@ -48,7 +48,13 @@ internal sealed class DialogCard : Border
         titleLine.Children.Add(titleText);
         var close = new Button
         {
-            Name = "DialogCloseButton", Content = "×", Width = 30, Height = 30,
+            Name = "DialogCloseButton",
+            Content = new PathIcon
+            {
+                Data = Geometry.Parse("M1.5,0 L6,4.5 L10.5,0 L12,1.5 L7.5,6 L12,10.5 L10.5,12 L6,7.5 L1.5,12 L0,10.5 L4.5,6 L0,1.5 Z"),
+                Width = 14, Height = 14,
+            },
+            Width = 30, Height = 30,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
         };
         AutomationProperties.SetName(close, "Close dialog");

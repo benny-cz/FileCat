@@ -95,9 +95,10 @@ increments to `main`.
    feedback on supported desktops. The same-dialog invalid-speed correction
    and accessible field help passed native Mac, Ubuntu and Windows checks,
    but screen-reader announcements remain to be heard and checked.
-   UXBUG-016 needs native pointer and scaled-layout acceptance for the shared
-   dialog close X and backdrop cancellation beyond the headless Registry,
-   confirmation and nested-dialog checks.
+   UXBUG-016 needs a native visual check of the centered vector X at 100%,
+   150% and 200% display scale, a foreground-owned Windows VM pointer run,
+   Ubuntu/macOS pointer routes and assistive-technology labeling beyond the
+   passing headless Registry, confirmation and nested-dialog checks.
 
 ## Evidence required to finish
 
