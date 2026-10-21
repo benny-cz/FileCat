@@ -112,6 +112,22 @@ The fixture uses a real journal with its transfer-intent fields removed and
 CRC rewritten, so startup follows the legacy path without inventing a ZIP or
 modifying user data.
 
+For the unsupported-provider refusal case, run `seed-remote-source
+remote-fixture.json` or `seed-remote-destination remote-fixture.json` in a
+separate guest validation folder for each case. The seed writes a versioned
+journal containing an unavailable SFTP endpoint and a local sentinel file;
+it never connects to that endpoint. Launch the fixture's `app` executable
+with `--new-instance --data <data> --left <source> --right <destination>`.
+Keep `remote-fixture.json` beside `remote-recovery-native <report.json>`.
+The native check focuses that exact isolated build, scrolls its recovery row
+into view and requires reselection guidance, an opened retained report, no
+prefilled Continue or new-transfer action, a non-continuable journal,
+unchanged local bytes and an empty local destination.
+`FILECAT_NATIVE_TEST_APP` can point the seeder to a
+different Git-built `FileCat.exe` beneath the guest's FileCatValidation root.
+These cases test refusal for an unavailable provider. They do not establish
+interruption or recovery behavior for a supported live remote connection.
+
 For native Windows clipboard interchange, run `seed-clipboard
 clipboard-fixture.json` in the guest and launch the current Git-built FileCat
 with its reported `--data`, `--left` and `--right` paths. Keep that seed report

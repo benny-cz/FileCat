@@ -11,20 +11,22 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
-    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <snapshot|accessibility-list|breadcrumb-native|panel-resize-native|places-native|operation-open-details|operation-average-native|operation-save-native|seed-compare|compare-native|compare-stop|seed-selection|selection-native|selection-narrow-native|selection-filter-native|selection-tab-native|selection-refresh-native|selection-ctrl-native|selection-keyboard-native|selection-deactivation-native|selection-deactivation-narrow-native|checksum-native|checksum-whole-native|checksum-stop-native|checksum-changed-native|checksum-narrow-native|search-native|search-utf16-native|hex-editor-search-native|selection-stop|rename-native|rename-hidden-native|rename-narrow-native|rename-hidden-narrow-native|rename-hidden-compact-native|rename-undo-native|rename-stop|find|advanced|tools-menu|settings|settings-tools|editor-browse|editor-picker-cancel|editor-program-preview|editor-keyboard|editor-value|editor-draft-cancel|markdown-search|markdown-resize|markdown-narrow|seed-recovery|seed-legacy|legacy-stop|seed-desktop|seed-cross-volume|seed-clipboard|seed-clipboard-conflict|clipboard-native|clipboard-cut-native|clipboard-ole-effect-native|clipboard-stop|interrupt-live|inspect-live|inspect-desktop|focus-desktop|desktop-select|desktop-copy-form|desktop-options|desktop-prepare|desktop-interrupt|desktop-review|desktop-continue|cross-prepare|cross-interrupt|cross-continue|clipboard-cut|clipboard-cut-two|clipboard-copy|explorer-navigate|explorer-copy|explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste|clipboard-paste-subset|clipboard-paste-explorer-cut|clipboard-open-review|clipboard-cancel-native|clipboard-paste-review|clipboard-move|undo-native|undo-review-native|folder-undo-native|file-undo-native|file-undo-kept-native|hardlink-undo-native|hardlink-undo-changed-native|symlink-undo-native|symlink-undo-changed-native|junction-undo-native|junction-undo-changed-native|recycle-review|recycle-native|history-wrap-native|focus-recovery|recovery-review|live-review|legacy-review|legacy-start-review|legacy-highlight|legacy-resize|legacy-cancel|legacy-new-copy|recovery-cancel|recovery-continue|live-continue|find-resize|advanced-resize> <report-path>");
+    Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
 }
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
 {
     try
     {
         if (mode == "seed-recovery") await SeedRecoveryFixtureAsync(reportPath);
         else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
+        else if (mode is "seed-remote-source" or "seed-remote-destination")
+            await SeedRemoteRecoveryAsync(reportPath, remoteSource: mode == "seed-remote-source");
         else if (mode == "legacy-stop")
         {
             var expectedExecutable = Path.Combine(Environment.GetFolderPath(
@@ -2307,6 +2309,122 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "remote-recovery-native")
+        {
+            var fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
+                "remote-fixture.json");
+            using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
+            var fixture = fixtureDoc.RootElement;
+            string root = fixture.GetProperty("root").GetString()!;
+            string source = fixture.GetProperty("source").GetString()!;
+            string destination = fixture.GetProperty("destination").GetString()!;
+            string data = fixture.GetProperty("data").GetString()!;
+            string journal = fixture.GetProperty("journal").GetString()!;
+            string localFile = fixture.GetProperty("localFile").GetString()!;
+            string localBytes = fixture.GetProperty("localBytes").GetString()!;
+            string marker = fixture.GetProperty("marker").GetString()!;
+            string app = fixture.GetProperty("app").GetString()!;
+            bool remoteSource = fixture.GetProperty("remoteSource").GetBoolean();
+            var validationRoot = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "RemoteRecovery")
+                + Path.DirectorySeparatorChar;
+            bool IsBelow(string path, string parent) => Path.GetFullPath(path).StartsWith(
+                Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase);
+            if (!IsBelow(root, validationRoot)
+                || !IsBelow(source, root)
+                || !IsBelow(destination, root)
+                || !IsBelow(data, root)
+                || !IsBelow(journal, data)
+                || !IsBelow(localFile, source)
+                || !IsBelow(app, Path.Combine(Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData), "FileCatValidation"))
+                || !string.Equals(Path.GetFileName(app), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+                || marker != (remoteSource ? "remote-source" : "remote-destination"))
+                throw new InvalidOperationException("The remote recovery fixture is outside the validation root.");
+            NativeWindow.FocusRecovery(marker, app);
+            var document = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    $"FileCat — {marker}", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("The isolated remote recovery window is unavailable.");
+            bool HasGuidance(XElement scope) => scope.Descendants().Any(element =>
+                (string?)element.Attribute("IsOffscreen") == "False"
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "Select the sources and destination again", StringComparison.Ordinal) == true);
+            if (!HasGuidance(window) && FindVisible(window, "button", "Details (Ctrl+J)") is { } details)
+            {
+                NativeWindow.ClickAt(CenterX(details), CenterY(details));
+                await Task.Delay(300);
+                document = ParseSource(await ReadSourceAsync(client, sessionId));
+                window = document.Descendants().First(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "window"
+                    && ((string?)element.Attribute("Name"))?.StartsWith(
+                        $"FileCat — {marker}", StringComparison.Ordinal) == true);
+            }
+            // Avalonia UIA can mark clipped drawer children as not offscreen.
+            // Bring the actual action row into the drawer viewport before clicking it.
+            NativeWindow.ScrollAt(800, 740, -4);
+            await Task.Delay(300);
+            document = ParseSource(await ReadSourceAsync(client, sessionId));
+            window = document.Descendants().First(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    $"FileCat — {marker}", StringComparison.Ordinal) == true);
+            var names = window.Descendants().Where(element =>
+                (string?)element.Attribute("IsOffscreen") == "False")
+                .Select(element => (string?)element.Attribute("Name") ?? "").ToArray();
+            bool guidance = names.Any(name => name.Contains(
+                "Select the sources and destination again", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(
+                    "cleanup and the recovery report remain available", StringComparison.Ordinal));
+            bool noMisleadingAction = !window.Descendants().Any(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && ((string?)element.Attribute("Name") is "Continue copy…" or "Review a new transfer…"));
+            var reportButton = window.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "Review retained recovery report for ", StringComparison.Ordinal) == true);
+            bool reportAvailable = reportButton is not null;
+            bool reportOpened = false;
+            if (reportButton is not null)
+            {
+                int reportCountBefore = document.Descendants().Count(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "window"
+                    && ((string?)element.Attribute("Name"))?.Contains(
+                        "Interrupted recovery report — FileCat", StringComparison.Ordinal) == true);
+                NativeWindow.ClickAt(CenterX(reportButton), CenterY(reportButton));
+                for (var attempt = 0; attempt < 5 && !reportOpened; attempt++)
+                {
+                    await Task.Delay(200);
+                    var reportUi = ParseSource(await ReadSourceAsync(client, sessionId));
+                    var reportWindows = reportUi.Descendants().Where(element =>
+                        (string?)element.Attribute("LocalizedControlType") == "window"
+                        && ((string?)element.Attribute("Name"))?.Contains(
+                            "Interrupted recovery report — FileCat", StringComparison.Ordinal) == true).ToArray();
+                    reportOpened = reportWindows.Length > reportCountBefore
+                        && reportWindows.Any(reportWindow => reportWindow.Descendants().Any(element =>
+                            (string?)element.Attribute("Name") == "Find in the report"));
+                }
+            }
+            bool journalRetained = File.Exists(journal)
+                && JournalRecovery.Scan(Path.Combine(data, "local", "journal"))
+                    is [{ CanContinueTransfer: false }];
+            bool bytesIntact = await File.ReadAllTextAsync(localFile) == localBytes
+                && !Directory.EnumerateFileSystemEntries(destination).Any();
+            bool passed = guidance && noMisleadingAction && reportAvailable && reportOpened
+                && journalRetained && bytesIntact;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, remoteSource, guidance, noMisleadingAction, reportAvailable, reportOpened,
+                journalRetained, bytesIntact, marker,
+                visibleNames = passed ? null : names
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode == "recovery-cancel")
         {
             var fixture = await ReadRecoveryFixtureAsync(reportPath);
@@ -4164,6 +4282,62 @@ static async Task SeedLegacyRecoveryAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
+static async Task SeedRemoteRecoveryAsync(string reportPath, bool remoteSource)
+{
+    var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    if (string.IsNullOrWhiteSpace(local))
+        throw new InvalidOperationException("The guest user-local data folder is unavailable.");
+    var app = Environment.GetEnvironmentVariable("FILECAT_NATIVE_TEST_APP")
+        ?? Path.Combine(local, "FileCatValidation", "HexButtons-20261021", "FileCat.exe");
+    if (!Path.GetFullPath(app).StartsWith(Path.Combine(local, "FileCatValidation")
+            + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(Path.GetFileName(app), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+        || !File.Exists(app))
+        throw new InvalidOperationException("The isolated Git-built FileCat executable is unavailable.");
+    var root = Path.Combine(local, "FileCatValidation", "RemoteRecovery", Guid.NewGuid().ToString("N"));
+    var source = Path.Combine(root, remoteSource ? "remote-source" : "remote-destination");
+    var destination = Path.Combine(root, "destination");
+    var data = Path.Combine(root, "data");
+    Directory.CreateDirectory(source);
+    Directory.CreateDirectory(destination);
+    var localFile = Path.Combine(source, "local.txt");
+    const string localBytes = "local test bytes remain unchanged";
+    await File.WriteAllTextAsync(localFile, localBytes);
+    var remote = new Location(Schemes.Sftp, "/FileCatValidation/nonexistent",
+        session: "missing-native-test-profile");
+    var request = new JobRequest
+    {
+        Kind = JobKind.Copy,
+        Sources = remoteSource
+            ? [new ItemRef(remote, "remote.txt", EntryKind.File)]
+            : [ItemRef.ForFileSystemPath(localFile, EntryKind.File)],
+        Destination = remoteSource ? Location.FileSystem(destination) : remote,
+        Mode = QueueMode.Queue
+    };
+    var journalDirectory = Path.Combine(data, "local", "journal");
+    Directory.CreateDirectory(journalDirectory);
+    var jobs = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journalDirectory)
+    {
+        MaxConcurrent = 0
+    };
+    var job = jobs.Submit(request);
+    if (job.State != JobState.Queued)
+        throw new InvalidOperationException("Remote fixture job unexpectedly started.");
+    string journal;
+    using (var writer = JobJournal.Create(journalDirectory, job))
+        journal = writer.Path;
+    var interrupted = JournalRecovery.Scan(journalDirectory).Single();
+    if (interrupted.CanContinueTransfer || interrupted.TransferIntentProblem is null
+        || !interrupted.TransferIntentProblem.Contains("provider", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Remote fixture incorrectly allows equivalent continuation.");
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        root, source, destination, data, journal, localFile, localBytes, app,
+        remoteSource, marker = remoteSource ? "remote-source" : "remote-destination",
+        interrupted.TransferIntentProblem
+    }, new JsonSerializerOptions { WriteIndented = true }));
+}
+
 static string CrossVolumeDestinationRoot()
 {
     var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -4935,7 +5109,7 @@ internal static partial class NativeWindow
 
     internal static int FocusRecovery(string sourceFolder = "source", string? expectedExecutable = null)
     {
-        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source" or "selection-source"))
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source" or "selection-source" or "remote-source" or "remote-destination"))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var buildRoot = Path.Combine(Environment.GetFolderPath(

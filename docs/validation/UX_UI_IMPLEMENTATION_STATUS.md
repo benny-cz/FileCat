@@ -488,6 +488,13 @@ details direct the user to select the sources and destination again while
 retaining cleanup and report access. Local legacy journals still offer a new
 review without repeating that instruction in the row. The two remote-source
 and remote-destination journal cases and the related 16-case App UI suite pass.
+The Windows 11 VM also passed both native unavailable-SFTP cases using the
+Git-built isolated app. Each showed reselection guidance and opened its
+retained report without Continue or prefilled new-transfer actions; its
+non-continuable journal, local sentinel bytes and empty local destination
+remained unchanged. The native runner validates the exact app executable and
+fixture paths before interacting. This verifies the unsupported-provider
+refusal on Windows, not a live supported-provider transfer.
 Supported nonlocal-provider interruption, bytes and staging acceptance still
 remain open.
 
