@@ -463,6 +463,13 @@ only `d.txt`. Finish with `selection-stop`.
 new fixture after measuring a 720 × 540 main window. It asserts the same held
 modifier, window and command-line focus transitions, exact marks and untouched
 files at the narrow size. Finish with `selection-stop`.
+The filter, tab, refresh, Ctrl-click and keyboard journeys also accept
+`selection-filter-narrow-native`, `selection-tab-narrow-native`,
+`selection-refresh-narrow-native`, `selection-ctrl-narrow-native`, and
+`selection-keyboard-narrow-native`. Run each on a fresh seed, with
+`FILECAT_NATIVE_TEST_APP` bound to the Git-built executable. Each variant
+measures the 720 × 540 physical-pixel main window and requires the same exact
+marks, focus and fixture-byte checks as its normal-width counterpart.
 For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
 app, then run `checksum-native <report.json>` in the interactive guest desktop.
 It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews

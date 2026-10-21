@@ -11,7 +11,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -1019,8 +1019,9 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "selection-filter-native")
+        else if (mode is "selection-filter-native" or "selection-filter-narrow-native")
         {
+            bool narrow = mode == "selection-filter-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var names = new[] { "a.txt", "b.txt", "c.txt", "d.txt" };
             if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
@@ -1028,6 +1029,8 @@ try
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
             NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+            NativeWindow.Rect narrowWindow = narrow
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1074,16 +1077,20 @@ try
             bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
                     == "selection fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
-            bool passed = correctFallback && unchangedFiles;
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 680 and <= 760
+                && narrowWindow.Height is >= 500 and <= 580;
+            bool passed = correctFallback && unchangedFiles && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, filtered, revealed, correctFallback, unchangedFiles,
+                narrow, narrowApplied, narrowWindow,
                 hiddenOrder = VisibleNames(hidden), restoredOrder = VisibleNames(restored), marked
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "selection-tab-native")
+        else if (mode is "selection-tab-native" or "selection-tab-narrow-native")
         {
+            bool narrow = mode == "selection-tab-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var second = Path.Combine(fixture.Source, "second");
             if (new[] { "a.txt", "b.txt", "c.txt", "d.txt" }.Any(name =>
@@ -1092,6 +1099,8 @@ try
                     File.ReadAllText(Path.Combine(second, name)) != "second tab fixture " + name))
                 throw new InvalidOperationException("The isolated two-tab fixture is not pristine.");
             NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+            NativeWindow.Rect narrowWindow = narrow
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement List(XDocument document, string path) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.EndsWith(path,
@@ -1136,16 +1145,20 @@ try
                 && new[] { "e.txt", "f.txt" }.All(name =>
                     File.ReadAllText(Path.Combine(second, name)) == "second tab fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
-            bool passed = eFocused && correctRange && unchangedFiles;
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 680 and <= 760
+                && narrowWindow.Height is >= 500 and <= 580;
+            bool passed = eFocused && correctRange && unchangedFiles && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, eFocused, correctRange, unchangedFiles, marked,
+                narrow, narrowApplied, narrowWindow,
                 source = fixture.Source, second
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "selection-refresh-native")
+        else if (mode is "selection-refresh-native" or "selection-refresh-narrow-native")
         {
+            bool narrow = mode == "selection-refresh-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var names = new[] { "a.txt", "b.txt", "c.txt", "d.txt" };
             if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
@@ -1153,6 +1166,8 @@ try
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
             NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+            NativeWindow.Rect narrowWindow = narrow
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1206,17 +1221,21 @@ try
                 && new[] { "a.txt", "b.txt", "c.txt" }.All(name =>
                     File.ReadAllText(Path.Combine(fixture.Source, name)) == "selection fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 680 and <= 760
+                && narrowWindow.Height is >= 500 and <= 580;
             bool passed = bFocusedBefore && refreshedRows && bFocusedAfter
-                && correctRange && filesMatch;
+                && correctRange && filesMatch && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, bFocusedBefore, refreshedRows, bFocusedAfter,
-                correctRange, filesMatch, marked
+                correctRange, filesMatch, marked,
+                narrow, narrowApplied, narrowWindow
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "selection-ctrl-native")
+        else if (mode is "selection-ctrl-native" or "selection-ctrl-narrow-native")
         {
+            bool narrow = mode == "selection-ctrl-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var names = new[] { "a.txt", "b.txt", "c.txt", "d.txt" };
             if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
@@ -1224,6 +1243,8 @@ try
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
             NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+            NativeWindow.Rect narrowWindow = narrow
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1260,17 +1281,21 @@ try
             bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
                     == "selection fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 680 and <= 760
+                && narrowWindow.Height is >= 500 and <= 580;
             bool passed = unmarkedAnchor && firstToggle && secondToggle && thirdToggle
-                && retainedAnchor && unchangedFiles;
+                && retainedAnchor && unchangedFiles && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, unmarkedAnchor, firstToggle, secondToggle, thirdToggle,
-                retainedAnchor, unchangedFiles, marked
+                retainedAnchor, unchangedFiles, marked,
+                narrow, narrowApplied, narrowWindow
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode == "selection-keyboard-native")
+        else if (mode is "selection-keyboard-native" or "selection-keyboard-narrow-native")
         {
+            bool narrow = mode == "selection-keyboard-narrow-native";
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var names = new[] { "a.txt", "b.txt", "c.txt", "d.txt" };
             if (names.Any(name => File.ReadAllText(Path.Combine(fixture.Source, name))
@@ -1278,6 +1303,8 @@ try
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated selection fixture is not pristine.");
             NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+            NativeWindow.Rect narrowWindow = narrow
+                ? NativeWindow.ResizeSelectionWindow(720, 540, SelectionTestAppPath()) : default;
             XElement SourceList(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
@@ -1306,11 +1333,15 @@ try
             bool unchangedFiles = names.All(name => File.ReadAllText(Path.Combine(fixture.Source, name))
                     == "selection fixture " + name)
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
-            bool passed = markedRange && focusReturned && unmarkedRange && unchangedFiles;
+            bool narrowApplied = !narrow || narrowWindow.Width is >= 680 and <= 760
+                && narrowWindow.Height is >= 500 and <= 580;
+            bool passed = markedRange && focusReturned && unmarkedRange
+                && unchangedFiles && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, markedRange, focusReturned, unmarkedRange, unchangedFiles,
-                marked = Marked(marked), finalMarked = Marked(unmarked)
+                marked = Marked(marked), finalMarked = Marked(unmarked),
+                narrow, narrowApplied, narrowWindow
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
