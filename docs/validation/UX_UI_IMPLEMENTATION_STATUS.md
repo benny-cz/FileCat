@@ -569,8 +569,10 @@ Avalonia reported that a control already had a parent. Transfer option
 validation now runs before closing the dialog, keeps an assertive inline
 error beside invalid options, accepts local and invariant decimal notation,
 and rejects nonfinite, negative, overflowing or positive sub-byte limits.
-The same form preserves every choice through correction. The 27-case focused
-App run covers invalid filter and speed correction, Copy and Queue, and the
+The offending filter or speed field now carries the same message as accessible
+help text while it is invalid, then clears that help on correction. The same
+form preserves every choice through correction. The focused App run covers
+invalid filter and speed correction, Copy and Queue, field help, and the
 interrupted-upload warning/retention cases.
 
 After the report that the recovery dialog still read as a wall of text, the

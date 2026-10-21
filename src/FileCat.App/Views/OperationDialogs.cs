@@ -157,8 +157,21 @@ public static class OperationDialogs
         AutomationProperties.SetName(error, "Transfer options error");
         AutomationProperties.SetLiveSetting(error, AutomationLiveSetting.Assertive);
         body.Children.Add(error);
-        filter.TextChanged += (_, _) => error.IsVisible = false;
-        limit.TextChanged += (_, _) => error.IsVisible = false;
+        void ClearOptionError()
+        {
+            error.IsVisible = false;
+            AutomationProperties.SetHelpText(filter, string.Empty);
+            AutomationProperties.SetHelpText(limit, string.Empty);
+        }
+        void ShowOptionError(TextBox field, string message)
+        {
+            error.Text = message;
+            error.IsVisible = true;
+            AutomationProperties.SetHelpText(field, message);
+            field.Focus();
+        }
+        filter.TextChanged += (_, _) => ClearOptionError();
+        limit.TextChanged += (_, _) => ClearOptionError();
         body.Children.Add(Muted("Enter starts now · Queue waits for other operations on the same drive · the destination is fixed once started"));
 
         int destinationRevision = 0;
@@ -242,9 +255,7 @@ public static class OperationDialogs
             {
                 if (!Mask.TryParse(filter.Text, out var m, out var maskError))
                 {
-                    error.Text = "Filter: " + maskError;
-                    error.IsVisible = true;
-                    filter.Focus();
+                    ShowOptionError(filter, "Filter: " + maskError);
                     return false;
                 }
                 mask = m;
@@ -257,16 +268,12 @@ public static class OperationDialogs
                     || double.TryParse(limit.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out mb);
                 if (!parsed || !double.IsFinite(mb) || mb < 0 || mb >= long.MaxValue / bytesPerMb)
                 {
-                    error.Text = "Speed limit: enter a finite, nonnegative number of MB/s.";
-                    error.IsVisible = true;
-                    limit.Focus();
+                    ShowOptionError(limit, "Speed limit: enter a finite, nonnegative number of MB/s.");
                     return false;
                 }
                 if (mb > 0 && mb * bytesPerMb < 1)
                 {
-                    error.Text = "Speed limit: enter 0 for unlimited, or at least 1 byte per second.";
-                    error.IsVisible = true;
-                    limit.Focus();
+                    ShowOptionError(limit, "Speed limit: enter 0 for unlimited, or at least 1 byte per second.");
                     return false;
                 }
                 if (mb > 0) rate = (long)(mb * bytesPerMb);
@@ -287,7 +294,7 @@ public static class OperationDialogs
                 RateLimit = rate,
                 Flatten = flatten.IsChecked == true,
             };
-            error.IsVisible = false;
+            ClearOptionError();
             accepted = new TransferDialogResult(dest.Text!.Trim(), options, queue, includeHidden?.IsChecked != false)
             {
                 ResolvedDestination = destinationResult.Destination,

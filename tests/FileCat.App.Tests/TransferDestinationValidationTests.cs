@@ -96,10 +96,15 @@ public sealed class TransferDestinationValidationTests
             Assert.False(pending.IsCompleted);
             Assert.True(error.IsVisible);
             Assert.Contains("Filter:", error.Text);
+            Assert.Equal(error.Text, AutomationProperties.GetHelpText(filter));
             Assert.Same(filter, window.GetVisualDescendants().OfType<TextBox>()
                 .Single(c => AutomationProperties.GetName(c) == "Only files matching:"));
 
             filter.Text = "*.txt";
+            for (int i = 0; i < 250 && error.IsVisible; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.False(error.IsVisible);
+            Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(filter)));
             queue.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var result = Assert.IsType<TransferDialogResult>(await pending);
             Assert.True(result.Queue);
@@ -149,10 +154,14 @@ public sealed class TransferDestinationValidationTests
             Assert.False(pending.IsCompleted);
             Assert.True(error.IsVisible);
             Assert.Contains("Speed limit", error.Text);
+            Assert.Equal(error.Text, AutomationProperties.GetHelpText(speed));
             Assert.Same(speed, window.GetVisualDescendants().OfType<TextBox>()
                 .Single(c => AutomationProperties.GetName(c) == "Speed limit (MB/s):"));
 
             speed.Text = correctedSpeed;
+            await Until(() => !error.IsVisible);
+            Assert.False(error.IsVisible);
+            Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(speed)));
             start.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var result = Assert.IsType<TransferDialogResult>(await pending);
             Assert.Equal(65536, result.Options.RateLimit);
