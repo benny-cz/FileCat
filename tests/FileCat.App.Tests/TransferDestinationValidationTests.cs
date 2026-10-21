@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
+using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 
@@ -12,6 +13,54 @@ namespace FileCat.App.Tests;
 
 public sealed class TransferDestinationValidationTests
 {
+    [AvaloniaFact]
+    public async Task Main_commands_cannot_stack_a_second_review_behind_an_open_copy_form()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && listing.State != FileCat.Core.Listing.ListingState.Complete; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(FileCat.Core.Listing.ListingState.Complete, listing.State);
+            listing.SetFocus(1);
+            Assert.True(vm.GetAvailability(CommandIds.Copy).Enabled);
+            var firstReview = vm.ExecuteAsync(CommandIds.Copy);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            var destination = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Destination");
+            Assert.Single(window.GetVisualDescendants().OfType<Border>(), b => b.Classes.Contains("backdrop"));
+
+            // An AX action can invoke an obscured button directly. It must not create
+            // another review or delete anything while the first review owns focus.
+            var secondCopy = vm.ExecuteAsync(CommandIds.Copy);
+            var secondDelete = vm.ExecuteAsync(CommandIds.DeletePermanent);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+            Assert.True(secondCopy.IsCompletedSuccessfully);
+            Assert.True(secondDelete.IsCompletedSuccessfully);
+            Assert.False(firstReview.IsCompleted);
+            Assert.Same(destination, window.GetVisualDescendants().OfType<TextBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Destination"));
+            Assert.Single(window.GetVisualDescendants().OfType<Border>(), b => b.Classes.Contains("backdrop"));
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.True(File.Exists(Path.Combine(root, "files", "a.txt")));
+
+            window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Cancel"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await firstReview;
+            Assert.False(dialogs.IsOpen);
+        }
+        finally
+        {
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Invalid_filter_stays_in_the_same_form_until_queue_options_are_corrected()
     {

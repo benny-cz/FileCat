@@ -35,9 +35,10 @@ increments to `main`.
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken
    review, and stale
-   external-editor results. For FCUX-004/005, exercise modal focus/decision
-   ownership and full synchronization endpoints. Preserve captured scope and
-   mapping throughout each test.
+   external-editor results. For FCUX-004/005, rerun background accessibility
+   command activation on the fixed Mac build, exercise other modal
+   focus/decision ownership and full synchronization endpoints. Preserve
+   captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.

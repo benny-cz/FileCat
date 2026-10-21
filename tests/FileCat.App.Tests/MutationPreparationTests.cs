@@ -273,6 +273,8 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         try
         {
             await Wait(() => f.Button("Create") is not null && f.Gate.Active > 0); AssertWorkers(f.Gate, "volume");
+            await Wait(() => { f.Window.UpdateLayout(); return f.Window.GetVisualDescendants().OfType<ListBox>()
+                .Any(l => AutomationProperties.GetName(l) == "Links to create"); });
             var preview = f.Window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Links to create");
             if (action == "edit")
             {
@@ -309,6 +311,8 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
             if (task.IsCompleted) { Emit("link-validation", f, new { outcome, enabled = false }); AssertWorkers(f.Gate, "info"); Assert.Contains("owned failure", f.Vm.Notification); return; }
             string link = outcome switch { "existing" => Path.Join(f.Folder, "second.txt"), "self" => Path.Join(f.Folder, "source.txt"), "missing-folder" => Path.Join(f.Root, "missing", "link.txt"), "relative" => "relative-link.txt", _ => Path.Join(f.Target, "new-link.txt") };
             f.PathBox("Link path").Text = link;
+            await Wait(() => { f.Window.UpdateLayout(); return f.Window.GetVisualDescendants().OfType<ListBox>()
+                .Any(l => AutomationProperties.GetName(l) == "Links to create"); });
             var preview = f.Window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Links to create");
             await Wait(() => outcome is "free" or "relative"
                 ? f.Button("Create")!.IsEnabled && (preview.ItemsSource?.Cast<string>().Any(r => r.StartsWith(Path.GetFileName(link), StringComparison.Ordinal)) ?? false)

@@ -155,6 +155,10 @@ public sealed partial class MainViewModel
 
     public async Task ExecuteAsync(string id)
     {
+        // Native accessibility actions can invoke an obscured toolbar or key-bar button
+        // without going through the modal backdrop's pointer and keyboard routing.
+        // Keep the active review as the sole owner of main-window commands.
+        if (Scope is null && _dialogs is { IsOpen: true }) return;
         QuietConnect = false;
         var availability = GetAvailability(id);
         if (!availability.Enabled)
