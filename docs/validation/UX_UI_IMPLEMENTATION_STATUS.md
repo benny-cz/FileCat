@@ -1415,7 +1415,8 @@ suite passes again after this correction. A guarded Windows VM runner is
 tracked for native Registry checks. Its foreground-process check refused to
 send F7 when an older FileCat window retained focus; the incidental empty
 Create folder prompt from the first exploratory run was canceled without
-creating anything. Scaled visual appearance, the Windows VM mouse route and
+creating anything. The later Windows VM mouse route and visual centering check
+passed after that older foreground validation window closed. Scaled and
 assistive-technology labeling remain open. A complete local App suite attempt was stopped before a final
 result after 17 minutes; it is not counted as a pass. Final five-lane CI is
 pending on the next pushed head.
@@ -1431,8 +1432,9 @@ its scoped accessible Cancel action; a retry still timed out in XTest before
 delivering the click. The native Ubuntu mouse route remains open. CI for the
 preceding pointer-dismiss commit had successful producer, Windows, Ubuntu and
 Windows ARM64 jobs; its Mac job was canceled by the later push, so the run was
-overall unsuccessful rather than a product-test failure. The vector-fix CI
-run is still in progress.
+overall unsuccessful rather than a product-test failure. The later
+`d1fc2303` five-lane CI run completed successfully; CI on the final head
+remains pending.
 
 The Ubuntu Wayland guest then used a disposable uinput touchscreen for actual
 physical pointer events. The native runner passed both X and backdrop taps
@@ -1457,6 +1459,18 @@ separate Mac AX runner remains pending: System Events returns zero child
 elements for the visibly populated window in both the older and current
 signed bundles, so native AX labeling and spoken feedback were not inferred
 from the screenshot. Mac 100%/150% and other dialog types still need review.
+
+The Windows 11 VM's previous validation FileCat was confirmed as the sole
+foreground owner and closed normally by exact executable path, leaving the
+new Git-built test instance free to receive pointer input. A rerun of the
+guarded Registry chooser check on build SHA-256
+`0FFB1E3A06798D7D4C30C574F0FADF6FBE86DA704631EC354770717C6D271A68`
+passed both native mouse exits, with an accessible `Close dialog` name, cancel
+help and 30 × 30 pixel bounds. A captured close-button crop at 96 DPI had
+92 high-contrast X pixels; its centroid differed from button center by
+(-0.22, 0) physical pixels. The runner now enforces a 1.5-pixel center bound
+in both axes. Windows 150%/other scale, other dialog types and spoken
+acceptance remain open.
 
 ## Reproduction
 

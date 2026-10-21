@@ -34,6 +34,10 @@ backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
 guest-local `-ReportPath`. It checks the foreground process ID before sending
 F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
+The runner saves a close-button crop beside its JSON report, measures the
+high-contrast X pixels against the button background and requires their
+centroid within 1.5 physical pixels of center. It also records the window DPI,
+accessible name/help, button bounds and both native pointer outcomes.
 `win-ax-remote-stage-hint.ps1 -ReportPath <guest-local.json>` runs in the
 logged-in Windows VM after an exact Git checkout and Release build. Its
 `vm-clone-build.json` names the isolated executable and SHA-256. It seeds a
