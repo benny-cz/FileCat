@@ -700,6 +700,15 @@ requires exact byte offsets and unchanged content, closes the viewer, then
 removes only that exact fixture and refreshes the panel. Keep the companion
 Text runner beside it; both use the same isolated two-file source folder.
 
+`python3 mac-ax-viewer-info-find.py SOURCE REPORT.json` copies only the
+validation app's signed Mach-O executable into that isolated source folder.
+It opens Info mode and checks the visible one-match status for `Mach-O`, the
+Previous no-earlier result, then the two-match status after changing the
+query to `Load commands`. Info mode describes report lines rather than byte
+offsets, so the runner checks the actual visible status and unchanged copy.
+It closes the viewer, removes only its exact test-owned copy and refreshes
+the listing.
+
 `python3 mac-ax-markdown-find.py SOURCE REPORT.json` creates one short
 temporary Markdown file in the same isolated source folder. It opens Page
 mode, reveals Find, sends Command+A/Delete and types `marker` through native
