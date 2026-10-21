@@ -639,6 +639,14 @@ it can safely delete a remote object after the crash. Focused cases passed
 failed 0 with 16 available processors. Native remote-stage review and safe
 cleanup remain open.
 
+The interrupted-upload row, cleanup decision, stop-reminders decision and
+retained recovery report now show the candidate remote stage-name prefix
+derived from a well-formed journal ID (for example `.fc-deadbeef-`). The
+wording says this is a search hint and requires server inspection before any
+change; it never authorizes deletion. Malformed or legacy journal names get
+the generic warning without an invented prefix. The focused App recovery
+and report suite passed 20/20 with no skips.
+
 FCUX-001 also guards a normal remote Replace approval against a destination
 that changes during a long upload. The approved entry's kind, size and modified
 time are captured before upload; publication obtains a fresh listing and

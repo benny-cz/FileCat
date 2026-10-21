@@ -314,7 +314,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
             ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable.") +
               RecoveryGuidance : "") +
         (InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job)
-            ? " " + InterruptedRecoveryReport.RemoteUploadWarning : "");
+            ? " " + InterruptedRecoveryReport.RemoteUploadReviewWarning(Job) : "");
 
     private string RecoveryGuidance => CanReviewNewTransfer
         ? Job.TransferIntentProblem?.Contains("Review a new transfer", StringComparison.OrdinalIgnoreCase) == true

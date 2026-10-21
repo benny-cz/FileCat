@@ -27,6 +27,23 @@ internal static class InterruptedRecoveryReport
         "This local recovery review cannot inspect or delete server files. Inspect the remote destination " +
         "and its temporary files before marking this recovery reviewed.";
 
+    // The remote uploader names its stage from the journal's eight-digit job ID.
+    // This is a search hint, never proof that a server item still belongs to us.
+    internal static string? ExpectedRemoteStagePrefix(InterruptedJob job)
+    {
+        if (!HasUnreviewedRemoteUpload(job)) return null;
+        string stem = Path.GetFileNameWithoutExtension(job.JournalPath);
+        if (stem.Length != 27 || !stem.StartsWith("job-", StringComparison.Ordinal) || stem[18] != '-' ||
+            !stem.AsSpan(4, 14).ToArray().All(char.IsAsciiDigit) ||
+            !stem.AsSpan(19, 8).ToArray().All(char.IsAsciiHexDigit)) return null;
+        return JournalRecovery.StagedPrefix + stem[19..] + "-";
+    }
+
+    internal static string RemoteUploadReviewWarning(InterruptedJob job) =>
+        RemoteUploadWarning + (ExpectedRemoteStagePrefix(job) is { } prefix
+            ? " Candidate temporary names begin " + prefix + "; verify the server item before changing it."
+            : string.Empty);
+
     internal static IReadOnlyList<string> RemoteUploadTargets(InterruptedJob job)
     {
         var targets = job.OpenIntents.Where(i => i.Operation is "upload" or "upload-move")
@@ -75,7 +92,7 @@ internal static class InterruptedRecoveryReport
         Line("Quoted paths use JSON escaping. Decoding the quoted value recovers its exact characters.");
         Line("This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.");
         if (HasUnreviewedRemoteUpload(job))
-            Line("Remote upload still requires review: " + RemoteUploadWarning);
+            Line("Remote upload still requires review: " + RemoteUploadReviewWarning(job));
         Line();
         if (deleted is not null)
             foreach (string path in deleted) Detail("Deleted by cleanup", path);

@@ -7,6 +7,21 @@ namespace FileCat.App.Tests;
 public sealed class RecoveryReviewStoreTests
 {
     [Fact]
+    public void Remote_stage_hint_requires_a_well_formed_job_name_and_never_authorizes_deletion()
+    {
+        var job = new InterruptedJob("/state/job-20261021123456-deadbeef.fcj", "Move", "Upload", DateTime.UtcNow,
+            ["/source"], "sftp:test:/target", [new PendingIntent(1, "upload-move", "/source", "/target/file", null)],
+            [], 0, 1);
+        Assert.Equal(".fc-deadbeef-", InterruptedRecoveryReport.ExpectedRemoteStagePrefix(job));
+        string warning = InterruptedRecoveryReport.RemoteUploadReviewWarning(job);
+        Assert.Contains("Candidate temporary names begin .fc-deadbeef-", warning);
+        Assert.Contains("verify the server item before changing it", warning);
+        Assert.Null(InterruptedRecoveryReport.ExpectedRemoteStagePrefix(job with { JournalPath = "/state/job-invalid.fcj" }));
+        Assert.Equal(InterruptedRecoveryReport.RemoteUploadWarning,
+            InterruptedRecoveryReport.RemoteUploadReviewWarning(job with { JournalPath = "/state/job-invalid.fcj" }));
+    }
+
+    [Fact]
     public void Full_retained_report_preserves_paths_effects_and_unknown_remainder()
     {
         string source = "C:\\root\\name\twith-control";

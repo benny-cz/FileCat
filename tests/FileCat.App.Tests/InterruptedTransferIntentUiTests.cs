@@ -77,11 +77,13 @@ public sealed class InterruptedTransferIntentUiTests
             new Job(request, "Remote upload", "test", [], [])))
             journal.Intent("upload", source, "/owned/destination/slow.bin");
         var interrupted = Assert.Single(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
+        string expectedStagePrefix = ".fc-" + Path.GetFileNameWithoutExtension(interrupted.JournalPath)[^8..] + "-";
         var row = new InterruptedJobViewModel(interrupted);
         Assert.False(row.CanRunAgain);
         Assert.False(row.CanReviewNewTransfer);
         Assert.Equal("Review local cleanup…", row.CleanupLabel);
         Assert.Contains("hidden temporary file on the remote server", row.Details);
+        Assert.Contains(expectedStagePrefix, row.Details);
         f.Vm.Operations.Interrupted.Add(row);
 
         var cleanup = f.Vm.CleanupInterruptedAsync(interrupted);
@@ -91,6 +93,7 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Contains("server files are not inspected or deleted", review);
         Assert.Contains("Inspect the remote destination", review);
         Assert.Contains("Target: /owned/destination/slow.bin", review);
+        Assert.Contains("Candidate temporary names begin: " + expectedStagePrefix, review);
         var targetLine = Assert.Single(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
             block => ReviewText(block) == "Target: /owned/destination/slow.bin");
         var targetRuns = Assert.IsType<InlineCollection>(targetLine.Inlines).OfType<Run>().ToArray();
@@ -108,6 +111,7 @@ public sealed class InterruptedTransferIntentUiTests
         string report = File.ReadAllText(saved);
         Assert.Contains("remote upload still requires inspection", report);
         Assert.Contains("hidden temporary file on the remote server", report);
+        Assert.Contains(expectedStagePrefix, report);
         Assert.Contains("/owned/destination/slow.bin", report);
 
         var mark = f.Vm.MarkInterruptedReviewedAsync(interrupted);
@@ -116,6 +120,7 @@ public sealed class InterruptedTransferIntentUiTests
             .OfType<SelectableTextBlock>().Select(ReviewText));
         Assert.Contains("inspect server files before stopping recovery reminders", markReview);
         Assert.Contains("Target: /owned/destination/slow.bin", markReview);
+        Assert.Contains("Candidate temporary names begin: " + expectedStagePrefix, markReview);
         f.Click("Cancel");
         Assert.False(await mark);
         Assert.True(JournalRecovery.IsInterrupted(interrupted));

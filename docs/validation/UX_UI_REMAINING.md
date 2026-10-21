@@ -23,7 +23,8 @@ increments to `main`.
    remaining supported provider failure paths, including races after the final
    destination content check (no server-side compare-and-swap), and native
    recovery choices plus safe review and cleanup of the remote stage after an
-   FTP process crash. For FCUX-018, verify
+   FTP process crash. Check the candidate remote stage-name hint in a native
+   recovery dialog and retained report. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,

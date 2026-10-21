@@ -347,7 +347,7 @@ public sealed partial class MainViewModel
             var message = (partial.Count > 0 ? "These reviewed partial files will be deleted:\n" + InterruptedJobText.Bullets(partial) : "No completely reviewed partial files remain.")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
             if (unresolvedRemoteUpload)
-                message += "\n\n" + InterruptedRecoveryReport.RemoteUploadWarning;
+                message += "\n\n" + InterruptedRecoveryReport.RemoteUploadReviewWarning(job);
             if (renames.Count > 0) message += "\n\nThese reviewed interrupted renames will be finished if their contents and paths remain unchanged (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Intent.Path + " → " + r.Intent.Target).ToList());
             if (unreviewedRenames.Count > 0) message += "\n\nThese temporary items could not be completely reviewed and will be kept with the journal:\n" + InterruptedJobText.Bullets(unreviewedRenames);
             if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining temporary names are kept; inspect them separately.";
@@ -365,6 +365,8 @@ public sealed partial class MainViewModel
             if (unresolvedRemoteUpload)
             {
                 highlights.Add("Remote upload: server files are not inspected or deleted; recovery tracking stays open");
+                if (InterruptedRecoveryReport.ExpectedRemoteStagePrefix(job) is { } prefix)
+                    highlights.Add("Candidate temporary names begin: " + prefix);
                 var targets = InterruptedRecoveryReport.RemoteUploadTargets(job);
                 foreach (var target in targets.Take(3)) highlights.Add("Target: " + target);
                 if (targets.Count == 4) highlights.Add("More remote targets: see the full review and retained report");
@@ -496,7 +498,7 @@ public sealed partial class MainViewModel
                 "This does not delete or repair files. The journal will be closed and the recovery actions will no longer be offered. " +
                 "A bounded, copyable report of the known paths and review limits will remain in Operations under Reviewed recovery reports. " +
                 (renames > 0 ? $"\n\n{renames:N0} interrupted rename intent{(renames == 1 ? " has" : "s have")} a temporary name. Its path and possible target remain in the report; inspect or finish it before stopping reminders. " : "") +
-                (unresolvedRemoteUpload ? "\n\n" + InterruptedRecoveryReport.RemoteUploadWarning : "") +
+                (unresolvedRemoteUpload ? "\n\n" + InterruptedRecoveryReport.RemoteUploadReviewWarning(job) : "") +
                 (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut
                     ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
                 "\n\nUse Review report first if you need to copy or save the full retained detail before this decision.";
@@ -511,6 +513,8 @@ public sealed partial class MainViewModel
             if (unresolvedRemoteUpload)
             {
                 highlights.Add("Remote upload: inspect server files before stopping recovery reminders");
+                if (InterruptedRecoveryReport.ExpectedRemoteStagePrefix(job) is { } prefix)
+                    highlights.Add("Candidate temporary names begin: " + prefix);
                 var targets = InterruptedRecoveryReport.RemoteUploadTargets(job);
                 foreach (var target in targets.Take(3)) highlights.Add("Target: " + target);
                 if (targets.Count == 4) highlights.Add("More remote targets: see the full review and retained report");
