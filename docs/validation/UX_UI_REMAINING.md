@@ -25,8 +25,8 @@ increments to `main`.
    recovery choices plus safe review and cleanup of the remote stage after an
    FTP process crash. Check the candidate remote stage-name hint in a native
    recovery dialog and retained report. For FCUX-018, verify
-   Windows close/restart ownership during a held inverse, dependent rename
-   journal recovery after interruption, native inspection of a report with a
+   Windows close/restart ownership during a held inverse, native FileCat
+   review after a dependent inverse rename is interrupted, and inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut

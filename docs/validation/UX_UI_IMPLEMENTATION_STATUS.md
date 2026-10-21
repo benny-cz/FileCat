@@ -333,6 +333,17 @@ both directories and their distinct bytes, and the retained Copy all report
 identified one kept action with the full path and replacement reason. The
 remaining FCUX-018 gates concern held inverses, close/restart, interrupted
 rename journals and large mixed or incomplete reports.
+FCUX-018 now also has a genuine process-interruption test for a dependent
+rename inverse. A separate Core worker completes a three-file cyclic rename,
+admits its Undo, moves the first inverse item into the temporary name, and
+holds there. The parent kills only that worker, restarts journal inspection,
+and requires the Undo journal's durable `undoOf` and open rename intent. The
+recovery review finds the actual temporary name. Because its intended target
+is occupied, finishing review restores that item to its pre-Undo name,
+reports the occupied target, leaves all three pre-Undo file bytes exact,
+removes the temporary name, and closes the reviewed journal. The focused
+child-process case passed 1/1. A native FileCat window close/restart and
+visible review of this same interrupted inverse remain open.
 The retained Undo report now has a focused App UI test with 70 outcomes and a
 failure at action 46, beyond the abbreviated preview. The displayed full-path
 failure, one-failed summary and Copy all text agree. The Core 70-action

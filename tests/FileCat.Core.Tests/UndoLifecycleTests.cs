@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text.Json;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Operations;
@@ -280,6 +281,88 @@ public sealed class UndoLifecycleTests : IDisposable
         var leftovers = JournalRecovery.FindRenameLeftovers(interrupted); Assert.Equal(2, leftovers.Count);
         Assert.Empty(JournalRecovery.FinishRenames(leftovers, out int finished)); Assert.Equal(2, finished);
         Assert.Equal(new[] { "A", "B", "C" }, files.Select(File.ReadAllText));
+    }
+
+    [Fact]
+    public async Task A_killed_dependent_rename_inverse_recovers_its_actual_temporary_names()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string root = _dir.Dir("real-undo-crash");
+        string marker = Path.Combine(root, "inverse-held.json");
+        var start = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        start.ArgumentList.Add(CrashHarnessPath());
+        start.ArgumentList.Add(root);
+        using var child = Process.Start(start) ?? throw new InvalidOperationException("Could not start the isolated inverse crash harness.");
+        try
+        {
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(30) && !File.Exists(marker) && !child.HasExited)
+                await Task.Delay(20, ct);
+            string error = child.HasExited ? await child.StandardError.ReadToEndAsync(ct) : "worker still running";
+            Assert.True(File.Exists(marker) && !child.HasExited,
+                $"The dependent inverse did not reach its held temporary rename; exit={child.HasExited}; error={error}");
+            using (var eventData = JsonDocument.Parse(await File.ReadAllTextAsync(marker, ct)))
+            {
+                string source = eventData.RootElement.GetProperty("source").GetString()!;
+                string destination = eventData.RootElement.GetProperty("destination").GetString()!;
+                Assert.StartsWith(Path.Combine(root, "items") + Path.DirectorySeparatorChar, source);
+                Assert.StartsWith(Path.Combine(root, "items") + Path.DirectorySeparatorChar, destination);
+                Assert.Contains(BulkRenameRunner.TempPrefix, source + destination);
+            }
+            child.Kill(entireProcessTree: true);
+            Assert.True(child.WaitForExit(10_000));
+
+            var journalDirectory = Path.Combine(root, "journals");
+            var interrupted = Assert.Single(JournalRecovery.Scan(journalDirectory));
+            Assert.Equal("Undo", interrupted.Kind);
+            Assert.True(JournalRecovery.IsInterrupted(interrupted));
+            var records = JobJournal.ReadAll(interrupted.JournalPath);
+            Assert.Contains(records, record => record.Type == "begin" && record.Get("undoOf") is not null);
+            Assert.DoesNotContain(records, record => record.Type == "end");
+            Assert.Contains(interrupted.OpenIntents, intent => intent.Operation == JobJournal.RenameViaOp);
+            var leftovers = JournalRecovery.FindRenameLeftovers(interrupted);
+            Assert.NotEmpty(leftovers);
+            Assert.All(leftovers, intent => Assert.StartsWith(Path.Combine(root, "items") + Path.DirectorySeparatorChar, intent.Via!));
+            var recovery = JournalRecovery.FinishRenames(leftovers, out int finished);
+            Assert.Equal(0, finished);
+            Assert.Contains(recovery, line => line.Contains("new name", StringComparison.Ordinal) &&
+                line.Contains("taken", StringComparison.Ordinal));
+            var items = Path.Combine(root, "items");
+            // The target is occupied, so recovery restores the item to its pre-Undo name.
+            // The reviewed operation can be tried afresh; no file is silently overwritten.
+            Assert.Equal(new[] { "C", "A", "B" }, new[] { "a.txt", "b.txt", "c.txt" }
+                .Select(name => File.ReadAllText(Path.Combine(items, name))));
+            Assert.Empty(Directory.GetFiles(items, BulkRenameRunner.TempPrefix + "*"));
+            Assert.True(JournalRecovery.TryClose(interrupted, "Reviewed dependent inverse rename recovery"));
+            Assert.Empty(JournalRecovery.Scan(journalDirectory));
+        }
+        finally
+        {
+            if (!child.HasExited)
+            {
+                child.Kill(entireProcessTree: true);
+                child.WaitForExit(10_000);
+            }
+        }
+    }
+
+    private static string CrashHarnessPath()
+    {
+        var path = new DirectoryInfo(AppContext.BaseDirectory);
+        while (path is not null && !File.Exists(Path.Combine(path.FullName, "FileCat.slnx"))) path = path.Parent;
+        if (path is null) throw new InvalidOperationException("The Git checkout containing the inverse crash harness was not found.");
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
+        if (configuration is not ("Release" or "Debug"))
+            throw new InvalidOperationException("The inverse test configuration could not be determined.");
+        var dll = Path.Combine(path.FullName, "tests", "FileCat.CoreCrashHarness", "bin", configuration, "net10.0",
+            "FileCat.CoreCrashHarness.dll");
+        if (!File.Exists(dll)) throw new FileNotFoundException("Build the isolated inverse crash harness with the test project.", dll);
+        return dll;
     }
 
     [Fact]
