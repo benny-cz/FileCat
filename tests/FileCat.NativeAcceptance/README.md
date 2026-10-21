@@ -121,7 +121,10 @@ FileCat-owned Copy of `a.txt`, then `clipboard-paste <report.json>` and
 source and target bytes, the visible `Average transfer speed:` label in the
 selected finished operation's details, and the same average in
 Copy report and Open report's Copy all text. The two exports may have distinct
-capture timestamps; their remaining report bodies must match.
+  capture timestamps; their remaining report bodies must match. The runner
+  also measures the window at normal and 760 × 620 pixel sizes, requires the
+  same visible average after narrowing, and restores the exact original
+  Win32 window size before it reports success.
 Run `operation-save-native <report.json>` with the same finished drawer open.
 It chooses a new guest-local report path in the validation folder through the
 native Save picker, then requires the saved report's average, actual processed

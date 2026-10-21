@@ -406,16 +406,21 @@ try
                 throw new InvalidOperationException("The completed Copy fixture is not byte exact.");
             NativeWindow.FocusRecovery("clipboard-source");
             var source = ParseSource(await ReadSourceAsync(client, sessionId));
-            var window = source.Descendants().Single(element =>
+            XElement OperationWindow(XDocument document) => document.Descendants().Single(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
                 && (string?)element.Attribute("ProcessId") ==
                     NativeWindow.ClipboardAppProcessId().ToString(CultureInfo.InvariantCulture));
-            var speed = window.Descendants().FirstOrDefault(element =>
+            string VisibleAverage(XElement owner) => (string?)owner.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "text"
                 && ((string?)element.Attribute("Name"))?.StartsWith("Average transfer speed: ", StringComparison.Ordinal) == true
                 && ((string?)element.Attribute("Name"))?.Contains("/s", StringComparison.Ordinal) == true
-                && (string?)element.Attribute("IsOffscreen") == "False");
-            string visibleSpeed = (string?)speed?.Attribute("Name") ?? "";
+                && (string?)element.Attribute("IsOffscreen") == "False")?.Attribute("Name") ?? "";
+            var window = OperationWindow(source);
+            var originalBounds = ReadNativeRect(window);
+            var originalNativeBounds = NativeWindow.RecoveryWindowBounds("clipboard-source");
+            if (!originalBounds.HasArea)
+                throw new InvalidOperationException("The finished Operations window has no native bounds.");
+            string visibleSpeed = VisibleAverage(window);
             if (visibleSpeed.Length == 0 || FindVisible(window, "button", "Open report") is null
                 || FindVisible(window, "button", "Copy report") is null)
                 throw new InvalidOperationException("The completed operation does not show its average and report controls.");
@@ -458,13 +463,36 @@ try
                 throw new InvalidOperationException("Open report did not expose a readable Copy all action.");
             string openedReport = await CopiedAfter("Copy all");
             await SendSessionKeysAsync(client, sessionId, "\uE00A\uE034\uE000"); // Close only the focused report.
+            string narrowSpeed;
+            NativeRect narrowBounds = default;
+            try
+            {
+                NativeWindow.ResizeRecoveryWindow("clipboard-source", 760, 620);
+                await Task.Delay(350);
+                var narrow = OperationWindow(ParseSource(await ReadSourceAsync(client, sessionId)));
+                narrowBounds = ReadNativeRect(narrow);
+                if (narrowBounds.Width > originalBounds.Width - 150
+                    || narrowBounds.Height > originalBounds.Height - 100)
+                    throw new InvalidOperationException("The finished Operations window did not become meaningfully narrower.");
+                narrowSpeed = VisibleAverage(narrow);
+                if (narrowSpeed != visibleSpeed)
+                    throw new InvalidOperationException("The finished average is missing or changed in the narrow Operations drawer.");
+            }
+            finally
+            {
+                NativeWindow.ResizeRecoveryWindow("clipboard-source", originalNativeBounds.Width, originalNativeBounds.Height);
+            }
+            var restoredBounds = ReadNativeRect(OperationWindow(ParseSource(await ReadSourceAsync(client, sessionId))));
+            bool geometryRestored = Math.Abs(restoredBounds.Width - originalBounds.Width) <= 4
+                && Math.Abs(restoredBounds.Height - originalBounds.Height) <= 4;
             bool reportBodiesMatch = string.Equals(StableReport(drawerReport), StableReport(openedReport), StringComparison.Ordinal);
-            bool passed = reportBodiesMatch
+            bool passed = geometryRestored && reportBodiesMatch
                 && string.Equals(rate, RateLine(openedReport), StringComparison.Ordinal)
                 && File.Exists(sourceFile) && File.Exists(targetFile);
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, visibleSpeed, rate, reportBodiesMatch,
+                passed, visibleSpeed, narrowSpeed, originalBounds, narrowBounds,
+                restoredBounds, geometryRestored, rate, reportBodiesMatch,
                 sourceAndTargetBytesExact = await File.ReadAllTextAsync(sourceFile) ==
                     await File.ReadAllTextAsync(targetFile)
             }, new JsonSerializerOptions { WriteIndented = true }));
@@ -4835,12 +4863,31 @@ internal static partial class NativeWindow
     internal static Rect ResizeSelectionWindow(int width, int height) =>
         ResizeRecoveryWindow("selection-source", width, height);
 
-    internal static Rect ResizeRecoveryWindow(string sourceFolder, int width, int height)
+    private static nint ValidatedRecoveryWindow(string sourceFolder)
     {
         FocusRecovery(sourceFolder); // Also validates that this is the isolated VM build.
         var window = FindWindow(null,
             $"FileCat — {sourceFolder} — Admin (administrator, not elevated)");
-        if (window == 0 || !GetWindowRect(window, out var before))
+        if (window == 0 && sourceFolder == "clipboard-source")
+            window = FindWindow(null,
+                "FileCat — destination — Admin (administrator, not elevated)");
+        if (window == 0)
+            throw new InvalidOperationException("The isolated FileCat window is unavailable.");
+        return window;
+    }
+
+    internal static Rect RecoveryWindowBounds(string sourceFolder)
+    {
+        var window = ValidatedRecoveryWindow(sourceFolder);
+        if (!GetWindowRect(window, out var bounds))
+            throw new InvalidOperationException("Cannot read the isolated FileCat window bounds.");
+        return bounds;
+    }
+
+    internal static Rect ResizeRecoveryWindow(string sourceFolder, int width, int height)
+    {
+        var window = ValidatedRecoveryWindow(sourceFolder);
+        if (!GetWindowRect(window, out var before))
             throw new InvalidOperationException("The isolated FileCat window is unavailable.");
         ShowWindow(window, 9); // SW_RESTORE before applying physical pixel bounds.
         const uint noZOrder = 0x0004;
