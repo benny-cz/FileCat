@@ -36,6 +36,61 @@ public sealed class JobRetirementOwnershipTests(ITestOutputHelper output)
         var registry=new ProviderRegistry();registry.Register(new LocalFileSystemProvider());
         return new JobManager(new PortableFileOperations(),registry,Path.Join(root,"journal")){MaxConcurrent=0};
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    public void Caller_registration_precedes_a_job_canceled_synchronously_in_JobAdded(int concurrent)
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-job-register-").FullName;
+        try
+        {
+            string source = Path.Join(root, "known.bin");
+            File.WriteAllBytes(source, KnownBytes());
+            var manager = Manager(root);
+            manager.MaxConcurrent = concurrent;
+            Job? registered = null, finished = null;
+            manager.JobAdded += job =>
+            {
+                Assert.Same(registered, job);
+                job.Cancel();
+            };
+            manager.JobFinished += job =>
+            {
+                Assert.Same(registered, job);
+                finished = job;
+            };
+            var submitted = manager.SubmitWithRegistration(Copy(root, source, 1), job => registered = job);
+            Assert.Same(submitted, registered);
+            Assert.Same(submitted, finished);
+            Assert.Equal(JobState.Canceled, submitted.State);
+            Assert.Equal(KnownBytes(), File.ReadAllBytes(source));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Resuming_a_job_paused_in_JobAdded_starts_its_first_scheduling_pass()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-job-pause-registration-").FullName;
+        try
+        {
+            string source = Path.Join(root, "known.bin");
+            File.WriteAllBytes(source, KnownBytes());
+            Directory.CreateDirectory(Path.Join(root, "destination"));
+            var manager = Manager(root);
+            manager.MaxConcurrent = 1;
+            manager.JobAdded += job => job.Pause();
+            var job = manager.Submit(Copy(root, source, 1));
+            Assert.Equal(JobState.Queued, job.State);
+            Assert.False(File.Exists(Path.Join(root, "destination", "known.bin")));
+            job.Resume();
+            Assert.True(SpinWait.SpinUntil(() => job.State.IsFinished(), TimeSpan.FromSeconds(5)));
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(KnownBytes(), File.ReadAllBytes(Path.Join(root, "destination", "known.bin")));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static Rig Removed(string root,string path,string route,int count,bool live)
     {

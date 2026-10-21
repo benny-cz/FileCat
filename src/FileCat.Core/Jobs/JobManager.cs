@@ -74,6 +74,16 @@ public sealed class JobManager
 
     public Job Submit(JobRequest request) => Submit(request, null);
 
+    /// <summary>
+    /// Attaches a caller's ownership before JobAdded can cancel or finish a queued job synchronously.
+    /// The callback must only register the new job and must not submit or schedule other work.
+    /// </summary>
+    public Job SubmitWithRegistration(JobRequest request, Action<Job> register)
+    {
+        ArgumentNullException.ThrowIfNull(register);
+        return Submit(request, null, register);
+    }
+
     /// <summary>Admits every reviewed synchronization step under one owner before any step can start.</summary>
     public SyncGroup SubmitSyncGroup(IReadOnlyList<JobRequest> requests, string source, string target, string reviewedPlan)
     {
@@ -143,13 +153,12 @@ public sealed class JobManager
         }, reservation);
     }
 
-    private Job Submit(JobRequest request, UndoReservation? reservation)
+    private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null)
     {
         if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
             throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
         var (title, device, reads, writes) = Describe(request);
         var job = new Job(request, title, device, reads, writes);
-        job.Changed += OnJobChanged;
         IReadOnlyList<Job> retired = [];
         lock (_lock)
         {
@@ -160,7 +169,22 @@ public sealed class JobManager
         }
         reservation?.Original.UndoAdmissionChanged();
         foreach (var finished in retired) JobRemoved?.Invoke(finished);
+        // A queued state change must not start or finish the job before its owner and JobAdded
+        // subscribers can observe it. SubmitSyncGroup uses this same ordering.
         job.SetState(JobState.Queued);
+        if (register is not null)
+        {
+            try { register(job); }
+            catch
+            {
+                lock (_lock)
+                {
+                    _jobs.Remove(job);
+                }
+                throw;
+            }
+        }
+        job.Changed += OnJobChanged;
         JobAdded?.Invoke(job);
         Schedule();
         return job;

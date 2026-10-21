@@ -1024,6 +1024,15 @@ The runner records the exact app hash, fixture and four invocation outcomes in
 its guest-local JSON report. This closes the Windows background Copy/Delete
 accessibility route; other modal focus, scaling and spoken routes remain open.
 
+The macOS CI lane for `49b023dd` exposed a checksum-result registration race:
+a queued check canceled inside `JobAdded` could finish before its verification
+group and source tab were attached. Job submission now accepts a caller
+registration callback before `JobAdded` or the first scheduling pass. A job
+paused at admission also schedules when resumed. Two Core cancellation-order
+cases and a queued-pause/resume case pass, as do all 10 focused verification UI
+cases on Windows. The failing Mac case and the full final-head CI lanes are
+still being rerun.
+
 UXBUG-003 addresses the reported PE Info scrollbar-thumb freeze. Rapid thumb
 positions now coalesce to the latest location on a bounded 32 ms timer, rather
 than synchronously shaping every intermediate viewport. The report's line count

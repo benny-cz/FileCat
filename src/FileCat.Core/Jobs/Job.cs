@@ -280,6 +280,7 @@ public sealed partial class Job
     {
         _runGate.Set();
         if (State is JobState.Paused or JobState.Pausing) SetState(JobState.Running);
+        else if (State == JobState.Queued) Changed?.Invoke(this); // wake a job paused before its first scheduling pass
     }
 
     /// <summary>Requests cancellation. The job stops at the next safe boundary; cancellation is not rollback (AI-11).</summary>

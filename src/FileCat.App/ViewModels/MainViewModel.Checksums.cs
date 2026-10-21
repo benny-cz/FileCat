@@ -192,10 +192,12 @@ public sealed partial class MainViewModel
     /// <summary>Starts one of a check's jobs; its group shows the results once the last has ended.</summary>
     private void StartCheck(VerifyGroup group, JobRequest request)
     {
-        var job = Services.Jobs.Submit(request);
-        group.Jobs.Add(job);
-        _runningChecks[job] = group;
-        if (group.Origin is { } origin) Track(job, origin);
+        Services.Jobs.SubmitWithRegistration(request, job =>
+        {
+            group.Jobs.Add(job);
+            _runningChecks[job] = group;
+            if (group.Origin is { } origin) Track(job, origin);
+        });
     }
 
     /// <summary>What one Verify checks, and how (worked out off the UI thread: it reads the folders' checksum files).</summary>

@@ -454,7 +454,9 @@ public sealed class VerificationUiTests
             int before = services.Jobs.Jobs.Count;
             Choose("b.txt", "SHA256SUMS");
             vm.Execute(CommandIds.VerifyChecksums);
-            await Until(() => services.Jobs.Jobs.Count == before + 1 && services.Jobs.Jobs.OrderBy(j => j.QueueOrder).Last().State == JobState.Paused, "the files' job waits");
+            await Until(() => services.Jobs.Jobs.Count == before + 1
+                && services.Jobs.Jobs.OrderBy(j => j.QueueOrder).Last() is { IsPaused: true, State: JobState.Queued or JobState.Paused },
+                "the files' job waits before reading");
             services.Jobs.Jobs.OrderBy(j => j.QueueOrder).Last().Cancel();
             await Until(() => dialogs.IsOpen, "the canceled check's results open");
             await Until(() => Shows("Canceled before any file was read"), "Canceled before any file was read");
