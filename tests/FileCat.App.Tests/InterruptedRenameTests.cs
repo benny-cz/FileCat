@@ -259,12 +259,19 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
     {
         using var f = await Fixture.Create(); var other = Path.Join(Path.GetDirectoryName(f.Via)!, "other.tmp");
         var intent = new PendingIntent(2, JobJournal.RenameViaOp, other + "-original", other + "-target", null) { Via = other };
-        var run = f.Vm.CleanupInterruptedAsync(f.Interrupted with { OpenIntents = [.. f.Interrupted.OpenIntents, intent] }); await Wait(() => f.HasDialog); f.Click("Finish renaming"); await f.Drain(run);
+        var run = f.Vm.CleanupInterruptedAsync(f.Interrupted with { OpenIntents = [.. f.Interrupted.OpenIntents, intent] }); await Wait(() => f.HasDialog);
+        var reviewText = string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(ReviewText));
+        Assert.Contains("Recorded rename paths needing manual review: 1", reviewText);
+        Assert.Contains("An item may be absent or inaccessible", reviewText);
+        Assert.Contains(other, reviewText);
+        Assert.DoesNotContain("temporary items could not be completely reviewed and will be kept", reviewText);
+        f.Click("Finish renaming"); await f.Drain(run);
         Emit(f, "mixed-rename-review", new { Completed = await run, f.Ended, TargetBytes = File.ReadAllText(f.Target), MissingTemporary = !Exists(other) });
         Assert.False(await run); Assert.False(f.Ended); Assert.Equal("reviewed", File.ReadAllText(f.Target));
         var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
         Assert.False(record.ClosureConfirmed);
         Assert.Contains(JsonSerializer.Serialize(other), record.Report);
+        Assert.Contains("Recorded temporary rename path not verified or moved", record.Report);
         Assert.Contains("unresolved rename remains", record.Report);
     }
 

@@ -7,6 +7,15 @@ not connect the driver to a network interface.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
+`win-ax-dependent-undo-crash.ps1 -DotnetPath <guest-dotnet.exe>` is a
+Windows-only FCUX-018 check. Build the app and Core crash harness in the same
+guest Git checkout first, then run this script in the interactive desktop. It
+creates one disposable fixture under `AppData\Local\FileCatValidation`, kills
+only its own held inverse worker, opens that checkout's FileCat build, checks
+Cancel, reviewed rename fallback and the explicit Mark reviewed decision, and
+checks exact bytes and journal state throughout. Its result is
+`AppData\Local\FileCatValidation\win-undo-last.json`; the fixture remains for
+inspection. The script closes only the FileCat instance it started.
 `win-ax-modal-guard.ps1` is a separate Windows UI Automation check that does
 not need Windows Application Driver. Run it in the interactive guest session
 with `-AppPath` pointing to an isolated `FileCat.exe` below the guest's

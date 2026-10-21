@@ -86,7 +86,7 @@ public sealed partial class MainViewModel
             ? "Recovery action submitted. Check its operation and tracking status above."
             : scope.Stopped ? "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
             : scope.Phase == RecoveryActionPhase.Applying
-                ? "Recovery action ended before submission. Any completed cleanup is kept; review the journal and report."
+                ? "Reviewed cleanup ended. Any completed changes are kept; inspect the report and open recovery tracking."
                 : "Review closed without approval. The recovery journal remains available.");
         scope.Dispose();
     }
@@ -349,8 +349,8 @@ public sealed partial class MainViewModel
             if (unresolvedRemoteUpload)
                 message += "\n\n" + InterruptedRecoveryReport.RemoteUploadReviewWarning(job);
             if (renames.Count > 0) message += "\n\nThese reviewed interrupted renames will be finished if their contents and paths remain unchanged (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Intent.Path + " → " + r.Intent.Target).ToList());
-            if (unreviewedRenames.Count > 0) message += "\n\nThese temporary items could not be completely reviewed and will be kept with the journal:\n" + InterruptedJobText.Bullets(unreviewedRenames);
-            if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining temporary names are kept; inspect them separately.";
+            if (unreviewedRenames.Count > 0) message += "\n\nThese recorded temporary rename paths could not be verified. An item may be absent or inaccessible. No change will be made at these paths; inspect the retained report and files before closing recovery tracking:\n" + InterruptedJobText.Bullets(unreviewedRenames);
+            if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining recorded paths were not inspected; inspect them separately.";
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => unresolvedRemoteUpload ? "Keep remote upload for review" : "OK" };
@@ -359,7 +359,7 @@ public sealed partial class MainViewModel
                 $"Action: {action}",
                 $"Reviewed partial files to delete: {partial.Count:N0}",
                 $"Reviewed interrupted renames to finish: {renames.Count:N0}",
-                $"Temporary names kept for manual review: {unreviewedRenames.Count:N0}" +
+                $"Recorded rename paths needing manual review: {unreviewedRenames.Count:N0}" +
                     (renameLimited ? " (review limit reached)" : "")
             };
             if (unresolvedRemoteUpload)
@@ -401,7 +401,7 @@ public sealed partial class MainViewModel
                         : $"Restored temporary {rename.Intent.Via} to original {rename.Intent.Path}");
                 else renameEffects.AddRange(outcome.Report);
             }
-            renameEffects.AddRange(unreviewedRenames.Select(path => "Unreviewed temporary name kept: " + path));
+            renameEffects.AddRange(unreviewedRenames.Select(path => "Recorded temporary rename path not verified or moved: " + path));
             if (result.Kept.Count > 0) await Dialogs.AlertAsync("Interrupted operation", "These files were kept because they changed or could not be completely reviewed:\n" + InterruptedJobText.Bullets(result.Kept));
             scope.Check();
             if (notRenamed.Count > 0) await Dialogs.AlertAsync("Interrupted rename", string.Join("\n", notRenamed.Take(20)));
@@ -420,7 +420,7 @@ public sealed partial class MainViewModel
             if (unresolvedRenames || unresolvedRemoteUpload)
             {
                 Notify(unresolvedRenames
-                    ? "Temporary rename items remain unresolved. The old journal is kept for review; the cleanup report is retained."
+                    ? "Recorded rename paths remain unresolved. The old journal is kept for review; the cleanup report is retained."
                     : "A remote upload still needs inspection. The local cleanup report is retained and recovery tracking stays open.", true);
                 if (renames.Count > 0) RefreshAll();
                 return false;
