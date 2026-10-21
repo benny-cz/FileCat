@@ -41,7 +41,10 @@ public sealed class FreedesktopIconsTests
         {
             File.WriteAllText(helper, "#!/bin/sh\nprintf \"'Adwaita'\\n\"\n");
             File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            Assert.Equal("Adwaita", FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
+            // A loaded macOS CI host may not schedule a just-spawned shell within
+            // 500 ms. The separate stalled-helper test checks the short deadline;
+            // this case checks exact output once a normal helper has time to exit.
+            Assert.Equal("Adwaita", FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 5000));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
