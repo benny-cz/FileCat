@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -90,6 +92,63 @@ public sealed class FtpJobTests : IDisposable
         Assert.Equal("version 2", File.ReadAllText(Path.Combine(dest, "report.txt")));
         Assert.Equal($"ftp://tester@127.0.0.1:{server.Port}/report.txt", sftp.GetDisplayPath(SftpProvider.At(profile, "/report.txt")));
         Assert.Contains($"HostUrl=ftp://127.0.0.1:{server.Port}/", ops.Marks[Path.Combine(dest, "report.txt")]);
+    }
+
+    [Fact]
+    public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source()
+    {
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = true;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "known_hosts")), new SessionSecretStore(), new FtpInteraction());
+        var remote = new SftpProvider(connections, () => [profile], p => p);
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(remote);
+        SftpJobs.Register();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir, "cancel-journal"));
+        var bytes = new byte[8 * 1024 * 1024];
+        new Random(14).NextBytes(bytes);
+        string source = Path.Combine(_dir, "partial-upload.bin");
+        File.WriteAllBytes(source, bytes);
+        var originalHash = SHA256.HashData(bytes);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { RateLimit = 64 * 1024 },
+        });
+        try
+        {
+            string? staged = null;
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && staged is null && !job.State.IsFinished())
+            {
+                staged = Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                    .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < 8 * 1024 * 1024);
+                if (staged is null) await Task.Delay(20, ct);
+            }
+            Assert.NotNull(staged);
+            Assert.Equal(JobState.Running, job.State);
+            Assert.False(File.Exists(Path.Combine(server.Root, "partial-upload.bin")));
+
+            job.Cancel();
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                await Task.Delay(20, ct);
+            Assert.Equal(JobState.Canceled, job.State);
+            Assert.Empty(Directory.GetFiles(server.Root));
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+        }
+        finally
+        {
+            if (!job.State.IsFinished()) job.Cancel();
+        }
     }
 
     [Theory]

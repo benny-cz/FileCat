@@ -554,6 +554,15 @@ The source and destination SFTP interruption paths are now exercised on live
 providers. Other supported failure/cancellation paths and scaled/spoken
 acceptance remain open.
 
+FCUX-001 now also has a real FTP cancellation regression. `FtpJobTests` starts
+the local pyftpdlib server, rate-limits an 8 MiB upload, waits for nonzero
+bytes under the server's hidden `.fc-` stage, and cancels the active job. It
+requires a canceled result, no public target, no remaining stage and an
+unchanged source hash. The focused case passes, as does the complete Remote
+suite with 2,371 passed and 156 platform/lab skips. Live FTP process
+interruption, changed server state and other failure/cleanup choices remain
+for native acceptance.
+
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and
 Avalonia reported that a control already had a parent. Transfer option
