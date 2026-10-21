@@ -563,6 +563,20 @@ suite with 2,371 passed and 156 platform/lab skips. Live FTP process
 interruption, changed server state and other failure/cleanup choices remain
 for native acceptance.
 
+FCUX-001 also guards a normal remote Replace approval against a destination
+that changes during a long upload. The approved entry's kind, size and modified
+time are captured before upload; publication obtains a fresh listing and
+refuses a changed or disappeared entry before deletion or rename. Copy and Move
+both discard the unpublished stage, keep the source and explain that the
+current destination needs review. Seven controlled FTP/SFTP variants cover
+unchanged and changed versions, disappearance, links and directories. A real
+pyftpdlib FTP Move changed the target while 1 MiB was uploading; the finished
+job failed without deleting the source, the newer target bytes remained and
+the stage was removed. The complete Remote Release suite passed 2,379 tests
+with 156 platform/lab skips. The metadata recheck is a best-effort remote
+guard, not an atomic server-side compare-and-swap; same-size/same-timestamp
+changes and a race after the final listing remain provider limits.
+
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and
 Avalonia reported that a control already had a parent. Transfer option

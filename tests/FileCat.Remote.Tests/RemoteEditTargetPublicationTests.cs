@@ -13,6 +13,68 @@ namespace FileCat.Remote.Tests;
 /// <summary>Expected edit revisions are checked again after the owned upload and before target mutation.</summary>
 public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
 {
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, "unchanged", false)]
+    [InlineData(RemoteProtocols.Ftp, "unchanged", true)]
+    [InlineData(RemoteProtocols.Sftp, "length", true)]
+    [InlineData(RemoteProtocols.Ftp, "time", false)]
+    [InlineData(RemoteProtocols.Sftp, "gone", false)]
+    [InlineData(RemoteProtocols.Ftp, "link", true)]
+    [InlineData(RemoteProtocols.Sftp, "directory", true)]
+    public async Task Approved_replacement_does_not_overwrite_a_target_changed_during_upload(string protocol, string change, bool move)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File("/sentinel", "link target stays");
+        server.File(Target, "base");
+        Snapshot? during = null;
+        server.DuringUpload = () =>
+        {
+            switch (change)
+            {
+                case "length": server.Lookup(Target, false)!.Data = "someone else's longer bytes"u8.ToArray(); break;
+                case "time": server.Lookup(Target, false)!.Modified = server.Lookup(Target, false)!.Modified.AddSeconds(3); break;
+                case "gone": server.Dir("/owned").Children.Remove("notes.txt"); break;
+                case "link": server.Link(Target, "/sentinel"); break;
+                case "directory": server.Dir("/owned").Children.Remove("notes.txt"); server.Dir(Target); break;
+            }
+            during = rig.Snapshot();
+        };
+        var sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = move ? JobKind.Move : JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.NotNull(during);
+        Assert.Equal("link target stays", server.Read("/sentinel"));
+        Assert.DoesNotContain(server.Dir("/owned").Children.Keys, n => n.StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
+        if (change == "unchanged")
+        {
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(sourceHash, rig.Snapshot().SHA256);
+            Assert.Equal(!move, File.Exists(rig.SourcePath));
+        }
+        else
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal(during, rig.Snapshot());
+            Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+            Assert.Equal(0, job.BytesDone);
+            Assert.Contains(job.Issues, i => i.Message.Contains("destination changed on the server", StringComparison.Ordinal));
+        }
+    }
+
     public static TheoryData<string, string, bool> Cases
     {
         get

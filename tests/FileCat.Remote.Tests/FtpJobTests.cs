@@ -151,6 +151,67 @@ public sealed class FtpJobTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading()
+    {
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = true;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "replace-known-hosts")), new SessionSecretStore(), new FtpInteraction());
+        var remote = new SftpProvider(connections, () => [profile], p => p);
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(remote);
+        SftpJobs.Register();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir, "replace-journal"));
+        var source = Path.Combine(_dir, "replace.bin");
+        var target = Path.Combine(server.Root, "replace.bin");
+        var bytes = new byte[1024 * 1024];
+        new Random(15).NextBytes(bytes);
+        File.WriteAllBytes(source, bytes);
+        File.WriteAllText(target, "previous version");
+        var originalHash = SHA256.HashData(bytes);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace, RateLimit = 256 * 1024 },
+        });
+        try
+        {
+            string? staged = null;
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && staged is null && !job.State.IsFinished())
+            {
+                staged = Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                    .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < 1024 * 1024);
+                if (staged is null) await Task.Delay(20, ct);
+            }
+            Assert.NotNull(staged);
+            Assert.Equal(JobState.Running, job.State);
+            File.WriteAllText(target, "newer version from another client");
+            File.SetLastWriteTimeUtc(target, DateTime.UtcNow.AddMinutes(2));
+            var changedHash = SHA256.HashData(File.ReadAllBytes(target));
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                await Task.Delay(20, ct);
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal(changedHash, SHA256.HashData(File.ReadAllBytes(target)));
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+            Assert.Equal(["replace.bin"], Directory.GetFiles(server.Root).Select(Path.GetFileName));
+            Assert.Contains(job.Issues, i => i.Message.Contains("destination changed on the server", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (!job.State.IsFinished()) job.Cancel();
+        }
+    }
+
     [Theory]
     // Release issue I45: how precisely each listing line states its time.
     [InlineData("type=file;size=1001;modify=20261001050906;perm=adfrw; f1.bin", 0)]

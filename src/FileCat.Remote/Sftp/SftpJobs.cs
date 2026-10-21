@@ -537,6 +537,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool replace = false;
+        TargetSnapshot? approvedTarget = null;
         if (Job.Request.ExpectedTarget is { } expected)
         {
             // An edit commit: replace exactly the version the edit started from, never someone else's newer one.
@@ -556,6 +557,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             {
                 case DecisionAction.Replace:
                     replace = true;
+                    approvedTarget = TargetSnapshot.Of(existing);
                     break;
                 case DecisionAction.KeepBothRenameIncoming:
                     name = UniqueName(destFolder, name, false);
@@ -690,7 +692,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during verification, so the copy was not published.");
-                Publish(destFolder, name, temp!, replace);
+                Publish(destFolder, name, temp!, replace, approvedTarget);
                 temp = null;
             });
         }
@@ -768,7 +770,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
     }
 
-    private void Publish(string folder, string name, string temp, bool replace)
+    private readonly record struct TargetSnapshot(bool IsDirectory, bool IsLink, long Size, DateTime ModifiedUtc)
+    {
+        public static TargetSnapshot Of(IRemoteEntry entry) => new(entry.IsDirectory, entry.IsLink, entry.Size, entry.ModifiedUtc);
+    }
+
+    private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget)
     {
         string dst = RemotePath.Combine(folder, name);
         if (!replace)
@@ -777,14 +784,20 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Added(folder, name);
             return;
         }
-        Changed(folder);
-        var current = Entry(folder, name);
+        var current = FreshEntry(folder, name);
         // Uploading can take a long time: recheck the edit's approved revision before any target mutation.
         // This fresh metadata check does not provide a server-side atomic compare-and-replace.
         if (Job.Request.ExpectedTarget is { } expected &&
             (current is null || current.IsLink || current.IsDirectory || current.Size != expected.Length || current.ModifiedUtc.Ticks != expected.ModifiedTicks))
             throw new RefusedOperationException(current is null ? "Not written: the file is gone from the server; your edit is kept."
                 : "Not written: the file changed on the server while the edit was uploading; your edit is kept.");
+        // A normal Replace decision also belongs to the version that was shown before a potentially long upload.
+        // Remote metadata is not an atomic compare-and-swap, but rechecking it prevents overwriting an observed
+        // change, disappearance or type swap. Never delete the new item merely because the old one was approved.
+        if (approvedTarget is { } approved &&
+            (current is null || TargetSnapshot.Of(current) != approved))
+            throw new RefusedOperationException("Not written: the destination changed on the server during the upload. Review its current version before replacing it.");
+        Changed(folder);
         if (current is { IsLink: true })
         {
             // A link is replaced itself, never through to its target.
