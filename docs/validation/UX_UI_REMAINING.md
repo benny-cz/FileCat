@@ -21,7 +21,10 @@ increments to `main`.
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    nonlocal destinations and other supported provider failure/cancellation
-   cases. Verify exact source/target bytes,
+   cases. For interrupted uploads, verify the server-side temporary file,
+   the new local-cleanup warning and journal retention, then inspect or
+   resolve the remote file before deliberately marking recovery reviewed.
+   Verify exact source/target bytes,
    recovery choices and staged cleanup in each. For FCUX-018, verify
    Windows close/restart ownership during a held inverse, dependent rename
    journal recovery after interruption, native inspection of a report with a

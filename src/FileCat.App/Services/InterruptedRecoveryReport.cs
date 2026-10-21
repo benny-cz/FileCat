@@ -3,12 +3,38 @@ using System.Text;
 using System.Text.Json;
 using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Resources;
 
 namespace FileCat.App.Services;
 
 internal static class InterruptedRecoveryReport
 {
     private const int DetailLimit = 10_000;
+
+    internal static bool HasUnreviewedRemoteUpload(InterruptedJob job)
+    {
+        if (job.OpenIntents.Any(intent => intent.Operation is "upload" or "upload-move")) return true;
+        if (job.Kind is not (nameof(JobKind.Copy) or nameof(JobKind.Move))) return false;
+        var destination = Location.Deserialize(job.Destination);
+        // An upload intent can be lost in an interrupted batched journal even
+        // after the server received a temporary file. The recorded provider
+        // still requires remote inspection before local tracking can close.
+        return destination?.Scheme is Schemes.Sftp or Schemes.Ftp;
+    }
+
+    internal const string RemoteUploadWarning =
+        "An interrupted upload may have left a hidden temporary file on the remote server. " +
+        "This local recovery review cannot inspect or delete server files. Inspect the remote destination " +
+        "and its temporary files before marking this recovery reviewed.";
+
+    internal static IReadOnlyList<string> RemoteUploadTargets(InterruptedJob job)
+    {
+        var targets = job.OpenIntents.Where(i => i.Operation is "upload" or "upload-move")
+            .Select(i => i.Target).Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!).Distinct(StringComparer.Ordinal).Take(4).ToArray();
+        if (targets.Length > 0) return targets;
+        return Location.Deserialize(job.Destination) is { } recorded ? [recorded.Path] : [];
+    }
 
     internal static string Format(InterruptedJob job, string action,
         IReadOnlyList<string> reviewedStaged, IReadOnlyList<string> unreviewedStaged, CopyReview copies,
@@ -48,6 +74,8 @@ internal static class InterruptedRecoveryReport
              (job.SourceCount == sources.Count ? "all declared roots are represented" : "additional roots may be unavailable"));
         Line("Quoted paths use JSON escaping. Decoding the quoted value recovers its exact characters.");
         Line("This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.");
+        if (HasUnreviewedRemoteUpload(job))
+            Line("Remote upload still requires review: " + RemoteUploadWarning);
         Line();
         if (deleted is not null)
             foreach (string path in deleted) Detail("Deleted by cleanup", path);

@@ -525,8 +525,19 @@ matching its initial manifest. The first run had copied the probe through
 FileCat; the repeat seeded the same 60-byte marker locally to focus on the
 post-kill and cleanup regressions. Live nonlocal destinations remain open.
 The prior `cb9f329b` source passed producer, Windows, Ubuntu, macOS and
-Windows ARM64 CI in run `39583832661`; `152101b5` CI run `39597252968`
-is in progress.
+Windows ARM64 CI in run `39583832661`; `152101b5` passed the same five
+lanes in run `39597252968`.
+An interrupted upload to a remote destination may leave a hidden server-side
+temporary file that the local recovery reviewer cannot inspect. The cleanup
+decision now names that limit, retains the journal and report after any
+approved local cleanup, and directs the user to inspect the remote folder
+before deliberately marking the recovery reviewed. The operation row and
+retained report carry the same warning. A headless UI regression creates an
+unfinished remote-upload intent, checks the highlighted decision and saved
+report, and confirms that neither cleanup nor a canceled Mark reviewed
+action closes its journal; the 17-case focused suite passes. Live remote
+destination interruption, remote partial inspection and scaled/spoken
+acceptance remain open.
 
 After the report that the recovery dialog still read as a wall of text, the
 review now gives its action a distinct selectable emphasis, makes the conflict

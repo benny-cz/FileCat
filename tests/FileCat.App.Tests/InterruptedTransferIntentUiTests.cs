@@ -57,9 +57,75 @@ public sealed class InterruptedTransferIntentUiTests
             Assert.False(row.CanReviewNewTransfer);
             Assert.Contains("Select the sources and destination again", row.Details);
             Assert.Contains("cleanup and the recovery report remain available", row.Details);
+            if (!remoteSource)
+                Assert.Contains("hidden temporary file on the remote server", row.Details);
             Assert.Equal("owned source bytes", File.ReadAllText(localPath));
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Interrupted_remote_upload_keeps_recovery_open_after_local_cleanup_review()
+    {
+        using var f = await Fixture.Open();
+        string source = Path.Combine(f.Source, "slow.bin");
+        File.WriteAllText(source, "source bytes must stay here");
+        var destination = new Location(Schemes.Sftp, "/owned/destination", session: "test-profile");
+        var request = new JobRequest { Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)], Destination = destination };
+        using (var journal = JobJournal.Create(f.Services.Paths.JournalDirectory,
+            new Job(request, "Remote upload", "test", [], [])))
+            journal.Intent("upload", source, "/owned/destination/slow.bin");
+        var interrupted = Assert.Single(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
+        var row = new InterruptedJobViewModel(interrupted);
+        Assert.False(row.CanRunAgain);
+        Assert.False(row.CanReviewNewTransfer);
+        Assert.Equal("Review local cleanup…", row.CleanupLabel);
+        Assert.Contains("hidden temporary file on the remote server", row.Details);
+        f.Vm.Operations.Interrupted.Add(row);
+
+        var cleanup = f.Vm.CleanupInterruptedAsync(interrupted);
+        await f.WaitButton("Keep remote upload for review");
+        string review = string.Join("\n", f.Window.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(ReviewText));
+        Assert.Contains("server files are not inspected or deleted", review);
+        Assert.Contains("Inspect the remote destination", review);
+        Assert.Contains("Target: /owned/destination/slow.bin", review);
+        var targetLine = Assert.Single(f.Window.GetVisualDescendants().OfType<SelectableTextBlock>(),
+            block => ReviewText(block) == "Target: /owned/destination/slow.bin");
+        var targetRuns = Assert.IsType<InlineCollection>(targetLine.Inlines).OfType<Run>().ToArray();
+        Assert.Contains(targetRuns, run => run.Text == "/owned/destination/" &&
+            run.FontWeight == FontWeight.SemiBold && run.Foreground is not null);
+        Assert.Contains(targetRuns, run => run.Text == "slow.bin" &&
+            run.FontWeight == FontWeight.Bold && run.Foreground is not null);
+        Assert.True(JournalRecovery.IsInterrupted(interrupted));
+        f.Click("Keep remote upload for review");
+        Assert.False(await cleanup);
+        Assert.True(JournalRecovery.IsInterrupted(interrupted));
+        Assert.Equal("source bytes must stay here", File.ReadAllText(source));
+        string saved = Assert.Single(Directory.GetFiles(
+            Path.Combine(f.Services.Paths.JournalDirectory, "reviewed"), "review-*.json"));
+        string report = File.ReadAllText(saved);
+        Assert.Contains("remote upload still requires inspection", report);
+        Assert.Contains("hidden temporary file on the remote server", report);
+        Assert.Contains("/owned/destination/slow.bin", report);
+
+        var mark = f.Vm.MarkInterruptedReviewedAsync(interrupted);
+        await f.WaitButton("Mark reviewed and stop reminders");
+        string markReview = string.Join("\n", f.Window.GetVisualDescendants()
+            .OfType<SelectableTextBlock>().Select(ReviewText));
+        Assert.Contains("inspect server files before stopping recovery reminders", markReview);
+        Assert.Contains("Target: /owned/destination/slow.bin", markReview);
+        f.Click("Cancel");
+        Assert.False(await mark);
+        Assert.True(JournalRecovery.IsInterrupted(interrupted));
+
+        var acknowledged = f.Vm.MarkInterruptedReviewedAsync(interrupted);
+        await f.WaitButton("Mark reviewed and stop reminders");
+        f.Click("Mark reviewed and stop reminders");
+        Assert.True(await acknowledged);
+        Assert.False(JournalRecovery.IsInterrupted(interrupted));
+        Assert.Equal("source bytes must stay here", File.ReadAllText(source));
     }
 
     [AvaloniaFact]

@@ -343,14 +343,17 @@ public sealed partial class MainViewModel
                 else { renames.Add(version); renameBytes -= version.Bytes; renameItems -= version.Items.Count; }
             }
             var partial = review.Staged.Select(s => s.Path).Concat(review.Copies.Incomplete.Select(c => c.Path)).ToList();
+            bool unresolvedRemoteUpload = InterruptedRecoveryReport.HasUnreviewedRemoteUpload(job);
             var message = (partial.Count > 0 ? "These reviewed partial files will be deleted:\n" + InterruptedJobText.Bullets(partial) : "No completely reviewed partial files remain.")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
+            if (unresolvedRemoteUpload)
+                message += "\n\n" + InterruptedRecoveryReport.RemoteUploadWarning;
             if (renames.Count > 0) message += "\n\nThese reviewed interrupted renames will be finished if their contents and paths remain unchanged (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Intent.Path + " → " + r.Intent.Target).ToList());
             if (unreviewedRenames.Count > 0) message += "\n\nThese temporary items could not be completely reviewed and will be kept with the journal:\n" + InterruptedJobText.Bullets(unreviewedRenames);
             if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining temporary names are kept; inspect them separately.";
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
-            string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => "OK" };
+            string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => unresolvedRemoteUpload ? "Keep remote upload for review" : "OK" };
             var highlights = new List<string>
             {
                 $"Action: {action}",
@@ -359,11 +362,18 @@ public sealed partial class MainViewModel
                 $"Temporary names kept for manual review: {unreviewedRenames.Count:N0}" +
                     (renameLimited ? " (review limit reached)" : "")
             };
+            if (unresolvedRemoteUpload)
+            {
+                highlights.Add("Remote upload: server files are not inspected or deleted; recovery tracking stays open");
+                var targets = InterruptedRecoveryReport.RemoteUploadTargets(job);
+                foreach (var target in targets.Take(3)) highlights.Add("Target: " + target);
+                if (targets.Count == 4) highlights.Add("More remote targets: see the full review and retained report");
+            }
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval of the reviewed cleanup…");
             bool approved = Dialogs is OverlayDialogService overlay
                 ? await overlay.ConfirmWithCancellationAsync("Interrupted operation", message, action,
-                    partial.Count > 0 || renames.Count > 0, scope.StopSource.Token, highlights)
-                : await Dialogs.ConfirmAsync("Interrupted operation", message, action, danger: partial.Count > 0 || renames.Count > 0);
+                    partial.Count > 0 || renames.Count > 0 || unresolvedRemoteUpload, scope.StopSource.Token, highlights)
+                : await Dialogs.ConfirmAsync("Interrupted operation", message, action, danger: partial.Count > 0 || renames.Count > 0 || unresolvedRemoteUpload);
             scope.Check();
             if (!approved) return false;
             scope.SetPhase(RecoveryActionPhase.Applying, "Applying reviewed cleanup; completed changes are kept…");
@@ -396,16 +406,20 @@ public sealed partial class MainViewModel
             scope.Check();
             var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), scope.Check);
             string report = await Task.Run(() => InterruptedRecoveryReport.Format(job,
-                unresolvedRenames ? "Cleanup attempted; unresolved rename remains and recovery tracking stays open" : "Reviewed cleanup; outcome details below",
+                unresolvedRenames ? "Cleanup attempted; unresolved rename remains and recovery tracking stays open"
+                    : unresolvedRemoteUpload ? "Local cleanup reviewed; remote upload still requires inspection and recovery tracking stays open"
+                    : "Reviewed cleanup; outcome details below",
                 review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited || renameLimited,
                 result.DeletedPaths, result.Kept, renameEffects, recordedSources));
             var record = new RecoveryReviewRecord(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
-                unresolvedRenames ? "Cleanup attempted; recovery remains open" : "Reviewed cleanup", report, ClosureConfirmed: false);
+                unresolvedRenames || unresolvedRemoteUpload ? "Cleanup attempted; recovery remains open" : "Reviewed cleanup", report, ClosureConfirmed: false);
             await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, scope.Check);
             Operations.AddReviewedRecovery(record);
-            if (unresolvedRenames)
+            if (unresolvedRenames || unresolvedRemoteUpload)
             {
-                Notify("Temporary rename items remain unresolved. The old journal is kept for review; the cleanup report is retained.", true);
+                Notify(unresolvedRenames
+                    ? "Temporary rename items remain unresolved. The old journal is kept for review; the cleanup report is retained."
+                    : "A remote upload still needs inspection. The local cleanup report is retained and recovery tracking stays open.", true);
                 if (renames.Count > 0) RefreshAll();
                 return false;
             }
@@ -477,10 +491,12 @@ public sealed partial class MainViewModel
                 review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited,
                 allSources: recordedSources));
             int renames = job.OpenIntents.Count(i => i.Operation == JobJournal.RenameViaOp);
+            bool unresolvedRemoteUpload = InterruptedRecoveryReport.HasUnreviewedRemoteUpload(job);
             string message = $"Stop offering automatic recovery for {Formatters.SafeName(job.Title)} on future starts? " +
                 "This does not delete or repair files. The journal will be closed and the recovery actions will no longer be offered. " +
                 "A bounded, copyable report of the known paths and review limits will remain in Operations under Reviewed recovery reports. " +
                 (renames > 0 ? $"\n\n{renames:N0} interrupted rename intent{(renames == 1 ? " has" : "s have")} a temporary name. Its path and possible target remain in the report; inspect or finish it before stopping reminders. " : "") +
+                (unresolvedRemoteUpload ? "\n\n" + InterruptedRecoveryReport.RemoteUploadWarning : "") +
                 (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut
                     ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
                 "\n\nUse Review report first if you need to copy or save the full retained detail before this decision.";
@@ -492,6 +508,13 @@ public sealed partial class MainViewModel
                 "A bounded report remains in Operations for this session",
             };
             if (renames > 0) highlights.Add($"Interrupted rename intents to inspect: {renames:N0}");
+            if (unresolvedRemoteUpload)
+            {
+                highlights.Add("Remote upload: inspect server files before stopping recovery reminders");
+                var targets = InterruptedRecoveryReport.RemoteUploadTargets(job);
+                foreach (var target in targets.Take(3)) highlights.Add("Target: " + target);
+                if (targets.Count == 4) highlights.Add("More remote targets: see the full review and retained report");
+            }
             if (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut)
                 highlights.Add("Review limit reached; other affected files may be unknown");
             bool approved = Dialogs is OverlayDialogService overlay

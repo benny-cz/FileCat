@@ -304,14 +304,18 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
         (Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && !CanRunAgain
             ? " " + Formatters.SafeName(Job.TransferIntentProblem ?? "The complete original transfer options are unavailable.") +
-              RecoveryGuidance : "");
+              RecoveryGuidance : "") +
+        (InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job)
+            ? " " + InterruptedRecoveryReport.RemoteUploadWarning : "");
 
     private string RecoveryGuidance => CanReviewNewTransfer
         ? Job.TransferIntentProblem?.Contains("Review a new transfer", StringComparison.OrdinalIgnoreCase) == true
             ? "" : " Review a new transfer to choose its scope and options again."
         : " The recorded scope cannot be prefilled here. Select the sources and destination again; cleanup and the recovery report remain available.";
 
-    public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…" : "Clean up partial files";
+    public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
+        : InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job) ? "Review local cleanup…"
+        : "Clean up partial files";
     public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
