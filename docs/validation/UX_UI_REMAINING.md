@@ -98,7 +98,9 @@ increments to `main`.
    UXBUG-016 needs a native visual check of the centered vector X at 100%,
    150% and 200% display scale, a foreground-owned Windows VM pointer run,
    Ubuntu/macOS pointer routes and assistive-technology labeling beyond the
-   passing headless Registry, confirmation and nested-dialog checks.
+   passing headless Registry, confirmation and nested-dialog checks. In the
+   current Ubuntu Wayland VM, XTest cannot move the native pointer; finish its
+   pointer route using a working guest input bridge or an X11 session.
 
 ## Evidence required to finish
 

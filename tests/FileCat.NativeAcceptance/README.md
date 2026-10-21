@@ -34,6 +34,14 @@ backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
 guest-local `-ReportPath`. It checks the foreground process ID before sending
 F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
+`linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
+in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
+close control's accessible name, description and pointer bounds, then uses
+XTest mouse input for the X and backdrop. The runner checks the active X11
+window PID before each click and preserves source/target fixtures on
+cancellation. Run it in the logged-in desktop session with an X11 pointer
+bridge; if Wayland blocks XTest movement, the JSON report explicitly marks the
+input bridge unavailable and does not count the pointer route as passed.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app

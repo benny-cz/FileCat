@@ -1373,6 +1373,20 @@ and macOS. A complete local App suite attempt was stopped before a final
 result after 17 minutes; it is not counted as a pass. Final five-lane CI is
 pending on the next pushed head.
 
+The current Ubuntu VM checkout was fast-forwarded to the exact vector-fix
+commit; all five focused `OverlayDialogPointerDismissTests` passed there.
+An isolated native AT-SPI runner located the Create folder X, confirmed its
+accessible name, cancel description and 30-by-30 screen-pixel pointer target,
+and refused to
+claim a pointer result because the Wayland guest's XTest bridge cannot move
+the mouse. A stale GNOME Remote Desktop permission prompt was dismissed via
+its scoped accessible Cancel action; a retry still timed out in XTest before
+delivering the click. The native Ubuntu pointer route remains open. CI for the
+preceding pointer-dismiss commit had successful producer, Windows, Ubuntu and
+Windows ARM64 jobs; its Mac job was canceled by the later push, so the run was
+overall unsuccessful rather than a product-test failure. The vector-fix CI
+run is still in progress.
+
 ## Reproduction
 
 From the solution directory, with the pinned SDK installed:
