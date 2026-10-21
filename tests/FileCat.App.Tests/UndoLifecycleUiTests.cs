@@ -14,6 +14,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
@@ -157,6 +158,44 @@ public sealed class UndoLifecycleUiTests
         Assert.Equal(1, inverse.UndoReport!.Count(UndoOutcomeKind.Removed));
         var row = new JobViewModel(inverse); row.Refresh(); Assert.True(row.CanShowUndoReport);
         Assert.Contains("removed", row.DetailText);
+    }
+
+    [AvaloniaFact]
+    public async Task Stop_and_exit_waits_for_a_held_inverse_native_step_before_closing()
+    {
+        using var f = await Fixture.Open();
+        var original = await f.CreateEmpty();
+        var inner = f.Services.Jobs.FileOperations;
+        using var held = new HeldDeleteFiles(inner, f.EmptyPath);
+        var field = typeof(JobManager).GetField("_fs", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        field.SetValue(f.Services.Jobs, held);
+        try
+        {
+            var review = f.Vm.UndoJobAsync(original);
+            await f.WaitButton("Run these inverse actions");
+            f.Click("Run these inverse actions");
+            await review;
+            var inverse = Assert.Single(f.Services.Jobs.Jobs, j => j.Kind == JobKind.Undo);
+            await Fixture.Wait(() => held.Entered.IsSet);
+            Assert.Equal(JobState.Running, inverse.State);
+
+            var close = f.Vm.ConfirmExitWithActiveWorkAsync();
+            await f.WaitButton("Stop them and exit");
+            f.Click("Stop them and exit");
+            Assert.False(await close);
+            Assert.True(f.Window.IsVisible);
+            Assert.True(f.Services.Jobs.HasActiveWork);
+            Assert.Contains("Stop requested. FileCat will close after the current safe step finishes", f.Text);
+
+            held.Release.Set();
+            await Fixture.Wait(() => inverse.State.IsFinished() && !f.Window.IsVisible);
+            Assert.False(f.Services.Jobs.HasActiveWork);
+        }
+        finally
+        {
+            held.Release.Set();
+            field.SetValue(f.Services.Jobs, inner);
+        }
     }
 
     [AvaloniaTheory]
@@ -357,5 +396,21 @@ public sealed class UndoLifecycleUiTests
             Dispatcher.UIThread.RunJobs();
         }
         public void Dispose() => AccessibilityTests.Close(Services, Window, Root);
+    }
+
+    private sealed class HeldDeleteFiles(IFileSystemOperations inner, string heldPath) : PortableFileOperations, IDisposable
+    {
+        public readonly ManualResetEventSlim Entered = new(false);
+        public readonly ManualResetEventSlim Release = new(false);
+        public override void DeleteFile(string path)
+        {
+            if (path == heldPath)
+            {
+                Entered.Set();
+                if (!Release.Wait(TimeSpan.FromSeconds(45))) throw new IOException("Owned inverse hold timed out.");
+            }
+            inner.DeleteFile(path);
+        }
+        public void Dispose() { Release.Set(); Entered.Dispose(); Release.Dispose(); }
     }
 }

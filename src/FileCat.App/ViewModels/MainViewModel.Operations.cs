@@ -122,7 +122,16 @@ public sealed partial class MainViewModel
         foreach (var j in active) j.Cancel();
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (Services.Jobs.HasActiveWork && DateTime.UtcNow < deadline) await Task.Delay(50);
-        return true;
+        // A native call can outlive the bounded wait. Keep the window and its
+        // journal owner alive until that call returns and the job retires.
+        _exitWhenIdle = true;
+        if (!Services.Jobs.HasActiveWork)
+        {
+            _exitWhenIdle = false;
+            return true;
+        }
+        Notify("Stop requested. FileCat will close after the current safe step finishes; completed changes remain.");
+        return false;
     }
 
     // ---- Selection helpers ----------------------------------------------------------------------------
