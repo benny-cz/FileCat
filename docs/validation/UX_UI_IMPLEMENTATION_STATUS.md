@@ -1551,6 +1551,18 @@ help and 30 × 30 pixel bounds. A captured close-button crop at 96 DPI had
 (-0.22, 0) physical pixels. The runner now enforces a 1.5-pixel center bound
 in both axes. Windows 150%/other scale, other dialog types and spoken
 acceptance remain open.
+The generalized native pointer runner also passed on the Git-built Windows
+VM app at `a571e62b` (SHA-256
+`5D91B50025AB0084103F1F39E563C2BDD4E12251F2BFA1A34299D16058D75152`).
+Both the Create folder and Create in Registry dialogs opened twice; their
+accessible Close dialog buttons reported the same cancel help, measured
+30 × 30 physical pixels, and their 92 high-contrast X pixels had centroid
+offset (-0.22, 0) from center at 96 DPI. A native click on X and then a
+native backdrop click each dismissed the respective dialog; the Create
+folder source fixture stayed empty. JSON receipts and the close-button crop
+are retained under the guest's `AppData\Local\FileCatValidation` and the
+host native acceptance output. Other dialog families, 150% Windows scale,
+Ubuntu mouse and actual screen-reader speech remain open.
 
 ## Reproduction
 

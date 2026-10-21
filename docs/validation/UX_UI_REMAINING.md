@@ -96,7 +96,8 @@ increments to `main`.
    and accessible field help passed native Mac, Ubuntu and Windows checks,
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs native visual checks of the centered vector X at 150%
-   and other scaled states, other dialog types, an Ubuntu mouse-device route,
+   and other scaled states, dialog families beyond the verified Windows
+   Create folder and Create in Registry routes, an Ubuntu mouse-device route,
    and actual screen-reader speech on each desktop. The Mac AX label and
    native X/backdrop pointer route passed through direct AXUIElement traversal.
 
