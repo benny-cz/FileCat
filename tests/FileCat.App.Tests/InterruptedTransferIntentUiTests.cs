@@ -241,6 +241,11 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
         Assert.True(row.HasActionStatus);
         Assert.Equal("Review closed without approval. The recovery journal remains available.", row.ActionStatus);
+        var announcement = Assert.Single(f.Window.GetVisualDescendants().OfType<TextBlock>(),
+            block => block.Classes.Contains("recoveryAnnouncement"));
+        Assert.Equal(row.ActionStatus, announcement.Text);
+        Assert.Equal(row.ActionStatus, AutomationProperties.GetName(announcement));
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(announcement));
     }
 
     [AvaloniaFact]
@@ -258,6 +263,8 @@ public sealed class InterruptedTransferIntentUiTests
         string arrived = Path.Combine(f.Destination, "photos"), target = Path.Combine(arrived, "photo.jpg"), unrelated = Path.Combine(arrived, "notes.txt");
         File.WriteAllText(target, "photo"); File.WriteAllText(unrelated, "notes");
         f.Services.Settings.DefaultVerify = "Native";
+        f.Vm.Operations.IsOpen = true;
+        f.Vm.Operations.Interrupted.Add(new InterruptedJobViewModel(interrupted));
         var run = f.Vm.RunInterruptedAgainAsync(interrupted);
         await f.WaitButton("Continue move");
         var highlighted = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
@@ -286,6 +293,14 @@ public sealed class InterruptedTransferIntentUiTests
         Assert.False(File.Exists(image));
         Assert.Equal("notes remain at source", File.ReadAllText(notes));
         Assert.Equal("notes", File.ReadAllText(unrelated));
+        var announcement = Assert.Single(f.Window.GetVisualDescendants().OfType<TextBlock>(),
+            block => block.Classes.Contains("recoveryAnnouncement"));
+        Assert.True(f.Vm.Operations.HasRecoveryAnnouncement);
+        Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(announcement)));
+        f.Vm.Operations.Interrupted.Clear();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains(announcement, f.Window.GetVisualDescendants());
+        Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(announcement)));
     }
 
     [AvaloniaFact]

@@ -9,8 +9,8 @@ The Core callback now waits in bounded one-second slices until the full
 cumulative allowance has elapsed, rechecking cancellation and live limit
 changes between slices. Three focused rate tests cover the large-buffer,
 limit-change and cancellation cases. The complete Windows Core Release suite
-passed 4,431 tests with 150 platform skips before the third test was added;
-that third test then passed in the focused run. The Ubuntu desktop subsequently
+passed 4,432 tests with 150 platform skips, and all three focused rate tests
+passed. The Ubuntu desktop subsequently
 showed the chosen rate while a real Copy was active. Its preallocated staging
 file contained 15,728,640 exact source-prefix bytes and an unwritten zero tail;
 the final target was unpublished and a journal existed when the exact test
@@ -38,10 +38,21 @@ fresh data profile and found the retained journal, destination and explicit
 Continue move review. Opening the review preserved both trees and showed
 Cancel and Continue. Pressing Cancel then crashed the older Mac build in
 Avalonia's native `raiseLiveRegionChanged` while FileCat cleared the recovery
-action status. The action now ends with a nonempty, accurate review-closed
-status (or retained-effects status when applying had begun). Six cancellation
-routes and all 16 focused interrupted-transfer UI cases pass with the recovery
-row visible. A rebuilt signed Mac native Cancel/Continue retest remains open.
+action status. Keeping the row's final status nonempty made native Cancel
+pass, but approving Continue exposed the same native exception when the
+completed journal row disappeared. Recovery announcements now live on a
+stable Operations drawer control with a nonempty accessible name; the row's
+status remains visible without owning a live region. All 16 focused
+interrupted-transfer UI cases pass, including Cancel and row removal checks.
+A new signed Git build repeated the whole Mac journey: a fresh two-file owned
+Cut published both exact URLs, held the conflict without mutation, wrote one
+journal and survived a process kill and restart. The review retained the
+exact destination and explicit Cancel/Continue choices. Cancel kept both
+trees and the journal unchanged. Reviewed Continue applied conservative Skip:
+`a.txt` remained at both locations, `b.txt` moved byte-exactly, the live app
+reported one done and one skipped, and recovery tracking closed. The runner
+restored its exact fixture and retired its clipboard publication. Both older
+crashed profiles and journals remain preserved as validation evidence.
 
 **Latest native acceptance (20 October 2026):** FCUX-003 passed two fresh
 Windows 11 VM journeys. The filtered hidden mark was excluded by default;

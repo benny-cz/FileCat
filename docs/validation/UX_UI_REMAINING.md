@@ -28,15 +28,9 @@ increments to `main`.
    journal recovery after interruption, native inspection of a report with a
    failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
    validate supported cross-app Move effects and
-   delayed Paste destination on each desktop. Mac and Ubuntu native ownership
-   checks still need Mac process interruption during Move. The Mac held-conflict
-   interruption and restart passed, but Cancel in its recovery review exposed
-   a native live-region crash; retest Cancel and the reviewed continuation on
-   the rebuilt signed app. Ubuntu's held
-   conflict survived a real process kill, restart and reviewed conservative
-   continuation. Windows still needs Explorer Cut presentation after the
-   completed Copy effect and
-   supported external Move/delete-on-paste handling, if safely offered.
+   delayed Paste destination on each desktop. Windows still needs Explorer Cut
+   presentation after the completed Copy effect and supported external
+   Move/delete-on-paste handling, if safely offered.
    FCUX-002 still needs other narrow-window routes,
    scaled-display input and deeper non-Windows focus journeys beyond the
    verified Mac pointer/keyboard range at normal and narrow widths. FCUX-003

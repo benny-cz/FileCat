@@ -64,6 +64,9 @@
         <!-- Interrupted jobs -->
         <ScrollViewer x:Name="RecoveryScroll" Grid.ColumnSpan="3" MaxHeight="105" VerticalScrollBarVisibility="Auto">
         <StackPanel>
+          <TextBlock Text="{Binding RecoveryAnnouncement}" IsVisible="{Binding HasRecoveryAnnouncement}" Margin="8,4" Classes="small recoveryAnnouncement"
+                     TextWrapping="Wrap" AutomationProperties.Name="{Binding RecoveryAnnouncement}"
+                     AutomationProperties.LiveSetting="Polite" />
           <ItemsControl ItemsSource="{Binding SyncGroups}" Margin="8,4" AutomationProperties.Name="Synchronization plans">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:SyncGroupViewModel">
@@ -103,8 +106,7 @@
                   <Border Classes="banner">
                     <StackPanel Spacing="4">
                       <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
-                      <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}" Classes="small" TextWrapping="Wrap"
-                                 AutomationProperties.LiveSetting="Polite" />
+                      <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}" Classes="small" TextWrapping="Wrap" />
                       <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
                         <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
                                 IsEnabled="{Binding !IsActionBusy}"

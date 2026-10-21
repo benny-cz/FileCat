@@ -636,6 +636,19 @@ instead. That route requires zero completed roots, exact unchanged source
 and destination bytes, and refusal to replay the original Cut on another
 Paste. It also restores the test clipboard and Commander marks.
 
+`mac-ax-clipboard-interrupted-move.py` exercises a real process interruption
+in the isolated, signed Mac validation app. Use its `seed`, `prepare`,
+`inspect`, `review`, `cancel-review`, `continue-review`, `inspect-completion`
+and `restore` phases with the dedicated fixture and one JSON receipt per
+phase; restart the exact app/profile between `prepare` and `inspect`. The
+runner requires an unlocked desktop and the existing native pasteboard and
+key helpers. It checks the exact two-file Cut publication, held conflict,
+unchanged bytes before approval, retained journal and destination after
+restart, explicit Cancel/Continue decisions, conservative one-done/one-skipped
+result, closed recovery tracking and fixture restoration. Its
+`reseed-after-crash` phase preserves a failed profile and journal before
+resetting only this runner's exact two-file fixture for another build.
+
 `osascript mac-ax-copy-review.applescript SOURCE DESTINATION REPORT.json` runs
 against a Git-built FileCat `.app` in an unlocked desktop session. Give it a
 source with `a.txt` containing `alpha\n` and `b.txt` containing `beta\n`, an

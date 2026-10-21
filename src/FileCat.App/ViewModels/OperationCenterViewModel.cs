@@ -426,6 +426,19 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
     public int InterruptedCount => Interrupted.Count;
     public bool HasInterrupted => Interrupted.Count > 0;
+    [ObservableProperty] private string _recoveryAnnouncement = "Recovery status is available when an action starts.";
+    [ObservableProperty] private bool _hasRecoveryAnnouncement;
+
+    internal void AnnounceRecovery(string status)
+    {
+        // Keep this announcement on the drawer, not on a selected journal row. A
+        // completed recovery removes that row while macOS may still deliver its
+        // queued live-region notification, which otherwise has no accessible name.
+        RecoveryAnnouncement = string.IsNullOrWhiteSpace(status)
+            ? "Recovery action status is unavailable. Review the operation and journal."
+            : status;
+        HasRecoveryAnnouncement = true;
+    }
     public ObservableCollection<RecoveryReviewRecord> ReviewedRecovery { get; } = [];
     public bool HasReviewedRecovery => ReviewedRecovery.Count > 0;
 

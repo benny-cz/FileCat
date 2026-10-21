@@ -27,6 +27,7 @@ public sealed partial class MainViewModel
         public void SetPhase(RecoveryActionPhase phase, string status)
         {
             Phase = phase;
+            owner.Operations.AnnounceRecovery(status);
             owner.Operations.Interrupted.FirstOrDefault(row => PathUtil.SafetyComparer.Equals(row.Job.JournalPath, job.JournalPath))
                 ?.SetActionPhase(phase, status);
         }
