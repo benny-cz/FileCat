@@ -2,7 +2,7 @@
 """Native Ubuntu Hex editor Find check on a disposable Git-built FileCat fixture.
 
 Run `seed ROOT`, launch FileCat with ROOT/source, ROOT/destination and ROOT/data,
-then run `check ROOT REPORT.json` in the logged-in desktop session.
+then run `check ROOT REPORT.json UINPUT_HELPER` in the logged-in desktop session.
 """
 
 import json
@@ -78,6 +78,26 @@ def activate(node, description):
                          f"actions={actions!r})")
 
 
+def send_enter(helper):
+    password = os.environ.get("FILECAT_NATIVE_SUDO_PASSWORD")
+    command = ["sudo", "-S" if password else "-n", sys.executable, str(helper), "enter"]
+    result = subprocess.run(command, input=(password + "\n") if password else None,
+                            capture_output=True, text=True, timeout=15)
+    if result.returncode:
+        raise AssertionError(f"Native Enter input failed with exit {result.returncode}")
+
+
+def open_with_command_search(app, helper):
+    search = find(app, "entry", "Search commands")
+    if search is None or not search.grab_focus():
+        raise AssertionError("Command search could not take focus")
+    if not search.get_editable_text().set_text_contents("Edit file bytes in hex"):
+        raise AssertionError("Could not set the Hex editor command query")
+    wait_for(lambda: named(app, "list item", "Id = hex.edit,"),
+             "Hex editor command result")
+    send_enter(helper)
+
+
 def close_window(app, title, expected_pid):
     result = subprocess.run(["/usr/bin/wmctrl", "-lp"], capture_output=True,
                             text=True, timeout=5, check=True)
@@ -92,12 +112,15 @@ def close_window(app, title, expected_pid):
     wait_for(lambda: find(app, "frame", title) is None, "Hex editor closure")
 
 
-def check(root):
+def check(root, helper):
     import gi
     gi.require_version("Atspi", "2.0")
     from gi.repository import Atspi
 
     root = root.resolve(strict=True)
+    helper = helper.resolve(strict=True)
+    if not str(helper).startswith("/home/benny/FileCatValidation/"):
+        raise AssertionError("The input helper must stay in the VM validation folder")
     source = root / "source"
     owned = source / NAME
     expected = expected_bytes()
@@ -123,11 +146,7 @@ def check(root):
             raise AssertionError("Could not focus the exact test file")
         wait_for(lambda: row.get_state_set().contains(Atspi.StateType.FOCUSED),
                  "test file focus")
-        menu = find(app, "menu item", "File") or find(app, "menu", "File")
-        activate(menu, "File menu")
-        item = wait_for(lambda: find(app, "menu item", "Edit file bytes in hex…"),
-                        "Edit file bytes in hex menu item")
-        activate(item, "Edit file bytes in hex")
+        open_with_command_search(app, helper)
         editor = wait_for(lambda: find(app, "frame", title), "native Hex editor")
     try:
         activate(find(editor, "button", "Show or hide hex editor Find bar"), "Find toggle")
@@ -170,10 +189,10 @@ def main():
     if len(sys.argv) == 3 and sys.argv[1] == "seed":
         print(json.dumps(seed(Path(sys.argv[2]))))
         return 0
-    if len(sys.argv) != 4 or sys.argv[1] != "check":
-        raise SystemExit("Usage: linux-atspi-hex-editor-find.py seed ROOT | check ROOT REPORT.json")
+    if len(sys.argv) != 5 or sys.argv[1] != "check":
+        raise SystemExit("Usage: linux-atspi-hex-editor-find.py seed ROOT | check ROOT REPORT.json UINPUT_HELPER")
     try:
-        result = check(Path(sys.argv[2]))
+        result = check(Path(sys.argv[2]), Path(sys.argv[4]))
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     Path(sys.argv[3]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

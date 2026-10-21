@@ -542,13 +542,14 @@ present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
 `linux-atspi-hex-editor-find.py seed ROOT` creates a new 7 MiB file below
 `~/FileCatValidation/HexEditorFind` with two matches more than 4 MiB apart.
 Launch a separate Git-built FileCat with `ROOT/source`, `ROOT/destination`
-and `ROOT/data`, then run `linux-atspi-hex-editor-find.py check ROOT REPORT.json`
-in the logged-in session. The check uses the exact source, process ID and
-editor title, exercises visible Next/Previous, match status and changed-query
-reset, and closes the test-owned editor. It also accepts an already open
-test-owned editor. On the current Ubuntu Wayland session, FileCat's File menu
-has no AT-SPI action, so opening the editor through that menu remains a native
-input gate; the test reports the missing action without claiming a pass.
+and `ROOT/data`, then run `linux-atspi-hex-editor-find.py check ROOT REPORT.json
+linux-uinput-key.py` in the logged-in session. Give the test the same native
+uinput access described for `linux-atspi-clipboard-owned-move.py`. It opens
+the editor through FileCat's accessible command search and a physical Enter
+event because the current Wayland File menu exposes no AT-SPI action. The
+check uses the exact source, process ID and editor title, exercises visible
+Next/Previous, match status and changed-query reset, and closes the test-owned
+editor. It also accepts an already open test-owned editor.
 
 ## macOS logged-in desktop
 
