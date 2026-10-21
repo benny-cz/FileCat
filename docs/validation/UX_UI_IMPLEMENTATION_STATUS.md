@@ -633,7 +633,10 @@ current destination needs review. Seven controlled FTP/SFTP variants cover
 unchanged and changed versions, disappearance, links and directories. A real
 pyftpdlib FTP Move changed the target while 1 MiB was uploading; the finished
 job failed without deleting the source, the newer target bytes remained and
-the stage was removed. The complete Remote Release suite passed 2,379 tests
+the stage was removed. The same real-server journey now also passes with the
+target changed to different bytes of the same length and its original modified
+time restored; the source and changed target hashes remain exact and no stage
+remains. The complete Remote Release suite passed 2,379 tests
 with 156 platform/lab skips. The remote publication guard now also retains a
 SHA-256 fingerprint of an ordinary file selected for Replace and checks it
 again before publication. External edit preflight hashes the current server
@@ -643,9 +646,10 @@ uploading and again before publication. Controlled SFTP, FTP and FTPS cases
 exercise same-size/same-timestamp changes before and during upload, exact
 source and target bytes, and staged cleanup; the focused Remote and App edit
 suites passed 75 and 39 cases respectively, and the complete Remote Release
-suite passed 2,391 with 156 platform/lab skips. These checks cannot be an atomic
+suite passed 2,392 with 156 platform/lab skips; the complete Core Release suite
+passed 4,435 with 150 skips. These checks cannot be an atomic
 server-side compare-and-swap: a competing writer after the last check is
-still possible, and live-server same-metadata acceptance remains open.
+still possible, and live SFTP/FTPS same-metadata acceptance remains open.
 
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and

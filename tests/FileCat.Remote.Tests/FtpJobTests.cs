@@ -151,8 +151,10 @@ public sealed class FtpJobTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading(bool retainSizeAndTime)
     {
         using var server = TestFtpServer.TryStart();
         if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
@@ -174,6 +176,7 @@ public sealed class FtpJobTests : IDisposable
         new Random(15).NextBytes(bytes);
         File.WriteAllBytes(source, bytes);
         File.WriteAllText(target, "previous version");
+        var originalTime = File.GetLastWriteTimeUtc(target);
         var originalHash = SHA256.HashData(bytes);
         var job = jobs.Submit(new JobRequest
         {
@@ -194,8 +197,20 @@ public sealed class FtpJobTests : IDisposable
             }
             Assert.NotNull(staged);
             Assert.Equal(JobState.Running, job.State);
-            File.WriteAllText(target, "newer version from another client");
-            File.SetLastWriteTimeUtc(target, DateTime.UtcNow.AddMinutes(2));
+            if (retainSizeAndTime)
+            {
+                byte[] changed = File.ReadAllBytes(target);
+                changed[0] ^= 0x20;
+                File.WriteAllBytes(target, changed);
+                File.SetLastWriteTimeUtc(target, originalTime);
+                Assert.Equal(changed.Length, new FileInfo(target).Length);
+                Assert.Equal(originalTime, File.GetLastWriteTimeUtc(target));
+            }
+            else
+            {
+                File.WriteAllText(target, "newer version from another client");
+                File.SetLastWriteTimeUtc(target, DateTime.UtcNow.AddMinutes(2));
+            }
             var changedHash = SHA256.HashData(File.ReadAllBytes(target));
             deadline.Restart();
             while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
@@ -204,7 +219,8 @@ public sealed class FtpJobTests : IDisposable
             Assert.Equal(changedHash, SHA256.HashData(File.ReadAllBytes(target)));
             Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
             Assert.Equal(["replace.bin"], Directory.GetFiles(server.Root).Select(Path.GetFileName));
-            Assert.Contains(job.Issues, i => i.Message.Contains("destination changed on the server", StringComparison.Ordinal));
+            Assert.Contains(job.Issues, i => i.Message.Contains(retainSizeAndTime
+                ? "destination content changed on the server" : "destination changed on the server", StringComparison.Ordinal));
         }
         finally
         {

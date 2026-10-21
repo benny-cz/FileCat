@@ -20,7 +20,7 @@ increments to `main`.
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
-   remaining supported provider failure paths, including live remote changes
+   remaining supported provider failure paths, including live SFTP/FTPS changes
    that retain the same size and timestamp, races after the final destination
    content check (no server-side compare-and-swap), and live FTP process
    interruption/restart, with exact source/target bytes,
