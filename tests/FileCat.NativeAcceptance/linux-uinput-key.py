@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Send one physical keyboard chord from a disposable Linux uinput device.
 
-Usage: sudo python3 linux-uinput-key.py enter|escape|home|left|right|tab|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v
+Usage: sudo python3 linux-uinput-key.py enter|escape|home|left|right|tab|f3|shift+f3|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v
 The calling native acceptance test controls the logged-in desktop and supplies
 sudo authentication separately. No credentials are stored in this helper.
 """
@@ -13,7 +13,8 @@ import sys
 import time
 
 
-KEYS = {"enter": (28,), "escape": (1,), "home": (102,), "left": (105,), "f5": (63,),
+KEYS = {"enter": (28,), "escape": (1,), "home": (102,), "left": (105,),
+        "f3": (61,), "shift+f3": (42, 61), "f5": (63,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
         "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47)}
 EV_KEY = 1
@@ -56,5 +57,5 @@ def send(chord):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] not in KEYS:
-        raise SystemExit("Usage: linux-uinput-key.py enter|escape|home|left|right|tab|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v")
+        raise SystemExit("Usage: linux-uinput-key.py enter|escape|home|left|right|tab|f3|shift+f3|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v")
     send(sys.argv[1])

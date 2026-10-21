@@ -78,13 +78,13 @@ def activate(node, description):
                          f"actions={actions!r})")
 
 
-def send_enter(helper):
+def send_key(helper, chord):
     password = os.environ.get("FILECAT_NATIVE_SUDO_PASSWORD")
-    command = ["sudo", "-S" if password else "-n", sys.executable, str(helper), "enter"]
+    command = ["sudo", "-S" if password else "-n", sys.executable, str(helper), chord]
     result = subprocess.run(command, input=(password + "\n") if password else None,
                             capture_output=True, text=True, timeout=15)
     if result.returncode:
-        raise AssertionError(f"Native Enter input failed with exit {result.returncode}")
+        raise AssertionError(f"Native {chord} input failed with exit {result.returncode}")
 
 
 def open_with_command_search(app, helper):
@@ -95,7 +95,7 @@ def open_with_command_search(app, helper):
         raise AssertionError("Could not set the Hex editor command query")
     wait_for(lambda: named(app, "list item", "Id = hex.edit,"),
              "Hex editor command result")
-    send_enter(helper)
+    send_key(helper, "enter")
 
 
 def close_window(app, title, expected_pid):
@@ -163,7 +163,11 @@ def check(root, helper):
                  "two-match status")
         activate(find(editor, "button", "Find previous match"), "Previous")
         wait_for(lambda: named(editor, "label", f"Found at 0x{FIRST:X}"), "earlier match")
-        activate(find(editor, "button", "Find previous match"), "Previous")
+        send_key(helper, "f3")
+        wait_for(lambda: named(editor, "label", f"Found at 0x{SECOND:X}"), "native F3 match")
+        send_key(helper, "shift+f3")
+        wait_for(lambda: named(editor, "label", f"Found at 0x{FIRST:X}"), "native Shift+F3 match")
+        send_key(helper, "shift+f3")
         wait_for(lambda: named(editor, "label", '"NEEDLE" was not found before the cursor.'),
                  "no-earlier-match feedback")
         if not query.set_text_contents("second"):
@@ -182,6 +186,7 @@ def check(root, helper):
     return {"passed": True, "platform": "Ubuntu", "firstHit": FIRST,
             "secondHit": SECOND, "visibleControls": ["Next", "Previous"],
             "countAfterSecond": 2, "changedQueryCount": 1,
+            "physicalF3AndShiftF3Verified": True,
             "sourceIntact": True, "editorClosed": True}
 
 

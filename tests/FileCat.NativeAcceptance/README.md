@@ -548,8 +548,9 @@ uinput access described for `linux-atspi-clipboard-owned-move.py`. It opens
 the editor through FileCat's accessible command search and a physical Enter
 event because the current Wayland File menu exposes no AT-SPI action. The
 check uses the exact source, process ID and editor title, exercises visible
-Next/Previous, match status and changed-query reset, and closes the test-owned
-editor. It also accepts an already open test-owned editor.
+Next/Previous, physical F3 and Shift+F3, match status and changed-query reset,
+and closes the test-owned editor. It also accepts an already open test-owned
+editor.
 
 ## macOS logged-in desktop
 
