@@ -128,6 +128,35 @@ different Git-built `FileCat.exe` beneath the guest's FileCatValidation root.
 These cases test refusal for an unavailable provider. They do not establish
 interruption or recovery behavior for a supported live remote connection.
 
+For a live SFTP-source interruption in this VM pair, use the Ubuntu
+`benny@192.168.58.129` SSH account from the Windows guest. Create a fresh
+32-lowercase-hex fixture
+ID under the Ubuntu account's `~/FileCatValidation/SftpRecovery/<id>`, place
+`probe.txt` there containing `FileCat SFTP source marker <id>` followed by
+a newline, then run
+`linux-sftp-recovery-seed.py <id>` in that guest. Its exclusive-create
+`slow.bin` is 16 MiB and the adjacent manifest records its SHA-256 and
+prefix marker. Make matching Windows `data` and `destination` folders beneath
+`%LOCALAPPDATA%\FileCatValidation\SftpRecovery\<id>`. Use FileCat to copy the
+probe from the live SFTP source first, checking its bytes at the destination.
+Put `sftp-live-fixture.json` beside the runner reports with `id`, exact
+`app`, `data`, `destination`, `source`, `size`, `sha256`, and `marker`;
+store no authentication secret in the fixture or repository.
+
+Open the live `slow.bin` Copy form, expand Options, then run
+`sftp-live-interrupt <report.json>`. It sets a 0.0625 MB/s rate, waits for
+journaled staging, and terminates only the validated fixture process.
+Restart the same app with
+`--new-instance --data <data> --left <source> --right <destination>`.
+`sftp-live-recovery-native <report.json>` checks the
+reselection guidance, absence of misleading continuation, retained staging
+and report, unpublished target and unchanged local probe. Run
+`sftp-live-cleanup-native <report.json>` once to approve the scoped partial
+cleanup, then `sftp-live-verify <report.json>` to check the closed journal,
+saved reviewed report and unchanged local bytes. Rehash `slow.bin` in the
+Ubuntu guest after cleanup against the original manifest. The cleanup
+verification is repeatable; the cleanup action requires an interrupted row.
+
 For native Windows clipboard interchange, run `seed-clipboard
 clipboard-fixture.json` in the guest and launch the current Git-built FileCat
 with its reported `--data`, `--left` and `--right` paths. Keep that seed report

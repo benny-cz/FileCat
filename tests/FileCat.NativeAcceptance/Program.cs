@@ -11,7 +11,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-refresh-native" or "selection-ctrl-native" or "selection-keyboard-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -19,7 +19,7 @@ using FileCat.Core.Selection;
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop")
+if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "sftp-live-verify")
 {
     try
     {
@@ -27,6 +27,8 @@ if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-re
         else if (mode == "seed-legacy") await SeedLegacyRecoveryAsync(reportPath);
         else if (mode is "seed-remote-source" or "seed-remote-destination")
             await SeedRemoteRecoveryAsync(reportPath, remoteSource: mode == "seed-remote-source");
+        else if (mode == "sftp-live-verify")
+            return await VerifyLiveSftpCleanupAsync(reportPath) ? 0 : 1;
         else if (mode == "legacy-stop")
         {
             var expectedExecutable = Path.Combine(Environment.GetFolderPath(
@@ -2309,6 +2311,321 @@ try
             return passed ? 0 : 1;
         }
 
+        if (mode == "sftp-live-interrupt")
+        {
+            var fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
+                "sftp-live-fixture.json");
+            using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
+            var fixture = fixtureDoc.RootElement;
+            string id = fixture.GetProperty("id").GetString()!;
+            string appPath = fixture.GetProperty("app").GetString()!;
+            string data = fixture.GetProperty("data").GetString()!;
+            string destination = fixture.GetProperty("destination").GetString()!;
+            string source = fixture.GetProperty("source").GetString()!;
+            string marker = fixture.GetProperty("marker").GetString()!;
+            long sourceSize = fixture.GetProperty("size").GetInt64();
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string validationRoot = Path.Combine(local, "FileCatValidation");
+            string root = Path.Combine(validationRoot, "SftpRecovery", id);
+            bool validId = id.Length == 32 && id.All(character =>
+                character is >= '0' and <= '9' or >= 'a' and <= 'f');
+            if (!validId
+                || !string.Equals(Path.GetFullPath(data), Path.Combine(root, "data"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFullPath(destination), Path.Combine(root, "destination"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !Path.GetFullPath(appPath).StartsWith(validationRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(appPath), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+                || source != $"sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpRecovery/{id}"
+                || marker != "FileCat live SFTP interruption " + id
+                || sourceSize != 16 * 1024 * 1024
+                || !File.Exists(Path.Combine(destination, "probe.txt"))
+                || File.Exists(Path.Combine(destination, "slow.bin")))
+                throw new InvalidOperationException("The live SFTP fixture is outside the isolated validation scope.");
+            int processId = NativeWindow.FocusRecovery(id, appPath);
+            var before = ParseSource(await ReadSourceAsync(client, sessionId));
+            var appWindow = before.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("The isolated live SFTP window is unavailable.");
+            var formNames = appWindow.Descendants().Select(element =>
+                (string?)element.Attribute("Name") ?? "").ToArray();
+            if (!formNames.Any(name => name.Contains("Copy \"slow.bin\"", StringComparison.Ordinal))
+                || !formNames.Any(name => name.Contains(destination, StringComparison.OrdinalIgnoreCase))
+                || !formNames.Any(name => name.Contains(source, StringComparison.Ordinal)))
+                throw new InvalidOperationException("The live SFTP Copy form does not show its exact source and destination.");
+            var rate = await FindXPathAsync(client, sessionId,
+                "//Edit[@Name='Speed limit (MB/s):']", "speed limit");
+            await SendKeysAsync(client, sessionId, rate,
+                0.0625.ToString(CultureInfo.CurrentCulture));
+            var changed = ParseSource(await ReadSourceAsync(client, sessionId));
+            var copy = changed.Descendants().Where(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Copy"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture)
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && (string?)element.Attribute("IsEnabled") == "True").LastOrDefault()
+                ?? throw new InvalidOperationException("The rate-limited live SFTP Copy action is unavailable.");
+            NativeWindow.ClickAt(CenterX(copy), CenterY(copy));
+            var journalDirectory = Path.Combine(data, "local", "journal");
+            string? partial = null;
+            for (var attempt = 0; attempt < 300 && partial is null; attempt++)
+            {
+                partial = Directory.EnumerateFiles(destination,
+                    $"{JournalRecovery.StagedPrefix}*.tmp", SearchOption.AllDirectories)
+                    .FirstOrDefault(path => new FileInfo(path).Length >= marker.Length);
+                if (partial is null) await Task.Delay(100);
+            }
+            if (partial is null || !Directory.Exists(journalDirectory)
+                || !Directory.EnumerateFiles(journalDirectory, "*.fcj").Any()
+                || File.Exists(Path.Combine(destination, "slow.bin")))
+                throw new InvalidOperationException("The live SFTP copy did not reach unpublished journaled staging.");
+            using var app = Process.GetProcessById(processId);
+            if (!string.Equals(app.MainModule?.FileName, appPath, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The live SFTP app process changed before interruption.");
+            app.Kill();
+            await app.WaitForExitAsync();
+            bool copiedMarker = false;
+            for (var attempt = 0; attempt < 100 && !copiedMarker; attempt++)
+            {
+                copiedMarker = TryReadMarker(partial, Encoding.ASCII.GetBytes(marker));
+                if (!copiedMarker) await Task.Delay(100);
+            }
+            var interrupted = JournalRecovery.Scan(journalDirectory);
+            for (var attempt = 0; attempt < 100 && interrupted.Count != 1; attempt++)
+            {
+                await Task.Delay(100);
+                interrupted = JournalRecovery.Scan(journalDirectory);
+            }
+            bool retained = interrupted is [{ SourceCount: 1, CanContinueTransfer: false }]
+                && interrupted[0].TransferIntentProblem?.Contains(
+                    "provider", StringComparison.OrdinalIgnoreCase) == true;
+            bool unpublished = !File.Exists(Path.Combine(destination, "slow.bin"));
+            bool probeIntact = await File.ReadAllTextAsync(Path.Combine(destination, "probe.txt"))
+                == "FileCat SFTP source marker " + id + "\n";
+            long partialBytes = new FileInfo(partial).Length;
+            bool passed = copiedMarker && retained && unpublished && probeIntact
+                && partialBytes > 0;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, processId, source, destination, sourceSize, partialBytes,
+                copiedMarker, retained, unpublished, probeIntact,
+                transferIntentProblem = interrupted.SingleOrDefault()?.TransferIntentProblem
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "sftp-live-recovery-native")
+        {
+            var fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
+                "sftp-live-fixture.json");
+            using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
+            var fixture = fixtureDoc.RootElement;
+            string id = fixture.GetProperty("id").GetString()!;
+            string appPath = fixture.GetProperty("app").GetString()!;
+            string data = fixture.GetProperty("data").GetString()!;
+            string destination = fixture.GetProperty("destination").GetString()!;
+            string source = fixture.GetProperty("source").GetString()!;
+            string marker = fixture.GetProperty("marker").GetString()!;
+            string validationRoot = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
+            string root = Path.Combine(validationRoot, "SftpRecovery", id);
+            bool validId = id.Length == 32 && id.All(character =>
+                character is >= '0' and <= '9' or >= 'a' and <= 'f');
+            if (!validId
+                || !string.Equals(Path.GetFullPath(data), Path.Combine(root, "data"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFullPath(destination), Path.Combine(root, "destination"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !Path.GetFullPath(appPath).StartsWith(validationRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(appPath), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+                || source != $"sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpRecovery/{id}"
+                || marker != "FileCat live SFTP interruption " + id)
+                throw new InvalidOperationException("The live SFTP fixture is outside the isolated validation scope.");
+            int processId = NativeWindow.FocusRecovery(id, appPath);
+            // The recovery row sits inside the independently scrollable drawer. UIA can
+            // report clipped children as visible, so expose the action row first.
+            NativeWindow.ScrollAt(800, 740, -4);
+            await Task.Delay(300);
+            var document = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture))
+                ?? throw new InvalidOperationException("The isolated live SFTP recovery window is unavailable.");
+            var names = window.Descendants().Where(element =>
+                (string?)element.Attribute("IsOffscreen") == "False")
+                .Select(element => (string?)element.Attribute("Name") ?? "").ToArray();
+            bool sourceVisible = names.Any(name => name.Contains(source, StringComparison.Ordinal));
+            bool guidance = names.Any(name => name.Contains(
+                "Select the sources and destination again", StringComparison.Ordinal))
+                && names.Any(name => name.Contains(
+                    "cleanup and the recovery report remain available", StringComparison.Ordinal));
+            bool noMisleadingAction = !window.Descendants().Any(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && ((string?)element.Attribute("Name") is "Continue copy…" or "Review a new transfer…"));
+            bool cleanupAvailable = FindVisible(window, "button", "Clean up partial files") is not null;
+            var reportButton = window.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("IsOffscreen") == "False"
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    "Review retained recovery report for Copy \"slow.bin\"", StringComparison.Ordinal) == true);
+            bool reportAvailable = reportButton is not null;
+            bool reportOpened = false;
+            if (reportButton is not null)
+            {
+                NativeWindow.ClickAt(CenterX(reportButton), CenterY(reportButton));
+                for (var attempt = 0; attempt < 3 && !reportOpened; attempt++)
+                {
+                    await Task.Delay(200);
+                    var reportUi = ParseSource(await ReadSourceAsync(client, sessionId));
+                    reportOpened = reportUi.Descendants().Any(element =>
+                        (string?)element.Attribute("LocalizedControlType") == "window"
+                        && ((string?)element.Attribute("Name"))?.Contains(
+                            "Interrupted recovery report — FileCat", StringComparison.Ordinal) == true
+                        && element.Descendants().Any(child =>
+                            (string?)child.Attribute("Name") == "Find in the report"));
+                }
+            }
+            string journalDirectory = Path.Combine(data, "local", "journal");
+            var journalFiles = Directory.Exists(journalDirectory)
+                ? Directory.GetFiles(journalDirectory, "job-*.fcj")
+                : [];
+            bool journalRetained = journalFiles.Any(path =>
+            {
+                var content = File.ReadAllText(path);
+                return content.Contains("slow.bin", StringComparison.Ordinal)
+                    && content.Contains("transferIntentProblem", StringComparison.Ordinal)
+                    && !content.Contains("\"t\":\"end\"", StringComparison.Ordinal);
+            });
+            var partials = Directory.GetFiles(destination, $"{JournalRecovery.StagedPrefix}*.tmp");
+            bool stagedBytesRetained = partials.Length == 1
+                && TryReadMarker(partials[0], Encoding.ASCII.GetBytes(marker));
+            bool unpublished = !File.Exists(Path.Combine(destination, "slow.bin"));
+            bool probeIntact = await File.ReadAllTextAsync(Path.Combine(destination, "probe.txt"))
+                == "FileCat SFTP source marker " + id + "\n";
+            bool passed = sourceVisible && guidance && noMisleadingAction && cleanupAvailable
+                && reportAvailable && reportOpened && journalRetained && stagedBytesRetained
+                && unpublished && probeIntact;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, processId, sourceVisible, guidance, noMisleadingAction, cleanupAvailable,
+                reportAvailable, reportOpened, journalRetained, stagedBytesRetained,
+                unpublished, probeIntact, stagedBytes = partials.Length == 1
+                    ? new FileInfo(partials[0]).Length : 0,
+                visibleNames = passed ? null : names
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
+        if (mode == "sftp-live-cleanup-native")
+        {
+            var fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
+                "sftp-live-fixture.json");
+            using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
+            var fixture = fixtureDoc.RootElement;
+            string id = fixture.GetProperty("id").GetString()!;
+            string appPath = fixture.GetProperty("app").GetString()!;
+            string data = fixture.GetProperty("data").GetString()!;
+            string destination = fixture.GetProperty("destination").GetString()!;
+            string source = fixture.GetProperty("source").GetString()!;
+            string marker = fixture.GetProperty("marker").GetString()!;
+            string validationRoot = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
+            string root = Path.Combine(validationRoot, "SftpRecovery", id);
+            bool validId = id.Length == 32 && id.All(character =>
+                character is >= '0' and <= '9' or >= 'a' and <= 'f');
+            if (!validId
+                || !string.Equals(Path.GetFullPath(data), Path.Combine(root, "data"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFullPath(destination), Path.Combine(root, "destination"),
+                    StringComparison.OrdinalIgnoreCase)
+                || !Path.GetFullPath(appPath).StartsWith(validationRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(appPath), "FileCat.exe", StringComparison.OrdinalIgnoreCase)
+                || source != $"sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpRecovery/{id}"
+                || marker != "FileCat live SFTP interruption " + id)
+                throw new InvalidOperationException("The live SFTP fixture is outside the isolated validation scope.");
+            string journalDirectory = Path.Combine(data, "local", "journal");
+            var partials = Directory.GetFiles(destination, $"{JournalRecovery.StagedPrefix}*.tmp");
+            if (partials.Length != 1 || !TryReadMarker(partials[0], Encoding.ASCII.GetBytes(marker))
+                || File.Exists(Path.Combine(destination, "slow.bin")))
+                throw new InvalidOperationException("The expected unpublished SFTP staging file is unavailable.");
+            int processId = NativeWindow.FocusRecovery(id, appPath);
+            var document = ParseSource(await ReadSourceAsync(client, sessionId));
+            var reportWindow = document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture)
+                && ((string?)element.Attribute("Name"))?.Contains(
+                    "Interrupted recovery report — FileCat", StringComparison.Ordinal) == true);
+            if (reportWindow is not null)
+            {
+                var close = FindVisible(reportWindow, "button", "Close")
+                    ?? throw new InvalidOperationException("The retained recovery report cannot be closed.");
+                NativeWindow.ClickAt(CenterX(close), CenterY(close));
+                await Task.Delay(250);
+            }
+            NativeWindow.FocusRecovery(id, appPath);
+            NativeWindow.ScrollAt(800, 740, -4);
+            await Task.Delay(300);
+            document = ParseSource(await ReadSourceAsync(client, sessionId));
+            var window = document.Descendants().FirstOrDefault(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") == processId.ToString(CultureInfo.InvariantCulture)
+                && ((string?)element.Attribute("Name"))?.StartsWith(
+                    $"FileCat — {id}", StringComparison.Ordinal) == true)
+                ?? throw new InvalidOperationException("The isolated SFTP recovery window is unavailable.");
+            var cleanup = FindVisible(window, "button", "Clean up partial files")
+                ?? throw new InvalidOperationException("The reviewed cleanup action is unavailable.");
+            NativeWindow.ClickAt(CenterX(cleanup), CenterY(cleanup));
+            await Task.Delay(300);
+            var confirmation = ParseSource(await ReadSourceAsync(client, sessionId));
+            var confirmationNames = confirmation.Descendants().Where(element =>
+                (string?)element.Attribute("IsOffscreen") == "False")
+                .Select(element => (string?)element.Attribute("Name") ?? "").ToArray();
+            bool scopedConfirmation = confirmationNames.Any(name =>
+                name.Contains("Reviewed partial files to delete: 1", StringComparison.Ordinal))
+                && confirmationNames.Any(name =>
+                    name.Contains(partials[0], StringComparison.OrdinalIgnoreCase));
+            var delete = FindVisible(confirmation, "button", "Delete partial files");
+            if (!scopedConfirmation || delete is null)
+                throw new InvalidOperationException("The SFTP cleanup confirmation did not identify its exact partial file.");
+            NativeWindow.ClickAt(CenterX(delete), CenterY(delete));
+            string reviewedDirectory = Path.Combine(journalDirectory, "reviewed");
+            bool cleanupClosed = false;
+            bool retainedReview = false;
+            for (var attempt = 0; attempt < 100 && !(cleanupClosed && retainedReview); attempt++)
+            {
+                cleanupClosed = !File.Exists(partials[0]) && JournalRecovery.Scan(journalDirectory).Count == 0;
+                retainedReview = Directory.Exists(reviewedDirectory)
+                    && Directory.EnumerateFiles(reviewedDirectory, "review-*.json").Any(path =>
+                    {
+                        using var review = JsonDocument.Parse(File.ReadAllText(path));
+                        var value = review.RootElement;
+                        return (string?)value.GetProperty("JournalPath").GetString() is { } journal
+                            && journal.StartsWith(journalDirectory + Path.DirectorySeparatorChar,
+                                StringComparison.OrdinalIgnoreCase)
+                            && value.GetProperty("Action").GetString() == "Reviewed cleanup"
+                            && value.GetProperty("ClosureConfirmed").GetBoolean()
+                            && value.GetProperty("Report").GetString()?.Contains(
+                                JsonSerializer.Serialize(partials[0]), StringComparison.OrdinalIgnoreCase) == true;
+                    });
+                if (!(cleanupClosed && retainedReview)) await Task.Delay(100);
+            }
+            bool probeIntact = await File.ReadAllTextAsync(Path.Combine(destination, "probe.txt"))
+                == "FileCat SFTP source marker " + id + "\n";
+            bool unpublished = !File.Exists(Path.Combine(destination, "slow.bin"));
+            bool passed = scopedConfirmation && cleanupClosed && retainedReview
+                && probeIntact && unpublished;
+            await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+            {
+                passed, processId, scopedConfirmation, cleanupClosed, retainedReview,
+                probeIntact, unpublished, partial = partials[0]
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return passed ? 0 : 1;
+        }
+
         if (mode == "remote-recovery-native")
         {
             var fixturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!,
@@ -4456,6 +4773,68 @@ static async Task SeedSelectionFixtureAsync(string reportPath)
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 
+static async Task<bool> VerifyLiveSftpCleanupAsync(string reportPath)
+{
+    var reportDirectory = Path.GetDirectoryName(Path.GetFullPath(reportPath))!;
+    using var fixtureDoc = JsonDocument.Parse(await File.ReadAllTextAsync(
+        Path.Combine(reportDirectory, "sftp-live-fixture.json")));
+    using var cleanupDoc = JsonDocument.Parse(await File.ReadAllTextAsync(
+        Path.Combine(reportDirectory, "sftp-live-cleanup.json")));
+    var fixture = fixtureDoc.RootElement;
+    string id = fixture.GetProperty("id").GetString()!;
+    string data = fixture.GetProperty("data").GetString()!;
+    string destination = fixture.GetProperty("destination").GetString()!;
+    string source = fixture.GetProperty("source").GetString()!;
+    string partial = cleanupDoc.RootElement.GetProperty("partial").GetString()!;
+    string root = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "SftpRecovery", id);
+    bool validId = id.Length == 32 && id.All(character =>
+        character is >= '0' and <= '9' or >= 'a' and <= 'f');
+    if (!validId
+        || !string.Equals(Path.GetFullPath(data), Path.Combine(root, "data"),
+            StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(Path.GetFullPath(destination), Path.Combine(root, "destination"),
+            StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(Path.GetDirectoryName(Path.GetFullPath(partial)), destination,
+            StringComparison.OrdinalIgnoreCase)
+        || !Path.GetFileName(partial).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal)
+        || !partial.EndsWith(".tmp", StringComparison.Ordinal)
+        || source != $"sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpRecovery/{id}")
+        throw new InvalidOperationException("The live SFTP cleanup fixture is outside the isolated validation scope.");
+    string journalDirectory = Path.Combine(data, "local", "journal");
+    var journalPaths = Directory.GetFiles(journalDirectory, "job-*.fcj")
+        .Where(path => File.ReadAllText(path).Contains("slow.bin", StringComparison.Ordinal))
+        .ToArray();
+    bool journalClosed = journalPaths.Length == 1
+        && File.ReadAllText(journalPaths[0]).Contains("\"t\":\"end\"", StringComparison.Ordinal)
+        && JournalRecovery.Scan(journalDirectory).Count == 0;
+    string reviewedDirectory = Path.Combine(journalDirectory, "reviewed");
+    bool retainedReview = Directory.Exists(reviewedDirectory)
+        && Directory.EnumerateFiles(reviewedDirectory, "review-*.json").Any(path =>
+        {
+            using var review = JsonDocument.Parse(File.ReadAllText(path));
+            var value = review.RootElement;
+            return journalPaths.Length == 1
+                && string.Equals(value.GetProperty("JournalPath").GetString(), journalPaths[0],
+                    StringComparison.OrdinalIgnoreCase)
+                && value.GetProperty("Action").GetString() == "Reviewed cleanup"
+                && value.GetProperty("ClosureConfirmed").GetBoolean()
+                && value.GetProperty("Report").GetString()?.Contains(
+                    JsonSerializer.Serialize(partial), StringComparison.OrdinalIgnoreCase) == true;
+        });
+    bool stageRemoved = !File.Exists(partial);
+    bool unpublished = !File.Exists(Path.Combine(destination, "slow.bin"));
+    bool probeIntact = await File.ReadAllTextAsync(Path.Combine(destination, "probe.txt"))
+        == "FileCat SFTP source marker " + id + "\n";
+    bool passed = journalClosed && retainedReview && stageRemoved && unpublished && probeIntact;
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+    {
+        passed, journalClosed, retainedReview, stageRemoved, unpublished, probeIntact,
+        journal = journalPaths.SingleOrDefault(), partial
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    return passed;
+}
+
 static byte[] DesktopMarkerBytes() => Encoding.ASCII.GetBytes("FILECAT_DESKTOP_COPY_BYTES_WRITTEN");
 
 static bool TryReadMarker(string path, byte[] marker)
@@ -5109,7 +5488,10 @@ internal static partial class NativeWindow
 
     internal static int FocusRecovery(string sourceFolder = "source", string? expectedExecutable = null)
     {
-        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source" or "selection-source" or "remote-source" or "remote-destination"))
+        bool isolatedId = sourceFolder.Length == 32 && sourceFolder.All(character =>
+            character is >= '0' and <= '9' or >= 'a' and <= 'f');
+        if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source" or "selection-source" or "remote-source" or "remote-destination")
+            && !(isolatedId && expectedExecutable is not null))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
         var buildRoot = Path.Combine(Environment.GetFolderPath(

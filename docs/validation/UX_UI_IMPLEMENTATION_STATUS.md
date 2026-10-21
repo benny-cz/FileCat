@@ -495,8 +495,30 @@ non-continuable journal, local sentinel bytes and empty local destination
 remained unchanged. The native runner validates the exact app executable and
 fixture paths before interacting. This verifies the unsupported-provider
 refusal on Windows, not a live supported-provider transfer.
-Supported nonlocal-provider interruption, bytes and staging acceptance still
-remain open.
+A live Windows-to-Ubuntu SFTP source case now covers the unavailable-intent
+path with a real provider. The Ubuntu guest served a 16 MiB `slow.bin` whose
+SHA-256 was recorded before the transfer; FileCat first copied a small probe
+byte-exactly through the same connection. A rate-limited Copy was terminated
+after 32,755 bytes reached an unpublished `.fc-*.tmp` file and its durable
+journal recorded the remote source, local destination and provider limitation.
+After restart, `sftp-live-recovery-native` passed: the actual interrupted row
+required reselection, offered neither Continue nor a prefilled new transfer,
+opened its retained report, and preserved the staged marker, local probe and
+unpublished target. The scoped cleanup confirmation then deleted that exact
+partial, closed recovery tracking and saved a reviewed report. The repeatable
+`sftp-live-verify` passed the closed-journal, removed-stage, retained-report,
+unchanged-probe and unpublished-target checks. Ubuntu rehashed the original
+`slow.bin` afterward; it still matched
+`ee815a856e58c1cb389ae562dae630cc507417f6f2bb5bce8c017bc81b0de34f`.
+The first immediate post-kill runner verdict was false for the marker and
+journal scan; both were confirmed after restart. Its bounded retry is
+compiled but awaits a fresh live fixture. The cleanup UI did perform the
+intended action;
+its initial runner verdict was false because the saved report JSON-escaped
+the path. That assertion is corrected and the post-cleanup verifier passes.
+Live nonlocal destinations and the fresh interruption-runner repeat remain
+open. The prior `cb9f329b` source passed producer, Windows, Ubuntu, macOS
+and Windows ARM64 CI in run `39583832661`.
 
 After the report that the recovery dialog still read as a wall of text, the
 review now gives its action a distinct selectable emphasis, makes the conflict
