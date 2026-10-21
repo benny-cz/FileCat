@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
+
+**22 October 2026, stale bulk-rename editor scope:** A headless UI regression
+opens the real Bulk rename review with one visible and one hidden mark,
+launches an editor round trip through an injected private file writer, changes
+the scope while Load names is pending, and then loads the old one-line result.
+The generation guard rejects that stale editor result. The refreshed two-row
+preview shows `reviewed_1.txt`/`reviewed_2.txt`; the approved real Rename job
+changes exactly those two source files and does not create the stale editor
+name. The affected Windows Release bulk-rename selection passed 22 tests,
+one Unix-only skip, zero failures. Native external-editor and rule-change
+journeys remain to be exercised.
+
 **22 October 2026, Git-built Windows selection at narrow width:** The native
 runner now accepts `FILECAT_NATIVE_TEST_APP` for selection journeys and checks
 the exact executable path under the guest's validation root before focusing,
@@ -28,8 +41,6 @@ receipts are retained under the guest's
 `AppData\Local\FileCatValidation\SelectionGit-20261022-selection-*-narrow-native`
 folders. The normal and narrow Windows transition matrix now passes; scaled
 input and non-Windows focus routes remain open.
-
-Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
 **21 October 2026, progress refresh race:** An Ubuntu CI verified-copy test
 caught `JobViewModel.Refresh` reading the worker's current item twice. A

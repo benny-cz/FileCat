@@ -35,8 +35,8 @@ increments to `main`.
    journeys beyond the verified Mac pointer/keyboard range at normal and
    narrow widths. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken
-   review, and stale
-   external-editor results. For FCUX-004/005, exercise remaining modal
+   review, native external-editor round trips and rule-change races after the
+   headless stale-scope result was rejected. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
    other modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. Preserve captured

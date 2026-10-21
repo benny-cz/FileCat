@@ -24,6 +24,7 @@ public sealed partial class MainViewModel
 {
     private const int MaxBulkRename = 50_000;
     internal Func<string, bool> BulkRenameTargetExists { get; set; } = static path => File.Exists(path) || Directory.Exists(path);
+    internal Action<string>? BulkRenameEditorLauncher { get; set; }
 
     private async Task BulkRenameAsync()
     {
@@ -374,7 +375,8 @@ public sealed partial class MainViewModel
         await File.WriteAllLinesAsync(file, rows.Select(r => r.NewName));
         try
         {
-            LaunchEditor(file);
+            if (BulkRenameEditorLauncher is { } launcher) launcher(file);
+            else LaunchEditor(file);
             while (true)
             {
                 if (!await Dialogs.ConfirmAsync("Edit names in the editor",
