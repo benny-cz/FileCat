@@ -1024,6 +1024,15 @@ The runner records the exact app hash, fixture and four invocation outcomes in
 its guest-local JSON report. This closes the Windows background Copy/Delete
 accessibility route; other modal focus, scaling and spoken routes remain open.
 
+The matching Ubuntu AT-SPI runner, `linux-atspi-modal-guard.py`, passed twice
+against a Git-built `a97e1a37` x64 app in the logged-in guest. AT-SPI invoked
+all four obscured toolbar/key-bar Copy/Delete actions while one Copy review
+showed the captured destination. Each left the same single review; Cancel
+removed it, no target appeared, and source SHA-256 stayed
+`713e5c5a199714f532fa8992ee58eb3dde1fd2c2a351f8dd53bc37d1e576c395`.
+The second run used a new isolated fixture and streamed the app hash from disk.
+Other modal focus, scaling and spoken acceptance remains open.
+
 The macOS CI lane for `49b023dd` exposed a checksum-result registration race:
 a queued check canceled inside `JobAdded` could finish before its verification
 group and source tab were attached. Job submission now accepts a caller

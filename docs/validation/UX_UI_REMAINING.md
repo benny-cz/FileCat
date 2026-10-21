@@ -38,9 +38,9 @@ increments to `main`.
    review, and stale
    external-editor results. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
-   background accessibility actions on Ubuntu and other modal routes after
-   the Mac and Windows Copy/Delete guards passed. Preserve captured scope and
-   mapping throughout each test.
+   other modal focus and decision routes after the Mac, Windows and Ubuntu
+   Copy/Delete background accessibility guards passed. Preserve captured
+   scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.

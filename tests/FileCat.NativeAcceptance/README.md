@@ -486,6 +486,15 @@ VM screenshot and JSON result together when recording native acceptance.
 
 ## Linux logged-in desktop
 
+`linux-atspi-modal-guard.py APP_PATH REPORT.json` runs against a Git-built,
+isolated Linux `FileCat` binary below the logged-in user's
+`~/FileCatValidation` directory. It creates a fresh source, destination and
+data profile, opens Copy for one file, then invokes obscured toolbar and
+key-bar Copy/Delete actions through AT-SPI. It requires one unchanged Copy
+review, no target, and the original source hash after Cancel. The JSON report
+records the app hash, fixture and four invocation outcomes. Run it with the
+user's AT-SPI session bus; it needs system Python with `gi.repository.Atspi`.
+
 `linux-atspi-copy-review.py SOURCE DESTINATION REPORT.json` tests a Git-built
 FileCat running as the logged-in user. Use an isolated source folder containing
 `a.txt` with `alpha\n` and `b.txt` with `beta\n`, plus an empty destination.
