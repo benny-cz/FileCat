@@ -10,8 +10,10 @@ The generation guard rejects that stale editor result. The refreshed two-row
 preview shows `reviewed_1.txt`/`reviewed_2.txt`; the approved real Rename job
 changes exactly those two source files and does not create the stale editor
 name. The affected Windows Release bulk-rename selection passed 22 tests,
-one Unix-only skip, zero failures. Native external-editor and rule-change
-journeys remain to be exercised.
+one Unix-only skip, zero failures. The complete Windows Release App suite
+then passed 2,405 tests with 63 platform skips and zero failures using up to
+16 processors. Native external-editor and rule-change journeys remain to be
+exercised.
 
 **22 October 2026, Git-built Windows selection at narrow width:** The native
 runner now accepts `FILECAT_NATIVE_TEST_APP` for selection journeys and checks
