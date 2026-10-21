@@ -43,6 +43,8 @@ backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
 guest-local `-ReportPath`. It checks the foreground process ID before sending
 F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
+Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
+with an empty disposable filesystem fixture; the default remains `Registry`.
 The runner saves a close-button crop beside its JSON report, measures the
 high-contrast X pixels against the button background and requires their
 centroid within 1.5 physical pixels of center. It also records the window DPI,

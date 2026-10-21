@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [ValidateSet('Registry', 'Folder')][string]$DialogKind = 'Registry'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,7 +42,9 @@ if (!$app.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or
 }
 $fixture = Join-Path $validationRoot ('DialogPointerFixture\' + [guid]::NewGuid().ToString('N'))
 $data = Join-Path $fixture 'data'
-New-Item -ItemType Directory -Force -Path $data | Out-Null
+$source = Join-Path $fixture 'source'
+New-Item -ItemType Directory -Force -Path $data, $source | Out-Null
+$dialogTitle = if ($DialogKind -eq 'Folder') { 'Create folder' } else { 'Create in Registry' }
 $process = $null
 
 function Snapshot($window) {
@@ -65,13 +68,13 @@ function WaitForChooser($window, [bool]$visible) {
         $close = CloseButton $window
         if (($null -ne $close) -eq $visible) {
             if ($visible) {
-                $titles = @(Snapshot $window | Where-Object { $_.Current.Name -eq 'Create in Registry' })
-                if (!$titles.Count) { throw 'F7 opened a different dialog; Registry navigation was not established.' }
+                $titles = @(Snapshot $window | Where-Object { $_.Current.Name -eq $dialogTitle })
+                if (!$titles.Count) { throw "F7 opened a different dialog; expected $dialogTitle." }
             }
             return $close
         }
     }
-    throw $(if ($visible) { 'Create in Registry did not open.' } else { 'The chooser did not close after the native pointer click.' })
+    throw $(if ($visible) { "$dialogTitle did not open." } else { 'The dialog did not close after the native pointer click.' })
 }
 
 function EnsureForeground($process, $window) {
@@ -88,8 +91,9 @@ function EnsureForeground($process, $window) {
 }
 
 try {
+    $left = if ($DialogKind -eq 'Folder') { $source } else { 'reg:HKCU\Software' }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
-        '--left', 'reg:HKCU\Software', '--right', $validationRoot) -PassThru
+        '--left', $left, '--right', $validationRoot) -PassThru
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     do {
         Start-Sleep -Milliseconds 200
@@ -150,11 +154,16 @@ try {
     $outsideY = [int]($frame.Y + $frame.Height - 80)
     [FileCatDialogPointer]::Click($outsideX, $outsideY)
     WaitForChooser $window $false | Out-Null
+    if ($DialogKind -eq 'Folder' -and @(Get-ChildItem -LiteralPath $source -Force).Count -ne 0) {
+        throw 'The canceled Create folder dialog changed the fixture.'
+    }
 
     [pscustomobject]@{
         BuildSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash
         WindowDpi = $windowDpi
-        RegistryChooserOpenedTwice = $true
+        DialogKind = $DialogKind
+        DialogTitle = $dialogTitle
+        DialogOpenedTwice = $true
         NativeCloseX = $true
         NativeBackdropClick = $true
         CloseAccessibleName = 'Close dialog'
