@@ -343,7 +343,9 @@ is occupied, finishing review restores that item to its pre-Undo name,
 reports the occupied target, leaves all three pre-Undo file bytes exact,
 removes the temporary name, and closes the reviewed journal. The focused
 child-process case passed 1/1. A native FileCat window close/restart and
-visible review of this same interrupted inverse remain open.
+visible review of this same interrupted inverse remain open. The complete
+Windows Core Release suite passed 4,436, skipped 150 and failed 0 with 16
+available processors.
 The retained Undo report now has a focused App UI test with 70 outcomes and a
 failure at action 46, beyond the abbreviated preview. The displayed full-path
 failure, one-failed summary and Copy all text agree. The Core 70-action
@@ -656,7 +658,19 @@ derived from a well-formed journal ID (for example `.fc-deadbeef-`). The
 wording says this is a search hint and requires server inspection before any
 change; it never authorizes deletion. Malformed or legacy journal names get
 the generic warning without an invented prefix. The focused App recovery
-and report suite passed 20/20 with no skips.
+and report suite passed 20/20 with no skips. The complete Windows App Release
+suite passed 2,404, skipped 63 and failed 0 with 16 available processors.
+The Win11 VMware guest cloned exact Git commit `3eb78253`, used SDK 10.0.101
+in an isolated validation folder, and built the solution without warnings.
+`win-ax-remote-stage-hint.ps1` then opened a fresh interrupted remote Copy in
+that Git-built executable (SHA-256
+`0FFB1E3A06798D7D4C30C574F0FADF6FBE86DA704631EC354770717C6D271A68`).
+The native UI Automation row and approval both showed candidate prefix
+`.fc-239b7fee-`; its retained report showed the same prefix. The source SHA-256
+remained `900AF33156F0336FCB33D047DA4F68A0C5822F8FAAE789D86CCF26801AF44098`,
+the local destination stayed empty, and the journal remained open. The runner
+changed no server file. Native spoken review and safe remote-stage cleanup
+remain open.
 
 FCUX-001 also guards a normal remote Replace approval against a destination
 that changes during a long upload. The approved entry's kind, size and modified

@@ -34,6 +34,15 @@ backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
 guest-local `-ReportPath`. It checks the foreground process ID before sending
 F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
+`win-ax-remote-stage-hint.ps1 -ReportPath <guest-local.json>` runs in the
+logged-in Windows VM after an exact Git checkout and Release build. Its
+`vm-clone-build.json` names the isolated executable and SHA-256. It seeds a
+remote-destination interruption with no server connection, opens that exact
+FileCat instance, invokes local cleanup review through UI Automation, and
+requires the journal-derived `.fc-<job-id>-` search hint in the row, approval
+dialog and saved report. It also checks that the local source hash is unchanged,
+the target folder is empty and the remote journal remains open. No server file
+is inspected or deleted by this check. The report includes all evidence fields.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
