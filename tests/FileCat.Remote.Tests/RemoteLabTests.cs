@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -139,6 +140,90 @@ public sealed class RemoteLabTests : IDisposable
             await Task.Delay(20, TestContext.Current.CancellationToken);
         }
         return job;
+    }
+
+    [Fact]
+    public async Task Sftp_replace_keeps_a_live_target_changed_without_metadata_change()
+    {
+        var lab = Lab();
+        var ct = TestContext.Current.CancellationToken;
+        var profile = Profile(RemoteProtocols.Sftp, 22, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "same-metadata"));
+        stack.Jobs.DecisionRequested += d => d.Resolve(new Decision(DecisionAction.Skip));
+        string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        string target = RemotePath.Combine(remoteRoot, "replace.bin");
+        string alternate = RemotePath.Combine(remoteRoot, "other.bin");
+        string source = Path.Combine(_dir, "replace.bin");
+        var incoming = new byte[4 << 20];
+        new Random(71).NextBytes(incoming);
+        File.WriteAllBytes(source, incoming);
+        byte[] original = "original remote bytes"u8.ToArray();
+        byte[] changed = (byte[])original.Clone();
+        changed[0] ^= 0x20;
+        using (var setup = stack.Connections.Lease(profile.Id, ct))
+        {
+            setup.Channel.CreateDirectory(remoteRoot);
+            using var file = setup.Channel.CreateNew(target);
+            file.Write(original);
+        }
+        Job? job = null;
+        try
+        {
+            job = stack.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Move,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Destination = SftpProvider.At(profile, remoteRoot),
+                Options = new TransferOptions { Conflicts = ConflictPolicy.Replace, RateLimit = 128 * 1024 },
+            });
+            var timer = Stopwatch.StartNew();
+            while (true)
+            {
+                Assert.True(timer.Elapsed < TimeSpan.FromSeconds(30), "The SFTP upload never staged a nonempty file.");
+                using var inspection = stack.Connections.Lease(profile.Id, ct);
+                if (inspection.Channel.List(remoteRoot, ct).Any(e =>
+                    e.Name.StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal) && e.Size > 0)) break;
+                Assert.False(job.State.IsFinished(), "The upload ended before the target could change.");
+                await Task.Delay(50, ct);
+            }
+            using (var change = stack.Connections.Lease(profile.Id, ct))
+            {
+                var before = change.Channel.List(remoteRoot, ct).Single(e => e.Name == "replace.bin");
+                using (var file = change.Channel.CreateNew(alternate)) file.Write(changed);
+                change.Channel.SetModified(alternate, before.ModifiedUtc);
+                Assert.True(change.Channel.TryReplace(alternate, target), "The live OpenSSH server lacks atomic file replacement.");
+                var after = change.Channel.List(remoteRoot, ct).Single(e => e.Name == "replace.bin");
+                Assert.Equal((before.Size, before.ModifiedUtc), (after.Size, after.ModifiedUtc));
+            }
+            timer.Restart();
+            while (!job.State.IsFinished())
+            {
+                Assert.True(timer.Elapsed < TimeSpan.FromSeconds(60), "The SFTP upload did not finish after the conflict.");
+                await Task.Delay(50, ct);
+            }
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, i => i.Message.Contains("destination content changed on the server", StringComparison.Ordinal));
+            Assert.Equal(SHA256.HashData(incoming), SHA256.HashData(File.ReadAllBytes(source)));
+            using var verify = stack.Connections.Lease(profile.Id, ct);
+            Assert.Equal(["replace.bin"], verify.Channel.List(remoteRoot, ct).Select(e => e.Name));
+            using var targetContent = verify.Channel.OpenRead(target);
+            Assert.Equal(SHA256.HashData(changed), SHA256.HashData(targetContent));
+        }
+        finally
+        {
+            if (job is { } active && !active.State.IsFinished())
+            {
+                active.Cancel();
+                var stop = Stopwatch.StartNew();
+                while (!active.State.IsFinished() && stop.Elapsed < TimeSpan.FromSeconds(15))
+                    await Task.Delay(50, CancellationToken.None);
+            }
+            await RunAsync(stack, new JobRequest
+            {
+                Kind = JobKind.Delete,
+                Sources = [new ItemRef(SftpProvider.At(profile, "."), remoteRoot, EntryKind.Directory)],
+            });
+        }
     }
 
     [Fact]
