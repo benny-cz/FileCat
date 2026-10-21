@@ -7,6 +7,11 @@ not connect the driver to a network interface.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
+For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
+the report path. If multiple isolated FileCat windows have the same title, set
+`FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
+`FileCat.exe`. The runner accepts only an executable below the guest's
+`AppData\Local\FileCatValidation` root and selects its window by process ID.
 
 Run `FileCat.NativeAcceptance.exe find-resize <report.json>` in the Windows
 desktop session. The runner opens **Find files** if needed, drags its lower-right
@@ -533,6 +538,17 @@ must find rendered text while WebKitGTK reports exactly `2 matches`. The
 runner verifies unchanged bytes, closes only the owned viewer window,
 removes its exact test file and refreshes the panel. Both scripts must be
 present together; this check also needs `DISPLAY` and the desktop AT-SPI bus.
+
+`linux-atspi-hex-editor-find.py seed ROOT` creates a new 7 MiB file below
+`~/FileCatValidation/HexEditorFind` with two matches more than 4 MiB apart.
+Launch a separate Git-built FileCat with `ROOT/source`, `ROOT/destination`
+and `ROOT/data`, then run `linux-atspi-hex-editor-find.py check ROOT REPORT.json`
+in the logged-in session. The check uses the exact source, process ID and
+editor title, exercises visible Next/Previous, match status and changed-query
+reset, and closes the test-owned editor. It also accepts an already open
+test-owned editor. On the current Ubuntu Wayland session, FileCat's File menu
+has no AT-SPI action, so opening the editor through that menu remains a native
+input gate; the test reports the missing action without claiming a pass.
 
 ## macOS logged-in desktop
 

@@ -42,11 +42,18 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, test Linux native editor Previous routes, visible Stop,
-   changed-query ownership beyond the verified Mac Text route, provider
+   For FCUX-007, test the new Hex editor Previous/Next controls and bounded
+   match status on Mac/Linux and with scaled/spoken input after the Windows VM
+   pointer and keyboard run. Test Linux native editor Previous routes, visible
+   Stop, changed-query ownership beyond the verified Mac Text route, provider
    cancellation and Ubuntu physical-keyboard input beyond the verified AT-SPI
    Text, Hex, Info and Markdown Page routes. Assistive-technology routes
-   still need native checks.
+   still need native checks. The Ubuntu Wayland File menu currently exposes no
+   AT-SPI action; X11 synthetic input opens GNOME's Remote Desktop consent
+   instead of activating FileCat. The portal prompt was dismissed without
+   granting access. Complete the tracked native Hex editor script through a
+   permitted desktop input path or after opening its test-owned editor in the
+   guest UI.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long

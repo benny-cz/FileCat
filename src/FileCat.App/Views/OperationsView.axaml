@@ -225,7 +225,9 @@
               <TextBlock Text="{Binding TimingText}" Classes="small" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{Binding ItemsText}" Classes="small" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{Binding DataText}" Classes="small" TextTrimming="CharacterEllipsis" />
-              <TextBlock Text="{Binding SpeedText}" Classes="small" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding SpeedText}" Classes="small" FontWeight="SemiBold" TextWrapping="Wrap"
+                         IsVisible="{Binding SpeedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.Name="{Binding SpeedText}" />
             </StackPanel>
             <Expander Header="Speed history" IsVisible="{Binding HasSpeedHistory}" Margin="0,4,0,0">
               <StackPanel Spacing="2" HorizontalAlignment="Left">

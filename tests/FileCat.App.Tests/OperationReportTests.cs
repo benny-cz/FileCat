@@ -1,9 +1,12 @@
 using System.Text.Json;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -17,6 +20,45 @@ namespace FileCat.App.Tests;
 
 public sealed class OperationReportTests
 {
+    [AvaloniaFact]
+    public async Task Finished_copy_shows_its_average_in_the_narrow_details_window_without_truncation()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            string source = Path.Combine(root, "files", "transfer.bin");
+            byte[] bytes = new byte[1 << 20];
+            new Random(17).NextBytes(bytes);
+            File.WriteAllBytes(source, bytes);
+            string destination = Directory.CreateDirectory(Path.Combine(root, "destination")).FullName;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Destination = Location.FileSystem(destination),
+            });
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            while (!job.State.IsFinished() || vm.Operations.Jobs.All(row => row.Job != job))
+                await Task.Delay(10, timeout.Token);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(destination, "transfer.bin")));
+            vm.Operations.Refresh(job);
+            vm.Operations.Selected = vm.Operations.Jobs.Single(row => row.Job == job);
+            vm.Operations.IsOpen = true;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+
+            string rate = Assert.IsType<string>(Formatters.AverageDataRate(job.DataBytesProcessed, job.ElapsedSinceStart));
+            var detail = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(block => block.Text == "Average transfer speed: " + rate);
+            Assert.True(detail.IsEffectivelyVisible);
+            Assert.Equal(TextWrapping.Wrap, detail.TextWrapping);
+            Assert.Equal(detail.Text, AutomationProperties.GetName(detail));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [Fact]
     public async Task Completed_copy_keeps_its_average_speed_while_rename_and_skip_claim_no_transfer()
     {

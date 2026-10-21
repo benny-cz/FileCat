@@ -1863,12 +1863,17 @@ try
                 File.Delete(sourceFile);
             }
             await File.WriteAllBytesAsync(sourceFile, bytes);
-            NativeWindow.FocusRecovery("selection-source");
+            int appProcessId = NativeWindow.FocusRecovery("selection-source",
+                Environment.GetEnvironmentVariable("FILECAT_NATIVE_TEST_APP"));
             await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000");
             XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
             XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "list item"
                 && (string?)element.Attribute("Name") == fileName
+                && element.Ancestors().Any(parent =>
+                    (string?)parent.Attribute("LocalizedControlType") == "window"
+                    && (string?)parent.Attribute("ProcessId") ==
+                        appProcessId.ToString(CultureInfo.InvariantCulture))
                 && element.Ancestors().Any(parent =>
                     (string?)parent.Attribute("ClassName") == "FileList"
                     && ((string?)parent.Attribute("Name"))?.Contains(
@@ -1880,13 +1885,16 @@ try
             }
             var row = Row(listing) ?? throw new InvalidOperationException("The owned hex-editor file is not listed.");
             NativeWindow.ClickAt(CenterX(row), CenterY(row));
+            string appScope = $"//Window[@ProcessId='{appProcessId.ToString(CultureInfo.InvariantCulture)}']";
             var commands = await FindXPathAsync(client, sessionId,
-                "//Edit[@Name='Search commands']", "command search");
+                appScope + "//Edit[@Name='Search commands']", "command search");
             await ClickXPathAsync(client, sessionId,
-                "//Edit[@Name='Search commands']", "command search");
+                appScope + "//Edit[@Name='Search commands']", "command search");
             await SendKeysAsync(client, sessionId, commands, "\uE009a\uE000edit file bytes in hex\uE007");
             XElement? Editor(XDocument document) => document.Descendants().FirstOrDefault(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    appProcessId.ToString(CultureInfo.InvariantCulture)
                 && ((string?)element.Attribute("Name"))?.Contains(fileName, StringComparison.Ordinal) == true
                 && ((string?)element.Attribute("Name"))?.Contains("FileCat Hex Editor", StringComparison.Ordinal) == true);
             XDocument opened = listing;
@@ -1900,7 +1908,7 @@ try
                 ?? throw new InvalidOperationException("The editor Find action is unavailable.");
             NativeWindow.ClickAt(CenterX(toggle), CenterY(toggle));
             var query = await FindXPathAsync(client, sessionId,
-                "//Edit[@Name='Find in file']", "editor Find field");
+                appScope + "//Edit[@Name='Find in file']", "editor Find field");
             await SendKeysAsync(client, sessionId, query, "NEEDLE\uE007");
             async Task<string> WaitForStatus(string expected)
             {
@@ -1916,16 +1924,29 @@ try
                 throw new InvalidOperationException($"Hex editor never displayed: {expected}");
             }
             string firstStatus = await WaitForStatus($"Found at 0x{firstHit:X}");
-            await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3.
+            string countAfterFirst = await WaitForStatus("1 distinct match visited · total not counted");
+            var nextButton = FindVisible(Editor(ParseSource(await ReadSourceAsync(client, sessionId)))!,
+                "button", "Find next match")
+                ?? throw new InvalidOperationException("The editor's visible Next button is unavailable.");
+            NativeWindow.ClickAt(CenterX(nextButton), CenterY(nextButton));
             string secondStatus = await WaitForStatus($"Found at 0x{secondHit:X}");
-            await SendSessionKeysAsync(client, sessionId, "\uE008\uE033\uE000"); // Shift+F3.
+            string countAfterSecond = await WaitForStatus("2 distinct matches visited · total not counted");
+            var previousButton = FindVisible(Editor(ParseSource(await ReadSourceAsync(client, sessionId)))!,
+                "button", "Find previous match")
+                ?? throw new InvalidOperationException("The editor's visible Previous button is unavailable.");
+            NativeWindow.ClickAt(CenterX(previousButton), CenterY(previousButton));
             string previousStatus = await WaitForStatus($"Found at 0x{firstHit:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3 remains available.
+            _ = await WaitForStatus($"Found at 0x{secondHit:X}");
+            await SendSessionKeysAsync(client, sessionId, "\uE008\uE033\uE000"); // Shift+F3.
+            _ = await WaitForStatus($"Found at 0x{firstHit:X}");
             await SendSessionKeysAsync(client, sessionId, "\uE008\uE033\uE000");
             string beforeFirst = await WaitForStatus("was not found before the cursor");
             query = await FindXPathAsync(client, sessionId,
-                "//Edit[@Name='Find in file']", "editor Find field");
+                appScope + "//Edit[@Name='Find in file']", "editor Find field");
             await SendKeysAsync(client, sessionId, query, "\uE009a\uE000second\uE007");
             string changedStatus = await WaitForStatus($"Found at 0x{secondHit + 7:X}");
+            string countAfterChangedQuery = await WaitForStatus("1 distinct match visited · total not counted");
             await SendSessionKeysAsync(client, sessionId, "\uE03A"); // F10 closes the editor.
             bool editorClosed = Editor(ParseSource(await ReadSourceAsync(client, sessionId))) is null;
             bool sourceIntact = (await File.ReadAllBytesAsync(sourceFile)).AsSpan().SequenceEqual(bytes);
@@ -1935,8 +1956,9 @@ try
                 && secondHit - firstHit > 4 * 1024 * 1024;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, firstHit, secondHit, firstStatus, secondStatus, previousStatus,
-                beforeFirst, changedStatus, editorClosed, sourceIntact, fixtureRemoved
+                passed, firstHit, secondHit, firstStatus, countAfterFirst, secondStatus, countAfterSecond,
+                previousStatus, beforeFirst, changedStatus, countAfterChangedQuery,
+                editorClosed, sourceIntact, fixtureRemoved
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
@@ -4579,6 +4601,9 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint FindWindow(string? className, string? title);
 
+    [LibraryImport("user32.dll", EntryPoint = "FindWindowExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint FindWindowEx(nint parent, nint childAfter, string? className, string? title);
+
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(nint window, int command);
@@ -4908,13 +4933,38 @@ internal static partial class NativeWindow
             throw new InvalidOperationException("Cannot focus Explorer in the VM.");
     }
 
-    internal static void FocusRecovery(string sourceFolder = "source")
+    internal static int FocusRecovery(string sourceFolder = "source", string? expectedExecutable = null)
     {
         if (sourceFolder is not ("source" or "live-source" or "legacy-source" or "desktop-source" or "clipboard-source" or "compare-source" or "selection-source"))
             throw new ArgumentOutOfRangeException(nameof(sourceFolder));
         var title = $"FileCat — {sourceFolder} — Admin (administrator, not elevated)";
-        var window = FindWindow(null, title);
-        if (window == 0 && sourceFolder == "clipboard-source")
+        var buildRoot = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
+        if (expectedExecutable is not null)
+        {
+            expectedExecutable = Path.GetFullPath(expectedExecutable);
+            if (!expectedExecutable.StartsWith(buildRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileName(expectedExecutable), "FileCat.exe",
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The selected FileCat app is outside the isolated VM build root.");
+        }
+        nint window = 0;
+        if (expectedExecutable is null) window = FindWindow(null, title);
+        else
+        {
+            nint after = 0;
+            while ((after = FindWindowEx(0, after, null, title)) != 0)
+            {
+                GetWindowThreadProcessId(after, out var candidateId);
+                using var candidate = Process.GetProcessById((int)candidateId);
+                if (!string.Equals(candidate.MainModule?.FileName, expectedExecutable,
+                        StringComparison.OrdinalIgnoreCase)) continue;
+                window = after;
+                break;
+            }
+        }
+        if (window == 0 && sourceFolder == "clipboard-source" && expectedExecutable is null)
             window = FindWindow(null,
                 "FileCat — destination — Admin (administrator, not elevated)");
         if (window == 0)
@@ -4925,16 +4975,14 @@ internal static partial class NativeWindow
             throw new InvalidOperationException("Recovery window belongs to another process.");
         if (sourceFolder is "clipboard-source" or "compare-source" or "selection-source")
         {
-            var buildRoot = Path.Combine(Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData), "FileCatValidation");
-            if (!new[] { "ReviewHighlights", "ClipboardFix" }.Any(folder =>
-                string.Equals(process.MainModule?.FileName,
-                    Path.Combine(buildRoot, folder, "FileCat.exe"),
-                    StringComparison.OrdinalIgnoreCase)))
+            if (expectedExecutable is null && !new[] { "ReviewHighlights", "ClipboardFix" }.Any(folder =>
+                    string.Equals(process.MainModule?.FileName,
+                        Path.Combine(buildRoot, folder, "FileCat.exe"),
+                        StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Clipboard window is not an isolated VM build.");
         }
         if (ActivateWindow(window, processId))
-            return;
+            return (int)processId;
         const uint noMove = 0x0002;
         const uint noSize = 0x0001;
         const uint noActivate = 0x0010;
@@ -4956,6 +5004,7 @@ internal static partial class NativeWindow
         {
             SetWindowPos(window, -2, 0, 0, 0, 0, noMove | noSize | noActivate);
         }
+        return (int)processId;
     }
 
     internal static Rect ResizeSelectionWindow(int width, int height) =>

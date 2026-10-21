@@ -2,6 +2,29 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**21 October 2026, finished operation details and editor Find:** The selected
+finished operation displays the same explicitly labelled average transfer
+speed as its report. The details line now wraps and uses a stronger weight so
+the value remains readable in a narrow Operations window; an empty rate stays
+hidden for operations that transferred no data. A headless view test completes
+a real Copy and checks the visible details text, wrapping, accessible name and
+destination bytes. The Hex editor Find row now exposes Previous and Next
+buttons alongside a bounded, truthful count of distinct matches visited for
+the current query. Changing the query clears the count. The editor's
+headless test traverses two matches more than 4 MiB apart in both directions,
+checks no-earlier feedback, changed-query reset and unchanged source bytes.
+The focused Release App tests passed all six cases with 16 workers; the
+final full App suite passed 2,388 cases with 63 platform skips and no failures.
+A new
+isolated Windows VM build passed the native Hex editor run: its visible Next
+and Previous buttons reached 0x800014 and 0x100014 across a 13 MiB file, the
+status counted two distinct visited matches without claiming a file-wide
+total, F3 and Shift+F3 still worked, and a changed query reset the count to
+one at 0x80001B. The editor closed, exact source bytes remained and the
+test-owned fixture was removed. The runner selects the exact app process when
+multiple FileCat windows share a title. Final CI and other desktop acceptance
+remain in [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
+
 **21 October 2026 validation:** An isolated Ubuntu Copy with a 65,536 bytes/s
 limit exposed a large-buffer rate defect: each callback waited only once for
 at most one second, even when the copied buffer required a longer allowance.

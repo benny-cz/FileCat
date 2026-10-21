@@ -55,6 +55,10 @@ public sealed class HexEditorWindow : Window
     private readonly Button _stopCopy = new() { Content = "Stop", IsVisible = false, Classes = { "danger" } };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200 };
+    private readonly Button _previousMatch = new() { Content = "Previous", IsEnabled = false };
+    private readonly Button _nextMatch = new() { Content = "Next", IsEnabled = false };
+    private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center,
+        Text = "Enter text to find matches" };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _recoveryBar = new() { Classes = { "banner" }, IsVisible = false };
@@ -73,6 +77,8 @@ public sealed class HexEditorWindow : Window
     private int _lastHitLength;
     private (string Pattern, bool HexBytes, bool MatchCase, PagedReader Reader)? _lastSearch;
     private bool _revealingSearch;
+    private const int MaxObservedMatches = 10_000;
+    private readonly HashSet<long> _observedMatches = [];
 
     private HexEditorWindow(AppServices services, ProtectedHexFile file)
     {
@@ -97,6 +103,13 @@ public sealed class HexEditorWindow : Window
         ToolTip.SetTip(_goTo, "Go to an offset (Ctrl+G)");
         ToolTip.SetTip(_stopCopy, "Stop creating the copy; the incomplete file is removed");
         Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
+        Avalonia.Automation.AutomationProperties.SetName(_previousMatch, "Find previous match");
+        Avalonia.Automation.AutomationProperties.SetName(_nextMatch, "Find next match");
+        ToolTip.SetTip(_previousMatch, "Find the nearest earlier match (Shift+F3).");
+        ToolTip.SetTip(_nextMatch, "Find the nearest later match (F3).");
+        ToolTip.SetTip(_matchCount, "Counts distinct matches visited with this query. The whole file is not counted.");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_matchCount,
+            Avalonia.Automation.AutomationLiveSetting.Polite);
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 6), ItemSpacing = 6, LineSpacing = 4 };
         Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease editor content size");
@@ -137,7 +150,8 @@ public sealed class HexEditorWindow : Window
         };
         foreach (var c in new Control[] { _save, _stopCopy, _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, _findToggle, _advanced })
             toolbar.Children.Add(c);
-        foreach (var c in new Control[] { _search, _hexSearch, _matchCase, _stopSearch }) _findBar.Children.Add(c);
+        foreach (var c in new Control[] { _search, _previousMatch, _nextMatch, _matchCount,
+                     _hexSearch, _matchCase, _stopSearch }) _findBar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
         var restore = new Button { Content = "Restore original bytes" };
@@ -187,11 +201,16 @@ public sealed class HexEditorWindow : Window
         _stopCopy.Click += (_, _) => _copyStop?.Cancel();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc).");
         _stopSearch.Click += (_, _) => _searchCts?.Cancel();
+        _previousMatch.Click += async (_, _) => await FindAsync(forward: false);
+        _nextMatch.Click += async (_, _) => await FindAsync(forward: true);
         _search.PropertyChanged += (_, e) =>
         {
             if (e.Property != TextBox.TextProperty) return;
             if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
             InvalidateSearch();
+            bool hasQuery = !string.IsNullOrEmpty(_search.Text);
+            _previousMatch.IsEnabled = hasQuery;
+            _nextMatch.IsEnabled = hasQuery;
         };
         _hexSearch.IsCheckedChanged += (_, _) => InvalidateSearch();
         _matchCase.IsCheckedChanged += (_, _) => InvalidateSearch();
@@ -744,6 +763,8 @@ public sealed class HexEditorWindow : Window
             _lastHit = found;
             _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
+            if (_observedMatches.Count < MaxObservedMatches) _observedMatches.Add(found);
+            UpdateMatchCount();
             _revealingSearch = true;
             try { _hex.GoTo(found, select: true, _lastHitLength); }
             finally { _revealingSearch = false; }
@@ -771,6 +792,17 @@ public sealed class HexEditorWindow : Window
         _stopSearch.IsVisible = false;
         _lastHit = -1;
         _lastSearch = null;
+        _observedMatches.Clear();
+        UpdateMatchCount();
+    }
+
+    private void UpdateMatchCount()
+    {
+        int count = _observedMatches.Count;
+        _matchCount.Text = string.IsNullOrEmpty(_search.Text) ? "Enter text to find matches"
+            : count == 0 ? "0 matches visited · total not counted"
+            : count == MaxObservedMatches ? $"At least {count:N0} distinct matches visited · total not counted"
+            : $"{count:N0} distinct {(count == 1 ? "match" : "matches")} visited · total not counted";
     }
 
     // ---- Saving ----------------------------------------------------------------------------------------------------
