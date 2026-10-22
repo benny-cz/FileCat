@@ -346,6 +346,9 @@ public sealed class DialogViewportTests
                 Assert.True(previousMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y &&
                             nextMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
                     "The mapping navigation must remain discoverable before the long preview.");
+                Assert.True(Math.Abs((previousMapping.TranslatePoint(default, card)?.Y ?? -1) -
+                                     (nextMapping.TranslatePoint(default, card)?.Y ?? -2)) <= 1,
+                    "Previous and Next mapping must stay together when the review narrows.");
                 Assert.InRange(preview.Bounds.Width, 1, scroll.Viewport.Width + 1);
                 Assert.Equal(280, preview.Bounds.Height);
                 Assert.Equal(2, preview.ItemCount);

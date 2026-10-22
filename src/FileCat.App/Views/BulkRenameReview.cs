@@ -64,18 +64,17 @@ internal sealed class BulkRenameReview : StackPanel
         _list.ItemTemplate = new FuncDataTemplate<Row>((row, _) => row is null ? new TextBlock() : Render(row));
         AutomationProperties.SetName(_list, "Preview of new names");
         AutomationProperties.SetHelpText(_list, "Every selected item is available here. Filter to problems or changed names, search paths, or use Previous and Next mapping to inspect every full path below.");
-        _previousMapping = new Button { Content = "Previous mapping", IsEnabled = false,
-            Margin = new Thickness(0, 0, 6, 0) };
-        _nextMapping = new Button { Content = "Next mapping", IsEnabled = false,
-            Margin = new Thickness(0, 0, 6, 0) };
+        _previousMapping = new Button { Content = "Previous", IsEnabled = false };
+        _nextMapping = new Button { Content = "Next", IsEnabled = false };
         _position = new TextBlock { Text = "No mappings shown", VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 0, 0) };
         AutomationProperties.SetName(_previousMapping, "Previous rename mapping");
         AutomationProperties.SetName(_nextMapping, "Next rename mapping");
         AutomationProperties.SetName(_position, "No rename mappings match the current preview filter.");
         AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
-        tools.Children.Add(_previousMapping);
-        tools.Children.Add(_nextMapping);
+        var mappingButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
+            Children = { _previousMapping, _nextMapping } };
+        tools.Children.Add(mappingButtons);
         tools.Children.Add(_position);
         _details = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 75 };
         AutomationProperties.SetName(_details, "Full old and new paths of selected rename");
