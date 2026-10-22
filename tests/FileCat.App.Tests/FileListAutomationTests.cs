@@ -205,7 +205,10 @@ public sealed class FileListAutomationTests
         Assert.Equal("drive", Row(peer, "drive").GetItemType());
         var parent = Row(peer, "Go to parent location");
         Assert.Equal("parent navigation", parent.GetItemType());
-        Assert.Null(parent.GetProvider<ISelectionItemProvider>());
+        // AT-SPI lists only selection items as a selection container's children, so on Linux the parent row is one
+        // that is never selected and refuses selection.
+        if (OperatingSystem.IsLinux()) Assert.False(parent.GetProvider<ISelectionItemProvider>()!.IsSelected);
+        else Assert.Null(parent.GetProvider<ISelectionItemProvider>());
         var file = peer.GetChildren().Single(p => p.GetName()?.Contains("unavailable", StringComparison.Ordinal) == true);
         Assert.DoesNotContain('\n', file.GetName());
         Assert.Contains("cloud placeholder", file.GetHelpText());
