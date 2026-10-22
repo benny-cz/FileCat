@@ -559,6 +559,12 @@ clicks `d.txt` as the anchor, moves keyboard focus to `b.txt`, deletes `d.txt`
 and creates `0.txt` in the owned folder, then rereads with Ctrl+R. Shift-click
 on `c.txt` must mark only `b.txt` and `c.txt`, with exact fixture bytes and no
 destination changes.
+`selection-create-native <report.json>` keeps the clicked `c.txt` anchor in a
+fresh fixture, creates `0.txt` ahead of it, then rereads with Ctrl+R. The
+focused file must still be `c.txt`; Shift-click on `d.txt` must mark only
+`c.txt` and `d.txt`. This catches a stale numeric anchor after a new row is
+inserted. It also checks all source bytes and the empty destination. Finish
+with `selection-stop` as for the other selection modes.
 `selection-ctrl-native <report.json>` uses a fresh fixture to click `b.txt`,
 Ctrl-click `d.txt` on, Ctrl-click `b.txt` on, and Ctrl-click `d.txt` off. A
 native Shift-click on `c.txt` must then use the original `b.txt` anchor, mark
