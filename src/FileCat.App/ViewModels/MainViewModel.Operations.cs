@@ -412,11 +412,14 @@ public sealed partial class MainViewModel
             return;
         }
         if (tab?.Location is not { IsFileSystem: true } loc) return;
-        var r = await Dialogs.PromptAsync(new PromptOptions("Create folder", "Folder name (use \\ for nested folders):")
+        // The platform's separators nest folders: / everywhere, and \ on Windows. Elsewhere \ is an ordinary name
+        // character, which is how the folder is created and what Rename allows.
+        char[] separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+        var r = await Dialogs.PromptAsync(new PromptOptions("Create folder", $"Folder name (use {Path.DirectorySeparatorChar} for nested folders):")
         {
             Validate = n =>
             {
-                var parts = n.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+                var parts = n.Split(separators, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 0) return "The name cannot be empty.";
                 foreach (var p in parts) if (PathUtil.ValidateNewName(p) is { } bad) return bad;
                 return Directory.Exists(Path.Combine(loc.Path, n)) || File.Exists(Path.Combine(loc.Path, n)) ? "An item with this name already exists here." : null;
@@ -424,9 +427,9 @@ public sealed partial class MainViewModel
             ConfirmText = "Create",
         });
         if (r is null) return;
-        var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Destination = loc, NewName = r.Text.Trim('\\', '/') });
+        var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Destination = loc, NewName = r.Text.Trim(separators) });
         Track(job, tab);
-        _focusAfter[job] = r.Text.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries)[0];
+        _focusAfter[job] = r.Text.Split(separators, StringSplitOptions.RemoveEmptyEntries)[0];
     }
 
     private async Task EditNewAsync()
