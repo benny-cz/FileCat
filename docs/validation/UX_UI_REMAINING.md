@@ -53,15 +53,12 @@ increments to `main`.
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
    FCUX-003 still needs Mac display-scale and Ubuntu scaled/narrow layouts,
-   keyboard and spoken review, and native concurrent
-   rule-change races after the headless stale-scope result was rejected and a
-   post-editor rule change passed on Ubuntu. On Mac,
-   investigate the visible review body's zero AX bounds and preview list with
-   no AX children; native AX actions work, but assistive inspection of every
-   mapping still needs proof. The Ubuntu editor round trip passed at its normal
-   window size; the narrow run remains open because this VM session ignored
-   both `wmctrl` and `xdotool` size requests and stayed at 1280 × 840. Verify
-   the layout after an actual native window resize. For FCUX-004/005, exercise remaining modal
+   keyboard and spoken review, and native concurrent rule-change races. On
+   Mac, investigate the visible review body's zero AX bounds and preview list
+   with no AX children, and verify actual VoiceOver speech through the
+   Previous/Next and full-path detail route. In Ubuntu, resize the window
+   through native compositor input: this VM session ignored `wmctrl` and
+   `xdotool` requests and stayed at 1280 × 840. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
    other modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. Preserve captured
