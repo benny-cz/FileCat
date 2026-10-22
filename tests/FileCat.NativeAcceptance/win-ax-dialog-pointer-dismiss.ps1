@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Registry', 'Folder', 'Copy')][string]$DialogKind = 'Registry'
+    [ValidateSet('Registry', 'Folder', 'Copy', 'Delete')][string]$DialogKind = 'Registry'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,9 +46,9 @@ $source = Join-Path $fixture 'source'
 $target = Join-Path $fixture 'target'
 New-Item -ItemType Directory -Force -Path $data, $source, $target | Out-Null
 $sourceFile = Join-Path $source 'a.txt'
-if ($DialogKind -eq 'Copy') { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
-$sourceHash = if ($DialogKind -eq 'Copy') { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
-$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } default { 'Create in Registry' } }
+if ($DialogKind -in @('Copy', 'Delete')) { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
+$sourceHash = if ($DialogKind -in @('Copy', 'Delete')) { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
+$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } 'Delete' { 'Delete' } default { 'Create in Registry' } }
 $process = $null
 
 function Snapshot($window) {
@@ -75,6 +75,8 @@ function WaitForChooser($window, [bool]$visible) {
                 $names = @(Snapshot $window | ForEach-Object { $_.Current.Name })
                 $expected = if ($DialogKind -eq 'Copy') {
                     @($names | Where-Object { $_ -like 'Copy "a.txt"*' }).Count -gt 0 -and $names -contains 'Destination'
+                } elseif ($DialogKind -eq 'Delete') {
+                    $names -contains 'Delete' -and @($names | Where-Object { $_ -like '*"a.txt"*' }).Count -gt 0
                 } else { $names -contains $dialogTitle }
                 if (!$expected) { throw "A different dialog opened; expected $dialogTitle." }
             }
@@ -99,12 +101,12 @@ function EnsureForeground($process, $window) {
 
 function OpenDialog($process, $window) {
     EnsureForeground $process $window
-    if ($DialogKind -eq 'Copy') {
+    if ($DialogKind -in @('Copy', 'Delete')) {
         $row = @(Snapshot $window | Where-Object {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
             $_.Current.Name -eq 'a.txt'
         })
-        if ($row.Count -ne 1) { throw 'The disposable Copy source row is missing.' }
+        if ($row.Count -ne 1) { throw "The disposable $DialogKind source row is missing." }
         $pattern = $null
         if ($row[0].TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
             ([System.Windows.Automation.SelectionItemPattern]$pattern).Select()
@@ -114,9 +116,9 @@ function OpenDialog($process, $window) {
         }
         $buttons = @(Snapshot $window | Where-Object {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-            $_.Current.Name.StartsWith('Copy', [StringComparison]::Ordinal) -and $_.Current.IsEnabled
+            $_.Current.Name.StartsWith($DialogKind, [StringComparison]::Ordinal) -and $_.Current.IsEnabled
         } | Sort-Object { $_.Current.BoundingRectangle.Y })
-        if ($buttons.Count -lt 1) { throw 'The selected Copy command is unavailable.' }
+        if ($buttons.Count -lt 1) { throw "The selected $DialogKind command is unavailable." }
         ([System.Windows.Automation.InvokePattern]$buttons[0].GetCurrentPattern(
             [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
     } else {
@@ -186,7 +188,7 @@ try {
     [FileCatDialogPointer]::Click($outsideX, $outsideY)
     WaitForChooser $window $false | Out-Null
     if (($DialogKind -eq 'Folder' -and @(Get-ChildItem -LiteralPath $source -Force).Count -ne 0) -or
-        ($DialogKind -eq 'Copy' -and ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $sourceHash -or
+        ($DialogKind -in @('Copy', 'Delete') -and ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $sourceHash -or
             @(Get-ChildItem -LiteralPath $target -Force).Count -ne 0))) {
         throw 'The canceled dialog changed the disposable fixture.'
     }

@@ -47,6 +47,8 @@ Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
 with an empty disposable filesystem fixture; the default remains `Registry`.
 Pass `-DialogKind Copy` to open the Copy review for one disposable file and
 verify that both pointer exits preserve its SHA-256 and the empty target.
+Pass `-DialogKind Delete` to open the Recycle Bin review for the same owned
+file; both pointer exits must preserve its source SHA-256 and empty target.
 The runner saves a close-button crop beside its JSON report, measures the
 high-contrast X pixels against the button background and requires their
 centroid within 1.5 physical pixels of center. It also records the window DPI,
@@ -79,10 +81,11 @@ Pass `linux-uinput-mouse.py` as that optional helper to exercise an actual
 relative-motion mouse and left button through the same guarded AT-SPI journey.
 The helper clamps the pointer to the upper-left corner, moves in small steps,
 clicks the bounded point and destroys its uinput device before returning.
-Append `Copy` after the helper to open a disposable Copy review twice. The
-runner selects its exact `a.txt` source, checks the destination field, uses
-the specified input for the close X and backdrop, and requires unchanged
-source SHA-256 and an empty target. On the Wayland VM, the mouse variant uses
+Append `Copy` or `Delete` after the helper to open the corresponding review
+twice. The runner selects its exact `a.txt` source, checks the Copy destination
+or the Delete file and Recycle Bin wording, uses the specified input for the
+close X and backdrop, and requires unchanged source SHA-256 and an empty
+target. On the Wayland VM, the mouse variant uses
 the owned absolute-touch helper only to select the narrow source row; the X
 and backdrop clicks under test remain native mouse clicks. The touch variant
 uses touch for all three taps. The default `Folder` journey remains available.

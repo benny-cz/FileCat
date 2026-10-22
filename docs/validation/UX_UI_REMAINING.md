@@ -99,8 +99,8 @@ increments to `main`.
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs native visual checks of the centered vector X at 150%
    and other scaled states, dialog families beyond the verified Windows
-   Create folder, Create in Registry and Copy and Ubuntu Create folder and
-   Copy routes, and actual screen-reader speech on each desktop. The Ubuntu
+   Create folder, Create in Registry, Copy and Delete and Ubuntu Create folder,
+   Copy and Delete routes, and actual screen-reader speech on each desktop. The Ubuntu
    Wayland physical uinput mouse and touch routes passed; the Mac AX label and
    native X/backdrop pointer route passed through direct AXUIElement traversal.
 

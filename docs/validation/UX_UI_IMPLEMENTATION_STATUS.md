@@ -799,8 +799,10 @@ a local destination or a non-replacing policy, and is exposed as the conflict
 control's accessible help text. A running job's FTP/SFTP conflict review shows
 the same warning before the decision buttons. Three focused headless App cases
 cover remote/local form choices, both destination classes in the per-item
-review, and unchanged source/target bytes after Skip. This informs the choice;
-it does not turn FTP/SFTP publication into an atomic compare-and-swap. The
+review, and unchanged source/target bytes after Skip. The complete local
+Windows App Release suite then passed 2,410 tests, skipped 63 platform cases
+and failed 0 with 16 processors in 18 minutes 52 seconds. This informs the
+choice; it does not turn FTP/SFTP publication into an atomic compare-and-swap. The
 provider failure, interruption and final-check race gates remain open.
 
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
@@ -1601,7 +1603,18 @@ with native mouse dismissal, after it learned to identify the owned app frame
 among transient AT-SPI frames. Both JSON receipts identify the Git-built app
 SHA-256 `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`.
 Other dialog families, display scaling and spoken feedback remain open.
-The same runner then passed a fresh Copy review fixture on that Git-built
+
+The Ubuntu runner then passed a disposable Recycle Bin Delete review on the
+same Git-built app. It selected `a.txt` with the owned touch setup helper,
+required the accessible review text to identify that file and the Recycle Bin,
+and used the actual uinput mouse for X and backdrop dismissal. AT-SPI measured
+the close control at 30 × 30 pixels with the same cancel description. Both
+openings closed, the source SHA-256 stayed
+`02d96fb583ff0571cde49db8f2ecffd43cedb0abacf6ed296114231d39328647`,
+and the target stayed empty. The guest and ignored host JSON reports retain
+the exact input and executable identities.
+
+The Windows runner then passed a fresh Copy review fixture on the Git-built
 Windows app. It selected `a.txt`, opened Copy twice, verified the shared
 30 × 30 close X and its (-0.22, 0) pixel center offset, and canceled with
 native X and backdrop clicks. The source SHA-256 stayed
@@ -1609,6 +1622,17 @@ native X and backdrop clicks. The source SHA-256 stayed
 and the disposable target stayed empty. The final JSON receipt explicitly
 records both checks. Registry, Create folder and Copy now pass the native
 Windows pointer route; other dialog families and scaled/spoken checks remain.
+
+The generalized runner also passed a fresh Recycle Bin Delete review on the
+same Git-built Windows app. It selected the disposable `a.txt`, opened Delete
+twice and dismissed it once through the visible X and once through a backdrop
+mouse click. The 30 × 30 control exposed the cancel help; the captured
+92-pixel vector X centroid offset was (-0.22, 0) at 96 DPI. The source
+SHA-256 stayed
+`6C9A89482AB2E0A75957FFBAADD3F37737898C7A75A5FD8DBAA210B5B00AC398`
+and the target remained empty. The native report and button crop are retained
+under the guest validation folder and ignored host test output. Other dialog
+families and scaled/spoken checks remain open.
 
 ## Reproduction
 
