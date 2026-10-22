@@ -31,7 +31,12 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
     private readonly OverlayDialogService _dialogs;
     private readonly DispatcherTimer _notificationTimer;
-    private bool _suppressTextInput;
+    /// <summary>
+    /// The text a key that ran a command would also type, swallowed if it arrives next; null when none is pending.
+    /// macOS types into a text field without raising key-down, so a plain flag set by F7 or ⌘L swallowed the first
+    /// character typed into the field the command had just focused.
+    /// </summary>
+    private string? _suppressTextInput;
     private bool _forceClose;
     private Task? _interruptedStartup;
     private readonly CommandSearchBar _commandSearch;
@@ -630,7 +635,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        _suppressTextInput = false;
+        _suppressTextInput = null;
         if ((_panelDrag is not null || _tabDrag is not null) && e.Key == Key.Escape)
         {
             // Esc cancels moving a panel, or a tab.
@@ -677,7 +682,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (id is null) return;
         // With Alt held, after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
         AltChords.Handle(this, e);
-        _suppressTextInput = true;
+        _suppressTextInput = TypedText(e);
         _vm.Execute(id);
     }
 
@@ -724,7 +729,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (handled)
         {
             e.Handled = true;
-            _suppressTextInput = true;
+            _suppressTextInput = TypedText(e);
         }
         return handled;
     }
@@ -739,6 +744,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (command != 0 && command != (KeyModifiers.Control | KeyModifiers.Alt)) return false;
         return key is >= Key.A and <= Key.Z or >= Key.D0 and <= Key.D9 or >= Key.NumPad0 and <= Key.NumPad9 or Key.Decimal
             or >= Key.OemSemicolon and <= Key.OemBackslash;
+    }
+
+    /// <summary>The text a key press may also type; none for ⌘ or Ctrl chords, which type nothing (Ctrl+Alt is AltGr).</summary>
+    private static string? TypedText(KeyEventArgs e)
+    {
+        var chord = e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta);
+        return (chord & KeyModifiers.Meta) != 0 || chord == KeyModifiers.Control || string.IsNullOrEmpty(e.KeySymbol) ? null : e.KeySymbol;
     }
 
     private bool HandleEscape(TabViewModel? tab)
@@ -772,11 +784,14 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
     {
-        if (_suppressTextInput)
+        if (_suppressTextInput is { } typed)
         {
-            _suppressTextInput = false;
-            e.Handled = true;
-            return;
+            _suppressTextInput = null;
+            if (e.Text == typed)
+            {
+                e.Handled = true;
+                return;
+            }
         }
         if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox) return;
         var text = e.Text;
