@@ -52,8 +52,7 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs Mac display-scale and remaining Ubuntu 100%/150%
-   narrow layouts and visual inspection at 200%,
+   FCUX-003 still needs Mac display-scale and Ubuntu visual inspection at 200%,
    keyboard and spoken review, and native concurrent rule-change races. On
    Mac, investigate the visible review body's zero AX bounds and preview list
    with no AX children, and verify actual VoiceOver speech through the

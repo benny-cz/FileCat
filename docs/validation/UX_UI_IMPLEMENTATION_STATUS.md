@@ -40,8 +40,9 @@ ignored host test output. A separate narrow run was **not** counted as
 narrow-layout evidence: although its rename succeeded, its measured window
 remained 1280 × 840 after both `wmctrl` and `xdotool` requests for 720 × 540.
 The Ubuntu desktop was at 200% scale, so that request had reached the
-640 × 420 minimum in device-independent units. The runner now reads the
-native scale and requires settled geometry in device-independent units.
+640 × 420 minimum in app units. The runner records the native display scale,
+measures the window's rendering scale and requires settled geometry in app
+units.
 A fresh Git build at `447d8a61` (`FileCat.dll` SHA-256
 `3633a2366debd5ad72d94f05d889d7fc11fecf3c2cd89163ece8c9342f66ed38`)
 passed the whole editor journey at a measured 1440 × 1080 physical window,
@@ -55,6 +56,13 @@ detail retains a stable accessible label for focused review; the changing
 position is the sole live announcement and includes the full mapping. Other
 FCUX-003 gates remain in
 [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
+The same narrow AT-SPI and editor journey also passed at GNOME 100% and 150%,
+with exact path mappings, original file bytes, an empty target and removed
+private editor list. At 150%, GNOME reports 1.5× while Xwayland gives this
+window a measured 2× rendering scale (1280 × 840 physical minimum for the
+app's 640 × 420 unit limit); the runner now derives app units from the native
+window manager minimum-size hints and confirmed 720 × 540 app units. The VM
+display was restored to its original 200% afterward.
 An additional fresh fixture loaded editor names, then changed the name mask
 in the same review. The editor-derived status disappeared and approval used
 the new rule mapping, yielding exactly `rule_1.txt` and `rule_2.txt` with

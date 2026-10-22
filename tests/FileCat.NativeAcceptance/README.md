@@ -15,8 +15,10 @@ configured editor to save two explicit names, and verifies exact source
 identities, bytes, empty target and removal of the private name list. The
 review step also invokes Previous and Next through AT-SPI and checks both
 complete source-to-destination paths before opening the editor. The
-`--narrow` reads the native display scale and requires a measured 720 × 540
-device-independent-unit window before the journey; an unmeasured or refused
+`--narrow` records the GNOME display scale and derives the app's effective
+rendering scale from its 640 × 420 minimum-size window hints. GNOME's 150%
+session can give Xwayland a 2× app scale. The runner requires a measured
+720 × 540 app-unit window before the journey; an unmeasured or refused
 resize produces a failed receipt.
 `--rule-change` loads editor names, changes the mask in the same review, and
 requires the final rename to use the new rule mapping instead.

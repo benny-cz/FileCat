@@ -118,13 +118,24 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
                 if not 0.5 <= scale <= 4:
                     raise AssertionError(f"Unexpected native display scale: {scale}")
                 result["displayScale"] = scale
-                requested = (round(720 * scale), round(540 * scale))
                 listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True,
                                          capture_output=True, text=True, timeout=5).stdout
                 ids = [line.split()[0] for line in listing.splitlines()
                        if len(line.split()) > 2 and line.split()[2] == str(process.pid)]
                 if len(ids) != 1:
                     raise AssertionError(f"Expected one owned window, found {ids}")
+                result["windowSizeHints"] = subprocess.run(
+                    ["/usr/bin/xprop", "-id", ids[0], "WM_NORMAL_HINTS"], check=True,
+                    capture_output=True, text=True, timeout=5).stdout
+                minimum = re.search(r"minimum size:\s*(\d+) by (\d+)", result["windowSizeHints"])
+                if minimum is None:
+                    raise AssertionError("Window manager did not report the app's minimum size")
+                render_scale = int(minimum.group(1)) / 640
+                if not (0.5 <= render_scale <= 4 and
+                        abs(render_scale - int(minimum.group(2)) / 420) < 0.02):
+                    raise AssertionError("Window manager minimum conflicts with the app's 640 by 420 DIP limit")
+                result["windowRenderScale"] = render_scale
+                requested = (round(720 * render_scale), round(540 * render_scale))
                 subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-b",
                                 "remove,maximized_vert,maximized_horz"], check=True, timeout=5)
                 subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-e",
@@ -135,8 +146,8 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
                                               check=True, capture_output=True, text=True, timeout=5).stdout
                     values = dict(line.split("=", 1) for line in geometry.splitlines() if "=" in line)
                     result["windowGeometry"] = values
-                    result["windowSizeDip"] = [int(values["WIDTH"]) / scale,
-                                               int(values["HEIGHT"]) / scale]
+                    result["windowSizeDip"] = [int(values["WIDTH"]) / render_scale,
+                                               int(values["HEIGHT"]) / render_scale]
                     if (700 <= result["windowSizeDip"][0] <= 800 and
                             500 <= result["windowSizeDip"][1] <= 600):
                         return values
