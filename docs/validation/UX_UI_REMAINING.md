@@ -21,9 +21,12 @@ increments to `main`.
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
-   destination content check. Verify that every FTP/SFTP replacement review
-   exposes the residual risk, and determine whether any supported provider
-   offers a safe atomic publication path. Also finish native
+   destination content check. Verify the residual-risk warning in native
+   FTP/FTPS/SFTP replacement reviews, including spoken output; the four
+   protocol variants pass headless form and per-item tests. Supported SFTP
+   can atomically replace without an expected-version condition; FTP cannot
+   atomically replace, so neither closes the final-check race. Also finish
+   native
    recovery choices plus safe review and cleanup of the remote stage after an
    FTP process crash. For FCUX-018, verify
    native Windows close/restart ownership during a held inverse after the
@@ -99,7 +102,7 @@ increments to `main`.
    but screen-reader announcements remain to be heard and checked.
    UXBUG-016 needs native visual checks of the centered vector X at 150%
    and other scaled states, dialog families beyond the verified Windows
-   Create folder, Create in Registry, Copy and Delete and Ubuntu Create folder,
+   Create folder, Create in Registry, Copy, Move and Delete and Ubuntu Create folder,
    Copy and Delete routes, and actual screen-reader speech on each desktop. The Ubuntu
    Wayland physical uinput mouse and touch routes passed; the Mac AX label and
    native X/backdrop pointer route passed through direct AXUIElement traversal.

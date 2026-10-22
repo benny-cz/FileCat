@@ -27,6 +27,57 @@ Focused tests passed on macOS ARM64 (7 passed, 1 platform skip) and Ubuntu
 (8 passed, 0 skipped); the prior exact-setting Mac case also passed 20
 repeated runs. Final-head CI remains open.
 
+The full Windows Core Release suite on `3edb6bb6` passed 4,437 tests, skipped
+151 platform-specific cases and failed none with 16 processors. The Git-built
+Win11 VM app from that same head (SHA-256
+`CDAA633E53B23A0F4611916F8DFB2E3B401517821823BCFA5889AACDDDA0984E`)
+also repeated the native FCUX-018 dependent-Undo crash and recovery journey.
+The exact child was killed at its held inverse rename; Cancel preserved the
+journal and bytes, approval restored the recorded temporary item without
+closing the unverified journal, and a separately reviewed decision retired it.
+The VM receipt is `AppData\Local\FileCatValidation\win-undo-last.json`.
+The separate native close/restart and large mixed-report gates remain open.
+
+The same Windows checkout's complete App Release suite passed 2,410 tests,
+skipped 63 platform cases and failed none with 16 processors. Its build
+preceded the additional FTP/FTPS warning test cases below; those passed
+separately against the same product code.
+
+**22 October 2026, native Move review pointer exit:** The shared Win11 dialog
+runner now opens a disposable Move review and tests both native pointer exits.
+On the Git-built `3edb6bb6` app at 96 DPI, its 30 × 30 close target exposed
+the cancel HelpText, its 92 high-contrast X pixels were centered within
+(-0.22, 0) physical pixels, and both the X and backdrop click dismissed the
+review. The source SHA-256 stayed
+`6C9A89482AB2E0A75957FFBAADD3F37737898C7A75A5FD8DBAA210B5B00AC398`;
+the target stayed empty. The guest report is
+`AppData\Local\FileCatValidation\win-dialog-move-20261022.json`. Scaled,
+spoken and other dialog-family checks remain open.
+
+**FCUX-001 remote publication capability review:** The implemented SFTP
+`posix-rename@openssh.com` path can replace an existing file in one server
+operation, but its interface has no expected-version argument. The ordinary
+SFTP rename path is for a name that does not exist. The FTP channel exposes no
+atomic replacement and implements it as delete followed by rename. Therefore
+none of these supported channel operations can make the final content check
+and publication one conditional server action. The reviewed Replace warning
+must remain visible; source preservation, an unpublished stage, and fresh
+metadata/content checks reduce exposure but cannot eliminate a concurrent
+server writer after the last check. Server-specific conditional publication
+remains a separate capability to investigate only if a supported provider
+offers it.
+
+The transfer form and per-item conflict review now have explicit regression
+cases for actual saved SFTP, FTP, explicit FTPS and implicit FTPS profiles,
+plus a local control. The nine focused App cases passed and verify that the
+warning follows the reviewed destination and Replace choice. An additional
+controlled SFTP Move test drops an upload, refuses cleanup of the unpublished
+stage after cancellation, and requires an unchanged 2 MiB source, no public
+target, and an issue naming the exact retained stage; it passed. Native
+server-failure variants and end-user stage cleanup remain open. The complete
+Windows Remote Release suite then passed 2,397 tests, skipped 157 platform/lab
+cases and failed none with 16 processors.
+
 **22 October 2026, stale bulk-rename editor scope:** A headless UI regression
 opens the real Bulk rename review with one visible and one hidden mark,
 launches an editor round trip through an injected private file writer, changes

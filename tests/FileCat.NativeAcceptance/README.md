@@ -47,6 +47,8 @@ Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
 with an empty disposable filesystem fixture; the default remains `Registry`.
 Pass `-DialogKind Copy` to open the Copy review for one disposable file and
 verify that both pointer exits preserve its SHA-256 and the empty target.
+Pass `-DialogKind Move` to check the corresponding Move review and the same
+source and destination invariants.
 Pass `-DialogKind Delete` to open the Recycle Bin review for the same owned
 file; both pointer exits must preserve its source SHA-256 and empty target.
 The runner saves a close-button crop beside its JSON report, measures the

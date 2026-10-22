@@ -8,19 +8,31 @@ using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
+using FileCat.Remote.Sftp;
 
 namespace FileCat.App.Tests;
 
 public sealed class TransferDestinationValidationTests
 {
-    [AvaloniaFact]
-    public async Task Remote_replace_warning_follows_destination_and_conflict_choice()
+    [AvaloniaTheory]
+    [InlineData(RemoteProtocols.Sftp)]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Remote_replace_warning_follows_destination_and_conflict_choice(string protocol)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
             var ct = TestContext.Current.CancellationToken;
-            var remote = new FileCat.Core.Resources.Location(Schemes.Sftp, "/owned", session: "isolated-profile");
+            var profile = new RemoteProfile
+            {
+                Host = "owned.invalid", User = "test", Protocol = protocol,
+                Port = RemoteProtocols.DefaultPort(protocol),
+            };
+            services.Settings.RemoteProfiles.Add(profile);
+            var remote = SftpProvider.At(profile, "/owned");
             string local = Directory.CreateDirectory(Path.Combine(root, "local-target")).FullName;
             var pending = OperationDialogs.ShowTransferAsync(vm, new TransferDialogInput(JobKind.Copy,
                 [ItemRef.ForFileSystemPath(Path.Combine(root, "files", "a.txt"), EntryKind.File)],

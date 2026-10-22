@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Registry', 'Folder', 'Copy', 'Delete')][string]$DialogKind = 'Registry'
+    [ValidateSet('Registry', 'Folder', 'Copy', 'Move', 'Delete')][string]$DialogKind = 'Registry'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,9 +46,9 @@ $source = Join-Path $fixture 'source'
 $target = Join-Path $fixture 'target'
 New-Item -ItemType Directory -Force -Path $data, $source, $target | Out-Null
 $sourceFile = Join-Path $source 'a.txt'
-if ($DialogKind -in @('Copy', 'Delete')) { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
-$sourceHash = if ($DialogKind -in @('Copy', 'Delete')) { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
-$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } 'Delete' { 'Delete' } default { 'Create in Registry' } }
+if ($DialogKind -in @('Copy', 'Move', 'Delete')) { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
+$sourceHash = if ($DialogKind -in @('Copy', 'Move', 'Delete')) { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
+$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } 'Move' { 'Move' } 'Delete' { 'Delete' } default { 'Create in Registry' } }
 $process = $null
 
 function Snapshot($window) {
@@ -73,8 +73,8 @@ function WaitForChooser($window, [bool]$visible) {
         if (($null -ne $close) -eq $visible) {
             if ($visible) {
                 $names = @(Snapshot $window | ForEach-Object { $_.Current.Name })
-                $expected = if ($DialogKind -eq 'Copy') {
-                    @($names | Where-Object { $_ -like 'Copy "a.txt"*' }).Count -gt 0 -and $names -contains 'Destination'
+                $expected = if ($DialogKind -in @('Copy', 'Move')) {
+                    @($names | Where-Object { $_ -like "$DialogKind `"a.txt`"*" }).Count -gt 0 -and $names -contains 'Destination'
                 } elseif ($DialogKind -eq 'Delete') {
                     $names -contains 'Delete' -and @($names | Where-Object { $_ -like '*"a.txt"*' }).Count -gt 0
                 } else { $names -contains $dialogTitle }
@@ -101,7 +101,7 @@ function EnsureForeground($process, $window) {
 
 function OpenDialog($process, $window) {
     EnsureForeground $process $window
-    if ($DialogKind -in @('Copy', 'Delete')) {
+    if ($DialogKind -in @('Copy', 'Move', 'Delete')) {
         $row = @(Snapshot $window | Where-Object {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
             $_.Current.Name -eq 'a.txt'
@@ -188,7 +188,7 @@ try {
     [FileCatDialogPointer]::Click($outsideX, $outsideY)
     WaitForChooser $window $false | Out-Null
     if (($DialogKind -eq 'Folder' -and @(Get-ChildItem -LiteralPath $source -Force).Count -ne 0) -or
-        ($DialogKind -in @('Copy', 'Delete') -and ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $sourceHash -or
+        ($DialogKind -in @('Copy', 'Move', 'Delete') -and ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $sourceHash -or
             @(Get-ChildItem -LiteralPath $target -Force).Count -ne 0))) {
         throw 'The canceled dialog changed the disposable fixture.'
     }

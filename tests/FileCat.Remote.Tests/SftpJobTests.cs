@@ -116,6 +116,48 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task Canceling_after_a_dropped_upload_reports_a_stage_the_server_refuses_to_delete()
+    {
+        string source = LocalFile("cancel.bin", new string('s', 2 * 1024 * 1024));
+        _server.Dir("/up");
+        _server.DropAfterBytes = 128 * 1024;
+        var job = _jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+        });
+        try
+        {
+            for (int i = 0; i < 500 && job.Decision is not { Task.IsCompleted: false }; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.True(job.Decision is { Task.IsCompleted: false }, "The dropped upload did not reach a pending decision.");
+            string stage = Assert.Single(Names("/up"));
+            Assert.StartsWith(".fc-", stage, StringComparison.Ordinal);
+            Assert.NotEmpty(_server.Lookup("/up/" + stage, true)!.Data);
+
+            _server.Down = false;
+            _server.RefuseStageDelete = true;
+            job.Cancel();
+            for (int i = 0; i < 500 && !job.State.IsFinished(); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.Equal(JobState.Canceled, job.State);
+            Assert.Equal([stage], Names("/up"));
+            Assert.False(_server.Exists("/up/cancel.bin"));
+            Assert.Equal(2 * 1024 * 1024, new FileInfo(source).Length);
+            Assert.Contains(job.Issues, issue => issue.Path == "/up/" + stage &&
+                issue.Message.Contains("partial copy is left on the server", StringComparison.Ordinal));
+        }
+        finally
+        {
+            _server.Down = false;
+            if (!job.State.IsFinished()) job.Cancel();
+            for (int i = 0; i < 500 && !job.State.IsFinished(); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task A_dropped_upload_whose_source_changed_starts_again()
     {
         string big = Path.Combine(_local, "big.bin");

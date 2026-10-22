@@ -11,15 +11,20 @@ using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
+using FileCat.Remote.Sftp;
 
 namespace FileCat.App.Tests;
 
 public sealed class ConflictComparisonLifetimeTests
 {
     [AvaloniaTheory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Remote_conflict_warning_is_visible_only_for_remote_destinations(bool remote)
+    [InlineData(RemoteProtocols.Sftp)]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    [InlineData("local")]
+    public async Task Remote_conflict_warning_is_visible_only_for_remote_destinations(string protocol)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -31,9 +36,19 @@ public sealed class ConflictComparisonLifetimeTests
             var fs = new PortableFileOperations();
             var ai = Assert.IsType<FileSystemItemInfo>(fs.TryGetInfo(incoming));
             var bi = Assert.IsType<FileSystemItemInfo>(fs.TryGetInfo(existing));
-            var target = remote
-                ? new FileCat.Core.Resources.Location(Schemes.Sftp, "/owned", session: "isolated-profile")
-                : FileCat.Core.Resources.Location.FileSystem(root);
+            bool remote = protocol != "local";
+            FileCat.Core.Resources.Location target;
+            if (remote)
+            {
+                var profile = new RemoteProfile
+                {
+                    Host = "owned.invalid", User = "test", Protocol = protocol,
+                    Port = RemoteProtocols.DefaultPort(protocol),
+                };
+                services.Settings.RemoteProfiles.Add(profile);
+                target = SftpProvider.At(profile, "/owned");
+            }
+            else target = FileCat.Core.Resources.Location.FileSystem(root);
             var job = (Job)Activator.CreateInstance(typeof(Job), BindingFlags.Instance | BindingFlags.NonPublic,
                 null, [new JobRequest { Kind = JobKind.Copy, Destination = target }, "Owned conflict", "owned",
                     new[] { incoming }, new[] { existing }], null)!;

@@ -32,6 +32,9 @@ internal sealed class FakeSftpServer
     /// <summary>When set, every channel operation fails as if the connection dropped.</summary>
     public bool Down { get; set; }
 
+    /// <summary>Simulates a server refusing to remove this job's unpublished upload stage.</summary>
+    public bool RefuseStageDelete { get; set; }
+
     /// <summary>Drops the connection once a written file would pass this many bytes (what arrived before stays).</summary>
     public long? DropAfterBytes { get; set; }
 
@@ -311,6 +314,8 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         public void Delete()
         {
             channel.Check();
+            if (server.RefuseStageDelete && node.Name.StartsWith(".fc-", StringComparison.Ordinal))
+                throw new IOException("Owned test server refused stage cleanup.");
             lock (server.Lock)
             {
                 var (parent, name) = server.ParentOf(fullPath);
