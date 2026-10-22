@@ -1,7 +1,5 @@
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FileCat.Core.FileSystem;
@@ -104,7 +102,7 @@ public sealed class FreedesktopIconSource : INativeIconSource
                 if (_icons.Find(names, size) is { } file && FreedesktopIcons.TryRender(file, size, out int w, out int h, out var bgra))
                 {
                     if (FreedesktopIcons.IsSymbolic(file)) Tint(bgra, ThemeManager.Current.Text);
-                    image = ToBitmap(w, h, bgra);
+                    image = ScaledBitmap.FromBgra(w, h, bgra, AlphaFormat.Unpremul, w / 16.0);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException)
@@ -131,15 +129,5 @@ public sealed class FreedesktopIconSource : INativeIconSource
             bgra[i + 1] = c.G;
             bgra[i + 2] = c.R;
         }
-    }
-
-    private static Bitmap ToBitmap(int w, int h, byte[] bgra)
-    {
-        double dpi = 96.0 * w / 16;
-        var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(dpi, dpi), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
-        using var fb = bmp.Lock();
-        for (int y = 0; y < h; y++)
-            Marshal.Copy(bgra, y * w * 4, fb.Address + y * fb.RowBytes, w * 4);
-        return bmp;
     }
 }

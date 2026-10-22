@@ -351,7 +351,7 @@ public sealed class QuickViewPane : Border
             var image = await pictures.GetForDisplayAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Thumbnail, path, modified, attributes, size, request.Token);
             if (!IsCurrent(request)) return;
             if (image is null) { ShellUnavailable(request, key); return; }
-            _picture.Source = ShellBitmaps.ToBitmap(image, scale);
+            _picture.Source = ShellBitmaps.ToImage(image, scale);
             _pictureKey = key;
             ShowPictureIfReady();
         }

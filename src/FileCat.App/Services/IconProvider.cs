@@ -136,7 +136,8 @@ public sealed class IconProvider
     /// </summary>
     private IImage Tinted(IImage image, string tint)
     {
-        if (image is not Avalonia.Media.Imaging.WriteableBitmap source) return image;
+        var scaled = image as ScaledBitmap;
+        if ((scaled?.Pixels ?? image) is not Avalonia.Media.Imaging.WriteableBitmap source) return image;
         return _tinted.GetValue(image, _ =>
         {
             var color = Color.Parse(tint);
@@ -162,7 +163,7 @@ public sealed class IconProvider
                 }
                 System.Runtime.InteropServices.Marshal.Copy(row, 0, to.Address + y * to.RowBytes, row.Length);
             }
-            return result;
+            return scaled is null ? result : ScaledBitmap.Wrap(result, scaled.PixelsPerUnit);
         });
     }
 

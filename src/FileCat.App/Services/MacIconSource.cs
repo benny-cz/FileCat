@@ -1,7 +1,5 @@
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FileCat.Core.FileSystem;
@@ -66,7 +64,7 @@ public sealed class MacIconSource : INativeIconSource
                 bool drawn = key.StartsWith("path:", StringComparison.Ordinal)
                     ? MacIcons.TryPathIcon(key[5..], size, out int w, out int h, out var bgra)
                     : MacIcons.TryTypeIcon(key == "type:folder" ? "public.folder" : key[5..], size, out w, out h, out bgra);
-                if (drawn) image = ToBitmap(w, h, bgra);
+                if (drawn) image = ScaledBitmap.FromBgra(w, h, bgra, AlphaFormat.Premul, w / 16.0);
             }
             catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or IOException)
             {
@@ -80,15 +78,5 @@ public sealed class MacIconSource : INativeIconSource
                 IconsLoaded?.Invoke();
             }, DispatcherPriority.Background);
         }
-    }
-
-    private static Bitmap ToBitmap(int w, int h, byte[] bgra)
-    {
-        double dpi = 96.0 * w / 16;
-        var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(dpi, dpi), PixelFormat.Bgra8888, AlphaFormat.Premul);
-        using var fb = bmp.Lock();
-        for (int y = 0; y < h; y++)
-            Marshal.Copy(bgra, y * w * 4, fb.Address + y * fb.RowBytes, w * 4);
-        return bmp;
     }
 }

@@ -13,7 +13,8 @@ $expected = @(
     'tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj',
     'tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj',
     'tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj',
-    'tests/FileCat.App.Tests/FileCat.App.Tests.csproj'
+    'tests/FileCat.App.Tests/FileCat.App.Tests.csproj',
+    'tests/FileCat.Rendering.Tests/FileCat.Rendering.Tests.csproj'
 )
 if ($rows.Count -ne $expected.Count) {
     throw "Windows test-project receipt has $($rows.Count) rows, expected $($expected.Count)."
@@ -23,4 +24,4 @@ for ($i = 0; $i -lt $expected.Count; $i++) {
         throw "Windows test project $($expected[$i]) did not pass: recorded project=$($rows[$i].Project), exit=$($rows[$i].ExitCode)."
     }
 }
-Write-Host 'All four Windows test projects passed and have a complete ordered receipt.'
+Write-Host 'All five Windows test projects passed and have a complete ordered receipt.'

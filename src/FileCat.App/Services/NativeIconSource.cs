@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FileCat.Core.FileSystem;
@@ -146,7 +145,7 @@ public sealed class NativeIconSource : INativeIconSource
         {
             var image = await pictures.GetAsync(ShellImageKind.OverlayIcon, path, modified, attributes,
                 size, CancellationToken.None).ConfigureAwait(false);
-            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null);
+            return new Plan(image is null ? null : ShellBitmaps.ToImage(image), null);
         }));
     }
 
@@ -248,7 +247,7 @@ public sealed class NativeIconSource : INativeIconSource
                     try { attributes = File.GetAttributes(target); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { attributes = FileAttributes.Normal; }
                     var image = await pictures.GetAsync(ShellImageKind.Icon, target, File.GetLastWriteTimeUtc(target).Ticks, attributes, size, CancellationToken.None).ConfigureAwait(false);
-                    if (image is not null) return new Plan(ShellBitmaps.ToBitmap(image), null);
+                    if (image is not null) return new Plan(ShellBitmaps.ToImage(image), null);
                 }
                 if (targetExt.Length > 0) return new Plan(null, TypeKey(targetExt));
             }
@@ -290,7 +289,7 @@ public sealed class NativeIconSource : INativeIconSource
         if (_pictures() is not { } pictures) return (null, false);
         if (ResourceTime(location, pictures.IconResourceRefusal) is not { } modified) return (null, false);
         var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, size, CancellationToken.None).ConfigureAwait(false);
-        return (image is null ? null : ShellBitmaps.ToBitmap(image), answer == ShellAnswer.Failed);
+        return (image is null ? null : ShellBitmaps.ToImage(image), answer == ShellAnswer.Failed);
     }
 
     /// <summary>
@@ -313,7 +312,7 @@ public sealed class NativeIconSource : INativeIconSource
         return FromPlan(PerItem("own|" + path + "|" + modified, async () =>
         {
             var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.Icon, path, modified, attributes, size, CancellationToken.None).ConfigureAwait(false);
-            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null, answer == ShellAnswer.Failed);
+            return new Plan(image is null ? null : ShellBitmaps.ToImage(image), null, answer == ShellAnswer.Failed);
         }));
     }
 
@@ -379,22 +378,14 @@ public sealed class NativeIconSource : INativeIconSource
             "type:<app>" => WindowsIcons.StockLocation(WindowsIcons.StockApplication),
             _ => WindowsIcons.TypeLocation("file" + key[5..], false),
         };
-        if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return ToBitmap(w, h, bgra, size);
+        if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return Icon(w, h, bgra);
         if (key == "sysdrive") return Load("stock:" + WindowsIcons.StockFixedDrive, size);
         if (!key.StartsWith("type:", StringComparison.Ordinal)) return null;
         // Types drawn by an icon handler have no fixed location: the Shell's small icon (16 pixels) stands in.
         string name = key switch { "type:<dir>" => "folder", "type:<file>" or "type:<generic>" => "file", "type:<app>" => "file.exe", _ => "file" + key[5..] };
-        return _shell.TryGetTypeIcon(name, key == "type:<dir>", size, out w, out h, out bgra) && w > 0 ? ToBitmap(w, h, bgra, size) : null;
+        return _shell.TryGetTypeIcon(name, key == "type:<dir>", size, out w, out h, out bgra) && w > 0 ? Icon(w, h, bgra) : null;
     }
 
-    private static Bitmap ToBitmap(int w, int h, byte[] bgra, int size)
-    {
-        // Drawn into 16 device-independent pixels: the resolution says how many pixels that holds.
-        double dpi = 96.0 * w / 16;
-        var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(dpi, dpi), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
-        using var fb = bmp.Lock();
-        for (int y = 0; y < h; y++)
-            Marshal.Copy(bgra, y * w * 4, fb.Address + y * fb.RowBytes, w * 4);
-        return bmp;
-    }
+    // Drawn into 16 device-independent pixels, however many pixels that holds at the display's scaling.
+    private static IImage Icon(int w, int h, byte[] bgra) => ScaledBitmap.FromBgra(w, h, bgra, AlphaFormat.Unpremul, w / 16.0);
 }
