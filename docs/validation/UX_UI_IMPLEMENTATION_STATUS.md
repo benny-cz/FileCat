@@ -636,9 +636,14 @@ after replacing the anchored `d.txt` with `0.txt` marked only `b.txt` and
 range; and a held Shift across Explorer deactivation and command-line focus
 returned to new, correct gestures. Each report records the fixture identity,
 exact expected file state, empty destination and graceful process stop. The
-VM was restored again to 100% (96 DPI). The 150% routes beyond sort/filter,
-Mac scaled input, streaming/creation transitions and any untested focus
-routes remain open.
+VM was restored again to 100% (96 DPI).
+The five additional routes also passed at 150% on fresh isolated fixtures,
+with the same exact tab, refresh, Ctrl, keyboard and deactivation outcomes;
+the reports retain each path, mark set and fixture check. Native Display
+Settings restored the VM to 100% (96 DPI) again. The verified Windows
+selection transition matrix now covers normal and narrow windows at 100%
+and the seven tested transition families at 150% and 200%. Streaming and
+creation transitions, Mac scaled input and other focus routes remain open.
 
 **21 October 2026, progress refresh race:** An Ubuntu CI verified-copy test
 caught `JobViewModel.Refresh` reading the worker's current item twice. A
