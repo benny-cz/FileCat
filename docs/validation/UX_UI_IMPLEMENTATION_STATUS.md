@@ -28,7 +28,14 @@ physically Shift-clicked `c.txt`; direct AX reported exactly those two rows
 selected, `c.txt` focused, and `Marked 2 of 4 files · 13 bytes`. Reversing
 Name again preserved the same selected identities. Both normal and 760 × 600
 native JSON reports passed with exact source hashes. Mac filter, tab and
-remaining focus transitions are still open. The complete Windows Release
+remaining focus transitions were the next gates. A separate Git-built Mac
+native runner then passed filter-anchor retirement at normal and 760 × 600
+widths: it touched `b.txt`, entered `*|b*` through the actual Filter field,
+observed only `a.txt`, `c.txt` and `d.txt`, restored `*`, and physically
+Shift-clicked `d.txt`. Direct AX reported exactly `c.txt` and `d.txt`
+selected, `d.txt` focused and `Marked 2 of 4 files · 14 bytes`; all four
+source hashes and the empty target were unchanged. Mac tab and remaining
+focus transitions stay open. The complete Windows Release
 App suite on the same product code passed 2,419 tests with 63 platform skips
 and no failures; Core passed 4,437 with 151 skips and no failures, using up
 to 16 workers.

@@ -36,7 +36,7 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-002 still needs scaled-display input, Mac filter/tab/focus
+   FCUX-002 still needs scaled-display input, Mac tab/focus
    transitions and remaining non-Windows focus routes beyond the verified Mac
    touch/keyboard range and Ubuntu range, Name-sort reversal, filter-anchor
    retirement, second-tab separation and held-Shift native window deactivation

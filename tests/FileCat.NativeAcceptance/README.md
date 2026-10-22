@@ -998,6 +998,14 @@ source hashes must stay unchanged. `--narrow` measures a 760 × 600 window. The
 runner closes only its exact process and writes JSON under
 `~/FileCatValidation`.
 
+`python3 mac-ax-panel-filter-anchor.py BUNDLE.app REPORT.json [--narrow]`
+uses the same bounded direct AX helper on a fresh, four-file Mac fixture.
+It physically anchors `b.txt`, enters `*|b*` and then `*` in the source
+Filter field, and physically Shift-clicks `d.txt`. The restored listing
+must select only `c.txt` and `d.txt` (14 bytes) with `d.txt` focused;
+source hashes and the empty target must remain exact. The optional narrow
+route measures 760 × 600. Keep the Sort runner and Swift helper beside it.
+
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
