@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the shared dialog's close X and backdrop with native Ubuntu pointer input.
 
-Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_TOUCH_HELPER]
+Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER]
 Run in the logged-in desktop user's AT-SPI session. XTest requires a working
 X11 pointer bridge; the optional owned uinput helper sends physical taps on
 Wayland. The app and all fixture paths must remain inside ~/FileCatValidation.
@@ -86,7 +86,8 @@ def main():
     if app_path.name != "FileCat" or validation not in app_path.parents:
         raise SystemExit("Use an isolated FileCat binary below the user's FileCatValidation directory")
     helper = Path(sys.argv[3]).resolve(strict=True) if len(sys.argv) == 4 else None
-    if helper is not None and (helper.name != "linux-uinput-touch.py" or validation not in helper.parents):
+    if helper is not None and (helper.name not in ("linux-uinput-touch.py", "linux-uinput-mouse.py")
+                               or validation not in helper.parents):
         raise SystemExit("Use the owned uinput helper below the user's FileCatValidation directory")
     # Only the runner receives this one-time guest credential; child processes,
     # including the tested FileCat instance, inherit an environment without it.
@@ -103,7 +104,7 @@ def main():
     os.environ.setdefault("DISPLAY", ":0")
     process = None
     result = {"passed": False, "app": str(app_path), "appSha256": app_hash,
-              "input": "uinput-touch" if helper is not None else "XTest-mouse"}
+              "input": helper.name.removeprefix("linux-").removesuffix(".py") if helper is not None else "XTest-mouse"}
     try:
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),

@@ -1516,8 +1516,17 @@ and a 30-by-30 screen-pixel target, the backdrop point was outside the card,
 both dialogs closed, and neither source nor destination fixture changed. The
 report identifies the executable SHA-256 and `uinput-touch` input route. The
 runner now removes its temporary sudo credential from the environment before
-launching FileCat. An exact mouse-device route on Ubuntu, scaled visual checks
-and spoken labeling remain separate acceptance gates.
+launching FileCat.
+The Ubuntu Wayland VM subsequently passed the exact mouse-device route with
+`linux-uinput-mouse.py` and the same guarded AT-SPI runner. The disposable
+relative-motion uinput mouse delivered the X and backdrop left clicks to a
+Git-built app (SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`).
+AT-SPI measured the Create folder X at (904, 137), 30 × 30 screen pixels,
+with `Close dialog` and its cancel description. Both dialogs closed and the
+source/target fixture remained empty. The result identifies `uinput-mouse`;
+the guest credential was removed from FileCat's environment and the device
+was destroyed after each click. Scaled visual and spoken checks remain open.
 
 The isolated Mac checkout was fast-forwarded to `8772a585`; a locked, self-
 contained ARM64 publish was signed in a new validation bundle. On its 2880 ×

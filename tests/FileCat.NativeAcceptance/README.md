@@ -73,6 +73,10 @@ disposable uinput touchscreen and records the input type in JSON. Supply
 noninteractive sudo rule; the runner removes this variable before launching
 FileCat and passes authentication to `sudo` on stdin. The helper holds no
 credential or persistent input device.
+Pass `linux-uinput-mouse.py` as that optional helper to exercise an actual
+relative-motion mouse and left button through the same guarded AT-SPI journey.
+The helper clamps the pointer to the upper-left corner, moves in small steps,
+clicks the bounded point and destroys its uinput device before returning.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
