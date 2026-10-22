@@ -140,11 +140,20 @@ internal static class AtSpiLayoutNames
 /// has no live regions at all. Notices, Find results and validation errors were therefore silent until a reader
 /// happened to visit them. When a live control is attached to a window, this makes the bridge track it: Windows gets
 /// the element's node, macOS gets native elements from the window down to it, and on Linux each name change is sent
-/// as an AT-SPI announcement from the window.
+/// as an AT-SPI announcement from the window. A validation message typically gets its new text just before it is
+/// shown, so text that changed while its control was hidden is spoken once the shown control is laid out.
 /// </summary>
 internal static class LiveRegions
 {
-    private static readonly ConditionalWeakTable<Control, AutomationPeer> s_watched = [];
+    /// <summary>A watched control's peer, whether its text changed while hidden, and whether it was just shown.</summary>
+    private sealed class Region(AutomationPeer peer)
+    {
+        public AutomationPeer Peer { get; } = peer;
+        public bool Deferred;
+        public bool Showing;
+    }
+
+    private static readonly ConditionalWeakTable<Control, Region> s_watched = [];
 
     internal static void Install() =>
         AutomationProperties.LiveSettingProperty.Changed.AddClassHandler<Control>((control, _) => Watch(control));
@@ -152,16 +161,28 @@ internal static class LiveRegions
     /// <summary>Tracks the control while it is live; its live setting may be switched later.</summary>
     internal static void Watch(Control control)
     {
-        if (!s_watched.TryGetValue(control, out var peer))
+        if (!s_watched.TryGetValue(control, out var region))
         {
-            peer = ControlAutomationPeer.CreatePeerForElement(control);
-            s_watched.Add(control, peer);
-            var tracked = peer;
-            control.AttachedToVisualTree += (_, _) => Track(control, tracked);
-            // Acts only for a window with an AT-SPI bridge, which exists on Linux.
-            peer.PropertyChanged += (_, e) => AnnounceOnAtSpi(control, tracked, e);
+            region = new Region(ControlAutomationPeer.CreatePeerForElement(control));
+            s_watched.Add(control, region);
+            var watched = region;
+            control.AttachedToVisualTree += (_, _) => Track(control, watched.Peer);
+            control.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Visual.IsVisibleProperty && control.IsVisible) Shown(control, watched);
+            };
+            region.Peer.PropertyChanged += (_, e) => OnNameChanged(control, watched, e);
         }
-        Track(control, peer);
+        Track(control, region.Peer);
+    }
+
+    /// <summary>Speaks the control's current text again, as for Enter on a value its message rejects.</summary>
+    internal static void Repeat(Control control)
+    {
+        Watch(control);
+        if (!control.IsEffectivelyVisible || !s_watched.TryGetValue(control, out var region)) return;
+        if (region.Showing) region.Deferred = true;
+        else if (Text(region) is { } text) region.Peer.RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, string.Empty, text);
     }
 
     private static void Track(Control control, AutomationPeer peer)
@@ -173,14 +194,54 @@ internal static class LiveRegions
         else if (OperatingSystem.IsMacOS()) NativeLiveRegionBridges.TrackOnMac(ControlAutomationPeer.CreatePeerForElement(window), peer);
     }
 
-    private static void AnnounceOnAtSpi(Control control, AutomationPeer peer, AutomationPropertyChangedEventArgs e)
+    private static string? Text(Region region) =>
+        region.Peer.GetLiveSetting() != AutomationLiveSetting.Off && region.Peer.GetName() is { Length: > 0 } text ? text : null;
+
+    private static void Shown(Control control, Region region)
     {
-        if (e.Property != AutomationElementIdentifiers.NameProperty) return;
-        var setting = peer.GetLiveSetting();
-        if (setting == AutomationLiveSetting.Off || peer.GetName() is not { Length: > 0 } text) return;
+        if (region.Showing) return;
+        region.Showing = true;
+        // After layout, as for notifications: NVDA ignored the live element of a message shown a moment before, and
+        // the bridges list a control only once it is visible (macOS gets its native element then).
+        Dispatcher.UIThread.Post(() =>
+        {
+            region.Showing = false;
+            if (!region.Deferred) return;
+            region.Deferred = false;
+            if (!control.IsEffectivelyVisible || Text(region) is not { } text) return;
+            Link(control, region);
+            Track(control, region.Peer);
+            region.Peer.RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, string.Empty, text);
+        }, DispatcherPriority.Background);
+    }
+
+    private static void OnNameChanged(Control control, Region region, AutomationPropertyChangedEventArgs e)
+    {
+        if (e.Property != AutomationElementIdentifiers.NameProperty || Text(region) is not { } text) return;
+        // A change while shown is the platform bridges' own event, raised as it happens; deferring it would repeat it.
+        if (!control.IsEffectivelyVisible)
+        {
+            region.Deferred = true;
+            return;
+        }
+        // Runs before the bridges' own handlers, so their event already carries the restored link.
+        Link(control, region);
+        // Acts only for a window with an AT-SPI bridge, which exists on Linux.
         if (TopLevel.GetTopLevel(control) is Window window &&
             ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: { } bridge })
-            bridge.Announce(text, setting);
+            bridge.Announce(text, region.Peer.GetLiveSetting());
+    }
+
+    /// <summary>
+    /// A peer whose parent was looked up while its control was hidden keeps that empty link once shown, and NVDA drops
+    /// the live-region event of a UI Automation element it cannot place in its window. Listing the children from the
+    /// window down links the control again.
+    /// </summary>
+    private static void Link(Control control, Region region)
+    {
+        if (region.Peer.GetParent() is not null || TopLevel.GetTopLevel(control) is not Window window) return;
+        foreach (var ancestor in AutomationPaths.FromWindow(ControlAutomationPeer.CreatePeerForElement(window), region.Peer) ?? [])
+            ancestor.GetChildren();
     }
 }
 

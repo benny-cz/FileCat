@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
@@ -8,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
@@ -283,13 +285,133 @@ public sealed class DescendantFocusAutomationTests
     }
 
     [AvaloniaFact]
+    public void A_live_region_that_gains_text_while_hidden_speaks_once_when_shown()
+    {
+        var status = new TextBlock { IsVisible = false };
+        AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Assertive);
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { status } } };
+        window.Show();
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var node = new FakeBridgeNode(new FakeBridgeServer(), root);
+            root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            LiveRegions.Watch(status);
+            string[] Spoken() => node.EventObjectHandler.Signals.Select(s => (string)Assert.IsType<FakeVariant>(s.Body[3]).Value).ToArray();
+            // Looked up while hidden, the parent link stays empty once shown; NVDA drops events it cannot place.
+            var statusPeer = ControlAutomationPeer.CreatePeerForElement(status);
+            Assert.Null(statusPeer.GetParent());
+            var parents = new List<AutomationPeer?>();
+            statusPeer.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == AutomationElementIdentifiers.NameProperty && status.IsEffectivelyVisible) parents.Add(statusPeer.GetParent());
+            };
+
+            // A validation message gets its text, then is shown: heard once, after its layout.
+            status.Text = "The name cannot be empty.";
+            Assert.Empty(Spoken());
+            status.IsVisible = true;
+            Assert.Empty(Spoken());
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(["The name cannot be empty."], Spoken());
+            var panel = ControlAutomationPeer.CreatePeerForElement((Control)window.Content!);
+            Assert.Equal([panel], parents);
+            status.Text = "The name is too long.";
+            Assert.Equal(["The name cannot be empty.", "The name is too long."], Spoken());
+            // Hiding and showing the same text, or changing it only while hidden and clearing it, says nothing new.
+            status.IsVisible = false;
+            status.IsVisible = true;
+            Dispatcher.UIThread.RunJobs();
+            status.IsVisible = false;
+            status.Text = "Never shown.";
+            status.Text = string.Empty;
+            status.IsVisible = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, Spoken().Length);
+            LiveRegions.Repeat(status);
+            Assert.Equal(2, Spoken().Length);
+            status.Text = "Shown again.";
+            LiveRegions.Repeat(status);
+            // Shown and changed in one step, as bindings may apply both: the final text, once.
+            status.IsVisible = false;
+            status.IsVisible = true;
+            status.Text = "Changed as shown.";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(["The name cannot be empty.", "The name is too long.", "Shown again.", "Shown again.", "Changed as shown."], Spoken());
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void A_rejected_prompt_value_is_spoken_described_on_its_field_and_explained_again_on_Enter()
+    {
+        var host = new Grid();
+        var window = new FocusWindow { Content = host, Width = 800, Height = 600 };
+        window.Show();
+        // As the app does, every control that becomes live is watched; only for this test.
+        using var watch = AutomationProperties.LiveSettingProperty.Changed.AddClassHandler<Control>((control, _) => LiveRegions.Watch(control));
+        var dialogs = new OverlayDialogService(host, () => null);
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var node = new FakeBridgeNode(new FakeBridgeServer(), root);
+            root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            var result = dialogs.PromptAsync(new PromptOptions("Quick filter", "Mask:")
+            {
+                Validate = t => t.Length == 0 ? "Enter a mask." : Core.Selection.Mask.TryParse(t, out _, out var error) ? null : error,
+            });
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var box = host.GetVisualDescendants().OfType<TextBox>().Single();
+            Assert.True(box.IsFocused);
+            (string, object)[] Spoken() => node.EventObjectHandler.Signals.Select(s => ((string)Assert.IsType<FakeVariant>(s.Body[3]).Value, s.Body[1])).ToArray();
+
+            // Enter before typing anything shows and speaks why nothing happened.
+            Assert.Empty(Spoken());
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal([("Enter a mask.", (object)2)], Spoken());
+            Assert.Equal("Enter a mask.", AutomationProperties.GetHelpText(box));
+            // TextBox reports a text change from the dispatcher.
+            box.Text = "/";
+            Dispatcher.UIThread.RunJobs();
+            box.Text = "/a";
+            Dispatcher.UIThread.RunJobs();
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Dispatcher.UIThread.RunJobs();
+            const string unclosed = "Unclosed regular expression in mask.";
+            Assert.Equal([("Enter a mask.", (object)2), (unclosed, 2), (unclosed, 2)], Spoken());
+            Assert.Equal(unclosed, AutomationProperties.GetHelpText(box));
+            Assert.False(result.IsCompleted);
+
+            box.Text = "*.txt";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Null(AutomationProperties.GetHelpText(box));
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Assert.Equal("*.txt", Assert.IsType<PromptResult>(result.Result).Text);
+            Assert.Equal(3, Spoken().Length);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Every_main_window_notification_is_announced_including_the_first_and_an_error_after_a_notice()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
-            LiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationInfoText")!);
-            LiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationErrorText")!);
+            var texts = new[] { "NotificationInfoText", "NotificationErrorText" }.Select(name => window.FindControl<SelectableTextBlock>(name)!).ToArray();
+            // The UI Automation and macOS bridges speak every name change of a live element: one per notice.
+            int liveChanges = 0;
+            foreach (var text in texts)
+            {
+                LiveRegions.Watch(text);
+                var textPeer = ControlAutomationPeer.CreatePeerForElement(text);
+                textPeer.PropertyChanged += (_, e) =>
+                {
+                    if (e.Property == AutomationElementIdentifiers.NameProperty && textPeer.GetLiveSetting() != AutomationLiveSetting.Off) liveChanges++;
+                };
+            }
             var peer = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
             var node = new FakeBridgeNode(new FakeBridgeServer(), peer);
             peer.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
@@ -305,6 +427,7 @@ public sealed class DescendantFocusAutomationTests
             Dispatcher.UIThread.RunJobs();
             var spoken = node.EventObjectHandler.Signals.Select(s => (Assert.IsType<FakeVariant>(s.Body[3]).Value, s.Body[1])).ToArray();
             Assert.Equal(new (object, object)[] { ("First notice", 1), ("Then an error", 2), ("A notice again", 1), ("A notice again", 1) }, spoken);
+            Assert.Equal(4, liveChanges);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

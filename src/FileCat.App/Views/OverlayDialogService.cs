@@ -260,6 +260,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var box = new TextBox { Text = o.Text, AcceptsReturn = false };
         Avalonia.Automation.AutomationProperties.SetName(box, string.IsNullOrEmpty(o.Message) ? o.Title : o.Message);
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        // Spoken as it appears, and part of the field's description while shown, as the panel filter's message is.
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
         var check = o.CheckboxText is null ? null : new CheckBox { Content = o.CheckboxText, IsChecked = o.CheckboxValue };
         var ok = new Button { Content = o.ConfirmText, Classes = { "primary" }, IsDefault = true };
         var cancel = new Button { Content = "Cancel" };
@@ -283,6 +285,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             bool quiet = !held;
             error.Text = msg ?? string.Empty;
             error.IsVisible = msg is not null && !quiet;
+            Avalonia.Automation.AutomationProperties.SetHelpText(box, error.IsVisible ? msg : null);
             ok.IsEnabled = msg is null;
         }
         void Finish(PromptResult? r)
@@ -305,11 +308,18 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         };
         box.KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter && ok.IsEnabled && IsCurrent(session))
+            if (e.Key != Key.Enter || !IsCurrent(session)) return;
+            e.Handled = true;
+            if (ok.IsEnabled)
             {
-                e.Handled = true;
                 Finish(new PromptResult(box.Text ?? string.Empty, check?.IsChecked == true));
+                return;
             }
+            // Enter on a rejected value keeps the dialog and says why, also before anything was typed.
+            bool shown = error.IsVisible;
+            held = true;
+            Validate();
+            if (shown) Controls.LiveRegions.Repeat(error);
         };
         ok.Click += (_, _) => Finish(new PromptResult(box.Text ?? string.Empty, check?.IsChecked == true));
         cancel.Click += (_, _) => Finish(null);
