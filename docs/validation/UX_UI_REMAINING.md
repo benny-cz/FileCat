@@ -19,9 +19,12 @@ increments to `main`.
   `%LOCALAPPDATA%\FileCatValidation\NVDA\portable`), and
   `mac-ax-focus-speech.py` records the AX focus notifications and
   announcements VoiceOver speaks from. All three also check the first and a
-  repeated copy notice. Extend these journeys for the "spoken" criteria of
-  other findings (Find results, validation errors such as UXBUG-015 and
-  FCUX-028/040/041, tabs). Hearing VoiceOver itself needs the owner to enable "Allow
+  repeated copy notice, and a rejected Quick filter mask spoken as it appears
+  and again on a refused Enter (the shared prompt that F7, Go to and other
+  prompts use). Extend these journeys for the "spoken" criteria of other
+  findings (Find results, the panel filter field of FCUX-028, which needs a
+  keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
+  Hearing VoiceOver itself needs the owner to enable "Allow
   VoiceOver to be controlled with AppleScript" in VoiceOver Utility, which
   macOS protects with an administrator authorization prompt; that prompt was
   cancelled and the setting is still off.
@@ -131,7 +134,13 @@ increments to `main`.
    the status); and Create folder told Linux and macOS to use `\` for nested
    folders, where it is an ordinary name character (`aef91939`; the Ubuntu and
    macOS CI lanes run its test). Report the Avalonia modifier behavior upstream
-   if the owner agrees.
+   if the owner agrees. The next runs fixed three more: the shared prompt's
+   validation message was never spoken and Enter on it was silently ignored
+   (`6afb92a0`), macOS lost the first character typed into a field F7,
+   Command+L or Command+S had focused (`8d828249`), and the Quick filter hint
+   used `src\` everywhere (`cda6a365`). Open question for the owner: FileCat
+   does not exit on SIGTERM while a dialog is open; the Mac runner now kills
+   its own process instead.
 
 ## Evidence required to finish
 

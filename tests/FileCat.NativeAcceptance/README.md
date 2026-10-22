@@ -659,10 +659,12 @@ extended-key flag (`SendKeys` arrow keys toggled NumLock), sent only after UI
 Automation confirms keyboard focus is in the tested process. The journey moves
 Down three times, Up, Home and End, tabs to the target panel and back, opens
 Create folder with F7, closes it with Escape, copies the focused file with
-Ctrl+C twice and switches away and back; every step must name the expected
-file, parent row or folder field, each copy must be heard once as "Copied 1
-item to the clipboard." (the first notice after startup, then a repeated one),
-and the fixture bytes must be unchanged. `-RecordAll` keeps a complete transcript after an
+Ctrl+C twice, opens Quick filter with Ctrl+S, types the unclosed mask `/a`,
+presses Enter, closes it with Escape and switches away and back; every step
+must name the expected file, parent row or field, each copy must be heard once
+as "Copied 1 item to the clipboard." (the first notice after startup, then a
+repeated one), the mask's message must be heard as `/` is typed and again
+when Enter is refused, and the fixture bytes must be unchanged. `-RecordAll` keeps a complete transcript after an
 unmet expectation, which documents a pre-fix build.
 
 ## Linux logged-in desktop
@@ -674,8 +676,8 @@ debug file line-buffered (Orca block-buffers it otherwise) and judges only the
 `SPEECH OUTPUT` lines Orca sent to speech. The runner never reads FileCat's
 AT-SPI tree, because enumerating it would create the nodes whose focus
 announcements are under test. Physical uinput keys perform the same journey as
-the NVDA runner, including both copy notices, which FileCat sends as AT-SPI
-announcements, and end with a switch to a test-owned X11 GTK window and back;
+the NVDA runner, including both copy notices and the rejected Quick filter
+mask, which FileCat sends as AT-SPI announcements, and end with a switch to a test-owned X11 GTK window and back;
 the report records how often the focused file was named on return. Supply
 `FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process, as for the other
 uinput checks. `--record-all` keeps a complete transcript after an unmet
@@ -855,8 +857,11 @@ key it also reads the application's `AXFocusedUIElement`. The journey matches
 the NVDA and Orca runners (Finder takes the foreground for the switch step):
 each move must post a notification for the expected `AXRow`, the dialog field
 must be the focused `AXTextField`, each Command+C must post exactly one
-`AXAnnouncementRequested` reading "Copied 1 item to the clipboard.", and
-fixture bytes must stay exact. System Events sets Command without pressing a
+`AXAnnouncementRequested` reading "Copied 1 item to the clipboard.", typing
+`/` with a raw key code as the first character after Command+S and then
+Return in Quick filter must each post exactly one reading "Unclosed regular
+expression in mask.", and fixture bytes must stay exact. A TERM that an open
+dialog leaves unanswered is followed by a KILL of the runner's own process. System Events sets Command without pressing a
 Command key; Avalonia reports such a change as the A key, which FileCat now
 ignores (before, Command+C first selected every file). The observer's `find PID
 TEXT` mode is a diagnostic that searches the AX tree and so creates elements;
