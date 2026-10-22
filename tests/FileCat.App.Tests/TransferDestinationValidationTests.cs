@@ -14,6 +14,68 @@ namespace FileCat.App.Tests;
 public sealed class TransferDestinationValidationTests
 {
     [AvaloniaFact]
+    public async Task Remote_replace_warning_follows_destination_and_conflict_choice()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var remote = new FileCat.Core.Resources.Location(Schemes.Sftp, "/owned", session: "isolated-profile");
+            string local = Directory.CreateDirectory(Path.Combine(root, "local-target")).FullName;
+            var pending = OperationDialogs.ShowTransferAsync(vm, new TransferDialogInput(JobKind.Copy,
+                [ItemRef.ForFileSystemPath(Path.Combine(root, "files", "a.txt"), EntryKind.File)],
+                "1 file", "/owned", null, 0, false)
+            {
+                BaseLocation = remote, InitialLocation = remote,
+            });
+            await Until(() => vm.Dialogs.IsOpen);
+            window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Expander>()
+                .Single(e => Equals(e.Header, "Options")).IsExpanded = true;
+            window.UpdateLayout();
+            var warning = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => AutomationProperties.GetName(t) == "Remote replacement concurrency warning");
+            var conflicts = window.GetVisualDescendants().OfType<ComboBox>()
+                .Single(c => c.ItemsSource?.Cast<object>().Any(item => Equals(item, "Replace if newer")) == true);
+            var destination = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Destination");
+            Assert.False(warning.IsVisible);
+            await Until(() => window.GetVisualDescendants().OfType<Button>()
+                .Any(b => Equals(b.Content, "Copy") && b.IsEnabled));
+
+            conflicts.SelectedIndex = 2;
+            await Until(() => warning.IsVisible);
+            Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
+            Assert.Equal(warning.Text, AutomationProperties.GetHelpText(conflicts));
+            conflicts.SelectedIndex = 3;
+            Assert.True(warning.IsVisible);
+            conflicts.SelectedIndex = 4;
+            Assert.False(warning.IsVisible);
+            Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(conflicts)));
+
+            conflicts.SelectedIndex = 2;
+            Assert.True(warning.IsVisible);
+            destination.Text = local + Path.DirectorySeparatorChar;
+            await Until(() => !warning.IsVisible);
+            Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(conflicts)));
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.Null(await pending);
+            Assert.Empty(services.Jobs.Jobs);
+
+            async Task Until(Func<bool> ready)
+            {
+                for (int i = 0; i < 250 && !ready(); i++) await Task.Delay(20, ct);
+                Assert.True(ready(), "The remote replacement warning did not settle.");
+            }
+        }
+        finally
+        {
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Main_commands_cannot_stack_a_second_review_behind_an_open_copy_form()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

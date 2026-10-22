@@ -791,6 +791,18 @@ removed their hidden stages; the focused guest run passed four with no skips.
 The complete Windows Remote Release suite passed 2,394 with 157 platform/lab
 skips after this addition.
 
+The remote Copy/Move form now warns when FTP/SFTP and Replace or Replace if newer
+are selected: another app can change the destination after FileCat's final
+check, and Keep both: rename the copy avoids replacing that destination. The
+warning follows async destination resolution, clears when the user changes to
+a local destination or a non-replacing policy, and is exposed as the conflict
+control's accessible help text. A running job's FTP/SFTP conflict review shows
+the same warning before the decision buttons. Three focused headless App cases
+cover remote/local form choices, both destination classes in the per-item
+review, and unchanged source/target bytes after Skip. This informs the choice;
+it does not turn FTP/SFTP publication into an atomic compare-and-swap. The
+provider failure, interruption and final-check race gates remain open.
+
 The live upload exposed a Copy-form error under Czech locale: a decimal speed
 was rejected, then the already closed dialog's controls were reused and
 Avalonia reported that a control already had a parent. Transfer option

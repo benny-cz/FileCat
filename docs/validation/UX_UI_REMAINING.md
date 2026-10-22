@@ -21,7 +21,9 @@ increments to `main`.
    failing lane before declaring the audit complete.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
-   destination content check (no server-side compare-and-swap), and native
+   destination content check. Verify that every FTP/SFTP replacement review
+   exposes the residual risk, and determine whether any supported provider
+   offers a safe atomic publication path. Also finish native
    recovery choices plus safe review and cleanup of the remote stage after an
    FTP process crash. For FCUX-018, verify
    native Windows close/restart ownership during a held inverse after the

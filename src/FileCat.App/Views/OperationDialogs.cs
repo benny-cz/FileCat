@@ -49,6 +49,8 @@ public sealed record DeleteDialogResult(bool IncludeHidden, bool DeleteUnrecycla
 /// <summary>Operation dialogs: concise, keyboard-first, and explicit about scope and destination (PI-05).</summary>
 public static class OperationDialogs
 {
+    internal const string RemoteReplacementWarning =
+        "Another app can change this remote file after FileCat's final check. If you choose Replace, that newer change could be lost. Choose Keep both: rename the copy to keep this destination.";
     private static TextBlock Muted(string text) => new() { Text = text, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
 
     private static TextBlock Text(string text, bool bold = false) =>
@@ -147,6 +149,14 @@ public static class OperationDialogs
         optionsPanel.Children.Add(flatten);
         var expander = new Expander { Header = "Options", Content = optionsPanel, HorizontalAlignment = HorizontalAlignment.Stretch, IsExpanded = input.RecoveryReviewNotice is not null };
         body.Children.Add(expander);
+        var remoteReplacementWarning = new TextBlock
+        {
+            Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap,
+            Classes = { "warning" }, IsVisible = false,
+        };
+        AutomationProperties.SetName(remoteReplacementWarning, "Remote replacement concurrency warning");
+        AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
+        body.Children.Add(remoteReplacementWarning);
         CheckBox? includeHidden = null;
         if (input.HiddenMarked > 0)
         {
@@ -179,6 +189,14 @@ public static class OperationDialogs
         string? validatedText = null;
         TransferDestinationResolution? resolved = null;
         CancellationTokenSource? destinationCancellation = null;
+        void UpdateRemoteReplacementWarning()
+        {
+            bool visible = (resolved?.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp) &&
+                (conflicts.SelectedIndex is 2 or 3);
+            remoteReplacementWarning.IsVisible = visible;
+            AutomationProperties.SetHelpText(conflicts, visible ? RemoteReplacementWarning : string.Empty);
+        }
+        conflicts.SelectionChanged += (_, _) => UpdateRemoteReplacementWarning();
         var destinationDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         bool CanSubmit() => resolved is { Valid: true } && validatedText == (dest.Text ?? string.Empty).Trim();
         async Task ValidateDestinationAsync(int mine, string text)
@@ -200,6 +218,7 @@ public static class OperationDialogs
             if (!destinationOpen || mine != destinationRevision) return;
             resolved = result;
             validatedText = text.Trim();
+            UpdateRemoteReplacementWarning();
             interpretation.Text = result.Description;
             destinationError.Text = result.Error is null ? null : "Destination: " + result.Error;
             destinationError.IsVisible = result.Error is not null;
@@ -220,6 +239,7 @@ public static class OperationDialogs
             destinationDebounce.Stop();
             resolved = null;
             validatedText = null;
+            UpdateRemoteReplacementWarning();
             destinationError.IsVisible = false;
             interpretation.Text = string.IsNullOrWhiteSpace(dest.Text) ? "Enter a destination folder." : "Checking destination…";
             AutomationProperties.SetHelpText(dest, interpretation.Text);
@@ -429,6 +449,12 @@ public static class OperationDialogs
             Cell(3, 2, existingAttributes);
         }
         body.Children.Add(grid);
+        if (job.Request.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp)
+        {
+            var warning = new TextBlock { Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
+            AutomationProperties.SetName(warning, "Remote replacement concurrency warning");
+            body.Children.Add(warning);
+        }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
         if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
         void SuggestedName(string label, string? name)

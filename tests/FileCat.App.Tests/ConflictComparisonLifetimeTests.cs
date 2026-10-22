@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -9,11 +10,59 @@ using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
 
 namespace FileCat.App.Tests;
 
 public sealed class ConflictComparisonLifetimeTests
 {
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Remote_conflict_warning_is_visible_only_for_remote_destinations(bool remote)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string incoming = Path.Join(root, "incoming.bin");
+            string existing = Path.Join(root, "existing.bin");
+            File.WriteAllText(incoming, "incoming");
+            File.WriteAllText(existing, "existing");
+            var fs = new PortableFileOperations();
+            var ai = Assert.IsType<FileSystemItemInfo>(fs.TryGetInfo(incoming));
+            var bi = Assert.IsType<FileSystemItemInfo>(fs.TryGetInfo(existing));
+            var target = remote
+                ? new FileCat.Core.Resources.Location(Schemes.Sftp, "/owned", session: "isolated-profile")
+                : FileCat.Core.Resources.Location.FileSystem(root);
+            var job = (Job)Activator.CreateInstance(typeof(Job), BindingFlags.Instance | BindingFlags.NonPublic,
+                null, [new JobRequest { Kind = JobKind.Copy, Destination = target }, "Owned conflict", "owned",
+                    new[] { incoming }, new[] { existing }], null)!;
+            var conflict = new ConflictRequest("Owned conflict", "existing.bin", ai, bi, incoming, existing,
+                true, false, false, false, null, null);
+            var pending = OperationDialogs.ShowDecisionAsync(vm, new PendingDecision(job, conflict));
+            window.UpdateLayout();
+            var warnings = window.GetVisualDescendants().OfType<TextBlock>()
+                .Where(t => AutomationProperties.GetName(t) == "Remote replacement concurrency warning").ToArray();
+            if (remote)
+            {
+                var warning = Assert.Single(warnings);
+                Assert.True(warning.IsVisible);
+                Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
+            }
+            else Assert.Empty(warnings);
+            window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Skip"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(DecisionAction.Skip, (await pending).Action);
+            Assert.Equal("incoming", File.ReadAllText(incoming));
+            Assert.Equal("existing", File.ReadAllText(existing));
+        }
+        finally
+        {
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("cancel", "equal")]
     [InlineData("skip", "equal")]
