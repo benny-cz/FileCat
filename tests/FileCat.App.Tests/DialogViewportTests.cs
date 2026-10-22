@@ -339,8 +339,13 @@ public sealed class DialogViewportTests
                 var preview = Named<ListBox>(card, "Preview of new names");
                 var editor = card.GetVisualDescendants().OfType<Button>().Single(b =>
                     b.Content as string == "Edit names in editor…");
+                var previousMapping = Named<Button>(card, "Previous rename mapping");
+                var nextMapping = Named<Button>(card, "Next rename mapping");
                 Assert.True(editor.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
                     "The external-editor action must precede the long preview.");
+                Assert.True(previousMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y &&
+                            nextMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
+                    "The mapping navigation must remain discoverable before the long preview.");
                 Assert.InRange(preview.Bounds.Width, 1, scroll.Viewport.Width + 1);
                 Assert.Equal(280, preview.Bounds.Height);
                 Assert.Equal(2, preview.ItemCount);

@@ -222,6 +222,23 @@ def run(bundle, report_path, narrow):
             return None
 
         preview = wait_for(proposed, "both reviewed rename mappings")
+        item(preview, "AXButton", "Next rename mapping")
+        first_status = "1 of 2 shown"
+        if not any(n["role"] == "AXStaticText" and n["name"] == first_status for n in preview):
+            raise AssertionError("The first mapping position is not exposed")
+        ax_activate("AXButton", "Next rename mapping")
+        second_status = "2 of 2 shown"
+        def second_mapping():
+            found = nodes()
+            detail = next((n["value"] for n in found if n["role"] == "AXTextField" and
+                           n["name"] == "Full old and new paths of selected rename"), "")
+            if (detail == f"From: {source / 'a.txt'}\nTo: {source / 'reviewed_2.txt'}" and
+                            any(n["role"] == "AXStaticText" and n["name"] == second_status for n in found)):
+                return found
+            return None
+        wait_for(second_mapping, "second full-path mapping through the native Next action")
+        ax_activate("AXButton", "Previous rename mapping")
+        wait_for(proposed, "first full-path mapping through the native Previous action")
         item(preview, "AXButton", "Edit names in editor…")
         visual = capture(validation / "FileCatCapture.app", validation)
         ax_activate("AXButton", "Edit names in editor…")
@@ -275,6 +292,7 @@ def run(bundle, report_path, narrow):
                 "initialSha256": {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()},
                 "sourceNames": sorted(p.name for p in source.iterdir()), "targetEmpty": True,
                 "reviewedNames": ["reviewed_1.txt", "reviewed_2.txt"],
+                "mappingNavigation": [first_status, second_status, first_status],
                 "editedNames": ["editor_b.txt", "editor_a.txt"],
                 "editorActionCapture": visual, "privateListRemoved": True,
                 "fixture": str(fixture)}

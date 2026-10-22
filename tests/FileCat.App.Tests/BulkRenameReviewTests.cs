@@ -35,8 +35,10 @@ public sealed class BulkRenameReviewTests
                 AutomationProperties.GetLiveSetting(b) == AutomationLiveSetting.Polite);
             var details = review.GetVisualDescendants().OfType<TextBox>().Single(b =>
                 AutomationProperties.GetName(b) == "Full old and new paths of selected rename");
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(details));
             Assert.False(previous.IsEnabled);
             Assert.True(next.IsEnabled);
+            Assert.Contains(Path.Combine(root, "b.txt"), AutomationProperties.GetHelpText(next));
             Assert.Equal("1 of 3 shown", position.Text);
             Assert.Contains(Path.Combine(root, "review_1.txt"), AutomationProperties.GetName(position));
 
@@ -46,6 +48,7 @@ public sealed class BulkRenameReviewTests
             Assert.Contains(Path.Combine(root, "b.txt"), details.Text);
             Assert.Contains(Path.Combine(root, "review_2.txt"), AutomationProperties.GetName(position));
             Assert.True(previous.IsEnabled);
+            Assert.Contains(Path.Combine(root, "a.txt"), AutomationProperties.GetHelpText(previous));
             next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("3 of 3 shown", position.Text);
             Assert.False(next.IsEnabled);
