@@ -317,9 +317,11 @@ public sealed partial class MainViewModel
                     Text = "[N] name · [N2-5] characters 2 to 5 · [N3-] from 3 on · [E] extension · [C] counter · [P] folder · [YMD] date · [hms] time; other text is kept as typed",
                 },
                 searchOptions,
+                // Keep the alternate naming action in view before the large preview.
+                // A review with hundreds of rows should not bury it below the list.
+                DialogLayout.Actions(editorButton),
                 preview,
                 summary,
-                DialogLayout.Actions(editorButton),
             },
         };
         Invalidate();

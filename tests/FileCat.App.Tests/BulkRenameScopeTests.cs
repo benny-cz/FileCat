@@ -62,7 +62,8 @@ public sealed class BulkRenameScopeTests
             rename.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished());
             var job = Assert.Single(services.Jobs.Jobs);
-            Assert.Equal(JobState.Completed, job.State);
+            Assert.True(job.State == JobState.Completed,
+                $"Rename finished as {job.State}: {string.Join("; ", job.Issues)}");
             Assert.Equal(["b.txt", "a.txt"], job.Request.Sources.Select(item => item.Name));
             Assert.Equal("beta", File.ReadAllText(Path.Combine(root, "files", "reviewed_1.txt")));
             Assert.Equal("alpha", File.ReadAllText(Path.Combine(root, "files", "reviewed_2.txt")));
@@ -125,7 +126,8 @@ public sealed class BulkRenameScopeTests
             rename.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished());
             var job = Assert.Single(services.Jobs.Jobs);
-            Assert.Equal(JobState.Completed, job.State);
+            Assert.True(job.State == JobState.Completed,
+                $"Rename finished as {job.State}: {string.Join("; ", job.Issues)}");
             Assert.Equal(include ? new[] { "b.txt", "a.txt" } : new[] { "b.txt" }, job.Request.Sources.Select(i => i.Name));
             string files = Path.Combine(root, "files");
             Assert.Equal("beta", File.ReadAllText(Path.Combine(files, "reviewed_1.txt")));

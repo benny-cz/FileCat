@@ -316,7 +316,7 @@ public sealed class DialogViewportTests
             {
                 "copy" => Named<TextBox>(card, "Speed limit (MB/s):"),
                 "delete" => card.GetVisualDescendants().OfType<RadioButton>().Last(),
-                _ => card.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Edit names in editor…"),
+                _ => Named<TextBox>(card, "Full old and new paths of selected rename"),
             };
             Assert.True(last.Focus(NavigationMethod.Tab));
             // Caret and outer-dialog reveal each post at Loaded priority; wait for
@@ -337,6 +337,10 @@ public sealed class DialogViewportTests
             if (operation == "bulk rename")
             {
                 var preview = Named<ListBox>(card, "Preview of new names");
+                var editor = card.GetVisualDescendants().OfType<Button>().Single(b =>
+                    b.Content as string == "Edit names in editor…");
+                Assert.True(editor.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
+                    "The external-editor action must precede the long preview.");
                 Assert.InRange(preview.Bounds.Width, 1, scroll.Viewport.Width + 1);
                 Assert.Equal(280, preview.Bounds.Height);
                 Assert.Equal(2, preview.ItemCount);

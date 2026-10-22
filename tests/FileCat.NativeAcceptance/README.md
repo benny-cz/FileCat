@@ -510,6 +510,17 @@ starts a fresh fixture at a requested 640 × 420 owner size, checks that the
 hidden-mark choice, name mask and Cancel/Rename actions remain on screen, then
 expands to 760 × 560 to review and submit both exact mappings. It repeats the
 expanded-options and resize-grip checks and verifies both renamed file bytes.
+For the actual external-editor round trip, run `seed-rename-editor <setup.json>`
+beside a fresh `clipboard-fixture.json` before launching FileCat. This sets the
+isolated profile's editor to the native acceptance executable; its
+`rename-editor-write` mode accepts only that fixture's private `rename-*.txt`
+list and the expected two proposed names. Then run `rename-editor-native
+<report.json>` against the launched app. It reviews the visible and explicitly
+included hidden mappings, opens the editor action, waits for the saved names,
+chooses the nested Load names decision, verifies the updated preview and
+temporary-file cleanup, then checks the exact resulting source bytes and empty
+destination. The action is placed before the long preview so pointer users can
+find it without first scrolling through the list.
 Run `rename-stop <report.json>` before another
 fixture. It closes only processes whose executable matches the guest-local
 validation build; a fixture left behind by a stale modal is terminated and

@@ -53,7 +53,7 @@ increments to `main`.
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
    FCUX-003 still needs scaled/narrow layouts on Mac and Ubuntu, keyboard and spoken
-   review, native external-editor round trips and rule-change races after the
+   review, Mac/Ubuntu external-editor round trips and native rule-change races after the
    headless stale-scope result was rejected. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
    other modal focus and decision routes after the Mac, Windows and Ubuntu

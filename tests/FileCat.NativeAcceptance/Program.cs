@@ -11,9 +11,10 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
+using FileCat.Core.State;
 
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -21,7 +22,7 @@ using FileCat.Core.Selection;
 
 var mode = args[0];
 var reportPath = args[1];
-if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "sftp-live-verify")
+if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "sftp-live-verify")
 {
     try
     {
@@ -47,6 +48,8 @@ if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-re
         else if (mode == "seed-cross-volume") await SeedDesktopInterruptionAsync(reportPath, crossVolume: true);
         else if (mode is "seed-clipboard" or "seed-clipboard-conflict")
             await SeedClipboardInteropAsync(reportPath, conflict: mode == "seed-clipboard-conflict");
+        else if (mode == "seed-rename-editor") await SeedRenameEditorAsync(reportPath);
+        else if (mode == "rename-editor-write") await WriteRenamedNamesAsync(reportPath);
         else if (mode == "seed-compare") await SeedCompareFixtureAsync(reportPath);
         else if (mode == "seed-selection") await SeedSelectionFixtureAsync(reportPath);
         else if (mode == "compare-stop")
@@ -692,9 +695,10 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode is "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native")
+        else if (mode is "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native")
         {
-            bool includeHidden = mode is "rename-hidden-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native";
+            bool externalEditor = mode == "rename-editor-native";
+            bool includeHidden = externalEditor || mode is "rename-hidden-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native";
             bool narrow = mode is "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native";
             bool compact = mode == "rename-hidden-compact-native";
             var fixture = await ReadClipboardFixtureAsync(reportPath);
@@ -877,6 +881,46 @@ try
                 NativeWindow.ClickAt(CenterX(FindOptions(expanded)), CenterY(FindOptions(expanded)));
                 await Task.Delay(150);
             }
+            bool editorRoundTrip = !externalEditor;
+            string[]? editedNames = null;
+            if (externalEditor)
+            {
+                var beforeEditor = ParseSource(await ReadSourceAsync(client, sessionId));
+                var editorAction = FindVisible(beforeEditor, "button", "Edit names in editor…")
+                    ?? throw new InvalidOperationException("The external-editor action is not visible in the rename review.");
+                await ClickXPathAsync(client, sessionId,
+                    "//Button[@Name='Edit names in editor…']", "external rename editor");
+                var editedFile = Path.Combine(fixture.Data, "local", "temp");
+                bool namesWritten = false;
+                for (var attempt = 0; attempt < 40; attempt++)
+                {
+                    await Task.Delay(150);
+                    var candidates = Directory.Exists(editedFile)
+                        ? Directory.EnumerateFiles(editedFile, "rename-*.txt").ToArray() : [];
+                    namesWritten = candidates.Length == 1
+                        && (await File.ReadAllLinesAsync(candidates[0])).SequenceEqual(["editor_b.txt", "editor_a.txt"]);
+                    if (namesWritten) break;
+                }
+                if (!namesWritten)
+                    throw new InvalidOperationException("The configured native editor did not save the two reviewed names.");
+                var confirmation = ParseSource(await ReadSourceAsync(client, sessionId));
+                var loadNames = FindVisible(confirmation, "button", "Load names")
+                    ?? throw new InvalidOperationException("The nested Load names decision is unavailable.");
+                NativeWindow.ClickAt(CenterX(loadNames), CenterY(loadNames));
+                editedNames = ["1. b.txt  →  editor_b.txt", "2. a.txt  →  editor_a.txt"];
+                for (var attempt = 0; attempt < 40; attempt++)
+                {
+                    await Task.Delay(150);
+                    var current = ParseSource(await ReadSourceAsync(client, sessionId));
+                    if (Names(current).SequenceEqual(editedNames))
+                    {
+                        editorRoundTrip = !Directory.EnumerateFiles(editedFile, "rename-*.txt").Any();
+                        break;
+                    }
+                }
+                if (!editorRoundTrip)
+                    throw new InvalidOperationException("The reviewed editor names were not loaded and the temporary list removed.");
+            }
             var approvalTree = ParseSource(await ReadSourceAsync(client, sessionId));
             var owner = approvalTree.Descendants().Single(element =>
                 (string?)element.Attribute("LocalizedControlType") == "window"
@@ -901,8 +945,8 @@ try
                 throw new InvalidOperationException("The reviewed dialog does not own exactly one enabled Rename action.");
             var approveRename = approveButtons[0];
             NativeWindow.ClickAt(CenterX(approveRename), CenterY(approveRename));
-            var renamedB = Path.Combine(fixture.Source, "reviewed_1.txt");
-            var renamedA = Path.Combine(fixture.Source, "reviewed_2.txt");
+            var renamedB = Path.Combine(fixture.Source, externalEditor ? "editor_b.txt" : "reviewed_1.txt");
+            var renamedA = Path.Combine(fixture.Source, externalEditor ? "editor_a.txt" : "reviewed_2.txt");
             bool filesMatch = false;
             for (var attempt = 0; attempt < 40; attempt++)
             {
@@ -918,11 +962,12 @@ try
                     && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
                 if (filesMatch) break;
             }
-            bool passed = visibleScope && defaultScope && reviewedScope && filesMatch
+            bool passed = visibleScope && defaultScope && reviewedScope && editorRoundTrip && filesMatch
                 && narrowApplied && compactControlsVisible && controlsVisible && expandedOptionsReflow;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, includeHidden, visibleScope, defaultScope, reviewedScope, filesMatch,
+                passed, includeHidden, visibleScope, defaultScope, reviewedScope, editorRoundTrip,
+                editedNames, filesMatch,
                 narrow, compact, narrowApplied, narrowWindow, compactControlsVisible, controlsVisible,
                 expandedOptionsReflow, expandedOwner, counterVisible,
                 originalGripBounds, expandedGripBounds,
@@ -5315,6 +5360,54 @@ static async Task<RecoveryFixture> ReadClipboardFixtureAsync(string reportPath)
         || !string.Equals(data, Path.Combine(root, "data"), StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Clipboard fixture paths do not match its isolated root.");
     return new RecoveryFixture(source, destination, data);
+}
+
+static async Task SeedRenameEditorAsync(string reportPath)
+{
+    var fixture = await ReadClipboardFixtureAsync(reportPath);
+    var runner = Path.GetFullPath(Environment.ProcessPath
+        ?? throw new InvalidOperationException("The native acceptance executable path is unavailable."));
+    if (!runner.EndsWith("FileCat.NativeAcceptance.exe", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("The controlled rename editor requires the Windows native runner.");
+    var settings = new
+    {
+        SchemaVersion = AppSettings.CurrentSchema,
+        Editor = new ToolDefinition
+        {
+            Name = "Controlled rename test editor",
+            Executable = runner,
+            Arguments = ["rename-editor-write", "{file}"]
+        }
+    };
+    var file = Path.Combine(fixture.Data, "settings.json");
+    if (File.Exists(file))
+        throw new InvalidOperationException("The isolated rename editor fixture already has settings.");
+    Directory.CreateDirectory(fixture.Data);
+    await File.WriteAllTextAsync(file, JsonSerializer.Serialize(settings));
+    await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new { passed = true, settings = file, runner }));
+}
+
+static async Task WriteRenamedNamesAsync(string path)
+{
+    // This executable is the fixture's configured editor. It may write only the
+    // private name list created by the tested app inside this exact fixture.
+    var full = Path.GetFullPath(path);
+    var directory = Path.GetDirectoryName(full)
+        ?? throw new InvalidOperationException("The editor path has no directory.");
+    var data = Path.GetDirectoryName(Path.GetDirectoryName(directory) ?? "") ?? "";
+    var fixtureRoot = Path.GetDirectoryName(data) ?? "";
+    var validationRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "FileCatValidation", "ClipboardInterop")
+        + Path.DirectorySeparatorChar;
+    if (!fixtureRoot.StartsWith(validationRoot, StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(directory, Path.Combine(data, "local", "temp"), StringComparison.OrdinalIgnoreCase)
+        || !Path.GetFileName(full).StartsWith("rename-", StringComparison.OrdinalIgnoreCase)
+        || Path.GetExtension(full) != ".txt"
+        || !File.Exists(full))
+        throw new InvalidOperationException("The controlled editor target is outside the isolated rename fixture.");
+    if (!(await File.ReadAllLinesAsync(full)).SequenceEqual(["reviewed_1.txt", "reviewed_2.txt"]))
+        throw new InvalidOperationException("The editor received an unexpected rename mapping.");
+    await File.WriteAllLinesAsync(full, ["editor_b.txt", "editor_a.txt"]);
 }
 
 static async Task<RecoveryFixture> ReadSelectionFixtureAsync(string reportPath)
