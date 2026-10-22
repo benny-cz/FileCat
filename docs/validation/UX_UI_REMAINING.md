@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 22 October 2026. Maintain this file after every validated batch. The
+Updated: 23 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -53,11 +53,14 @@ increments to `main`.
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
    FCUX-003 still needs Mac display-scale and Ubuntu scaled/narrow layouts,
-   keyboard and spoken review, an Ubuntu external-editor round trip, and native
+   keyboard and spoken review, and native
    rule-change races after the headless stale-scope result was rejected. On Mac,
    investigate the visible review body's zero AX bounds and preview list with
    no AX children; native AX actions work, but assistive inspection of every
-   mapping still needs proof. For FCUX-004/005, exercise remaining modal
+   mapping still needs proof. The Ubuntu editor round trip passed at its normal
+   window size; the narrow run remains open because this VM session ignored
+   both `wmctrl` and `xdotool` size requests and stayed at 1280 × 840. Verify
+   the layout after an actual native window resize. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
    other modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. Preserve captured
