@@ -27,7 +27,11 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "ctrl+a": (29, 30), "ctrl+t": (29, 20),
         "ctrl+r": (29, 19), "ctrl+s": (29, 31), "slash": (53,), "a": (30,), "c": (46,), "h": (35,), "r": (19,), "backspace": (14,), "ctrl+shift+p": (29, 42, 25),
         "s": (31,), "p": (25,), "l": (38,), "i": (23,), "t": (20,), "e": (18,),
-        "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47)}
+        "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47), "ctrl+q": (29, 16), "alt+f7": (56, 65),
+        "shift+f10": (42, 68), "f1": (59,), "f9": (67,), "f10": (68,)}
+# "type:find files" types lowercase letters and spaces with one device (US layout).
+LETTERS = dict(zip("abcdefghijklmnopqrstuvwxyz ", (30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50, 49, 24, 25, 16, 19,
+                                                     31, 20, 22, 47, 17, 45, 21, 44, 57)))
 SEQUENCES = {"filter-hide": ((42, 9), (42, 43), (48,), (42, 9)),
              "filter-reset": ((42, 9),)}  # *|b* and * on a US-layout test VM
 EV_KEY = 1
@@ -40,7 +44,8 @@ def event(fd, code, value):
 
 
 def send(chord, release_path=None):
-    strokes = SEQUENCES[chord] if chord in SEQUENCES else (KEYS[chord],)
+    strokes = (SEQUENCES[chord] if chord in SEQUENCES else
+               tuple((LETTERS[c],) for c in chord[5:]) if chord.startswith("type:") else (KEYS[chord],))
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
     held_modifier = None
@@ -93,7 +98,8 @@ def send(chord, release_path=None):
 
 if __name__ == "__main__":
     if (len(sys.argv) not in (2, 3) or
-            sys.argv[1] not in KEYS and sys.argv[1] not in SEQUENCES or
+            sys.argv[1] not in KEYS and sys.argv[1] not in SEQUENCES and not (
+                sys.argv[1].startswith("type:") and 0 < len(sys.argv[1]) - 5 <= 40 and set(sys.argv[1][5:]) <= set(LETTERS)) or
             (len(sys.argv) == 3) != sys.argv[1].endswith("-controlled")):
         raise SystemExit("Usage: linux-uinput-key.py CHORD [absolute owned release signal]")
     release = Path(sys.argv[2]) if len(sys.argv) == 3 else None

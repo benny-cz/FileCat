@@ -2,6 +2,31 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**22 October 2026, scaled-display sweep on Ubuntu at 200% and the key bar's
+modifier layers (UXBUG-018):** A scripted sweep drove Git-built FileCat on the
+Ubuntu VM at 200% with physical uinput keys (the helper now also sends F8,
+Ctrl+Q, Alt+F7, Shift+F10, F1, F9, F10 and typed lowercase words) and captured
+each window. The main window, Create folder, Copy with a long name, the Delete
+confirmation, command search, the panel resize strip, the viewer, Quick View,
+the Operations drawer, About and Settings lay out without clipping or cropped
+icons; the viewer's toolbar wraps to a second row at its 980-unit width. Popup
+menus (F10, Shift+F10) and the Find window were not captured by this route.
+The key bar was wrong, though: X11 sends a key with the modifiers held before
+it, so on Ubuntu holding Ctrl showed the normal keys and releasing it left the
+Ctrl layer (Name, Ext, Time…) up, also after Ctrl+Shift+P opened command
+search. A modifier key's press now adds its own flag and its release removes
+it (`e7836d62`); a new `KeyBarTests` case replays Ctrl and Shift with both
+kinds of reported state and failed before the change. With a physical Ctrl
+hold, Git-built `e7836d62` showed the Ctrl layer only while Ctrl was held on
+Ubuntu (`FileCat.dll`
+`2e757bb54ab50efbd0a095b1bb3be7d63271a87813640c27ca6427754abdf320`), and the
+Win11 VM behaved the same before and after the change (`80598aeb`,
+`3EBE38A7ADA10E0D873345DA7D9E8A6BEF5843950931C9C0896FE3F34D559217`), as
+Windows reports the state after each key. Still open: after Shift+F10 opened
+the context menu, and after Alt+F7, the Shift or Alt layer stayed up once the
+popup closed, because the modifier's release reached the popup or the new
+window instead of the main window; it lasts until the next modifier key.
+
 **22 October 2026, native icons cropped at display scaling above 100%
 (UXBUG-017; FCUX-058 Places and the scaled-display gates):** The owner saw
 only part of each panel header icon on the Ubuntu VM at 200%. Native icons are
