@@ -38,6 +38,9 @@ internal sealed class BulkRenameReview : StackPanel
     private readonly TextBox _details;
     private readonly Button _problems;
     private readonly Button _nextProblem;
+    private readonly Button _previousMapping;
+    private readonly Button _nextMapping;
+    private readonly TextBlock _position;
     private IReadOnlyList<Row> _all = [];
 
     internal BulkRenameReview()
@@ -59,17 +62,31 @@ internal sealed class BulkRenameReview : StackPanel
         _list.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         _list.ItemTemplate = new FuncDataTemplate<Row>((row, _) => row is null ? new TextBlock() : Render(row));
         AutomationProperties.SetName(_list, "Preview of new names");
-        AutomationProperties.SetHelpText(_list, "Every selected item is available here. Filter to problems or changed names, search paths, and inspect the full paths below.");
+        AutomationProperties.SetHelpText(_list, "Every selected item is available here. Filter to problems or changed names, search paths, or use Previous and Next mapping to inspect every full path below.");
+        _previousMapping = new Button { Content = "Previous mapping", IsEnabled = false };
+        _nextMapping = new Button { Content = "Next mapping", IsEnabled = false };
+        _position = new TextBlock { Text = "No mappings shown", VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(_previousMapping, "Previous rename mapping");
+        AutomationProperties.SetName(_nextMapping, "Next rename mapping");
+        AutomationProperties.SetName(_position, "No rename mappings match the current preview filter.");
+        AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
+        var navigation = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = double.NaN };
+        navigation.Children.Add(_previousMapping);
+        navigation.Children.Add(_nextMapping);
+        navigation.Children.Add(_position);
         _details = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 75 };
         AutomationProperties.SetName(_details, "Full old and new paths of selected rename");
         Children.Add(tools);
         Children.Add(_list);
+        Children.Add(navigation);
         Children.Add(_details);
         _filter.SelectionChanged += (_, _) => UpdateView();
         _search.TextChanged += (_, _) => UpdateView();
-        _list.SelectionChanged += (_, _) => _details.Text = (_list.SelectedItem as Row)?.Detail ?? string.Empty;
+        _list.SelectionChanged += (_, _) => UpdateSelectionPresentation();
         _problems.Click += (_, _) => ShowProblems();
         _nextProblem.Click += (_, _) => NextProblem();
+        _previousMapping.Click += (_, _) => StepMapping(-1);
+        _nextMapping.Click += (_, _) => StepMapping(1);
     }
 
     internal IReadOnlyList<Row> AllRows => _all;
@@ -117,6 +134,35 @@ internal sealed class BulkRenameReview : StackPanel
         _list.Focus();
     }
 
+    private void StepMapping(int direction)
+    {
+        int current = SelectedShownIndex();
+        int next = current + direction;
+        if (next < 0 || next >= ShownRows.Count) return;
+        _list.SelectedItem = ShownRows[next];
+        _list.ScrollIntoView(ShownRows[next]);
+    }
+
+    private int SelectedShownIndex()
+    {
+        for (int i = 0; i < ShownRows.Count; i++)
+            if (ReferenceEquals(ShownRows[i], _list.SelectedItem)) return i;
+        return -1;
+    }
+
+    private void UpdateSelectionPresentation()
+    {
+        int index = SelectedShownIndex();
+        var selected = index >= 0 ? ShownRows[index] : null;
+        _details.Text = selected?.Detail ?? string.Empty;
+        _position.Text = selected is null ? "No mappings shown" : $"{index + 1:N0} of {ShownRows.Count:N0} shown";
+        AutomationProperties.SetName(_position, selected is null
+            ? "No rename mappings match the current preview filter."
+            : $"Rename mapping {index + 1:N0} of {ShownRows.Count:N0} shown. {selected.Detail}");
+        _previousMapping.IsEnabled = index > 0;
+        _nextMapping.IsEnabled = index >= 0 && index < ShownRows.Count - 1;
+    }
+
     private void UpdateView(int selected = -1)
     {
         string query = (_search.Text ?? string.Empty).Trim();
@@ -132,7 +178,7 @@ internal sealed class BulkRenameReview : StackPanel
                 row.Plan.Problem?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)).ToArray();
         _list.ItemsSource = ShownRows;
         _list.SelectedItem = ShownRows.FirstOrDefault(row => row.Index == selected) ?? ShownRows.FirstOrDefault();
-        _details.Text = (_list.SelectedItem as Row)?.Detail ?? string.Empty;
+        UpdateSelectionPresentation();
     }
 
     private static Control Render(Row row)
