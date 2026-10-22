@@ -1022,6 +1022,9 @@ the mark, unmarks `b.txt` with held Shift+Down, activates Finder while Shift
 remains down, releases Shift there, and returns to FileCat. The next
 Shift+Down must mark only `c.txt` (8 bytes) and focus `d.txt`. Direct AX
 checks the marks and focus; all hashes and the empty target stay exact.
+The same run then holds Shift across a click into FileCat's command line,
+releases it there, returns to the list with Escape, and requires a new
+Shift+Up to mark only `d.txt` (6 bytes) with `c.txt` focused.
 `--narrow` measures a 760 × 600 window. The runner releases Shift on
 failure and closes only its exact FileCat process.
 

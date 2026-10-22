@@ -65,7 +65,8 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     let name = title.isEmpty ?
         (description.isEmpty ? label(attribute(element, kAXValueAttribute as CFString)) : description) : title
     if name.hasPrefix("Sort files:") || name.hasPrefix("Sort by ") ||
-       name.hasPrefix("Marked ") || name.hasPrefix("0 folders") || name == "Filter" ||
+       name.hasPrefix("Marked ") || name.hasPrefix("0 folders") ||
+       name == "Filter" || name == "Command line" ||
        name.contains(", Unlocked tab, ") ||
        ["a.txt", "b.txt", "c.txt", "d.txt", "second", "e.txt", "f.txt"].contains(name) {
         if let bounds = frame(element) {

@@ -143,6 +143,43 @@ end tell''')
             return None
 
         final = wait_for(fresh_range, "a fresh c.txt mark after window deactivation")
+
+        osa('''tell application "System Events"
+    key code 126
+end tell''')
+        wait_for(lambda: True if selected_state(nodes(helper, executable, pid))[:2] ==
+                 ({"c.txt"}, ["c.txt"]) else None, "ordinary Up preserving c.txt")
+        click("kd:shift", "kp:arrow-down")
+        shift_held = True
+        wait_for(lambda: True if selected_state(nodes(helper, executable, pid))[:2] ==
+                 (set(), ["d.txt"]) else None, "held Shift+Down unmarking c.txt")
+        fields = [item for item in nodes(helper, executable, pid)
+                  if item["role"] == "AXTextField" and item["name"] == "Command line"]
+        if len(fields) != 1 or fields[0]["bounds"][2] < 40:
+            raise AssertionError("The command line has no usable native AX bounds")
+        cb = fields[0]["bounds"]
+        click(f"c:{round(cb[0] + min(80, cb[2] / 2))},{round(cb[1] + cb[3] / 2)}")
+        wait_for(lambda: True if any(item["name"] == "Command line" and item["focused"]
+                 for item in nodes(helper, executable, pid)) else None,
+                 "command-line focus while Shift is held")
+        click("ku:shift")
+        shift_held = False
+        osa('''tell application "System Events"
+    key code 53
+end tell''')
+        wait_for(lambda: True if selected_state(nodes(helper, executable, pid))[:2] ==
+                 (set(), ["d.txt"]) else None, "list focus restored by Escape")
+        click("kd:shift", "kp:arrow-up", "ku:shift")
+
+        def fresh_command_line_range():
+            selected, focused, summary = selected_state(nodes(helper, executable, pid))
+            if (selected == {"d.txt"} and focused == ["c.txt"] and
+                    summary == ["Marked 1 of 4 files · 6 bytes"]):
+                return selected, focused, summary
+            return None
+
+        command_line_final = wait_for(fresh_command_line_range,
+                                      "a fresh d.txt mark after command-line focus")
         if {name: hashlib.sha256((source / name).read_bytes()).hexdigest()
                 for name in expected} != hashes or list(target.iterdir()):
             raise AssertionError("The focus gesture changed fixture bytes")
@@ -151,6 +188,10 @@ end tell''')
                 "sourceSha256": hashes, "deactivatedTo": "Finder",
                 "shiftReleasedOutsideFileCat": True,
                 "selected": sorted(final[0]), "focused": final[1], "status": final[2][0],
+                "afterCommandLine": {"selected": sorted(command_line_final[0]),
+                                     "focused": command_line_final[1],
+                                     "status": command_line_final[2][0],
+                                     "shiftReleasedInCommandLine": True},
                 "sourceBytesUnchanged": True, "targetEmpty": True}
     finally:
         if shift_held:

@@ -45,8 +45,12 @@ A third native Mac runner passed held-Shift window deactivation at normal and
 losing the mark, held Shift while a second Down unmarked `b.txt`, switched to
 Finder with Shift still down, released Shift there, and returned to FileCat.
 A fresh Shift+Down then marked only `c.txt` (8 bytes) and focused `d.txt`.
-The source hashes and empty target remained exact. Scaled-display and other
-Mac focus routes remain open. The complete Windows Release
+The same runner then moved focus back to `c.txt`, held Shift while unmarking
+it, clicked the command line with Shift still down, released Shift there and
+used Escape to restore list focus. A fresh Shift+Up marked only `d.txt`
+(6 bytes) and focused `c.txt`. Both routes passed at normal and 760 × 600
+widths with exact source hashes and an empty target. Scaled-display and
+other non-Windows focus routes remain open. The complete Windows Release
 App suite on the same product code passed 2,419 tests with 63 platform skips
 and no failures; Core passed 4,437 with 151 skips and no failures, using up
 to 16 workers.
