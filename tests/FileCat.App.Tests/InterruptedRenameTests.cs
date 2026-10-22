@@ -259,8 +259,16 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
     {
         using var f = await Fixture.Create(); var other = Path.Join(Path.GetDirectoryName(f.Via)!, "other.tmp");
         var intent = new PendingIntent(2, JobJournal.RenameViaOp, other + "-original", other + "-target", null) { Via = other };
-        var run = f.Vm.CleanupInterruptedAsync(f.Interrupted with { OpenIntents = [.. f.Interrupted.OpenIntents, intent] }); await Wait(() => f.HasDialog);
-        var reviewText = string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(ReviewText));
+        var run = f.Vm.CleanupInterruptedAsync(f.Interrupted with { OpenIntents = [.. f.Interrupted.OpenIntents, intent] });
+        string reviewText = string.Empty;
+        var rendered = Stopwatch.StartNew();
+        do
+        {
+            f.Window.UpdateLayout();
+            reviewText = string.Join("\n", f.Window.GetVisualDescendants().OfType<TextBlock>().Select(ReviewText));
+            if (f.HasDialog && reviewText.Contains("Recorded rename paths needing manual review: 1", StringComparison.Ordinal)) break;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        } while (rendered.Elapsed < TimeSpan.FromSeconds(10));
         Assert.Contains("Recorded rename paths needing manual review: 1", reviewText);
         Assert.Contains("An item may be absent or inaccessible", reviewText);
         Assert.Contains(other, reviewText);

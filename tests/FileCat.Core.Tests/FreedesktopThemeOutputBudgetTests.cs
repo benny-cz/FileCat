@@ -1,9 +1,43 @@
 using FileCat.Core.Platform;
+using System.Diagnostics;
 
 namespace FileCat.Core.Tests;
 
 public sealed class FreedesktopThemeOutputBudgetTests
 {
+    [Fact]
+    public void An_exited_helper_cannot_wait_indefinitely_for_a_descendant_holding_stdout()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("The freedesktop theme helper is a Unix desktop command.");
+        string root = Directory.CreateTempSubdirectory("filecat-owned-theme-open-pipe-").FullName;
+        string helper = Path.Combine(root, "gsettings");
+        string pidFile = helper + ".pid";
+        try
+        {
+            File.WriteAllText(helper,
+                "#!/bin/sh\n/bin/sleep 5 &\nprintf '%s\\n' \"$!\" > \"$0.pid\"\nprintf \"'Adwaita'\\n\"\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var clock = Stopwatch.StartNew();
+            Assert.Null(FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 2000));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4),
+                $"Theme detection waited {clock.Elapsed} for a descendant-held output pipe.");
+            Assert.True(File.Exists(pidFile), "The owned descendant did not start.");
+        }
+        finally
+        {
+            if (File.Exists(pidFile) && int.TryParse(File.ReadAllText(pidFile), out int pid))
+            {
+                try
+                {
+                    using var child = Process.GetProcessById(pid);
+                    if (!child.HasExited) { child.Kill(); child.WaitForExit(2000); }
+                }
+                catch (ArgumentException) { }
+            }
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void An_exited_theme_helper_cannot_publish_oversized_descendant_output()
     {

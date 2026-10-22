@@ -107,18 +107,25 @@ public sealed class FreedesktopIcons
                 RedirectStandardError = true,
             });
             if (p is null) return null;
+            // Begin draining immediately. Waiting for exit before starting the read can leave a
+            // normally finished helper's short output queued behind a busy test/UI thread pool.
+            using var outputDeadline = new CancellationTokenSource();
+            var output = ReadThemeSettingAsync(p.StandardOutput, outputDeadline.Token);
+            _ = output.ContinueWith(static task => _ = task.Exception,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
             try
             {
                 // Reading to EOF first makes the advertised exit timeout ineffective when the helper stalls.
                 // A noisy helper can instead fill either pipe: the exit wait still ends at the deadline.
                 if (!p.WaitForExit(timeoutMilliseconds) || p.ExitCode != 0) return null;
-                // An exited helper may have left stdout open in another process. Bound that read separately.
-                using var outputDeadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
-                var output = ReadThemeSettingAsync(p.StandardOutput, outputDeadline.Token);
+                // An exited helper may have left stdout open in another process. Give an already
+                // running read a bounded finish window even on a heavily loaded desktop.
+                outputDeadline.CancelAfter(TimeSpan.FromSeconds(1));
                 return output.GetAwaiter().GetResult().Trim().Trim('\'', '"');
             }
             finally
             {
+                outputDeadline.Cancel();
                 if (!p.HasExited)
                 {
                     try { p.Kill(entireProcessTree: true); p.WaitForExit(500); }

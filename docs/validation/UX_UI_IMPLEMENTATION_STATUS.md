@@ -2,6 +2,31 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**22 October 2026, CI recovery-test synchronization:** The Windows CI run on
+`cf791da9` exposed a file-sharing race in the isolated dependent-Undo crash
+harness: it created `inverse-held.json` before closing the writer, while the
+parent read the first visible file. The harness now writes a same-directory
+temporary marker and atomically renames it after closing, so a visible marker
+is complete and readable before the parent interrupts the exact child. The
+focused Windows Core cases passed 2/2. Windows and ARM64 runs on earlier heads
+also caught the interrupted-rename UI test sampling an overlay before its
+review text had rendered. That test now waits for the exact bounded review
+content, then checks the remaining warning and full temporary path; its focused
+Windows App case passed. The crash marker cases passed 20 repeated runs (40
+cases), and the interrupted-rename review passed 20 repeated runs. The
+product's recovery guards and content were not changed by these test
+synchronization corrections. Final-head CI remains open.
+
+**22 October 2026, desktop icon-theme helper deadline:** Mac and Ubuntu CI
+occasionally lost the exact `Adwaita` setting from a successful `gsettings`
+helper under load. The helper now starts draining its bounded stdout as soon
+as it starts, then allows one bounded second after exit for a pending read to
+finish. A new regression holds stdout open in an owned descendant after the
+parent exits and verifies the query still returns within its deadline.
+Focused tests passed on macOS ARM64 (7 passed, 1 platform skip) and Ubuntu
+(8 passed, 0 skipped); the prior exact-setting Mac case also passed 20
+repeated runs. Final-head CI remains open.
+
 **22 October 2026, stale bulk-rename editor scope:** A headless UI regression
 opens the real Bulk rename review with one visible and one hidden mark,
 launches an editor round trip through an injected private file writer, changes

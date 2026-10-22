@@ -47,7 +47,12 @@ file sealed class HoldFirstInverseMove(string marker) : PortableFileOperations
     {
         base.Move(source, destination, replaceExisting, writeThrough);
         if (!Hold || Interlocked.Exchange(ref _held, 1) != 0) return;
-        File.WriteAllText(marker, JsonSerializer.Serialize(new { source, destination }));
+        // Publish only after the writer closes the file. The parent kills this
+        // process as soon as the marker appears, including on Windows where an
+        // in-progress WriteAllText denies concurrent reads.
+        string pendingMarker = marker + ".writing";
+        File.WriteAllText(pendingMarker, JsonSerializer.Serialize(new { source, destination }));
+        File.Move(pendingMarker, marker);
         Thread.Sleep(TimeSpan.FromMinutes(2));
     }
 }
