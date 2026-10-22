@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""Hear FileCat through Orca while physical keys move file-list focus and open a dialog.
+
+Usage: linux-orca-speech.py APP_PATH REPORT.json KEY_HELPER [--record-all]
+--record-all continues after an unmet expectation so a complete transcript is kept (the report still fails).
+Run in the logged-in GNOME session against an isolated Git-built FileCat below ~/FileCatValidation, with no other
+Orca instance running. The caller passes the one-time guest sudo password for the physical-key helper through
+FILECAT_NATIVE_SUDO_PASSWORD; it is removed before Orca or FileCat starts. The runner starts its own Orca with a
+test-owned debug log and judges only what Orca actually sent to speech ("SPEECH OUTPUT"). It never inspects
+FileCat's accessibility tree: enumerating it would create the very nodes whose focus announcements are tested.
+"""
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import time
+from uuid import uuid4
+
+
+SPEECH = re.compile(r" - SPEECH OUTPUT: '(.*)'(?: \{.*\})?$")
+# Orca block-buffers its debug file. This starts the unmodified installed Orca with only that file line-buffered,
+# so each phrase can be read as soon as Orca sends it to speech.
+ORCA_WRAPPER = r'''
+import builtins, runpy, sys
+path = sys.argv[1]
+real_open = builtins.open
+def open_debug_line_buffered(file, mode="r", *args, **kwargs):
+    if file == path and "w" in mode:
+        kwargs["buffering"] = 1
+    return real_open(file, mode, *args, **kwargs)
+builtins.open = open_debug_line_buffered
+sys.argv = ["/usr/bin/orca", "--replace", "--debug-file", path]
+runpy.run_path("/usr/bin/orca", run_name="__main__")
+'''
+
+
+def sha256(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def windows_of(pid):
+    listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True, capture_output=True, text=True, timeout=5)
+    return [line.split()[0] for line in listing.stdout.splitlines()
+            if len(line.split()) > 2 and line.split()[2] == str(pid)]
+
+
+class SpeechLog:
+    def __init__(self, path):
+        self.path = path
+        self.offset = 0
+        self.partial = b""
+
+    def take(self):
+        """Phrases from lines Orca finished writing since the previous call."""
+        if not self.path.is_file():
+            return []
+        with self.path.open("rb") as log:
+            log.seek(self.offset)
+            data = self.partial + log.read()
+            self.offset = log.tell()
+        complete, _, self.partial = data.rpartition(b"\n")
+        return [match.group(1) for line in complete.decode("utf-8", errors="replace").splitlines()
+                if (match := SPEECH.search(line))]
+
+
+def main():
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--record-all":
+        raise SystemExit(__doc__)
+    record_all = len(sys.argv) == 5
+    validation = (Path.home() / "FileCatValidation").resolve(strict=True)
+    app_path, key_helper = (Path(value).resolve(strict=True) for value in (sys.argv[1], sys.argv[3]))
+    report_path = Path(sys.argv[2]).resolve()
+    if (app_path.name != "FileCat" or validation not in app_path.parents or report_path.parent != validation or
+            key_helper.name != "linux-uinput-key.py" or validation not in key_helper.parents):
+        raise SystemExit("Use the isolated FileCat build, the owned key helper and a report under ~/FileCatValidation")
+    sudo_password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
+    if not sudo_password:
+        raise SystemExit("A transient guest sudo credential is required for physical test input")
+    if subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", "orca"], capture_output=True).returncode == 0:
+        raise SystemExit("Another Orca instance is running; stop it so this test owns the only speech log")
+
+    fixture = validation / "OrcaSpeechFixture" / uuid4().hex
+    source, target, data = (fixture / part for part in ("source", "target", "data"))
+    for folder in (source, target, data):
+        folder.mkdir(parents=True)
+    expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n", "c.txt": b"charlie\n"}
+    for name, content in expected.items():
+        (source / name).write_bytes(content)
+    source_sha = {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()}
+    os.environ.setdefault("DISPLAY", ":0")
+    os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
+    orca_version = subprocess.run(["/usr/bin/orca", "--version"], capture_output=True, text=True, timeout=10).stdout.strip()
+    # The FileCat launcher is identical across builds; FileCat.dll identifies the tested code.
+    report = {"passed": False, "appSha256": sha256(app_path), "appDllSha256": sha256(app_path.with_name("FileCat.dll")),
+              "orca": orca_version, "fixture": str(fixture),
+              "input": "uinput keyboard", "sourceSha256": source_sha, "steps": []}
+    speech = SpeechLog(fixture / "orca-debug.log")
+    orca = process = None
+    try:
+        orca = subprocess.Popen(["/usr/bin/python3", "-c", ORCA_WRAPPER, str(speech.path)],
+                                stdout=subprocess.DEVNULL, stderr=(fixture / "orca.err").open("wb"))
+        deadline = time.monotonic() + 20
+        while not any("Screen reader on" in phrase for phrase in speech.take()):
+            if time.monotonic() > deadline or orca.poll() is not None:
+                raise AssertionError("Orca did not report that the screen reader started")
+            time.sleep(0.2)
+        with (fixture / "app.log").open("wb") as log:
+            process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
+                                        "--left", str(source), "--right", str(target)],
+                                       cwd=fixture, env=os.environ.copy(), stdout=log, stderr=subprocess.STDOUT)
+        deadline = time.monotonic() + 40
+        while len(windows_of(process.pid)) != 1:
+            if time.monotonic() > deadline or process.poll() is not None:
+                raise AssertionError("The isolated FileCat window did not appear")
+            time.sleep(0.25)
+        time.sleep(2.0)
+
+        def activate():
+            window = windows_of(process.pid)
+            if len(window) != 1:
+                raise AssertionError(f"Expected one isolated FileCat window, found {window}")
+            subprocess.run(["/usr/bin/wmctrl", "-ia", window[0]], check=True, timeout=5)
+            time.sleep(0.3)
+            active = subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowpid"],
+                                    check=True, capture_output=True, text=True, timeout=5).stdout.strip()
+            if active != str(process.pid):
+                raise AssertionError(f"The isolated FileCat window is not active (PID {active})")
+
+        def step(label, action, expect, seconds=6.0, flush=True):
+            if flush:
+                speech.take()
+            action()
+            heard, deadline = [], time.monotonic() + seconds
+            while time.monotonic() < deadline:
+                heard += speech.take()
+                if any(expect(phrase) for phrase in heard):
+                    time.sleep(0.6)
+                    heard += speech.take()
+                    break
+                time.sleep(0.15)
+            passed = any(expect(phrase) for phrase in heard)
+            report["steps"].append({"step": label, "heard": heard, "passed": passed})
+            if not passed and not record_all:
+                raise AssertionError(f"{label}: Orca said {heard!r}")
+
+        def key(chord):
+            def send():
+                activate()
+                sent = subprocess.run(["sudo", "-S", sys.executable, str(key_helper), chord],
+                                      input=sudo_password + "\n", capture_output=True, text=True, timeout=15)
+                if sent.returncode:
+                    raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
+            return send
+
+        def says(text):
+            return lambda phrase: text.casefold() in phrase.casefold()
+
+        # Includes everything Orca said since the window opened and became active.
+        step("activate the new window", activate, says("Go to parent location"), flush=False)
+        step("down to a.txt", key("down"), says("a.txt"))
+        step("down to b.txt", key("down"), says("b.txt"))
+        step("down to c.txt", key("down"), says("c.txt"))
+        step("up to b.txt", key("up"), says("b.txt"))
+        step("home to parent", key("home"), says("Go to parent location"))
+        step("end to c.txt", key("end"), says("c.txt"))
+        step("tab to the target panel", key("tab"), says("Go to parent location"))
+        step("tab back to the source panel", key("tab"), says("c.txt"))
+        step("F7 opens Create folder", key("f7"), lambda phrase: "folder" in phrase.casefold())
+        step("Escape returns to the list", key("escape"), says("c.txt"))
+        # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
+        switch = subprocess.Popen([sys.executable, "-c",
+                                   "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; "
+                                   "w = Gtk.Window(title='FileCat speech switch target'); w.connect('destroy', Gtk.main_quit); "
+                                   "w.show_all(); Gtk.main()"])
+        try:
+            deadline = time.monotonic() + 20
+            while len(windows_of(switch.pid)) != 1:
+                if time.monotonic() > deadline:
+                    raise AssertionError("The test-owned switch window did not appear")
+                time.sleep(0.2)
+            subprocess.run(["/usr/bin/wmctrl", "-ia", windows_of(switch.pid)[0]], check=True, timeout=5)
+            time.sleep(2.0)
+            step("switch away and back", activate, says("c.txt"))
+            report["steps"][-1]["repeats"] = sum("c.txt" in phrase for phrase in report["steps"][-1]["heard"])
+        finally:
+            switch.terminate()
+            switch.wait(10)
+
+        if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
+            raise AssertionError("The speech journey changed the owned fixture folders")
+        if any(sha256(source / name) != digest for name, digest in source_sha.items()):
+            raise AssertionError("A source file changed during the speech journey")
+        report["passed"] = all(entry["passed"] for entry in report["steps"])
+        if not report["passed"]:
+            raise AssertionError("Orca did not announce every expected focus change")
+    except Exception as exc:
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        for owned in (process, orca):
+            if owned is not None and owned.poll() is None:
+                owned.terminate()
+                try:
+                    owned.wait(10)
+                except subprocess.TimeoutExpired:
+                    owned.kill()
+        report["speechLog"] = str(speech.path)
+        report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if report["passed"]:
+        shutil.rmtree(data, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

@@ -249,8 +249,10 @@ public sealed class FileListAutomationTests
         Dispatcher.UIThread.RunJobs();
         var events = new List<AutomationPropertyChangedEventArgs>();
         var rowEvents = new List<AutomationPropertyChangedEventArgs>();
+        int focusMoves = 0;
         peer.PropertyChanged += (_, e) => events.Add(e);
         row.PropertyChanged += (_, e) => rowEvents.Add(e);
+        peer.FocusedDescendantChanged += (_, _) => focusMoves++;
         f.Tab.Listing.SetFocus(1);
         f.Tab.Listing.SetFocus(2);
         f.Tab.Listing.SetFocus(3);
@@ -258,9 +260,11 @@ public sealed class FileListAutomationTests
         for (int i = 0; i < 200; i++) peer.QueueUpdate(ListingChange.State);
         Dispatcher.UIThread.RunJobs();
         Assert.DoesNotContain(events, e => e.Property == AutomationElementIdentifiers.NameProperty);
-        var focus = Assert.Single(events, e => e.Property == ValuePatternIdentifiers.ValueProperty);
-        Assert.Contains("a, file", (string)focus.OldValue!);
-        Assert.Contains("d, file", (string)focus.NewValue!);
+        // The focused row is the native focus; one coalesced move is reported and the list does not repeat it.
+        Assert.Equal(1, focusMoves);
+        Assert.Equal("d", peer.FocusedDescendant!.GetName());
+        Assert.DoesNotContain(events, e => e.Property == ValuePatternIdentifiers.ValueProperty);
+        Assert.Contains("d, file", peer.Value);
         var mark = Assert.Single(rowEvents, e => e.Property == SelectionItemPatternIdentifiers.IsSelectedProperty);
         Assert.Equal(false, mark.OldValue);
         Assert.Equal(true, mark.NewValue);

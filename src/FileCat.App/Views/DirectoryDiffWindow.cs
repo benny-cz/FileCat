@@ -18,6 +18,10 @@ namespace FileCat.App.Views;
 /// </summary>
 public sealed class DirectoryDiffWindow : Window
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private static readonly List<DirectoryDiffWindow> s_open = [];
     private static readonly (string Title, Func<TreeDiffEntry, bool> Show)[] Filters =
     [

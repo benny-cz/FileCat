@@ -1739,7 +1739,8 @@ public sealed class FileListControl : Control
         return details;
     }
 
-    internal string DescribeItem(int storeIndex)
+    /// <summary>The item's spoken details. A row's own description omits the name its accessible name already says.</summary>
+    internal string DescribeItem(int storeIndex, bool includeName = true)
     {
         if (AutomationListing is not { } listing || (uint)storeIndex >= (uint)listing.Store.Count) return "Item no longer available";
         var e = listing.Store[storeIndex];
@@ -1747,7 +1748,8 @@ public sealed class FileListControl : Control
         var kind = ItemKind(e);
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e);
-        var marked = listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
+        // Parent navigation can never be marked, so its mark state is not described.
+        var marked = e.Kind == EntryKind.Parent ? string.Empty : listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
         var git = _gitStatuses?.ForName(e.Name) switch
         {
             GitStatusKind.Clean => ", Git clean",
@@ -1764,6 +1766,7 @@ public sealed class FileListControl : Control
             tab.Services.Metadata.Peek("verified", Path.Join(tab.Location.Path, e.Name), e).Value is Core.Verification.VerificationResult verification && verification.Text.Length > 0)
             details += ", verification: " + Formatters.SafeName(verification.Text);
         string position = row < 0 ? "hidden by filtering or Show hidden items" : $"{row + 1} of {listing.VisibleCount}";
-        return $"{ItemName(e)}, {kind}{details}{marked}{git}, {position}";
+        string description = $"{kind}{details}{marked}{git}, {position}";
+        return includeName ? $"{ItemName(e)}, {description}" : description;
     }
 }

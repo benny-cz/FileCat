@@ -30,6 +30,10 @@ public sealed record SyncContext(
 /// </summary>
 public sealed class SyncWindow : Window
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private TreeCompareResult _comparison;
     private SyncContext _context;
     private bool _closed;

@@ -32,6 +32,10 @@ public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, i
 /// </summary>
 public sealed class CompareWindow : Window
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private static readonly IBrush UnalignedBrush = new SolidColorBrush(Color.FromArgb(0x30, 0x90, 0x90, 0xA0));
     /// <summary>At most this many differences are listed to choose from; the arrows go through all of them.</summary>
     public const int MaxListed = 20_000;

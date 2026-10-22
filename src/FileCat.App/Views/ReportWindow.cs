@@ -21,6 +21,10 @@ namespace FileCat.App.Views;
 /// </summary>
 public sealed class ReportWindow : Window
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private Func<CancellationToken, Task<string>>? _produce;
     private readonly string _subject;
     private readonly string _kind;

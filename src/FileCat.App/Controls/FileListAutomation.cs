@@ -14,7 +14,7 @@ namespace FileCat.App.Controls;
 /// Avalonia's native selection bridge requires a complete array; large selections use the explicit paged review
 /// instead of truncating the selected set or creating an unbounded number of native peer objects.
 /// </summary>
-internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelectionProvider, IScrollProvider, IValueProvider
+internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelectionProvider, IScrollProvider, IValueProvider, IFocusedDescendantPeer
 {
     internal const int DirectSelectionLimit = 512;
     internal const int VisiblePeerLimit = 256;
@@ -30,6 +30,9 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     private double _scrollPercent, _viewSize, _horizontalScrollPercent, _horizontalViewSize;
     private bool _horizontallyScrollable;
     private IReadOnlyList<AutomationPeer>? _selection;
+    private AutomationPeer? _focusedDescendant;
+    private int _exposedRevision = -1, _exposedExtra = -1;
+    private int[] _exposedRows = [];
 
     internal FileListAutomationPeer(FileListControl list) : base(list)
     {
@@ -59,17 +62,44 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
     {
         EnsureStore();
         var children = new List<AutomationPeer>();
-        if (_list.AutomationListing is { } listing)
-        {
-            int end = Math.Min(listing.VisibleCount, _list.TopRow + Math.Min(VisiblePeerLimit, _list.VisibleRowCapacity + 1));
-            for (int row = _list.TopRow; row < end; row++) children.Add(Item(listing.GetStoreIndex(row)));
-            if (listing.FocusedIndex >= 0 && (listing.FocusedIndex < _list.TopRow || listing.FocusedIndex >= end))
-                children.Add(Item(listing.FocusedStoreIndex));
-        }
+        var (revision, rows, extra) = ExposedChildren();
+        foreach (int row in rows) children.Add(Item(row));
+        if (extra >= 0) children.Add(Item(extra));
+        (_exposedRevision, _exposedRows, _exposedExtra) = (revision, rows, extra);
         if (base.GetChildrenCore() is { } controls)
             children.AddRange(controls.Where(control => !_list.IsAutomationOwnerHost(control)));
         return children;
     }
+
+    /// <summary>The store items exposed as children: the visible window plus an offscreen focused row.</summary>
+    private (int Revision, int[] Rows, int Extra) ExposedChildren()
+    {
+        if (_list.AutomationListing is not { } listing) return (_storeRevision, [], -1);
+        int top = _list.TopRow;
+        int end = Math.Min(listing.VisibleCount, top + Math.Min(VisiblePeerLimit, _list.VisibleRowCapacity + 1));
+        var rows = new int[Math.Max(0, end - top)];
+        for (int row = top; row < end; row++) rows[row - top] = listing.GetStoreIndex(row);
+        int focused = listing.FocusedIndex;
+        return (_storeRevision, rows, focused >= 0 && (focused < top || focused >= end) ? listing.FocusedStoreIndex : -1);
+    }
+
+    private bool ExposedChildrenChanged()
+    {
+        var (revision, rows, extra) = ExposedChildren();
+        return revision != _exposedRevision || extra != _exposedExtra || !rows.AsSpan().SequenceEqual(_exposedRows);
+    }
+
+    /// <summary>The focused row while the list itself has keyboard focus, so assistive focus follows the row.</summary>
+    public AutomationPeer? FocusedDescendant
+    {
+        get
+        {
+            EnsureStore();
+            return _list.IsFocused && _list.AutomationListing is { FocusedIndex: >= 0 } listing ? Item(listing.FocusedStoreIndex) : null;
+        }
+    }
+
+    public event EventHandler? FocusedDescendantChanged;
 
     private void EnsureStore()
     {
@@ -106,6 +136,12 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
             retired.Retire();
             _list.RemoveAutomationOwner(retired.Owner);
             _items.Remove(evict);
+            if (evict == _exposedExtra || Array.IndexOf(_exposedRows, evict) >= 0)
+            {
+                // The published children include the retired peer; republish them with its replacement.
+                _exposedRevision = -1;
+                QueueUpdate(ListingChange.None);
+            }
         }
         var owner = _list.AddAutomationOwner();
         try
@@ -216,7 +252,12 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         string name = _list.DescribeListName(), help = _list.DescribeListHelp(), value = _list.DescribeFocus(), status = _list.DescribeListingState();
         if (_name != name) { RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, _name, name); _name = name; }
         if (_help != help) { RaisePropertyChangedEvent(AutomationElementIdentifiers.HelpTextProperty, _help, help); _help = help; }
-        if (_value != value) { RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, _value, value); _value = value; }
+        if (_value != value)
+        {
+            // While a row carries native focus, its focus announcement already presents this text.
+            if (FocusedDescendant is null) RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, _value, value);
+            _value = value;
+        }
         if (_status != status) { RaisePropertyChangedEvent(AutomationElementIdentifiers.ItemStatusProperty, _status, status); _status = status; }
         double scroll = VerticalScrollPercent, size = VerticalViewSize;
         if (_scrollPercent != scroll) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.VerticalScrollPercentProperty, _scrollPercent, scroll); _scrollPercent = scroll; }
@@ -228,7 +269,15 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         if (_horizontalViewSize != horizontalSize) { RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontalViewSizeProperty, _horizontalViewSize, horizontalSize); _horizontalViewSize = horizontalSize; }
         // A native event listener may synchronously inspect/create another peer while it handles a change.
         foreach (var item in _items.Values.ToArray()) item.UpdateState();
-        if ((changes & (ListingChange.Rows | ListingChange.Reset | ListingChange.Focus)) != 0) InvalidateChildren();
+        // Moving focus inside the visible rows keeps the same children. Rebuilding them anyway made native
+        // bridges re-register every row while a screen reader was presenting the newly focused one.
+        if ((changes & ListingChange.Reset) != 0 || ExposedChildrenChanged()) InvalidateChildren();
+        var focused = FocusedDescendant;
+        if (!ReferenceEquals(focused, _focusedDescendant))
+        {
+            _focusedDescendant = focused;
+            FocusedDescendantChanged?.Invoke(this, EventArgs.Empty);
+        }
         if ((changes & (ListingChange.Marks | ListingChange.Reset)) != 0 || !ReferenceEquals(_selectionStore, _store))
         {
             var selection = SnapshotSelection();
@@ -313,13 +362,18 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
         EnsureEnabled();
     }
 
-    public void AddToSelection() { CheckCurrent(); _listing.SetStoreMark(_index, true); }
-    public void RemoveFromSelection() { CheckCurrent(); _listing.SetStoreMark(_index, false); }
+    public void AddToSelection() { CheckSelectable(); _listing.SetStoreMark(_index, true); }
+    public void RemoveFromSelection() { CheckSelectable(); _listing.SetStoreMark(_index, false); }
     public void Select()
+    {
+        CheckSelectable();
+        _listing.SelectStoreMark(_index);
+    }
+
+    private void CheckSelectable()
     {
         CheckCurrent();
         if (_store[_index].Kind == EntryKind.Parent) throw new InvalidOperationException("Parent navigation is not a selectable item.");
-        _listing.SelectStoreMark(_index);
     }
 
     public void Invoke() { CheckCurrent(); _list.FocusAutomationItem(Row, invoke: true); }
@@ -336,9 +390,12 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
     protected override string GetNameCore() => _name;
     protected override string GetItemTypeCore() => _kind;
     protected override string GetItemStatusCore() => Status;
+    // AT-SPI lists only selection items as the children of a selection container, so on Linux the parent row
+    // keeps the provider (never selected, and marking it is refused) to remain reachable and announceable.
     protected override object? GetProviderCore(Type providerType) =>
-        providerType == typeof(ISelectionItemProvider) && _kind == "parent navigation" ? null : base.GetProviderCore(providerType);
-    protected override string GetHelpTextCore() => Current ? _list.DescribeItem(_index) : "This item belongs to a previous listing and cannot be acted on.";
+        providerType == typeof(ISelectionItemProvider) && _kind == "parent navigation" && !OperatingSystem.IsLinux()
+            ? null : base.GetProviderCore(providerType);
+    protected override string GetHelpTextCore() => Current ? _list.DescribeItem(_index, includeName: false) : "This item belongs to a previous listing and cannot be acted on.";
     protected override AutomationPeer GetParentCore() => _parent;
     protected override bool TrySetParent(AutomationPeer? parent) => ReferenceEquals(parent, _parent);
     protected override AutomationPeer? GetLabeledByCore() => null;

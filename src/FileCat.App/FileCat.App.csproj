@@ -11,6 +11,10 @@
     <!-- WebKitGTK's entry points and callbacks are function pointers (D-51). -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- Screen readers must follow a virtual list's focused row (FCUX-010). Avalonia exposes that root focus
+         contract only as IRootProvider, a private API; PrivateAvaloniaApiTests confines its use to that interface. -->
+    <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
+    <NoWarn>$(NoWarn);AVA3001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />

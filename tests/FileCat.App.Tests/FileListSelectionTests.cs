@@ -224,7 +224,7 @@ internal sealed class FileListFixture : IDisposable
     internal FileListFixture(string[] names, TaskCompletionSource? finish, string[]? lastItems)
         : this(new ListProvider { Items = names, Finish = finish, LastItems = lastItems ?? [] }) { }
 
-    internal FileListFixture(ListProvider provider)
+    internal FileListFixture(ListProvider provider, Window? window = null)
     {
         Services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: _root));
         Provider = provider;
@@ -242,7 +242,10 @@ internal sealed class FileListFixture : IDisposable
         DockPanel.SetDock(Other, Dock.Bottom);
         layout.Children.Add(Other);
         layout.Children.Add(List);
-        Window = new Window { Width = 640, Height = 420, Content = layout };
+        Window = window ?? new Window();
+        Window.Width = 640;
+        Window.Height = 420;
+        Window.Content = layout;
         Window.Show();
     }
 

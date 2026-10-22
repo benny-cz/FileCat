@@ -33,6 +33,7 @@ public partial class App : Application
         AppLog.Info($"FileCat starting on {services.Platform.Name}, profile {services.Paths.ProfileName}{(services.Paths.IsPortable ? " (portable)" : "")}");
         ThemeManager.Apply(services.Settings.Theme);
         ThemeAnimation.SetAllowed(services.Settings.ThemeAnimations);
+        Controls.AtSpiLayoutNames.Install(this);
         if (PlatformSettings is { } ps)
         {
             ps.ColorValuesChanged += (_, _) =>

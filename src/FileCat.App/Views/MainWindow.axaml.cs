@@ -22,6 +22,10 @@ namespace FileCat.App.Views;
 
 public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvider, IPanelResizeActions, IBreadcrumbActions
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
     private readonly OverlayDialogService _dialogs;

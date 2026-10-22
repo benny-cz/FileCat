@@ -4,6 +4,9 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- DescendantFocusAutomationTests drive the IRootProvider contract that native screen-reader bridges use. -->
+    <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
+    <NoWarn>$(NoWarn);AVA3001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

@@ -27,6 +27,10 @@ namespace FileCat.App.Views;
 /// </summary>
 public sealed class ViewerWindow : Window
 {
+    // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
+
     private readonly AppServices _services;
     private readonly string _deviceKey;
     private PagedReader _reader;
