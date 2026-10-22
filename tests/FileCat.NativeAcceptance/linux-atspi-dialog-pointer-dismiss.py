@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the shared dialog's close X and backdrop with native Ubuntu pointer input.
 
-Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy|Delete]
+Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy|Move|Delete]
 Run in the logged-in desktop user's AT-SPI session. XTest requires a working
 X11 pointer bridge; the optional owned uinput helper sends physical taps on
 Wayland. The app and all fixture paths must remain inside ~/FileCatValidation.
@@ -82,10 +82,10 @@ def native_click(x, y, helper, sudo_password):
 
 def main():
     if len(sys.argv) not in (3, 4, 5):
-        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy|Delete]")
+        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy|Move|Delete]")
     dialog_kind = sys.argv[4] if len(sys.argv) == 5 else "Folder"
-    if dialog_kind not in ("Folder", "Copy", "Delete"):
-        raise SystemExit("The isolated dialog kind must be Folder, Copy or Delete")
+    if dialog_kind not in ("Folder", "Copy", "Move", "Delete"):
+        raise SystemExit("The isolated dialog kind must be Folder, Copy, Move or Delete")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
@@ -103,9 +103,9 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     source_file = source / "a.txt"
-    if dialog_kind in ("Copy", "Delete"):
+    if dialog_kind in ("Copy", "Move", "Delete"):
         source_file.write_bytes(b"FileCat native dialog pointer source\n")
-    source_hash = hashlib.sha256(source_file.read_bytes()).hexdigest() if dialog_kind in ("Copy", "Delete") else None
+    source_hash = hashlib.sha256(source_file.read_bytes()).hexdigest() if dialog_kind in ("Copy", "Move", "Delete") else None
     with app_path.open("rb") as binary:
         app_hash = hashlib.file_digest(binary, "sha256").hexdigest()
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
@@ -129,7 +129,7 @@ def main():
                 "the isolated FileCat window")
 
             def open_dialog():
-                if dialog_kind in ("Copy", "Delete"):
+                if dialog_kind in ("Copy", "Move", "Delete"):
                     rows = named(app, "list item", "a.txt")
                     if len(rows) != 1:
                         raise AssertionError(f"The disposable {dialog_kind} source row is missing: {len(rows)}")
@@ -155,7 +155,7 @@ def main():
                     actions = [node.get_n_actions() for node in buttons]
                     enabled = [node.get_state_set().contains(Atspi.StateType.ENABLED) for node in buttons]
                     selected = (rows[0].get_state_set().contains(Atspi.StateType.SELECTED)
-                                if dialog_kind in ("Copy", "Delete") else None)
+                                if dialog_kind in ("Copy", "Move", "Delete") else None)
                     raise AssertionError(f"The isolated {label} action is unavailable; "
                                          f"actions={actions}, enabled={enabled}, rowSelected={selected}, "
                                          f"buttons={names[:40]}")
@@ -163,8 +163,8 @@ def main():
                     raise AssertionError(f"The isolated {label} action did not invoke")
                 close = wait_for(lambda: next(iter(named(app, "button", "Close dialog")), None),
                                  f"the {label} close X")
-                if dialog_kind == "Copy" and not named(app, "entry", "Destination"):
-                    raise AssertionError("The Copy review does not expose its destination")
+                if dialog_kind in ("Copy", "Move") and not named(app, "entry", "Destination"):
+                    raise AssertionError(f"The {dialog_kind} review does not expose its destination")
                 if dialog_kind == "Delete" and not any(
                         "a.txt" in node.get_name() and "Recycle Bin" in node.get_name()
                         for node in descendants(app)):
@@ -197,7 +197,7 @@ def main():
             native_click(*outside, helper, sudo_password)
             wait_for(lambda: not named(app, "button", "Close dialog"), "backdrop cancellation")
             if (dialog_kind == "Folder" and (list(source.iterdir()) or list(target.iterdir()))) or (
-                    dialog_kind in ("Copy", "Delete") and (
+                    dialog_kind in ("Copy", "Move", "Delete") and (
                         hashlib.sha256(source_file.read_bytes()).hexdigest() != source_hash or list(target.iterdir()))):
                 raise AssertionError(f"A canceled {dialog_kind} prompt changed the fixture")
             result.update({"passed": True, "nativeCloseX": True, "nativeBackdropClick": True,

@@ -36,9 +36,9 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-002 still needs scaled-display input and deeper non-Windows focus
-   journeys beyond the verified Mac pointer/keyboard range at normal and
-   narrow widths. FCUX-003
+   FCUX-002 still needs scaled-display input and non-Windows sort, filter, tab
+   and focus-transition journeys beyond the verified Mac and Ubuntu
+   touch/keyboard range at normal and narrow widths. FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken
    review, native external-editor round trips and rule-change races after the
    headless stale-scope result was rejected. For FCUX-004/005, exercise remaining modal
@@ -103,7 +103,7 @@ increments to `main`.
    UXBUG-016 needs native visual checks of the centered vector X at 150%
    and other scaled states, dialog families beyond the verified Windows
    Create folder, Create in Registry, Copy, Move and Delete and Ubuntu Create folder,
-   Copy and Delete routes, and actual screen-reader speech on each desktop. The Ubuntu
+   Copy, Move and Delete routes, and actual screen-reader speech on each desktop. The Ubuntu
    Wayland physical uinput mouse and touch routes passed; the Mac AX label and
    native X/backdrop pointer route passed through direct AXUIElement traversal.
 

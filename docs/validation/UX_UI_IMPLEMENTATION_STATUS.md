@@ -17,6 +17,10 @@ cases), and the interrupted-rename review passed 20 repeated runs. The
 product's recovery guards and content were not changed by these test
 synchronization corrections. Final-head CI remains open.
 
+GitHub Actions run `39738616565` on `3edb6bb6` completed green on the
+producer policy, Windows, Ubuntu, macOS and Windows ARM64 lanes. Later
+acceptance-runner and test commits require their own final-head run.
+
 **22 October 2026, desktop icon-theme helper deadline:** Mac and Ubuntu CI
 occasionally lost the exact `Adwaita` setting from a successful `gsettings`
 helper under load. The helper now starts draining its bounded stdout as soon
@@ -53,6 +57,29 @@ review. The source SHA-256 stayed
 the target stayed empty. The guest report is
 `AppData\Local\FileCatValidation\win-dialog-move-20261022.json`. Scaled,
 spoken and other dialog-family checks remain open.
+
+**22 October 2026, native Ubuntu Move review pointer exit:** The Wayland
+VM built Git head `b5f4fbbe` with zero warnings and errors. The shared AT-SPI
+runner selected the owned source row with its temporary uinput touch device,
+opened the Move review twice, and used physical uinput mouse clicks on its
+30 × 30 Close dialog target and on the backdrop. Both exits preserved source
+SHA-256 `02d96fb583ff0571cde49db8f2ecffd43cedb0abacf6ed296114231d39328647`
+and left the target empty. The accessible cancel description was present.
+The guest receipt is `~/FileCatValidation/ubuntu-dialog-move-20261022.json`.
+Scaled, spoken and other dialog-family checks remain open.
+
+**22 October 2026, native Ubuntu range anchor:** A new isolated AT-SPI runner
+uses physical touch to focus `a.txt` and a transient uinput keyboard for
+Shift+Down, Up and Shift+Down. On the Git-built `b5f4fbbe` app, both normal and
+measured 720 × 540 windows reported the exact sequence: zero marks with
+`a.txt` focused; one 6-byte mark with `b.txt` focused; the mark retained with
+`a.txt` focused; zero marks with `b.txt` focused. The source hashes stayed
+`b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060`
+and `f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad`;
+the target stayed empty. Guest receipts are
+`~/FileCatValidation/ubuntu-selection-keyboard-20261022.json` and its
+`-narrow-` counterpart. Scaled display, sort/filter/tab transitions and
+spoken feedback remain open.
 
 **FCUX-001 remote publication capability review:** The implemented SFTP
 `posix-rename@openssh.com` path can replace an existing file in one server
