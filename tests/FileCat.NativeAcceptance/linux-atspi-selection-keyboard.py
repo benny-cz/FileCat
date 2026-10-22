@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --refresh MOUSE_HELPER | --ctrl MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER | --refresh-narrow MOUSE_HELPER | --ctrl-narrow MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --touch-modifiers | --touch-modifiers-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --refresh MOUSE_HELPER | --ctrl MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER | --refresh-narrow MOUSE_HELPER | --ctrl-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import select
 import shutil
@@ -37,7 +38,8 @@ def main():
     if (len(sys.argv) not in (5, 6, 7) or
             (len(sys.argv) == 6 and sys.argv[5] not in
              ("--narrow", "--deactivate", "--deactivate-narrow",
-              "--command-line", "--command-line-narrow")) or
+              "--command-line", "--command-line-narrow",
+              "--touch-modifiers", "--touch-modifiers-narrow")) or
             (len(sys.argv) == 7 and sys.argv[5] not in
              ("--sort", "--sort-control", "--filter", "--tab", "--refresh", "--ctrl",
               "--sort-narrow", "--sort-control-narrow", "--filter-narrow",
@@ -46,6 +48,7 @@ def main():
     narrow = len(sys.argv) >= 6 and sys.argv[5].endswith("narrow")
     deactivate_case = len(sys.argv) == 6 and sys.argv[5] in ("--deactivate", "--deactivate-narrow")
     command_line_case = len(sys.argv) == 6 and sys.argv[5] in ("--command-line", "--command-line-narrow")
+    touch_modifiers_case = len(sys.argv) == 6 and sys.argv[5] in ("--touch-modifiers", "--touch-modifiers-narrow")
     sort_control = len(sys.argv) == 7 and sys.argv[5] in ("--sort-control", "--sort-control-narrow")
     sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow", "--sort-control", "--sort-control-narrow")
     filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
@@ -75,7 +78,7 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort or filter_case or tab_case or refresh_case or ctrl_case or deactivate_case or command_line_case:
+    if sort or filter_case or tab_case or refresh_case or ctrl_case or deactivate_case or command_line_case or touch_modifiers_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
@@ -93,10 +96,17 @@ def main():
     os.environ.setdefault("DISPLAY", ":0")
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
+    display_scale = None
+    if Path("/usr/bin/gdctl").is_file():
+        shown = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
+                               text=True, timeout=5)
+        if shown.returncode == 0 and (match := re.search(r"\bScale: ([0-9.]+)", shown.stdout)):
+            display_scale = float(match.group(1))
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
-              "narrow": narrow, "sort": sort, "sortControl": sort_control,
+              "narrow": narrow, "displayScale": display_scale,
+              "sort": sort, "sortControl": sort_control,
               "filter": filter_case, "tab": tab_case, "refresh": refresh_case,
-              "ctrl": ctrl_case,
+              "ctrl": ctrl_case, "touchModifiers": touch_modifiers_case,
               "deactivate": deactivate_case, "commandLine": command_line_case,
               "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
@@ -146,6 +156,11 @@ def main():
                     item.get_state_set().contains(Atspi.StateType.FOCUSED)
                     for item in named(app, "list item", name))]
 
+            def marked_rows():
+                return [name for name in (*expected, *second_expected) if any(
+                    item.get_state_set().contains(Atspi.StateType.SELECTED)
+                    for item in named(app, "list item", name))]
+
             def snapshot(label, summary, focus):
                 wait_for(lambda: status() == summary and focused() == [focus],
                          f"{label}: {summary}, focus {focus}")
@@ -159,7 +174,7 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case else
+            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case or touch_modifiers_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
             if tab_case:
@@ -171,7 +186,7 @@ def main():
                     raise AssertionError(f"Unexpected two-tab source summary: {clear}")
             else:
                 wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case else "a.txt")
+            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case or touch_modifiers_case else "a.txt")
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -444,6 +459,52 @@ def main():
                                                     "order": order(), "pointer": pointer_position()}
                     snapshot("Shift-click c.txt preserves d.txt and uses the b.txt anchor",
                              "Marked 3 of 4 files · 19 bytes", "c.txt")
+            elif touch_modifiers_case:
+                for modifier, target_name, expected_marks, summary in (
+                        ("ctrl", "d.txt", ["d.txt"], "Marked 1 of 4 files · 6 bytes"),
+                        ("shift", "c.txt", ["b.txt", "c.txt", "d.txt"],
+                         "Marked 3 of 4 files · 19 bytes")):
+                    target_row = named(app, "list item", target_name)[0]
+                    rect = target_row.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    if rect.width < 35 or rect.height < 15:
+                        raise AssertionError(f"The {target_name} row has unusable scaled bounds: {rect}")
+                    release_signal = fixture / (modifier + "-release.signal")
+                    activate_window(process.pid)
+                    held = subprocess.Popen(["sudo", "-S", sys.executable, str(key_helper),
+                                             modifier + "-hold-controlled", str(release_signal)],
+                                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, text=True)
+                    try:
+                        held.stdin.write(sudo_password + "\n")
+                        held.stdin.flush()
+                        ready, _, _ = select.select([held.stdout], [], [], 5)
+                        if not ready or held.stdout.readline().strip() != "HELD":
+                            raise AssertionError(f"Physical {modifier} hold did not signal readiness")
+                        if held.poll() is not None:
+                            raise AssertionError(f"Physical {modifier} released before touch")
+                        native_click(round(rect.x + min(40, rect.width / 2)),
+                                     round(rect.y + rect.height / 2), touch_helper, sudo_password)
+                        if held.poll() is not None:
+                            raise AssertionError(f"Physical {modifier} released before the target touch")
+                        release_signal.touch(exist_ok=False)
+                        held.wait(timeout=5)
+                        if held.returncode:
+                            raise AssertionError(f"Physical {modifier} helper failed: {held.stderr.read()[-300:]}")
+                    finally:
+                        if held.poll() is None:
+                            release_signal.touch(exist_ok=True)
+                            try:
+                                held.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                held.terminate()
+                                held.wait(timeout=3)
+                        held.stdin.close()
+                        held.stdout.close()
+                        held.stderr.close()
+                    snapshot(f"physical {modifier}+touch {target_name}", summary, target_name)
+                    wait_for(lambda: marked_rows() == expected_marks,
+                             f"exact marked identities after {modifier}+touch")
+                    report["steps"][-1]["marked"] = marked_rows()
             elif deactivate_case or command_line_case:
                 key("insert")
                 snapshot("Insert marks b.txt and moves focus", "Marked 1 of 4 files · 5 bytes", "c.txt")

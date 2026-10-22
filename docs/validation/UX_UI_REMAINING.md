@@ -36,7 +36,7 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-002 still needs scaled-display input, native streaming/creation
+   FCUX-002 still needs Windows/Mac scaled-display input, native streaming/creation
    transitions and any remaining focus routes
    outside the verified window-deactivation and command-line journeys.
    FCUX-003

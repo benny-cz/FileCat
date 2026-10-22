@@ -129,6 +129,18 @@ AT-SPI must show only `d.txt` marked for 6 bytes; a subsequent physical
 Shift-click on `c.txt` must preserve that mark and add `b.txt` and `c.txt`
 for 19 bytes, with `c.txt` focused. The narrow route measures 720 × 540;
 both keep exact source hashes and an empty target.
+Append `--touch-modifiers` or `--touch-modifiers-narrow` for Wayland display
+scaling, where Xwayland's pointer coordinates can differ from physical input.
+The runner touches `b.txt`, keeps a physical Ctrl key down until the touch on
+`d.txt` has completed, then does the same with Shift on `c.txt`. AT-SPI must
+expose exactly `d.txt`, then `b.txt`, `c.txt` and `d.txt` as marked, with
+6 and 19 bytes respectively; it checks exact fixture hashes and an empty
+target. Each report records the live `gdctl` display scale when available.
+On the isolated GNOME VM, use `gdctl set --logical-monitor --monitor Virtual-1`
+with `--mode 1920x1200@59.950 --scale 1.5 --primary` or
+`--mode 2560x1600@59.987 --scale 2.0 --primary`; restore its original
+`--mode 1280x800@60.000 --scale 1.0 --primary` afterward. The native
+100%, 150% and 200% reports must show those exact scales.
 Append `--deactivate` or `--deactivate-narrow` to check a Shift+Down gesture
 whose Shift key remains physically held while a test-owned GTK window takes
 focus. The runner first marks `b.txt` with Insert, unmarks it with held
