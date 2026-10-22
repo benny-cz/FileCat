@@ -15,6 +15,18 @@ tests in both populated source and target panels at normal and measured
 720 × 540 widths: the Name choice reversed four actual file rows, after
 which Shift-click still marked the correct two files with unchanged source
 bytes. Native screen-reader speech and the other file-list actions remain open.
+The signed `a30a5ccf` Mac build then passed the test-owned
+`mac-ax-panel-sort.py` runner at normal and 760 × 600 widths. Direct
+AXUIElement traversal found bounded Sort buttons in both panels and the five
+visible sortable choices. One physical pointer sequence reversed the source
+row order; keyboard selection of the currently active Name choice restored
+it. The target order and four source SHA-256 hashes stayed unchanged, and the
+target remained empty. The direct AX helper uses the matching Xcode SDK
+because the guest's default Command Line Tools SDK is newer than its Swift
+compiler. Both native JSON reports passed. The complete Windows Release
+App suite on the same product code passed 2,419 tests with 63 platform skips
+and no failures; Core passed 4,437 with 151 skips and no failures, using up
+to 16 workers.
 
 GitHub Actions run `39749992629` on `7b5b0bea` completed green on the
 producer policy, Windows, Ubuntu, macOS and Windows ARM64 lanes. The Mac

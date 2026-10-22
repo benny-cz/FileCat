@@ -63,7 +63,7 @@ increments to `main`.
    lines, font fallback, pointer/keyboard navigation and automation on all
    supported desktops. For FCUX-010, inspect large-listing latency, complete
    marked-item review and actual spoken navigation with a supported screen
-   reader. Confirm the Mac bridge and the remaining Linux item/action routes.
+   reader. Confirm the remaining Mac/Linux item and action routes.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and

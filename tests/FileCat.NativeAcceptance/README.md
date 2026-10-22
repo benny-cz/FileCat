@@ -102,6 +102,11 @@ Shift+click range. On Wayland, the transient uinput mouse is first moved and
 its actual pointer position is measured and calibrated inside the target row;
 the button event is sent only after that check. The runner requires the exact
 two-file 13-byte mark, focused target and unchanged fixture bytes. Append
+`--sort-control MOUSE_HELPER` to require a bounded, named Sort button in both
+populated panels, open the source menu with native pointer input, select its
+accessible Name choice, and observe a four-file reversal before the same
+Shift+click range. `--sort-control-narrow MOUSE_HELPER` repeats it in a
+measured 720 × 540 window. Append
 `--filter MOUSE_HELPER` to enter `*|b*` and then `*` with a physical keyboard,
 proving that the hidden `b.txt` anchor retires: after restoring the list, a
 physical Shift+click on `d.txt` must mark only `c.txt` and `d.txt` (14 bytes).
@@ -979,6 +984,17 @@ presses Shift+Down again to clear it. It requires the source bytes to remain
 unchanged. The script launches a separate `osascript` process for each input
 or accessibility snapshot so the app can process the native event between
 observations. Start with no marks; the test ends with no marks.
+
+`python3 mac-ax-panel-sort.py BUNDLE.app REPORT.json [--narrow]` launches an
+isolated signed Git-built app with its own four-file source and empty target.
+Keep `mac-ax-panel-sort-snapshot.swift` beside the runner; it compiles a
+bounded direct AXUIElement reader using the installed matching Xcode SDK.
+The test requires both panel Sort buttons and the visible menu choices in
+the native tree. One physical pointer sequence reverses the source Name
+order; keyboard selection reverses it back. The target order and all source
+hashes must stay unchanged. `--narrow` measures a 760 × 600 window. The
+runner closes only its exact process and writes JSON under
+`~/FileCatValidation`.
 
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
