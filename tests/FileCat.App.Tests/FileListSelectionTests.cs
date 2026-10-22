@@ -57,6 +57,26 @@ public sealed class FileListSelectionTests
     }
 
     [AvaloniaFact]
+    public async Task Mac_command_click_toggles_marks_without_replacing_the_range_anchor()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        using var f = new FileListFixture("a", "b", "c", "d");
+        await f.Load();
+        f.Click(1);
+        f.Click(3, RawInputModifiers.Meta);
+        Assert.Equal(new[] { "d" }, FileListFixture.Marked(f.Tab.Listing));
+        Assert.Equal("d", f.Tab.Listing.GetVisible(f.Tab.Listing.FocusedIndex).Name);
+
+        f.Click(2, RawInputModifiers.Shift);
+        Assert.Equal(new[] { "b", "c", "d" }, FileListFixture.Marked(f.Tab.Listing));
+        Assert.Equal("c", f.Tab.Listing.GetVisible(f.Tab.Listing.FocusedIndex).Name);
+
+        f.Click(3, RawInputModifiers.Meta);
+        Assert.Equal(new[] { "b", "c" }, FileListFixture.Marked(f.Tab.Listing));
+        Assert.Equal("d", f.Tab.Listing.GetVisible(f.Tab.Listing.FocusedIndex).Name);
+    }
+
+    [AvaloniaFact]
     public async Task A_visible_anchor_survives_filter_reordering()
     {
         using var f = new FileListFixture("a", "b", "c", "d", "e");

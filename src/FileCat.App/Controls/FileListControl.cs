@@ -1363,7 +1363,10 @@ public sealed class FileListControl : Control
             e.Handled = true;
             return;
         }
-        if ((mods & KeyModifiers.Control) != 0)
+        // macOS uses Command for additive selection; a physical Control-click is
+        // commonly converted into a context click before it reaches this control.
+        if ((mods & KeyModifiers.Control) != 0 ||
+            OperatingSystem.IsMacOS() && (mods & KeyModifiers.Meta) != 0)
         {
             _listing.ToggleMark(row);
             _listing.SetFocus(row);
