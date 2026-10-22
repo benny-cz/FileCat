@@ -52,8 +52,8 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-002 still needs Windows/Mac scaled-display input, native streaming/creation
-   transitions and any remaining focus routes
+   FCUX-002 still needs the other Windows scaled-display routes, Mac
+   scaled-display input, native streaming/creation transitions and remaining focus routes
    outside the verified window-deactivation and command-line journeys.
    FCUX-003
    still needs scaled display and other smaller-layout states, keyboard and spoken
@@ -115,49 +115,17 @@ increments to `main`.
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
 7. **Close newly reported minor issues.** UXBUG-013 still needs native
-   pinned-place interaction, scaled layouts and spoken acceptance after the
-   verified Windows normal/narrow/wide/restore row reflow and overflow.
-   UXBUG-014 still needs native display-scale and spoken acceptance after the
-   verified Windows finished drawer and Open/Copy/Save report routes, Ubuntu
-   normal-width details, and Mac normal/narrow finished details. UXBUG-015
-   needs localized speed entry, keyboard error navigation and actual spoken
-   feedback on supported desktops. The same-dialog invalid-speed correction
-   and accessible field help passed native Mac, Ubuntu and Windows checks,
-   but screen-reader announcements remain to be heard and checked. Its error,
-   like eleven other live texts, had a fixed accessible name that no reader could
-   hear until `eed454ba`. Report Avalonia 12.1's AT-SPI role table, one off
-   between roles 81 and 114 (Linux viewers are read-only entries since
-   `68fdea8e`), upstream if the owner agrees.
+   pinned-place interaction, scaled layouts and spoken acceptance.
+   UXBUG-014 still needs native display-scale and spoken acceptance.
+   UXBUG-015 needs localized speed entry, keyboard error navigation and
+   actual screen-reader announcements on supported desktops. Report
+   Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
    UXBUG-016 needs native checks of other dialog families and non-Windows
-   scaled visuals, plus actual screen-reader speech on each desktop. Windows
-   Create folder, Create in Registry, Copy, Move and Delete passed native
-   close-X and backdrop clicks at 100%, 150% and 200%; Ubuntu Create folder,
-   Copy, Move and Delete passed at normal scale. The Ubuntu
-   Wayland physical uinput mouse and touch routes passed; the Mac AX label and
-   native X/backdrop pointer route passed through direct AXUIElement traversal.
-   Two issues found by the speech runs are fixed: on macOS a modifier set by
-   synthesized input (AppleScript's `using command down`) arrived as the A key,
-   so Command+C first selected every file (`7da4fc0b`; native probe below in
-   the status); and Create folder told Linux and macOS to use `\` for nested
-   folders, where it is an ordinary name character (`aef91939`; the Ubuntu and
-   macOS CI lanes run its test). Report the Avalonia modifier behavior upstream
-   if the owner agrees. The next runs fixed three more: the shared prompt's
-   validation message was never spoken and Enter on it was silently ignored
-   (`6afb92a0`), macOS lost the first character typed into a field F7,
-   Command+L or Command+S had focused (`8d828249`), and the Quick filter hint
-   used `src\` everywhere (`cda6a365`). Open question for the owner: FileCat
-   does not exit on SIGTERM while a dialog is open; the Mac runner now kills
-   its own process instead.
-   UXBUG-017, native icons cropped at display scaling above 100%, is fixed
-   (`80598aeb`) and verified in before/after captures on Ubuntu at 200%, the
-   Retina Mac and the Win11 VM at 150% and 200% (Quick View's Shell thumbnail
-   too); the Skia-rendered
-   `FileCat.Rendering.Tests` project now checks icon pixels at 100%–300% in
-   CI. Avalonia 12.1 draws a bitmap's source rectangle in pixels while it
-   measures the bitmap in units; report that upstream with the other Avalonia
-   issues if the owner agrees.
-   The Ubuntu 200% sweep still needs a scaled visual capture of popup menus
-   and the Find window.
+   scaled visuals and actual screen-reader speech on each desktop. Investigate
+   FileCat's response to SIGTERM while a dialog is open on macOS. Capture
+   Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
+   synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
+   agrees.
 
 ## Evidence required to finish
 

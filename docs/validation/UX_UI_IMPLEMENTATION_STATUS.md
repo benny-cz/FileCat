@@ -49,6 +49,9 @@ twelve original labels again. Its shell trap restored the original
 guest validation folder and ignored host test output. UXBUG-018's native
 keyboard behavior now passes; the remaining Ubuntu popup/Find work is visual
 capture at the scaled layout.
+The complete Windows Release App suite on the key-bar correction passed
+2,448 tests, skipped 63 platform-specific cases and failed none with
+`DOTNET_PROCESSOR_COUNT=16`.
 
 **22 October 2026, native icons cropped at display scaling above 100%
 (UXBUG-017; FCUX-058 Places and the scaled-display gates):** The owner saw
@@ -605,6 +608,26 @@ receipts are retained under the guest's
 `AppData\Local\FileCatValidation\SelectionGit-20261022-selection-*-narrow-native`
 folders. The normal and narrow Windows transition matrix now passes; scaled
 input and non-Windows focus routes remain open.
+
+**22 October 2026, Windows selection at 150% and 200%:** The native runner
+was initially DPI unaware, so WinAppDriver's physical row rectangles sent
+the pointer to the wrong place at 150%; the first run sorted correctly but
+marked nothing. The runner now requires per-monitor DPI awareness before any
+desktop mode and records its awareness and tested row bounds. Its source
+snapshot also retries a transient WinAppDriver HTTP 500 during list rebuilding
+up to four times at 200 ms; a persistent error still fails the run. The
+runner rebuilt with zero warnings/errors. A clean Git clone at `37bc7288`
+built FileCat and the native runner with 16 workers; the app DLL SHA-256 was
+`D7568EFB4548F6DC6545B835A27E2AA2381F62B49A6D336F9EA280A7923683D6`.
+Fresh native Win11 fixtures passed the sort/Shift-click range at 100%, 150%
+and 200%: the order reversed from `a,b,c,d` to `d,c,b,a`, exactly `b.txt`
+and `c.txt` were marked, and source bytes and the destination were unchanged.
+Fresh 150% and 200% filter fixtures hid `b.txt`, restored it, and used the
+retired-anchor fallback to mark exactly `c.txt` and `d.txt`, also without
+changing bytes. Reports retain the exact paths, sort/filter state, marks and
+graceful process stop. Windows Display Settings restored the VM to 100%
+(96 DPI). Other scaled selection routes, Mac scaling, streaming/creation
+transitions and remaining focus routes stay open.
 
 **21 October 2026, progress refresh race:** An Ubuntu CI verified-copy test
 caught `JobViewModel.Refresh` reading the worker's current item twice. A

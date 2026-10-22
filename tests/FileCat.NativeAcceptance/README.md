@@ -537,7 +537,17 @@ report requires the measured window size, exact two-file mark and untouched
 source and destination. Finish with `selection-stop`. On another fresh fixture,
 `selection-filter-native <report.json>` clicks `b.txt`, filters it out,
 restores the full list and Shift-clicks `d.txt`. The retired anchor must not
-return; only the fallback range `c.txt`–`d.txt` may be marked. Other FCUX-002
+return; only the fallback range `c.txt`–`d.txt` may be marked.
+
+The Windows
+native runner declares per-monitor DPI awareness before reading WinAppDriver's
+physical row bounds or sending Win32 pointer input. Run fresh selection modes
+at 100%, 150% and 200% in the isolated VM, record the selected Display
+Settings scale, and restore the VM to 100% afterward. UIA source snapshots
+retry a transient driver HTTP 500 for at most 800 ms; a persistent failure
+still fails the native case.
+
+Other FCUX-002
 transitions still need their separate native checks. `selection-tab-native
 <report.json>` uses a fresh fixture with `second/e.txt` and `second/f.txt`:
 after clicking `d.txt` in the first tab it opens a second tab, enters that

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,6 +11,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
+
 
  if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
@@ -171,6 +173,10 @@ if (mode is "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-re
         return 1;
     }
 }
+
+// WinAppDriver reports screen-pixel bounds. Keep native pointer input in the
+// same coordinate space; fixture seeding and stopping above need no desktop.
+if (OperatingSystem.IsWindows()) NativeWindow.RequirePhysicalScreenCoordinates();
 
 using var client = new HttpClient
 {
@@ -1004,6 +1010,8 @@ try
             if (!ascending || !descending)
                 throw new InvalidOperationException("The native selection fixture did not reverse its name order.");
             var target = Row(sorted, "c.txt");
+            var anchorBounds = ReadNativeRect(Row(initial, "b.txt"));
+            var targetBounds = ReadNativeRect(target);
             NativeWindow.ShiftClickAt(CenterX(target), CenterY(target));
             await Task.Delay(150);
             var selected = ParseSource(await ReadSourceAsync(client, sessionId));
@@ -1020,6 +1028,8 @@ try
             {
                 passed, ascending, descending, correctRange, unchangedFiles,
                 narrow, narrowApplied, narrowWindow,
+                processDpiAwareness = NativeWindow.DpiAwareness,
+                anchorBounds, targetBounds,
                 initialOrder = Order(initial), sortedOrder = Order(sorted), marked
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
@@ -4667,10 +4677,22 @@ static async Task<string> ReadElementAttributeAsync(HttpClient client, string se
 
 static async Task<string> ReadSourceAsync(HttpClient client, string sessionId)
 {
-    using var source = await client.GetAsync($"session/{sessionId}/source");
-    source.EnsureSuccessStatusCode();
-    using var document = await JsonDocument.ParseAsync(await source.Content.ReadAsStreamAsync());
-    return document.RootElement.GetProperty("value").GetString() ?? "";
+    // WinAppDriver occasionally returns 500 while a changing list is building
+    // its UIA tree. A short, bounded retry still fails a persistent driver or
+    // app fault, while letting the next stable snapshot assert exact content.
+    for (var attempt = 0; attempt < 5; attempt++)
+    {
+        using var source = await client.GetAsync($"session/{sessionId}/source");
+        if (source.StatusCode == HttpStatusCode.InternalServerError && attempt < 4)
+        {
+            await Task.Delay(200);
+            continue;
+        }
+        source.EnsureSuccessStatusCode();
+        using var document = await JsonDocument.ParseAsync(await source.Content.ReadAsStreamAsync());
+        return document.RootElement.GetProperty("value").GetString() ?? "";
+    }
+    throw new InvalidOperationException("The UI driver never returned a source snapshot.");
 }
 
 static XDocument ParseSource(string source)
@@ -5356,6 +5378,29 @@ internal static partial class NativeWindow
     private const uint LeftDown = 0x0002;
     private const uint LeftUp = 0x0004;
     private const uint Wheel = 0x0800;
+
+    internal static int DpiAwareness { get; private set; }
+
+    internal static void RequirePhysicalScreenCoordinates()
+    {
+        // PER_MONITOR_AWARE_V2 makes Win32 cursor coordinates match UI Automation's
+        // physical rectangles. A process may already have this context via a host.
+        if (!SetProcessDpiAwarenessContext((nint)(-4)) && Marshal.GetLastPInvokeError() != 5)
+            throw new InvalidOperationException("Cannot set native acceptance DPI awareness.");
+        DpiAwareness = GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext());
+        if (DpiAwareness != 2)
+            throw new InvalidOperationException($"Native pointer coordinates are not per-monitor aware ({DpiAwareness}).");
+    }
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetProcessDpiAwarenessContext(nint value);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetThreadDpiAwarenessContext();
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetAwarenessFromDpiAwarenessContext(nint value);
 
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint FindWindow(string? className, string? title);
