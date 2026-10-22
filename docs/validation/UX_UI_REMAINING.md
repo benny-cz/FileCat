@@ -52,9 +52,12 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs scaled/narrow layouts on Mac and Ubuntu, keyboard and spoken
-   review, Mac/Ubuntu external-editor round trips and native rule-change races after the
-   headless stale-scope result was rejected. For FCUX-004/005, exercise remaining modal
+   FCUX-003 still needs Mac display-scale and Ubuntu scaled/narrow layouts,
+   keyboard and spoken review, an Ubuntu external-editor round trip, and native
+   rule-change races after the headless stale-scope result was rejected. On Mac,
+   investigate the visible review body's zero AX bounds and preview list with
+   no AX children; native AX actions work, but assistive inspection of every
+   mapping still needs proof. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including
    other modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. Preserve captured

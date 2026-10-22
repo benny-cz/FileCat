@@ -1202,6 +1202,21 @@ Shift-click on `c.txt` must add exactly `b.txt` and `c.txt` while retaining
 Direct AX checks every mark, focus and status; source hashes and the empty
 target stay exact. `--narrow` repeats the route at 760 × 600.
 
+`python3 mac-ax-rename-editor.py BUNDLE.app REPORT.json [--narrow]` creates a
+fresh two-file source and a private editor script in an isolated profile. It
+uses native pointer/Shift selection, filters one marked file, invokes Ctrl+M,
+explicitly includes the hidden mark, edits the counter mask, and verifies the
+scope summary and selected full-path mapping. A native capture records both
+preview rows because macOS AX currently omits the virtualized preview children
+and reports zero bounds for the visibly rendered modal body. The test
+activates those controls through their AX actions, loads the two names saved
+by the configured editor, checks the explicit editor-derived status, removes
+the private name list, and approves only the button inside the modal bounds.
+The two resulting filenames and contents must be exact and the target empty.
+`--narrow` repeats the whole route at a 760 × 600 main window. The signed
+bundle, approved `FileCatCapture.app`, `cliclick`, an unlocked desktop and the
+matching Xcode SDK are required.
+
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
