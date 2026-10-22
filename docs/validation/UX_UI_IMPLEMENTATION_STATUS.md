@@ -419,6 +419,11 @@ unsaved-edits decision; choosing Keep FileCat open preserves the editor and
 original file bytes. The one-shot exit intent retires before this check, so
 canceling the new prompt cannot cause a later job completion to close the
 window unexpectedly. Both affected close-policy UI regressions passed 2/2.
+The complete Windows Release App suite on the `d702adcc` product code then
+passed 2,407 tests with 63 platform skips and zero failures using up to
+16 processors. The same turn's complete Core Release suite passed 4,437
+tests with 150 skips and zero failures. Later native-runner/documentation
+commits do not change the app binaries; final-head CI remains pending.
 The retained Undo report now has a focused App UI test with 70 outcomes and a
 failure at action 46, beyond the abbreviated preview. The displayed full-path
 failure, one-failed summary and Copy all text agree. The Core 70-action
