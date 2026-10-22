@@ -75,7 +75,11 @@ internal sealed class BulkRenameReview : StackPanel
             Children = { _previousMapping, _nextMapping } };
         tools.Children.Add(mappingButtons);
         tools.Children.Add(_position);
-        _details = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 75 };
+        _details = new TextBox
+        {
+            IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+            MinHeight = 75, MaxHeight = 160,
+        };
         AutomationProperties.SetName(_details, "Full old and new paths of selected rename");
         Children.Add(tools);
         Children.Add(_list);

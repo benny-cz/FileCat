@@ -1,5 +1,6 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -12,6 +13,33 @@ namespace FileCat.App.Tests;
 
 public sealed class BulkRenameReviewTests
 {
+    [AvaloniaFact]
+    public void Ordinary_long_full_paths_grow_the_detail_instead_of_hiding_the_destination()
+    {
+        string root = Path.Combine(Path.GetTempPath(), new string('a', 35), new string('b', 25));
+        var item = ItemRef.ForFileSystemPath(Path.Combine(root, "a.txt"), EntryKind.File);
+        var planned = BulkRenamePlanner.Preview([item], new RenameRules("reviewed_[C]"), _ => false);
+        var review = new BulkRenameReview();
+        review.SetRows(planned);
+        var window = new Window { Width = 500, Height = 800, Content = review };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var detail = review.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Full old and new paths of selected rename");
+            var presenter = Assert.Single(detail.GetVisualDescendants().OfType<TextPresenter>());
+            Assert.True(presenter.TextLayout.TextLines.Count >= 4);
+            Assert.InRange(detail.Bounds.Height, 76, 160);
+            Assert.True(detail.Bounds.Height >= presenter.TextLayout.Height,
+                $"The complete ordinary mapping should fit without an inner vertical scroll: " +
+                $"detail {detail.Bounds.Height}, text {presenter.TextLayout.Height}, " +
+                $"lines {presenter.TextLayout.TextLines.Count}.");
+            Assert.Contains(Path.Combine(root, "reviewed_1.txt"), detail.Text);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void Previous_and_next_expose_each_full_mapping_and_follow_the_filtered_result()
     {

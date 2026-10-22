@@ -22,6 +22,11 @@ session can give Xwayland a 2× app scale. The runner requires a measured
 resize produces a failed receipt.
 `--rule-change` loads editor names, changes the mask in the same review, and
 requires the final rename to use the new rule mapping instead.
+`--pause-review` waits at `<report-stem>.ready` before opening the editor.
+Create `<report-stem>.resume` after capturing the upper review. It then focuses
+the full-path detail and waits at `<report-stem>.detail.ready`; create
+`<report-stem>.detail.resume` after capturing its lower layout. Both waits are
+bounded to 120 seconds and all marker files are removed when the run ends.
 `linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
 physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
 Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly

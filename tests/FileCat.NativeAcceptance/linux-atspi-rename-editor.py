@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Native Ubuntu bulk rename round trip through the configured external editor.
 
-Usage: linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow|--rule-change]
+Usage: linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow] [--rule-change] [--pause-review]
 Run in the logged-in desktop with a Git-built app under ~/FileCatValidation.
 FILECAT_NATIVE_SUDO_PASSWORD is used only for one physical Ctrl+M gesture and
 is removed from the child app/editor environment before either starts.
@@ -66,7 +66,7 @@ target.write_text("editor_a.txt\\neditor_b.txt\\n", encoding="utf-8")
     }), encoding="utf-8")
 
 
-def run(app_path, report_path, key_helper, narrow, rule_change):
+def run(app_path, report_path, key_helper, narrow, rule_change, pause_review):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -95,6 +95,14 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
     result = {"passed": False, "platform": "Ubuntu", "narrow": narrow,
               "ruleChangeAfterEditor": rule_change,
               "appSha256": app_sha, "fixture": str(fixture), "steps": []}
+    ready = report_path.with_name(report_path.stem + ".ready")
+    resume = report_path.with_name(report_path.stem + ".resume")
+    detail_ready = report_path.with_name(report_path.stem + ".detail.ready")
+    detail_resume = report_path.with_name(report_path.stem + ".detail.resume")
+    ready.unlink(missing_ok=True)
+    resume.unlink(missing_ok=True)
+    detail_ready.unlink(missing_ok=True)
+    detail_resume.unlink(missing_ok=True)
     try:
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
@@ -201,6 +209,18 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
             wait_for(lambda: selected_detail() == first, "first mapping restored")
             result["steps"].append("Two-name preview and editor action available")
             result["steps"].append("Native Previous/Next actions exposed both full-path mappings")
+            if pause_review:
+                activate_window(process.pid)
+                ready.write_text(json.dumps({"fixture": str(fixture),
+                                             "windowSizeDip": result.get("windowSizeDip")}) + "\n",
+                                 encoding="utf-8")
+                wait_for(resume.exists, "native review capture release", seconds=120)
+                result["steps"].append("Review held for native visual capture")
+                if not detail.grab_focus():
+                    raise AssertionError("Could not focus the full-path mapping detail")
+                detail_ready.write_text("Full-path mapping detail focused\n", encoding="utf-8")
+                wait_for(detail_resume.exists, "native detail capture release", seconds=120)
+                result["steps"].append("Full-path detail held for native visual capture")
             action(one(app, "button", "Edit names in editor…"), "editor")
             wait_for(lambda: (fixture / "editor-done").is_file(), "controlled editor save")
             action(wait_for(lambda: next(iter(named(app, "button", "Load names")), None),
@@ -250,6 +270,10 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     finally:
+        ready.unlink(missing_ok=True)
+        resume.unlink(missing_ok=True)
+        detail_ready.unlink(missing_ok=True)
+        detail_resume.unlink(missing_ok=True)
         if process is not None and process.poll() is None:
             process.terminate()
             try:
@@ -262,8 +286,10 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] not in ("--narrow", "--rule-change"):
+    flags = set(sys.argv[4:])
+    if (len(sys.argv) < 4 or len(flags) != len(sys.argv[4:]) or
+            not flags <= {"--narrow", "--rule-change", "--pause-review"}):
         raise SystemExit(__doc__)
     raise SystemExit(run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                         len(sys.argv) == 5 and sys.argv[4] == "--narrow",
-                         len(sys.argv) == 5 and sys.argv[4] == "--rule-change"))
+                         "--narrow" in flags, "--rule-change" in flags,
+                         "--pause-review" in flags))

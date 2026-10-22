@@ -63,6 +63,13 @@ window a measured 2× rendering scale (1280 × 840 physical minimum for the
 app's 640 × 420 unit limit); the runner now derives app units from the native
 window manager minimum-size hints and confirmed 720 × 540 app units. The VM
 display was restored to its original 200% afterward.
+VMware captures at 200% and a measured 720 × 540 app-unit window showed the
+editor action, paired mapping controls, both preview rows and Cancel/Rename.
+Focusing the mapping detail scrolled it into view, but its fixed 75-unit
+height clipped the destination line and added an inner scrollbar. The detail
+now grows from 75 up to 160 units for wrapping, with a cap for exceptional
+paths; focused headless review and minimum viewport cases pass 12/12. A native
+capture of this revised detail is still pending.
 An additional fresh fixture loaded editor names, then changed the name mask
 in the same review. The editor-derived status disappeared and approval used
 the new rule mapping, yielding exactly `rule_1.txt` and `rule_2.txt` with
