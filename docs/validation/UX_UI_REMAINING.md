@@ -52,7 +52,7 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs scaled display and other smaller-layout states, keyboard and spoken
+   FCUX-003 still needs scaled/narrow layouts on Mac and Ubuntu, keyboard and spoken
    review, native external-editor round trips and rule-change races after the
    headless stale-scope result was rejected. For FCUX-004/005, exercise remaining modal
    focus/decision ownership and full synchronization endpoints, including

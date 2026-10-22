@@ -706,10 +706,10 @@ try
                 || await File.ReadAllTextAsync(bPath) != bContent
                 || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
                 throw new InvalidOperationException("The isolated rename fixture is not pristine.");
-            NativeWindow.FocusRecovery("clipboard-source");
+            int expectedPid = NativeWindow.FocusRecovery("clipboard-source", SelectionTestAppPath());
             NativeWindow.Rect narrowWindow = narrow
                 ? NativeWindow.ResizeRecoveryWindow("clipboard-source",
-                    compact ? 640 : 760, compact ? 420 : 560) : default;
+                    compact ? 640 : 760, compact ? 420 : 560, SelectionTestAppPath()) : default;
             var filter = await FindXPathAsync(client, sessionId,
                 "//Edit[@Name='Filter']", "source filter");
             await ClickXPathAsync(client, sessionId, "//Edit[@Name='Filter']", "source filter");
@@ -776,7 +776,7 @@ try
                 && FindVisible(opened, "button", "Cancel") is not null;
             if (compact)
             {
-                NativeWindow.ResizeRecoveryWindow("clipboard-source", 760, 560);
+                NativeWindow.ResizeRecoveryWindow("clipboard-source", 760, 560, SelectionTestAppPath());
                 opened = ParseSource(await ReadSourceAsync(client, sessionId));
             }
             var mask = await FindXPathAsync(client, sessionId,
@@ -848,7 +848,7 @@ try
                 var options = FindOptions(proposed);
                 NativeWindow.ClickAt(CenterX(options), CenterY(options));
                 await Task.Delay(250);
-                expandedOwner = NativeWindow.ResizeRecoveryWindow("clipboard-source", 1060, 800);
+                expandedOwner = NativeWindow.ResizeRecoveryWindow("clipboard-source", 1060, 800, SelectionTestAppPath());
                 var withOptions = ParseSource(await ReadSourceAsync(client, sessionId));
                 counterVisible = withOptions.Descendants().Any(element =>
                     (string?)element.Attribute("Name") == "Counter from"
@@ -877,9 +877,30 @@ try
                 NativeWindow.ClickAt(CenterX(FindOptions(expanded)), CenterY(FindOptions(expanded)));
                 await Task.Delay(150);
             }
-            await ClickXPathAsync(client, sessionId,
-                "//Window[@Name='FileCat — clipboard-source — Admin (administrator, not elevated)']/Button[@Name='Rename' and @IsEnabled='True']",
-                "approve reviewed rename");
+            var approvalTree = ParseSource(await ReadSourceAsync(client, sessionId));
+            var owner = approvalTree.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "window"
+                && (string?)element.Attribute("ProcessId") ==
+                    expectedPid.ToString(CultureInfo.InvariantCulture));
+            var dialogScope = Hidden(approvalTree).Ancestors().FirstOrDefault(ancestor =>
+                ancestor.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == "Name mask")
+                && ancestor.Descendants().Any(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "button"
+                    && (string?)element.Attribute("Name") == "Rename"
+                    && (string?)element.Attribute("IsEnabled") == "True"
+                    && (string?)element.Attribute("IsOffscreen") == "False"));
+            if (dialogScope is null || !dialogScope.AncestorsAndSelf().Contains(owner))
+                throw new InvalidOperationException("The reviewed Rename action is outside the owned dialog.");
+            var approveButtons = dialogScope.Descendants().Where(element =>
+                (string?)element.Attribute("LocalizedControlType") == "button"
+                && (string?)element.Attribute("Name") == "Rename"
+                && (string?)element.Attribute("IsEnabled") == "True"
+                && (string?)element.Attribute("IsOffscreen") == "False").ToArray();
+            if (approveButtons.Length != 1)
+                throw new InvalidOperationException("The reviewed dialog does not own exactly one enabled Rename action.");
+            var approveRename = approveButtons[0];
+            NativeWindow.ClickAt(CenterX(approveRename), CenterY(approveRename));
             var renamedB = Path.Combine(fixture.Source, "reviewed_1.txt");
             var renamedA = Path.Combine(fixture.Source, "reviewed_2.txt");
             bool filesMatch = false;

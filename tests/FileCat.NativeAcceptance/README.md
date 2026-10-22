@@ -525,6 +525,12 @@ and `selection-stop` with `FILECAT_NATIVE_TEST_APP` set to
 that exact guest-local Git-built `FileCat.exe`. The runner requires the app to
 reside under the guest's `AppData\Local\FileCatValidation` directory and
 matches its process path, so another FileCat window cannot satisfy the check.
+The bulk-rename `rename-native`, `rename-hidden-native` and narrow variants
+also accept `FILECAT_NATIVE_TEST_APP` for the same path-verified Git build.
+Their approval click is scoped to the modal containing the hidden-mark choice
+and Name mask, so an obscured main-window Rename control cannot satisfy the
+test. Run each against a fresh `seed-clipboard` fixture and close that exact
+process with `selection-stop`.
 Run
 `selection-native <report.json>` in the interactive guest desktop: it clicks
 `b.txt` as the range anchor, reverses the name sort, then Shift-clicks `c.txt`
