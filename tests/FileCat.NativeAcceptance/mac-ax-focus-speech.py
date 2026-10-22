@@ -11,6 +11,7 @@ Requires Accessibility access for osascript and the compiled observer.
 
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -25,7 +26,9 @@ KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115
              "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}",
              "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36",
              "f3": "key code 99", "c": "key code 8", "h": "key code 4", "r": "key code 15",
-             "f5": "key code 96", "select-all": "key code 0 using {command down}", "backspace": "key code 51"}
+             "f5": "key code 96", "select-all": "key code 0 using {command down}", "backspace": "key code 51",
+             "palette": "key code 35 using {command down, shift down}", "s": "key code 1", "p": "key code 35",
+             "l": "key code 37", "i": "key code 34", "t": "key code 17", "e": "key code 14", "right": "key code 124"}
 
 
 def osa(script):
@@ -101,11 +104,11 @@ def run(bundle, report_path):
         done = subprocess.run([str(observer), "focused", str(process)], capture_output=True, text=True, timeout=10)
         return json.loads(done.stdout or "{}")
 
-    def step(label, key, expect, activation=False):
+    def step(label, key, expect, activation=False, keys=None):
         records()
         osa(FOREGROUND)
-        if key:
-            osa(f'tell application "System Events" to {KEY_CODES[key]}')
+        for name in ([key] if key else []) + (keys or []):
+            osa(f'tell application "System Events" to {KEY_CODES[name]}')
         seen, deadline, current = [], time.monotonic() + 6, {}
         while time.monotonic() < deadline:
             seen += [entry for entry in records() if entry.get("notification") == "AXFocusedUIElementChanged"]
@@ -135,19 +138,35 @@ def run(bundle, report_path):
         if not passed:
             raise AssertionError(f"{label}: focused windows {seen!r}")
 
-    def announce(label, keys, expect, exact=False):
+    def value_step(label, key, pattern):
+        """The key must change the focused element's AXValue, which VoiceOver reads, to text matching the pattern."""
+        records()
+        osa(FOREGROUND)
+        osa(f'tell application "System Events" to {KEY_CODES[key]}')
+        seen, deadline = [], time.monotonic() + 6
+        while time.monotonic() < deadline and not any(re.fullmatch(pattern, entry.get("value", "")) for entry in seen):
+            seen += [entry for entry in records() if entry.get("notification") == "AXValueChanged"]
+            time.sleep(0.15)
+        current = focused()
+        passed = any(re.fullmatch(pattern, entry.get("value", "")) for entry in seen) and re.fullmatch(pattern, current.get("value", "")) is not None
+        result["steps"].append({"step": label, "pattern": pattern, "values": seen, "focused": current, "passed": passed})
+        if not passed:
+            raise AssertionError(f"{label}: value changes {seen!r}, focus {current!r}")
+    def announce(label, keys, expect, exact=False, pattern=None):
         """The keys must make FileCat request exactly one announcement containing (or, if exact, equal to) the text."""
         records()
         osa(FOREGROUND)
         for key in keys:
             osa(f'tell application "System Events" to {KEY_CODES[key]}')
         heard, deadline = [], time.monotonic() + 6
-        while time.monotonic() < deadline and not any(expect in entry.get("announcement", "") for entry in heard):
+        while time.monotonic() < deadline and not any(re.search(pattern, entry.get("announcement", "")) if pattern else expect in entry.get("announcement", "") for entry in heard):
             heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
             time.sleep(0.15)
         time.sleep(0.6)
         heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
-        matching = [entry for entry in heard if (entry.get("announcement", "") == expect if exact else expect in entry.get("announcement", ""))]
+        def matches(text):
+            return re.search(pattern, text) is not None if pattern else text == expect if exact else expect in text
+        matching = [entry for entry in heard if matches(entry.get("announcement", ""))]
         result["steps"].append({"step": label, "expect": expect, "announcements": heard, "matching": len(matching),
                                 "passed": len(matching) == 1})
         if len(matching) != 1:
@@ -195,6 +214,11 @@ def run(bundle, report_path):
         step("F5 opens Copy", "f5", "Destination")
         announce("an empty destination is announced", ["select-all", "backspace"], "Destination: Enter a destination folder.")
         step("Escape cancels Copy", "escape", "c.txt")
+        # Keyboard panel resizing speaks the boundary and each new share.
+        step("Command+Shift+P opens command search", "palette", "Search commands")
+        step("resizing a boundary focuses it", None, "first side's share of panels 1 and 2", keys=["s", "p", "l", "i", "t", "t", "e", "r", "return"])
+        value_step("Right changes the share VoiceOver reads", "right", r"5[1-9]")
+        step("Escape restores the boundary", "escape", "c.txt")
         osa('tell application "Finder" to activate')
         time.sleep(1.5)
         step("switch away and back", None, "c.txt", activation=True)

@@ -210,7 +210,15 @@ def main():
             key("backspace")()
         step("an empty destination is announced", empty_destination, says("Destination: Enter a destination folder."))
         step("Escape cancels Copy", key("escape"), says("c.txt"))
-        # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
+        # Keyboard panel resizing speaks the boundary and each new share.
+        step("Ctrl+Shift+P opens command search", key("ctrl+shift+p"), says("Search commands"))
+
+        def resize_command():
+            for name in ("s", "p", "l", "i", "t", "t", "e", "r", "enter"):
+                key(name)()
+        step("resizing a boundary focuses it", resize_command, says("first side's share of panels 1 and 2"))
+        step("Right speaks only the new share", key("right"), lambda phrase: re.fullmatch(r"5[1-9](\.0)?( percent| ?%)?\.?", phrase.strip()) is not None)
+        step("Escape restores the boundary", key("escape"), says("c.txt"))        # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
         # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",
                                    "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; "

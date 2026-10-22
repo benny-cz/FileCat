@@ -1,7 +1,7 @@
 // Records the macOS accessibility focus and announcements that VoiceOver follows for one test-owned process.
 //
-//   mac-ax-focus-observer observe PID OUT.jsonl STOP_FILE  — append one JSON line per AXFocusedUIElementChanged or
-//                                                            AXAnnouncementRequested notification
+//   mac-ax-focus-observer observe PID OUT.jsonl STOP_FILE  — append one JSON line per AXFocusedUIElementChanged,
+//                                                            AXAnnouncementRequested or AXValueChanged notification
 //   mac-ax-focus-observer focused PID                      — print the application's current AXFocusedUIElement
 //   mac-ax-focus-observer find PID TEXT                    — diagnostic: print every element whose title,
 //                                                            description or value contains TEXT
@@ -97,7 +97,8 @@ let refcon = Unmanaged.passUnretained(output).toOpaque()
 var registered: [String: String] = [:]
 // A process that is still starting answers kAXErrorCannotComplete; retry until its accessibility is available.
 let registrationDeadline = Date().addingTimeInterval(30)
-for notification in [kAXFocusedUIElementChangedNotification, kAXFocusedWindowChangedNotification, kAXAnnouncementRequestedNotification] {
+for notification in [kAXFocusedUIElementChangedNotification, kAXFocusedWindowChangedNotification, kAXAnnouncementRequestedNotification,
+                     kAXValueChangedNotification] {
     var status = AXObserverAddNotification(observer, application, notification as CFString, refcon)
     while status == .cannotComplete && Date() < registrationDeadline {
         Thread.sleep(forTimeInterval: 0.25)

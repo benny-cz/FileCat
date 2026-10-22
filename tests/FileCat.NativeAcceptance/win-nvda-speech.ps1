@@ -31,6 +31,13 @@ public static class FileCatNvdaInput {
         Press(vk, false);
         keybd_event(modifier, (byte)MapVirtualKey(modifier, 0), 2u, UIntPtr.Zero);
     }
+    public static void Chord2(byte first, byte second, byte vk) {
+        keybd_event(first, (byte)MapVirtualKey(first, 0), 0, UIntPtr.Zero);
+        keybd_event(second, (byte)MapVirtualKey(second, 0), 0, UIntPtr.Zero);
+        Press(vk, false);
+        keybd_event(second, (byte)MapVirtualKey(second, 0), 2u, UIntPtr.Zero);
+        keybd_event(first, (byte)MapVirtualKey(first, 0), 2u, UIntPtr.Zero);
+    }
     public static void Press(byte vk, bool extended) {
         byte scan = (byte)MapVirtualKey(vk, 0);
         uint flags = extended ? 1u : 0u;
@@ -174,7 +181,8 @@ try {
     $virtualKeys = @{ Down = @(0x28, $true); Up = @(0x26, $true); Home = @(0x24, $true); End = @(0x23, $true)
                       Tab = @(0x09, $false); F7 = @(0x76, $false); Escape = @(0x1B, $false); Enter = @(0x0D, $false)
                       Slash = @(0xBF, $false); A = @(0x41, $false); F3 = @(0x72, $false); C = @(0x43, $false); H = @(0x48, $false)
-                      R = @(0x52, $false); F5 = @(0x74, $false); Back = @(0x08, $false) }
+                      R = @(0x52, $false); F5 = @(0x74, $false); Back = @(0x08, $false); Right = @(0x27, $true)
+                      S = @(0x53, $false); P = @(0x50, $false); L = @(0x4C, $false); I = @(0x49, $false); T = @(0x54, $false); E = @(0x45, $false) }
     $chords = @{ CtrlC = 0x43; CtrlS = 0x53; CtrlA = 0x41 }
     function Step([string]$label, [string]$key, [string]$expect, [bool]$flush = $true, [scriptblock]$before = $null) {
         if ($before) { & $before }
@@ -183,24 +191,27 @@ try {
         if ($key) {
             # A comma-separated key sequence, such as typed text followed by Enter; Ctrl chords by name.
             foreach ($name in $key.Split(',')) {
-                if ($chords.ContainsKey($name)) { [FileCatNvdaInput]::Chord(0x11, [byte]$chords[$name]) }
+                if ($name -eq 'CtrlShiftP') { [FileCatNvdaInput]::Chord2(0x11, 0x10, 0x50) }
+                elseif ($chords.ContainsKey($name)) { [FileCatNvdaInput]::Chord(0x11, [byte]$chords[$name]) }
                 else { [FileCatNvdaInput]::Press([byte]$virtualKeys[$name][0], [bool]$virtualKeys[$name][1]) }
                 Start-Sleep -Milliseconds 80
             }
         }
+        # An expectation starting with re: is a regular expression.
+        $matcher = if ($expect.StartsWith('re:')) { $pattern = $expect.Substring(3); { param($line) $line -match $pattern } } else { { param($line) $line.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 } }
         $heard = @()
         $deadline = [Diagnostics.Stopwatch]::StartNew()
         while ($deadline.Elapsed.TotalSeconds -lt 6) {
             $heard += @(TakeSpeech)
-            if (@($heard | Where-Object { $_.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count) {
+            if (@($heard | Where-Object { & $matcher $_ }).Count) {
                 Start-Sleep -Milliseconds 600
                 $heard += @(TakeSpeech)
                 break
             }
             Start-Sleep -Milliseconds 150
         }
-        $passed = @($heard | Where-Object { $_.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count -gt 0
-        $matching = @($heard | Where-Object { $_.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count
+        $matching = @($heard | Where-Object { & $matcher $_ }).Count
+        $passed = $matching -gt 0
         $report.steps += [ordered]@{ step = $label; expect = $expect; heard = $heard; matching = $matching; passed = $passed }
         if (!$passed -and !$RecordAll) { throw "${label}: NVDA said $($heard -join ' | ')" }
     }
@@ -253,6 +264,11 @@ try {
     Step 'F5 opens Copy' 'F5' 'Copy dialog'
     Step 'an empty destination is announced' 'CtrlA,Back' 'Destination: Enter a destination folder.'
     Step 'Escape cancels Copy' 'Escape' 'c.txt'
+    # Keyboard panel resizing speaks the boundary and each new share.
+    Step 'Ctrl+Shift+P opens command search' 'CtrlShiftP' 'Search commands'
+    Step 'resizing a boundary focuses it' 'S,P,L,I,T,T,E,R,Enter' "first side's share of panels 1 and 2"
+    Step 'Right speaks only the new share' 'Right' "re:'5[1-9]'"
+    Step 'Escape restores the boundary' 'Escape' 'c.txt'
     # Returning to FileCat from another window announces its focused row again, once.
     Step 'switch away and back' '' 'c.txt' $true $switchAway
     $report.steps[-1].repeats = @($report.steps[-1].heard | Where-Object { $_ -like "*'c.txt'*" }).Count
