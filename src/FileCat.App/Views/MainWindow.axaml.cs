@@ -630,7 +630,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void OnPreviewKeyUp(object? sender, KeyEventArgs e)
     {
-        if (KeyMapper.IsModifierKey(e.Key)) _vm.UpdateKeyBar(KeyMapper.ToMods(e.KeyModifiers));
+        if (KeyMapper.IsModifierKey(e.Key)) _vm.UpdateKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: false)));
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -647,7 +647,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
-            _vm.UpdateKeyBar(KeyMapper.ToMods(e.KeyModifiers));
+            _vm.UpdateKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
             return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;

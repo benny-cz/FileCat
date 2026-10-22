@@ -19,6 +19,24 @@ public static class KeyMapper
     public static bool IsModifierKey(Key key) => key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift
         or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.System;
 
+    /// <summary>
+    /// The modifiers held once a modifier key's own press or release has taken effect. Windows and macOS send the key
+    /// with that state; X11 sends it with the state before, so on Linux Ctrl's press came without Ctrl and its release
+    /// with it, and the key bar showed each layer one key late.
+    /// </summary>
+    public static KeyModifiers AfterModifierKey(Key key, KeyModifiers modifiers, bool pressed)
+    {
+        var own = key switch
+        {
+            Key.LeftCtrl or Key.RightCtrl => KeyModifiers.Control,
+            Key.LeftShift or Key.RightShift => KeyModifiers.Shift,
+            Key.LeftAlt or Key.RightAlt => KeyModifiers.Alt,
+            Key.LWin or Key.RWin => KeyModifiers.Meta,
+            _ => KeyModifiers.None,
+        };
+        return pressed ? modifiers | own : modifiers & ~own;
+    }
+
     public static KeyChord? ToChord(Key key, KeyModifiers modifiers)
     {
         if (IsModifierKey(key) || key == Key.None) return null;

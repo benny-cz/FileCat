@@ -1,10 +1,48 @@
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Tests;
 
 /// <summary>The function-key bar shows which keys apply to what is focused and marked right now.</summary>
 public sealed class KeyBarTests
 {
+    [AvaloniaFact]
+    public void A_held_modifier_shows_its_layer_whichever_state_its_own_key_event_reports()
+    {
+        // X11 sends a key with the modifiers held before it, Windows and macOS with those after it, so Ctrl's own press
+        // can come with or without Ctrl. On Ubuntu the bar showed nothing while Ctrl was held and kept the Ctrl layer
+        // after it was released (and after Ctrl+Shift+P opened command search).
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string Layer(KeyMods mods) => string.Join("|", services.Keymap.GetFunctionKeyBar(mods, CommandContext.Panel).Select(k => k.Label));
+            string Shown() => string.Join("|", vm.KeyBar.Select(k => k.Label));
+            Assert.NotEqual(Layer(KeyMods.None), Layer(KeyMods.Ctrl));
+            Assert.Equal(Layer(KeyMods.None), Shown());
+            // The state before each key (X11), then the state after it (Windows, macOS).
+            foreach (bool before in new[] { true, false })
+            {
+                var none = RawInputModifiers.None;
+                var ctrl = RawInputModifiers.Control;
+                var both = RawInputModifiers.Control | RawInputModifiers.Shift;
+                window.KeyPressQwerty(PhysicalKey.ControlLeft, before ? none : ctrl);
+                Assert.Equal(Layer(KeyMods.Ctrl), Shown());
+                window.KeyPressQwerty(PhysicalKey.ShiftLeft, before ? ctrl : both);
+                Assert.Equal(Layer(KeyMods.Ctrl | KeyMods.Shift), Shown());
+                window.KeyReleaseQwerty(PhysicalKey.ShiftLeft, before ? both : ctrl);
+                Assert.Equal(Layer(KeyMods.Ctrl), Shown());
+                window.KeyReleaseQwerty(PhysicalKey.ControlLeft, before ? ctrl : none);
+                Assert.Equal(Layer(KeyMods.None), Shown());
+            }
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task The_context_menu_opens_from_the_keyboard_and_offers_what_applies()
     {
