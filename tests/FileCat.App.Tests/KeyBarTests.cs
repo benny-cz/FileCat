@@ -1,6 +1,10 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using FileCat.App.Views;
 using FileCat.Core.Commands;
 
 namespace FileCat.App.Tests;
@@ -8,6 +12,35 @@ namespace FileCat.App.Tests;
 /// <summary>The function-key bar shows which keys apply to what is focused and marked right now.</summary>
 public sealed class KeyBarTests
 {
+    [AvaloniaFact]
+    public void A_missing_modifier_release_is_reconciled_by_the_next_key_and_popup_close()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string Shown() => string.Join("|", vm.KeyBar.Select(key => key.Label));
+            string Layer(KeyMods mods) => string.Join("|", services.Keymap
+                .GetFunctionKeyBar(mods, CommandContext.Panel).Select(key => key.Label));
+
+            window.KeyPressQwerty(PhysicalKey.ControlLeft, RawInputModifiers.None);
+            Assert.Equal(Layer(KeyMods.Ctrl), Shown());
+            // A popup swallowed Ctrl-up. The next ordinary key reports no modifiers.
+            window.KeyPressQwerty(PhysicalKey.F24, RawInputModifiers.None);
+            Assert.Equal(Layer(KeyMods.None), Shown());
+
+            window.KeyPressQwerty(PhysicalKey.ShiftLeft, RawInputModifiers.None);
+            Assert.Equal(Layer(KeyMods.Shift), Shown());
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(panel => ReferenceEquals(panel.DataContext, vm.Workspace.Panels[0]));
+            view.FindControl<Button>("SortButton")!
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var menu = Assert.IsType<ContextMenu>(view.SortMenu);
+            menu.Close();
+            Assert.Equal(Layer(KeyMods.None), Shown());
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public void A_held_modifier_shows_its_layer_whichever_state_its_own_key_event_reports()
     {

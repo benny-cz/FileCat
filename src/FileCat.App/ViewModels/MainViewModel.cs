@@ -210,6 +210,12 @@ public sealed partial class MainViewModel : ObservableObject
         CommandAvailabilityChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Use for input-state reconciliation; ordinary keys need not rebuild twelve buttons.</summary>
+    internal void ReconcileKeyBar(KeyMods mods)
+    {
+        if (_mods != mods) UpdateKeyBar(mods);
+    }
+
     public void Notify(string message, bool isError = false, string? actionCommandId = null)
     {
         var now = DateTimeOffset.UtcNow;

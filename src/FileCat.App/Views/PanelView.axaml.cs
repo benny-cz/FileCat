@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
+using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 
 namespace FileCat.App.Views;
@@ -625,6 +626,7 @@ public partial class PanelView : UserControl
         _ancestorMenu = menu;
         menu.Closed += (_, _) =>
         {
+            _main?.ReconcileKeyBar(KeyMods.None);
             if (ReferenceEquals(_ancestorMenu, menu)) _ancestorMenu = null;
             if (_main?.Workspace.ActivePanel is not { } active || !ReferenceEquals(active, panel))
             {
@@ -991,6 +993,7 @@ public partial class PanelView : UserControl
         _sortMenu = menu;
         menu.Closed += (_, _) =>
         {
+            _main?.ReconcileKeyBar(KeyMods.None);
             if (ReferenceEquals(_sortMenu, menu)) _sortMenu = null;
             if (ReferenceEquals(Panel, panel) && ReferenceEquals(panel.ActiveTab, tab)) List.Focus();
         };
@@ -1031,7 +1034,11 @@ public partial class PanelView : UserControl
         if (request != _menuRequest) return;
         menu.Placement = PlacementMode.Pointer;
         _openItemMenu = menu;
-        menu.Closed += (_, _) => { if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null; };
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
         menu.Open(List);
     }
 
@@ -1077,7 +1084,11 @@ public partial class PanelView : UserControl
             menu.PlacementRect = row;
         }
         _openItemMenu = menu;
-        menu.Closed += (_, _) => { if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null; };
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
         menu.Open(List);
     }
 

@@ -156,11 +156,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         Deactivated += (_, _) =>
         {
             EndPanelResize(restore: false, returnFocus: false);
-            _vm.UpdateKeyBar(KeyMods.None);
+            _vm.ReconcileKeyBar(KeyMods.None);
             ThemeAnimation.SetActive(false);
         };
         Activated += (_, _) =>
         {
+            // A popup or another top-level window can receive the modifier's release instead of this window.
+            _vm.ReconcileKeyBar(KeyMods.None);
             ThemeAnimation.SetActive(true);
             if (!WindowsContextMenu.IsOpenOrRecentlyClosed)
                 foreach (var panel in _panelViews.Values) panel.List.RefreshGitStatuses();
@@ -630,12 +632,15 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void OnPreviewKeyUp(object? sender, KeyEventArgs e)
     {
-        if (KeyMapper.IsModifierKey(e.Key)) _vm.UpdateKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: false)));
+        _vm.ReconcileKeyBar(KeyMapper.ToMods(KeyMapper.IsModifierKey(e.Key)
+            ? KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: false) : e.KeyModifiers));
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         _suppressTextInput = null;
+        // An ordinary key reports the held modifiers even if a popup consumed their releases.
+        if (!KeyMapper.IsModifierKey(e.Key)) _vm.ReconcileKeyBar(KeyMapper.ToMods(e.KeyModifiers));
         if ((_panelDrag is not null || _tabDrag is not null) && e.Key == Key.Escape)
         {
             // Esc cancels moving a panel, or a tab.
@@ -647,7 +652,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
-            _vm.UpdateKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
+            _vm.ReconcileKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
             return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
@@ -1062,7 +1067,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             owner.ItemsSource = BuildItems(owner, section.Commands);
             groups.Add(owner);
         }
-        return new ContextMenu { ItemsSource = groups };
+        var menu = new ContextMenu { ItemsSource = groups };
+        menu.Closed += (_, _) => _vm.ReconcileKeyBar(KeyMods.None);
+        return menu;
     }
 
     IClipboard? IViewActions.Clipboard => Clipboard;

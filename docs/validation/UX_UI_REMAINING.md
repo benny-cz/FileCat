@@ -159,10 +159,8 @@ increments to `main`.
    UXBUG-018: on Linux the key bar showed each modifier layer one key late
    (nothing while Ctrl was held, the Ctrl layer after release); fixed in
    `e7836d62` and checked with a physical Ctrl hold on Ubuntu, unchanged on
-   Windows. Still open: a modifier released while a popup or another window
-   has the keyboard (Shift+F10's context menu, Alt+F7) leaves its layer up
-   after the popup closes, until the next modifier key; resynchronize the bar
-   from the next key's modifiers or when the popup closes. The Ubuntu 200%
+   Windows. The popup/Find-window stale-layer correction has a focused
+   headless test; native Ubuntu retests for Shift+F10 and Alt+F7 remain. The Ubuntu 200%
    sweep found no clipping in the main window, the shared dialogs, command
    search, the resize strip, the viewer, Quick View, Operations, About and
    Settings; popup menus and the Find window still need a scaled capture.

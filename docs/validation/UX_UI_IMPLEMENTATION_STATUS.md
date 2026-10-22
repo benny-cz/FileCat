@@ -27,6 +27,15 @@ the context menu, and after Alt+F7, the Shift or Alt layer stayed up once the
 popup closed, because the modifier's release reached the popup or the new
 window instead of the main window; it lasts until the next modifier key.
 
+The follow-up key-bar correction reconciles the held layer from every ordinary
+key's modifier flags and resets it when a panel or toolbar menu closes or the
+main window regains focus. It avoids rebuilding all twelve key buttons when
+the modifier state has not changed. A headless regression presses Ctrl without
+delivering its release, verifies the next ordinary key clears the Ctrl layer,
+then opens and closes a sort popup while a Shift release is missing and checks
+that the normal layer returns. All four focused `KeyBarTests` pass on Windows.
+Native Linux popup and Find-window retests remain open.
+
 **22 October 2026, native icons cropped at display scaling above 100%
 (UXBUG-017; FCUX-058 Places and the scaled-display gates):** The owner saw
 only part of each panel header icon on the Ubuntu VM at 200%. Native icons are
