@@ -46,7 +46,7 @@ public sealed class TransferDestinationValidationTests
                 .Single(e => Equals(e.Header, "Options")).IsExpanded = true;
             window.UpdateLayout();
             var warning = window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(t => AutomationProperties.GetName(t) == "Remote replacement concurrency warning");
+                .Single(t => AutomationProperties.GetAutomationId(t) == "Remote replacement concurrency warning");
             var conflicts = window.GetVisualDescendants().OfType<ComboBox>()
                 .Single(c => c.ItemsSource?.Cast<object>().Any(item => Equals(item, "Replace if newer")) == true);
             var destination = window.GetVisualDescendants().OfType<TextBox>()
@@ -160,7 +160,7 @@ public sealed class TransferDestinationValidationTests
             var queue = window.GetVisualDescendants().OfType<Button>()
                 .Single(b => Equals(b.Content, "Queue"));
             var error = window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(c => AutomationProperties.GetName(c) == "Transfer options error");
+                .Single(c => AutomationProperties.GetAutomationId(c) == "Transfer options error");
             for (int i = 0; i < 250 && !queue.IsEnabled; i++)
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.True(queue.IsEnabled);
@@ -220,7 +220,7 @@ public sealed class TransferDestinationValidationTests
             var start = window.GetVisualDescendants().OfType<Button>()
                 .Single(b => Equals(b.Content, "Copy"));
             var error = window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(c => AutomationProperties.GetName(c) == "Transfer options error");
+                .Single(c => AutomationProperties.GetAutomationId(c) == "Transfer options error");
             await Until(() => start.IsEnabled);
             speed.Text = invalidSpeed;
             start.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -315,7 +315,7 @@ public sealed class TransferDestinationValidationTests
             Assert.Empty(services.Jobs.Jobs);
 
             T Named<T>(string name) where T : Control => window.GetVisualDescendants().OfType<T>()
-                .Single(c => AutomationProperties.GetName(c) == name);
+                .Single(c => AutomationProperties.GetName(c) == name || AutomationProperties.GetAutomationId(c) == name);
             Button ActionButton(string label) => window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, label));
             async Task Until(Func<bool> ready)
             {

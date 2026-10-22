@@ -73,7 +73,7 @@ public sealed class BulkRenameAsyncPreviewTests
             var rename = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Rename"));
             var review = window.GetVisualDescendants().OfType<BulkRenameReview>().Single();
             var status = window.GetVisualDescendants().OfType<TextBlock>().Single(b =>
-                AutomationProperties.GetName(b) == "Bulk rename validation status");
+                AutomationProperties.GetAutomationId(b) == "Bulk rename validation status");
 
             mask.Text = "slow_[C]";
             await Until(() => entered.IsSet);

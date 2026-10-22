@@ -48,7 +48,7 @@ public sealed class CompareTextInteractionTests
             var search = window.GetVisualDescendants().OfType<TextBox>().Single(c =>
                 AutomationProperties.GetName(c) == "Find text in comparison (Ctrl+F)");
             var status = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
-                AutomationProperties.GetName(c) == "Comparison match status");
+                AutomationProperties.GetAutomationId(c) == "Comparison match status");
             var scope = window.GetVisualDescendants().OfType<ComboBox>().Single(c =>
                 AutomationProperties.GetName(c) == "Comparison search source scope");
             var view = window.GetVisualDescendants().OfType<CompareTextView>().Single();
@@ -88,7 +88,7 @@ public sealed class CompareTextInteractionTests
             var search = window.GetVisualDescendants().OfType<TextBox>().Single(c =>
                 AutomationProperties.GetName(c) == "Find text in comparison (Ctrl+F)");
             var status = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
-                AutomationProperties.GetName(c) == "Comparison match status");
+                AutomationProperties.GetAutomationId(c) == "Comparison match status");
             var view = window.GetVisualDescendants().OfType<CompareTextView>().Single();
             search.Text = "Needle";
             await Until(() => status.Text?.StartsWith("1 match", StringComparison.Ordinal) == true);

@@ -244,7 +244,7 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
         Avalonia.Automation.AutomationProperties.SetName(_previousMatch, "Find previous match");
         Avalonia.Automation.AutomationProperties.SetName(_nextMatch, "Find next match");
-        Avalonia.Automation.AutomationProperties.SetName(_matchCount, "Find match count");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_matchCount, "Find match count");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_matchCount, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_encodingBox, "Text encoding");
         _wrap.IsChecked = services.Settings.ViewerWrap;
@@ -272,7 +272,7 @@ public sealed class ViewerWindow : Window
         ToolTip.SetTip(_actualSize, "Show at 100%: one source pixel per device pixel, subject to the decoder's resolution cap (1 or Z)");
         Avalonia.Automation.AutomationProperties.SetName(_fitPicture, "Fit picture to window");
         Avalonia.Automation.AutomationProperties.SetName(_actualSize, "Picture at 100 percent");
-        Avalonia.Automation.AutomationProperties.SetName(_pictureZoom, "Picture zoom percentage");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_pictureZoom, "Picture zoom percentage");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureZoom, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
@@ -1623,18 +1623,20 @@ public sealed class ViewerWindow : Window
         _nextMatch.IsEnabled = available;
         if (!available)
         {
-            _matchCount.Text = _isPicture ? string.Empty : "Enter text to find";
+            ShowMatchCount(_isPicture ? string.Empty : "Enter text to find", outcome: false);
             return;
         }
         if (_isPage)
         {
-            _matchCount.Text = _pageCountResult is { MatchCount: { } total } pageCount
+            bool found = _pageCountResult is not null || _pageFoundMatch;
+            ShowMatchCount(_pageCountResult is { MatchCount: { } total } pageCount
                 ? pageCount.CountComplete ? $"{total:N0} {(total == 1 ? "match" : "matches")}" : $"At least {total:N0} matches · count limited"
                 : _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
                 : _searchCts is not null ? "Searching page…"
                 : _pageFindUnavailable ? "Page search or count unavailable"
                 : _pageTriedFind ? "0 matches from here · total unavailable in Page mode"
-                : "Press Next or Previous to find";
+                : "Press Next or Previous to find",
+                outcome: found || _searchCts is null && (_pageFindUnavailable || _pageTriedFind));
             if (_pageCountResult is { } counted)
             {
                 string detail = counted.CountComplete
@@ -1649,8 +1651,7 @@ public sealed class ViewerWindow : Window
         {
             int known = count.Matches + (!count.Complete && _lastHit >= count.ScannedBytes ? 1 : 0);
             string noun = known == 1 ? "match" : "matches";
-            _matchCount.Text = count.Complete ? $"{known:N0} {noun}"
-                : $"At least {known:N0} {noun} · count limited";
+            ShowMatchCount(count.Complete ? $"{known:N0} {noun}" : $"At least {known:N0} {noun} · count limited", outcome: true);
             string detail = count.Complete ? "The whole searchable content was counted."
                 : $"The count is a lower bound. Scanned {Formatters.ExactSize(count.ScannedBytes)} of " +
                   $"{Formatters.ExactSize(_countIdentity?.Reader.Length ?? 0)} or reached the 10,000-match limit.";
@@ -1658,15 +1659,23 @@ public sealed class ViewerWindow : Window
             Avalonia.Automation.AutomationProperties.SetHelpText(_matchCount, detail);
         }
         else if (_countCts is not null)
-            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · counting…" : "Counting matches…";
+            ShowMatchCount(_lastHit >= 0 ? "At least 1 match · counting…" : "Counting matches…", outcome: false);
         else if (_countFailed)
-            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · count unavailable" : "Match count unavailable";
+            ShowMatchCount(_lastHit >= 0 ? "At least 1 match · count unavailable" : "Match count unavailable", outcome: true);
         else if (_countCanceled)
-            _matchCount.Text = _lastHit >= 0 ? "At least 1 match · count stopped" : "Count stopped";
+            ShowMatchCount(_lastHit >= 0 ? "At least 1 match · count stopped" : "Count stopped", outcome: true);
         else if (_searchCts is not null)
-            _matchCount.Text = "Searching…";
+            ShowMatchCount("Searching…", outcome: false);
         else
-            _matchCount.Text = "Press Next or Previous to count";
+            ShowMatchCount("Press Next or Previous to count", outcome: false);
+    }
+
+    /// <summary>Speaks only outcomes: hints and searching or counting states change while the user types and work runs.</summary>
+    private void ShowMatchCount(string text, bool outcome)
+    {
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_matchCount,
+            outcome ? Avalonia.Automation.AutomationLiveSetting.Polite : Avalonia.Automation.AutomationLiveSetting.Off);
+        _matchCount.Text = text;
     }
 
     private void SearchPositionChanged(Control source)

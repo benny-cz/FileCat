@@ -212,6 +212,27 @@ public sealed class ViewerSearchScopeTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task The_match_count_speaks_its_outcome_and_not_its_searching_or_counting_states()
+    {
+        using var f = await Fixture.Create(Encoding.UTF8.GetBytes("charlie\n"), editor: false);
+        var count = Field<TextBlock>(f.Window, "_matchCount");
+        // A fixed accessible name never changed with the count, so screen readers heard nothing.
+        var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(count);
+        var spoken = new List<string?>();
+        peer.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Avalonia.Automation.AutomationElementIdentifiers.NameProperty &&
+                peer.GetLiveSetting() != Avalonia.Automation.AutomationLiveSetting.Off)
+                spoken.Add(peer.GetName());
+        };
+        f.Search.Text = "char";
+        await f.Find(true);
+        await Until(() => count.Text == "1 match");
+        Assert.Equal(["1 match"], spoken);
+        Assert.Equal("1 match", peer.GetName());
+    }
+
     private static object? Invoke(object owner, string name, params object?[] args) => owner.GetType().GetMethod(name, Fields)!.Invoke(owner, args);
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
     private static async Task Until(Func<bool> condition)

@@ -21,7 +21,7 @@ internal static class AdvancedTextFileExchange
         var import = new Button { Content = $"Import {subject} text…" };
         var export = new Button { Content = $"Export {subject} text…" };
         var status = new TextBlock { Classes = { "small", "muted" }, IsVisible = false, TextWrapping = TextWrapping.Wrap };
-        AutomationProperties.SetName(status, $"{subject} text file status");
+        AutomationProperties.SetAutomationId(status, $"{subject} text file status");
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         void Report(string message) { status.Text = message; status.IsVisible = true; }
 

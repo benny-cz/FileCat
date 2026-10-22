@@ -128,7 +128,7 @@ public static class OperationDialogs
         body.Children.Add(interpretation);
         var baseLocation = input.BaseLocation ?? vm.ActiveTab?.Location;
         var destinationError = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
-        AutomationProperties.SetName(destinationError, "Destination validation error");
+        AutomationProperties.SetAutomationId(destinationError, "Destination validation error");
         AutomationProperties.SetLiveSetting(destinationError, AutomationLiveSetting.Assertive);
         body.Children.Add(destinationError);
 
@@ -154,7 +154,7 @@ public static class OperationDialogs
             Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap,
             Classes = { "warning" }, IsVisible = false,
         };
-        AutomationProperties.SetName(remoteReplacementWarning, "Remote replacement concurrency warning");
+        AutomationProperties.SetAutomationId(remoteReplacementWarning, "Remote replacement concurrency warning");
         AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
         body.Children.Add(remoteReplacementWarning);
         CheckBox? includeHidden = null;
@@ -164,7 +164,7 @@ public static class OperationDialogs
             body.Children.Add(includeHidden);
         }
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
-        AutomationProperties.SetName(error, "Transfer options error");
+        AutomationProperties.SetAutomationId(error, "Transfer options error");
         AutomationProperties.SetLiveSetting(error, AutomationLiveSetting.Assertive);
         body.Children.Add(error);
         void ClearOptionError()
@@ -452,7 +452,7 @@ public static class OperationDialogs
         if (job.Request.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp)
         {
             var warning = new TextBlock { Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
-            AutomationProperties.SetName(warning, "Remote replacement concurrency warning");
+            AutomationProperties.SetAutomationId(warning, "Remote replacement concurrency warning");
             body.Children.Add(warning);
         }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });

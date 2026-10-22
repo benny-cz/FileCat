@@ -84,7 +84,7 @@ public sealed class AdvancedTextFileExchangeTests
                     Assert.True(button.IsEffectivelyEnabled);
                 }
                 Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), block =>
-                    AutomationProperties.GetName(block) == $"{subject} text file status");
+                    AutomationProperties.GetAutomationId(block) == $"{subject} text file status");
             }
             Select("Behavior");
             Check("Edit filter definitions as text", "filter");

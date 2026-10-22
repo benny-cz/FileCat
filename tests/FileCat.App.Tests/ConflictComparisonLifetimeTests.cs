@@ -57,7 +57,7 @@ public sealed class ConflictComparisonLifetimeTests
             var pending = OperationDialogs.ShowDecisionAsync(vm, new PendingDecision(job, conflict));
             window.UpdateLayout();
             var warnings = window.GetVisualDescendants().OfType<TextBlock>()
-                .Where(t => AutomationProperties.GetName(t) == "Remote replacement concurrency warning").ToArray();
+                .Where(t => AutomationProperties.GetAutomationId(t) == "Remote replacement concurrency warning").ToArray();
             if (remote)
             {
                 var warning = Assert.Single(warnings);

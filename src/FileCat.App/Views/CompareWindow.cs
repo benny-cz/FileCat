@@ -200,7 +200,7 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_findText, "Find text in comparison (Ctrl+F)");
         Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide comparison Find bar");
         Avalonia.Automation.AutomationProperties.SetName(_findSide, "Comparison search source scope");
-        Avalonia.Automation.AutomationProperties.SetName(_findStatus, "Comparison match status");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_findStatus, "Comparison match status");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_findStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
         _findStatus.Text = "Find searches the shown comparison rows.";
         _findPrevious.IsEnabled = _findNext.IsEnabled = false;

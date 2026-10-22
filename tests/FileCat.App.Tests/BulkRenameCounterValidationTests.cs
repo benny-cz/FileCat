@@ -50,7 +50,7 @@ public sealed class BulkRenameCounterValidationTests
             await Until(() => !rename.IsEnabled);
             Assert.False(rename.IsEnabled);
             Assert.Empty(review.AllRows);
-            var error = window.GetVisualDescendants().OfType<TextBlock>().Single(b => AutomationProperties.GetName(b) == validation);
+            var error = window.GetVisualDescendants().OfType<TextBlock>().Single(b => AutomationProperties.GetAutomationId(b) == validation);
             Assert.True(error.IsVisible);
             Assert.Contains("must be", error.Text);
             Assert.Contains(error.Text!, AutomationProperties.GetHelpText(Box(field)));
@@ -92,7 +92,7 @@ public sealed class BulkRenameCounterValidationTests
             Box("Counter start").Text = "";
             Dispatcher.UIThread.RunJobs();
             var message = window.GetVisualDescendants().OfType<TextBlock>().Single(b =>
-                AutomationProperties.GetName(b) == "Counter start validation");
+                AutomationProperties.GetAutomationId(b) == "Counter start validation");
             Assert.True(message.IsVisible);
             Assert.DoesNotContain("error", message.Classes);
             Assert.False(rename.IsEnabled);

@@ -48,7 +48,7 @@ internal static class AboutDialog
             body.Children.Add(FactsGrid(facts));
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             var status = new TextBlock { IsVisible = false, Classes = { "muted" } };
-            AutomationProperties.SetName(status, "About support action status");
+            AutomationProperties.SetAutomationId(status, "About support action status");
             AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
             void Report(string message) { status.Text = message; status.IsVisible = true; }
 

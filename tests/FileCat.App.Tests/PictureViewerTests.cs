@@ -198,7 +198,7 @@ public sealed class PictureViewerTests
             var fit = viewer.GetVisualDescendants().OfType<ToggleButton>().Single(b => b.Content as string == "Fit");
             var actual = viewer.GetVisualDescendants().OfType<ToggleButton>().Single(b => b.Content as string == "100%");
             var zoomLabel = viewer.GetVisualDescendants().OfType<TextBlock>().Single(b =>
-                Avalonia.Automation.AutomationProperties.GetName(b) == "Picture zoom percentage");
+                Avalonia.Automation.AutomationProperties.GetAutomationId(b) == "Picture zoom percentage");
             await Task.Delay(50, ct);
             Assert.True(view.Fit);
             Assert.True(fit.IsChecked);
