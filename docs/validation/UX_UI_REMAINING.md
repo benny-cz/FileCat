@@ -17,9 +17,11 @@ increments to `main`.
   Orca's own speech log in the Ubuntu VM, `win-nvda-speech.ps1` reads a signed
   portable NVDA 2026.2 log in the Win11 VM (below
   `%LOCALAPPDATA%\FileCatValidation\NVDA\portable`), and
-  `mac-ax-focus-speech.py` records the AX focus notifications VoiceOver
-  speaks from. Extend these journeys for the "spoken" criteria of other
-  findings. Hearing VoiceOver itself needs the owner to enable "Allow
+  `mac-ax-focus-speech.py` records the AX focus notifications and
+  announcements VoiceOver speaks from. All three also check the first and a
+  repeated copy notice. Extend these journeys for the "spoken" criteria of
+  other findings (Find results, validation errors such as UXBUG-015 and
+  FCUX-028/040/041, tabs). Hearing VoiceOver itself needs the owner to enable "Allow
   VoiceOver to be controlled with AppleScript" in VoiceOver Utility, which
   macOS protects with an administrator authorization prompt; that prompt was
   cancelled and the setting is still off.
@@ -69,21 +71,21 @@ increments to `main`.
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
-   supported desktops. For FCUX-010, Git-built `9479b280` passed actual Orca
-   and NVDA navigation speech and the macOS AX focus journey (row moves,
-   panels, a dialog and window switches). Remaining: VoiceOver's own speech
-   (owner prerequisite above), Orca repeating a row description as its
-   tutorial message (Avalonia maps one help text to both AT-SPI properties),
-   NVDA not voicing the dialog's group name on entry, large-listing latency,
-   complete marked-item review and the remaining Mac/Linux item and action
-   routes.
+   supported desktops. For FCUX-010, Git-built `7da4fc0b` passed actual Orca
+   and NVDA speech and the macOS AX journey (row moves, panels, a dialog whose
+   group name NVDA now voices on entry, window switches, and the first and a
+   repeated copy notice). Remaining: VoiceOver's own speech (owner
+   prerequisite above), Orca repeating a row description as its tutorial
+   message (Avalonia maps one help text to both AT-SPI properties),
+   large-listing latency, complete marked-item review and the remaining
+   Mac/Linux item and action routes.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and
    viewer semantics (012, 076, 072, 073, 056), theme/readability (013, 049,
    050, 051), safe listing and panel geometry (014, 022–028, 030–033, 047,
    048), external transfer (071, 075), operation evidence and recovery
-   (015–017, 019–021, 042, 043, 068), notification lifetime (029), Settings
+   (015–017, 019–021, 042, 043, 068), notification lifetime (029: clipboard and scaled layout; its notices are spoken on all three desktops), Settings
    and command consistency (035–037, 046, 057), bulk rename (038–040), Find
    and preview behavior (044, 045, 052, 053, 055). The status table identifies
    each group's exact provider, input, scaling and assistive-technology gate.
@@ -123,6 +125,13 @@ increments to `main`.
    Copy, Move and Delete passed at normal scale. The Ubuntu
    Wayland physical uinput mouse and touch routes passed; the Mac AX label and
    native X/backdrop pointer route passed through direct AXUIElement traversal.
+   Two issues found by the speech runs are fixed: on macOS a modifier set by
+   synthesized input (AppleScript's `using command down`) arrived as the A key,
+   so Command+C first selected every file (`7da4fc0b`; native probe below in
+   the status); and Create folder told Linux and macOS to use `\` for nested
+   folders, where it is an ordinary name character (`aef91939`; the Ubuntu and
+   macOS CI lanes run its test). Report the Avalonia modifier behavior upstream
+   if the owner agrees.
 
 ## Evidence required to finish
 
