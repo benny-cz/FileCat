@@ -93,6 +93,24 @@ disappear, restored `*`, then physically Shift-clicked `d.txt`. The obsolete
 `d.txt` was focused, all four source hashes remained exact and the target
 stayed empty. Guest receipt:
 `~/FileCatValidation/ubuntu-selection-filter-20261022.json`.
+The same fixture now also passed native second-tab selection: after touching
+`d.txt` in the first tab, Ctrl+T opened a new tab, Enter navigated into the
+owned `second` folder, Home/Down focused `e.txt`, and physical Shift+click on
+`f.txt` marked exactly `e.txt` and `f.txt` (13 bytes), with `f.txt` focused.
+The four first-tab and two second-tab SHA-256 values remained exact, and the
+target stayed empty. Sort, filter and tab variants each passed again at a
+measured 720 × 540 window, with their respective 13-, 14- and 13-byte exact
+marks. Guest receipts are `~/FileCatValidation/ubuntu-selection-tab-20261022.json`
+and the `ubuntu-selection-{sort,filter,tab}-narrow-20261022.json` files.
+Scaled display, deeper focus transitions and spoken feedback remain open.
+
+**22 October 2026, Mac CI runner variance:** The `8d8af3f8` macOS CI lane
+timed out the existing 20,000-entry archive rewrite performance assertion
+after 45 seconds while all preceding and adjacent product code was unchanged;
+the preceding `b5f4fbbe` run passed. The test retains a bounded performance
+check with a 90-second allowance for shared-runner scheduler and filesystem
+load. Its targeted run on the isolated Mac passed (1/1); final-head CI must
+confirm all required platform lanes.
 
 **FCUX-001 remote publication capability review:** The implemented SFTP
 `posix-rename@openssh.com` path can replace an existing file in one server

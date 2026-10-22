@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -35,11 +35,13 @@ native_click = shared["native_click"]
 def main():
     if (len(sys.argv) not in (5, 6, 7) or
             (len(sys.argv) == 6 and sys.argv[5] != "--narrow") or
-            (len(sys.argv) == 7 and sys.argv[5] not in ("--sort", "--filter"))):
+            (len(sys.argv) == 7 and sys.argv[5] not in
+             ("--sort", "--filter", "--tab", "--sort-narrow", "--filter-narrow", "--tab-narrow"))):
         raise SystemExit(__doc__)
-    narrow = len(sys.argv) == 6
-    sort = len(sys.argv) == 7 and sys.argv[5] == "--sort"
-    filter_case = len(sys.argv) == 7 and sys.argv[5] == "--filter"
+    narrow = len(sys.argv) == 6 or len(sys.argv) == 7 and sys.argv[5].endswith("-narrow")
+    sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow")
+    filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
+    tab_case = len(sys.argv) == 7 and sys.argv[5] in ("--tab", "--tab-narrow")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper, touch_helper = (Path(value).resolve(strict=True)
                                           for value in (sys.argv[1], sys.argv[3], sys.argv[4]))
@@ -50,7 +52,7 @@ def main():
             touch_helper.name != "linux-uinput-touch.py" or
             any(validation not in helper.parents for helper in (key_helper, touch_helper))):
         raise SystemExit("Use the isolated FileCat build, owned helpers and report under ~/FileCatValidation")
-    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case else None
+    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case or tab_case else None
     if mouse_helper is not None and (mouse_helper.name != "linux-uinput-mouse.py" or
                                      validation not in mouse_helper.parents):
         raise SystemExit("Use the owned transient uinput mouse helper")
@@ -63,19 +65,27 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort or filter_case:
+    if sort or filter_case or tab_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
     source_sha = {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()}
+    second = source / "second"
+    second_expected = {"e.txt": b"echo\n", "f.txt": b"foxtrot\n"} if tab_case else {}
+    if tab_case:
+        second.mkdir()
+        for name, content in second_expected.items():
+            (second / name).write_bytes(content)
+    second_sha = {name: hashlib.sha256(content).hexdigest()
+                 for name, content in second_expected.items()}
     with app_path.open("rb") as binary:
         app_sha = hashlib.file_digest(binary, "sha256").hexdigest()
     os.environ.setdefault("DISPLAY", ":0")
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
-              "narrow": narrow, "sort": sort, "filter": filter_case,
-              "sourceSha256": source_sha, "steps": []}
+              "narrow": narrow, "sort": sort, "filter": filter_case, "tab": tab_case,
+              "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
     try:
         with (fixture / "app.log").open("wb") as log:
@@ -115,10 +125,10 @@ def main():
             def status():
                 names = [node.get_name() for node in descendants(app)]
                 return next((name for name in names if name.startswith("Marked ") or
-                             name.startswith(f"0 folders, {len(expected)} files · ")), None)
+                             (" folder" in name and " files · " in name)), None)
 
             def focused():
-                return [name for name in expected if any(
+                return [name for name in (*expected, *second_expected) if any(
                     item.get_state_set().contains(Atspi.StateType.FOCUSED)
                     for item in named(app, "list item", name))]
 
@@ -138,8 +148,16 @@ def main():
             clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
-            wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "b.txt" if sort or filter_case else "a.txt"
+            if tab_case:
+                wait_for(lambda: len(named(app, "list item", "second")) == 1 and
+                         all(named(app, "list item", name) for name in expected),
+                         "the source files and second folder")
+                clear = status()
+                if clear is None or "4 files · 25 bytes" not in clear or not clear.startswith("1 folder"):
+                    raise AssertionError(f"Unexpected two-tab source summary: {clear}")
+            else:
+                wait_for(lambda: status() == clear, "the complete owned listing")
+            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case else "a.txt")
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -149,7 +167,7 @@ def main():
             native_click(round(bounds.x + min(40, bounds.width / 2)),
                          round(bounds.y + bounds.height / 2), touch_helper, sudo_password)
             snapshot(f"touch {anchor}", clear, anchor)
-            if sort or filter_case:
+            if sort or filter_case or tab_case:
                 def order():
                     rows = []
                     for name in expected:
@@ -203,6 +221,27 @@ def main():
                     target_name = "d.txt"
                     target_summary = "Marked 2 of 4 files · 14 bytes"
                     gesture = "Shift+click d.txt after filter"
+                elif tab_case:
+                    key("ctrl+t")
+                    folder = wait_for(lambda: next(iter(named(app, "list item", "second")), None),
+                                      "second folder in the new tab")
+                    folder_bounds = folder.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    activate_window(process.pid)
+                    native_click(round(folder_bounds.x + min(40, folder_bounds.width / 2)),
+                                 round(folder_bounds.y + folder_bounds.height / 2),
+                                 touch_helper, sudo_password)
+                    key("enter")
+                    wait_for(lambda: named(app, "list", f"Panel 1, source, {second}") and
+                             all(named(app, "list item", name) for name in second_expected),
+                             "the second tab folder and its two files")
+                    key("home")
+                    key("down")
+                    wait_for(lambda: focused() == ["e.txt"], "e.txt focused in the second tab")
+                    report["steps"].append({"action": "new tab, enter second, focus e.txt",
+                                            "focused": focused()})
+                    target_name = "f.txt"
+                    target_summary = "Marked 2 of 2 files · 13 bytes"
+                    gesture = "Shift+click f.txt in second tab"
                 else:
                     target_name = "c.txt"
                     target_summary = "Marked 2 of 4 files · 13 bytes"
@@ -297,7 +336,8 @@ def main():
                 mouse("shift-current", (0, 0))
                 report["pointerAfterShiftClick"] = pointer_position()
                 report["postShiftClick"] = {"status": status(), "focused": focused(),
-                                            "order": order()}
+                                            "order": order() if not tab_case else
+                                            [name for name in second_expected if named(app, "list item", name)]}
                 snapshot(gesture, target_summary, target_name)
             else:
                 key("shift+down")
@@ -306,8 +346,10 @@ def main():
                 snapshot("Up retains mark", marked, "a.txt")
                 key("shift+down")
                 snapshot("Shift+Down clears mark", clear, "b.txt")
-            if {name: hashlib.sha256((source / name).read_bytes()).hexdigest()
-                    for name in expected} != source_sha or list(target.iterdir()):
+            if ({name: hashlib.sha256((source / name).read_bytes()).hexdigest()
+                    for name in expected} != source_sha or
+                    {name: hashlib.sha256((second / name).read_bytes()).hexdigest()
+                     for name in second_expected} != second_sha or list(target.iterdir())):
                 raise AssertionError("Native selection changed the source or destination fixture")
             report.update({"passed": True, "sourceRowBounds": [bounds.x, bounds.y,
                            bounds.width, bounds.height], "fixtureUnchanged": True,

@@ -791,13 +791,13 @@ public sealed class ArchiveUpdateTests : IDisposable
         var changes = Enumerable.Range(50, 50).Select(d => new ArchiveChange(ArchiveChangeKind.Delete, $"d{d}"))
             .Append(new ArchiveChange(ArchiveChangeKind.Rename, "d1", NewMemberPath: "renamed")).ToList();
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        // Hosted macOS runners can take more than the ordinary 20-second job
-        // allowance for this 20,000-entry fixture. Keep a bounded performance
-        // assertion while allowing scheduler and filesystem variance.
+        // Hosted macOS runners have taken over 45 seconds to rewrite this
+        // 20,000-entry fixture under concurrent CI load. Keep a bounded
+        // performance assertion while allowing scheduler and filesystem variance.
         var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip), changes, CompressionLevel.Fastest),
-            timeout: TimeSpan.FromSeconds(45));
+            timeout: TimeSpan.FromSeconds(90));
         Assert.Equal(JobState.Completed, job.State);
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(45), $"took {clock.Elapsed}");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(90), $"took {clock.Elapsed}");
         using var result = ZipFile.OpenRead(zip);
         Assert.Equal(10_000, result.Entries.Count);
         Assert.Equal(200, result.Entries.Count(e => e.FullName.StartsWith("renamed/", StringComparison.Ordinal)));

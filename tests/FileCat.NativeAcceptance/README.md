@@ -105,6 +105,12 @@ two-file 13-byte mark, focused target and unchanged fixture bytes. Append
 `--filter MOUSE_HELPER` to enter `*|b*` and then `*` with a physical keyboard,
 proving that the hidden `b.txt` anchor retires: after restoring the list, a
 physical Shift+click on `d.txt` must mark only `c.txt` and `d.txt` (14 bytes).
+Append `--tab MOUSE_HELPER` to touch `d.txt`, open a second tab with Ctrl+T,
+enter its owned subfolder, focus `e.txt` with Home/Down and physically
+Shift+click `f.txt`; the first tab's anchor must not carry over. All three
+four-file variants also accept `--sort-narrow`, `--filter-narrow` or
+`--tab-narrow` for a measured 720 × 540 window, respectively. Each checks
+the exact selection summary, focus, source hashes and empty destination.
 Pass the one-time guest sudo
 credential only to the runner process; it is removed before FileCat starts.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
