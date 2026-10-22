@@ -35,6 +35,7 @@ public partial class App : Application
         ThemeAnimation.SetAllowed(services.Settings.ThemeAnimations);
         Controls.AtSpiLayoutNames.Install(this);
         Controls.LiveRegions.Install();
+        Controls.SyntheticModifierKeys.Install();
         if (PlatformSettings is { } ps)
         {
             ps.ColorValuesChanged += (_, _) =>
