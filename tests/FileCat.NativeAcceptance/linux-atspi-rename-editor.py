@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -108,6 +109,16 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
                 "the exact isolated source panel", seconds=25)
             activate_window(process.pid)
             if narrow:
+                shown = subprocess.run(["/usr/bin/gdctl", "show"], check=True,
+                                       capture_output=True, text=True, timeout=5).stdout
+                match = re.search(r"\bScale: ([0-9.]+)", shown)
+                if not match:
+                    raise AssertionError("Native display scale unavailable for narrow review")
+                scale = float(match.group(1))
+                if not 0.5 <= scale <= 4:
+                    raise AssertionError(f"Unexpected native display scale: {scale}")
+                result["displayScale"] = scale
+                requested = (round(720 * scale), round(540 * scale))
                 listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True,
                                          capture_output=True, text=True, timeout=5).stdout
                 ids = [line.split()[0] for line in listing.splitlines()
@@ -116,22 +127,27 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
                     raise AssertionError(f"Expected one owned window, found {ids}")
                 subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-b",
                                 "remove,maximized_vert,maximized_horz"], check=True, timeout=5)
-                subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-e", "0,100,80,720,540"],
+                subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-e",
+                                f"0,100,80,{requested[0]},{requested[1]}"],
                                check=True, timeout=5)
                 def settled_geometry():
                     geometry = subprocess.run(["/usr/bin/xdotool", "getwindowgeometry", "--shell", ids[0]],
                                               check=True, capture_output=True, text=True, timeout=5).stdout
                     values = dict(line.split("=", 1) for line in geometry.splitlines() if "=" in line)
                     result["windowGeometry"] = values
-                    if 700 <= int(values["WIDTH"]) <= 800 and 500 <= int(values["HEIGHT"]) <= 600:
+                    result["windowSizeDip"] = [int(values["WIDTH"]) / scale,
+                                               int(values["HEIGHT"]) / scale]
+                    if (700 <= result["windowSizeDip"][0] <= 800 and
+                            500 <= result["windowSizeDip"][1] <= 600):
                         return values
                     return None
                 try:
                     result["windowGeometry"] = wait_for(settled_geometry, "720 by 540 narrow window", seconds=2)
                 except AssertionError:
-                    subprocess.run(["/usr/bin/xdotool", "windowsize", ids[0], "720", "540"],
+                    subprocess.run(["/usr/bin/xdotool", "windowsize", ids[0],
+                                    str(requested[0]), str(requested[1])],
                                    check=True, timeout=5)
-                    result["windowGeometry"] = wait_for(settled_geometry, "720 by 540 narrow window")
+                    result["windowGeometry"] = wait_for(settled_geometry, "720 by 540 DIP narrow window")
             row = wait_for(lambda: next(iter(named(app, "list item", "a.txt")), None), "a.txt row")
             if not row.grab_focus():
                 raise AssertionError("Could not focus the exact source row")
