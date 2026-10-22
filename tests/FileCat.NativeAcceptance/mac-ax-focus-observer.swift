@@ -1,10 +1,11 @@
-// Records the macOS accessibility focus that VoiceOver follows for one test-owned process.
+// Records the macOS accessibility focus and announcements that VoiceOver follows for one test-owned process.
 //
-//   mac-ax-focus-observer observe PID OUT.jsonl STOP_FILE  — append one JSON line per AXFocusedUIElementChanged
+//   mac-ax-focus-observer observe PID OUT.jsonl STOP_FILE  — append one JSON line per AXFocusedUIElementChanged or
+//                                                            AXAnnouncementRequested notification
 //   mac-ax-focus-observer focused PID                      — print the application's current AXFocusedUIElement
 //
-// Each record holds the focused element's role, title, description, value and help, the attributes VoiceOver
-// speaks. The observer only reads; it never performs an action or changes a value.
+// Each record holds the element's role, title, description, value and help, the attributes VoiceOver speaks, and
+// for an announcement the announced text. The observer only reads; it never performs an action or changes a value.
 import ApplicationServices
 import Foundation
 
@@ -54,22 +55,26 @@ let output = FileHandle(forWritingAtPath: arguments[3]) ?? {
 }()
 let stop = arguments[4]
 var observer: AXObserver?
-let callback: AXObserverCallback = { _, element, notification, refcon in
+let callback: AXObserverWithInfoCallback = { _, element, notification, info, refcon in
     var record = describe(element)
     record["notification"] = notification as String
     record["time"] = String(format: "%.3f", Date().timeIntervalSince1970)
+    if let info = info as? [String: Any], let announcement = info[kAXAnnouncementKey as String] as? String {
+        record["announcement"] = announcement
+        if let priority = info[kAXPriorityKey as String] as? NSNumber { record["priority"] = priority.stringValue }
+    }
     let handle = Unmanaged<FileHandle>.fromOpaque(refcon!).takeUnretainedValue()
     handle.write((json(record) + "\n").data(using: .utf8)!)
 }
-guard AXObserverCreate(pid, callback, &observer) == .success, let observer else {
-    FileHandle.standardError.write("AXObserverCreate failed\n".data(using: .utf8)!)
+guard AXObserverCreateWithInfoCallback(pid, callback, &observer) == .success, let observer else {
+    FileHandle.standardError.write("AXObserverCreateWithInfoCallback failed\n".data(using: .utf8)!)
     exit(1)
 }
 let refcon = Unmanaged.passUnretained(output).toOpaque()
 var registered: [String: String] = [:]
 // A process that is still starting answers kAXErrorCannotComplete; retry until its accessibility is available.
 let registrationDeadline = Date().addingTimeInterval(30)
-for notification in [kAXFocusedUIElementChangedNotification, kAXFocusedWindowChangedNotification] {
+for notification in [kAXFocusedUIElementChangedNotification, kAXFocusedWindowChangedNotification, kAXAnnouncementRequestedNotification] {
     var status = AXObserverAddNotification(observer, application, notification as CFString, refcon)
     while status == .cannotComplete && Date() < registrationDeadline {
         Thread.sleep(forTimeInterval: 0.25)

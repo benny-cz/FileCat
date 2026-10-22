@@ -26,6 +26,11 @@ public static class FileCatNvdaInput {
     [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint code, uint mapType);
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     // Navigation keys are extended keys; without the flag Windows treats them as numeric keypad keys.
+    public static void Chord(byte modifier, byte vk) {
+        keybd_event(modifier, (byte)MapVirtualKey(modifier, 0), 0, UIntPtr.Zero);
+        Press(vk, false);
+        keybd_event(modifier, (byte)MapVirtualKey(modifier, 0), 2u, UIntPtr.Zero);
+    }
     public static void Press(byte vk, bool extended) {
         byte scan = (byte)MapVirtualKey(vk, 0);
         uint flags = extended ? 1u : 0u;
@@ -171,7 +176,8 @@ try {
         if ($before) { & $before }
         if ($flush) { TakeSpeech | Out-Null }
         EnsureForeground -Click:($null -ne $before)
-        if ($key) { [FileCatNvdaInput]::Press([byte]$virtualKeys[$key][0], [bool]$virtualKeys[$key][1]) }
+        if ($key -eq 'CtrlC') { [FileCatNvdaInput]::Chord(0x11, 0x43) }
+        elseif ($key) { [FileCatNvdaInput]::Press([byte]$virtualKeys[$key][0], [bool]$virtualKeys[$key][1]) }
         $heard = @()
         $deadline = [Diagnostics.Stopwatch]::StartNew()
         while ($deadline.Elapsed.TotalSeconds -lt 6) {
@@ -218,6 +224,9 @@ try {
     Step 'tab back to the source panel' 'Tab' 'c.txt'
     Step 'F7 opens Create folder' 'F7' 'folder'
     Step 'Escape returns to the list' 'Escape' 'c.txt'
+    # The first notice after startup, then the same notice again, must each be announced.
+    Step 'Ctrl+C announces the copy notice' 'CtrlC' 'Copied 1 item'
+    Step 'a repeated copy is announced again' 'CtrlC' 'Copied 1 item'
     # Returning to FileCat from another window announces its focused row again, once.
     Step 'switch away and back' '' 'c.txt' $true $switchAway
     $report.steps[-1].repeats = @($report.steps[-1].heard | Where-Object { $_ -like "*'c.txt'*" }).Count

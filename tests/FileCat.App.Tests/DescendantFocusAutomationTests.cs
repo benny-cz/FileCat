@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
@@ -118,8 +119,9 @@ public sealed class DescendantFocusAutomationTests
     [Fact]
     public void Avalonia_AtSpi_bridge_still_provides_the_members_used_for_Linux_focus()
     {
-        var node = Type.GetType(AtSpiFocusAttachment.RootNodeType + ", Avalonia.FreeDesktop.AtSpi", throwOnError: true)!;
-        Assert.NotNull(AtSpiFocusAttachment.Members(node));
+        var node = Type.GetType(AtSpiBridge.RootNodeType + ", Avalonia.FreeDesktop.AtSpi", throwOnError: true)!;
+        Assert.NotNull(AtSpiBridge.Members(node));
+        Assert.NotNull(AtSpiBridge.Announcements(node));
     }
 
     [AvaloniaFact]
@@ -136,7 +138,7 @@ public sealed class DescendantFocusAutomationTests
         var server = new FakeBridgeServer();
         var root = new FakeBridgeNode(server, window);
         server.Attached[window] = root;
-        var attachment = Assert.IsType<AtSpiFocusAttachment>(AtSpiFocusAttachment.ForNode(root));
+        var attachment = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(root));
 
         attachment.Attach(window, row);
         Assert.True(server.Attached.ContainsKey(row));
@@ -151,7 +153,74 @@ public sealed class DescendantFocusAutomationTests
         await other.Load();
         attachment.Attach(window, ListPeer(other.List).GetChildren()[0]);
         Assert.Equal(enumerated, server.Enumerated.Count);
-        Assert.Null(AtSpiFocusAttachment.ForNode(new object()));
+        Assert.Null(AtSpiBridge.ForNode(new object()));
+    }
+
+    [AvaloniaFact]
+    public void Linux_live_regions_announce_their_new_text_through_the_window_bridge()
+    {
+        var status = new TextBlock { Text = "Ready" };
+        AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { status } } };
+        window.Show();
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var node = new FakeBridgeNode(new FakeBridgeServer(), root);
+            root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            AtSpiLiveRegions.Watch(status);
+
+            status.Text = "Cut 1 item to the clipboard";
+            Dispatcher.UIThread.RunJobs();
+            var polite = Assert.Single(node.EventObjectHandler.Signals);
+            Assert.Equal("Announcement", polite.Member);
+            Assert.Equal(string.Empty, polite.Body[0]);
+            Assert.Equal(1, polite.Body[1]);
+            Assert.Equal(0, polite.Body[2]);
+            Assert.Equal("Cut 1 item to the clipboard", Assert.IsType<FakeVariant>(polite.Body[3]).Value);
+            Assert.Empty(Assert.IsType<Dictionary<string, FakeVariant>>(polite.Body[4]));
+
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Assertive);
+            status.Text = "The folder name is invalid";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, node.EventObjectHandler.Signals[^1].Body[1]);
+
+            // A region that stopped being live, or an empty text, announces nothing.
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Off);
+            status.Text = "Quiet change";
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            status.Text = string.Empty;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, node.EventObjectHandler.Signals.Count);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Every_main_window_notification_is_announced_including_the_first_and_an_error_after_a_notice()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            AtSpiLiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationInfoText")!);
+            AtSpiLiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationErrorText")!);
+            var peer = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var node = new FakeBridgeNode(new FakeBridgeServer(), peer);
+            peer.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+
+            vm.Notify("First notice", false);
+            Dispatcher.UIThread.RunJobs();
+            vm.Notify("Then an error", true);
+            Dispatcher.UIThread.RunJobs();
+            vm.Notify("A notice again", false);
+            Dispatcher.UIThread.RunJobs();
+            // A repeated notice keeps its text but is still a new event for the listener.
+            vm.Notify("A notice again", false);
+            Dispatcher.UIThread.RunJobs();
+            var spoken = node.EventObjectHandler.Signals.Select(s => (Assert.IsType<FakeVariant>(s.Body[3]).Value, s.Body[1])).ToArray();
+            Assert.Equal(new (object, object)[] { ("First notice", 1), ("Then an error", 2), ("A notice again", 1), ("A notice again", 1) }, spoken);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
     }
 
     [AvaloniaFact]
@@ -217,6 +286,7 @@ public sealed class DescendantFocusAutomationTests
     private sealed class FakeBridgeNode(FakeBridgeServer server, AutomationPeer peer)
     {
         public FakeBridgeServer Server { get; } = server;
+        internal FakeEventHandler EventObjectHandler { get; } = new();
 
         internal IReadOnlyList<FakeBridgeNode> EnsureChildren()
         {
@@ -229,5 +299,18 @@ public sealed class DescendantFocusAutomationTests
             }
             return children;
         }
+    }
+
+    /// <summary>The event handler's member shapes: a private signal emitter and a variant-typed public signal.</summary>
+    private sealed class FakeEventHandler
+    {
+        internal List<(string Member, object[] Body)> Signals { get; } = [];
+        public void EmitPropertyChangeSignal(string propertyName, FakeVariant value) => throw new NotSupportedException();
+        private void EmitSignal(string member, params object[] body) => Signals.Add((member, body));
+    }
+
+    private sealed class FakeVariant(object value)
+    {
+        public object Value { get; } = value;
     }
 }

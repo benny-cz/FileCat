@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -365,14 +366,38 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         }
     }
 
+    /// <summary>
+    /// Each notification is announced exactly once, after it is laid out. Its text changes before the hidden
+    /// notification bar has templated it into the window, where no screen reader can hear a live change, and a
+    /// repeated notice keeps the same text, so both texts stay silent until the shown one is raised explicitly.
+    /// </summary>
     private void UpdateNotificationLiveSettings()
     {
-        AutomationProperties.SetLiveSetting(NotificationInfoText,
-            _vm.CurrentNotification is { IsError: false }
-                ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
-        AutomationProperties.SetLiveSetting(NotificationErrorText,
-            _vm.CurrentNotification?.IsError == true
-                ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Off);
+        AutomationProperties.SetLiveSetting(NotificationInfoText, AutomationLiveSetting.Off);
+        AutomationProperties.SetLiveSetting(NotificationErrorText, AutomationLiveSetting.Off);
+        if (_vm.CurrentNotification is { } notice)
+            Dispatcher.UIThread.Post(() => AnnounceNotification(notice), DispatcherPriority.Background);
+    }
+
+    private void AnnounceNotification(UserNotification notice)
+    {
+        if (!ReferenceEquals(_vm.CurrentNotification, notice)) return;
+        var text = notice.IsError ? NotificationErrorText : NotificationInfoText;
+        if (TopLevel.GetTopLevel(text) is null)
+        {
+            // Still not templated into the window: announce once it is.
+            void Attached(object? sender, VisualTreeAttachmentEventArgs e)
+            {
+                text.AttachedToVisualTree -= Attached;
+                AnnounceNotification(notice);
+            }
+            text.AttachedToVisualTree += Attached;
+            return;
+        }
+        AutomationProperties.SetLiveSetting(text, notice.IsError ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Polite);
+        var peer = ControlAutomationPeer.CreatePeerForElement(text);
+        if (peer.GetName() is { Length: > 0 } name)
+            peer.RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, string.Empty, name);
     }
 
     private void OnCommandAvailabilityChanged(object? sender, EventArgs e) => ScheduleToolbarRefresh();

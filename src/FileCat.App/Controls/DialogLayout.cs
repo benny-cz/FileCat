@@ -32,9 +32,11 @@ internal sealed class DialogCard : Border
         _body = body;
         Classes.Add("card");
         // Screen readers announce the dialog when focus first enters it, before its field: a named group is
-        // presented as context by NVDA and VoiceOver, and as a named panel by Orca.
+        // presented as context by NVDA and VoiceOver, and as a named panel by Orca. Avalonia keeps plain
+        // containers out of UI Automation's control view, where NVDA looks for that context.
         AutomationProperties.SetName(this, title + " dialog");
         AutomationProperties.SetControlTypeOverride(this, Avalonia.Automation.Peers.AutomationControlType.Group);
+        AutomationProperties.SetAccessibilityView(this, AccessibilityView.Content);
         MaxWidth = maxWidth;
         ClipToBounds = true;
         Styles.Add(new Style(s => s.OfType<CheckBox>())

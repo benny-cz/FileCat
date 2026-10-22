@@ -21,7 +21,8 @@ from uuid import uuid4
 FOREGROUND = '''tell application "System Events" to tell process "FileCat"
     set frontmost to true
 end tell'''
-KEY_CODES = {"down": 125, "up": 126, "home": 115, "end": 119, "tab": 48, "f7": 98, "escape": 53}
+KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115", "end": "key code 119",
+             "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}"}
 
 
 def osa(script):
@@ -101,7 +102,7 @@ def run(bundle, report_path):
         records()
         osa(FOREGROUND)
         if key:
-            osa(f'tell application "System Events" to key code {KEY_CODES[key]}')
+            osa(f'tell application "System Events" to {KEY_CODES[key]}')
         seen, deadline, current = [], time.monotonic() + 6, {}
         while time.monotonic() < deadline:
             seen += [entry for entry in records() if entry.get("notification") == "AXFocusedUIElementChanged"]
@@ -116,6 +117,21 @@ def run(bundle, report_path):
                                 "notified": notified, "passed": passed})
         if not passed:
             raise AssertionError(f"{label}: focus {current!r} after {seen!r}")
+
+    def announce(label, expect):
+        records()
+        osa(FOREGROUND)
+        osa(f'tell application "System Events" to {KEY_CODES["copy"]}')
+        heard, deadline = [], time.monotonic() + 6
+        while time.monotonic() < deadline and not any(expect in entry.get("announcement", "") for entry in heard):
+            heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
+            time.sleep(0.15)
+        time.sleep(0.6)
+        heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
+        matching = [entry for entry in heard if expect in entry.get("announcement", "")]
+        result["steps"].append({"step": label, "expect": expect, "announcements": heard, "passed": len(matching) == 1})
+        if len(matching) != 1:
+            raise AssertionError(f"{label}: announcements {heard!r}")
 
     try:
         subprocess.run(["/usr/bin/open", "-n", str(bundle), "--args", "--new-instance", "--data", str(data),
@@ -140,6 +156,9 @@ def run(bundle, report_path):
         step("tab back to the source panel", "tab", "c.txt")
         step("F7 opens Create folder", "f7", "folder")
         step("Escape returns to the list", "escape", "c.txt")
+        # The first notice after startup, then the same notice again, must each be announced once.
+        announce("Command+C announces the copy notice", "Copied 1 item")
+        announce("a repeated copy is announced again", "Copied 1 item")
         osa('tell application "Finder" to activate')
         time.sleep(1.5)
         step("switch away and back", None, "c.txt", activation=True)

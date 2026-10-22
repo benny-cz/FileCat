@@ -174,6 +174,9 @@ def main():
         step("tab back to the source panel", key("tab"), says("c.txt"))
         step("F7 opens Create folder", key("f7"), lambda phrase: "folder" in phrase.casefold())
         step("Escape returns to the list", key("escape"), says("c.txt"))
+        # The first notice after startup, then the same notice again, must each be announced.
+        step("Ctrl+C announces the copy notice", key("ctrl+c"), says("Copied 1 item"))
+        step("a repeated copy is announced again", key("ctrl+c"), says("Copied 1 item"))
         # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
         # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",

@@ -32,6 +32,8 @@ public sealed class NotificationCenterTests
             Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(error));
 
             vm.Notify("Same text");
+            // The shown notice becomes live when it is announced, after layout.
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.Equal("Notice: Same text", AutomationProperties.GetName(info));
             Assert.Equal("Notice: Same text", AutomationProperties.GetName(error));
             Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(info));
@@ -39,6 +41,7 @@ public sealed class NotificationCenterTests
             Assert.Equal("Same text", info.Text);
 
             vm.Notify("Same text", true);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.Equal("Error: Same text", AutomationProperties.GetName(info));
             Assert.Equal("Error: Same text", AutomationProperties.GetName(error));
             Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(info));
