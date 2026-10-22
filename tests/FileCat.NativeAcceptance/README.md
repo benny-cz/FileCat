@@ -96,7 +96,12 @@ creates two byte-checked files in an isolated profile and exercises a physical
 touch anchor followed by Shift+Down, Up and Shift+Down from the transient
 uinput keyboard. AT-SPI must report the exact mark summary and focused row at
 each step; source hashes and the empty target are checked at the end. Append
-`--narrow` for a measured 720 × 540 window. Pass the one-time guest sudo
+`--narrow` for a measured 720 × 540 window. Append
+`--sort MOUSE_HELPER` for a four-file sort reversal followed by a physical
+Shift+click range. On Wayland, the transient uinput mouse is first moved and
+its actual pointer position is measured and calibrated inside the target row;
+the button event is sent only after that check. The runner requires the exact
+two-file 13-byte mark, focused target and unchanged fixture bytes. Pass the one-time guest sudo
 credential only to the runner process; it is removed before FileCat starts.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -33,9 +33,12 @@ native_click = shared["native_click"]
 
 
 def main():
-    if len(sys.argv) not in (5, 6) or (len(sys.argv) == 6 and sys.argv[5] != "--narrow"):
+    if (len(sys.argv) not in (5, 6, 7) or
+            (len(sys.argv) == 6 and sys.argv[5] != "--narrow") or
+            (len(sys.argv) == 7 and sys.argv[5] != "--sort")):
         raise SystemExit(__doc__)
     narrow = len(sys.argv) == 6
+    sort = len(sys.argv) == 7
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper, touch_helper = (Path(value).resolve(strict=True)
                                           for value in (sys.argv[1], sys.argv[3], sys.argv[4]))
@@ -46,6 +49,10 @@ def main():
             touch_helper.name != "linux-uinput-touch.py" or
             any(validation not in helper.parents for helper in (key_helper, touch_helper))):
         raise SystemExit("Use the isolated FileCat build, owned helpers and report under ~/FileCatValidation")
+    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort else None
+    if mouse_helper is not None and (mouse_helper.name != "linux-uinput-mouse.py" or
+                                     validation not in mouse_helper.parents):
+        raise SystemExit("Use the owned transient uinput mouse helper")
     sudo_password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     if not sudo_password:
         raise SystemExit("A transient guest sudo credential is required for physical test input")
@@ -55,6 +62,8 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
+    if sort:
+        expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
     source_sha = {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()}
@@ -64,7 +73,7 @@ def main():
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
-              "narrow": narrow,
+              "narrow": narrow, "sort": sort,
               "sourceSha256": source_sha, "steps": []}
     process = None
     try:
@@ -105,7 +114,7 @@ def main():
             def status():
                 names = [node.get_name() for node in descendants(app)]
                 return next((name for name in names if name.startswith("Marked ") or
-                             name == "0 folders, 2 files · 11 bytes"), None)
+                             name.startswith(f"0 folders, {len(expected)} files · ")), None)
 
             def focused():
                 return [name for name in expected if any(
@@ -125,24 +134,128 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = "0 folders, 2 files · 11 bytes"
+            clear = ("0 folders, 4 files · 25 bytes" if sort else
+                     "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
-            wait_for(lambda: status() == clear, "the complete two-file listing")
-            row = wait_for(lambda: next(iter(named(app, "list item", "a.txt")), None),
-                           "the owned a.txt row")
+            wait_for(lambda: status() == clear, "the complete owned listing")
+            anchor = "b.txt" if sort else "a.txt"
+            row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
+                           f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
             if bounds.width < 35 or bounds.height < 15:
                 raise AssertionError(f"Source row has unusable bounds: {bounds}")
             activate_window(process.pid)
             native_click(round(bounds.x + min(40, bounds.width / 2)),
                          round(bounds.y + bounds.height / 2), touch_helper, sudo_password)
-            snapshot("touch a.txt", clear, "a.txt")
-            key("shift+down")
-            snapshot("Shift+Down marks a.txt", marked, "b.txt")
-            key("up")
-            snapshot("Up retains mark", marked, "a.txt")
-            key("shift+down")
-            snapshot("Shift+Down clears mark", clear, "b.txt")
+            snapshot(f"touch {anchor}", clear, anchor)
+            if sort:
+                def order():
+                    rows = []
+                    for name in expected:
+                        items = named(app, "list item", name)
+                        if len(items) != 1:
+                            return []
+                        rows.append((items[0].get_component().get_extents(Atspi.CoordType.SCREEN).y,
+                                     name))
+                    return [name for _, name in sorted(rows)]
+
+                def header_candidate(node):
+                    if not node.get_name().startswith("Name") or node.get_role_name() == "list item":
+                        return False
+                    component = node.get_component()
+                    if component is None:
+                        return False
+                    extent = component.get_extents(Atspi.CoordType.SCREEN)
+                    return (extent.width >= 30 and extent.height >= 12 and
+                            bounds.y - 80 <= extent.y < bounds.y)
+
+                header = next((node for node in descendants(app) if header_candidate(node)), None)
+                if header is None:
+                    # Avalonia's Linux bridge does not expose this painted header as a
+                    # separate AT-SPI node. Locate its bounded first row directly
+                    # above the parent and file rows, then prove the clicked column
+                    # by observing an actual name-order reversal.
+                    source_list = named(app, "list", f"Panel 1, source, {source}")[0]
+                    list_bounds = source_list.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    if not 40 <= bounds.y - list_bounds.y <= 70 or list_bounds.width < 120:
+                        raise AssertionError("The Name header cannot be bounded from the source list")
+                    header_point = (list_bounds.x + 60, list_bounds.y + 11)
+                    report["headerInput"] = "bounded first column above the source rows"
+                else:
+                    header_bounds = header.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    header_point = (round(header_bounds.x + header_bounds.width / 2),
+                                    round(header_bounds.y + header_bounds.height / 2))
+                    report["headerInput"] = "AT-SPI named Name header"
+                report["headerPoint"] = header_point
+                for attempt in range(2):
+                    activate_window(process.pid)
+                    native_click(*header_point,
+                                 touch_helper, sudo_password)
+                    try:
+                        wait_for(lambda: order() == ["d.txt", "c.txt", "b.txt", "a.txt"],
+                                 "descending name order", seconds=3)
+                        break
+                    except AssertionError:
+                        if attempt == 1:
+                            raise
+                report["steps"].append({"action": "sort Name descending", "order": order()})
+                target_row = named(app, "list item", "c.txt")[0]
+                target_bounds = target_row.get_component().get_extents(Atspi.CoordType.SCREEN)
+                geometry = subprocess.run(["/usr/bin/xdotool", "getdisplaygeometry"],
+                                          check=True, capture_output=True, text=True, timeout=5)
+                width, height = (int(value) for value in geometry.stdout.split())
+                click_point = (round(target_bounds.x + min(40, target_bounds.width / 2)),
+                               round(target_bounds.y + target_bounds.height / 2))
+                report["shiftClickTarget"] = {"rowBounds": [target_bounds.x, target_bounds.y,
+                                               target_bounds.width, target_bounds.height],
+                                               "point": click_point}
+                activate_window(process.pid)
+
+                def mouse(mode, point):
+                    sent = subprocess.run(["sudo", "-S", sys.executable, str(mouse_helper),
+                                           str(point[0]), str(point[1]),
+                                           str(width), str(height), mode],
+                                          input=sudo_password + "\n", capture_output=True,
+                                          text=True, timeout=15)
+                    if sent.returncode:
+                        raise AssertionError(f"Physical {mode} input failed: {sent.stderr[-300:]}")
+
+                def pointer_position():
+                    pointer = subprocess.run(["/usr/bin/xdotool", "getmouselocation", "--shell"],
+                                             check=True, capture_output=True, text=True, timeout=5)
+                    fields = dict(line.split("=", 1) for line in pointer.stdout.splitlines()
+                                  if "=" in line)
+                    return (int(fields["X"]), int(fields["Y"]))
+
+                # This VM's compositor accelerates even one-pixel uinput steps.
+                # Measure the real pointer position before sending a button event;
+                # a missed row must fail the test without changing selection.
+                requested = list(click_point)
+                report["pointerCalibration"] = []
+                for _ in range(6):
+                    mouse("move", requested)
+                    actual = pointer_position()
+                    report["pointerCalibration"].append({"requested": requested[:],
+                                                         "actual": actual})
+                    if (target_bounds.x + 5 <= actual[0] < target_bounds.x + min(80, target_bounds.width - 5)
+                            and target_bounds.y + 3 <= actual[1] < target_bounds.y + target_bounds.height - 3):
+                        break
+                    requested = [max(0, min(limit - 1, requested[axis] + click_point[axis] - actual[axis]))
+                                 for axis, limit in enumerate((width, height))]
+                else:
+                    raise AssertionError("Physical pointer could not be calibrated inside c.txt")
+                mouse("shift-current", (0, 0))
+                report["pointerAfterShiftClick"] = pointer_position()
+                report["postShiftClick"] = {"status": status(), "focused": focused(),
+                                            "order": order()}
+                snapshot("Shift+click c.txt after sort", "Marked 2 of 4 files · 13 bytes", "c.txt")
+            else:
+                key("shift+down")
+                snapshot("Shift+Down marks a.txt", marked, "b.txt")
+                key("up")
+                snapshot("Up retains mark", marked, "a.txt")
+                key("shift+down")
+                snapshot("Shift+Down clears mark", clear, "b.txt")
             if {name: hashlib.sha256((source / name).read_bytes()).hexdigest()
                     for name in expected} != source_sha or list(target.iterdir()):
                 raise AssertionError("Native selection changed the source or destination fixture")

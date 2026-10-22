@@ -78,8 +78,15 @@ measured 720 × 540 windows reported the exact sequence: zero marks with
 and `f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad`;
 the target stayed empty. Guest receipts are
 `~/FileCatValidation/ubuntu-selection-keyboard-20261022.json` and its
-`-narrow-` counterpart. Scaled display, sort/filter/tab transitions and
-spoken feedback remain open.
+`-narrow-` counterpart. A separate four-file Ubuntu run touched `b.txt`,
+reversed the Name sort to the observed `d.txt`, `c.txt`, `b.txt`, `a.txt`
+order, then physically Shift-clicked `c.txt`. The exact mark was `b.txt` and
+`c.txt` (13 bytes), with `c.txt` focused, unchanged SHA-256 values for all
+four source files and an empty target. The Wayland pointer was measured and
+calibrated into `c.txt` before the uinput button event; the report records
+each requested and actual coordinate. Guest receipt:
+`~/FileCatValidation/ubuntu-selection-sort-20261022.json`. Scaled display,
+filter/tab transitions and spoken feedback remain open.
 
 **FCUX-001 remote publication capability review:** The implemented SFTP
 `posix-rename@openssh.com` path can replace an existing file in one server
