@@ -202,6 +202,14 @@ def main():
         step("a viewer search speaks its match count", search_char, lambda phrase: phrase.strip(" .") == "1 match")
         step("Escape returns from the search to the text", key("escape"), says("No selection"))
         step("Escape closes the viewer", key("escape"), says("c.txt"))
+        # A rejected transfer destination is spoken while the form stays open.
+        step("F5 opens Copy", key("f5"), says("Copy dialog"))
+
+        def empty_destination():
+            key("ctrl+a")()
+            key("backspace")()
+        step("an empty destination is announced", empty_destination, says("Destination: Enter a destination folder."))
+        step("Escape cancels Copy", key("escape"), says("c.txt"))
         # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
         # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",

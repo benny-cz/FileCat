@@ -24,7 +24,8 @@ end tell'''
 KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115", "end": "key code 119",
              "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}",
              "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36",
-             "f3": "key code 99", "c": "key code 8", "h": "key code 4", "r": "key code 15"}
+             "f3": "key code 99", "c": "key code 8", "h": "key code 4", "r": "key code 15",
+             "f5": "key code 96", "select-all": "key code 0 using {command down}", "backspace": "key code 51"}
 
 
 def osa(script):
@@ -190,6 +191,10 @@ def run(bundle, report_path):
         announce("a viewer search speaks its match count", ["c", "h", "a", "r", "return"], "1 match", exact=True)
         step("Escape returns from the search to the text", "escape", "No selection")
         step("Escape closes the viewer", "escape", "c.txt")
+        # A rejected transfer destination is spoken while the form stays open.
+        step("F5 opens Copy", "f5", "Destination")
+        announce("an empty destination is announced", ["select-all", "backspace"], "Destination: Enter a destination folder.")
+        step("Escape cancels Copy", "escape", "c.txt")
         osa('tell application "Finder" to activate')
         time.sleep(1.5)
         step("switch away and back", None, "c.txt", activation=True)
