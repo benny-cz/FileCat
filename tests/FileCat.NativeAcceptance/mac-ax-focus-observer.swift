@@ -3,6 +3,8 @@
 //   mac-ax-focus-observer observe PID OUT.jsonl STOP_FILE  — append one JSON line per AXFocusedUIElementChanged or
 //                                                            AXAnnouncementRequested notification
 //   mac-ax-focus-observer focused PID                      — print the application's current AXFocusedUIElement
+//   mac-ax-focus-observer find PID TEXT                    — diagnostic: print every element whose title,
+//                                                            description or value contains TEXT
 //
 // Each record holds the element's role, title, description, value and help, the attributes VoiceOver speaks, and
 // for an announcement the announced text. The observer only reads; it never performs an action or changes a value.
@@ -32,7 +34,7 @@ func json(_ object: [String: String]) -> String {
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3, let pid = pid_t(arguments[2]) else {
-    FileHandle.standardError.write("usage: mac-ax-focus-observer observe PID OUT STOP | focused PID\n".data(using: .utf8)!)
+    FileHandle.standardError.write("usage: mac-ax-focus-observer observe PID OUT STOP | focused PID | find PID TEXT\n".data(using: .utf8)!)
     exit(2)
 }
 let application = AXUIElementCreateApplication(pid)
@@ -48,6 +50,27 @@ if arguments[1] == "focused" {
     exit(0)
 }
 
+if arguments[1] == "find", arguments.count == 4 {
+    // Diagnostic: a bounded breadth-first search for elements whose spoken attributes contain the text.
+    var queue: [AXUIElement] = [application]
+    var visited = 0
+    while !queue.isEmpty && visited < 20000 {
+        let element = queue.removeFirst()
+        visited += 1
+        let record = describe(element)
+        if [record["title"]!, record["description"]!, record["value"]!].contains(where: { $0.contains(arguments[3]) }) {
+            print(json(record))
+        }
+        var children: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
+           let children = children as? [AXUIElement] {
+            queue.append(contentsOf: children)
+        }
+    }
+    print(json(["visited": String(visited)]))
+    exit(0)
+}
+
 guard arguments[1] == "observe", arguments.count == 5 else { exit(2) }
 let output = FileHandle(forWritingAtPath: arguments[3]) ?? {
     FileManager.default.createFile(atPath: arguments[3], contents: nil)
@@ -55,11 +78,11 @@ let output = FileHandle(forWritingAtPath: arguments[3]) ?? {
 }()
 let stop = arguments[4]
 var observer: AXObserver?
-let callback: AXObserverWithInfoCallback = { _, element, notification, info, refcon in
+let callback: AXObserverCallbackWithInfo = { _, element, notification, info, refcon in
     var record = describe(element)
     record["notification"] = notification as String
     record["time"] = String(format: "%.3f", Date().timeIntervalSince1970)
-    if let info = info as? [String: Any], let announcement = info[kAXAnnouncementKey as String] as? String {
+    if let info = info as NSDictionary as? [String: Any], let announcement = info[kAXAnnouncementKey as String] as? String {
         record["announcement"] = announcement
         if let priority = info[kAXPriorityKey as String] as? NSNumber { record["priority"] = priority.stringValue }
     }

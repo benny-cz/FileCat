@@ -6,6 +6,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
@@ -156,6 +157,91 @@ public sealed class DescendantFocusAutomationTests
         Assert.Null(AtSpiBridge.ForNode(new object()));
     }
 
+    [Fact]
+    public void Avalonia_still_provides_the_members_live_regions_use_on_Windows_and_macOS()
+    {
+        Assert.NotNull(NativeLiveRegionBridges.UiaNodeMember(Type.GetType(NativeLiveRegionBridges.UiaNodeType, throwOnError: true)));
+        Assert.NotNull(NativeLiveRegionBridges.InvalidateChildrenMember());
+    }
+
+    [AvaloniaFact]
+    public void A_live_region_is_tracked_by_the_Windows_bridge_once_attached()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("UI Automation nodes are Windows'."); return; }
+        var status = new TextBlock { Text = "Ready" };
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { status } } };
+        window.Show();
+        try
+        {
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            LiveRegions.Watch(status);
+            var peer = ControlAutomationPeer.CreatePeerForElement(status);
+            var node = NativeLiveRegionBridges.TrackOnWindows(peer);
+            Assert.NotNull(node);
+            Assert.Same(node, NativeLiveRegionBridges.TrackOnWindows(peer));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void The_macOS_bridge_refresh_runs_from_the_window_down_to_the_live_region()
+    {
+        var status = new TextBlock { Text = "Ready" };
+        var bar = new Border { Child = status, IsVisible = false };
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { bar } } };
+        window.Show();
+        try
+        {
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            var peer = ControlAutomationPeer.CreatePeerForElement(status);
+            var barPeer = ControlAutomationPeer.CreatePeerForElement(bar);
+            // Looked up while the bar is hidden, the bar keeps no parent link once shown, as the notification bar did.
+            Assert.Same(barPeer, peer.GetParent());
+            Assert.Null(barPeer.GetParent());
+            bar.IsVisible = true;
+            Assert.Null(barPeer.GetParent());
+
+            // Avalonia 12 hosts the window in a TopLevelHost, above the window's own peer.
+            var ancestors = status.GetVisualAncestors().OfType<Control>().TakeWhile(control => control != window).Append(window)
+                .Select(ControlAutomationPeer.CreatePeerForElement).Reverse().ToList();
+            var refreshed = new List<AutomationPeer>();
+            foreach (var ancestor in ancestors) ancestor.ChildrenChanged += (_, _) => refreshed.Add(ancestor);
+            NativeLiveRegionBridges.TrackOnMac(root, peer);
+            // Every layer from the window down to the bar, in the order the native bridge creates their elements.
+            Assert.Same(root, ancestors[0]);
+            Assert.Equal(ancestors, refreshed);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
+    {
+        var field = new TextBox { Text = "New folder" };
+        var card = new Border { Child = field, IsVisible = false };
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { card } } };
+        window.Show();
+        try
+        {
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            var peer = ControlAutomationPeer.CreatePeerForElement(field);
+            var cardPeer = ControlAutomationPeer.CreatePeerForElement(card);
+            Assert.Same(cardPeer, peer.GetParent());
+            Assert.Null(cardPeer.GetParent());
+            card.IsVisible = true;
+            Assert.Null(cardPeer.GetParent());
+            var server = new FakeBridgeServer();
+            var node = new FakeBridgeNode(server, root);
+            server.Attached[root] = node;
+
+            Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node)).Attach(root, peer);
+            Assert.True(server.Attached.ContainsKey(peer));
+            Assert.Same(root, server.Enumerated[0]);
+            Assert.Same(cardPeer, server.Enumerated[^1]);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void Linux_live_regions_announce_their_new_text_through_the_window_bridge()
     {
@@ -168,7 +254,7 @@ public sealed class DescendantFocusAutomationTests
             var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
             var node = new FakeBridgeNode(new FakeBridgeServer(), root);
             root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
-            AtSpiLiveRegions.Watch(status);
+            LiveRegions.Watch(status);
 
             status.Text = "Cut 1 item to the clipboard";
             Dispatcher.UIThread.RunJobs();
@@ -202,8 +288,8 @@ public sealed class DescendantFocusAutomationTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
-            AtSpiLiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationInfoText")!);
-            AtSpiLiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationErrorText")!);
+            LiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationInfoText")!);
+            LiveRegions.Watch(window.FindControl<SelectableTextBlock>("NotificationErrorText")!);
             var peer = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
             var node = new FakeBridgeNode(new FakeBridgeServer(), peer);
             peer.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));

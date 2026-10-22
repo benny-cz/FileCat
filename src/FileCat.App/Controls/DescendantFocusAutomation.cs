@@ -9,6 +9,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace FileCat.App.Controls;
 
@@ -133,36 +134,112 @@ internal static class AtSpiLayoutNames
 }
 
 /// <summary>
-/// Avalonia's Windows and macOS bridges raise a live-region event when a live element's accessible name changes;
-/// its AT-SPI bridge has none, so Orca heard no notification, Find result or validation error. On Linux every
-/// control with a live setting announces its new name through its window's AT-SPI bridge, polite or assertive as
-/// declared, at the same moment the other platforms raise their live-region event.
+/// Screen readers hear a live region only when a platform bridge raises its live-region event, and each of
+/// Avalonia's bridges did so only for an element an assistive client had already visited: the Windows bridge creates
+/// an element's UI Automation node, and the macOS bridge its native element, on first visit, while the AT-SPI bridge
+/// has no live regions at all. Notices, Find results and validation errors were therefore silent until a reader
+/// happened to visit them. When a live control is attached to a window, this makes the bridge track it: Windows gets
+/// the element's node, macOS gets native elements from the window down to it, and on Linux each name change is sent
+/// as an AT-SPI announcement from the window.
 /// </summary>
-internal static class AtSpiLiveRegions
+internal static class LiveRegions
 {
     private static readonly ConditionalWeakTable<Control, AutomationPeer> s_watched = [];
 
-    internal static void Install()
-    {
-        if (!OperatingSystem.IsLinux()) return;
+    internal static void Install() =>
         AutomationProperties.LiveSettingProperty.Changed.AddClassHandler<Control>((control, _) => Watch(control));
-    }
 
-    /// <summary>Announces the control's name changes while it is live; its live setting may be switched later.</summary>
+    /// <summary>Tracks the control while it is live; its live setting may be switched later.</summary>
     internal static void Watch(Control control)
     {
-        if (s_watched.TryGetValue(control, out _)) return;
-        var peer = ControlAutomationPeer.CreatePeerForElement(control);
-        s_watched.Add(control, peer);
-        peer.PropertyChanged += (_, e) =>
+        if (!s_watched.TryGetValue(control, out var peer))
         {
-            if (e.Property != AutomationElementIdentifiers.NameProperty) return;
-            var setting = peer.GetLiveSetting();
-            if (setting == AutomationLiveSetting.Off || peer.GetName() is not { Length: > 0 } text) return;
-            if (TopLevel.GetTopLevel(control) is Window window &&
-                ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: { } bridge })
-                bridge.Announce(text, setting);
-        };
+            peer = ControlAutomationPeer.CreatePeerForElement(control);
+            s_watched.Add(control, peer);
+            var tracked = peer;
+            control.AttachedToVisualTree += (_, _) => Track(control, tracked);
+            // Acts only for a window with an AT-SPI bridge, which exists on Linux.
+            peer.PropertyChanged += (_, e) => AnnounceOnAtSpi(control, tracked, e);
+        }
+        Track(control, peer);
+    }
+
+    private static void Track(Control control, AutomationPeer peer)
+    {
+        if (AutomationProperties.GetLiveSetting(control) == AutomationLiveSetting.Off ||
+            TopLevel.GetTopLevel(control) is not Window window)
+            return;
+        if (OperatingSystem.IsWindows()) NativeLiveRegionBridges.TrackOnWindows(peer);
+        else if (OperatingSystem.IsMacOS()) NativeLiveRegionBridges.TrackOnMac(ControlAutomationPeer.CreatePeerForElement(window), peer);
+    }
+
+    private static void AnnounceOnAtSpi(Control control, AutomationPeer peer, AutomationPropertyChangedEventArgs e)
+    {
+        if (e.Property != AutomationElementIdentifiers.NameProperty) return;
+        var setting = peer.GetLiveSetting();
+        if (setting == AutomationLiveSetting.Off || peer.GetName() is not { Length: > 0 } text) return;
+        if (TopLevel.GetTopLevel(control) is Window window &&
+            ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: { } bridge })
+            bridge.Announce(text, setting);
+    }
+}
+
+/// <summary>
+/// The two bridge members live regions need on Windows and macOS. Windows: Avalonia's public
+/// <c>AutomationNode.GetOrCreate</c> on its internal UI Automation node type, which subscribes the node to the peer.
+/// macOS: the protected <c>ControlAutomationPeer.InvalidateChildren</c>, whose children change makes the native
+/// bridge create elements for a peer's children; applied from the window down, it creates the live element. Each
+/// disables itself if its member is missing or fails, leaving Avalonia's unmodified behavior.
+/// </summary>
+internal static class NativeLiveRegionBridges
+{
+    internal const string UiaNodeType = "Avalonia.Win32.Automation.AutomationNode, Avalonia.Win32.Automation";
+    internal const string UiaNodeMethod = "GetOrCreate";
+    internal const string InvalidateChildrenMethod = "InvalidateChildren";
+    private static readonly Lazy<MethodInfo?> s_uiaNode = new(() => UiaNodeMember(Type.GetType(UiaNodeType)));
+    private static readonly MethodInfo? s_invalidateChildren = InvalidateChildrenMember();
+    private static bool s_uiaDisabled, s_macDisabled;
+
+    internal static MethodInfo? UiaNodeMember(Type? nodeType) =>
+        nodeType?.GetMethod(UiaNodeMethod, BindingFlags.Public | BindingFlags.Static, [typeof(AutomationPeer)]) is { } method &&
+        method.ReturnType == nodeType ? method : null;
+
+    internal static MethodInfo? InvalidateChildrenMember() =>
+        typeof(ControlAutomationPeer).GetMethod(InvalidateChildrenMethod, BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+
+    /// <summary>Creates the peer's UI Automation node, so its live-region event is raised; returns the node.</summary>
+    internal static object? TrackOnWindows(AutomationPeer peer)
+    {
+        if (s_uiaDisabled) return null;
+        try
+        {
+            if (s_uiaNode.Value is not { } getOrCreate) throw new MissingMethodException(UiaNodeType, UiaNodeMethod);
+            return getOrCreate.Invoke(null, [peer]);
+        }
+        catch (Exception ex)
+        {
+            s_uiaDisabled = true;
+            Core.Diagnostics.AppLog.Warn("Live regions on Windows fall back to Avalonia's default behavior: " + (ex.InnerException?.Message ?? ex.Message));
+            return null;
+        }
+    }
+
+    /// <summary>Refreshes children from the window down to the live peer, so the native bridge creates its element.</summary>
+    internal static void TrackOnMac(AutomationPeer root, AutomationPeer peer)
+    {
+        if (s_macDisabled) return;
+        try
+        {
+            if (s_invalidateChildren is not { } invalidate) throw new MissingMethodException(nameof(ControlAutomationPeer), InvalidateChildrenMethod);
+            // A layer the native bridge does not expose has no native element; refreshing it does nothing.
+            foreach (var ancestor in AutomationPaths.FromWindow(root, peer) ?? [])
+                if (ancestor is ControlAutomationPeer control) invalidate.Invoke(control, null);
+        }
+        catch (Exception ex)
+        {
+            s_macDisabled = true;
+            Core.Diagnostics.AppLog.Warn("Live regions on macOS fall back to Avalonia's default behavior: " + (ex.InnerException?.Message ?? ex.Message));
+        }
     }
 }
 
@@ -184,7 +261,6 @@ internal sealed class AtSpiBridge
     internal const string EventHandlerProperty = "EventObjectHandler";
     internal const string EmitSignalMethod = "EmitSignal";
     internal const string PropertyChangeMethod = "EmitPropertyChangeSignal";
-    private const int MaximumDepth = 64;
     private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static bool s_reported;
     private readonly object _root;
@@ -273,18 +349,15 @@ internal sealed class AtSpiBridge
         if (_focusDisabled || focused is null || ReferenceEquals(focused, root)) return;
         try
         {
-            var chain = new List<AutomationPeer>();
-            for (var peer = focused; !ReferenceEquals(peer, root); peer = peer.GetParent())
-            {
-                // A peer outside this window, or an unexpectedly deep tree, keeps Avalonia's behavior.
-                if (peer is null || chain.Count == MaximumDepth) return;
-                chain.Add(peer);
-            }
-            object? node = _root;
-            for (int i = chain.Count - 1; i >= 0 && node is not null; i--)
+            // A peer outside this window keeps Avalonia's behavior.
+            if (AutomationPaths.FromWindow(root, focused) is not { } path) return;
+            path.Add(focused);
+            object node = _root;
+            for (int i = 1; i < path.Count; i++)
             {
                 _ensureChildren.Invoke(node, null);
-                node = _attachedNode.Invoke(_server, [chain[i]]);
+                // A layout layer the bridge does not expose is skipped; its children are the node's own.
+                if (_attachedNode.Invoke(_server, [path[i]]) is { } attached) node = attached;
             }
         }
         catch (Exception ex)
@@ -319,5 +392,40 @@ internal sealed class AtSpiBridge
         if (s_reported) return;
         s_reported = true;
         Core.Diagnostics.AppLog.Warn("Screen reader support on Linux falls back to Avalonia's default behavior: " + reason);
+    }
+}
+
+/// <summary>
+/// The peers from a window down to a target, for bridges that create native elements one level at a time. A peer's
+/// parent link can be missing below the window: Avalonia links a peer to its parent only while the parent lists it
+/// as a child, and keeps a link it looked up while the control was hidden, so the notification bar, hidden until its
+/// first notice, had no parent. Where a control's link is missing its visual parent continues the path, which
+/// always reaches the window. The path can hold layout layers a bridge does not expose; each bridge skips those.
+/// </summary>
+internal static class AutomationPaths
+{
+    private const int MaximumDepth = 256;
+
+    /// <summary>The window's peer first, then each ancestor of the target; null when the target is outside the window.</summary>
+    internal static List<AutomationPeer>? FromWindow(AutomationPeer root, AutomationPeer target)
+    {
+        var path = new List<AutomationPeer>();
+        for (var peer = ParentOf(target); peer is not null && path.Count < MaximumDepth; peer = ParentOf(peer))
+        {
+            path.Add(peer);
+            if (!ReferenceEquals(peer, root)) continue;
+            path.Reverse();
+            return path;
+        }
+        return null;
+    }
+
+    private static AutomationPeer? ParentOf(AutomationPeer peer)
+    {
+        if (peer.GetParent() is { } parent) return parent;
+        if (peer is not ControlAutomationPeer { Owner: var owner }) return null;
+        for (var visual = owner.GetVisualParent(); visual is not null; visual = visual.GetVisualParent())
+            if (visual is Control control) return ControlAutomationPeer.CreatePeerForElement(control);
+        return null;
     }
 }
