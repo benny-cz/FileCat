@@ -23,6 +23,7 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "f3": (61,), "shift+f3": (42, 61), "f5": (63,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
         "ctrl+a": (29, 30), "ctrl+t": (29, 20),
+        "ctrl+r": (29, 19),
         "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47)}
 SEQUENCES = {"filter-hide": ((42, 9), (42, 43), (48,), (42, 9)),
              "filter-reset": ((42, 9),)}  # *|b* and * on a US-layout test VM

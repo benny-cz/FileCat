@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --refresh MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER | --refresh-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -39,8 +39,9 @@ def main():
              ("--narrow", "--deactivate", "--deactivate-narrow",
               "--command-line", "--command-line-narrow")) or
             (len(sys.argv) == 7 and sys.argv[5] not in
-             ("--sort", "--sort-control", "--filter", "--tab", "--sort-narrow",
-              "--sort-control-narrow", "--filter-narrow", "--tab-narrow"))):
+             ("--sort", "--sort-control", "--filter", "--tab", "--refresh",
+              "--sort-narrow", "--sort-control-narrow", "--filter-narrow",
+              "--tab-narrow", "--refresh-narrow"))):
         raise SystemExit(__doc__)
     narrow = len(sys.argv) >= 6 and sys.argv[5].endswith("narrow")
     deactivate_case = len(sys.argv) == 6 and sys.argv[5] in ("--deactivate", "--deactivate-narrow")
@@ -49,6 +50,7 @@ def main():
     sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow", "--sort-control", "--sort-control-narrow")
     filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
     tab_case = len(sys.argv) == 7 and sys.argv[5] in ("--tab", "--tab-narrow")
+    refresh_case = len(sys.argv) == 7 and sys.argv[5] in ("--refresh", "--refresh-narrow")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper, touch_helper = (Path(value).resolve(strict=True)
                                           for value in (sys.argv[1], sys.argv[3], sys.argv[4]))
@@ -59,7 +61,7 @@ def main():
             touch_helper.name != "linux-uinput-touch.py" or
             any(validation not in helper.parents for helper in (key_helper, touch_helper))):
         raise SystemExit("Use the isolated FileCat build, owned helpers and report under ~/FileCatValidation")
-    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case or tab_case else None
+    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case or tab_case or refresh_case else None
     if mouse_helper is not None and (mouse_helper.name != "linux-uinput-mouse.py" or
                                      validation not in mouse_helper.parents):
         raise SystemExit("Use the owned transient uinput mouse helper")
@@ -72,7 +74,7 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort or filter_case or tab_case or deactivate_case or command_line_case:
+    if sort or filter_case or tab_case or refresh_case or deactivate_case or command_line_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
@@ -92,7 +94,7 @@ def main():
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
               "narrow": narrow, "sort": sort, "sortControl": sort_control,
-              "filter": filter_case, "tab": tab_case,
+              "filter": filter_case, "tab": tab_case, "refresh": refresh_case,
               "deactivate": deactivate_case, "commandLine": command_line_case,
               "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
@@ -155,7 +157,7 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or deactivate_case or command_line_case else
+            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or refresh_case or deactivate_case or command_line_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
             if tab_case:
@@ -167,7 +169,7 @@ def main():
                     raise AssertionError(f"Unexpected two-tab source summary: {clear}")
             else:
                 wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or deactivate_case or command_line_case else "a.txt")
+            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or refresh_case or deactivate_case or command_line_case else "a.txt")
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -177,7 +179,7 @@ def main():
             native_click(round(bounds.x + min(40, bounds.width / 2)),
                          round(bounds.y + bounds.height / 2), touch_helper, sudo_password)
             snapshot(f"touch {anchor}", clear, anchor)
-            if sort or filter_case or tab_case:
+            if sort or filter_case or tab_case or refresh_case:
                 def order():
                     rows = []
                     for name in expected:
@@ -189,7 +191,27 @@ def main():
                                          name))
                     return [name for _, name in sorted(rows)]
 
-                if filter_case:
+                if refresh_case:
+                    (source / "b.txt").unlink()
+                    (source / "0.txt").write_bytes(b"zero\n")
+                    expected.pop("b.txt")
+                    source_sha.pop("b.txt")
+                    expected["0.txt"] = b"zero\n"
+                    source_sha["0.txt"] = hashlib.sha256(expected["0.txt"]).hexdigest()
+                    key("ctrl+r")
+                    wait_for(lambda: order() == ["0.txt", "a.txt", "c.txt", "d.txt"] and
+                             not named(app, "list item", "b.txt"),
+                             "the refreshed replacement-file order")
+                    for _ in range(4):
+                        key("down")
+                    wait_for(lambda: focused() == ["d.txt"],
+                             "d.txt as deliberate current focus after refresh")
+                    report["steps"].append({"action": "remove b.txt, add 0.txt, refresh and focus d.txt",
+                                            "order": order(), "focused": focused()})
+                    target_name = "0.txt"
+                    target_summary = "Marked 4 of 4 files · 25 bytes"
+                    gesture = "Shift+click 0.txt after deleted-anchor refresh"
+                elif filter_case:
                     source_list = named(app, "list", f"Panel 1, source, {source}")[0]
                     list_bounds = source_list.get_component().get_extents(Atspi.CoordType.SCREEN)
                     candidates = []

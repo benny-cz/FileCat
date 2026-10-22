@@ -116,6 +116,13 @@ Shift+click `f.txt`; the first tab's anchor must not carry over. All three
 four-file variants also accept `--sort-narrow`, `--filter-narrow` or
 `--tab-narrow` for a measured 720 × 540 window, respectively. Each checks
 the exact selection summary, focus, source hashes and empty destination.
+Append `--refresh MOUSE_HELPER` or `--refresh-narrow MOUSE_HELPER` to touch
+`b.txt`, remove only that owned anchor and add `0.txt`, then physically send
+Ctrl+R. After focus moves to `d.txt`, a calibrated physical Shift-click on
+`0.txt` must mark exactly all four current files for 25 bytes, focus `0.txt`,
+and preserve their expected hashes and the empty target. The narrow route
+measures 720 × 540. A stale numeric anchor at the old `b.txt` row would
+select a smaller range.
 Append `--deactivate` or `--deactivate-narrow` to check a Shift+Down gesture
 whose Shift key remains physically held while a test-owned GTK window takes
 focus. The runner first marks `b.txt` with Insert, unmarks it with held
