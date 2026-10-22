@@ -47,7 +47,13 @@ A fresh Git build at `447d8a61` (`FileCat.dll` SHA-256
 passed the whole editor journey at a measured 1440 × 1080 physical window,
 720 × 540 device-independent units at 200%: both exact source files were
 renamed with original bytes, the target stayed empty, and the private edited
-name list was removed. Other FCUX-003 gates remain in
+name list was removed. A second native run on the same Git build invoked the
+new Previous and Next buttons through AT-SPI at that narrow size, verified
+both complete source-to-destination path mappings and returned to the first,
+then passed the editor and exact-filesystem checks. The read-only mapping
+detail retains a stable accessible label for focused review; the changing
+position is the sole live announcement and includes the full mapping. Other
+FCUX-003 gates remain in
 [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
 An additional fresh fixture loaded editor names, then changed the name mask
 in the same review. The editor-derived status disappeared and approval used

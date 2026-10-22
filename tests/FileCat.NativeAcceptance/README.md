@@ -13,6 +13,8 @@ it before launching FileCat or its configured editor. It marks both fixture
 files with physical Insert, opens the review with physical Ctrl+M, uses the
 configured editor to save two explicit names, and verifies exact source
 identities, bytes, empty target and removal of the private name list. The
+review step also invokes Previous and Next through AT-SPI and checks both
+complete source-to-destination paths before opening the editor. The
 `--narrow` reads the native display scale and requires a measured 720 × 540
 device-independent-unit window before the journey; an unmeasured or refused
 resize produces a failed receipt.

@@ -70,7 +70,6 @@ internal sealed class BulkRenameReview : StackPanel
             Margin = new Thickness(4, 0, 0, 0) };
         AutomationProperties.SetName(_previousMapping, "Previous rename mapping");
         AutomationProperties.SetName(_nextMapping, "Next rename mapping");
-        AutomationProperties.SetName(_position, "No rename mappings match the current preview filter.");
         AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
         var mappingButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
             Children = { _previousMapping, _nextMapping } };
@@ -78,7 +77,6 @@ internal sealed class BulkRenameReview : StackPanel
         tools.Children.Add(_position);
         _details = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 75 };
         AutomationProperties.SetName(_details, "Full old and new paths of selected rename");
-        AutomationProperties.SetLiveSetting(_details, AutomationLiveSetting.Polite);
         Children.Add(tools);
         Children.Add(_list);
         Children.Add(_details);

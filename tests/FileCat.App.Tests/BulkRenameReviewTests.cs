@@ -35,7 +35,7 @@ public sealed class BulkRenameReviewTests
                 AutomationProperties.GetLiveSetting(b) == AutomationLiveSetting.Polite);
             var details = review.GetVisualDescendants().OfType<TextBox>().Single(b =>
                 AutomationProperties.GetName(b) == "Full old and new paths of selected rename");
-            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(details));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(details));
             Assert.False(previous.IsEnabled);
             Assert.True(next.IsEnabled);
             Assert.Contains(Path.Combine(root, "b.txt"), AutomationProperties.GetHelpText(next));

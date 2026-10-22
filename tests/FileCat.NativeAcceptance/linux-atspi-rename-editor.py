@@ -178,7 +178,18 @@ def run(app_path, report_path, key_helper, narrow, rule_change):
             summary = "2 of 2 names change"
             wait_for(lambda: any(node.get_name().startswith(summary) for node in descendants(app)),
                      "two-name preview")
+            detail = one(app, "entry", "Full old and new paths of selected rename")
+            def selected_detail():
+                return Atspi.Text.get_text(detail.get_text_iface(), 0, -1)
+            first = f"From: {source / 'a.txt'}\nTo: {source / 'reviewed_1.txt'}"
+            second = f"From: {source / 'b.txt'}\nTo: {source / 'reviewed_2.txt'}"
+            wait_for(lambda: selected_detail() == first, "first exact full-path mapping")
+            action(one(app, "button", "Next rename mapping"), "Next rename mapping")
+            wait_for(lambda: selected_detail() == second, "second exact full-path mapping")
+            action(one(app, "button", "Previous rename mapping"), "Previous rename mapping")
+            wait_for(lambda: selected_detail() == first, "first mapping restored")
             result["steps"].append("Two-name preview and editor action available")
+            result["steps"].append("Native Previous/Next actions exposed both full-path mappings")
             action(one(app, "button", "Edit names in editor…"), "editor")
             wait_for(lambda: (fixture / "editor-done").is_file(), "controlled editor save")
             action(wait_for(lambda: next(iter(named(app, "button", "Load names")), None),
