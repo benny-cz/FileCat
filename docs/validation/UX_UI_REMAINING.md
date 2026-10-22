@@ -156,14 +156,8 @@ increments to `main`.
    CI. Avalonia 12.1 draws a bitmap's source rectangle in pixels while it
    measures the bitmap in units; report that upstream with the other Avalonia
    issues if the owner agrees.
-   UXBUG-018: on Linux the key bar showed each modifier layer one key late
-   (nothing while Ctrl was held, the Ctrl layer after release); fixed in
-   `e7836d62` and checked with a physical Ctrl hold on Ubuntu, unchanged on
-   Windows. The popup/Find-window stale-layer correction has a focused
-   headless test; native Ubuntu retests for Shift+F10 and Alt+F7 remain. The Ubuntu 200%
-   sweep found no clipping in the main window, the shared dialogs, command
-   search, the resize strip, the viewer, Quick View, Operations, About and
-   Settings; popup menus and the Find window still need a scaled capture.
+   The Ubuntu 200% sweep still needs a scaled visual capture of popup menus
+   and the Find window.
 
 ## Evidence required to finish
 

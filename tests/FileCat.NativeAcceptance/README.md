@@ -4,6 +4,15 @@ This runner exercises actual Win32 pointer input against a running FileCat
 window. It requires a logged-in Windows desktop, FileCat, and the locally
 installed Windows Application Driver listening on `127.0.0.1:4723`. It does
 not connect the driver to a network interface.
+`linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
+physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
+Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly
+under `~/FileCatValidation`, and the tracked `linux-uinput-key.py`; supply
+`FILECAT_NATIVE_SUDO_PASSWORD` transiently for uinput. It removes that value
+before starting FileCat, preserves fixture bytes, and kills only its own app.
+GNOME may reserve Alt+F7 for Move window. With `--expect-find`, the runner
+requires FileCat's Find window; temporarily release GNOME's `begin-move`
+binding for that route and restore its exact previous value afterward.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.

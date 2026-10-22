@@ -34,7 +34,21 @@ the modifier state has not changed. A headless regression presses Ctrl without
 delivering its release, verifies the next ordinary key clears the Ctrl layer,
 then opens and closes a sort popup while a Shift release is missing and checks
 that the normal layer returns. All four focused `KeyBarTests` pass on Windows.
-Native Linux popup and Find-window retests remain open.
+An isolated Ubuntu VM build of `bdb618d9` had zero warnings/errors and
+`FileCat.dll` SHA-256
+`4d5d52b47ac3c79a332bf2b354d2ddb3a3727051207c8655b013380a6ad1bf37`.
+The tracked AT-SPI runner then used physical uinput at 200% display scale:
+Shift+F10 opened the real item context menu, Escape returned all twelve
+key-bar labels to their original values, and the source SHA-256 and empty
+target stayed exact. GNOME normally owns Alt+F7 for Move window; that route
+also returned the normal key bar after Escape. A second run temporarily
+released only GNOME's `begin-move` binding, required FileCat's actual Find
+files window to open from Alt+F7, closed it with Escape, and observed all
+twelve original labels again. Its shell trap restored the original
+`['<Alt>F7']` binding. Both machine-readable receipts are retained in the
+guest validation folder and ignored host test output. UXBUG-018's native
+keyboard behavior now passes; the remaining Ubuntu popup/Find work is visual
+capture at the scaled layout.
 
 **22 October 2026, native icons cropped at display scaling above 100%
 (UXBUG-017; FCUX-058 Places and the scaled-display gates):** The owner saw
