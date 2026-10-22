@@ -953,7 +953,8 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab is null) return;
-        var r = await Dialogs.PromptAsync(new PromptOptions("Quick filter", "Show only the files that match (folders show unless the mask names them, as in src\\); empty shows all. Marks on hidden items are kept:")
+        // A mask names a folder with either separator; the example uses the platform's.
+        var r = await Dialogs.PromptAsync(new PromptOptions("Quick filter", $"Show only the files that match (folders show unless the mask names them, as in src{Path.DirectorySeparatorChar}); empty shows all. Marks on hidden items are kept:")
         {
             Text = tab.Listing.Filter?.Text ?? string.Empty,
             History = Services.MaskSuggestions(),
