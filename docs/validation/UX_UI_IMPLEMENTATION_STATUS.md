@@ -27,8 +27,7 @@ compiler. The runner additionally touched `b.txt`, reversed Name order and
 physically Shift-clicked `c.txt`; direct AX reported exactly those two rows
 selected, `c.txt` focused, and `Marked 2 of 4 files · 13 bytes`. Reversing
 Name again preserved the same selected identities. Both normal and 760 × 600
-native JSON reports passed with exact source hashes. Mac filter, tab and
-remaining focus transitions were the next gates. A separate Git-built Mac
+native JSON reports passed with exact source hashes. A separate Git-built Mac
 native runner then passed filter-anchor retirement at normal and 760 × 600
 widths: it touched `b.txt`, entered `*|b*` through the actual Filter field,
 observed only `a.txt`, `c.txt` and `d.txt`, restored `*`, and physically
@@ -41,7 +40,13 @@ identities, and the second tab entered its own `second` folder. Physical
 pointer and Shift-click input selected exactly `e.txt` and `f.txt` there,
 with `f.txt` focused and `Marked 2 of 2 files · 13 bytes`. Both source
 folders kept their original SHA-256 hashes and the target remained empty.
-Mac focus-loss and scaled-display routes stay open. The complete Windows Release
+A third native Mac runner passed held-Shift window deactivation at normal and
+760 × 600 widths. It physically marked `b.txt`, moved focus back without
+losing the mark, held Shift while a second Down unmarked `b.txt`, switched to
+Finder with Shift still down, released Shift there, and returned to FileCat.
+A fresh Shift+Down then marked only `c.txt` (8 bytes) and focused `d.txt`.
+The source hashes and empty target remained exact. Scaled-display and other
+Mac focus routes remain open. The complete Windows Release
 App suite on the same product code passed 2,419 tests with 63 platform skips
 and no failures; Core passed 4,437 with 151 skips and no failures, using up
 to 16 workers.
@@ -50,7 +55,9 @@ GitHub Actions run `39749992629` on `7b5b0bea` completed green on the
 producer policy, Windows, Ubuntu, macOS and Windows ARM64 lanes. The Mac
 checkout's complete Core Release suite passed 4,450 tests, skipped 133
 platform cases and failed none with 16 processors and the SDK on `PATH`.
-The newly changed Sort-control head still needs its final CI gate.
+GitHub Actions run `39758524147` on the Sort-control product commit
+`a30a5ccf` also completed green on all five required lanes. The later
+native-acceptance commits still need the final-head CI gate.
 
 **22 October 2026, CI recovery-test synchronization:** The Windows CI run on
 `cf791da9` exposed a file-sharing race in the isolated dependent-Undo crash

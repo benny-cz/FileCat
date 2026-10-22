@@ -1015,6 +1015,16 @@ the two second-folder files selected for 13 bytes, with `f.txt` focused.
 It checks both source-folder hashes and the empty target. `--narrow`
 repeats the route at 760 × 600.
 
+`python3 mac-ax-panel-focus-loss.py BUNDLE.app REPORT.json [--narrow]`
+uses a fresh four-file source to exercise window deactivation during a held
+physical Shift gesture. It marks `b.txt`, moves focus back without changing
+the mark, unmarks `b.txt` with held Shift+Down, activates Finder while Shift
+remains down, releases Shift there, and returns to FileCat. The next
+Shift+Down must mark only `c.txt` (8 bytes) and focus `d.txt`. Direct AX
+checks the marks and focus; all hashes and the empty target stay exact.
+`--narrow` measures a 760 × 600 window. The runner releases Shift on
+failure and closes only its exact FileCat process.
+
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
