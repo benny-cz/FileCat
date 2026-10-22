@@ -1885,6 +1885,21 @@ and the target remained empty. The native report and button crop are retained
 under the guest validation folder and ignored host test output. Other dialog
 families and scaled/spoken checks remain open.
 
+On 22 October, Windows Display Settings selected 150% (144 DPI) and 200%
+(192 DPI) in the isolated Win11 VM. The tracked native dialog runner passed
+Create folder, Copy, Move, Delete and Create in Registry at **both** scales on
+the Git-built app with executable SHA-256
+`CDAA633E53B23A0F4611916F8DFB2E3B401517821823BCFA5889AACDDDA0984E`.
+Each dialog opened twice, exposed the accessible `Close dialog` button and its
+cancel help, and closed by native X click and backdrop click. The vector X
+pixel centroid was (0, 0) relative to button center in all ten captures;
+targets measured 45 × 45 screen pixels at 150% and 60 × 60 at 200%. Every
+fixture remained unchanged with an empty target. The ignored native JSON
+reports and button crops are in the guest validation folder and host test
+output. Display Settings then restored 100% and reported 96 DPI. Other dialog
+families, non-Windows scaled visuals and actual screen-reader speech remain
+open.
+
 ## Reproduction
 
 From the solution directory, with the pinned SDK installed:

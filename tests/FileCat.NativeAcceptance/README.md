@@ -54,7 +54,10 @@ file; both pointer exits must preserve its source SHA-256 and empty target.
 The runner saves a close-button crop beside its JSON report, measures the
 high-contrast X pixels against the button background and requires their
 centroid within 1.5 physical pixels of center. It also records the window DPI,
-accessible name/help, button bounds and both native pointer outcomes.
+accessible name/help, button bounds and both native pointer outcomes. Run the
+same five dialog kinds after changing the isolated VM's native Display Settings
+scale. The Windows VM runs at 100% by default; restore that setting after any
+scaled acceptance session.
 `win-ax-remote-stage-hint.ps1 -ReportPath <guest-local.json>` runs in the
 logged-in Windows VM after an exact Git checkout and Release build. Its
 `vm-clone-build.json` names the isolated executable and SHA-256. It seeds a
