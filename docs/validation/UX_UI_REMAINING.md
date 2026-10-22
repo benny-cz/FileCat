@@ -53,8 +53,9 @@ increments to `main`.
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
    FCUX-003 still needs Mac display-scale and Ubuntu scaled/narrow layouts,
-   keyboard and spoken review, and native
-   rule-change races after the headless stale-scope result was rejected. On Mac,
+   keyboard and spoken review, and native concurrent
+   rule-change races after the headless stale-scope result was rejected and a
+   post-editor rule change passed on Ubuntu. On Mac,
    investigate the visible review body's zero AX bounds and preview list with
    no AX children; native AX actions work, but assistive inspection of every
    mapping still needs proof. The Ubuntu editor round trip passed at its normal

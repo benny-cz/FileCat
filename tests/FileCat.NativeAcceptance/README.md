@@ -4,7 +4,7 @@ This runner exercises actual Win32 pointer input against a running FileCat
 window. It requires a logged-in Windows desktop, FileCat, and the locally
 installed Windows Application Driver listening on `127.0.0.1:4723`. It does
 not connect the driver to a network interface.
-`linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow]`
+`linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow|--rule-change]`
 checks a native Ubuntu bulk-rename editor round trip. Use the logged-in
 desktop, a Git-built executable below `~/FileCatValidation`, and a copy of
 the tracked `linux-uinput-key.py` in that directory. Pass the guest sudo
@@ -15,6 +15,8 @@ configured editor to save two explicit names, and verifies exact source
 identities, bytes, empty target and removal of the private name list. The
 `--narrow` route requires a measured 720 × 540 window before the journey;
 window managers that refuse external resizing produce a failed receipt.
+`--rule-change` loads editor names, changes the mask in the same review, and
+requires the final rename to use the new rule mapping instead.
 `linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
 physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
 Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly

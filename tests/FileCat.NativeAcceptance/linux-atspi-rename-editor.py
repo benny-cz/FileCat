@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Native Ubuntu bulk rename round trip through the configured external editor.
 
-Usage: linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow]
+Usage: linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow|--rule-change]
 Run in the logged-in desktop with a Git-built app under ~/FileCatValidation.
 FILECAT_NATIVE_SUDO_PASSWORD is used only for one physical Ctrl+M gesture and
 is removed from the child app/editor environment before either starts.
@@ -11,11 +11,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import runpy
 import subprocess
 import sys
-import time
 from uuid import uuid4
 
 import gi
@@ -67,7 +65,7 @@ target.write_text("editor_a.txt\\neditor_b.txt\\n", encoding="utf-8")
     }), encoding="utf-8")
 
 
-def run(app_path, report_path, key_helper, narrow):
+def run(app_path, report_path, key_helper, narrow, rule_change):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -94,6 +92,7 @@ def run(app_path, report_path, key_helper, narrow):
     app_sha = hashlib.sha256(app_path.with_name("FileCat.dll").read_bytes()).hexdigest()
     process = None
     result = {"passed": False, "platform": "Ubuntu", "narrow": narrow,
+              "ruleChangeAfterEditor": rule_change,
               "appSha256": app_sha, "fixture": str(fixture), "steps": []}
     try:
         with (fixture / "app.log").open("wb") as log:
@@ -173,6 +172,13 @@ def run(app_path, report_path, key_helper, narrow):
             if list((data / "local" / "temp").glob("rename-*.txt")):
                 raise AssertionError("Private editor list was not removed")
             result["steps"].append("Editor names loaded and private list removed")
+            if rule_change:
+                if not one(app, "entry", "Name mask").get_editable_text().set_text_contents("rule_[C]"):
+                    raise AssertionError("Could not change the rule after editor names were loaded")
+                wait_for(lambda: any(node.get_name().startswith(summary) and
+                                     "names come from the editor" not in node.get_name()
+                                     for node in descendants(app)), "rule-derived preview to replace editor names")
+                result["steps"].append("Changing a rule retired the editor-derived mapping")
             rename = named(app, "button", "Rename")
             def ancestry(node):
                 chain = []
@@ -187,11 +193,15 @@ def run(app_path, report_path, key_helper, narrow):
                 raise AssertionError(f"Expected one modal-owned Rename approval, found {len(approvals)}")
             action(approvals[0], "Rename approval")
 
+            expected_names = {"rule_1.txt", "rule_2.txt"} if rule_change else {
+                "editor_a.txt", "editor_b.txt"}
+            mapped = {"a.txt": "rule_1.txt" if rule_change else "editor_a.txt",
+                      "b.txt": "rule_2.txt" if rule_change else "editor_b.txt"}
+
             def renamed():
-                return ({entry.name for entry in source.iterdir()} ==
-                        {"editor_a.txt", "editor_b.txt"} and
-                        (source / "editor_a.txt").read_bytes() == original["a.txt"] and
-                        (source / "editor_b.txt").read_bytes() == original["b.txt"] and
+                return ({entry.name for entry in source.iterdir()} == expected_names and
+                        all((source / mapped[name]).read_bytes() == content
+                            for name, content in original.items()) and
                         not list(target.iterdir()))
 
             wait_for(renamed, "exact two-file rename with unchanged bytes", seconds=25)
@@ -214,7 +224,8 @@ def run(app_path, report_path, key_helper, narrow):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--narrow":
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] not in ("--narrow", "--rule-change"):
         raise SystemExit(__doc__)
     raise SystemExit(run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                         len(sys.argv) == 5))
+                         len(sys.argv) == 5 and sys.argv[4] == "--narrow",
+                         len(sys.argv) == 5 and sys.argv[4] == "--rule-change"))

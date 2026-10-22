@@ -19,6 +19,11 @@ remained 1280 × 840 after both `wmctrl` and `xdotool` requests for 720 × 540.
 The runner now requires settled physical geometry before proceeding. A native
 window-manager resize and the other open FCUX-003 gates remain in
 [UX_UI_REMAINING.md](UX_UI_REMAINING.md).
+An additional fresh fixture loaded editor names, then changed the name mask
+in the same review. The editor-derived status disappeared and approval used
+the new rule mapping, yielding exactly `rule_1.txt` and `rule_2.txt` with
+their original bytes. This verifies the ordinary post-editor change; a
+concurrent change while the editor is pending remains a separate native gate.
 
 **22 October 2026, scaled-display sweep on Ubuntu at 200% and the key bar's
 modifier layers (UXBUG-018):** A scripted sweep drove Git-built FileCat on the
