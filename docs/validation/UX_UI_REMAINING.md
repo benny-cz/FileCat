@@ -19,9 +19,9 @@ increments to `main`.
   `%LOCALAPPDATA%\FileCatValidation\NVDA\portable`), and
   `mac-ax-focus-speech.py` records the AX focus notifications and
   announcements VoiceOver speaks from. All three also check the first and a
-  repeated copy notice, and a rejected Quick filter mask spoken as it appears
+  repeated copy notice, a rejected Quick filter mask spoken as it appears
   and again on a refused Enter (the shared prompt that F7, Go to and other
-  prompts use). Extend these journeys for the "spoken" criteria of other
+  prompts use), and the viewer search's outcome alone. Extend these journeys for the "spoken" criteria of other
   findings (Find results, the panel filter field of FCUX-028, which needs a
   keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
   Hearing VoiceOver itself needs the owner to enable "Allow
@@ -120,7 +120,11 @@ increments to `main`.
    needs localized speed entry, keyboard error navigation and actual spoken
    feedback on supported desktops. The same-dialog invalid-speed correction
    and accessible field help passed native Mac, Ubuntu and Windows checks,
-   but screen-reader announcements remain to be heard and checked.
+   but screen-reader announcements remain to be heard and checked. Its error,
+   like eleven other live texts, had a fixed accessible name that no reader could
+   hear until `eed454ba`. Report Avalonia 12.1's AT-SPI role table, one off
+   between roles 81 and 114 (Linux viewers are read-only entries since
+   `68fdea8e`), upstream if the owner agrees.
    UXBUG-016 needs native checks of other dialog families and non-Windows
    scaled visuals, plus actual screen-reader speech on each desktop. Windows
    Create folder, Create in Registry, Copy, Move and Delete passed native

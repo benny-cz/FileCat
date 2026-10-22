@@ -660,11 +660,14 @@ Automation confirms keyboard focus is in the tested process. The journey moves
 Down three times, Up, Home and End, tabs to the target panel and back, opens
 Create folder with F7, closes it with Escape, copies the focused file with
 Ctrl+C twice, opens Quick filter with Ctrl+S, types the unclosed mask `/a`,
-presses Enter, closes it with Escape and switches away and back; every step
+presses Enter and closes it with Escape, opens the viewer with F3 and its
+search with F7, types `char` and Enter, leaves with Escape twice, and switches
+away and back; every step
 must name the expected file, parent row or field, each copy must be heard once
 as "Copied 1 item to the clipboard." (the first notice after startup, then a
 repeated one), the mask's message must be heard as `/` is typed and again
-when Enter is refused, and the fixture bytes must be unchanged. `-RecordAll` keeps a complete transcript after an
+when Enter is refused, the viewer search must speak "1 match" alone, without
+its searching and counting states, and the fixture bytes must be unchanged. `-RecordAll` keeps a complete transcript after an
 unmet expectation, which documents a pre-fix build.
 
 ## Linux logged-in desktop
@@ -860,7 +863,8 @@ must be the focused `AXTextField`, each Command+C must post exactly one
 `AXAnnouncementRequested` reading "Copied 1 item to the clipboard.", typing
 `/` with a raw key code as the first character after Command+S and then
 Return in Quick filter must each post exactly one reading "Unclosed regular
-expression in mask.", and fixture bytes must stay exact. A TERM that an open
+expression in mask.", the viewer search must post exactly one announcement
+equal to "1 match", and fixture bytes must stay exact. A TERM that an open
 dialog leaves unanswered is followed by a KILL of the runner's own process. System Events sets Command without pressing a
 Command key; Avalonia reports such a change as the A key, which FileCat now
 ignores (before, Command+C first selected every file). The observer's `find PID
