@@ -123,6 +123,16 @@ Shift+Down, changes the active native window, releases Shift there and returns.
 A fresh Shift+Down must then mark only `c.txt` (8 bytes) and focus `d.txt`;
 source hashes and the empty destination are checked. The narrow variant
 requires a measured 720 × 540 window.
+Append `--command-line` or `--command-line-narrow` for the same held-Shift
+mark/unmark sequence, then physically touch FileCat's accessible command line
+while Shift is still down. The runner requires the command-line entry to own
+focus, releases Shift there, presses Escape to restore list focus, and requires
+a fresh Shift+Down to mark only `c.txt` (8 bytes) with `d.txt` focused. Both
+variants check exact source hashes and an empty destination; the narrow variant
+measures 720 × 540.
+Both held-Shift routes now use a fresh, test-owned release signal, so the
+physical key stays down until the focus change has been observed; the runner
+asserts the helper is still holding it before and after that change.
 Pass the one-time guest sudo
 credential only to the runner process; it is removed before FileCat starts.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside

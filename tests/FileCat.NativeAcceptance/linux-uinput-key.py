@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Send one physical keyboard chord from a disposable Linux uinput device.
 
-Usage: sudo python3 linux-uinput-key.py CHORD
+Usage: sudo python3 linux-uinput-key.py CHORD [absolute owned release signal]
 The calling native acceptance test controls the logged-in desktop and supplies
-sudo authentication separately. No credentials are stored in this helper.
+sudo authentication separately. The controlled held-Shift chord waits for its
+test-owned release signal for at most 30 seconds. No credentials are stored in
+this helper.
 """
 
 import fcntl
 import os
+from pathlib import Path
 import struct
 import sys
 import time
@@ -16,6 +19,7 @@ import time
 KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": (103,),
         "down": (108,), "shift+down": (42, 108),
         "shift+down-hold": (42, 108), "left": (105,),
+        "shift+down-hold-controlled": (42, 108),
         "f3": (61,), "shift+f3": (42, 61), "f5": (63,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
         "ctrl+a": (29, 30), "ctrl+t": (29, 20),
@@ -31,7 +35,7 @@ def event(fd, code, value):
     os.write(fd, struct.pack("llHHi", 0, 0, EV_SYN, 0, 0))
 
 
-def send(chord):
+def send(chord, release_path=None):
     strokes = SEQUENCES[chord] if chord in SEQUENCES else (KEYS[chord],)
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
@@ -48,14 +52,21 @@ def send(chord):
         fcntl.ioctl(fd, 0x5501)  # UI_DEV_CREATE
         created = True
         time.sleep(0.6)  # Let the compositor register the new keyboard.
-        if chord == "shift+down-hold":
+        if chord in ("shift+down-hold", "shift+down-hold-controlled"):
             event(fd, 42, 1)
             held_shift = True
             event(fd, 108, 1)
             time.sleep(0.05)
             event(fd, 108, 0)
             print("HELD", flush=True)
-            time.sleep(8)
+            if chord == "shift+down-hold-controlled":
+                deadline = time.monotonic() + 30
+                while not release_path.is_file():
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("The owned runner did not release Shift within 30 seconds")
+                    time.sleep(0.05)
+            else:
+                time.sleep(8)
             return
         for keys in strokes:
             for code in keys:
@@ -75,6 +86,12 @@ def send(chord):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in KEYS and sys.argv[1] not in SEQUENCES:
-        raise SystemExit("Usage: linux-uinput-key.py CHORD (one of the bounded KEYS or SEQUENCES)")
-    send(sys.argv[1])
+    if (len(sys.argv) not in (2, 3) or
+            sys.argv[1] not in KEYS and sys.argv[1] not in SEQUENCES or
+            (len(sys.argv) == 3) != (sys.argv[1] == "shift+down-hold-controlled")):
+        raise SystemExit("Usage: linux-uinput-key.py CHORD [absolute owned release signal]")
+    release = Path(sys.argv[2]) if len(sys.argv) == 3 else None
+    if release is not None and (not release.is_absolute() or release.name != "shift-release.signal" or
+                                release.exists()):
+        raise SystemExit("The controlled hold requires a fresh absolute test release signal")
+    send(sys.argv[1], release)
