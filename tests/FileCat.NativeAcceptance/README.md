@@ -1116,6 +1116,15 @@ unchanged. The script launches a separate `osascript` process for each input
 or accessibility snapshot so the app can process the native event between
 observations. Start with no marks; the test ends with no marks.
 
+For a different macOS display mode, run the same isolated fixture and input
+script through `swift mac-display-run.swift WIDTH HEIGHT PIXEL_WIDTH
+PIXEL_HEIGHT /bin/bash YOUR_OWNED_TEST_WRAPPER.sh`. The four dimensions must
+match a mode reported by CoreGraphics. The wrapper changes only the active
+display, waits for the child, and verifies restoration of the original
+logical and physical dimensions even if the child fails. Keep the Mac desktop
+unlocked; record both display dimensions, the exact app build, marked files,
+source bytes and empty destination in the child report.
+
 `python3 mac-ax-panel-sort.py BUNDLE.app REPORT.json [--narrow]` launches an
 isolated signed Git-built app with its own four-file source and empty target.
 Keep `mac-ax-panel-sort-snapshot.swift` beside the runner; it compiles a
