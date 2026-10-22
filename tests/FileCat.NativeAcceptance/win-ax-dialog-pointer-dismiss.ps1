@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Registry', 'Folder')][string]$DialogKind = 'Registry'
+    [ValidateSet('Registry', 'Folder', 'Copy')][string]$DialogKind = 'Registry'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,8 +43,12 @@ if (!$app.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or
 $fixture = Join-Path $validationRoot ('DialogPointerFixture\' + [guid]::NewGuid().ToString('N'))
 $data = Join-Path $fixture 'data'
 $source = Join-Path $fixture 'source'
-New-Item -ItemType Directory -Force -Path $data, $source | Out-Null
-$dialogTitle = if ($DialogKind -eq 'Folder') { 'Create folder' } else { 'Create in Registry' }
+$target = Join-Path $fixture 'target'
+New-Item -ItemType Directory -Force -Path $data, $source, $target | Out-Null
+$sourceFile = Join-Path $source 'a.txt'
+if ($DialogKind -eq 'Copy') { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
+$sourceHash = if ($DialogKind -eq 'Copy') { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
+$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } default { 'Create in Registry' } }
 $process = $null
 
 function Snapshot($window) {
@@ -68,8 +72,11 @@ function WaitForChooser($window, [bool]$visible) {
         $close = CloseButton $window
         if (($null -ne $close) -eq $visible) {
             if ($visible) {
-                $titles = @(Snapshot $window | Where-Object { $_.Current.Name -eq $dialogTitle })
-                if (!$titles.Count) { throw "F7 opened a different dialog; expected $dialogTitle." }
+                $names = @(Snapshot $window | ForEach-Object { $_.Current.Name })
+                $expected = if ($DialogKind -eq 'Copy') {
+                    @($names | Where-Object { $_ -like 'Copy "a.txt"*' }).Count -gt 0 -and $names -contains 'Destination'
+                } else { $names -contains $dialogTitle }
+                if (!$expected) { throw "A different dialog opened; expected $dialogTitle." }
             }
             return $close
         }
@@ -90,10 +97,39 @@ function EnsureForeground($process, $window) {
     }
 }
 
+function OpenDialog($process, $window) {
+    EnsureForeground $process $window
+    if ($DialogKind -eq 'Copy') {
+        $row = @(Snapshot $window | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+            $_.Current.Name -eq 'a.txt'
+        })
+        if ($row.Count -ne 1) { throw 'The disposable Copy source row is missing.' }
+        $pattern = $null
+        if ($row[0].TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
+            ([System.Windows.Automation.SelectionItemPattern]$pattern).Select()
+        } else {
+            $bounds = $row[0].Current.BoundingRectangle
+            [FileCatDialogPointer]::Click([int]($bounds.X + $bounds.Width / 2), [int]($bounds.Y + $bounds.Height / 2))
+        }
+        $buttons = @(Snapshot $window | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+            $_.Current.Name.StartsWith('Copy', [StringComparison]::Ordinal) -and $_.Current.IsEnabled
+        } | Sort-Object { $_.Current.BoundingRectangle.Y })
+        if ($buttons.Count -lt 1) { throw 'The selected Copy command is unavailable.' }
+        ([System.Windows.Automation.InvokePattern]$buttons[0].GetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+    } else {
+        (New-Object -ComObject WScript.Shell).SendKeys('{F7}')
+    }
+    return WaitForChooser $window $true
+}
+
 try {
-    $left = if ($DialogKind -eq 'Folder') { $source } else { 'reg:HKCU\Software' }
+    $left = if ($DialogKind -eq 'Registry') { 'reg:HKCU\Software' } else { $source }
+    $right = if ($DialogKind -eq 'Registry') { $validationRoot } else { $target }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
-        '--left', $left, '--right', $validationRoot) -PassThru
+        '--left', $left, '--right', $right) -PassThru
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     do {
         Start-Sleep -Milliseconds 200
@@ -105,10 +141,7 @@ try {
     $window = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
     Start-Sleep -Seconds 1
 
-    $shell = New-Object -ComObject WScript.Shell
-    EnsureForeground $process $window
-    $shell.SendKeys('{F7}')
-    $close = WaitForChooser $window $true
+    $close = OpenDialog $process $window
     if ($close.Current.IsOffscreen -or !$close.Current.IsEnabled) { throw 'The close X is not reachable.' }
     $help = $close.Current.HelpText
     if ($help -notlike '*Cancel this dialog*') { throw 'The close X lacks its accessible cancel explanation.' }
@@ -146,16 +179,16 @@ try {
     [FileCatDialogPointer]::Click([int]($bounds.X + $bounds.Width / 2), [int]($bounds.Y + $bounds.Height / 2))
     WaitForChooser $window $false | Out-Null
 
-    EnsureForeground $process $window
-    $shell.SendKeys('{F7}')
-    $close = WaitForChooser $window $true
+    $close = OpenDialog $process $window
     $frame = $window.Current.BoundingRectangle
     $outsideX = [int]($frame.X + 20)
     $outsideY = [int]($frame.Y + $frame.Height - 80)
     [FileCatDialogPointer]::Click($outsideX, $outsideY)
     WaitForChooser $window $false | Out-Null
-    if ($DialogKind -eq 'Folder' -and @(Get-ChildItem -LiteralPath $source -Force).Count -ne 0) {
-        throw 'The canceled Create folder dialog changed the fixture.'
+    if (($DialogKind -eq 'Folder' -and @(Get-ChildItem -LiteralPath $source -Force).Count -ne 0) -or
+        ($DialogKind -eq 'Copy' -and ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $sourceHash -or
+            @(Get-ChildItem -LiteralPath $target -Force).Count -ne 0))) {
+        throw 'The canceled dialog changed the disposable fixture.'
     }
 
     [pscustomobject]@{
@@ -172,6 +205,9 @@ try {
         CloseIconPixels = $iconPixels
         CloseIconOffsetPixels = "$([Math]::Round($offsetX, 2)),$([Math]::Round($offsetY, 2))"
         OutsidePoint = "$outsideX,$outsideY"
+        FixtureUnchanged = $true
+        SourceSha256 = $sourceHash
+        TargetEmpty = @(Get-ChildItem -LiteralPath $target -Force).Count -eq 0
     } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
 }
 catch {

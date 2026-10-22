@@ -45,6 +45,8 @@ F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
 Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
 with an empty disposable filesystem fixture; the default remains `Registry`.
+Pass `-DialogKind Copy` to open the Copy review for one disposable file and
+verify that both pointer exits preserve its SHA-256 and the empty target.
 The runner saves a close-button crop beside its JSON report, measures the
 high-contrast X pixels against the button background and requires their
 centroid within 1.5 physical pixels of center. It also records the window DPI,

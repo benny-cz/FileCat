@@ -1570,8 +1570,16 @@ offset (-0.22, 0) from center at 96 DPI. A native click on X and then a
 native backdrop click each dismissed the respective dialog; the Create
 folder source fixture stayed empty. JSON receipts and the close-button crop
 are retained under the guest's `AppData\Local\FileCatValidation` and the
-host native acceptance output. Other dialog families, 150% Windows scale,
-Ubuntu mouse and actual screen-reader speech remain open.
+host native acceptance output. Further dialog families and scaled/spoken
+checks were still pending at that checkpoint.
+The same runner then passed a fresh Copy review fixture on that Git-built
+Windows app. It selected `a.txt`, opened Copy twice, verified the shared
+30 × 30 close X and its (-0.22, 0) pixel center offset, and canceled with
+native X and backdrop clicks. The source SHA-256 stayed
+`6C9A89482AB2E0A75957FFBAADD3F37737898C7A75A5FD8DBAA210B5B00AC398`
+and the disposable target stayed empty. The final JSON receipt explicitly
+records both checks. Registry, Create folder and Copy now pass the native
+Windows pointer route; other dialog families and scaled/spoken checks remain.
 
 ## Reproduction
 
