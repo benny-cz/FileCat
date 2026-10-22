@@ -150,7 +150,8 @@ increments to `main`.
    its own process instead.
    UXBUG-017, native icons cropped at display scaling above 100%, is fixed
    (`80598aeb`) and verified in before/after captures on Ubuntu at 200%, the
-   Retina Mac and the Win11 VM at 150% and 200%; the Skia-rendered
+   Retina Mac and the Win11 VM at 150% and 200% (Quick View's Shell thumbnail
+   too); the Skia-rendered
    `FileCat.Rendering.Tests` project now checks icon pixels at 100%–300% in
    CI. Avalonia 12.1 draws a bitmap's source rectangle in pixels while it
    measures the bitmap in units; report that upstream with the other Avalonia

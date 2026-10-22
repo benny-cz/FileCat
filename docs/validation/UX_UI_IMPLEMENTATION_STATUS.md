@@ -30,9 +30,12 @@ set through the display configuration calls Settings uses, captured with
 PrintWindow and restored to 100% afterwards. Before, the drive, Home,
 Desktop, Documents, server, computer, network and file-type icons showed
 their enlarged top-left part (Windows' D:, Y: and Z: drives were grey
-slivers); after, every icon is complete on all three desktops. A theme's
-tinted icon keeps its scaling, but no built-in theme tints icons, so that path
-has no native check.
+slivers); after, every icon is complete on all three desktops. Quick View
+of a 512-pixel PNG of four colored quadrants in a magenta frame, which Windows
+draws as a Shell thumbnail, showed only the red top-left quadrant and the top
+and left frame at 200% before, and the whole picture after. A theme's tinted
+icon keeps its scaling, but no built-in theme tints icons, so that path has no
+native check.
 
 **22 October 2026, keyboard panel resizing heard as a slider (FCUX-031):**
 The speech runners now open command search, type "splitter", press Enter,
@@ -2167,8 +2170,9 @@ only in part, while 100% looked right. Every native icon drew its enlarged
 top-left part at any scaling above 100% on all three desktops; see the dated
 entry at the top for the cause, the `ScaledBitmap` fix (`80598aeb`), the
 Skia-rendered `FileCat.Rendering.Tests` regression and the before/after
-captures on Ubuntu at 200%, the Retina Mac and the Win11 VM at 150% and 200%.
-Final five-lane CI on the pushed head is the remaining gate.
+captures on Ubuntu at 200%, the Retina Mac and the Win11 VM at 150% and 200%,
+including Quick View's Shell thumbnail at 200% on Windows. Final five-lane CI
+on the pushed head is the remaining gate.
 
 ## Reproduction
 
