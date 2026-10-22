@@ -395,6 +395,36 @@ public sealed class DescendantFocusAutomationTests
     }
 
     [AvaloniaFact]
+    public void Linux_hears_each_value_change_of_the_focused_slider_from_its_own_node()
+    {
+        var slider = new Slider { Minimum = 0, Maximum = 100, Value = 50 };
+        var other = new Slider { Minimum = 0, Maximum = 100, Value = 10 };
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { slider, other } } };
+        window.Show();
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var server = new FakeBridgeServer();
+            var node = new FakeBridgeNode(server, root);
+            server.Attached[root] = node;
+            root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            slider.Focus();
+            Dispatcher.UIThread.RunJobs();
+            var sliderNode = server.Attached[ControlAutomationPeer.CreatePeerForElement(slider)];
+
+            slider.Value = 51;
+            Assert.Equal([("accessible-value", (object)51.0)], sliderNode.EventObjectHandler.PropertyChanges);
+            // Only the focused element is followed.
+            other.Value = 20;
+            Assert.Single(sliderNode.EventObjectHandler.PropertyChanges);
+            other.Focus();
+            Dispatcher.UIThread.RunJobs();
+            slider.Value = 52;
+            Assert.Single(sliderNode.EventObjectHandler.PropertyChanges);
+        }
+        finally { window.Close(); }
+    }
+    [AvaloniaFact]
     public void Every_main_window_notification_is_announced_including_the_first_and_an_error_after_a_notice()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -514,7 +544,8 @@ public sealed class DescendantFocusAutomationTests
     private sealed class FakeEventHandler
     {
         internal List<(string Member, object[] Body)> Signals { get; } = [];
-        public void EmitPropertyChangeSignal(string propertyName, FakeVariant value) => throw new NotSupportedException();
+        internal List<(string Property, object Value)> PropertyChanges { get; } = [];
+        public void EmitPropertyChangeSignal(string propertyName, FakeVariant value) => PropertyChanges.Add((propertyName, value.Value));
         private void EmitSignal(string member, params object[] body) => Signals.Add((member, body));
     }
 

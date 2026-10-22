@@ -36,6 +36,7 @@ internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer
     private EventHandler? _focusChanged;
     private IFocusedDescendantPeer? _owner;
     private AutomationPeer? _reported;
+    private AutomationPeer? _valueSource;
 
     public DescendantFocusWindowAutomationPeer(Window owner) : base(owner)
     {
@@ -110,7 +111,26 @@ internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer
         if (!always && ReferenceEquals(focus, _reported)) return;
         _reported = focus;
         AtSpi?.Attach(this, focus);
+        TrackValue(focus);
         _focusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// A focused slider's value changes are what screen readers speak as it moves, and Avalonia's AT-SPI bridge emits
+    /// none: on Linux each change of the focused element's range value is sent from its own node.
+    /// </summary>
+    private void TrackValue(AutomationPeer? focus)
+    {
+        if (ReferenceEquals(focus, _valueSource)) return;
+        if (_valueSource is not null) _valueSource.PropertyChanged -= OnFocusedPropertyChanged;
+        _valueSource = focus;
+        if (focus is not null) focus.PropertyChanged += OnFocusedPropertyChanged;
+    }
+
+    private void OnFocusedPropertyChanged(object? sender, AutomationPropertyChangedEventArgs e)
+    {
+        if (e.Property == RangeValuePatternIdentifiers.ValueProperty && e.NewValue is double value && sender is AutomationPeer peer)
+            AtSpi?.ValueChanged(peer, value);
     }
 }
 
@@ -329,7 +349,7 @@ internal sealed class AtSpiBridge
     private readonly MethodInfo _attachedNode;
     private readonly MethodInfo _ensureChildren;
     private readonly AnnouncementMembers? _announce;
-    private bool _focusDisabled, _announceDisabled;
+    private bool _focusDisabled, _announceDisabled, _valueDisabled;
 
     private AtSpiBridge(object root, object server, MethodInfo attachedNode, MethodInfo ensureChildren, AnnouncementMembers? announce)
     {
@@ -378,7 +398,7 @@ internal sealed class AtSpiBridge
         return (server, attachedNode, ensureChildren);
     }
 
-    internal sealed record AnnouncementMembers(PropertyInfo Handler, MethodInfo Emit, ConstructorInfo Variant, Type Properties);
+    internal sealed record AnnouncementMembers(PropertyInfo Handler, MethodInfo Emit, MethodInfo PropertyChange, ConstructorInfo Variant, Type Properties);
 
     /// <summary>The announcement members, or null when this Avalonia version does not provide them as expected.</summary>
     internal static AnnouncementMembers? Announcements(Type rootNodeType)
@@ -388,11 +408,12 @@ internal sealed class AtSpiBridge
             handler = t.GetProperty(EventHandlerProperty, Instance | BindingFlags.DeclaredOnly);
         if (handler is null) return null;
         var emit = Find(handler.PropertyType, EmitSignalMethod, [typeof(string), typeof(object[])]);
-        var variantType = handler.PropertyType.GetMethods(Instance)
-            .FirstOrDefault(m => m.Name == PropertyChangeMethod && m.GetParameters().Length == 2)?.GetParameters()[1].ParameterType;
+        var propertyChange = handler.PropertyType.GetMethods(Instance)
+            .FirstOrDefault(m => m.Name == PropertyChangeMethod && m.GetParameters() is [{ ParameterType: var name }, _] && name == typeof(string));
+        var variantType = propertyChange?.GetParameters()[1].ParameterType;
         var variant = variantType?.GetConstructor(Instance, [typeof(object)]);
-        if (emit is null || variantType is null || variant is null) return null;
-        return new AnnouncementMembers(handler, emit, variant, typeof(Dictionary<,>).MakeGenericType(typeof(string), variantType));
+        if (emit is null || propertyChange is null || variantType is null || variant is null) return null;
+        return new AnnouncementMembers(handler, emit, propertyChange, variant, typeof(Dictionary<,>).MakeGenericType(typeof(string), variantType));
     }
 
     private static MethodInfo? Find(Type type, string name, Type[] parameters)
@@ -444,6 +465,22 @@ internal sealed class AtSpiBridge
         catch (Exception ex)
         {
             _announceDisabled = true;
+            Disable(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    /// <summary>Tells AT-SPI clients that an attached node's range value changed, from that node.</summary>
+    internal void ValueChanged(AutomationPeer peer, double value)
+    {
+        if (_announce is not { } members || _valueDisabled) return;
+        try
+        {
+            if (_attachedNode.Invoke(_server, [peer]) is not { } node || members.Handler.GetValue(node) is not { } handler) return;
+            members.PropertyChange.Invoke(handler, ["accessible-value", members.Variant.Invoke([value])]);
+        }
+        catch (Exception ex)
+        {
+            _valueDisabled = true;
             Disable(ex.InnerException?.Message ?? ex.Message);
         }
     }
