@@ -612,6 +612,11 @@ Its structured editor setting launched a fixture-bound native helper, saved
 sources, used the nested Load names decision, and showed both edited mappings.
 The private list was removed; only the two source files were renamed with
 matching bytes, the destination stayed empty, and the exact app closed.
+Fresh VM fixtures repeated that entire editor round trip at 150% and 200%
+display scale on the same app DLL. The dialog visibly kept the editor action,
+both mappings and Cancel/Rename controls in view at each scale; the native
+reports passed the edited names, file contents, empty target and process stop.
+The scale sweep restored Windows to 100% (96 DPI).
 Mac/Ubuntu editor journeys and native rule-change races remain open.
 
 **22 October 2026, Git-built Windows selection at narrow width:** The native
