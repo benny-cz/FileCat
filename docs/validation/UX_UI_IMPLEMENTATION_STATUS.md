@@ -1889,6 +1889,14 @@ removed it, no target appeared, and source SHA-256 stayed
 The second run used a new isolated fixture and streamed the app hash from disk.
 Other modal focus, scaling and spoken acceptance remains open.
 
+**22 October 2026, queued nested-dialog focus ownership:** Two new
+`DialogFocusOwnershipTests` close an inner modal before its posted focus
+restoration runs. Opening a newer prompt leaves focus in that prompt and the
+outer layer disabled; deliberately focusing the outer Cancel button instead
+keeps that focus and does not restore the old text field. The direct Release
+xUnit runner passed all 10 cases in this class with 16 available workers.
+Native timing, scaling and spoken dialog focus routes remain open.
+
 The macOS CI lane for `49b023dd` exposed a checksum-result registration race:
 a queued check canceled inside `JobAdded` could finish before its verification
 group and source tab were attached. Job submission now accepts a caller

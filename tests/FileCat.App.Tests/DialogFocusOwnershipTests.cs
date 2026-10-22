@@ -123,6 +123,66 @@ public sealed class DialogFocusOwnershipTests
     }
 
     [AvaloniaFact]
+    public void Closing_an_inner_prompt_cannot_restore_focus_over_a_newer_prompt()
+    {
+        var (window, host, fallback, dialogs) = Open();
+        try
+        {
+            var outer = dialogs.PromptAsync(new PromptOptions("Outer", "Outer draft") { Text = "outer" });
+            Dispatcher.UIThread.RunJobs();
+            var outerBox = Assert.Single(host.GetVisualDescendants().OfType<TextBox>());
+            Assert.True(outerBox.IsFocused);
+
+            var inner = dialogs.ShowCustomAsync("Inner", new TextBlock { Text = "Inner message" },
+                [new DialogButton("Close", "close", IsCancel: true)]);
+            var innerLayer = host.Children.Last();
+            innerLayer.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close")
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            // The inner restore is still queued when a newer modal becomes current.
+            var newer = dialogs.PromptAsync(new PromptOptions("Newer", "Newer draft") { Text = "newer" });
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(inner.IsCompletedSuccessfully);
+            Assert.False(outer.IsCompleted);
+            Assert.False(newer.IsCompleted);
+            var newerBox = host.Children.Last().GetVisualDescendants().OfType<TextBox>().Single();
+            Assert.True(newerBox.IsFocused);
+            Assert.Equal("newer", newerBox.Text);
+            Assert.False(outerBox.IsFocused);
+            Assert.False(fallback.IsFocused);
+            Assert.False(host.Children.First().IsEnabled);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Deliberate_outer_focus_after_inner_close_wins_over_queued_restoration()
+    {
+        var (window, host, _, dialogs) = Open();
+        try
+        {
+            var outer = dialogs.PromptAsync(new PromptOptions("Outer", "Outer draft") { Text = "outer" });
+            Dispatcher.UIThread.RunJobs();
+            var outerBox = Assert.Single(host.GetVisualDescendants().OfType<TextBox>());
+            var inner = dialogs.ShowCustomAsync("Inner", new TextBlock { Text = "Inner message" },
+                [new DialogButton("Close", "close", IsCancel: true)]);
+            var innerLayer = host.Children.Last();
+            innerLayer.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close")
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            var outerCancel = host.Children.Single().GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Content as string == "Cancel");
+            outerCancel.Focus();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(inner.IsCompletedSuccessfully);
+            Assert.False(outer.IsCompleted);
+            Assert.True(outerCancel.IsFocused);
+            Assert.False(outerBox.IsFocused);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Deliberate_focus_before_queued_initial_focus_is_preserved()
     {
         var (window, host, _, dialogs) = Open();
