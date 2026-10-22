@@ -14,7 +14,7 @@ using FileCat.Core.Selection;
 using FileCat.Core.State;
 
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -695,10 +695,10 @@ try
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }
-        else if (mode is "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native")
+        else if (mode is "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native")
         {
             bool externalEditor = mode == "rename-editor-native";
-            bool includeHidden = externalEditor || mode is "rename-hidden-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native";
+            bool includeHidden = externalEditor || mode is "rename-hidden-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-keyboard-native";
             bool narrow = mode is "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native";
             bool compact = mode == "rename-hidden-compact-native";
             var fixture = await ReadClipboardFixtureAsync(reportPath);
@@ -814,6 +814,31 @@ try
                         StringComparison.Ordinal) == true);
             if (!visibleScope || !defaultScope || !reviewedScope)
                 throw new InvalidOperationException("The native rename scope or preview did not match the fixture.");
+            bool keyboardMappings = mode == "rename-keyboard-native";
+            if (keyboardMappings)
+            {
+                var detail = await FindXPathAsync(client, sessionId,
+                    "//Edit[@Name='Full old and new paths of selected rename']", "full rename mapping detail");
+                async Task WaitForMapping(string expected)
+                {
+                    for (var attempt = 0; attempt < 30; attempt++)
+                    {
+                        string value = await ReadElementAttributeAsync(client, sessionId, detail, "Value.Value");
+                        if (value.Replace("\r\n", "\n", StringComparison.Ordinal) == expected) return;
+                        await Task.Delay(100);
+                    }
+                    throw new InvalidOperationException("Physical keyboard navigation did not expose the expected complete mapping.");
+                }
+                await WaitForMapping($"From: {bPath}\nTo: {Path.Combine(fixture.Source, "reviewed_1.txt")}");
+                var nextMapping = await FindXPathAsync(client, sessionId,
+                    "//Button[@Name='Next rename mapping']", "Next rename mapping");
+                await SendKeysAsync(client, sessionId, nextMapping, "\uE007"); // Return on the focused button.
+                await WaitForMapping($"From: {aPath}\nTo: {Path.Combine(fixture.Source, "reviewed_2.txt")}");
+                var previousMapping = await FindXPathAsync(client, sessionId,
+                    "//Button[@Name='Previous rename mapping']", "Previous rename mapping");
+                await SendKeysAsync(client, sessionId, previousMapping, "\uE00D"); // Space on the focused button.
+                await WaitForMapping($"From: {bPath}\nTo: {Path.Combine(fixture.Source, "reviewed_1.txt")}");
+            }
             bool narrowApplied = !narrow || (compact
                 ? narrowWindow.Width is >= 600 and <= 680
                     && narrowWindow.Height is >= 380 and <= 460
@@ -966,7 +991,7 @@ try
                 && narrowApplied && compactControlsVisible && controlsVisible && expandedOptionsReflow;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, includeHidden, visibleScope, defaultScope, reviewedScope, editorRoundTrip,
+                passed, includeHidden, visibleScope, defaultScope, reviewedScope, keyboardMappings, editorRoundTrip,
                 editedNames, filesMatch,
                 narrow, compact, narrowApplied, narrowWindow, compactControlsVisible, controlsVisible,
                 expandedOptionsReflow, expandedOwner, counterVisible,

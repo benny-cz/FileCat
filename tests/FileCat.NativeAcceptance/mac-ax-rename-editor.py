@@ -74,6 +74,26 @@ end tell'''.replace("ROLE", json.dumps(role, ensure_ascii=False)).replace(
         raise AssertionError(f"Could not activate the {name} native AX control")
 
 
+def ax_focus(role, name):
+    script = '''tell application "System Events"
+    tell process "FileCat"
+        set allElements to entire contents of window 1
+        repeat with e in allElements
+            try
+                if (role of e as text) is ROLE and (name of e as text) is NAME then
+                    set focused of e to true
+                    if focused of e is true then return "focused"
+                end if
+            end try
+        end repeat
+        error "The named control could not take keyboard focus"
+    end tell
+end tell'''.replace("ROLE", json.dumps(role, ensure_ascii=False)).replace(
+        "NAME", json.dumps(name, ensure_ascii=False))
+    if osa(script) != "focused":
+        raise AssertionError(f"Could not focus the {name} native AX control")
+
+
 def configure_editor(fixture):
     editor = fixture / "controlled-editor.py"
     editor.write_text('''#!/usr/bin/env python3
@@ -239,6 +259,12 @@ def run(bundle, report_path, narrow):
         wait_for(second_mapping, "second full-path mapping through the native Next action")
         ax_activate("AXButton", "Previous rename mapping")
         wait_for(proposed, "first full-path mapping through the native Previous action")
+        ax_focus("AXButton", "Next rename mapping")
+        key("key code 36")  # Return on the focused Next button.
+        wait_for(second_mapping, "second full-path mapping through keyboard Return")
+        ax_focus("AXButton", "Previous rename mapping")
+        key("key code 49")  # Space on the focused Previous button.
+        wait_for(proposed, "first full-path mapping through keyboard Space")
         item(preview, "AXButton", "Edit names in editor…")
         visual = capture(validation / "FileCatCapture.app", validation)
         ax_activate("AXButton", "Edit names in editor…")
@@ -293,6 +319,7 @@ def run(bundle, report_path, narrow):
                 "sourceNames": sorted(p.name for p in source.iterdir()), "targetEmpty": True,
                 "reviewedNames": ["reviewed_1.txt", "reviewed_2.txt"],
                 "mappingNavigation": [first_status, second_status, first_status],
+                "keyboardMappingNavigation": [second_status, first_status],
                 "editedNames": ["editor_b.txt", "editor_a.txt"],
                 "editorActionCapture": visual, "privateListRemoved": True,
                 "fixture": str(fixture)}

@@ -535,6 +535,10 @@ starts a fresh fixture at a requested 640 × 420 owner size, checks that the
 hidden-mark choice, name mask and Cancel/Rename actions remain on screen, then
 expands to 760 × 560 to review and submit both exact mappings. It repeats the
 expanded-options and resize-grip checks and verifies both renamed file bytes.
+`rename-keyboard-native <report.json>` starts another fresh `seed-clipboard`
+fixture, includes the hidden mark, sends Return to focused Next and Space to
+focused Previous, and checks both complete path mappings before approving
+the exact two-file rename. Its report records `keyboardMappings: true`.
 For the actual external-editor round trip, run `seed-rename-editor <setup.json>`
 beside a fresh `clipboard-fixture.json` before launching FileCat. This sets the
 isolated profile's editor to the native acceptance executable; its
@@ -1234,7 +1238,8 @@ explicitly includes the hidden mark, edits the counter mask, and verifies the
 scope summary and selected full-path mapping. A native capture records both
 preview rows because macOS AX currently omits the virtualized preview children
 and reports zero bounds for the visibly rendered modal body. The test
-activates those controls through their AX actions, loads the two names saved
+activates Previous and Next through AX and then sends focused Return and Space
+to confirm keyboard mapping navigation. It loads the two names saved
 by the configured editor, checks the explicit editor-derived status, removes
 the private name list, and approves only the button inside the modal bounds.
 The two resulting filenames and contents must be exact and the target empty.

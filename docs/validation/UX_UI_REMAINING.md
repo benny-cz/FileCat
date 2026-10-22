@@ -52,7 +52,7 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs Mac/Windows keyboard mapping navigation, spoken
+   FCUX-003 still needs Windows keyboard mapping navigation, spoken
    review and native concurrent rule-change races. On
    Mac, investigate the visible review body's zero AX bounds and preview list
    with no AX children, and verify actual VoiceOver speech through the
