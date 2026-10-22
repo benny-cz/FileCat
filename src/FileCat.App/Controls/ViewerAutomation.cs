@@ -5,13 +5,23 @@ using Avalonia.Automation.Provider;
 namespace FileCat.App.Controls;
 
 /// <summary>
+/// The control type of a read-only document view. Avalonia 12.1's AT-SPI role table is one off from the specification
+/// between roles 81 and 114, so a Document reached Orca as a heading. On Linux the views are read-only entries, the
+/// nearest role that table gets right; elsewhere they stay documents.
+/// </summary>
+internal static class DocumentRole
+{
+    internal static AutomationControlType ControlType => OperatingSystem.IsLinux() ? AutomationControlType.Edit : AutomationControlType.Document;
+}
+
+/// <summary>
 /// The text viewer as a read-only document (TV-10). Its value is the selection, or the visible rows when nothing
 /// is selected, so a screen reader can read what is on screen; scrolling raises a value change.
 /// </summary>
 internal sealed class TextViewerAutomationPeer(TextViewer owner) : ControlAutomationPeer(owner), IValueProvider
 {
     private string? _announced = owner.SemanticValue, _status = owner.SemanticStatus;
-    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
+    protected override AutomationControlType GetAutomationControlTypeCore() => DocumentRole.ControlType;
 
     protected override string GetClassNameCore() => "TextViewer";
 
@@ -50,7 +60,7 @@ internal sealed class HexViewAutomationPeer(HexView owner) : ControlAutomationPe
 {
     private string? _announced = owner.DescribeCursor(), _status = owner.SemanticStatus;
 
-    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
+    protected override AutomationControlType GetAutomationControlTypeCore() => DocumentRole.ControlType;
 
     protected override string GetClassNameCore() => "HexView";
 
@@ -89,7 +99,7 @@ internal sealed class HexCompareViewAutomationPeer(HexCompareView owner) : Contr
 {
     private string? _announced = owner.SemanticValue;
 
-    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
+    protected override AutomationControlType GetAutomationControlTypeCore() => DocumentRole.ControlType;
     protected override string GetClassNameCore() => "HexCompareView";
     protected override string? GetNameCore() => AutomationProperties.GetName(owner) is { Length: > 0 } name ? name : "Bytes of both files";
     protected override bool IsKeyboardFocusableCore() => true;

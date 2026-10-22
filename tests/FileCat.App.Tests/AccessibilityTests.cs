@@ -203,7 +203,8 @@ public sealed class AccessibilityTests
                 window.CaptureRenderedFrame();
             }
             var textPeer = ControlAutomationPeer.CreatePeerForElement(text);
-            Assert.Equal(AutomationControlType.Document, textPeer.GetAutomationControlType());
+            // Avalonia 12.1 exposes a Document to AT-SPI as a heading; Linux gets a read-only entry instead.
+            Assert.Equal(OperatingSystem.IsLinux() ? AutomationControlType.Edit : AutomationControlType.Document, textPeer.GetAutomationControlType());
             var value = Assert.IsAssignableFrom<Avalonia.Automation.Provider.IValueProvider>(textPeer);
             Assert.True(value.IsReadOnly);
             Assert.Contains("second line", value.Value);
