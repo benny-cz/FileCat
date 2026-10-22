@@ -1589,6 +1589,18 @@ folder source fixture stayed empty. JSON receipts and the close-button crop
 are retained under the guest's `AppData\Local\FileCatValidation` and the
 host native acceptance output. Further dialog families and scaled/spoken
 checks were still pending at that checkpoint.
+
+The Ubuntu Wayland runner now covers a second shared-dialog family, Copy.
+Its isolated `a.txt` source was selected with an absolute uinput touch setup
+tap, then an actual uinput mouse clicked the Copy review's X and backdrop in
+two openings. AT-SPI exposed the 30 × 30 `Close dialog` control, its cancel
+description and the destination field. The source SHA-256 stayed
+`02d96fb583ff0571cde49db8f2ecffd43cedb0abacf6ed296114231d39328647`
+and the target stayed empty. The same final runner passed Create folder again
+with native mouse dismissal, after it learned to identify the owned app frame
+among transient AT-SPI frames. Both JSON receipts identify the Git-built app
+SHA-256 `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`.
+Other dialog families, display scaling and spoken feedback remain open.
 The same runner then passed a fresh Copy review fixture on that Git-built
 Windows app. It selected `a.txt`, opened Copy twice, verified the shared
 30 × 30 close X and its (-0.22, 0) pixel center offset, and canceled with

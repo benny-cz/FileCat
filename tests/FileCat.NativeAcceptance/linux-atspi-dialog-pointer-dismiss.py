@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the shared dialog's close X and backdrop with native Ubuntu pointer input.
 
-Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER]
+Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy]
 Run in the logged-in desktop user's AT-SPI session. XTest requires a working
 X11 pointer bridge; the optional owned uinput helper sends physical taps on
 Wayland. The app and all fixture paths must remain inside ~/FileCatValidation.
@@ -24,6 +24,8 @@ from gi.repository import Atspi
 
 
 def descendants(node):
+    if node is None:
+        return
     yield node
     for index in range(node.get_child_count()):
         yield from descendants(node.get_child_at_index(index))
@@ -79,13 +81,16 @@ def native_click(x, y, helper, sudo_password):
 
 
 def main():
-    if len(sys.argv) not in (3, 4):
-        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_TOUCH_HELPER]")
+    if len(sys.argv) not in (3, 4, 5):
+        raise SystemExit("Usage: linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json [UINPUT_HELPER] [Folder|Copy]")
+    dialog_kind = sys.argv[4] if len(sys.argv) == 5 else "Folder"
+    if dialog_kind not in ("Folder", "Copy"):
+        raise SystemExit("The isolated dialog kind must be Folder or Copy")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
         raise SystemExit("Use an isolated FileCat binary below the user's FileCatValidation directory")
-    helper = Path(sys.argv[3]).resolve(strict=True) if len(sys.argv) == 4 else None
+    helper = Path(sys.argv[3]).resolve(strict=True) if len(sys.argv) >= 4 else None
     if helper is not None and (helper.name not in ("linux-uinput-touch.py", "linux-uinput-mouse.py")
                                or validation not in helper.parents):
         raise SystemExit("Use the owned uinput helper below the user's FileCatValidation directory")
@@ -97,6 +102,10 @@ def main():
     source, target, data = (fixture / name for name in ("source", "target", "data"))
     for folder in (source, target, data):
         folder.mkdir(parents=True)
+    source_file = source / "a.txt"
+    if dialog_kind == "Copy":
+        source_file.write_bytes(b"FileCat native dialog pointer source\n")
+    source_hash = hashlib.sha256(source_file.read_bytes()).hexdigest() if dialog_kind == "Copy" else None
     with app_path.open("rb") as binary:
         app_hash = hashlib.file_digest(binary, "sha256").hexdigest()
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
@@ -104,6 +113,7 @@ def main():
     os.environ.setdefault("DISPLAY", ":0")
     process = None
     result = {"passed": False, "app": str(app_path), "appSha256": app_hash,
+              "dialogKind": dialog_kind,
               "input": helper.name.removeprefix("linux-").removesuffix(".py") if helper is not None else "XTest-mouse"}
     try:
         with (fixture / "app.log").open("wb") as log:
@@ -118,17 +128,47 @@ def main():
                 named(candidate, "list", f"Panel 1, source, {source}")), None),
                 "the isolated FileCat window")
 
-            def new_folder():
+            def open_dialog():
+                if dialog_kind == "Copy":
+                    rows = named(app, "list item", "a.txt")
+                    if len(rows) != 1:
+                        raise AssertionError(f"The disposable Copy source row is missing: {len(rows)}")
+                    row = rows[0].get_component().get_extents(Atspi.CoordType.SCREEN)
+                    result["sourceRowBounds"] = [row.x, row.y, row.width, row.height]
+                    activate_window(process.pid)
+                    selection_helper = helper.with_name("linux-uinput-touch.py") if (
+                        helper is not None and helper.name == "linux-uinput-mouse.py") else helper
+                    if selection_helper is not None and not selection_helper.is_file():
+                        raise AssertionError("The owned native source-selection helper is missing")
+                    native_click(round(row.x + min(40, row.width / 2)), round(row.y + row.height / 2),
+                                 selection_helper, sudo_password)
+                    result["sourceSelectionInput"] = (selection_helper.name if selection_helper else "XTest-mouse")
+                label = "Copy" if dialog_kind == "Copy" else "Create folder"
                 buttons = [node for node in descendants(app) if node.get_role_name() == "button"
-                           and node.get_name().startswith("Create folder")]
-                if len(buttons) != 1 or buttons[0].get_n_actions() != 1 or not buttons[0].do_action(0):
+                           and node.get_name().startswith(label)]
+                try:
+                    button = wait_for(lambda: next((node for node in buttons
+                                                    if node.get_state_set().contains(Atspi.StateType.ENABLED)), None),
+                                      f"an enabled {label} action", seconds=5)
+                except AssertionError:
                     names = [node.get_name() for node in descendants(app) if node.get_role_name() == "button"]
-                    raise AssertionError(f"The isolated Create folder action is unavailable; buttons={names[:40]}")
-                return wait_for(lambda: next(iter(named(app, "button", "Close dialog")), None),
-                                "the Create folder close X")
+                    actions = [node.get_n_actions() for node in buttons]
+                    enabled = [node.get_state_set().contains(Atspi.StateType.ENABLED) for node in buttons]
+                    selected = (rows[0].get_state_set().contains(Atspi.StateType.SELECTED)
+                                if dialog_kind == "Copy" else None)
+                    raise AssertionError(f"The isolated {label} action is unavailable; "
+                                         f"actions={actions}, enabled={enabled}, rowSelected={selected}, "
+                                         f"buttons={names[:40]}")
+                if button.get_n_actions() != 1 or not button.do_action(0):
+                    raise AssertionError(f"The isolated {label} action did not invoke")
+                close = wait_for(lambda: next(iter(named(app, "button", "Close dialog")), None),
+                                 f"the {label} close X")
+                if dialog_kind == "Copy" and not named(app, "entry", "Destination"):
+                    raise AssertionError("The Copy review does not expose its destination")
+                return close
 
             activate_window(process.pid)
-            close = new_folder()
+            close = open_dialog()
             bounds = close.get_component().get_extents(Atspi.CoordType.SCREEN)
             result["closeBounds"] = [bounds.x, bounds.y, bounds.width, bounds.height]
             if bounds.width < 25 or bounds.height < 25:
@@ -142,8 +182,9 @@ def main():
                          helper, sudo_password)
             wait_for(lambda: not named(app, "button", "Close dialog"), "close X cancellation")
 
-            close = new_folder()
-            windows = [node for node in descendants(app) if node.get_role_name() == "frame"]
+            close = open_dialog()
+            windows = [node for node in descendants(app) if node.get_role_name() == "frame"
+                       and named(node, "list", f"Panel 1, source, {source}")]
             if len(windows) != 1:
                 raise AssertionError(f"Expected one isolated FileCat frame, found {len(windows)}")
             frame = windows[0].get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -151,11 +192,14 @@ def main():
             activate_window(process.pid)
             native_click(*outside, helper, sudo_password)
             wait_for(lambda: not named(app, "button", "Close dialog"), "backdrop cancellation")
-            if list(source.iterdir()) or list(target.iterdir()):
-                raise AssertionError("A canceled Create folder prompt changed the fixture")
+            if (dialog_kind == "Folder" and (list(source.iterdir()) or list(target.iterdir()))) or (
+                    dialog_kind == "Copy" and (
+                        hashlib.sha256(source_file.read_bytes()).hexdigest() != source_hash or list(target.iterdir()))):
+                raise AssertionError(f"A canceled {dialog_kind} prompt changed the fixture")
             result.update({"passed": True, "nativeCloseX": True, "nativeBackdropClick": True,
                            "outsidePoint": outside,
-                           "fixtureUnchanged": True})
+                           "fixtureUnchanged": True, "sourceSha256": source_hash,
+                           "targetEmpty": not list(target.iterdir())})
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
         log_file = fixture / "app.log"

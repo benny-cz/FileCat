@@ -79,6 +79,13 @@ Pass `linux-uinput-mouse.py` as that optional helper to exercise an actual
 relative-motion mouse and left button through the same guarded AT-SPI journey.
 The helper clamps the pointer to the upper-left corner, moves in small steps,
 clicks the bounded point and destroys its uinput device before returning.
+Append `Copy` after the helper to open a disposable Copy review twice. The
+runner selects its exact `a.txt` source, checks the destination field, uses
+the specified input for the close X and backdrop, and requires unchanged
+source SHA-256 and an empty target. On the Wayland VM, the mouse variant uses
+the owned absolute-touch helper only to select the narrow source row; the X
+and backdrop clicks under test remain native mouse clicks. The touch variant
+uses touch for all three taps. The default `Folder` journey remains available.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
