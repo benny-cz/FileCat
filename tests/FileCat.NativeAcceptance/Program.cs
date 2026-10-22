@@ -573,39 +573,44 @@ try
                 "\uE009a\uE000keyboard resize\uE007");
             await Task.Delay(300);
             var opened = ParseSource(await ReadSourceAsync(client, sessionId));
-            XElement Thumb(XDocument document) => document.Descendants().Single(element =>
-                (string?)element.Attribute("LocalizedControlType") == "thumb"
+            // The boundary is a slider whose value is the first side's share, which screen readers speak as it changes.
+            XElement Boundary(XDocument document) => document.Descendants().Single(element =>
+                (string?)element.Attribute("LocalizedControlType") == "slider"
                 && ((string?)element.Attribute("Name"))?.StartsWith(
                     "Vertical panel boundary", StringComparison.Ordinal) == true);
-            var initial = Thumb(opened);
+            async Task<string?> Share() => await ReadElementAttributeAsync(client, sessionId,
+                await FindXPathAsync(client, sessionId, "//Slider[starts-with(@Name,'Vertical panel boundary')]", "panel boundary"),
+                "RangeValue.Value");
+            var initial = Boundary(opened);
             var initialName = (string?)initial.Attribute("Name") ?? "";
             var initialRect = ReadNativeRect(initial);
+            var initialShare = await Share();
             bool ready = initialRect.HasArea
                 && (string?)initial.Attribute("HasKeyboardFocus") == "True"
                 && ((string?)initial.Attribute("HelpText"))?.Contains(
                     "Escape restores", StringComparison.Ordinal) == true;
             await SendSessionKeysAsync(client, sessionId, "\uE014"); // Right increases the first panel's share.
-            var resized = Thumb(ParseSource(await ReadSourceAsync(client, sessionId)));
+            var resized = Boundary(ParseSource(await ReadSourceAsync(client, sessionId)));
             var resizedRect = ReadNativeRect(resized);
+            var resizedShare = await Share();
             bool changed = resizedRect.X > initialRect.X
-                && (string?)resized.Attribute("Name") != initialName
+                && resizedShare != initialShare
                 && (string?)resized.Attribute("HasKeyboardFocus") == "True";
             await SendSessionKeysAsync(client, sessionId, "\uE00C");
             var restored = ParseSource(await ReadSourceAsync(client, sessionId));
-            var finalThumb = Thumb(restored);
+            var finalBoundary = Boundary(restored);
             var sourceList = restored.Descendants().Single(element =>
                 (string?)element.Attribute("ClassName") == "FileList"
                 && ((string?)element.Attribute("Name"))?.Contains(
                     "clipboard-source", StringComparison.OrdinalIgnoreCase) == true);
-            bool canceled = ReadNativeRect(finalThumb) == initialRect
-                && (string?)finalThumb.Attribute("Name") == initialName
+            bool canceled = ReadNativeRect(finalBoundary) == initialRect
+                && await Share() == initialShare
                 && (string?)sourceList.Attribute("HasKeyboardFocus") == "True";
             bool passed = ready && changed && canceled;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, ready, changed, canceled, initialName,
-                resizedName = (string?)resized.Attribute("Name"),
-                initialRect, resizedRect, restoredRect = ReadNativeRect(finalThumb)
+                passed, ready, changed, canceled, initialName, initialShare, resizedShare,
+                initialRect, resizedRect, restoredRect = ReadNativeRect(finalBoundary)
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
         }

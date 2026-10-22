@@ -57,8 +57,8 @@
     </Border>
     <Border x:Name="ResizeStrip" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Center"
             Classes="notification" Margin="12,4" MaxWidth="520" IsHitTestVisible="False" IsVisible="False">
-      <TextBlock x:Name="ResizeText" Classes="small" TextWrapping="Wrap"
-                 AutomationProperties.LiveSetting="Polite" />
+      <!-- Visual only: the focused boundary is a slider whose value screen readers speak. -->
+      <TextBlock x:Name="ResizeText" Classes="small" TextWrapping="Wrap" />
     </Border>
 
     <local:OperationsView x:Name="OperationsPane" Grid.Row="2" DataContext="{Binding Operations}" />

@@ -34,12 +34,21 @@ public sealed class PanelKeyboardResizeTests
             Assert.Contains("Escape restores", AutomationProperties.GetHelpText(splitter));
             var resizeStrip = window.FindControl<Border>("ResizeStrip")!;
             Assert.True(resizeStrip.IsVisible);
+            // A slider whose value is the share: screen readers speak each change of a focused slider's value.
+            var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(splitter);
+            Assert.Equal(Avalonia.Automation.Peers.AutomationControlType.Slider, peer.GetAutomationControlType());
+            var share = Assert.IsAssignableFrom<Avalonia.Automation.Provider.IRangeValueProvider>(peer.GetProvider<Avalonia.Automation.Provider.IRangeValueProvider>());
+            double initialShare = share.Value;
+            var spoken = new List<object?>();
+            peer.PropertyChanged += (_, e) => { if (e.Property == Avalonia.Automation.RangeValuePatternIdentifiers.ValueProperty) spoken.Add(e.NewValue); };
             string initialName = AutomationProperties.GetName(splitter)!;
             string initialText = window.FindControl<TextBlock>("ResizeText")!.Text!;
             double original = tree.Children[0].Size;
             window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
             Assert.True(tree.Children[0].Size > original);
-            Assert.NotEqual(initialName, AutomationProperties.GetName(splitter));
+            Assert.Equal(initialName, AutomationProperties.GetName(splitter));
+            Assert.True(share.Value > initialShare);
+            Assert.Equal([(object?)share.Value], spoken);
             Assert.NotEqual(initialText, window.FindControl<TextBlock>("ResizeText")!.Text);
             Assert.Contains("resizeActive", splitter.Classes);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);

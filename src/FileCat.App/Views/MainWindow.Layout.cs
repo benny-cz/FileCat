@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.Core.State;
 
@@ -118,7 +119,7 @@ public partial class MainWindow
             var child = node.Children[i];
             if (i > 0)
             {
-                var splitter = new GridSplitter
+                var splitter = new PanelSplitter
                 {
                     ResizeDirection = node.Stacked ? GridResizeDirection.Rows : GridResizeDirection.Columns,
                     Background = Avalonia.Media.Brushes.Transparent,
@@ -128,7 +129,6 @@ public partial class MainWindow
                 splitter.Classes.Add("panelResize");
                 var boundary = new PanelSplitterBinding(splitter, grid, node, i);
                 _panelSplitters.Add(boundary);
-                AutomationProperties.SetLiveSetting(splitter, AutomationLiveSetting.Polite);
                 UpdateSplitterName(boundary);
                 // Dragged sizes become the tree's, so they are saved with the workspace.
                 splitter.DragCompleted += (_, _) =>
@@ -361,11 +361,13 @@ public partial class MainWindow
         double first = Math.Max(0, left.Size), second = Math.Max(0, right.Size);
         int share = first + second > 0 ? (int)Math.Round(100 * first / (first + second)) : 50;
         string orientation = boundary.Node.Stacked ? "Horizontal" : "Vertical";
+        // The share is the slider's value, which screen readers speak as it changes.
         AutomationProperties.SetName(boundary.Splitter,
-            $"{orientation} panel boundary, panels {Panels(left)} and {Panels(right)}, first side {share} percent");
+            $"{orientation} panel boundary, first side's share of panels {Panels(left)} and {Panels(right)}");
         AutomationProperties.SetHelpText(boundary.Splitter,
             "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.");
-        ToolTip.SetTip(boundary.Splitter, AutomationProperties.GetName(boundary.Splitter));
+        if (boundary.Splitter is PanelSplitter panelSplitter) panelSplitter.Share = share;
+        ToolTip.SetTip(boundary.Splitter, $"{orientation} panel boundary, panels {Panels(left)} and {Panels(right)}, first side {share} percent");
         if (ReferenceEquals(_panelResize?.Boundary, boundary))
             ResizeText.Text = $"{orientation} boundary · panels {Panels(left)} and {Panels(right)} · first side {share}% · arrows 8 px · Shift 32 px · Tab next · Enter save · Esc restore";
     }
