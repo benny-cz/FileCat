@@ -218,7 +218,9 @@ def submit_copy(app):
                 parent = parent.get_parent() if parent is not None else None
                 if parent is None:
                     break
-                if parent.get_name() == "DialogCard" and button.get_state_set().contains(Atspi.StateType.ENABLED):
+                # Builds before 9479b280 exposed the card by class name; later ones name it "<title> dialog".
+                if (parent.get_name() == "DialogCard" or parent.get_name().endswith(" dialog")) and \
+                        button.get_state_set().contains(Atspi.StateType.ENABLED):
                     return button
         return None
     choice = wait_for(enabled_copy, "enabled Copy approval", seconds=15)

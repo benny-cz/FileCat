@@ -54,7 +54,8 @@ def review_button(app, name):
             parent = parent.get_parent() if parent is not None else None
             if parent is None:
                 break
-            if parent.get_name() == "DialogCard":
+            # Builds before 9479b280 exposed the card by class name; later ones name it "<title> dialog".
+            if parent.get_name() == "DialogCard" or parent.get_name().endswith(" dialog"):
                 return button
     return None
 

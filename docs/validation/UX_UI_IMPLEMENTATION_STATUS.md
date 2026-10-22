@@ -2,6 +2,60 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**22 October 2026, screen-reader focus on all desktops (FCUX-010):** The
+first actual screen-reader runs found that FileCat was silent while a user
+moved between files. Avalonia reports the focused *control* as a window's
+focused element, so the virtualized list announced itself once and its
+focused row never reached a screen reader. On the pre-fix Ubuntu build, Orca
+50.2 said only the window title; on the pre-fix Windows build, NVDA 2026.2 said
+nothing for Down, Up, Home or End; on the pre-fix `c6806430` Mac bundle, an
+`AXObserver` saw no `AXFocusedUIElementChanged` while the focused element
+stayed the whole list. Avalonia's AT-SPI bridge additionally emits focus only
+for nodes a client has already enumerated, announces nothing after window
+activation and names unnamed layout containers after their class.
+Every FileCat window now has a root automation peer that reports the list's
+focused row as the window's focused element and raises the native focus change
+when that row changes, through UI Automation, macOS accessibility and AT-SPI.
+On Linux, the AT-SPI nodes from the window to the focused row are attached
+through the bridge's own child enumeration before the event (a guarded shim
+that disables itself if Avalonia's internal members change), and focus is
+announced again after window activation on Linux and Windows. Unnamed layout
+containers no longer fall back to class names on Linux, overlay dialogs are
+named groups, a row's description no longer repeats its name, the parent row
+is never described or accepted as markable and stays reachable in the AT-SPI
+child set, and focus moves inside the visible rows no longer rebuild the
+list's children. `IRootProvider` is an Avalonia private API; the App now
+compiles against Avalonia's implementation assemblies and
+`PrivateAvaloniaApiTests` fails on any other referenced private type or
+member. `DescendantFocusAutomationTests` (6), the updated
+`FileListAutomationTests`, `AccessibilityTests`, dialog viewport, lifetime and
+focus-ownership classes passed 73/73, and the complete Windows Release App
+suite on `9479b280` passed 2,490 tests with 71 platform skips and no failures
+using 16 workers.
+Git-built `9479b280` then passed three new native journeys with an isolated
+three-file fixture (launch or genuine activation, Down ×3, Up, Home, End, Tab
+to the target and back, F7 into Create folder, Escape, and a switch to a
+test-owned window and back), each with exact fixture bytes afterwards:
+`linux-orca-speech.py` heard every step through Orca's own speech log, for
+example "a.txt. not selected. file, 6 bytes, …, not marked, 2 of 4" and
+"Create folder dialog panel, Folder name (use \ for nested folders): entry"
+(Ubuntu 26.04.1 GNOME, `FileCat.dll`
+`53bed638d4a21901f8ed966cca8992711d43d0a1823eb19408622aa534363cc1`);
+`win-nvda-speech.ps1` heard every step through a signed portable NVDA 2026.2
+log, with the focused row named once after returning to FileCat (Win11 VM,
+`89e23a64396e089d70c64a99f616027d8af2b35cc948a354c04c4ca70124e4f6`); and
+`mac-ax-focus-speech.py` observed exactly one `AXFocusedUIElementChanged` per
+move for an `AXRow` titled with the file name, an `AXTextField` for the dialog
+field, and the focused row after returning from Finder (MacBook Pro M1,
+`50a763083b88178d2587aa47223802d79e90c9947af7deaeb2207db6d80abee8`).
+Actual VoiceOver speech remains open: reading it needs VoiceOver's AppleScript
+control, which macOS only enables through an administrator authorization
+prompt, so that prompt was cancelled and the setting left off. Remaining
+speech refinements: Orca also repeats a row description as its tutorial
+message because Avalonia maps one help text to both AT-SPI description and
+help text, and NVDA does not yet voice the dialog's group name on entry.
+Large-listing latency is still unmeasured.
+
 **22 October 2026, accessible panel sorting:** A bounded virtual header peer
 was visible in the in-process automation tree but omitted by Ubuntu AT-SPI as
 soon as a file list contained rows. Each panel now has a visible Sort button
@@ -1592,7 +1646,7 @@ reports an empty list without claiming the search never matched.
 | FCUX-007 — Previous text search | Search the full declared preceding range using bounded reverse windows, encoding-aware context/overlap and strict progress. Continuation belongs to the query/source/encoding/mode and active content surface; a visible Stop action cancels owned work. | `ContentSearchBackwardTests`, `ViewerSearchScopeTests`, viewer/editor search lifetime tests: distant/chunk-boundary matches, UTF-16, malformed sequences, overlaps and caller ownership; native 13 MiB UTF-8 and UTF-16LE Previous journeys passed on Windows; Mac Text Find, Next, Previous, F3 and Shift+F3 passed with two matches more than 4 MiB apart, exact visible offsets, `2 matches` status and a changed-query `1 match` state. A signed Mac Hex-mode run found two matches 4,260,013 bytes apart at visible offsets 1,065,005 and 5,325,018; Previous/Next and F3/Shift+F3 returned to exact offsets, the status showed 2 matches then 1 for a changed query, and the test-owned source bytes remained exact. A signed Mac Info-mode run searched a test-owned Mach-O copy, showed 1 match for Mach-O and the no-earlier Previous result, then 2 matches for a changed Load commands query; the copied executable bytes stayed exact. A native Windows Hex editor run opened a test-owned 13 MiB file, found matches at 0x100014 and 0x800014 through F3, returned to 0x100014 through Shift+F3, showed complete no-earlier-match feedback, and found a changed query at 0x80001B. The editor closed, all source bytes matched, and the owned fixture was removed. A signed native Mac Hex editor run found NEEDLE at 0x104028 and 0x5140D5, over 4 MiB apart; F3 and Shift+F3 moved between them, no-earlier feedback was visible, and a changed query found second at 0x5140DC. The editor closed, the exact source bytes remained and the test-owned file was removed. New visible Next/Previous buttons and a bounded visited-match status then passed on Windows and Mac; a native Ubuntu AT-SPI/uinput run reached matches at 0x100014 and 0x600014, showed two visited matches, reset to one for a changed query, closed the editor and preserved exact source bytes. A second Ubuntu guest run used physical F3 and Shift+F3 to traverse the same distant matches and reach the no-earlier feedback; it preserved the fixture and closed the editor. A separate Ubuntu Text viewer run used physical F3 and Shift+F3 on the one-match fixture, observed the no-later/no-earlier messages and retained `1 match`, and preserved exact source bytes while closing the owned viewer and app. | Visible Stop, changed queries in other source modes, provider cancellation, Scaled layouts, spoken Find results and assistive-technology acceptance. |
 | FCUX-008 — checksums | Review explicit whole-file or selected-byte scope, including one byte; retain complete selectable hashes and actual/expected counts. Copy is explicit. Stop, short reads, failures and revision evidence remain visible without overwriting the clipboard. | `ViewerChecksumScopeTests`, existing checksum lifetime/revision tests: scope, immutable request, narrow results, explicit Copy, cancellation, failures and revision changes; native one-byte/Copy journey passed twice and at 600 × 420, and deliberate whole-file/Copy, 768 MiB Stop and stale-scope refusal journeys passed on Windows | Native incomplete source and mid-read mutation, other narrow states, scaled layout and non-Windows clipboard checks; sources without strong revision evidence remain explicitly qualified. |
 | FCUX-009 — concealed comparison text | Replace trimmed primary cells with a virtualized aligned text surface, synchronized horizontal scrolling and optional wrapping with matched pair heights. Difference navigation reveals the actual changed glyph. Complete lines up to the explicit shaping budget of 16,384 UTF-16 code units appear in the primary surface; exceptional lines have an explicit full-line action into paired, selectable bounded parts. Retire source associations, queued reveal ownership and text layouts on replacement/close. Keep exact equality and comparison computation independent. | `CompareTextViewTests`, `CompareLineDetailsTests`, `ComparisonReplacementRetirementTests`, existing comparison equality/source-change/navigation/lifetime cases. The width/length matrix checks the actual glyph viewport, not just source strings. Windows VM `compare-native` verifies both complete 2,004/2,005-character source values, second-difference navigation, source-faithful Copy and a wrapped selected row intersecting the viewport; a captured desktop view shows both differing suffixes in the primary surface. | Native font fallback, pointer selection, spoken automation and macOS/Linux acceptance remain open. Full-document selection/search remains a larger content-surface target; complete source lines remain inspectable and selectable through their detail action. |
-| FCUX-010 — file list accessibility | Provide bounded virtual item peers with stable identity, focus versus mark semantics, selection/action/scroll/bounds support and coherent cached events. Give each cached item a lightweight attached control owner so Avalonia's Windows bridge can convert its logical rectangle to screen coordinates; detach that owner when its peer retires. Provide a complete paged marked-item review, including hidden/offscreen marks and original locations for result-set items, and avoid synchronous metadata I/O in accessibility queries. | `FileListAutomationTests`, `FileListSelectionTests`, `MarkPagingTests`, `MetadataPeekTests`, updated `AccessibilityTests`; native Windows `accessibility-list` verifies nonzero source-row rectangles and separate mark/focus states on a live two-file fixture. | Windows UI Automation geometry and mark/focus inspection pass in the Win11 VM. Native screen-reader speech, macOS/Linux bridge behavior and large-listing latency remain open. Large selection uses the explicitly explained paged review rather than constructing unbounded native peers. |
+| FCUX-010 — file list accessibility | Provide bounded virtual item peers with stable identity, focus versus mark semantics, selection/action/scroll/bounds support and coherent cached events. Give each cached item a lightweight attached control owner so Avalonia's Windows bridge can convert its logical rectangle to screen coordinates; detach that owner when its peer retires. Provide a complete paged marked-item review, including hidden/offscreen marks and original locations for result-set items, and avoid synchronous metadata I/O in accessibility queries. Every window's root peer reports the focused row as the native focused element and raises focus changes for row moves; on Linux the AT-SPI path to that row is attached first and focus is re-announced after activation. | `FileListAutomationTests`, `FileListSelectionTests`, `MarkPagingTests`, `MetadataPeekTests`, updated `AccessibilityTests`, `DescendantFocusAutomationTests`, `PrivateAvaloniaApiTests`; native Windows `accessibility-list` verifies nonzero source-row rectangles and separate mark/focus states on a live two-file fixture; `linux-orca-speech.py`, `win-nvda-speech.ps1` and `mac-ax-focus-speech.py` check spoken or AX focus output. | Windows UI Automation geometry and mark/focus inspection pass in the Win11 VM. Git-built `9479b280` passed actual Orca 50.2 (Ubuntu) and NVDA 2026.2 (Win11) speech journeys across row moves, panels, a dialog and window switches, and the macOS AX focus-notification journey VoiceOver relies on. Actual VoiceOver speech (its AppleScript readout needs administrator authorization), Orca's repeated tutorial description, NVDA's dialog group name and large-listing latency remain open. Large selection uses the explicitly explained paged review rather than constructing unbounded native peers. |
 
 ### Related corrections included
 

@@ -644,7 +644,39 @@ The `snapshot`, `find`, `advanced`, `tools-menu`, `settings`, `settings-tools`,
 or setup actions. They do not count as passing acceptance checks. Review the
 VM screenshot and JSON result together when recording native acceptance.
 
+`win-nvda-speech.ps1 -AppPath <FileCat.exe> -ReportPath <report.json> -NvdaPath <nvda.exe> [-RecordAll]`
+hears an isolated Git-built FileCat through NVDA in the interactive VM session.
+Create the portable copy once from the signed NV Access installer with
+`nvda_<version>.exe --create-portable-silent --portable-path=<FileCatValidation>\NVDA\portable`;
+the runner refuses an unsigned copy or a second running NVDA. It starts NVDA
+with a test-owned configuration (no welcome, update or usage questions) and a
+debug log, and only that log's `Speaking [...]` lines decide each step. A
+test-owned window stands beside FileCat: Windows' foreground lock can keep a
+program launched by this background runner from becoming foreground in NVDA's
+view, so the first step is a genuine title-bar switch from that window, made
+only after NVDA has announced it. Keys are virtual-key input with the
+extended-key flag (`SendKeys` arrow keys toggled NumLock), sent only after UI
+Automation confirms keyboard focus is in the tested process. The journey moves
+Down three times, Up, Home and End, tabs to the target panel and back, opens
+Create folder with F7, closes it with Escape and switches away and back; every
+step must name the expected file, parent row or folder field, and the fixture
+bytes must be unchanged. `-RecordAll` keeps a complete transcript after an
+unmet expectation, which documents a pre-fix build.
+
 ## Linux logged-in desktop
+
+`linux-orca-speech.py APP_PATH REPORT.json KEY_HELPER [--record-all]` hears an
+isolated Git-built FileCat through Orca in the logged-in GNOME session. It
+refuses to run beside another Orca, starts the installed Orca with only its
+debug file line-buffered (Orca block-buffers it otherwise) and judges only the
+`SPEECH OUTPUT` lines Orca sent to speech. The runner never reads FileCat's
+AT-SPI tree, because enumerating it would create the nodes whose focus
+announcements are under test. Physical uinput keys perform the same journey as
+the NVDA runner, ending with a switch to a test-owned X11 GTK window and back;
+the report records how often the focused file was named on return. Supply
+`FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process, as for the other
+uinput checks. `--record-all` keeps a complete transcript after an unmet
+expectation.
 
 `linux-atspi-modal-guard.py APP_PATH REPORT.json` runs against a Git-built,
 isolated Linux `FileCat` binary below the logged-in user's
@@ -809,6 +841,20 @@ and closes the test-owned editor. It also accepts an already open test-owned
 editor.
 
 ## macOS logged-in desktop
+
+`python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json` follows the macOS
+accessibility focus VoiceOver speaks from. Keep `mac-ax-focus-observer.swift`
+beside it; the runner compiles that read-only `AXObserver` with the matching
+Xcode SDK, retries its registration until the starting app's accessibility
+answers, and records every `AXFocusedUIElementChanged` with the focused
+element's role, title, description, value and help. After each System Events
+key it also reads the application's `AXFocusedUIElement`. The journey matches
+the NVDA and Orca runners (Finder takes the foreground for the switch step):
+each move must post a notification for the expected `AXRow`, the dialog field
+must be the focused `AXTextField`, and fixture bytes must stay exact. Reading
+VoiceOver's own speech additionally needs "Allow VoiceOver to be controlled
+with AppleScript", which macOS only enables after an administrator
+authorization prompt; leave that to the owner.
 
 `python3 mac-visual-dialog-pointer-dismiss.py BUNDLE.app REPORT.json` runs
 against a newly signed Git-built FileCat bundle under `~/FileCatValidation` on

@@ -175,10 +175,11 @@ def main():
         step("F7 opens Create folder", key("f7"), lambda phrase: "folder" in phrase.casefold())
         step("Escape returns to the list", key("escape"), says("c.txt"))
         # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
+        # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",
                                    "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk; "
                                    "w = Gtk.Window(title='FileCat speech switch target'); w.connect('destroy', Gtk.main_quit); "
-                                   "w.show_all(); Gtk.main()"])
+                                   "w.show_all(); Gtk.main()"], env={**os.environ, "GDK_BACKEND": "x11"})
         try:
             deadline = time.monotonic() + 20
             while len(windows_of(switch.pid)) != 1:

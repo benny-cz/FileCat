@@ -13,6 +13,16 @@ increments to `main`.
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
+- Spoken acceptance now has native harnesses: `linux-orca-speech.py` reads
+  Orca's own speech log in the Ubuntu VM, `win-nvda-speech.ps1` reads a signed
+  portable NVDA 2026.2 log in the Win11 VM (below
+  `%LOCALAPPDATA%\FileCatValidation\NVDA\portable`), and
+  `mac-ax-focus-speech.py` records the AX focus notifications VoiceOver
+  speaks from. Extend these journeys for the "spoken" criteria of other
+  findings. Hearing VoiceOver itself needs the owner to enable "Allow
+  VoiceOver to be controlled with AppleScript" in VoiceOver Utility, which
+  macOS protects with an administrator authorization prompt; that prompt was
+  cancelled and the setting is still off.
 
 ## Next actions, in severity order
 
@@ -59,9 +69,14 @@ increments to `main`.
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
-   supported desktops. For FCUX-010, inspect large-listing latency, complete
-   marked-item review and actual spoken navigation with a supported screen
-   reader. Confirm the remaining Mac/Linux item and action routes.
+   supported desktops. For FCUX-010, Git-built `9479b280` passed actual Orca
+   and NVDA navigation speech and the macOS AX focus journey (row moves,
+   panels, a dialog and window switches). Remaining: VoiceOver's own speech
+   (owner prerequisite above), Orca repeating a row description as its
+   tutorial message (Avalonia maps one help text to both AT-SPI properties),
+   NVDA not voicing the dialog's group name on entry, large-listing latency,
+   complete marked-item review and the remaining Mac/Linux item and action
+   routes.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and
