@@ -111,6 +111,13 @@ Shift+click `f.txt`; the first tab's anchor must not carry over. All three
 four-file variants also accept `--sort-narrow`, `--filter-narrow` or
 `--tab-narrow` for a measured 720 × 540 window, respectively. Each checks
 the exact selection summary, focus, source hashes and empty destination.
+Append `--deactivate` or `--deactivate-narrow` to check a Shift+Down gesture
+whose Shift key remains physically held while a test-owned GTK window takes
+focus. The runner first marks `b.txt` with Insert, unmarks it with held
+Shift+Down, changes the active native window, releases Shift there and returns.
+A fresh Shift+Down must then mark only `c.txt` (8 bytes) and focus `d.txt`;
+source hashes and the empty destination are checked. The narrow variant
+requires a measured 720 × 540 window.
 Pass the one-time guest sudo
 credential only to the runner process; it is removed before FileCat starts.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside

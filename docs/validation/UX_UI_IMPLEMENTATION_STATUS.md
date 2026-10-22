@@ -103,6 +103,16 @@ measured 720 × 540 window, with their respective 13-, 14- and 13-byte exact
 marks. Guest receipts are `~/FileCatValidation/ubuntu-selection-tab-20261022.json`
 and the `ubuntu-selection-{sort,filter,tab}-narrow-20261022.json` files.
 Scaled display, deeper focus transitions and spoken feedback remain open.
+The Ubuntu held-modifier deactivation journey then passed at normal and
+measured 720 × 540 widths. Physical Insert marked `b.txt`; Up returned focus
+to it; a physically held Shift+Down unmarked `b.txt` and focused `c.txt`.
+While Shift remained down, the test activated a separate owned GTK window,
+released Shift there, reactivated FileCat and sent a fresh Shift+Down. Only
+`c.txt` became marked (8 bytes) with `d.txt` focused. All four source hashes
+and the empty target remained exact. Guest receipts are
+`~/FileCatValidation/ubuntu-selection-deactivate-20261022.json` and its
+`-narrow-` counterpart. Other non-Windows focus routes and scaled/spoken
+acceptance remain open.
 
 **22 October 2026, Mac CI runner variance:** The `8d8af3f8` macOS CI lane
 timed out the existing 20,000-entry archive rewrite performance assertion

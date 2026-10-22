@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import runpy
+import select
 import shutil
 import subprocess
 import sys
@@ -34,11 +35,13 @@ native_click = shared["native_click"]
 
 def main():
     if (len(sys.argv) not in (5, 6, 7) or
-            (len(sys.argv) == 6 and sys.argv[5] != "--narrow") or
+            (len(sys.argv) == 6 and sys.argv[5] not in
+             ("--narrow", "--deactivate", "--deactivate-narrow")) or
             (len(sys.argv) == 7 and sys.argv[5] not in
              ("--sort", "--filter", "--tab", "--sort-narrow", "--filter-narrow", "--tab-narrow"))):
         raise SystemExit(__doc__)
-    narrow = len(sys.argv) == 6 or len(sys.argv) == 7 and sys.argv[5].endswith("-narrow")
+    narrow = len(sys.argv) >= 6 and sys.argv[5].endswith("narrow")
+    deactivate_case = len(sys.argv) == 6 and sys.argv[5] in ("--deactivate", "--deactivate-narrow")
     sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow")
     filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
     tab_case = len(sys.argv) == 7 and sys.argv[5] in ("--tab", "--tab-narrow")
@@ -65,7 +68,7 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort or filter_case or tab_case:
+    if sort or filter_case or tab_case or deactivate_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
@@ -85,8 +88,10 @@ def main():
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
               "narrow": narrow, "sort": sort, "filter": filter_case, "tab": tab_case,
+              "deactivate": deactivate_case,
               "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
+    witness = None
     try:
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
@@ -145,7 +150,7 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case else
+            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or deactivate_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
             if tab_case:
@@ -157,7 +162,7 @@ def main():
                     raise AssertionError(f"Unexpected two-tab source summary: {clear}")
             else:
                 wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case else "a.txt")
+            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or deactivate_case else "a.txt")
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -339,6 +344,65 @@ def main():
                                             "order": order() if not tab_case else
                                             [name for name in second_expected if named(app, "list item", name)]}
                 snapshot(gesture, target_summary, target_name)
+            elif deactivate_case:
+                key("insert")
+                snapshot("Insert marks b.txt and moves focus", "Marked 1 of 4 files · 5 bytes", "c.txt")
+                key("up")
+                snapshot("Up returns to marked b.txt", "Marked 1 of 4 files · 5 bytes", "b.txt")
+
+                witness_code = (
+                    "import gi; gi.require_version('Gtk','3.0'); "
+                    "from gi.repository import Gtk; "
+                    "w=Gtk.Window(title='FileCat native focus witness'); "
+                    "w.set_default_size(240,120); w.show_all(); Gtk.main()"
+                )
+                witness_env = os.environ.copy()
+                witness_env["GDK_BACKEND"] = "x11"
+                witness = subprocess.Popen([sys.executable, "-c", witness_code],
+                                           cwd=fixture, env=witness_env,
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                           text=True)
+
+                def witness_id():
+                    listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True,
+                                             capture_output=True, text=True, timeout=5)
+                    return next((line.split()[0] for line in listing.stdout.splitlines()
+                                 if len(line.split()) > 2 and line.split()[2] == str(witness.pid)), None)
+
+                other_window = wait_for(witness_id, "the test-owned focus witness", seconds=6)
+                activate_window(process.pid)
+                held = subprocess.Popen(["sudo", "-S", sys.executable, str(key_helper),
+                                         "shift+down-hold"], stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        text=True)
+                try:
+                    held.stdin.write(sudo_password + "\n")
+                    held.stdin.flush()
+                    ready, _, _ = select.select([held.stdout], [], [], 5)
+                    if not ready or held.stdout.readline().strip() != "HELD":
+                        raise AssertionError("Physical held-Shift input did not signal readiness")
+                    snapshot("held Shift+Down unmarks b.txt", clear, "c.txt")
+                    subprocess.run(["/usr/bin/wmctrl", "-ia", other_window],
+                                   check=True, timeout=5)
+                    active = subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowpid"],
+                                            check=True, capture_output=True, text=True, timeout=5)
+                    if active.stdout.strip() != str(witness.pid):
+                        raise AssertionError("The test-owned witness did not deactivate FileCat")
+                    report["steps"].append({"action": "deactivate FileCat while Shift is held",
+                                            "witnessPid": witness.pid})
+                    held.wait(timeout=12)
+                    if held.returncode:
+                        raise AssertionError(f"Held-Shift helper failed: {held.stderr.read()[-300:]}")
+                finally:
+                    if held.poll() is None:
+                        held.terminate()
+                        held.wait(timeout=3)
+                    held.stdin.close()
+                    held.stdout.close()
+                    held.stderr.close()
+                activate_window(process.pid)
+                key("shift+down")
+                snapshot("fresh gesture after deactivation", "Marked 1 of 4 files · 8 bytes", "d.txt")
             else:
                 key("shift+down")
                 snapshot("Shift+Down marks a.txt", marked, "b.txt")
@@ -356,10 +420,21 @@ def main():
                            "targetEmpty": True})
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
+        if witness is not None and witness.poll() is not None and witness.stderr is not None:
+            report["witnessErrorTail"] = witness.stderr.read()[-500:]
         log_file = fixture / "app.log"
         if log_file.exists():
             report["appLogTail"] = log_file.read_text(errors="replace")[-1500:]
     finally:
+        if witness is not None and witness.poll() is None:
+            witness.terminate()
+            try:
+                witness.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                witness.kill()
+                witness.wait(timeout=5)
+        if witness is not None and witness.stderr is not None:
+            witness.stderr.close()
         if process is not None and process.poll() is None:
             process.terminate()
             try:

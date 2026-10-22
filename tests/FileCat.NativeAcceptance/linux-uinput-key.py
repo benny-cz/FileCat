@@ -13,8 +13,9 @@ import sys
 import time
 
 
-KEYS = {"enter": (28,), "escape": (1,), "home": (102,), "up": (103,),
-        "down": (108,), "shift+down": (42, 108), "left": (105,),
+KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": (103,),
+        "down": (108,), "shift+down": (42, 108),
+        "shift+down-hold": (42, 108), "left": (105,),
         "f3": (61,), "shift+f3": (42, 61), "f5": (63,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
         "ctrl+a": (29, 30), "ctrl+t": (29, 20),
@@ -34,6 +35,7 @@ def send(chord):
     strokes = SEQUENCES[chord] if chord in SEQUENCES else (KEYS[chord],)
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
+    held_shift = False
     try:
         fcntl.ioctl(fd, 0x40045564, EV_KEY)  # UI_SET_EVBIT
         for code in set(code for keys in strokes for code in keys):
@@ -46,6 +48,15 @@ def send(chord):
         fcntl.ioctl(fd, 0x5501)  # UI_DEV_CREATE
         created = True
         time.sleep(0.6)  # Let the compositor register the new keyboard.
+        if chord == "shift+down-hold":
+            event(fd, 42, 1)
+            held_shift = True
+            event(fd, 108, 1)
+            time.sleep(0.05)
+            event(fd, 108, 0)
+            print("HELD", flush=True)
+            time.sleep(8)
+            return
         for keys in strokes:
             for code in keys:
                 event(fd, code, 1)
@@ -55,6 +66,8 @@ def send(chord):
                 time.sleep(0.03)
             time.sleep(0.05)
     finally:
+        if held_shift:
+            event(fd, 42, 0)
         if created:
             time.sleep(0.15)
             fcntl.ioctl(fd, 0x5502)  # UI_DEV_DESTROY
