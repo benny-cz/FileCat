@@ -60,7 +60,7 @@ def app_pids():
     return {int(value) for value in result.stdout.split()}
 
 
-def snapshot(helper, executable, pid):
+def snapshot_data(helper, executable, pid):
     done = subprocess.run([str(helper), str(executable), str(pid)],
                           capture_output=True, text=True, timeout=12)
     if done.returncode:
@@ -68,8 +68,12 @@ def snapshot(helper, executable, pid):
     data = json.loads(done.stdout)
     if data["visited"] >= 3000 or data["windows"] < 1:
         raise AssertionError("The Mac accessibility tree was unavailable or unbounded")
+    return data
+
+
+def snapshot(helper, executable, pid):
     return [(node["role"], node["name"], tuple(node["bounds"]))
-            for node in data["nodes"]]
+            for node in snapshot_data(helper, executable, pid)["nodes"]]
 
 
 def buttons(rows, name):
@@ -171,6 +175,33 @@ def run(bundle, report_path, narrow):
         if len(buttons(descending, "Sort files: Name, ascending")) != 1:
             raise AssertionError("The target Sort control changed with the source")
 
+        rows = {name: rect for role, name, rect in descending if role == "AXRow"}
+        for name in ("b.txt", "c.txt"):
+            if name not in rows or rows[name][2] < 35 or rows[name][3] < 15:
+                raise AssertionError(f"The {name} source row has unusable bounds")
+        def center(rect):
+            return round(rect[0] + min(40, rect[2] / 2)), round(rect[1] + rect[3] / 2)
+
+        bx, by = center(rows["b.txt"])
+        cx, cy = center(rows["c.txt"])
+        click(f"c:{bx},{by}")
+        click("kd:shift", f"c:{cx},{cy}", "ku:shift")
+
+        def selected_range():
+            nodes = snapshot_data(ax_helper, executable, process)["nodes"]
+            selected = {node["name"] for node in nodes
+                        if node["role"] == "AXRow" and node["selected"]}
+            focused = [node["name"] for node in nodes
+                       if node["role"] == "AXRow" and node["focused"]]
+            summary = [node["name"] for node in nodes
+                       if node["name"].startswith("Marked ")]
+            if (selected == {"b.txt", "c.txt"} and focused == ["c.txt"] and
+                    summary == ["Marked 2 of 4 files · 13 bytes"]):
+                return selected, focused, summary
+            return None
+
+        selection = wait_for(selected_range, "the exact b.txt–c.txt range after sorting")
+
         click(f"c:{x},{y}")
         choices = wait_for(lambda: (rows if any(name ==
                            "Sort by Name, currently descending; activate to reverse"
@@ -187,6 +218,8 @@ def run(bundle, report_path, narrow):
                              "keyboard reversal of the current Name sort")
         if len(buttons(ascending, "Sort files: Name, ascending")) != 2:
             raise AssertionError("A panel retained the wrong sort direction")
+        if selected_range() is None:
+            raise AssertionError("Reversing the sort lost the selected source identities")
         if {name: hashlib.sha256((source / name).read_bytes()).hexdigest()
                 for name in expected} != hashes or list(target.iterdir()):
             raise AssertionError("Sorting changed source bytes or destination contents")
@@ -194,7 +227,9 @@ def run(bundle, report_path, narrow):
                        "initialButtons": [list(rect) for rect in controls],
                        "menuChoices": names, "pointerOrder": order(descending),
                        "keyboardOrder": order(ascending), "sourceBytesUnchanged": True,
-                       "targetEmpty": True})
+                       "targetEmpty": True,
+                       "rangeAfterSort": {"selected": sorted(selection[0]),
+                                          "focused": selection[1], "status": selection[2][0]}})
         return result
     finally:
         if process is not None:

@@ -62,13 +62,17 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     visited += 1
     let title = label(attribute(element, kAXTitleAttribute as CFString))
     let description = label(attribute(element, kAXDescriptionAttribute as CFString))
-    let name = title.isEmpty ? description : title
+    let name = title.isEmpty ?
+        (description.isEmpty ? label(attribute(element, kAXValueAttribute as CFString)) : description) : title
     if name.hasPrefix("Sort files:") || name.hasPrefix("Sort by ") ||
+       name.hasPrefix("Marked ") || name.hasPrefix("0 folders") ||
        ["a.txt", "b.txt", "c.txt", "d.txt"].contains(name) {
         if let bounds = frame(element) {
             nodes.append(["role": label(attribute(element, kAXRoleAttribute as CFString)),
                           "name": name, "title": title, "description": description,
-                          "bounds": bounds])
+                          "bounds": bounds,
+                          "selected": (attribute(element, kAXSelectedAttribute as CFString) as? NSNumber)?.boolValue ?? false,
+                          "focused": (attribute(element, kAXFocusedAttribute as CFString) as? NSNumber)?.boolValue ?? false])
         }
     }
     let children = attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []

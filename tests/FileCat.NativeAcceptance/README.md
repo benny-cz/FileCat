@@ -991,8 +991,10 @@ Keep `mac-ax-panel-sort-snapshot.swift` beside the runner; it compiles a
 bounded direct AXUIElement reader using the installed matching Xcode SDK.
 The test requires both panel Sort buttons and the visible menu choices in
 the native tree. One physical pointer sequence reverses the source Name
-order; keyboard selection reverses it back. The target order and all source
-hashes must stay unchanged. `--narrow` measures a 760 × 600 window. The
+order, then a physical Shift-click must select exactly `b.txt` and `c.txt`
+with `c.txt` focused and a 13-byte mark summary. Keyboard selection reverses
+the sort while preserving those selected identities. The target order and all
+source hashes must stay unchanged. `--narrow` measures a 760 × 600 window. The
 runner closes only its exact process and writes JSON under
 `~/FileCatValidation`.
 

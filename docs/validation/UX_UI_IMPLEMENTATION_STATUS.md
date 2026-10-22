@@ -23,7 +23,12 @@ row order; keyboard selection of the currently active Name choice restored
 it. The target order and four source SHA-256 hashes stayed unchanged, and the
 target remained empty. The direct AX helper uses the matching Xcode SDK
 because the guest's default Command Line Tools SDK is newer than its Swift
-compiler. Both native JSON reports passed. The complete Windows Release
+compiler. The runner additionally touched `b.txt`, reversed Name order and
+physically Shift-clicked `c.txt`; direct AX reported exactly those two rows
+selected, `c.txt` focused, and `Marked 2 of 4 files · 13 bytes`. Reversing
+Name again preserved the same selected identities. Both normal and 760 × 600
+native JSON reports passed with exact source hashes. Mac filter, tab and
+remaining focus transitions are still open. The complete Windows Release
 App suite on the same product code passed 2,419 tests with 63 platform skips
 and no failures; Core passed 4,437 with 151 skips and no failures, using up
 to 16 workers.
