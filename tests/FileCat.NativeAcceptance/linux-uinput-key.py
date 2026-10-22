@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Send one physical keyboard chord from a disposable Linux uinput device.
 
-Usage: sudo python3 linux-uinput-key.py enter|escape|home|up|down|shift+down|left|right|tab|f3|shift+f3|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v
+Usage: sudo python3 linux-uinput-key.py CHORD
 The calling native acceptance test controls the logged-in desktop and supplies
 sudo authentication separately. No credentials are stored in this helper.
 """
@@ -17,7 +17,10 @@ KEYS = {"enter": (28,), "escape": (1,), "home": (102,), "up": (103,),
         "down": (108,), "shift+down": (42, 108), "left": (105,),
         "f3": (61,), "shift+f3": (42, 61), "f5": (63,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
+        "ctrl+a": (29, 30),
         "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47)}
+SEQUENCES = {"filter-hide": ((42, 9), (42, 43), (48,), (42, 9)),
+             "filter-reset": ((42, 9),)}  # *|b* and * on a US-layout test VM
 EV_KEY = 1
 EV_SYN = 0
 
@@ -28,12 +31,12 @@ def event(fd, code, value):
 
 
 def send(chord):
-    keys = KEYS[chord]
+    strokes = SEQUENCES[chord] if chord in SEQUENCES else (KEYS[chord],)
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
     try:
         fcntl.ioctl(fd, 0x40045564, EV_KEY)  # UI_SET_EVBIT
-        for code in keys:
+        for code in set(code for keys in strokes for code in keys):
             fcntl.ioctl(fd, 0x40045565, code)  # UI_SET_KEYBIT
         # Linux uinput_user_dev: 80-byte name, input_id, ff_effects_max,
         # then four 64-entry absolute-axis arrays. No absolute axes are used.
@@ -43,12 +46,14 @@ def send(chord):
         fcntl.ioctl(fd, 0x5501)  # UI_DEV_CREATE
         created = True
         time.sleep(0.6)  # Let the compositor register the new keyboard.
-        for code in keys:
-            event(fd, code, 1)
-            time.sleep(0.03)
-        for code in reversed(keys):
-            event(fd, code, 0)
-            time.sleep(0.03)
+        for keys in strokes:
+            for code in keys:
+                event(fd, code, 1)
+                time.sleep(0.03)
+            for code in reversed(keys):
+                event(fd, code, 0)
+                time.sleep(0.03)
+            time.sleep(0.05)
     finally:
         if created:
             time.sleep(0.15)
@@ -57,6 +62,6 @@ def send(chord):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in KEYS:
-        raise SystemExit("Usage: linux-uinput-key.py enter|escape|home|up|down|shift+down|left|right|tab|f3|shift+f3|f5|alt+tab|ctrl+c|ctrl+x|ctrl+v")
+    if len(sys.argv) != 2 or sys.argv[1] not in KEYS and sys.argv[1] not in SEQUENCES:
+        raise SystemExit("Usage: linux-uinput-key.py CHORD (one of the bounded KEYS or SEQUENCES)")
     send(sys.argv[1])

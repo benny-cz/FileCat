@@ -101,7 +101,11 @@ each step; source hashes and the empty target are checked at the end. Append
 Shift+click range. On Wayland, the transient uinput mouse is first moved and
 its actual pointer position is measured and calibrated inside the target row;
 the button event is sent only after that check. The runner requires the exact
-two-file 13-byte mark, focused target and unchanged fixture bytes. Pass the one-time guest sudo
+two-file 13-byte mark, focused target and unchanged fixture bytes. Append
+`--filter MOUSE_HELPER` to enter `*|b*` and then `*` with a physical keyboard,
+proving that the hidden `b.txt` anchor retires: after restoring the list, a
+physical Shift+click on `d.txt` must mark only `c.txt` and `d.txt` (14 bytes).
+Pass the one-time guest sudo
 credential only to the runner process; it is removed before FileCat starts.
 For `hex-editor-search-native`, put the fresh `selection-fixture.json` beside
 the report path. If multiple isolated FileCat windows have the same title, set

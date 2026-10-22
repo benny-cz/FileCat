@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -35,10 +35,11 @@ native_click = shared["native_click"]
 def main():
     if (len(sys.argv) not in (5, 6, 7) or
             (len(sys.argv) == 6 and sys.argv[5] != "--narrow") or
-            (len(sys.argv) == 7 and sys.argv[5] != "--sort")):
+            (len(sys.argv) == 7 and sys.argv[5] not in ("--sort", "--filter"))):
         raise SystemExit(__doc__)
     narrow = len(sys.argv) == 6
-    sort = len(sys.argv) == 7
+    sort = len(sys.argv) == 7 and sys.argv[5] == "--sort"
+    filter_case = len(sys.argv) == 7 and sys.argv[5] == "--filter"
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper, touch_helper = (Path(value).resolve(strict=True)
                                           for value in (sys.argv[1], sys.argv[3], sys.argv[4]))
@@ -49,7 +50,7 @@ def main():
             touch_helper.name != "linux-uinput-touch.py" or
             any(validation not in helper.parents for helper in (key_helper, touch_helper))):
         raise SystemExit("Use the isolated FileCat build, owned helpers and report under ~/FileCatValidation")
-    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort else None
+    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case else None
     if mouse_helper is not None and (mouse_helper.name != "linux-uinput-mouse.py" or
                                      validation not in mouse_helper.parents):
         raise SystemExit("Use the owned transient uinput mouse helper")
@@ -62,7 +63,7 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort:
+    if sort or filter_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
@@ -73,7 +74,7 @@ def main():
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
-              "narrow": narrow, "sort": sort,
+              "narrow": narrow, "sort": sort, "filter": filter_case,
               "sourceSha256": source_sha, "steps": []}
     process = None
     try:
@@ -134,11 +135,11 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = ("0 folders, 4 files · 25 bytes" if sort else
+            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
             wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "b.txt" if sort else "a.txt"
+            anchor = "b.txt" if sort or filter_case else "a.txt"
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -148,16 +149,64 @@ def main():
             native_click(round(bounds.x + min(40, bounds.width / 2)),
                          round(bounds.y + bounds.height / 2), touch_helper, sudo_password)
             snapshot(f"touch {anchor}", clear, anchor)
-            if sort:
+            if sort or filter_case:
                 def order():
                     rows = []
                     for name in expected:
                         items = named(app, "list item", name)
-                        if len(items) != 1:
+                        if len(items) > 1:
                             return []
-                        rows.append((items[0].get_component().get_extents(Atspi.CoordType.SCREEN).y,
-                                     name))
+                        if items:
+                            rows.append((items[0].get_component().get_extents(Atspi.CoordType.SCREEN).y,
+                                         name))
                     return [name for _, name in sorted(rows)]
+
+                if filter_case:
+                    source_list = named(app, "list", f"Panel 1, source, {source}")[0]
+                    list_bounds = source_list.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    candidates = []
+                    for node in descendants(app):
+                        if node.get_name() != "Filter":
+                            continue
+                        component = node.get_component()
+                        if component is None:
+                            continue
+                        extent = component.get_extents(Atspi.CoordType.SCREEN)
+                        if (extent.width >= 30 and extent.height >= 15 and
+                                list_bounds.x <= extent.x < list_bounds.x + list_bounds.width and
+                                extent.y < bounds.y):
+                            candidates.append((node, extent))
+                    if len(candidates) != 1:
+                        raise AssertionError(f"Expected one source Filter entry, got {len(candidates)}")
+                    filter_bounds = candidates[0][1]
+                    filter_point = (round(filter_bounds.x + filter_bounds.width / 2),
+                                    round(filter_bounds.y + filter_bounds.height / 2))
+
+                    def set_filter(text_chord):
+                        activate_window(process.pid)
+                        native_click(*filter_point, touch_helper, sudo_password)
+                        key("ctrl+a")
+                        key(text_chord)
+                        key("enter")
+
+                    set_filter("filter-hide")
+                    wait_for(lambda: order() == ["a.txt", "c.txt", "d.txt"] and
+                             not named(app, "list item", "b.txt"),
+                             "the filtered listing without b.txt")
+                    report["steps"].append({"action": "hide b.txt with *|b*",
+                                            "order": order()})
+                    set_filter("filter-reset")
+                    wait_for(lambda: order() == ["a.txt", "b.txt", "c.txt", "d.txt"],
+                             "the restored four-file listing")
+                    report["steps"].append({"action": "restore all files with *",
+                                            "order": order()})
+                    target_name = "d.txt"
+                    target_summary = "Marked 2 of 4 files · 14 bytes"
+                    gesture = "Shift+click d.txt after filter"
+                else:
+                    target_name = "c.txt"
+                    target_summary = "Marked 2 of 4 files · 13 bytes"
+                    gesture = "Shift+click c.txt after sort"
 
                 def header_candidate(node):
                     if not node.get_name().startswith("Name") or node.get_role_name() == "list item":
@@ -169,8 +218,8 @@ def main():
                     return (extent.width >= 30 and extent.height >= 12 and
                             bounds.y - 80 <= extent.y < bounds.y)
 
-                header = next((node for node in descendants(app) if header_candidate(node)), None)
-                if header is None:
+                header = next((node for node in descendants(app) if header_candidate(node)), None) if sort else None
+                if sort and header is None:
                     # Avalonia's Linux bridge does not expose this painted header as a
                     # separate AT-SPI node. Locate its bounded first row directly
                     # above the parent and file rows, then prove the clicked column
@@ -181,25 +230,26 @@ def main():
                         raise AssertionError("The Name header cannot be bounded from the source list")
                     header_point = (list_bounds.x + 60, list_bounds.y + 11)
                     report["headerInput"] = "bounded first column above the source rows"
-                else:
+                elif sort:
                     header_bounds = header.get_component().get_extents(Atspi.CoordType.SCREEN)
                     header_point = (round(header_bounds.x + header_bounds.width / 2),
                                     round(header_bounds.y + header_bounds.height / 2))
                     report["headerInput"] = "AT-SPI named Name header"
-                report["headerPoint"] = header_point
-                for attempt in range(2):
-                    activate_window(process.pid)
-                    native_click(*header_point,
-                                 touch_helper, sudo_password)
-                    try:
-                        wait_for(lambda: order() == ["d.txt", "c.txt", "b.txt", "a.txt"],
-                                 "descending name order", seconds=3)
-                        break
-                    except AssertionError:
-                        if attempt == 1:
-                            raise
-                report["steps"].append({"action": "sort Name descending", "order": order()})
-                target_row = named(app, "list item", "c.txt")[0]
+                if sort:
+                    report["headerPoint"] = header_point
+                    for attempt in range(2):
+                        activate_window(process.pid)
+                        native_click(*header_point,
+                                     touch_helper, sudo_password)
+                        try:
+                            wait_for(lambda: order() == ["d.txt", "c.txt", "b.txt", "a.txt"],
+                                     "descending name order", seconds=3)
+                            break
+                        except AssertionError:
+                            if attempt == 1:
+                                raise
+                    report["steps"].append({"action": "sort Name descending", "order": order()})
+                target_row = named(app, "list item", target_name)[0]
                 target_bounds = target_row.get_component().get_extents(Atspi.CoordType.SCREEN)
                 geometry = subprocess.run(["/usr/bin/xdotool", "getdisplaygeometry"],
                                           check=True, capture_output=True, text=True, timeout=5)
@@ -243,12 +293,12 @@ def main():
                     requested = [max(0, min(limit - 1, requested[axis] + click_point[axis] - actual[axis]))
                                  for axis, limit in enumerate((width, height))]
                 else:
-                    raise AssertionError("Physical pointer could not be calibrated inside c.txt")
+                    raise AssertionError(f"Physical pointer could not be calibrated inside {target_name}")
                 mouse("shift-current", (0, 0))
                 report["pointerAfterShiftClick"] = pointer_position()
                 report["postShiftClick"] = {"status": status(), "focused": focused(),
                                             "order": order()}
-                snapshot("Shift+click c.txt after sort", "Marked 2 of 4 files · 13 bytes", "c.txt")
+                snapshot(gesture, target_summary, target_name)
             else:
                 key("shift+down")
                 snapshot("Shift+Down marks a.txt", marked, "b.txt")

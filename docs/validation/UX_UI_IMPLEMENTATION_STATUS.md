@@ -86,7 +86,13 @@ four source files and an empty target. The Wayland pointer was measured and
 calibrated into `c.txt` before the uinput button event; the report records
 each requested and actual coordinate. Guest receipt:
 `~/FileCatValidation/ubuntu-selection-sort-20261022.json`. Scaled display,
-filter/tab transitions and spoken feedback remain open.
+tab transitions and spoken feedback remain open. A companion Ubuntu filter
+journey used physical keyboard input to apply `*|b*`, observed `b.txt`
+disappear, restored `*`, then physically Shift-clicked `d.txt`. The obsolete
+`b.txt` anchor did not reappear: only `c.txt` and `d.txt` were marked (14 bytes),
+`d.txt` was focused, all four source hashes remained exact and the target
+stayed empty. Guest receipt:
+`~/FileCatValidation/ubuntu-selection-filter-20261022.json`.
 
 **FCUX-001 remote publication capability review:** The implemented SFTP
 `posix-rename@openssh.com` path can replace an existing file in one server
