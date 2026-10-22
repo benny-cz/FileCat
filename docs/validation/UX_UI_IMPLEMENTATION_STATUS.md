@@ -2,6 +2,26 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**22 October 2026, accessible panel sorting:** A bounded virtual header peer
+was visible in the in-process automation tree but omitted by Ubuntu AT-SPI as
+soon as a file list contained rows. Each panel now has a visible Sort button
+beside its tabs, outside that list bridge. Its accessible name reports the
+current field and direction; its menu lists the currently visible sortable
+columns, identifies the selected column, and reverses it on a second choice.
+The action belongs to the tab that opened the menu, so a stale choice cannot
+sort a replacement tab. `PanelSortControlTests` passed 3/3 across 1,200 and
+720-pixel windows. A Git-built Ubuntu VM passed physical pointer and AT-SPI
+tests in both populated source and target panels at normal and measured
+720 × 540 widths: the Name choice reversed four actual file rows, after
+which Shift-click still marked the correct two files with unchanged source
+bytes. Native screen-reader speech and the other file-list actions remain open.
+
+GitHub Actions run `39749992629` on `7b5b0bea` completed green on the
+producer policy, Windows, Ubuntu, macOS and Windows ARM64 lanes. The Mac
+checkout's complete Core Release suite passed 4,450 tests, skipped 133
+platform cases and failed none with 16 processors and the SDK on `PATH`.
+The newly changed Sort-control head still needs its final CI gate.
+
 **22 October 2026, CI recovery-test synchronization:** The Windows CI run on
 `cf791da9` exposed a file-sharing race in the isolated dependent-Undo crash
 harness: it created `inverse-held.json` before closing the writer, while the

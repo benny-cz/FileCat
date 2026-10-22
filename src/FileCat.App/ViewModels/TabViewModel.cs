@@ -55,6 +55,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Changed += OnListingChanged;
         services.Columns.Changed += OnProfilesChanged;
         services.Metadata.ValuesChanged += OnMetadataValuesChanged;
+        RefreshSortDescription();
     }
 
     /// <summary>New values (a pool thread): the folder's checksum sum may have moved.</summary>
@@ -124,6 +125,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public event EventHandler? ColumnsChanged;
 
+    private string _sortDescription = string.Empty;
+
+    /// <summary>The current order, including the field and direction, for the panel's accessible Sort button.</summary>
+    public string SortDescription => _sortDescription;
+
+    private void RefreshSortDescription()
+    {
+        var sort = Listing.Sort;
+        var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
+            (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
+        string field = sort.Field == SortField.None ? "Unsorted" :
+            column is not null ? Formatters.SafeName(column.Header) : sort.Field.ToString();
+        string next = sort.Field == SortField.None ? "Sort files: Unsorted" :
+            $"Sort files: {field}, {(sort.Descending ? "descending" : "ascending")}";
+        if (_sortDescription == next) return;
+        _sortDescription = next;
+        OnPropertyChanged(nameof(SortDescription));
+    }
+
     public int ColumnProfile
     {
         get => _columnProfile;
@@ -131,6 +151,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
             ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            RefreshSortDescription();
         }
     }
 
@@ -152,6 +173,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         _columnProfile = Math.Clamp(_columnProfile, 0, Services.Columns.Count - 1);
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        RefreshSortDescription();
     }
 
     private string _tabQualifier = string.Empty;
@@ -718,6 +740,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Listing.Sort == sort) return;
         ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
         Listing.Sort = sort;
+        RefreshSortDescription();
     }
 
     /// <returns>Whether the draft was applied. A rejected draft leaves the current listing view intact.</returns>
@@ -758,6 +781,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnListingChanged(object? sender, ListingChange change)
     {
+        RefreshSortDescription();
         if ((change & ListingChange.State) != 0 || (change & ListingChange.Reset) != 0)
         {
             if (Location != _freeSpaceTrackedLocation)

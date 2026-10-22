@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --sort MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -38,11 +38,13 @@ def main():
             (len(sys.argv) == 6 and sys.argv[5] not in
              ("--narrow", "--deactivate", "--deactivate-narrow")) or
             (len(sys.argv) == 7 and sys.argv[5] not in
-             ("--sort", "--filter", "--tab", "--sort-narrow", "--filter-narrow", "--tab-narrow"))):
+             ("--sort", "--sort-control", "--filter", "--tab", "--sort-narrow",
+              "--sort-control-narrow", "--filter-narrow", "--tab-narrow"))):
         raise SystemExit(__doc__)
     narrow = len(sys.argv) >= 6 and sys.argv[5].endswith("narrow")
     deactivate_case = len(sys.argv) == 6 and sys.argv[5] in ("--deactivate", "--deactivate-narrow")
-    sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow")
+    sort_control = len(sys.argv) == 7 and sys.argv[5] in ("--sort-control", "--sort-control-narrow")
+    sort = len(sys.argv) == 7 and sys.argv[5] in ("--sort", "--sort-narrow", "--sort-control", "--sort-control-narrow")
     filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
     tab_case = len(sys.argv) == 7 and sys.argv[5] in ("--tab", "--tab-narrow")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
@@ -87,7 +89,8 @@ def main():
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
-              "narrow": narrow, "sort": sort, "filter": filter_case, "tab": tab_case,
+              "narrow": narrow, "sort": sort, "sortControl": sort_control,
+              "filter": filter_case, "tab": tab_case,
               "deactivate": deactivate_case,
               "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
@@ -262,8 +265,55 @@ def main():
                     return (extent.width >= 30 and extent.height >= 12 and
                             bounds.y - 80 <= extent.y < bounds.y)
 
-                header = next((node for node in descendants(app) if header_candidate(node)), None) if sort else None
-                if sort and header is None:
+                header = next((node for node in descendants(app) if header_candidate(node)), None) if sort and not sort_control else None
+                if sort_control:
+                    lists = [node for node in descendants(app) if node.get_role_name() == "list" and
+                             node.get_name().startswith("Panel ")]
+                    buttons = [node for node in descendants(app)
+                               if node.get_name() == "Sort files: Name, ascending"]
+                    if len(lists) != 2 or len(buttons) != 2:
+                        raise AssertionError(f"Expected two accessible panel Sort buttons: lists={len(lists)}, buttons={len(buttons)}")
+                    found = {}
+                    for listing in lists:
+                        lb = listing.get_component().get_extents(Atspi.CoordType.SCREEN)
+                        peers = []
+                        for button in buttons:
+                            rect = button.get_component().get_extents(Atspi.CoordType.SCREEN)
+                            if (rect.width >= 25 and rect.height >= 12 and
+                                    lb.x <= rect.x < lb.x + lb.width and rect.y < lb.y):
+                                peers.append((button, rect))
+                        if len(peers) != 1:
+                            raise AssertionError(f"Expected one bounded Sort button above {listing.get_name()}: {len(peers)}")
+                        found[listing.get_name()] = peers[0]
+                    source_button, source_bounds = found[f"Panel 1, source, {source}"]
+                    source_button_name = source_button.get_name()
+                    target_button_name = next(node.get_name() for node in buttons
+                                              if node is not source_button)
+                    activate_window(process.pid)
+                    native_click(round(source_bounds.x + source_bounds.width / 2),
+                                 round(source_bounds.y + source_bounds.height / 2),
+                                 touch_helper, sudo_password)
+                    name_choice = wait_for(lambda: next((node for node in descendants(app)
+                        if node.get_name() == "Sort by Name, currently ascending; activate to reverse"), None),
+                        "the accessible current Name sort choice")
+                    choice_bounds = name_choice.get_component().get_extents(Atspi.CoordType.SCREEN)
+                    choice_name = name_choice.get_name()
+                    report["sortChoiceBounds"] = [choice_bounds.x, choice_bounds.y,
+                                                  choice_bounds.width, choice_bounds.height]
+                    if choice_bounds.width < 25 or choice_bounds.height < 12:
+                        raise AssertionError("The accessible Name sort choice has unusable bounds")
+                    native_click(round(choice_bounds.x + choice_bounds.width / 2),
+                                 round(choice_bounds.y + choice_bounds.height / 2),
+                                 touch_helper, sudo_password)
+                    wait_for(lambda: order() == ["d.txt", "c.txt", "b.txt", "a.txt"],
+                             "descending name order from the Sort button")
+                    report["sortControl"] = {"source": source_button_name,
+                                             "target": target_button_name,
+                                             "choice": choice_name,
+                                             "after": source_button.get_name()}
+                    report["steps"].append({"action": "sort Name descending through accessible Sort button",
+                                            "order": order()})
+                elif sort and header is None:
                     # Avalonia's Linux bridge does not expose this painted header as a
                     # separate AT-SPI node. Locate its bounded first row directly
                     # above the parent and file rows, then prove the clicked column
@@ -279,7 +329,7 @@ def main():
                     header_point = (round(header_bounds.x + header_bounds.width / 2),
                                     round(header_bounds.y + header_bounds.height / 2))
                     report["headerInput"] = "AT-SPI named Name header"
-                if sort:
+                if sort and not sort_control:
                     report["headerPoint"] = header_point
                     for attempt in range(2):
                         activate_window(process.pid)

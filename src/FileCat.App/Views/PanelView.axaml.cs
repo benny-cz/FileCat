@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
+using FileCat.Core.Listing;
 
 namespace FileCat.App.Views;
 
@@ -15,6 +16,8 @@ public partial class PanelView : UserControl
 {
     private bool _addressCompact;
     private ContextMenu? _ancestorMenu;
+    private ContextMenu? _sortMenu;
+    internal ContextMenu? SortMenu => _sortMenu;
     private static ContextMenu? _openItemMenu;
     private static long _menuRequest;
     private static bool _nativeMenuWarningShown;
@@ -950,6 +953,48 @@ public partial class PanelView : UserControl
     {
         Activated?.Invoke();
         LocationMenuRequested?.Invoke();
+    }
+
+    /// <summary>Accessible sort choices live outside the custom file-list renderer's native bridge.</summary>
+    private void OnSortClick(object? sender, RoutedEventArgs e)
+    {
+        if (Panel is not { ActiveTab: { } tab } panel) return;
+        Activated?.Invoke();
+        _sortMenu?.Close();
+        var items = new List<MenuItem>();
+        foreach (var column in tab.Columns)
+        {
+            if (column.SortField is not { } field || field == SortField.None) continue;
+            string? metadataId = field == SortField.Metadata ? column.MetadataId : null;
+            if (field == SortField.Metadata && metadataId is null) continue;
+            string label = Formatters.SafeName(column.Header);
+            bool current = tab.Listing.Sort.Field == field &&
+                (field != SortField.Metadata || tab.Listing.Sort.MetadataId == metadataId);
+            var item = new MenuItem
+            {
+                Header = label,
+                ToggleType = MenuItemToggleType.Radio,
+                IsChecked = current,
+            };
+            AutomationProperties.SetName(item, $"Sort by {label}" +
+                (current ? $", currently {(tab.Listing.Sort.Descending ? "descending" : "ascending")}; activate to reverse" : string.Empty));
+            item.Click += (_, _) =>
+            {
+                if (!ReferenceEquals(Panel, panel) || !ReferenceEquals(panel.ActiveTab, tab)) return;
+                if (metadataId is { } id) tab.SortByMetadata(id);
+                else tab.SortBy(field);
+            };
+            items.Add(item);
+        }
+        if (items.Count == 0) return;
+        var menu = new ContextMenu { ItemsSource = items, Placement = PlacementMode.Bottom };
+        _sortMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_sortMenu, menu)) _sortMenu = null;
+            if (ReferenceEquals(Panel, panel) && ReferenceEquals(panel.ActiveTab, tab)) List.Focus();
+        };
+        menu.Open(SortButton);
     }
 
     private void OnDismissBanner(object? sender, RoutedEventArgs e)
