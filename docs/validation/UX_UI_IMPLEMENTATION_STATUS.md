@@ -628,6 +628,17 @@ changing bytes. Reports retain the exact paths, sort/filter state, marks and
 graceful process stop. Windows Display Settings restored the VM to 100%
 (96 DPI). Other scaled selection routes, Mac scaling, streaming/creation
 transitions and remaining focus routes stay open.
+The same Git-built app and DPI-aware runner then passed five more fresh
+native fixtures at 200%: a new tab marked only `e.txt` and `f.txt`; refresh
+after replacing the anchored `d.txt` with `0.txt` marked only `b.txt` and
+`c.txt`; Ctrl-click toggles preserved the original `b.txt` anchor for the
+`b.txt`–`c.txt` range; keyboard Shift+Down marked and then unmarked the exact
+range; and a held Shift across Explorer deactivation and command-line focus
+returned to new, correct gestures. Each report records the fixture identity,
+exact expected file state, empty destination and graceful process stop. The
+VM was restored again to 100% (96 DPI). The 150% routes beyond sort/filter,
+Mac scaled input, streaming/creation transitions and any untested focus
+routes remain open.
 
 **21 October 2026, progress refresh race:** An Ubuntu CI verified-copy test
 caught `JobViewModel.Refresh` reading the worker's current item twice. A
