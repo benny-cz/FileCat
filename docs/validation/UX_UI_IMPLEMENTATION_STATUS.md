@@ -34,8 +34,14 @@ widths: it touched `b.txt`, entered `*|b*` through the actual Filter field,
 observed only `a.txt`, `c.txt` and `d.txt`, restored `*`, and physically
 Shift-clicked `d.txt`. Direct AX reported exactly `c.txt` and `d.txt`
 selected, `d.txt` focused and `Marked 2 of 4 files · 14 bytes`; all four
-source hashes and the empty target were unchanged. Mac tab and remaining
-focus transitions stay open. The complete Windows Release
+source hashes and the empty target were unchanged. A fresh two-folder Mac fixture then
+passed a native second-tab route at normal and 760 × 600 widths: `d.txt`
+was focused in the first tab, Ctrl+T exposed three distinct accessible tab
+identities, and the second tab entered its own `second` folder. Physical
+pointer and Shift-click input selected exactly `e.txt` and `f.txt` there,
+with `f.txt` focused and `Marked 2 of 2 files · 13 bytes`. Both source
+folders kept their original SHA-256 hashes and the target remained empty.
+Mac focus-loss and scaled-display routes stay open. The complete Windows Release
 App suite on the same product code passed 2,419 tests with 63 platform skips
 and no failures; Core passed 4,437 with 151 skips and no failures, using up
 to 16 workers.

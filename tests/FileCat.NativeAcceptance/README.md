@@ -1006,6 +1006,15 @@ must select only `c.txt` and `d.txt` (14 bytes) with `d.txt` focused;
 source hashes and the empty target must remain exact. The optional narrow
 route measures 760 × 600. Keep the Sort runner and Swift helper beside it.
 
+`python3 mac-ax-panel-tab-anchor.py BUNDLE.app REPORT.json [--narrow]`
+creates a fresh source with four files and a `second` folder containing
+`e.txt` and `f.txt`. It focuses `d.txt` in the first tab, opens another
+source tab with native Ctrl+T, enters `second`, and physically Shift-clicks
+`f.txt` from `e.txt`. Direct AX must show three distinct tabs and exactly
+the two second-folder files selected for 13 bytes, with `f.txt` focused.
+It checks both source-folder hashes and the empty target. `--narrow`
+repeats the route at 760 × 600.
+
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
