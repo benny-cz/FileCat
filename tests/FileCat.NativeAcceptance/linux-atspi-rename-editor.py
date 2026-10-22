@@ -209,6 +209,21 @@ def run(app_path, report_path, key_helper, narrow, rule_change, pause_review):
             wait_for(lambda: selected_detail() == first, "first mapping restored")
             result["steps"].append("Two-name preview and editor action available")
             result["steps"].append("Native Previous/Next actions exposed both full-path mappings")
+            next_button = one(app, "button", "Next rename mapping")
+            if not next_button.grab_focus():
+                raise AssertionError("Could not focus Next rename mapping")
+            wait_for(lambda: next_button.get_state_set().contains(Atspi.StateType.FOCUSED),
+                     "Next rename mapping keyboard focus")
+            send("enter")
+            wait_for(lambda: selected_detail() == second, "physical Enter advanced the full-path mapping")
+            previous_button = one(app, "button", "Previous rename mapping")
+            if not previous_button.grab_focus():
+                raise AssertionError("Could not focus Previous rename mapping")
+            wait_for(lambda: previous_button.get_state_set().contains(Atspi.StateType.FOCUSED),
+                     "Previous rename mapping keyboard focus")
+            send("space")
+            wait_for(lambda: selected_detail() == first, "physical Space restored the full-path mapping")
+            result["steps"].append("Physical Enter and Space navigated exact full-path mappings")
             if pause_review:
                 activate_window(process.pid)
                 ready.write_text(json.dumps({"fixture": str(fixture),
