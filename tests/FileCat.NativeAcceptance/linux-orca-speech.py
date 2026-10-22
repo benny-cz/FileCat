@@ -146,7 +146,7 @@ def main():
                     break
                 time.sleep(0.15)
             passed = any(expect(phrase) for phrase in heard)
-            report["steps"].append({"step": label, "heard": heard, "passed": passed})
+            report["steps"].append({"step": label, "heard": heard, "matching": sum(map(expect, heard)), "passed": passed})
             if not passed and not record_all:
                 raise AssertionError(f"{label}: Orca said {heard!r}")
 
@@ -177,6 +177,15 @@ def main():
         # The first notice after startup, then the same notice again, must each be announced.
         step("Ctrl+C announces the copy notice", key("ctrl+c"), says("Copied 1 item"))
         step("a repeated copy is announced again", key("ctrl+c"), says("Copied 1 item"))
+        # A rejected value in a prompt is spoken as its message appears, and again when Enter is refused.
+        step("Ctrl+S opens Quick filter", key("ctrl+s"), says("Quick filter dialog"))
+        step("typing an unclosed mask is announced", key("slash"), says("Unclosed regular expression in mask."))
+
+        def type_and_enter():
+            key("a")()
+            key("enter")()
+        step("Enter on the rejected mask explains it again", type_and_enter, says("Unclosed regular expression in mask."))
+        step("Escape closes Quick filter", key("escape"), says("c.txt"))
         # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
         # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",

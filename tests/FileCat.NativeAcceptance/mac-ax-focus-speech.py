@@ -22,7 +22,8 @@ FOREGROUND = '''tell application "System Events" to tell process "FileCat"
     set frontmost to true
 end tell'''
 KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115", "end": "key code 119",
-             "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}"}
+             "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}",
+             "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36"}
 
 
 def osa(script):
@@ -118,10 +119,12 @@ def run(bundle, report_path):
         if not passed:
             raise AssertionError(f"{label}: focus {current!r} after {seen!r}")
 
-    def announce(label, expect):
+    def announce(label, keys, expect):
+        """The keys must make FileCat request exactly one announcement of the expected text."""
         records()
         osa(FOREGROUND)
-        osa(f'tell application "System Events" to {KEY_CODES["copy"]}')
+        for key in keys:
+            osa(f'tell application "System Events" to {KEY_CODES[key]}')
         heard, deadline = [], time.monotonic() + 6
         while time.monotonic() < deadline and not any(expect in entry.get("announcement", "") for entry in heard):
             heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
@@ -129,7 +132,8 @@ def run(bundle, report_path):
         time.sleep(0.6)
         heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
         matching = [entry for entry in heard if expect in entry.get("announcement", "")]
-        result["steps"].append({"step": label, "expect": expect, "announcements": heard, "passed": len(matching) == 1})
+        result["steps"].append({"step": label, "expect": expect, "announcements": heard, "matching": len(matching),
+                                "passed": len(matching) == 1})
         if len(matching) != 1:
             raise AssertionError(f"{label}: announcements {heard!r}")
 
@@ -157,8 +161,13 @@ def run(bundle, report_path):
         step("F7 opens Create folder", "f7", "folder")
         step("Escape returns to the list", "escape", "c.txt")
         # The first notice after startup, then the same notice again, must each be announced once.
-        announce("Command+C announces the copy notice", "Copied 1 item")
-        announce("a repeated copy is announced again", "Copied 1 item")
+        announce("Command+C announces the copy notice", ["copy"], "Copied 1 item")
+        announce("a repeated copy is announced again", ["copy"], "Copied 1 item")
+        # A rejected value in a prompt is spoken as its message appears, and again when Enter is refused.
+        step("Command+S opens Quick filter", "filter", "Show only the files that match")
+        announce("typing an unclosed mask is announced", ["slash"], "Unclosed regular expression in mask.")
+        announce("Return on the rejected mask explains it again", ["a", "return"], "Unclosed regular expression in mask.")
+        step("Escape closes Quick filter", "escape", "c.txt")
         osa('tell application "Finder" to activate')
         time.sleep(1.5)
         step("switch away and back", None, "c.txt", activation=True)
@@ -180,6 +189,12 @@ def run(bundle, report_path):
                 watcher.kill()
         if process is not None and process in app_pids():
             subprocess.run(["/bin/kill", "-TERM", str(process)], timeout=5)
+            # An open dialog can keep FileCat from shutting down; the next run must not find this process.
+            end = time.monotonic() + 10
+            while process in app_pids() and time.monotonic() < end:
+                time.sleep(0.2)
+            if process in app_pids():
+                subprocess.run(["/bin/kill", "-KILL", str(process)], timeout=5)
         report_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
 

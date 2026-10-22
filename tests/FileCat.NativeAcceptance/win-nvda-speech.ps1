@@ -170,14 +170,23 @@ try {
         }
     }
 
+    # Slash and A type "/" and "a" on the VM's US layout.
     $virtualKeys = @{ Down = @(0x28, $true); Up = @(0x26, $true); Home = @(0x24, $true); End = @(0x23, $true)
-                      Tab = @(0x09, $false); F7 = @(0x76, $false); Escape = @(0x1B, $false) }
+                      Tab = @(0x09, $false); F7 = @(0x76, $false); Escape = @(0x1B, $false); Enter = @(0x0D, $false)
+                      Slash = @(0xBF, $false); A = @(0x41, $false) }
     function Step([string]$label, [string]$key, [string]$expect, [bool]$flush = $true, [scriptblock]$before = $null) {
         if ($before) { & $before }
         if ($flush) { TakeSpeech | Out-Null }
         EnsureForeground -Click:($null -ne $before)
         if ($key -eq 'CtrlC') { [FileCatNvdaInput]::Chord(0x11, 0x43) }
-        elseif ($key) { [FileCatNvdaInput]::Press([byte]$virtualKeys[$key][0], [bool]$virtualKeys[$key][1]) }
+        elseif ($key -eq 'CtrlS') { [FileCatNvdaInput]::Chord(0x11, 0x53) }
+        elseif ($key) {
+            # A comma-separated key sequence, such as typed text followed by Enter.
+            foreach ($name in $key.Split(',')) {
+                [FileCatNvdaInput]::Press([byte]$virtualKeys[$name][0], [bool]$virtualKeys[$name][1])
+                Start-Sleep -Milliseconds 80
+            }
+        }
         $heard = @()
         $deadline = [Diagnostics.Stopwatch]::StartNew()
         while ($deadline.Elapsed.TotalSeconds -lt 6) {
@@ -190,7 +199,8 @@ try {
             Start-Sleep -Milliseconds 150
         }
         $passed = @($heard | Where-Object { $_.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count -gt 0
-        $report.steps += [ordered]@{ step = $label; expect = $expect; heard = $heard; passed = $passed }
+        $matching = @($heard | Where-Object { $_.IndexOf($expect, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count
+        $report.steps += [ordered]@{ step = $label; expect = $expect; heard = $heard; matching = $matching; passed = $passed }
         if (!$passed -and !$RecordAll) { throw "${label}: NVDA said $($heard -join ' | ')" }
     }
     $switchAway = {
@@ -227,6 +237,11 @@ try {
     # The first notice after startup, then the same notice again, must each be announced.
     Step 'Ctrl+C announces the copy notice' 'CtrlC' 'Copied 1 item'
     Step 'a repeated copy is announced again' 'CtrlC' 'Copied 1 item'
+    # A rejected value in a prompt is spoken as its message appears, and again when Enter is refused.
+    Step 'Ctrl+S opens Quick filter' 'CtrlS' 'Quick filter dialog'
+    Step 'typing an unclosed mask is announced' 'Slash' 'Unclosed regular expression in mask.'
+    Step 'Enter on the rejected mask explains it again' 'A,Enter' 'Unclosed regular expression in mask.'
+    Step 'Escape closes Quick filter' 'Escape' 'c.txt'
     # Returning to FileCat from another window announces its focused row again, once.
     Step 'switch away and back' '' 'c.txt' $true $switchAway
     $report.steps[-1].repeats = @($report.steps[-1].heard | Where-Object { $_ -like "*'c.txt'*" }).Count
