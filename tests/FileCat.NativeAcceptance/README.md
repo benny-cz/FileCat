@@ -123,6 +123,12 @@ Ctrl+R. After focus moves to `d.txt`, a calibrated physical Shift-click on
 and preserve their expected hashes and the empty target. The narrow route
 measures 720 × 540. A stale numeric anchor at the old `b.txt` row would
 select a smaller range.
+Append `--ctrl MOUSE_HELPER` or `--ctrl-narrow MOUSE_HELPER` to touch
+`b.txt`, then physically Ctrl-click `d.txt` with a calibrated uinput mouse.
+AT-SPI must show only `d.txt` marked for 6 bytes; a subsequent physical
+Shift-click on `c.txt` must preserve that mark and add `b.txt` and `c.txt`
+for 19 bytes, with `c.txt` focused. The narrow route measures 720 × 540;
+both keep exact source hashes and an empty target.
 Append `--deactivate` or `--deactivate-narrow` to check a Shift+Down gesture
 whose Shift key remains physically held while a test-owned GTK window takes
 focus. The runner first marks `b.txt` with Insert, unmarks it with held
@@ -1053,6 +1059,14 @@ Direct AX must show all four current files, and no deleted `b.txt`, marked
 for exactly 25 bytes with `0.txt` focused. A stale numeric anchor at the old
 `b.txt` row would mark a smaller range. The runner checks every resulting
 source hash and the empty target; `--narrow` repeats it at 760 × 600.
+
+`python3 mac-ax-panel-command-click.py BUNDLE.app REPORT.json [--narrow]`
+uses a fresh four-file source to verify the macOS additive pointer gesture.
+A physical click anchors `b.txt`, Command-click marks only `d.txt`, and
+Shift-click on `c.txt` must add exactly `b.txt` and `c.txt` while retaining
+`d.txt`. A second Command-click unmarks `d.txt`, leaving 13 bytes marked.
+Direct AX checks every mark, focus and status; source hashes and the empty
+target stay exact. `--narrow` repeats the route at 760 × 600.
 
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than

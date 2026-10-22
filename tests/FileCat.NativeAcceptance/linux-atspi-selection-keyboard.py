@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise FileCat's range anchor with native Ubuntu touch and keyboard input.
 
-Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --refresh MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER | --refresh-narrow MOUSE_HELPER]
+Usage: linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER [--narrow | --deactivate | --deactivate-narrow | --command-line | --command-line-narrow | --sort MOUSE_HELPER | --sort-control MOUSE_HELPER | --filter MOUSE_HELPER | --tab MOUSE_HELPER | --refresh MOUSE_HELPER | --ctrl MOUSE_HELPER | --sort-narrow MOUSE_HELPER | --sort-control-narrow MOUSE_HELPER | --filter-narrow MOUSE_HELPER | --tab-narrow MOUSE_HELPER | --refresh-narrow MOUSE_HELPER | --ctrl-narrow MOUSE_HELPER]
 Run in the logged-in desktop session with an isolated Git-built app. The
 caller passes a one-time sudo password through FILECAT_NATIVE_SUDO_PASSWORD;
 the runner removes it before starting FileCat.
@@ -39,9 +39,9 @@ def main():
              ("--narrow", "--deactivate", "--deactivate-narrow",
               "--command-line", "--command-line-narrow")) or
             (len(sys.argv) == 7 and sys.argv[5] not in
-             ("--sort", "--sort-control", "--filter", "--tab", "--refresh",
+             ("--sort", "--sort-control", "--filter", "--tab", "--refresh", "--ctrl",
               "--sort-narrow", "--sort-control-narrow", "--filter-narrow",
-              "--tab-narrow", "--refresh-narrow"))):
+              "--tab-narrow", "--refresh-narrow", "--ctrl-narrow"))):
         raise SystemExit(__doc__)
     narrow = len(sys.argv) >= 6 and sys.argv[5].endswith("narrow")
     deactivate_case = len(sys.argv) == 6 and sys.argv[5] in ("--deactivate", "--deactivate-narrow")
@@ -51,6 +51,7 @@ def main():
     filter_case = len(sys.argv) == 7 and sys.argv[5] in ("--filter", "--filter-narrow")
     tab_case = len(sys.argv) == 7 and sys.argv[5] in ("--tab", "--tab-narrow")
     refresh_case = len(sys.argv) == 7 and sys.argv[5] in ("--refresh", "--refresh-narrow")
+    ctrl_case = len(sys.argv) == 7 and sys.argv[5] in ("--ctrl", "--ctrl-narrow")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper, touch_helper = (Path(value).resolve(strict=True)
                                           for value in (sys.argv[1], sys.argv[3], sys.argv[4]))
@@ -61,7 +62,7 @@ def main():
             touch_helper.name != "linux-uinput-touch.py" or
             any(validation not in helper.parents for helper in (key_helper, touch_helper))):
         raise SystemExit("Use the isolated FileCat build, owned helpers and report under ~/FileCatValidation")
-    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case or tab_case or refresh_case else None
+    mouse_helper = Path(sys.argv[6]).resolve(strict=True) if sort or filter_case or tab_case or refresh_case or ctrl_case else None
     if mouse_helper is not None and (mouse_helper.name != "linux-uinput-mouse.py" or
                                      validation not in mouse_helper.parents):
         raise SystemExit("Use the owned transient uinput mouse helper")
@@ -74,7 +75,7 @@ def main():
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n"}
-    if sort or filter_case or tab_case or refresh_case or deactivate_case or command_line_case:
+    if sort or filter_case or tab_case or refresh_case or ctrl_case or deactivate_case or command_line_case:
         expected.update({"c.txt": b"charlie\n", "d.txt": b"delta\n"})
     for name, content in expected.items():
         (source / name).write_bytes(content)
@@ -95,6 +96,7 @@ def main():
     report = {"passed": False, "appSha256": app_sha, "input": "uinput touch + keyboard",
               "narrow": narrow, "sort": sort, "sortControl": sort_control,
               "filter": filter_case, "tab": tab_case, "refresh": refresh_case,
+              "ctrl": ctrl_case,
               "deactivate": deactivate_case, "commandLine": command_line_case,
               "sourceSha256": source_sha, "secondSha256": second_sha, "steps": []}
     process = None
@@ -157,7 +159,7 @@ def main():
                 if sent.returncode:
                     raise AssertionError(f"Physical {chord} input failed: {sent.stderr[-300:]}")
 
-            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or refresh_case or deactivate_case or command_line_case else
+            clear = ("0 folders, 4 files · 25 bytes" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case else
                      "0 folders, 2 files · 11 bytes")
             marked = "Marked 1 of 2 files · 6 bytes"
             if tab_case:
@@ -169,7 +171,7 @@ def main():
                     raise AssertionError(f"Unexpected two-tab source summary: {clear}")
             else:
                 wait_for(lambda: status() == clear, "the complete owned listing")
-            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or refresh_case or deactivate_case or command_line_case else "a.txt")
+            anchor = "d.txt" if tab_case else ("b.txt" if sort or filter_case or refresh_case or ctrl_case or deactivate_case or command_line_case else "a.txt")
             row = wait_for(lambda: next(iter(named(app, "list item", anchor)), None),
                            f"the owned {anchor} row")
             bounds = row.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -179,7 +181,7 @@ def main():
             native_click(round(bounds.x + min(40, bounds.width / 2)),
                          round(bounds.y + bounds.height / 2), touch_helper, sudo_password)
             snapshot(f"touch {anchor}", clear, anchor)
-            if sort or filter_case or tab_case or refresh_case:
+            if sort or filter_case or tab_case or refresh_case or ctrl_case:
                 def order():
                     rows = []
                     for name in expected:
@@ -211,6 +213,10 @@ def main():
                     target_name = "0.txt"
                     target_summary = "Marked 4 of 4 files · 25 bytes"
                     gesture = "Shift+click 0.txt after deleted-anchor refresh"
+                elif ctrl_case:
+                    target_name = "d.txt"
+                    target_summary = "Marked 1 of 4 files · 6 bytes"
+                    gesture = "Ctrl-click d.txt while b.txt is the range anchor"
                 elif filter_case:
                     source_list = named(app, "list", f"Panel 1, source, {source}")[0]
                     list_bounds = source_list.get_component().get_extents(Atspi.CoordType.SCREEN)
@@ -412,12 +418,32 @@ def main():
                                  for axis, limit in enumerate((width, height))]
                 else:
                     raise AssertionError(f"Physical pointer could not be calibrated inside {target_name}")
-                mouse("shift-current", (0, 0))
+                mouse("ctrl-current" if ctrl_case else "shift-current", (0, 0))
                 report["pointerAfterShiftClick"] = pointer_position()
                 report["postShiftClick"] = {"status": status(), "focused": focused(),
                                             "order": order() if not tab_case else
                                             [name for name in second_expected if named(app, "list item", name)]}
                 snapshot(gesture, target_summary, target_name)
+                if ctrl_case:
+                    next_bounds = named(app, "list item", "c.txt")[0].get_component().get_extents(Atspi.CoordType.SCREEN)
+                    next_point = (round(next_bounds.x + min(40, next_bounds.width / 2)),
+                                  round(next_bounds.y + next_bounds.height / 2))
+                    requested = list(next_point)
+                    for _ in range(6):
+                        mouse("move", requested)
+                        actual = pointer_position()
+                        if (next_bounds.x + 5 <= actual[0] < next_bounds.x + min(80, next_bounds.width - 5)
+                                and next_bounds.y + 3 <= actual[1] < next_bounds.y + next_bounds.height - 3):
+                            break
+                        requested = [max(0, min(limit - 1, requested[axis] + next_point[axis] - actual[axis]))
+                                     for axis, limit in enumerate((width, height))]
+                    else:
+                        raise AssertionError("Physical pointer could not be calibrated inside c.txt")
+                    mouse("shift-current", (0, 0))
+                    report["afterCtrlThenShift"] = {"status": status(), "focused": focused(),
+                                                    "order": order(), "pointer": pointer_position()}
+                    snapshot("Shift-click c.txt preserves d.txt and uses the b.txt anchor",
+                             "Marked 3 of 4 files · 19 bytes", "c.txt")
             elif deactivate_case or command_line_case:
                 key("insert")
                 snapshot("Insert marks b.txt and moves focus", "Marked 1 of 4 files · 5 bytes", "c.txt")

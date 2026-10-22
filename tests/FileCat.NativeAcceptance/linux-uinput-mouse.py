@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Click a bounded screen point with a short-lived Linux uinput mouse.
 
-Usage: sudo python3 linux-uinput-mouse.py X Y SCREEN_WIDTH SCREEN_HEIGHT [shift|move|shift-current]
+Usage: sudo python3 linux-uinput-mouse.py X Y SCREEN_WIDTH SCREEN_HEIGHT [shift|move|shift-current|ctrl-current]
 The pointer is first clamped to the upper-left corner, then moved in small
 relative steps to limit acceleration. No device or privilege persists.
 """
@@ -20,6 +20,7 @@ REL_X = 0
 REL_Y = 1
 BTN_LEFT = 272
 KEY_LEFTSHIFT = 42
+KEY_LEFTCTRL = 29
 
 
 def emit(fd, kind, code, value):
@@ -38,13 +39,15 @@ def click(x, y, width, height, mode="click"):
         raise SystemExit("The click point must be within a bounded display")
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
-    shift_held = False
+    modifier_held = None
     try:
         fcntl.ioctl(fd, 0x40045564, EV_KEY)  # UI_SET_EVBIT
         fcntl.ioctl(fd, 0x40045564, EV_REL)
         fcntl.ioctl(fd, 0x40045565, BTN_LEFT)  # UI_SET_KEYBIT
         if mode in ("shift", "shift-current"):
             fcntl.ioctl(fd, 0x40045565, KEY_LEFTSHIFT)
+        if mode == "ctrl-current":
+            fcntl.ioctl(fd, 0x40045565, KEY_LEFTCTRL)
         fcntl.ioctl(fd, 0x40045566, REL_X)  # UI_SET_RELBIT
         fcntl.ioctl(fd, 0x40045566, REL_Y)
         device = struct.pack("80sHHHHI256i", b"FileCat native acceptance mouse",
@@ -53,7 +56,7 @@ def click(x, y, width, height, mode="click"):
         fcntl.ioctl(fd, 0x5501)  # UI_DEV_CREATE
         created = True
         time.sleep(0.7)
-        if mode != "shift-current":
+        if mode not in ("shift-current", "ctrl-current"):
             move(fd, -32767, -32767)
             time.sleep(0.15)
             # Low-velocity motion limits acceleration; the caller can measure
@@ -66,10 +69,10 @@ def click(x, y, width, height, mode="click"):
             time.sleep(0.15)
         if mode == "move":
             return
-        if mode in ("shift", "shift-current"):
-            emit(fd, EV_KEY, KEY_LEFTSHIFT, 1)
+        if mode in ("shift", "shift-current", "ctrl-current"):
+            modifier_held = KEY_LEFTCTRL if mode == "ctrl-current" else KEY_LEFTSHIFT
+            emit(fd, EV_KEY, modifier_held, 1)
             emit(fd, EV_SYN, 0, 0)
-            shift_held = True
             time.sleep(0.08)
         emit(fd, EV_KEY, BTN_LEFT, 1)
         emit(fd, EV_SYN, 0, 0)
@@ -77,8 +80,8 @@ def click(x, y, width, height, mode="click"):
         emit(fd, EV_KEY, BTN_LEFT, 0)
         emit(fd, EV_SYN, 0, 0)
     finally:
-        if shift_held:
-            emit(fd, EV_KEY, KEY_LEFTSHIFT, 0)
+        if modifier_held is not None:
+            emit(fd, EV_KEY, modifier_held, 0)
             emit(fd, EV_SYN, 0, 0)
         if created:
             time.sleep(0.15)
@@ -87,6 +90,6 @@ def click(x, y, width, height, mode="click"):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (5, 6) or (len(sys.argv) == 6 and sys.argv[5] not in ("shift", "move", "shift-current")):
-        raise SystemExit("Usage: linux-uinput-mouse.py X Y SCREEN_WIDTH SCREEN_HEIGHT [shift|move|shift-current]")
+    if len(sys.argv) not in (5, 6) or (len(sys.argv) == 6 and sys.argv[5] not in ("shift", "move", "shift-current", "ctrl-current")):
+        raise SystemExit("Usage: linux-uinput-mouse.py X Y SCREEN_WIDTH SCREEN_HEIGHT [shift|move|shift-current|ctrl-current]")
     click(*(int(arg) for arg in sys.argv[1:5]), mode=sys.argv[5] if len(sys.argv) == 6 else "click")
