@@ -1038,6 +1038,15 @@ Shift+Up to mark only `d.txt` (6 bytes) with `c.txt` focused.
 `--narrow` measures a 760 × 600 window. The runner releases Shift on
 failure and closes only its exact FileCat process.
 
+`python3 mac-ax-panel-refresh-anchor.py BUNDLE.app REPORT.json [--narrow]`
+uses a fresh four-file source. It physically clicks `b.txt`, removes only
+that owned file, creates `0.txt`, and uses Ctrl+R to reload the panel. It
+then moves keyboard focus to `d.txt` and physically Shift-clicks `0.txt`.
+Direct AX must show all four current files, and no deleted `b.txt`, marked
+for exactly 25 bytes with `0.txt` focused. A stale numeric anchor at the old
+`b.txt` row would mark a smaller range. The runner checks every resulting
+source hash and the empty target; `--narrow` repeats it at 760 × 600.
+
 `python3 mac-ax-viewer-backward.py SOURCE REPORT.json` creates one temporary
 text file in that isolated source folder with two `NEEDLE` matches more than
 4 MiB apart. It refreshes the panel, opens the file in Text view, types the
