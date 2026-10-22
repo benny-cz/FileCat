@@ -122,15 +122,20 @@ def main():
             time.sleep(0.25)
         time.sleep(2.0)
 
+        def active_pid():
+            return subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowpid"],
+                                  check=True, capture_output=True, text=True, timeout=5).stdout.strip()
+
         def activate():
+            # Any active window of the isolated FileCat keeps the keys there, such as its viewer.
+            if active_pid() == str(process.pid):
+                return
             window = windows_of(process.pid)
             if len(window) != 1:
                 raise AssertionError(f"Expected one isolated FileCat window, found {window}")
             subprocess.run(["/usr/bin/wmctrl", "-ia", window[0]], check=True, timeout=5)
             time.sleep(0.3)
-            active = subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowpid"],
-                                    check=True, capture_output=True, text=True, timeout=5).stdout.strip()
-            if active != str(process.pid):
+            if (active := active_pid()) != str(process.pid):
                 raise AssertionError(f"The isolated FileCat window is not active (PID {active})")
 
         def step(label, action, expect, seconds=6.0, flush=True):
@@ -186,6 +191,17 @@ def main():
             key("enter")()
         step("Enter on the rejected mask explains it again", type_and_enter, says("Unclosed regular expression in mask."))
         step("Escape closes Quick filter", key("escape"), says("c.txt"))
+        # A viewer search reports its result count through a live region.
+        step("F3 opens the viewer", key("f3"), says("FileCat Viewer"))
+        step("F7 opens the viewer search", key("f7"), says("Find in file"))
+
+        def search_char():
+            for name in ("c", "h", "a", "r", "enter"):
+                key(name)()
+        # The outcome only, not the searching and counting states before it.
+        step("a viewer search speaks its match count", search_char, lambda phrase: phrase.strip(" .") == "1 match")
+        step("Escape returns from the search to the text", key("escape"), says("No selection"))
+        step("Escape closes the viewer", key("escape"), says("c.txt"))
         # A test-owned window takes the foreground; returning to FileCat must announce its focused row again.
         # On X11 like FileCat, so the window manager tools used for activation can see it.
         switch = subprocess.Popen([sys.executable, "-c",

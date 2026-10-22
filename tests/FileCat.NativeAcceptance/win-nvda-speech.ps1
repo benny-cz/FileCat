@@ -173,7 +173,8 @@ try {
     # Slash and A type "/" and "a" on the VM's US layout.
     $virtualKeys = @{ Down = @(0x28, $true); Up = @(0x26, $true); Home = @(0x24, $true); End = @(0x23, $true)
                       Tab = @(0x09, $false); F7 = @(0x76, $false); Escape = @(0x1B, $false); Enter = @(0x0D, $false)
-                      Slash = @(0xBF, $false); A = @(0x41, $false) }
+                      Slash = @(0xBF, $false); A = @(0x41, $false); F3 = @(0x72, $false); C = @(0x43, $false); H = @(0x48, $false)
+                      R = @(0x52, $false) }
     function Step([string]$label, [string]$key, [string]$expect, [bool]$flush = $true, [scriptblock]$before = $null) {
         if ($before) { & $before }
         if ($flush) { TakeSpeech | Out-Null }
@@ -242,6 +243,12 @@ try {
     Step 'typing an unclosed mask is announced' 'Slash' 'Unclosed regular expression in mask.'
     Step 'Enter on the rejected mask explains it again' 'A,Enter' 'Unclosed regular expression in mask.'
     Step 'Escape closes Quick filter' 'Escape' 'c.txt'
+    # A viewer search reports its result count through a live region.
+    Step 'F3 opens the viewer' 'F3' 'FileCat Viewer'
+    Step 'F7 opens the viewer search' 'F7' 'Find in file'
+    Step 'a viewer search speaks its match count' 'C,H,A,R,Enter' "'1 match'"
+    Step 'Escape returns from the search to the text' 'Escape' 'No selection'
+    Step 'Escape closes the viewer' 'Escape' 'c.txt'
     # Returning to FileCat from another window announces its focused row again, once.
     Step 'switch away and back' '' 'c.txt' $true $switchAway
     $report.steps[-1].repeats = @($report.steps[-1].heard | Where-Object { $_ -like "*'c.txt'*" }).Count

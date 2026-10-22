@@ -23,7 +23,8 @@ FOREGROUND = '''tell application "System Events" to tell process "FileCat"
 end tell'''
 KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115", "end": "key code 119",
              "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}",
-             "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36"}
+             "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36",
+             "f3": "key code 99", "c": "key code 8", "h": "key code 4", "r": "key code 15"}
 
 
 def osa(script):
@@ -119,8 +120,22 @@ def run(bundle, report_path):
         if not passed:
             raise AssertionError(f"{label}: focus {current!r} after {seen!r}")
 
-    def announce(label, keys, expect):
-        """The keys must make FileCat request exactly one announcement of the expected text."""
+    def window_step(label, key, expect):
+        """The key must give focus to a window whose title contains the expected text."""
+        records()
+        osa(FOREGROUND)
+        osa(f'tell application "System Events" to {KEY_CODES[key]}')
+        seen, deadline = [], time.monotonic() + 8
+        while time.monotonic() < deadline and not any(expect in entry.get("title", "") for entry in seen):
+            seen += [entry for entry in records() if entry.get("notification") == "AXFocusedWindowChanged"]
+            time.sleep(0.15)
+        passed = any(expect in entry.get("title", "") for entry in seen)
+        result["steps"].append({"step": label, "expect": expect, "windows": seen, "passed": passed})
+        if not passed:
+            raise AssertionError(f"{label}: focused windows {seen!r}")
+
+    def announce(label, keys, expect, exact=False):
+        """The keys must make FileCat request exactly one announcement containing (or, if exact, equal to) the text."""
         records()
         osa(FOREGROUND)
         for key in keys:
@@ -131,7 +146,7 @@ def run(bundle, report_path):
             time.sleep(0.15)
         time.sleep(0.6)
         heard += [entry for entry in records() if entry.get("notification") == "AXAnnouncementRequested"]
-        matching = [entry for entry in heard if expect in entry.get("announcement", "")]
+        matching = [entry for entry in heard if (entry.get("announcement", "") == expect if exact else expect in entry.get("announcement", ""))]
         result["steps"].append({"step": label, "expect": expect, "announcements": heard, "matching": len(matching),
                                 "passed": len(matching) == 1})
         if len(matching) != 1:
@@ -168,6 +183,13 @@ def run(bundle, report_path):
         announce("typing an unclosed mask is announced", ["slash"], "Unclosed regular expression in mask.")
         announce("Return on the rejected mask explains it again", ["a", "return"], "Unclosed regular expression in mask.")
         step("Escape closes Quick filter", "escape", "c.txt")
+        # A viewer search reports its result count through a live region.
+        window_step("F3 opens the viewer", "f3", "FileCat Viewer")
+        step("F7 opens the viewer search", "f7", "Find in file")
+        # The outcome only, not the searching and counting states before it.
+        announce("a viewer search speaks its match count", ["c", "h", "a", "r", "return"], "1 match", exact=True)
+        step("Escape returns from the search to the text", "escape", "No selection")
+        step("Escape closes the viewer", "escape", "c.txt")
         osa('tell application "Finder" to activate')
         time.sleep(1.5)
         step("switch away and back", None, "c.txt", activation=True)
