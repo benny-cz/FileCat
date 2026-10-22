@@ -21,7 +21,8 @@ increments to `main`.
   announcements VoiceOver speaks from. All three also check the first and a
   repeated copy notice, a rejected Quick filter mask spoken as it appears
   and again on a refused Enter (the shared prompt that F7, Go to and other
-  prompts use), and the viewer search's outcome alone. Extend these journeys for the "spoken" criteria of other
+  prompts use), the viewer search's outcome alone, and a panel boundary
+  resized from command search. Extend these journeys for the "spoken" criteria of other
   findings (Find results, the panel filter field of FCUX-028, which needs a
   keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
   Hearing VoiceOver itself needs the owner to enable "Allow
@@ -92,8 +93,10 @@ increments to `main`.
    and command consistency (035–037, 046, 057), bulk rename (038–040), Find
    and preview behavior (044, 045, 052, 053, 055). The status table identifies
    each group's exact provider, input, scaling and assistive-technology gate.
-   FCUX-031/032 still need nested/scaled layouts, spoken feedback and
-   non-filesystem breadcrumb paths.
+   FCUX-031 still needs nested and scaled layouts; its boundary is a slider
+   whose share NVDA, Orca and the macOS AX journey hear (`eebb8832`). FCUX-032
+   still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
+   paths.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and
@@ -145,6 +148,13 @@ increments to `main`.
    used `src\` everywhere (`cda6a365`). Open question for the owner: FileCat
    does not exit on SIGTERM while a dialog is open; the Mac runner now kills
    its own process instead.
+   UXBUG-017, native icons cropped at display scaling above 100%, is fixed
+   (`80598aeb`) and verified in before/after captures on Ubuntu at 200%, the
+   Retina Mac and the Win11 VM at 150% and 200%; the Skia-rendered
+   `FileCat.Rendering.Tests` project now checks icon pixels at 100%–300% in
+   CI. Avalonia 12.1 draws a bitmap's source rectangle in pixels while it
+   measures the bitmap in units; report that upstream with the other Avalonia
+   issues if the owner agrees.
 
 ## Evidence required to finish
 

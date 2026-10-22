@@ -2,6 +2,63 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**22 October 2026, native icons cropped at display scaling above 100%
+(UXBUG-017; FCUX-058 Places and the scaled-display gates):** The owner saw
+only part of each panel header icon on the Ubuntu VM at 200%. Native icons are
+made at the display's pixels, 32 for a 16-unit slot at 200%, and were given a
+resolution that made them 16 units. Avalonia 12.1 measures a bitmap in units
+but draws the source rectangle it is handed in pixels, so the place bar, file
+rows, menus and choice lists drew only each icon's top-left 16 pixels,
+enlarged: a quarter of the icon at 200% and two-thirds at 150%, from the
+Freedesktop, macOS and Windows icon sources alike, and the same for the Shell's
+Quick View thumbnails. The pixels now stay at 96 DPI inside a `ScaledBitmap`
+that reports the size in units and draws the matching pixels (`80598aeb`).
+The new `FileCat.Rendering.Tests` project draws with Skia, as FileCat does on
+every desktop, and reads the pixels back: an icon of four colored quadrants
+framed on two edges must land pixel for pixel in the place bar's 16-unit
+image, a file row's drawn 16-unit rectangle and Quick View's never-enlarged
+picture at 100%, 125%, 150%, 175%, 200%, 250% and 300% (21 cases). The old
+construction failed all six scalings above 100% (768 of 1,024 pixels wrong at
+200%). CI runs the project on Windows x64 and ARM64, Ubuntu and macOS; the 121
+related App cases (icon caches, sources, place bar, Quick View, Shell
+pictures) pass. Git-built `80598aeb` and `eebb8832` were captured in the same
+fixture on each desktop: Ubuntu GNOME at 200% (`FileCat.dll`
+`1aeb4216a1b5c137f78ca9c8dce779f17dda4a6d76a067c6cd60b2d0d4bfa15d`), the
+Mac's built-in Retina display at 2× (`7409bf7706e9dbe5ed477a0a7b86781fdc485ad256180d5cfd7c20e9e154aa20`),
+and the Win11 VM at 150% and 200% (`9AADFFB2272535473374DF1D30D559348A0E4AB3345D3296FBE10E7788A80929`),
+set through the display configuration calls Settings uses, captured with
+PrintWindow and restored to 100% afterwards. Before, the drive, Home,
+Desktop, Documents, server, computer, network and file-type icons showed
+their enlarged top-left part (Windows' D:, Y: and Z: drives were grey
+slivers); after, every icon is complete on all three desktops. A theme's
+tinted icon keeps its scaling, but no built-in theme tints icons, so that path
+has no native check.
+
+**22 October 2026, keyboard panel resizing heard as a slider (FCUX-031):**
+The speech runners now open command search, type "splitter", press Enter,
+then Right and Escape. While the boundary was a thumb whose name carried the
+share, NVDA and Orca read the whole resize strip after every arrow press and
+never the boundary itself. Each boundary is now a read-only slider whose value
+is the first side's share in percent and whose name gives its orientation and
+panels; the strip is no longer a live region and its tooltip keeps the
+percentage (`daec7d64`). Avalonia's AT-SPI bridge raises no value changes, so
+FileCat sends the focused slider's `accessible-value` change to Orca itself
+(`8c15f80d`). Git-built `eebb8832` passed every runner step (NVDA 30/30, Orca
+31/31, macOS 30/30). NVDA 2026.2 heard only "51" for Right and "50" before
+the restored row for Escape (`FileCat.dll`
+`EF50E8C4DA18B1C59D075072530E5EA2D2BDAE98166A627687488B9D268476F0`). Orca
+heard "Vertical panel boundary, first side's share of panels 1 and 2",
+"slider", "50 percent." and the boundary's help, only "51" for Right, and
+"Panel boundary restored." after Escape
+(`2d912c08975f9d07de153f7a982e792fab0f475ca613ba85e74dcaa3bb6db58c`); it reads
+that help twice because Avalonia gives AT-SPI the same text as description and
+help. The macOS AX journey observed focus on the `AXSlider` of that name, one
+`AXValueChanged` with value 51, and focus back on the row
+(`80f0b4050b86bafff67db2d5824e521e76dc66cb97551542e312f6af74516d00`). The
+complete Windows Release App suite on `eebb8832` passed 2,509 tests with 71
+platform skips and no failures. The WinAppDriver `panel-resize-native` runner
+now finds the slider and reads its value but was not rerun.
+
 **22 October 2026, live status text that could never be heard (FCUX-007,
 FCUX-040, FCUX-041, UXBUG-015):** A screen reader speaks a live region's
 accessible name, and twelve live texts had a fixed one that never changed
@@ -1826,7 +1883,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | FCUX-028 — filter draft validation | Invalid mask text and caret stay in the focused field while the applied filter remains. A field-adjacent, bounded validation message is linked through automation HelpText and an assertive live region. Repair clears only that error; Escape, blur, tab switch and navigation discard a draft. All-items masks retain unrelated location and listing warnings. | `FilterDraftValidationTests` covers invalid quote, regex and saved reference, correction, Escape, blur, tab switch, accessibility properties, Registry context and a real working-set banner. Existing `PathLineTests`, working-set, quick-search, operation, rename and 40 Core mask tests pass; the 27-case related App selection and Release build pass. Native screen-reader and scaled-layout acceptance remain open. |
 | FCUX-029 — notification lifetime and review | Publish message, severity, action and repeat count as one state. Info expires after six seconds unless hovered/focused; errors require explicit dismissal. A fixed Copy text/History/Dismiss control row and selectable, height-bounded text support inspection. Equivalent messages within thirty seconds share a count; distinct notices use polite or assertive live regions. Tools and command search open the newest 100 retained groups after dismissal or other commands. | `NotificationCenterTests` covers severity transitions, repeated messages without duplicate live-text changes, stale expiry, focus/hover retention, copy, Escape, action visibility, history, the 100-group bound, and nonempty native live-region names through idle/info/error/dismissal. A signed Mac native conflict and replay journey passed after this fixed a nil-name announcement crash. A 54-case related App selection and full Release build pass with zero warnings. Dialog tests scope their buttons to the overlay so notification controls cannot collide with modal actions. `DescendantFocusAutomationTests` checks every Main window notice, including the first and a repeated one, through the Linux announcement path. Git-built `7da4fc0b` was heard announcing the first and a repeated copy notice by Orca 50.2 (Ubuntu) and NVDA 2026.2 (Win11), and the macOS AX journey observed one `AXAnnouncementRequested` for each. Clipboard and scaled-layout acceptance remain open. |
 | FCUX-030 — measured panel geometry | Add-panel availability, execution, drag previews and cramped feedback use the measured workspace host. Unmeasured startup gives an explicit refusal. A compact address row moves free space and filtering beneath the editable location and target role while retaining full role semantics. The 260 × 240 DIP panel minimum leaves at least two list rows in the tested compact layout. Cramped restoration explains the reversible F11 route, including a one-panel warning. | `PanelViewportLayoutTests` covers measured admission with chrome changes, narrow and restored address geometry, F11 recovery and actual list capacity. `DockingTests` and `PanelLayoutTests` protect drag constraints and tree math. The 16-case affected App selection, six Core layout cases and Release build pass. Native 100%, 150% and 200% scaling, screen-reader and pointer acceptance remain open. |
-| FCUX-031 — keyboard panel resizing | An explicit Panels → Arrange and command-search action focuses the nearest splitter. Arrows adjust eight DIPs, Shift adjusts 32, Tab chooses another boundary, Enter keeps the proportion, and Escape restores only the live layout snapshot. Pointer and keyboard update the same saved split tree under the same minimum sizes. A temporary strip and accessible splitter name show orientation, neighboring panel numbers and percentage; splitters stay out of normal Tab navigation. | Four `PanelKeyboardResizeTests` cover adjustment, cancel, save/reload, nested orientations, both minimums, stale tree/workspace replacement and Commander keys outside resize mode. `CommandSearchTests` checks discovery; `PanelKeysTests` verifies the menu icon. The 35-case focused layout selection and Release build pass with zero warnings. The complete App suite passes 2,155 cases with 62 platform skips. Windows VM `panel-resize-native` passed twice: command search focused the named splitter, Right moved it eight physical pixels and changed its announced share from 50 to 51 percent, then Escape restored its exact rectangle and list focus. | Native spoken screen-reader feedback, nested layouts and scaled-display acceptance remain open. |
+| FCUX-031 — keyboard panel resizing | An explicit Panels → Arrange and command-search action focuses the nearest splitter. Arrows adjust eight DIPs, Shift adjusts 32, Tab chooses another boundary, Enter keeps the proportion, and Escape restores only the live layout snapshot. Pointer and keyboard update the same saved split tree under the same minimum sizes. A temporary strip and accessible splitter name show orientation, neighboring panel numbers and percentage; splitters stay out of normal Tab navigation. | Four `PanelKeyboardResizeTests` cover adjustment, cancel, save/reload, nested orientations, both minimums, stale tree/workspace replacement and Commander keys outside resize mode. `CommandSearchTests` checks discovery; `PanelKeysTests` verifies the menu icon. The 35-case focused layout selection and Release build pass with zero warnings. The complete App suite passes 2,155 cases with 62 platform skips. Windows VM `panel-resize-native` passed twice: command search focused the named splitter, Right moved it eight physical pixels and changed its announced share from 50 to 51 percent, then Escape restored its exact rectangle and list focus. Each boundary is a read-only slider whose value is the first side's share (`daec7d64`); Orca receives its value changes (`8c15f80d`). Git-built `eebb8832` speech runners: NVDA, Orca and the macOS AX journey hear the focused boundary, only the new share (51) for Right, and the restored row after Escape; the full App suite passes 2,509 tests with 71 platform skips. | Nested layouts and scaled-display acceptance remain open; the WinAppDriver `panel-resize-native` runner reads the slider now but was not rerun. |
 | FCUX-032 — keyboard ancestor menu | Alt+Up, Navigate and command search open a single standard menu based on the same provider-derived segments as pointer breadcrumbs. Each ancestor offers Open here, Open in new tab and Copy path with its full safe target in the accessible name. The drawn path names the current location and explains Alt+Up/Ctrl+L. Escape returns to the current listing; stale menu actions refuse changed tabs/locations, and closure never restores an old row coordinate. | `BreadcrumbMenuTests` drives Alt+Up, Right/Enter for all three actions, clipboard publication, Escape, stale-action refusal, listing focus, Ctrl+L and the no-ancestor refusal. Existing `PathLineTests`, command search and menu-icon tests pass in a focused selection and the complete App suite passes. Windows VM `breadcrumb-native` passed twice: Alt+Up focused the full-path ancestor, Right exposed all three full-path actions, and Escape returned focus to the file list. | Native spoken screen-reader interaction and non-filesystem provider paths remain open. |
 | FCUX-033 — bounded breadcrumb presentation | A long root, leaf or one-part path falls back to a root cue, explicit ellipsis and distinguishing leaf tail. Truncation preserves grapheme clusters and complete safe-display escapes. A gap has no hidden navigation target, and visible link geometry uses only contiguous fragments. Full safe path is available in tooltip and accessible name; exact raw Copy remains. | `PathLineElisionTests` covers one/two/many parts at 120/240/480 DIPs, UNC and provider-style roots, suffix identity, emoji/combining marks, escaped bidi/control characters and mapped hit tests. The existing pointer and keyboard breadcrumb tests pass. Core regression passes 4,413 with 150 platform/fixture skips; complete App regression passes 2,155 with 62 skips. Native typography, screen-reader and scaling acceptance remain open. |
 | FCUX-076 — Copy representation and completeness | Separate source text from displayed text, preserve original decoded tabs and logical line endings, and capture explicit selection/visible scope. Show retained selectable evidence for the one-MiB budget, partial/short reads and failures. Serialize owned clipboard publications, reject changed-source evidence and keep cancellation limits truthful. Preserve the report's complete original Copy all route. | `ViewerSourceCopyTests` and source-mapping/geometry cases cover multibyte boundaries, giant-line continuations, control characters, caps, short reads, delayed writes, cancellation, source revisions and explicit scope transitions. Native clipboard interoperability remains open. |
@@ -2102,6 +2159,16 @@ reports and button crops are in the guest validation folder and host test
 output. Display Settings then restored 100% and reported 96 DPI. Other dialog
 families, non-Windows scaled visuals and actual screen-reader speech remain
 open.
+
+## UXBUG-017 — native icons cropped at display scaling above 100%
+
+Reported by the owner on the Ubuntu VM at 200%: the panel header icons showed
+only in part, while 100% looked right. Every native icon drew its enlarged
+top-left part at any scaling above 100% on all three desktops; see the dated
+entry at the top for the cause, the `ScaledBitmap` fix (`80598aeb`), the
+Skia-rendered `FileCat.Rendering.Tests` regression and the before/after
+captures on Ubuntu at 200%, the Retina Mac and the Win11 VM at 150% and 200%.
+Final five-lane CI on the pushed head is the remaining gate.
 
 ## Reproduction
 
