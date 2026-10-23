@@ -51,6 +51,14 @@ paths wrap and that the controls stay inside the dialog, then cancels and
 checks both exact directory trees and file hashes. Optional `--pause-review`
 creates a `.ready` marker before Cancel; create the matching `.resume` file
 after capturing the isolated guest screen.
+`win-ax-sync-endpoints.ps1 -AppPath <isolated FileCat.exe> -ReportPath <guest JSON>
+[-PauseReview]` checks the equivalent Windows review using UI Automation and
+physical Down keys. It reads both full path values and accessible names,
+reverses direction, checks the exact Mirror target, resizes to a 640-pixel
+window and verifies field wrapping, in-bounds choices and unchanged fixture
+trees after Cancel. Run it in the logged-in Win11 VM, with paths below
+`%LOCALAPPDATA%\FileCatValidation`. Optional `-PauseReview` creates `.ready`;
+write the matching `.resume` file after capturing the VM desktop.
 `win-ax-dependent-undo-crash.ps1 -DotnetPath <guest-dotnet.exe>` is a
 Windows-only FCUX-018 check. Build the app and Core crash harness in the same
 guest Git checkout first, then run this script in the interactive desktop. It

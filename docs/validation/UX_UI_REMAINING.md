@@ -60,8 +60,9 @@ increments to `main`.
    Previous/Next and full-path detail route. For FCUX-004, exercise remaining
    modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. For FCUX-005, finish
-   Windows and Mac native scaled sight and spoken inspection of both complete
-   synchronization endpoints and the reversed Mirror target; confirm the
+   Windows higher-DPI and Mac scaled sight checks, and actual NVDA, Orca and
+   VoiceOver speech for both complete synchronization endpoints and the
+   reversed Mirror target; confirm the
    existing overlap, target revision, case collision and recycling gates on
    the final head. Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
