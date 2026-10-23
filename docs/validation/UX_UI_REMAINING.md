@@ -56,8 +56,12 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test the Hex editor controls and bounded match status with
-   scaled and spoken input on Windows and Mac; the Ubuntu normal and 200%
-   desktop runs, including a measured 720 × 500 app-unit window, passed.
+   scaled and spoken input on Windows. The Ubuntu normal and 200% desktop
+   runs, including a measured 720 × 500 app-unit window, passed. On Retina
+   Mac, investigate why a 720 × 500 logical-point Hex editor request clamps
+   near 911 × 648, and why Ctrl+F after resize exposes the Hex status as the
+   focused AX element instead of Find; the visible Find route passed at the
+   clamped size. Finish Mac spoken Find acceptance.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.
@@ -69,9 +73,7 @@ increments to `main`.
    action routes, Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),
    large-listing latency, complete marked-item review and other
-   Mac/Linux item and action routes. Rerun the Mac Hex editor fixture on a
-   signed build containing the stale native row-action guard and verify that
-   refreshing immediately before an AX focus request cannot terminate the app.
+   Mac/Linux item and action routes.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and
