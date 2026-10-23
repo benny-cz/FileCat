@@ -199,6 +199,32 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
                 raise AssertionError(f"Expected one {role} {name!r}, found {len(matches)}")
             return matches[0]
 
+        def open_remote_copy_review():
+            for attempt in range(4):
+                rows = [node for node in nodes() if node["role"] == "AXRow" and
+                        node["name"] == "target.txt"]
+                source_row = min(rows, key=lambda node: node["bounds"][0])
+                receipt["steps"].append(run_command([str(ax_setter), str(executable), str(pid),
+                                                     "target.txt", "leftmost"]))
+                click_node(source_row)
+                if attempt:
+                    click_node(source_row)  # VoiceOver can consume a click to move its cursor.
+                copy_buttons = [node for node in nodes() if node["role"] == "AXButton" and
+                                node["name"] == "Copy…"]
+                if len(copy_buttons) != 1:
+                    raise AssertionError(f"Expected one Copy command, found {len(copy_buttons)}")
+                click_node(copy_buttons[0])
+                destination = wait_for(lambda: next((node["value"] for node in nodes() if
+                                       node["role"] == "AXTextField" and node["name"] == "Destination"), None),
+                                       "Copy review destination")
+                if destination == address:
+                    receipt["steps"].append(f"Copy review opened for exact remote destination on attempt {attempt + 1}")
+                    return
+                click_ax("AXButton", "Cancel")
+                wait_for(lambda: not any(node["role"] == "AXTextField" and node["name"] == "Destination"
+                                         for node in nodes()), "wrong-panel Copy review dismissed")
+            raise AssertionError("Copy review did not capture the exact test-owned remote destination")
+
         wait_for(lambda: len([node for node in nodes() if node["role"] == "AXRow" and
                               node["name"] == "target.txt"]) == 2,
                  "both initialized local fixture listings", seconds=30)
@@ -228,31 +254,7 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
         wait_for(lambda: len([node for node in nodes() if node["role"] == "AXRow" and
                               node["name"] == "target.txt"]) >= 2,
                  "both exact source and remote target rows", seconds=45)
-        for attempt in range(4):
-            rows = [node for node in nodes() if node["role"] == "AXRow" and
-                    node["name"] == "target.txt"]
-            source_row = min(rows, key=lambda node: node["bounds"][0])
-            receipt["steps"].append(run_command([str(ax_setter), str(executable), str(pid),
-                                                 "target.txt", "leftmost"]))
-            click_node(source_row)
-            if attempt:
-                click_node(source_row)  # VoiceOver can consume the first click to move its cursor.
-            copy_buttons = [node for node in nodes() if node["role"] == "AXButton" and
-                            node["name"] == "Copy…"]
-            if len(copy_buttons) != 1:
-                raise AssertionError(f"Expected one Copy command, found {len(copy_buttons)}")
-            click_node(copy_buttons[0])
-            destination = wait_for(lambda: next((node["value"] for node in nodes() if
-                                   node["role"] == "AXTextField" and node["name"] == "Destination"), None),
-                                   "Copy review destination")
-            if destination == address:
-                receipt["steps"].append(f"Copy review opened for exact remote destination on attempt {attempt + 1}")
-                break
-            click_ax("AXButton", "Cancel")
-            wait_for(lambda: not any(node["role"] == "AXTextField" and node["name"] == "Destination"
-                                     for node in nodes()), "wrong-panel Copy review dismissed")
-        else:
-            raise AssertionError("Copy review did not capture the exact test-owned remote destination")
+        open_remote_copy_review()
         review_nodes = nodes()
         receipt["reviewControls"] = [{"role": node["role"], "name": node["name"],
                                       "value": node["value"], "bounds": node["bounds"]}
@@ -304,6 +306,30 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
         click_ax("AXButton", "Cancel")
         wait_for(lambda: not any(node["name"] == "Destination" and node["role"] == "AXTextField"
                                  for node in nodes()), "Copy review dismissed without transfer")
+        receipt["steps"].append("Replace review canceled with both exact files retained")
+
+        open_remote_copy_review()
+        dialog_copies = [node for node in nodes() if node["role"] == "AXButton" and
+                         node["name"] == "Copy" and node["bounds"][2] > 8]
+        if len(dialog_copies) < 2:
+            raise AssertionError("The second Copy review lost its explicit approval action")
+        click_node(max(dialog_copies, key=lambda node: node["bounds"][0]))
+        receipt["steps"].append("Ask policy submitted for existing remote target")
+        decision = wait_for(lambda: next((node for node in nodes() if node["role"] == "AXButton" and
+                            node["name"].startswith("Review decision") and node["bounds"][2] > 8), None),
+                            "background conflict Review decision action", seconds=45)
+        click_node(decision)
+        conflict_warning = wait_for(lambda: next((node for node in nodes() if node["name"] == warning_text and
+                                    node["role"] in ("AXStaticText", "AXTextField")), None),
+                                    "per-item remote replacement warning", seconds=20)
+        receipt["conflictWarningBounds"] = conflict_warning["bounds"]
+        receipt["conflictSpeech"] = wait_for(lambda: (phrase if warning_text in phrase else None)
+                                             if (phrase := voiceover_last()) else None,
+                                             "complete automatically spoken per-item warning", seconds=10)
+        click_ax("AXButton", "Skip")
+        wait_for(lambda: not any(node["role"] == "AXButton" and node["name"] == "Skip"
+                                 for node in nodes()), "per-item Skip decision closure")
+        receipt["steps"].append("Per-item warning spoken and Skip preserved the remote target")
         receipt["passed"] = True
         return receipt
     except Exception as exc:

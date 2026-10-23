@@ -282,7 +282,10 @@ the PID-checked `mac-ax-set-field.swift` helper, and requires the Copy review
 to name the exact remote destination. It chooses Replace and waits for both
 the complete visible final-check warning and VoiceOver's full automatic
 phrase. Cancel must preserve source and remote target hashes and the one-file
-server manifest. The report and disposable fixture stay below
+server manifest. A separate Ask copy must open the background Review decision,
+automatically speak the same complete per-item warning, and preserve the
+exact remote target after Skip. When the approved capture helper is available,
+the runner retains a screenshot of the first warning. The report and disposable fixture stay below
 `~/FileCatValidation`; `--probe` stops after exposing native options and is
 for diagnosing the Mac accessibility tree.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder

@@ -37,8 +37,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Finish scaled replacement-warning reviews on
-   macOS, actual spoken SFTP warnings, and the per-item FTP/FTPS/SFTP conflict
-   warnings with VoiceOver. Supported SFTP
+   macOS and actual spoken SFTP Copy and per-item conflict warnings with
+   VoiceOver. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider cancellation choices. For FCUX-069/070,
