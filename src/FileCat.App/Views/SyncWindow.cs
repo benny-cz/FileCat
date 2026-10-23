@@ -41,7 +41,12 @@ public sealed class SyncWindow : Window
     private readonly ComboBox _mode = new() { MinWidth = 300 };
     private readonly CheckBox _showAll = new() { Content = "Also show items left alone" };
     private readonly CheckBox _permanent = new() { Content = "Delete permanently: the target has no Recycle Bin", IsVisible = false };
-    private readonly TextBlock _warning = new() { Classes = { "warning" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly TextBox _warning = new()
+    {
+        Classes = { "warning" }, IsReadOnly = true, AcceptsReturn = true,
+        TextWrapping = TextWrapping.Wrap, IsVisible = false,
+        MinHeight = 48, MaxHeight = 120,
+    };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBox _sourcePath = EndpointBox();
     private readonly TextBox _targetPath = EndpointBox();
@@ -64,6 +69,8 @@ public sealed class SyncWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_mode, "Mode");
         Avalonia.Automation.AutomationProperties.SetName(_list, "Synchronization steps");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_warning, Avalonia.Automation.AutomationLiveSetting.Polite);
+        ScrollViewer.SetHorizontalScrollBarVisibility(_warning, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        ScrollViewer.SetVerticalScrollBarVisibility(_warning, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         _direction.ItemsSource = new[] { "Left → right", "Right → left" };
         _direction.SelectedIndex = context.RightWritable || !context.LeftWritable ? 0 : 1;
         _mode.ItemsSource = new[] { "Update: copy new and newer items", "Mirror: make the target like the source" };
@@ -110,7 +117,8 @@ public sealed class SyncWindow : Window
         }
         Endpoint(0, "Source", _sourcePath);
         Endpoint(1, "Target", _targetPath);
-        var info = new StackPanel { Margin = new Thickness(8, 0, 8, 6), Spacing = 4, Children = { _warning, _permanent, _summary } };
+        var info = new StackPanel { Margin = new Thickness(8, 0, 8, 6), Spacing = 4,
+            Children = { _warning, _permanent, _summary } };
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8), HorizontalAlignment = HorizontalAlignment.Right,
@@ -244,6 +252,7 @@ public sealed class SyncWindow : Window
         if (!_comparison.Complete) warnings.Add("The comparison did not finish: only what was compared is listed.");
         if (whyNot is not null) warnings.Add(whyNot);
         _warning.Text = string.Join(" ", warnings);
+        Avalonia.Automation.AutomationProperties.SetName(_warning, _warning.Text);
         _warning.IsVisible = warnings.Count > 0;
 
         string plan = SyncPlanner.Describe(RunnableItems());

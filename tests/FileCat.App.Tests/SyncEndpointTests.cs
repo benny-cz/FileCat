@@ -40,9 +40,14 @@ public sealed class SyncEndpointTests
                 sourceBox.SelectAll(); targetBox.SelectAll();
                 Assert.Equal(source.Length, Math.Abs(sourceBox.SelectionEnd - sourceBox.SelectionStart));
                 Assert.Equal(target.Length, Math.Abs(targetBox.SelectionEnd - targetBox.SelectionStart));
-                var warning = Assert.Single(window.GetVisualDescendants().OfType<TextBlock>(),
+                var warning = Assert.Single(window.GetVisualDescendants().OfType<TextBox>(),
                     t => t.Text?.Contains($"Mirror changes the target \"{target}\"", StringComparison.Ordinal) == true);
+                Assert.True(warning.IsReadOnly && warning.Focusable);
+                Assert.Equal(TextWrapping.Wrap, warning.TextWrapping);
                 Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(warning));
+                Assert.Equal(warning.Text, AutomationProperties.GetName(warning));
+                warning.SelectAll();
+                Assert.Equal(warning.Text?.Length, Math.Abs(warning.SelectionEnd - warning.SelectionStart));
                 var direction = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c)?.StartsWith("Synchronization direction:", StringComparison.Ordinal) == true);
                 Assert.Contains(source, AutomationProperties.GetName(direction));
                 Assert.Contains(target, AutomationProperties.GetName(direction));

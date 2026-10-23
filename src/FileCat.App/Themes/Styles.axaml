@@ -352,6 +352,10 @@
   <Style Selector="TextBlock.warning">
     <Setter Property="Foreground" Value="{DynamicResource FcWarning}" />
   </Style>
+  <Style Selector="TextBox.warning">
+    <Setter Property="Foreground" Value="{DynamicResource FcWarning}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcWarning}" />
+  </Style>
   <Style Selector="TextBlock.success">
     <Setter Property="Foreground" Value="{DynamicResource FcSuccess}" />
   </Style>

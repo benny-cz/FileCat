@@ -49,9 +49,10 @@ increments to `main`.
    list with no AX children, beyond the now verified spoken Previous/Next
    mapping route. For FCUX-004, exercise remaining
    modal focus and decision routes after the Mac, Windows and Ubuntu
-   Copy/Delete background accessibility guards passed. For FCUX-005, finish
-   actual VoiceOver speech for both complete synchronization
-   endpoints and the reversed Mirror target. Require the final-head CI gate;
+   Copy/Delete background accessibility guards passed. For FCUX-005, inspect
+   VoiceOver's automatic polite announcement when Mirror changes while its
+   cursor stays on the mode selector; complete endpoint speech and the Tab
+   route into the full-target warning pass. Require the final-head CI gate;
    preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
