@@ -25,6 +25,26 @@ probes the source row if the tab fails again. The intermittent tab route remains
 open for diagnosis; successful SFTP transfer review does not erase that
 reproduction.
 
+The `r6` full review and `r9` short probe also passed on the first click.
+`r7` and `r10` reproduced the failure again with FileCat frontmost and the
+pointer at the source-tab AX center. A subsequent physical source-row click
+also failed to activate the local panel, narrowing the fault to pointer
+delivery across that panel rather than tab button handling. Source and target
+hashes stayed exact. A first Swift accessibility hit probe compiled under
+`swiftc -typecheck` but failed in the Swift interpreter at runtime; the helper
+now builds as an owned native executable with ApplicationServices and runs only
+when the pointer failure recurs. Its first smoke test returned a native
+desktop hit. `r11` then reproduced the pointer failure and the compiled
+native hit test identified the **source tab's static text** at (358,280) and
+the **source list** at the clicked row; neither pointer action activated that
+panel. This rules out a misplaced click or an overlay obscuring those points.
+The `330dfd94` Windows CI lane passed the native cleanup
+regression and Release build, then entered its complete test projects. A
+local App suite attempt with 16 workers and resource-bounded settings aborted
+before test execution when VSTest could not connect to its testhost within
+90 seconds; no product assertion was reached. The complete CI gate remains
+open.
+
 **23 October 2026, Mac marked-review modal focus (FCUX-004/010):** A native
 VoiceOver run exposed a dialog focus regression: invoking Review marked items
 from command search displayed the review while keyboard focus stayed on the

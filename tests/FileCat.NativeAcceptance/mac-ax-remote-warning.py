@@ -275,7 +275,31 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                         except AssertionError:
                             receipt["sourcePointerAttempts"][-1]["activated"] = False
                             if activation == 3:
+                                hit_source = Path(__file__).with_name("mac-ax-hit-test.swift")
+                                hit_helper = fixture / "mac-ax-hit-test"
+                                if hit_source.is_file():
+                                    try:
+                                        run_command(["/usr/bin/swiftc", "-framework", "ApplicationServices",
+                                                     str(hit_source), "-o", str(hit_helper)], seconds=60)
+                                    except Exception as exc:
+                                        receipt["sourceHitCompileError"] = str(exc)
+                                if hit_helper.is_file():
+                                    try:
+                                        x, y, width, height = source_tab["bounds"]
+                                        receipt["sourceTabNativeHit"] = run_command([
+                                            str(hit_helper), str(pid),
+                                            str(x + width / 2), str(y + height / 2)], seconds=30)
+                                    except Exception as exc:
+                                        receipt["sourceTabNativeHitError"] = str(exc)
                                 click_node(source_row)
+                                if hit_helper.is_file():
+                                    try:
+                                        x, y, width, height = source_row["bounds"]
+                                        receipt["sourceRowNativeHit"] = run_command([
+                                            str(hit_helper), str(pid),
+                                            str(x + width / 2), str(y + height / 2)], seconds=30)
+                                    except Exception as exc:
+                                        receipt["sourceRowNativeHitError"] = str(exc)
                                 receipt["sourceRowPointerActivated"] = bool(
                                     next((node for node in nodes() if node["role"] == "AXWindow" and
                                           node["name"].startswith("source — FileCat")), None))

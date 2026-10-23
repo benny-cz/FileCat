@@ -39,9 +39,11 @@ increments to `main`.
    destination content check. In the Mac 1× mode with VoiceOver, investigate intermittent
    pointer activation of the local source immediately after SFTP Connect once;
    exact pointer coordinates and a frontmost FileCat still sometimes leave the
-   remote panel active. The exact source tab's AX action and the complete
-   warning journey pass. The native runner now probes source-row activation
-   after a failed tab route to isolate the pointer event path.
+   remote panel active. A subsequent physical source-row click also fails,
+   even though native hit testing identifies the source tab and source list
+   at the clicked coordinates. Diagnose macOS pointer event delivery or
+   delayed focus restoration. The exact source tab's AX action and the
+   complete warning journey pass.
    Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
