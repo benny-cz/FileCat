@@ -10,6 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'validation/Remove-BootstrapTemporary.ps1')
+. (Join-Path $PSScriptRoot 'validation/Stop-BootstrapCompiler.ps1')
 function InputPin([string]$Path) {
     $File=Get-Item -LiteralPath $Path
     $Stream=[IO.File]::OpenRead($File.FullName);$Hash=[Security.Cryptography.SHA256]::Create()
@@ -130,7 +131,14 @@ $Process = New-Object Diagnostics.Process
 $Process.StartInfo = $Info
 if (-not $Process.Start()) { throw 'Native compiler did not start.' }
 $StdoutTask=$Process.StandardOutput.ReadToEndAsync();$StderrTask=$Process.StandardError.ReadToEndAsync()
-if (-not $Process.WaitForExit(120000)) { $Process.Kill();throw 'Native compiler exceeded its two-minute deadline.' }
+# Hosted Windows runners can spend several minutes initializing the Visual Studio
+# toolchain under concurrent managed builds. Keep a finite deadline and terminate
+# the whole owned compiler tree so a timeout cannot leave locked temporary files.
+if (-not $Process.WaitForExit(300000)) {
+    Stop-BootstrapCompiler -Process $Process
+    $Process.Dispose()
+    throw 'Native compiler exceeded its five-minute deadline.'
+}
 $Stdout=$StdoutTask.GetAwaiter().GetResult();$Stderr=$StderrTask.GetAwaiter().GetResult();$Code=$Process.ExitCode;$Process.Dispose()
 [IO.File]::WriteAllText((Join-Path $IntermediateDirectory 'compiler-stdout.log'),$Stdout)
 [IO.File]::WriteAllText((Join-Path $IntermediateDirectory 'compiler-stderr.log'),$Stderr)

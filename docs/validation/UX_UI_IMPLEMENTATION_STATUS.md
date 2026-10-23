@@ -1,5 +1,30 @@
 # Severity-ordered UX/UI audit implementation
 
+**23 October 2026, CI native bootstrap and Mac SFTP pointer diagnosis:** The
+`3175ff3e` Windows CI lane compiled the managed projects but the Visual Studio
+native bootstrap compiler exceeded its two-minute deadline under runner load.
+The bounded deadline is now five minutes, and timeout terminates the exact
+owned `cmd.exe` compiler tree before temporary-file cleanup. The Windows
+bootstrap cleanup regression now launches and stops an owned process in
+addition to its locked-file and guarded-path checks; it passes under Windows
+PowerShell 5.1. `dotnet build FileCat.slnx -c Release --no-restore -m:1
+-p:UseSharedCompilation=false` passed with no warnings or errors locally.
+The final-head CI result remains open.
+
+The signed Mac 1× SFTP replacement test reproduced the intermittent physical
+source-tab activation gap twice (`mac-remote-warning-sftp-pointer-narrow-1x-
+3175ff3e-r3.json`, `-r4.json`): FileCat was frontmost, the pointer ended at
+the exact source-tab AX center (358,280), and four clicks left the remote panel
+active. Both fixture files and the remote manifest stayed unchanged. A repeated
+run passed on the first source-tab click for both replacement decisions; the
+640 × 480 review exposed and automatically spoke the complete replacement
+warning, Cancel preserved both files, and the per-item Ask warning was spoken
+before Skip preserved the remote target (`-r5.json`). The runner now records
+frontmost process, pointer coordinates and tab bounds on each attempt, and
+probes the source row if the tab fails again. The intermittent tab route remains
+open for diagnosis; successful SFTP transfer review does not erase that
+reproduction.
+
 **23 October 2026, Mac marked-review modal focus (FCUX-004/010):** A native
 VoiceOver run exposed a dialog focus regression: invoking Review marked items
 from command search displayed the review while keyboard focus stayed on the

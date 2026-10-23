@@ -258,15 +258,27 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                     receipt["steps"].append("Local source panel activated through its AX tab action")
                 else:
                     for activation in range(4):
+                        receipt.setdefault("sourcePointerAttempts", []).append({
+                            "tabBounds": source_tab["bounds"],
+                            "frontmostBefore": osa('tell application "System Events" to get name of first process whose frontmost is true'),
+                        })
                         click_node(source_tab)
+                        receipt["sourcePointerAttempts"][-1]["pointerAfter"] = run_command(
+                            ["/opt/homebrew/bin/cliclick", "p"])
                         try:
                             wait_for(lambda: any(node["role"] == "AXWindow" and
                                          node["name"].startswith("source — FileCat") for node in nodes()),
                                      "pointer activation of the exact local source panel", seconds=1)
+                            receipt["sourcePointerAttempts"][-1]["activated"] = True
                             receipt["steps"].append(f"Local source panel activated on tab click {activation + 1}")
                             break
                         except AssertionError:
+                            receipt["sourcePointerAttempts"][-1]["activated"] = False
                             if activation == 3:
+                                click_node(source_row)
+                                receipt["sourceRowPointerActivated"] = bool(
+                                    next((node for node in nodes() if node["role"] == "AXWindow" and
+                                          node["name"].startswith("source — FileCat")), None))
                                 raise AssertionError("The exact local source tab did not activate its panel by pointer")
                 receipt["steps"].append(run_command([str(ax_setter), str(executable), str(pid),
                                                      "target.txt", "leftmost"]))

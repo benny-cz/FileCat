@@ -4,6 +4,7 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'The compiler-file lock regression requires Windows.'
 }
 . (Join-Path $PSScriptRoot 'Remove-BootstrapTemporary.ps1')
+. (Join-Path $PSScriptRoot 'Stop-BootstrapCompiler.ps1')
 
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $parent = [IO.Path]::GetFullPath((Join-Path $repository 'tests/FileCat.NativeAcceptance/obj/bootstrap-cleanup-test'))
@@ -39,7 +40,17 @@ try {
     if (!$rejected -or !(Test-Path -LiteralPath $parent -PathType Container)) {
         throw 'The cleanup guard accepted a directory outside its exact temporary child.'
     }
-    Write-Host 'Native bootstrap cleanup: lock tolerated, later cleanup succeeded, unsafe path rejected.'
+    $owned = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/cmd.exe') -ArgumentList '/d /c ping -n 30 127.0.0.1 >nul' -PassThru -WindowStyle Hidden
+    try {
+        if ($owned.HasExited) { throw 'The owned compiler substitute exited before the timeout test.' }
+        Stop-BootstrapCompiler -Process $owned
+        if (-not $owned.HasExited) { throw 'The timed-out owned compiler substitute survived.' }
+    }
+    finally {
+        if (!$owned.HasExited) { $owned.Kill(); [void]$owned.WaitForExit(10000) }
+        $owned.Dispose()
+    }
+    Write-Host 'Native bootstrap cleanup: lock tolerated, later cleanup succeeded, unsafe path rejected, timed-out process stopped.'
 }
 finally {
     if ($held) { $held.Dispose() }

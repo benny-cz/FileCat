@@ -38,7 +38,10 @@ increments to `main`.
    remaining supported provider failure paths, including races after the final
    destination content check. In the Mac 1× mode with VoiceOver, investigate intermittent
    pointer activation of the local source immediately after SFTP Connect once;
-   the exact source tab's AX action and the complete warning journey pass.
+   exact pointer coordinates and a frontmost FileCat still sometimes leave the
+   remote panel active. The exact source tab's AX action and the complete
+   warning journey pass. The native runner now probes source-row activation
+   after a failed tab route to isolate the pointer event path.
    Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
