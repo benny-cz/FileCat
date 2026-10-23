@@ -100,7 +100,8 @@ public sealed class FileListAutomationTests
         Assert.True(far.IsOffscreen());
         Assert.Contains("hidden", far.GetHelpText());
         Assert.Contains("1 hidden", peer.GetHelpText());
-        Assert.Throws<InvalidOperationException>(far.SetFocus);
+        far.SetFocus(); // a hidden row cannot receive native focus
+        Assert.Equal(80, f.Tab.Listing.FocusedIndex);
         ((ISelectionItemProvider)far).RemoveFromSelection();
         Assert.Equal("item-001", Assert.Single(peer.GetSelection()).GetName());
         Assert.Equal(0, f.Provider.ItemReferencesRequested);
@@ -143,9 +144,12 @@ public sealed class FileListAutomationTests
         Assert.True(old.IsOffscreen());
         Assert.Equal(peer.CachedItemCount, f.List.AutomationOwnerCount);
         Assert.False(((ISelectionItemProvider)old).IsSelected);
-        Assert.Throws<InvalidOperationException>(() => ((ISelectionItemProvider)old).AddToSelection());
-        Assert.Throws<InvalidOperationException>(old.SetFocus);
-        Assert.Throws<InvalidOperationException>(() => ((IInvokeProvider)old).Invoke());
+        int currentFocus = f.Tab.Listing.FocusedIndex;
+        ((ISelectionItemProvider)old).AddToSelection();
+        old.SetFocus();
+        old.BringIntoView();
+        ((IInvokeProvider)old).Invoke();
+        Assert.Equal(currentFocus, f.Tab.Listing.FocusedIndex);
         Assert.Empty(peer.GetSelection());
         Assert.NotEqual(oldId, Row(peer, "a").GetAutomationId());
     }
@@ -162,7 +166,7 @@ public sealed class FileListAutomationTests
         int opened = 0;
         f.List.ActivateRequested += (_, _) => f.List.Tab = second;
         f.List.OpenRequested += (_, _) => opened++;
-        Assert.Throws<InvalidOperationException>(() => ((IInvokeProvider)row).Invoke());
+        ((IInvokeProvider)row).Invoke();
         Assert.Equal(secondFocus, second.Listing.FocusedIndex);
         Assert.Equal(0, opened);
     }
@@ -432,10 +436,11 @@ public sealed class FileListAutomationTests
         Assert.Empty(peer.GetSelection());
         Assert.False(item.IsEnabled());
         Assert.True(item.IsOffscreen());
-        Assert.Throws<InvalidOperationException>(() => ((ISelectionItemProvider)item).RemoveFromSelection());
-        Assert.Throws<InvalidOperationException>(() => ((ISelectionItemProvider)item).Select());
-        Assert.Throws<InvalidOperationException>(() => ((IInvokeProvider)item).Invoke());
-        Assert.Throws<InvalidOperationException>(() => item.SetFocus());
+        ((ISelectionItemProvider)item).RemoveFromSelection();
+        ((ISelectionItemProvider)item).Select();
+        ((IInvokeProvider)item).Invoke();
+        item.SetFocus();
+        item.BringIntoView();
         Assert.Equal(0, opens);
         Assert.Equal(1, f.Tab.Listing.MarkedCount);
         Assert.True(f.Tab.Listing.IsMarked(0));
@@ -516,7 +521,9 @@ public sealed class FileListAutomationTests
         }
         Assert.False(original.IsEnabled());
         Assert.True(original.IsOffscreen());
-        Assert.Throws<InvalidOperationException>(() => ((IInvokeProvider)original).Invoke());
+        ((IInvokeProvider)original).Invoke();
+        original.SetFocus();
+        original.BringIntoView();
         Assert.Equal(0, f.Provider.ItemReferencesRequested);
     }
 

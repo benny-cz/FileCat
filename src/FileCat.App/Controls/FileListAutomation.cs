@@ -356,29 +356,29 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
         }
     }
 
-    private void CheckCurrent()
+    private void TryNativeAction(Action action)
     {
-        if (!Current) throw new InvalidOperationException("This item belongs to a listing that has changed. Review the current items again.");
-        EnsureEnabled();
+        // Native accessibility clients may keep a row handle through a refresh. An
+        // exception crossing Avalonia.Native's callback aborts the macOS process.
+        // Stale or disabled rows therefore have inert actions; their status and
+        // bounds already tell the client to request the current list again.
+        if (!Current || !_list.IsEffectivelyEnabled) return;
+        try { action(); }
+        catch (InvalidOperationException) { } // The listing can change during activation callbacks.
     }
 
-    public void AddToSelection() { CheckSelectable(); _listing.SetStoreMark(_index, true); }
-    public void RemoveFromSelection() { CheckSelectable(); _listing.SetStoreMark(_index, false); }
-    public void Select()
+    private void TrySelectionAction(Action action)
     {
-        CheckSelectable();
-        _listing.SelectStoreMark(_index);
+        if (!Current || _store[_index].Kind == EntryKind.Parent) return;
+        TryNativeAction(action);
     }
 
-    private void CheckSelectable()
-    {
-        CheckCurrent();
-        if (_store[_index].Kind == EntryKind.Parent) throw new InvalidOperationException("Parent navigation is not a selectable item.");
-    }
-
-    public void Invoke() { CheckCurrent(); _list.FocusAutomationItem(Row, invoke: true); }
-    protected override void SetFocusCore() { CheckCurrent(); _list.FocusAutomationItem(Row); }
-    protected override void BringIntoViewCore() { CheckCurrent(); _list.ScrollToRow(Row); }
+    public void AddToSelection() => TrySelectionAction(() => _listing.SetStoreMark(_index, true));
+    public void RemoveFromSelection() => TrySelectionAction(() => _listing.SetStoreMark(_index, false));
+    public void Select() => TrySelectionAction(() => _listing.SelectStoreMark(_index));
+    public void Invoke() => TryNativeAction(() => _list.FocusAutomationItem(Row, invoke: true));
+    protected override void SetFocusCore() => TryNativeAction(() => _list.FocusAutomationItem(Row));
+    protected override void BringIntoViewCore() => TryNativeAction(() => _list.ScrollToRow(Row));
     protected override bool HasKeyboardFocusCore() => Current && _list.IsFocused && _listing.FocusedStoreIndex == _index;
     protected override bool IsKeyboardFocusableCore() => Current && Row >= 0;
     protected override bool IsEnabledCore() => Current && _list.IsEffectivelyEnabled;

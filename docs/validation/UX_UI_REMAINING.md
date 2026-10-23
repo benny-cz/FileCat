@@ -69,7 +69,9 @@ increments to `main`.
    action routes, Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),
    large-listing latency, complete marked-item review and other
-   Mac/Linux item and action routes.
+   Mac/Linux item and action routes. Rerun the Mac Hex editor fixture on a
+   signed build containing the stale native row-action guard and verify that
+   refreshing immediately before an AX focus request cannot terminate the app.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and

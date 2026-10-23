@@ -1538,6 +1538,20 @@ change survives refresh and resize. The focused Release test passed five
 consecutive local Windows runs with 16 build workers. A green final-head CI
 gate remains required.
 
+**23 October 2026, stale Mac accessibility row crash (FCUX-010):** An isolated
+Retina Hex editor run on signed `cc31c682` refreshed its 7 MiB fixture and
+macOS asked an old file-row peer to focus during the update. The native
+callback propagated `InvalidOperationException` from
+`FileListItemAutomationPeer.SetFocusCore`, aborting FileCat. The guest kept
+`MacHexScaled-dfd926b2` and its diagnostic crash log for inspection; no
+transfer occurred. Stale or disabled row patterns now return without acting,
+and focus/invoke callbacks that change their own listing cannot carry an
+expected invalid-operation exception across Avalonia.Native. The existing
+headless tests now assert that stale selection, focus, invoke and scroll
+requests leave current marks, focus and destinations alone. All 19 focused
+`FileListAutomationTests` passed locally with 16 build workers. A signed Mac
+native rerun and final CI remain open.
+
 **21 October 2026 validation:** An isolated Ubuntu Copy with a 65,536 bytes/s
 limit exposed a large-buffer rate defect: each callback waited only once for
 at most one second, even when the copied buffer required a longer allowance.
