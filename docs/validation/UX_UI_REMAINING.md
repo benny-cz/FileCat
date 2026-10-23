@@ -45,10 +45,8 @@ increments to `main`.
    atomically replace, so neither closes the final-check race. Also finish
    native
    recovery choices plus safe review and cleanup of the remote stage after an
-   FTP process crash. For FCUX-018, verify
-   native Windows close/restart ownership during a held inverse after the
-   headless active-close test passed, plus a native canceled inverse with
-   unattempted actions. For FCUX-069/070,
+   FTP process crash. For FCUX-018, finish scaled and spoken Undo review and
+   retained-result checks. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external

@@ -94,6 +94,17 @@ Undo. It requires 40 byte-exact restorations, one retained failed inverse and
 one safely kept changed file. The actual Undo report's Copy all text must
 contain all 42 outcomes and complete fixture paths after row 30. It leaves its
 fixture for inspection and closes only its own FileCat instance.
+`win-ax-undo-active-close.ps1 -AppPath <isolated FileCat.exe> -ReportPath
+<guest-local.json> [-FileCount 5000] [-Action KeepCancelReport|StopExitRestart]`
+checks active Undo ownership in the logged-in Windows VM. The first route
+requests close while a 5,000-file inverse is running, chooses Keep FileCat
+open, cancels that inverse and copies its complete retained report. It requires
+both restored and unattempted actions, one byte-exact copy of every fixture
+file, and full paths beyond report row 30. The second route chooses Stop them
+and exit, waits for FileCat to close after the safe step, requires a settled
+Undo journal and an exact partial file inventory, then reopens the same profile
+and checks every byte again. Each run uses a fresh isolated fixture and closes
+only its owned FileCat process.
 `win-ax-modal-guard.ps1` is a separate Windows UI Automation check that does
 not need Windows Application Driver. Run it in the interactive guest session
 with `-AppPath` pointing to an isolated `FileCat.exe` below the guest's
