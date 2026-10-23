@@ -191,12 +191,21 @@ public static class OperationDialogs
         string? validatedText = null;
         TransferDestinationResolution? resolved = null;
         CancellationTokenSource? destinationCancellation = null;
+        int announcedRemoteChoice = -1;
         void UpdateRemoteReplacementWarning()
         {
             bool visible = (resolved?.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp) &&
                 (conflicts.SelectedIndex is 2 or 3);
             remoteReplacementWarning.IsVisible = visible;
             AutomationProperties.SetHelpText(conflicts, visible ? RemoteReplacementWarning : string.Empty);
+            if (!visible) announcedRemoteChoice = -1;
+            else if (announcedRemoteChoice != conflicts.SelectedIndex)
+            {
+                announcedRemoteChoice = conflicts.SelectedIndex;
+                // The warning has static text. Showing it does not change its accessible name,
+                // so a live region alone stays silent to a screen reader.
+                LiveRegions.Repeat(remoteReplacementWarning);
+            }
         }
         conflicts.SelectionChanged += (_, _) => UpdateRemoteReplacementWarning();
         var destinationDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
@@ -451,11 +460,13 @@ public static class OperationDialogs
             Cell(3, 2, existingAttributes);
         }
         body.Children.Add(grid);
+        TextBlock? remoteReplacementWarning = null;
         if (job.Request.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp)
         {
-            var warning = new TextBlock { Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
-            AutomationProperties.SetAutomationId(warning, "Remote replacement concurrency warning");
-            body.Children.Add(warning);
+            remoteReplacementWarning = new TextBlock { Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
+            AutomationProperties.SetAutomationId(remoteReplacementWarning, "Remote replacement concurrency warning");
+            AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
+            body.Children.Add(remoteReplacementWarning);
         }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
         if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
@@ -532,7 +543,13 @@ public static class OperationDialogs
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
         try
         {
-            var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
+            var pending = vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
+            if (remoteReplacementWarning is { } warning)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (dialogOpen) LiveRegions.Repeat(warning);
+                }, DispatcherPriority.Background);
+            var r = await pending;
             return r is DecisionAction a ? new Decision(a, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
         }
         finally

@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -61,8 +62,16 @@ public sealed class ConflictComparisonLifetimeTests
             if (remote)
             {
                 var warning = Assert.Single(warnings);
+                var spokenWarnings = new List<string>();
+                ControlAutomationPeer.CreatePeerForElement(warning).PropertyChanged += (_, e) =>
+                {
+                    if (e.Property == AutomationElementIdentifiers.NameProperty)
+                        spokenWarnings.Add((string)e.NewValue!);
+                };
+                Dispatcher.UIThread.RunJobs();
                 Assert.True(warning.IsVisible);
                 Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
+                Assert.Equal([OperationDialogs.RemoteReplacementWarning], spokenWarnings);
             }
             else Assert.Empty(warnings);
             window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Skip"))

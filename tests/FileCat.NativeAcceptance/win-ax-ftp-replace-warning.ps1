@@ -5,7 +5,8 @@ param(
     [ValidateSet('ftp', 'ftpes', 'sftp')][string]$Protocol = 'ftp',
     [string]$SftpFixtureId,
     [string]$ExpectedHostFingerprints,
-    [string]$SftpPassword
+    [string]$SftpPassword,
+    [string]$NvdaPath
 )
 
 # Interactive Windows VM only. Use a fresh loopback FTP/FTPS server or an
@@ -28,12 +29,20 @@ public static class FileCatFtpWarningSize {
     [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr handle, uint flags);
     [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint code, uint mapType);
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
     public static uint ForegroundProcessId() {
         uint processId;
         GetWindowThreadProcessId(GetForegroundWindow(), out processId);
         return processId;
+    }
+    public static void PressNavigation(byte vk) {
+        byte scan = (byte)MapVirtualKey(vk, 0);
+        keybd_event(vk, scan, 1u, UIntPtr.Zero);
+        keybd_event(vk, scan, 3u, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(90);
     }
     public static void ClickTitle(IntPtr handle) {
         int screenWidth = GetSystemMetrics(0), screenHeight = GetSystemMetrics(1);
@@ -78,6 +87,19 @@ if ($Protocol -eq 'sftp' -and ($SftpFixtureId -cnotmatch '^[0-9a-f]{32}$' -or
     [string]::IsNullOrEmpty($SftpPassword))) {
     throw 'SFTP requires an exact owned Ubuntu fixture ID, checked host fingerprints and a test credential.'
 }
+$nvda = $null
+if ($NvdaPath) {
+    $nvda = [IO.Path]::GetFullPath($NvdaPath)
+    if (!$nvda.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($nvda) -ine 'nvda.exe' -or
+        !(Test-Path -LiteralPath $nvda -PathType Leaf) -or
+        (Get-AuthenticodeSignature -LiteralPath $nvda).Status -ne 'Valid') {
+        throw 'Use a signed portable NVDA copy below FileCatValidation.'
+    }
+    if (Get-Process -Name nvda -ErrorAction SilentlyContinue) {
+        throw 'Another NVDA instance is running; the warning test must own the speech log.'
+    }
+}
 
 $root = Join-Path $validation ('FtpReplaceReview-' + [guid]::NewGuid().ToString('N'))
 $sourceDir = Join-Path $root 'source'
@@ -96,6 +118,9 @@ $python = (Get-Command python -ErrorAction Stop).Source
 $server = $null
 $process = $null
 $window = $null
+$nvdaProcess = $null
+$speechLog = Join-Path $root 'nvda.log'
+$script:speechOffset = 0L
 $result = [ordered]@{
     Passed = $false; Fixture = $root; AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
     Protocol = $Protocol; SftpFixtureId = $SftpFixtureId;
@@ -103,10 +128,41 @@ $result = [ordered]@{
     HostKeyFingerprintMatched = $false; Dpi = 0; Consent = $false; CertificatePrompt = $false;
     CertificateAcceptedOnce = $false; SignedIn = $false; RemoteListed = $false;
     WarningVisible = $false; WarningText = $null; NarrowBounds = $null;
+    NvdaVersion = $null; WarningSpoken = $null; WarningSpeech = @();
     WarningClearedForKeepBoth = $false; ConflictWarning = $false;
+    ConflictWarningSpoken = $null; ConflictSpeech = @();
     ConflictBounds = $null; ConflictSkipped = $false;
     SourceUnchanged = $false; TargetUnchanged = $(if ($Protocol -eq 'sftp') { $null } else { $false });
     Observed = @(); Error = $null
+}
+
+function TakeSpeech {
+    if (!(Test-Path -LiteralPath $speechLog)) { return @() }
+    $stream = [IO.File]::Open($speechLog, 'Open', 'Read', 'ReadWrite')
+    try {
+        $stream.Seek($script:speechOffset, 'Begin') | Out-Null
+        $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)
+        $text = $reader.ReadToEnd()
+        $last = $text.LastIndexOf("`n")
+        if ($last -lt 0) { return @() }
+        $complete = $text.Substring(0, $last + 1)
+        $script:speechOffset += [Text.Encoding]::UTF8.GetByteCount($complete)
+        return @($complete -split "`r?`n" | Where-Object { $_.StartsWith('Speaking [') } |
+            ForEach-Object { $_.Substring(9).Trim() })
+    } finally { $stream.Dispose() }
+}
+function AwaitWarningSpeech([string]$label) {
+    $heard = @()
+    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    while ($deadline.Elapsed.TotalSeconds -lt 7) {
+        $heard += @(TakeSpeech)
+        $spoken = $heard -join ' '
+        if ($spoken.Contains("after FileCat's final check") -and
+            $spoken.Contains('newer change could be lost') -and
+            $spoken.Contains('Choose Keep both')) { return $heard }
+        Start-Sleep -Milliseconds 150
+    }
+    throw "$label was visible but NVDA did not speak the complete final-check risk. Heard: $($heard -join ' | ')"
 }
 
 function Snapshot($window) {
@@ -162,6 +218,27 @@ function ActivateOwnedApp {
 }
 
 try {
+    if ($nvda) {
+        $nvdaConfig = Join-Path $root 'nvda-config'
+        New-Item -ItemType Directory -Path $nvdaConfig | Out-Null
+        [IO.File]::WriteAllText((Join-Path $nvdaConfig 'nvda.ini'), @"
+[general]
+	showWelcomeDialogAtStartup = False
+[update]
+	autoCheck = False
+	startupNotification = False
+	allowUsageStats = False
+	askedAllowUsageStats = True
+"@)
+        $nvdaProcess = Start-Process -FilePath $nvda -ArgumentList @(
+            "--log-file=$speechLog", '--log-level=12', "--config-path=$nvdaConfig", '--disable-addons') -PassThru
+        Await {
+            if ($nvdaProcess.HasExited) { throw 'Owned NVDA exited during startup.' }
+            (Test-Path -LiteralPath $speechLog) -and
+                (Select-String -LiteralPath $speechLog -Pattern 'NVDA initialized' -SimpleMatch -Quiet)
+        } 'owned NVDA speech logger' 30 | Out-Null
+        $result.NvdaVersion = (Get-Item -LiteralPath $nvda).VersionInfo.ProductVersion
+    }
     if ($Protocol -eq 'sftp') {
         $address = "sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpReplaceReview/$SftpFixtureId/"
     } else {
@@ -257,7 +334,10 @@ try {
         !$_.Current.IsOffscreen
     } | Sort-Object { $_.Current.BoundingRectangle.Y })[0] } 'conflict policy'
     $conflict.SetFocus()
-    (New-Object -ComObject WScript.Shell).SendKeys('{HOME}{DOWN}{DOWN}')
+    if ($nvda) { TakeSpeech | Out-Null }
+    [FileCatFtpWarningSize]::PressNavigation(0x24)
+    [FileCatFtpWarningSize]::PressNavigation(0x28)
+    [FileCatFtpWarningSize]::PressNavigation(0x28)
     $warning = Await { @((Snapshot $window) | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
         $_.Current.Name.StartsWith("Another app can change this remote file", [StringComparison]::Ordinal) -and
@@ -265,6 +345,10 @@ try {
     })[0] } 'visible remote replacement risk'
     $result.WarningVisible = $true
     $result.WarningText = $warning.Current.Name
+    if ($nvda) {
+        $result.WarningSpeech = @(AwaitWarningSpeech 'Copy review warning')
+        $result.WarningSpoken = $true
+    }
     if ($result.WarningText.IndexOf("after FileCat's final check", [StringComparison]::Ordinal) -lt 0 -or
         $result.WarningText.IndexOf('newer change could be lost', [StringComparison]::Ordinal) -lt 0 -or
         $result.WarningText.IndexOf('Choose Keep both', [StringComparison]::Ordinal) -lt 0) {
@@ -291,7 +375,8 @@ try {
         throw 'The narrow remote replacement review clipped its warning or Cancel action.'
     }
     $conflict.SetFocus()
-    (New-Object -ComObject WScript.Shell).SendKeys('{HOME}{DOWN}{DOWN}{DOWN}{DOWN}')
+    [FileCatFtpWarningSize]::PressNavigation(0x24)
+    1..4 | ForEach-Object { [FileCatFtpWarningSize]::PressNavigation(0x28) }
     Await { @((Snapshot $window) | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
         $_.Current.Name.StartsWith("Another app can change this remote file", [StringComparison]::Ordinal) -and
@@ -320,6 +405,10 @@ try {
         !$_.Current.IsOffscreen
     })[0] } 'per-item remote replacement warning' 15
     $result.ConflictWarning = $true
+    if ($nvda) {
+        $result.ConflictSpeech = @(AwaitWarningSpeech 'per-item conflict warning')
+        $result.ConflictWarningSpoken = $true
+    }
     $conflictFrame = $window.Current.BoundingRectangle
     $conflictBounds = $conflictWarning.Current.BoundingRectangle
     $skip = Await { Button $window 'Skip' } 'per-item Skip decision'
@@ -373,6 +462,11 @@ finally {
         if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
     }
     if ($server -and !$server.HasExited) { Stop-Process -Id $server.Id -Force }
+    if ($nvdaProcess -and !$nvdaProcess.HasExited) {
+        Start-Process -FilePath $nvda -ArgumentList @('-q') -Wait | Out-Null
+        if (!$nvdaProcess.WaitForExit(15000)) { $nvdaProcess.Kill() }
+    }
+    if ($nvda) { $result.SpeechLog = $speechLog }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $report -Encoding UTF8
 }
 if (!$result.Passed) { throw $result.Error }

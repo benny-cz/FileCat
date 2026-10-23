@@ -218,7 +218,7 @@ reviewed in FileCat and verifies its closure. Copy and Move use separate fresh
 fixtures; their JSON reports and fixture roots remain for inspection.
 `win-ax-ftp-replace-warning.ps1 -AppPath <isolated FileCat.exe>
 -PythonHelperPath <copied win-ftp-owned-stage.py> -ReportPath <guest-local.json>
-[-Protocol ftp|ftpes|sftp]`
+[-Protocol ftp|ftpes|sftp] [-NvdaPath <signed portable nvda.exe>]`
 checks native FTP, explicit-TLS FTPS and SFTP replacement review without
 replacing the target. For SFTP, supply a fresh owned Ubuntu fixture ID, the
 independently recorded SSH host-key fingerprints and the test credential with
@@ -239,6 +239,11 @@ stay inside the narrow viewport, and chooses Skip. Both hashes and the single
 server target must remain unchanged. The fixture and JSON receipt remain for
 inspection. `test_win_ftp_owned_stage.py` smoke-tests both loopback fixture
 protocols; CI runs it on Windows, Windows ARM64, Ubuntu and macOS.
+With `-NvdaPath`, the runner starts an owned NVDA 2026.2 instance from the
+isolated validation folder and requires its actual speech log to include the
+complete final-check risk and Keep both choice in both the Copy review and
+per-item conflict. It uses extended native navigation keys while NVDA runs,
+stops only its own NVDA process, and retains the log with the fixture.
 For SFTP, seed one target in the Ubuntu VM with
 `python3 linux-sftp-replace-fixture.py seed <fresh-32-hex-id>`, copy the seed
 receipt, and run the Windows harness with `-Protocol sftp`,

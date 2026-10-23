@@ -1,8 +1,10 @@
 using System.Globalization;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
@@ -47,6 +49,13 @@ public sealed class TransferDestinationValidationTests
             window.UpdateLayout();
             var warning = window.GetVisualDescendants().OfType<TextBlock>()
                 .Single(t => AutomationProperties.GetAutomationId(t) == "Remote replacement concurrency warning");
+            var spokenWarnings = new List<string>();
+            var warningPeer = ControlAutomationPeer.CreatePeerForElement(warning);
+            warningPeer.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == AutomationElementIdentifiers.NameProperty)
+                    spokenWarnings.Add((string)e.NewValue!);
+            };
             var conflicts = window.GetVisualDescendants().OfType<ComboBox>()
                 .Single(c => c.ItemsSource?.Cast<object>().Any(item => Equals(item, "Replace if newer")) == true);
             var destination = window.GetVisualDescendants().OfType<TextBox>()
@@ -57,16 +66,24 @@ public sealed class TransferDestinationValidationTests
 
             conflicts.SelectedIndex = 2;
             await Until(() => warning.IsVisible);
+            Dispatcher.UIThread.RunJobs();
             Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
             Assert.Equal(warning.Text, AutomationProperties.GetHelpText(conflicts));
+            Assert.Equal([OperationDialogs.RemoteReplacementWarning], spokenWarnings);
             conflicts.SelectedIndex = 3;
             Assert.True(warning.IsVisible);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, spokenWarnings.Count);
             conflicts.SelectedIndex = 4;
             Assert.False(warning.IsVisible);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, spokenWarnings.Count);
             Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(conflicts)));
 
             conflicts.SelectedIndex = 2;
             Assert.True(warning.IsVisible);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(3, spokenWarnings.Count);
             destination.Text = local + Path.DirectorySeparatorChar;
             await Until(() => !warning.IsVisible);
             Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(conflicts)));
