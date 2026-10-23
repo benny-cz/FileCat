@@ -61,8 +61,11 @@ public sealed class SyncReviewStateTests
             window.Choose(true, SyncMode.Mirror);
             Assert.False(window.Items.Single(i => i.Action == SyncAction.Remove).Include);
             Assert.False(window.Items.Single(i => i.Action == SyncAction.Copy).Include);
-            Assert.Contains("Plan rebuilt", window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(t => t.Text?.Contains("Plan rebuilt", StringComparison.Ordinal) == true).Text);
+            var warning = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => t.Text?.Contains("Plan rebuilt", StringComparison.Ordinal) == true);
+            Assert.True(warning.IsReadOnly);
+            Assert.Contains(Right, warning.Text);
+            Assert.Contains(Right, AutomationProperties.GetName(warning));
 
             window.Choose(false, SyncMode.Mirror);
             Assert.True(window.Items.Single(i => i.Action == SyncAction.Remove).Include);

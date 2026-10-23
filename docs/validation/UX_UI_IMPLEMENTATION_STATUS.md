@@ -162,7 +162,20 @@ remained exact; the separate Ubuntu verifier found the original target SHA-256
 and only `target.txt`. The receipts are
 `win-sftp-warning-8ad02057-focus.json` and
 `SftpReplaceReview/verify-3cf9e6245b60473193491cf5838fcae4.json` in the
-respective VMs. Higher-scale and actual screen-reader acceptance remain open.
+respective VMs. At that stage, higher-scale and actual screen-reader acceptance
+remained open.
+The same Git-built FTP app then passed the native 720 × 540 logical review at
+150% (144 DPI) and 200% (192 DPI); both Copy and per-item conflict warnings
+and their safe actions stayed within the frames. Keep both cleared the Copy
+warning, and Skip preserved exact source and target bytes. The guest receipts
+are `win-ftp-warning-150-8ad02057.json` and
+`win-ftp-warning-200-8ad02057.json`; the VM was restored to its original 100%
+scale. FTPS/SFTP higher-scale and actual spoken warning checks remain open.
+The five-lane CI run for `9de8a57d` exposed one stale App test assertion that
+looked for the warning as a `TextBlock` after it became a selectable `TextBox`.
+`SyncReviewStateTests` now checks the read-only field and complete target
+identity; all six focused Sync review/endpoint cases passed locally with 16
+workers. The final CI gate remains pending on the correction commit.
 
 **23 October 2026, narrow native Undo review and report (FCUX-018):**
 `linux-atspi-undo-narrow.py` passed a real Move and approved Undo in the
