@@ -1212,7 +1212,8 @@ the runner: after search navigation, it compares System Events Ctrl+F with a
 frontmost-app-guarded CGEvent key chord if the synthetic event misses focus.
 `--narrow-voiceover` repeats the visible-control journey while Mac output is
 muted and records VoiceOver's actual phrases for the first, second and
-changed-query match counts. It fails if any count was not spoken.
+changed-query match counts. It allows the first long byte-row phrase to finish
+before requesting the second polite update and fails if any count was not spoken.
 Use `--pointer-probe` on a separate fresh fixture to request the same native
 size, then drag the exact editor's lower-right edge toward a smaller size
 with macOS CGEvent input. It records before/after AX frames, a screenshot and intact bytes,

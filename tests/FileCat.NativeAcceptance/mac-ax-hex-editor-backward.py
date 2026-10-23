@@ -144,8 +144,10 @@ def enter_query(query, visible_controls=False, first=False):
     if visible_controls:
         if first:
             editor_click("AXButton", "Show or hide hex editor Find bar")
-        editor_click("AXTextField", "Find in file")
-        osa(f'''
+        actual = None
+        for attempt in range(3):
+            editor_click("AXTextField", "Find in file")
+            actual = osa(f'''
 tell application "System Events" to tell process "FileCat"
     set frontmost to true
     set findField to value of attribute "AXFocusedUIElement"
@@ -155,14 +157,14 @@ tell application "System Events" to tell process "FileCat"
     keystroke "a" using {{command down}}
     key code 51
     keystroke {json.dumps(query)}
-    if (value of findField as text) is not {json.dumps(query)} then
-        error "Visible Find query input differed: " & (value of findField as text)
-    end if
-    key code 36
-    return "searched"
+    return value of findField as text
 end tell
 ''')
-        return
+            if actual == query:
+                osa('tell application "System Events" to tell process "FileCat" to key code 36')
+                return
+            time.sleep(0.3)
+        raise AssertionError(f"Visible Find query input differed after 3 focused attempts: {actual!r}")
     osa(f'''
 tell application "System Events"
     tell process "FileCat"
@@ -472,7 +474,7 @@ end tell
 
 def spoken_match(fragment):
     heard = []
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         phrase = osa('tell application "VoiceOver" to get content of last phrase')
         if phrase and phrase not in heard:
@@ -619,13 +621,15 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False, spoken=F
         first_count = editor_match_count("1 distinct match visited · total not counted")
         spoken_first = spoken_match("1 distinct match visited") if spoken else None
         if spoken:
-            time.sleep(6)
+            # VoiceOver queues polite count updates behind its complete, spoken byte-row
+            # description. Let the first phrase finish before asking for the next hit.
+            time.sleep(20)
         editor_click("AXButton", "Find next match")
         second = editor_status(f"Found at 0x{SECOND_OFFSET:X}")
         second_count = editor_match_count("2 distinct matches visited · total not counted")
         spoken_second = spoken_match("2 distinct matches visited") if spoken else None
         if spoken:
-            time.sleep(6)
+            time.sleep(12)
         refocused_find = refocus_find_with_ctrl_f() if keyboard_find else None
         layout = editor_find_layout() if narrow else None
         editor_click("AXButton", "Find previous match")
