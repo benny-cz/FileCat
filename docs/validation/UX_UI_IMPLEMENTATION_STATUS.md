@@ -21,6 +21,17 @@ are `win-ftp-copy-crash-review-final.json` and
 `AppData\Local\FileCatValidation`. Other provider failure/cancel paths and
 the non-atomic server-side final-check race remain open.
 
+**23 October 2026, narrow native Undo review and report (FCUX-018):**
+The expanded `win-ax-undo-mixed-report.ps1` passed again on the same isolated
+Git-built `b1042cb6` executable. At 96 DPI it requested a 720 × 540 FileCat
+window and found the complete inverse path wrapped to a 94-pixel text block;
+both Cancel and Run these inverse actions stayed within the window. The
+retained Undo report then accepted a 600 × 460 window, kept Copy all visible,
+and exported all 42 mixed full-path outcomes with 40 restored, one failed and
+one kept. The guest receipt is `win-undo-mixed-narrow.json` under
+`AppData\Local\FileCatValidation`. Higher display scales, other desktops and
+actual screen-reader speech remain open.
+
 **23 October 2026, native active Undo close and restart (FCUX-018):**
 `win-ax-undo-active-close.ps1` passed both interactive Win11 VM routes on the
 isolated Git-built `b1042cb6` FileCat executable (SHA-256

@@ -8,6 +8,14 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class FileCatUndoWindowSize {
+    [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr handle, int x, int y, int width, int height, bool repaint);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr handle);
+}
+'@
 
 $validation = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation'))
 $app = [IO.Path]::GetFullPath($AppPath)
@@ -41,7 +49,8 @@ $lock = $null
 $result = [ordered]@{ Passed = $false; Fixture = $root; App = $app;
     AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
     OutcomeLines = 0; FailurePath = $null; KeptPath = $null;
-    FinalPath = $null; Error = $null }
+    FinalPath = $null; Dpi = 0; NarrowReview = $null; NarrowReport = $null;
+    Error = $null }
 
 function Snapshot($window) {
     for ($retry = 0; $retry -lt 4; $retry++) {
@@ -118,12 +127,44 @@ try {
     $lock = [IO.File]::Open((Join-Path $target $lockedName), [IO.FileMode]::Open,
         [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     [IO.File]::WriteAllText((Join-Path $target $changedName), $changedContent)
+    $handle = [IntPtr]$process.MainWindowHandle
+    $result.Dpi = [FileCatUndoWindowSize]::GetDpiForWindow($handle)
+    $scale = $result.Dpi / 96.0
+    if (![FileCatUndoWindowSize]::MoveWindow($handle, 80, 80,
+            [int][Math]::Round(720 * $scale), [int][Math]::Round(540 * $scale), $true)) {
+        throw 'Could not resize the owned FileCat window for the narrow Undo review.'
+    }
     Foreground $process
     (New-Object -ComObject WScript.Shell).SendKeys('^z')
     Await { TextContains $window '42 recorded inverse actions' -and
         (Button $window 'Run these inverse actions') } 'complete Undo review' | Out-Null
     if (!(TextContains $window (Join-Path $source 'item-41.txt'))) {
         throw 'Undo review omitted the full last affected path.'
+    }
+    $frame = $window.Current.BoundingRectangle
+    $firstAction = @((Snapshot $window) | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+        $_.Current.Name.Contains((Join-Path $source 'item-41.txt')) -and
+        !$_.Current.IsOffscreen
+    })[0]
+    $approval = Button $window 'Run these inverse actions'
+    $cancel = Button $window 'Cancel'
+    if (!$firstAction -or !$approval -or !$cancel) {
+        throw 'The narrow Undo review hid the full first action or its decision controls.'
+    }
+    $actionBounds = $firstAction.Current.BoundingRectangle
+    $approveBounds = $approval.Current.BoundingRectangle
+    $cancelBounds = $cancel.Current.BoundingRectangle
+    $result.NarrowReview = [ordered]@{
+        Frame = "$frame"; Action = "$actionBounds";
+        Approve = "$approveBounds"; Cancel = "$cancelBounds"
+    }
+    if ($frame.Width -gt (730 * $scale) -or
+        $actionBounds.Height -le (30 * $scale) -or
+        $actionBounds.Left -lt $frame.Left -or $actionBounds.Right -gt $frame.Right -or
+        $approveBounds.Right -gt $frame.Right -or $approveBounds.Bottom -gt $frame.Bottom -or
+        $cancelBounds.Left -lt $frame.Left -or $cancelBounds.Bottom -gt $frame.Bottom) {
+        throw 'The narrow Undo review did not wrap its full path or keep the decisions inside the window.'
     }
     ClickButton $window 'Run these inverse actions'
     Await { (ExactFiles $source ($count - 2)) -and (ExactFiles $target 2) } 'mixed inverse result' 90 | Out-Null
@@ -145,6 +186,21 @@ try {
         [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
             $_.Current.ProcessId -eq $process.Id -and $_.Current.Name -like '*Undo report*'
         })[0] } 'retained Undo report window'
+    $reportHandle = [IntPtr]$reportWindow.Current.NativeWindowHandle
+    if (![FileCatUndoWindowSize]::MoveWindow($reportHandle, 100, 100,
+            [int][Math]::Round(600 * $scale), [int][Math]::Round(460 * $scale), $true)) {
+        throw 'Could not resize the owned Undo report window.'
+    }
+    Start-Sleep -Milliseconds 300
+    $reportFrame = $reportWindow.Current.BoundingRectangle
+    $copyButton = Await { Button $reportWindow 'Copy all' } 'narrow report Copy all'
+    $copyBounds = $copyButton.Current.BoundingRectangle
+    $result.NarrowReport = [ordered]@{ Frame = "$reportFrame"; CopyAll = "$copyBounds" }
+    if ($reportFrame.Width -gt (610 * $scale) -or
+        $copyBounds.Left -lt $reportFrame.Left -or $copyBounds.Right -gt $reportFrame.Right -or
+        $copyBounds.Top -lt $reportFrame.Top -or $copyBounds.Bottom -gt $reportFrame.Bottom) {
+        throw 'The narrow Undo report hid Copy all or did not accept the requested size.'
+    }
     ClickButton $reportWindow 'Copy all'
     $copy = Await {
         $value = Get-Clipboard -Raw
