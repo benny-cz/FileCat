@@ -116,6 +116,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             () => vm.Services.Keymap.GetGestureText(CommandIds.Help),
             vm.ShowKeyboardReferenceForSearchAsync);
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
+        OverlayHost.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == Visual.IsVisibleProperty) FitCommandSearch();
+        };
         WorkspaceHost.SizeChanged += (_, _) => UpdateLayoutStrip();
         MainMenu.SizeChanged += (_, _) => FitCommandSearch();
         ApplySavedPlacement();
@@ -907,7 +911,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private void FitCommandSearch()
     {
         double room = MenuRow.Bounds.Width - MainMenu.Bounds.Width - CommandSearchBox.Margin.Left - CommandSearchBox.Margin.Right;
-        bool fits = room >= 120;
+        // Keep the invoking field out of the native accessibility tree while
+        // an in-window modal owns focus; VoiceOver otherwise follows its stale
+        // text-field cursor instead of the dialog's focused item.
+        bool fits = room >= 120 && !OverlayHost.IsVisible;
         if (CommandSearchBox.IsVisible != fits) CommandSearchBox.IsVisible = fits;
         double width = Math.Min(room, 300);
         if (fits && (double.IsNaN(CommandSearchBox.Width) || Math.Abs(CommandSearchBox.Width - width) > 0.5)) CommandSearchBox.Width = width;

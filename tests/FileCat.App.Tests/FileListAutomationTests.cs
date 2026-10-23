@@ -393,6 +393,12 @@ public sealed class FileListAutomationTests
         Assert.Equal(64, review.CurrentItems.Count);
         Assert.Contains("120 marks are hidden", review.Summary);
         Assert.Contains(review.CurrentItems, i => i.Hidden);
+        var spoken = Assert.Single(review.Children.OfType<TextBlock>());
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(spoken));
+        Assert.Contains("Current item: item-000", AutomationProperties.GetName(spoken));
+        var list = Assert.Single(review.Children.OfType<ListBox>());
+        list.SelectedIndex = 1;
+        Assert.Contains("Current item: item-001", AutomationProperties.GetName(spoken));
         var next = review.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Next page"));
         var previous = review.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Previous page"));
         for (int i = 0; i < 2; i++)

@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -54,7 +55,11 @@ internal sealed class MarkedItemsReview : Grid, IDisposable
         AutomationProperties.SetHelpText(_items, "Every item in this review is marked. Next page includes further marks, including those hidden in the file list.");
         _details = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 64 };
         AutomationProperties.SetName(_details, "Full details of the reviewed item");
-        _items.SelectionChanged += (_, _) => _details.Text = (_items.SelectedItem as ReviewItem)?.Details ?? string.Empty;
+        _items.SelectionChanged += (_, _) =>
+        {
+            _details.Text = (_items.SelectedItem as ReviewItem)?.Details ?? string.Empty;
+            UpdateSpokenSummary();
+        };
         _previous = new Button { Content = "Previous page" };
         _next = new Button { Content = "Next page" };
         AutomationProperties.SetName(_previous, "Previous page of marked items");
@@ -90,8 +95,33 @@ internal sealed class MarkedItemsReview : Grid, IDisposable
     {
         if (tab.Listing.IsDisposed) return;
         using var review = new MarkedItemsReview(tab);
-        await dialogs.ShowCustomAsync("Review marked items", review,
+        var completion = dialogs.ShowCustomAsync("Review marked items", review,
             [new DialogButton("Close", true, IsCancel: true)], review.InitialFocus);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (TopLevel.GetTopLevel(review) is not null) LiveRegions.Repeat(review._summary);
+        }, DispatcherPriority.Background);
+        await completion;
+    }
+
+    private void UpdateSpokenSummary()
+    {
+        string summary = _summary.Text ?? string.Empty;
+        if (_items.SelectedItem is not ReviewItem selected)
+        {
+            AutomationProperties.SetName(_summary, "Review marked items. " + summary);
+            return;
+        }
+        // Announce the selected item without flooding speech with an unbounded
+        // provider path. The read-only details field retains the complete path.
+        string label = selected.Label;
+        if (label.Length > 512)
+        {
+            int end = char.IsHighSurrogate(label[511]) ? 511 : 512;
+            label = label[..end] + "…";
+        }
+        AutomationProperties.SetName(_summary,
+            $"Review marked items. {summary} Current item: {label}. Full location and details follow the list.");
     }
 
     private void OnListingChanged(object? sender, ListingChange change)
@@ -151,6 +181,7 @@ internal sealed class MarkedItemsReview : Grid, IDisposable
         _summary.Text = prefix + (shown == 0
             ? "No marked items. Commands use the focused item; it is not marked."
             : $"Marked items {_page * PageSize + 1:N0}–{_page * PageSize + shown:N0} of {stats.Count:N0}. {stats.HiddenByFilter:N0} marks are hidden in the file list.");
+        UpdateSpokenSummary();
     }
 
     public void Dispose() => _listing.Changed -= OnListingChanged;

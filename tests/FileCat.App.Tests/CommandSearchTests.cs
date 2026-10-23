@@ -135,6 +135,44 @@ public sealed class CommandSearchTests
     }
 
     [AvaloniaFact]
+    public async Task Marked_review_from_command_search_releases_the_search_before_the_modal_takes_focus()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == FileCat.Core.Listing.ListingState.Complete, ct);
+            listing.MarkNames(["a.txt"], true);
+            Assert.Equal(1, listing.MarkedCount);
+
+            var search = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search commands");
+            Assert.True(window.FocusCommandSearch());
+            Type(window, "review marked items");
+            Assert.Equal(CommandIds.ReviewMarks, window.CommandSearch.Selected?.Id);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            window.UpdateLayout();
+            var review = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Marked items on this page");
+            await WaitFor(() => window.FocusManager?.GetFocusedElement() is Visual focused &&
+                (ReferenceEquals(focused, review) || review.IsVisualAncestorOf(focused)), ct);
+            Assert.False(search.IsFocused);
+            Assert.False(search.IsVisible);
+            Assert.Equal(string.Empty, search.Text);
+            Assert.Equal(1, listing.MarkedCount);
+
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
+            Assert.True(search.IsVisible);
+            Assert.Equal(1, listing.MarkedCount);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Search_rows_say_why_a_command_is_unavailable_and_F2_changes_its_shortcut()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

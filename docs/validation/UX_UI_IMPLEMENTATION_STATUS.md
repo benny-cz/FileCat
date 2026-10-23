@@ -14,14 +14,37 @@ item was `b.txt, file`, Down did not escape to command search, Escape returned
 to a source-list row, and `b.txt` remained marked with all fixture bytes
 unchanged. A screenshot also shows the complete review and source path. The
 last VoiceOver phrase during the review was the window name rather than the
-marked row; spoken marked-review content and other focus routes still need
-native acceptance. The same candidate passed the existing spoken F3 viewer
+marked row. A follow-up receipt (`mac-voiceover-marked-review-modal-focus-r10.json`)
+captured a second AX focus notification for the review row while VoiceOver's
+navigation cursor still reported the invoking Search commands field. The
+search field also generated repeated focus notifications after the row was
+focused. Spoken marked-review content and other focus routes remained open
+at that stage. The same candidate passed the existing spoken F3 viewer
 open/Escape return journey (`mac-voiceover-list-actions-modal-focus-r1.json`).
 The first complete Windows App Release run found 12 dialog-lifetime failures:
 the initial root focus callback captured a closed dialog's session. The root
 handler now uses an instance method so closed sessions can be collected;
 all 32 affected focus and lifetime cases pass. A complete rerun and the
 final-head CI gate remain open.
+
+The subsequent signed Mac candidate (`FileCat.dll` SHA-256
+`161532070b9d66d02d699a42dec641c0b10db54d96af31b7d6b832a43a840a76`)
+closed the spoken entry gap. Command dispatch clears and leaves the search
+field before opening a modal, and the main window removes that field from the
+visual/accessibility tree while an overlay is open. The marked-items review
+repeats its bounded, polite scope summary once after it attaches, and exposes
+the selected item's short label in the summary's accessible name while its
+full path remains in the details field. On the muted Mac, the native
+`mac-voiceover-list.py --review` runner twice heard VoiceOver speak
+`b.txt, file`; the VoiceOver cursor was inside `Marked items on this page`,
+and AX emitted the one-item scope announcement without later search-field
+focus events. Escape returned to the marked source row with unchanged bytes
+(`mac-voiceover-marked-review-announcement-r1.json` and `-r2.json`). Focused
+Windows search, list automation, dialog and lifetime tests pass 78/78 with
+16 workers; the existing Mac spoken F3 viewer journey passes again on this
+candidate (`mac-voiceover-list-actions-modal-announce-r1.json`). Full App and
+final-head CI remain open; multi-item paging,
+hidden marks and other native item actions still need spoken acceptance.
 
 **23 October 2026, native Mac long-line comparison (FCUX-009):** A signed
 `20df90d0` Mac build opened two files whose changed suffixes followed 2,000

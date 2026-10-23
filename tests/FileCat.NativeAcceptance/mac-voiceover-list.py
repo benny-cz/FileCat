@@ -199,20 +199,49 @@ def run(bundle, report_path, actions=False, review=False):
                     break
             if search_focus.get("value") != "Review marked items":
                 raise AssertionError(f"Command search did not keep the requested review query: {search_focus!r}")
-            time.sleep(.5)
-            osa('tell application "System Events" to key code 36')
-            time.sleep(.8)
-            speech = [last_phrase()]
+            focus_log, focus_stop = fixture / "review-focus.jsonl", fixture / "review-focus.stop"
+            watcher = subprocess.Popen([str(observer), "observe", str(process),
+                                        str(focus_log), str(focus_stop)],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            try:
+                wait_for(lambda: focus_log.exists() and "observing" in focus_log.read_text(), seconds=5)
+                time.sleep(.2)
+                osa('tell application "System Events" to key code 36')
+                time.sleep(.8)
+            finally:
+                focus_stop.touch()
+                watcher.wait(timeout=5)
+            events = [json.loads(line) for line in focus_log.read_text().splitlines()]
+            receipt["reviewFocusEvents"] = [event for event in events
+                                            if event.get("notification") == "AXFocusedUIElementChanged"]
+            receipt["reviewAnnouncements"] = [event for event in events
+                                              if event.get("notification") == "AXAnnouncementRequested"]
+            speech = []
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in speech:
+                    speech.append(phrase)
+                if "b.txt" in phrase:
+                    break
+                time.sleep(.25)
             current = focused()
+            vo_cursor = osa('tell application "VoiceOver" to get text under cursor of vo cursor')
             osa('tell application "System Events" to key code 125')
             time.sleep(.4)
             after_down = focused()
             speech.append(last_phrase())
             receipt["reviewAfterEnterScreenshot"] = screenshot()
             receipt["markedReview"] = {"speech": speech, "focused": current,
+                                       "voiceOverCursor": vo_cursor,
                                        "afterDown": after_down}
             if current.get("role") != "AXRow" or current.get("title") != "b.txt, file":
                 raise AssertionError(f"Marked-item review did not focus the marked row: {current!r}")
+            if not any("b.txt" in phrase for phrase in speech) or "Marked items on this page" not in vo_cursor:
+                raise AssertionError("VoiceOver did not announce and enter the marked-review list")
+            if not any("Marked items 1" in event.get("announcement", "")
+                       for event in receipt["reviewAnnouncements"]):
+                raise AssertionError("The marked-review scope was not announced")
             if after_down.get("title") == "Search commands":
                 raise AssertionError("Marked-item review returned keyboard focus to command search")
             osa('tell application "System Events" to key code 53')

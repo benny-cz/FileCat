@@ -227,6 +227,11 @@ internal sealed class CommandSearchBar
     private void Choose(CommandSearch.Entry entry)
     {
         _popup.IsOpen = false;
+        // Hand keyboard and accessibility focus back to the panel before the
+        // command can open a modal. Otherwise macOS can keep VoiceOver's cursor
+        // on this text field even after the modal has taken keyboard focus.
+        _box.Text = string.Empty;
+        _leave();
         _run(entry.Id);
     }
 
