@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--review]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -43,7 +43,15 @@ def wait_for(check, seconds=20):
     raise AssertionError("The isolated FileCat process did not start")
 
 
-def run(bundle, report_path, actions=False):
+def screenshot():
+    root = Path.home() / "FileCatValidation"
+    before = set(root.glob("native-screen-*.png"))
+    subprocess.run(["/usr/bin/open", "-a", str(root / "FileCatCapture.app")],
+                   capture_output=True, check=True, timeout=15)
+    return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
+
+
+def run(bundle, report_path, actions=False, review=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -166,6 +174,61 @@ def run(bundle, report_path, actions=False):
                 raise AssertionError("Closing the viewer did not restore the unmarked source-row focus")
             if not any("b.txt" in phrase for phrase in heard_return):
                 raise AssertionError("VoiceOver did not speak the restored source-row focus")
+        if review:
+            osa('tell application "System Events" to key code 49')
+            time.sleep(.4)
+            osa('tell application "System Events" to key code 126')
+            if focused().get("title") != "b.txt":
+                raise AssertionError("Review setup did not retain the marked source row")
+            search_focus = {}
+            for attempt in range(3):
+                osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+                osa('tell application "System Events" to key code 35 using {control down, shift down}')
+                try:
+                    wait_for(lambda: focused().get("title") == "Search commands", seconds=3)
+                except AssertionError:
+                    continue
+                time.sleep(.5)  # Let macOS release the synthesized shortcut modifiers.
+                setter = subprocess.run(["/opt/homebrew/bin/cliclick", "t:Review marked items"],
+                                        capture_output=True, text=True, timeout=10)
+                if setter.returncode:
+                    raise AssertionError(setter.stderr.strip() or "Could not type command search query")
+                search_focus = focused()
+                if search_focus.get("value") == "Review marked items":
+                    receipt["reviewSearchAttempts"] = attempt + 1
+                    break
+            if search_focus.get("value") != "Review marked items":
+                raise AssertionError(f"Command search did not keep the requested review query: {search_focus!r}")
+            time.sleep(.5)
+            osa('tell application "System Events" to key code 36')
+            time.sleep(.8)
+            speech = [last_phrase()]
+            current = focused()
+            osa('tell application "System Events" to key code 125')
+            time.sleep(.4)
+            after_down = focused()
+            speech.append(last_phrase())
+            receipt["reviewAfterEnterScreenshot"] = screenshot()
+            receipt["markedReview"] = {"speech": speech, "focused": current,
+                                       "afterDown": after_down}
+            if current.get("role") != "AXRow" or current.get("title") != "b.txt, file":
+                raise AssertionError(f"Marked-item review did not focus the marked row: {current!r}")
+            if after_down.get("title") == "Search commands":
+                raise AssertionError("Marked-item review returned keyboard focus to command search")
+            osa('tell application "System Events" to key code 53')
+            time.sleep(.4)
+            returned = focused()
+            receipt["markedReview"]["returnedFocus"] = returned
+            if returned.get("role") != "AXRow" or returned.get("title") not in expected:
+                raise AssertionError(f"Closing marked-item review did not restore the source list: {returned!r}")
+            if returned.get("title") != "b.txt":
+                key = 125 if returned.get("title") == "a.txt" else 126
+                osa(f'tell application "System Events" to key code {key}')
+                time.sleep(.4)
+            still_marked = focused()
+            receipt["markedReview"]["markedAfterClose"] = still_marked
+            if still_marked.get("title") != "b.txt" or ", marked," not in still_marked.get("help", ""):
+                raise AssertionError(f"The reviewed mark changed while the dialog was open: {still_marked!r}")
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the fixture inventory")
         if any(hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
@@ -187,6 +250,7 @@ def run(bundle, report_path, actions=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--actions"):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--review")):
         raise SystemExit(__doc__)
-    run(Path(sys.argv[1]), Path(sys.argv[2]), actions=len(sys.argv) == 4)
+    mode = sys.argv[3] if len(sys.argv) == 4 else ""
+    run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions", review=mode == "--review")

@@ -80,6 +80,21 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             _escapeRoot = root;
             root.AddHandler(InputElement.KeyDownEvent, OnRootKeyDown, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            root.AddHandler(InputElement.GotFocusEvent, (_, e) =>
+            {
+                if (_sessions.Count == 0 || e.Source is not Visual source) return;
+                var currentSession = _sessions[^1];
+                if (currentSession.Layer.IsVisualAncestorOf(source)) return;
+                long focusRevision = _focusRevision;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (focusRevision != _focusRevision || !IsCurrent(currentSession)) return;
+                    var focused = root.FocusManager?.GetFocusedElement();
+                    if (focused is Visual visual && currentSession.Layer.IsVisualAncestorOf(visual)) return;
+                    var target = CanFocus(currentSession.InitialFocus) ? currentSession.InitialFocus : currentSession.Layer.Child;
+                    if (CanFocus(target)) Controls.ListKeys.Focus(target!);
+                }, DispatcherPriority.Input);
+            }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
         }
         card.HorizontalAlignment = HorizontalAlignment.Center;
         card.Focusable = true;
@@ -158,8 +173,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             if (revision != _focusRevision || !IsCurrent(session)) return;
             var current = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement();
-            // A deliberate focus change before this callback wins over the originally queued initial focus.
-            if (current is not null && !ReferenceEquals(current, session.PreviousFocus)) return;
+            // Preserve a choice inside the dialog; focus left behind on the invoking
+            // command field or panel must not continue to own a visible modal.
+            if (current is Visual visual && session.Layer.IsVisualAncestorOf(visual)) return;
             var target = CanFocus(session.InitialFocus) ? session.InitialFocus : card;
             if (CanFocus(target)) Controls.ListKeys.Focus(target);
         }, DispatcherPriority.Input);

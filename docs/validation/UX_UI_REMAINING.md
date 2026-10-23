@@ -50,7 +50,8 @@ increments to `main`.
    list with no AX children, beyond the now verified spoken Previous/Next
    mapping route. For FCUX-004, exercise remaining
    modal focus and decision routes after the Mac, Windows and Ubuntu
-   Copy/Delete background accessibility guards passed. Require the final-head
+   Copy/Delete background accessibility guards and the Mac command-search to
+   marked-review focus route passed. Require the final-head
    CI gate; preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
@@ -65,7 +66,8 @@ increments to `main`.
    behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions
-   and marked-item review, Orca's repeated row description as a tutorial
+   and actual speech of marked-review content (its AX row focus and mark
+   preservation pass), Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),
    large-listing latency, complete marked-item review and other
    Mac/Linux item and action routes.

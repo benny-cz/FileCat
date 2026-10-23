@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+**23 October 2026, Mac marked-review modal focus (FCUX-004/010):** A native
+VoiceOver run exposed a dialog focus regression: invoking Review marked items
+from command search displayed the review while keyboard focus stayed on the
+search field behind it. `OverlayDialogService` now moves initial focus into
+the current modal even when the invoking field retained focus, and redirects
+later outside focus back into that modal. `DialogFocusOwnershipTests` covers
+both timings. The isolated ad-hoc-signed Mac candidate (`FileCat.dll` SHA-256
+`633871648fff92922bc7894615bf2441297604403ff68a113aedf0b1f1ccc8c2`)
+passed `mac-voiceover-list.py --review` with muted VoiceOver
+(`mac-voiceover-marked-review-modal-focus-r8.json`): the accessible focused
+item was `b.txt, file`, Down did not escape to command search, Escape returned
+to a source-list row, and `b.txt` remained marked with all fixture bytes
+unchanged. A screenshot also shows the complete review and source path. The
+last VoiceOver phrase during the review was the window name rather than the
+marked row; spoken marked-review content and other focus routes still need
+native acceptance. The same candidate passed the existing spoken F3 viewer
+open/Escape return journey (`mac-voiceover-list-actions-modal-focus-r1.json`).
+The complete Windows App Release suite is running for
+this candidate; the final-head CI gate remains open.
+
 **23 October 2026, native Mac long-line comparison (FCUX-009):** A signed
 `20df90d0` Mac build opened two files whose changed suffixes followed 2,000
 shared characters. `mac-ax-compare-long-lines.py` used native Ctrl+I and F8,

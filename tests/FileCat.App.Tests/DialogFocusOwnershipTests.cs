@@ -197,6 +197,36 @@ public sealed class DialogFocusOwnershipTests
         finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
     }
 
+    [AvaloniaFact]
+    public void Modal_reclaims_focus_left_on_invoking_command_field_before_and_after_initial_dispatch()
+    {
+        var (window, host, _, dialogs) = Open();
+        try
+        {
+            var search = new TextBox { Text = "Review marked items" };
+            Assert.IsType<Grid>(window.Content).Children.Insert(0, search);
+            search.Focus();
+            var inside = new Button { Content = "Review item" };
+            _ = dialogs.ShowCustomAsync("Review marked items", inside,
+                [new DialogButton("Close", true, IsCancel: true)], inside);
+
+            // A popup or accessibility bridge can report focus on the command
+            // field again while the modal's initial-focus dispatch is queued.
+            search.Focus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(inside.IsFocused);
+            Assert.False(search.IsFocused);
+
+            // A later background focus event must not strand keyboard input
+            // behind the modal either.
+            search.Focus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(inside.IsFocused);
+            Assert.False(search.IsFocused);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(true)]
     [InlineData(false)]
