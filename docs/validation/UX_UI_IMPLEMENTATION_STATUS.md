@@ -1552,6 +1552,10 @@ requests leave current marks, focus and destinations alone. All 19 focused
 `FileListAutomationTests` passed locally with 16 build workers. The signed
 Mac native rerun on exact Git build `6ff4164d` passed without another crash;
 final CI remains open.
+The `6ff4164d` Ubuntu CI lane found one older AT-SPI parent-row test that
+expected native selection callbacks to throw. The test now asserts the safer
+contract: all three parent selection actions return without changing marks
+or focus. A rerun of that Linux case and final CI are pending.
 
 **23 October 2026, Retina Hex Find after the crash fix (FCUX-007):** The
 signed `6ff4164d` app (DLL SHA-256

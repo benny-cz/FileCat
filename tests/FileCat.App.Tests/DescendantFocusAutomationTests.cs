@@ -110,10 +110,13 @@ public sealed class DescendantFocusAutomationTests
             // AT-SPI exposes only selection items as a selection container's children.
             Assert.NotNull(selection);
             Assert.False(selection.IsSelected);
-            Assert.Throws<InvalidOperationException>(selection.Select);
-            Assert.Throws<InvalidOperationException>(selection.AddToSelection);
-            Assert.Throws<InvalidOperationException>(selection.RemoveFromSelection);
+            // Native AT-SPI callbacks cannot propagate an exception to reject
+            // an unavailable selection action without terminating the app.
+            selection.Select();
+            selection.AddToSelection();
+            selection.RemoveFromSelection();
             Assert.Equal(0, f.Tab.Listing.MarkedCount);
+            Assert.Same(parent, Root(f.Window).GetFocus());
         }
         else Assert.Null(selection);
         Assert.Contains(ListPeer(f.List).GetChildren(), child => ReferenceEquals(child, parent));
