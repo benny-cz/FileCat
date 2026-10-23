@@ -62,8 +62,8 @@ increments to `main`.
    results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and Ubuntu clipboard
-   behavior. For FCUX-009, finish long-line Linux acceptance, native wrap
-   alignment, font fallback, pointer navigation and spoken automation on the
+   behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
+   font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's remaining item and
    action routes, Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),

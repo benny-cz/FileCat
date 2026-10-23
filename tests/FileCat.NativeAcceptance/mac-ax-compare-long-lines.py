@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise long-line comparison, next difference, and source-faithful Copy on Mac.
 
-Usage: python3 mac-ax-compare-long-lines.py BUNDLE.app REPORT.json [--narrow]
+Usage: python3 mac-ax-compare-long-lines.py BUNDLE.app REPORT.json [--narrow|--narrow-wrap]
 Run in the unlocked isolated Mac desktop with the matching signed Git build.
 """
 
@@ -83,7 +83,7 @@ def screenshot():
                      "approved Mac screenshot", 10))
 
 
-def run(bundle, report, narrow=False):
+def run(bundle, report, narrow=False, wrap=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents/MacOS/FileCat"
@@ -153,6 +153,9 @@ def run(bundle, report, narrow=False):
             if not 620 <= width <= 660 or not 580 <= height <= 620:
                 raise AssertionError(f"Narrow comparison size was not applied: {frame!r}")
             receipt["requestedCompareSize"] = [width, height]
+        if wrap:
+            compare_click(190, 76)  # Wrap long lines in the narrow toolbar.
+            receipt["wrapRequested"] = True
         time.sleep(.5)
         receipt["firstDifferenceScreenshot"] = screenshot()
         set_clipboard(b"FileCat compare first-line sentinel")
@@ -189,11 +192,12 @@ def run(bundle, report, narrow=False):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--narrow"):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--narrow-wrap")):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
-        result = run(Path(sys.argv[1]), report, narrow=len(sys.argv) == 4)
+        mode = sys.argv[3] if len(sys.argv) == 4 else ""
+        result = run(Path(sys.argv[1]), report, narrow=bool(mode), wrap=mode == "--narrow-wrap")
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

@@ -724,6 +724,9 @@ spans, verifies that Copy line returns each complete source line and navigation
 does not replace the clipboard, then checks source hashes and restores the
 prior clipboard. Add `--narrow` to repeat in a measured 640 × 600 comparison
 window; the toolbar reflows while both changed suffixes remain visible.
+Use `--narrow-wrap` to switch on Wrap long lines in that same 640 × 600
+window. F8 must reveal the second suffix in both aligned source panes, and
+Copy line must still return the complete source line.
 For FCUX-003, start from a fresh `seed-clipboard` fixture and launch the
 Git-built app with the reported paths. `rename-native <report.json>` marks
 both files, filters `a.txt` out, verifies the default one-file preview, and
