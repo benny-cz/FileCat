@@ -8,6 +8,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using System.Reflection;
 using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
@@ -22,6 +23,20 @@ namespace FileCat.App.Tests;
 /// <summary>FCUX-010: peer patterns, dynamic identities, complete paged marks and real keyboard invocation.</summary>
 public sealed class FileListAutomationTests
 {
+    [AvaloniaFact]
+    public async Task Native_selection_provider_does_not_make_voiceover_navigation_mark_files()
+    {
+        using var f = new FileListFixture("a", "b");
+        await f.Load();
+        var row = Row(Peer(f.List), "a");
+        var method = typeof(FileListItemAutomationPeer).GetMethod("GetProviderCore",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var native = method.Invoke(row, [typeof(ISelectionItemProvider)]);
+        Assert.Equal(!OperatingSystem.IsMacOS(), native is not null);
+        Assert.Contains("not marked", row.GetHelpText());
+    }
+
     [AvaloniaFact]
     public async Task Container_identity_is_stable_while_focus_and_marks_have_separate_semantics()
     {

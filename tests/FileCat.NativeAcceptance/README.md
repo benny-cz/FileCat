@@ -1086,6 +1086,12 @@ VoiceOver's own speech can be read through its AppleScript `content of last
 phrase` property after the owner-approved VoiceOver Utility and SSH helper
 permissions. Keep Mac output muted during spoken acceptance. The narrow Undo
 runner asserts VoiceOver's complete review and retained-report path phrases.
+`python3 mac-voiceover-list.py BUNDLE.app REPORT.json` checks actual VoiceOver
+speech of four file-row moves without a long-lived AX observer, which can
+block VoiceOver's AppleScript readout. Keep `mac-ax-focus-observer.swift` beside
+it: one-shot focused-element probes verify each row and that ordinary movement
+does not mark it. Space then deliberately marks and clears one row. The runner
+requires an isolated signed bundle and exact unchanged fixture bytes.
 
 `python3 mac-visual-dialog-pointer-dismiss.py BUNDLE.app REPORT.json` runs
 against a newly signed Git-built FileCat bundle under `~/FileCatValidation` on

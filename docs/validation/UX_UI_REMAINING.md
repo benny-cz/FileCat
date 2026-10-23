@@ -71,13 +71,10 @@ increments to `main`.
    scaled display and other narrow-layout states, and
    clipboard behavior on other supported desktops. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
-   supported desktops. For FCUX-010, Git-built `7da4fc0b` passed actual Orca
-   and NVDA speech and the macOS AX journey (row moves, panels, a dialog whose
-   group name NVDA now voices on entry, window switches, and the first and a
-   repeated copy notice). Remaining: VoiceOver's own speech (owner
-   prerequisite above), Orca repeating a row description as its tutorial
+   supported desktops. For FCUX-010, verify VoiceOver's remaining item and
+   action routes, Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),
-   large-listing latency, complete marked-item review and the remaining
+   large-listing latency, complete marked-item review and other
    Mac/Linux item and action routes.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy

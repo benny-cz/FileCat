@@ -390,10 +390,14 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
     protected override string GetNameCore() => _name;
     protected override string GetItemTypeCore() => _kind;
     protected override string GetItemStatusCore() => Status;
-    // AT-SPI lists only selection items as the children of a selection container, so on Linux the parent row
-    // keeps the provider (never selected, and marking it is refused) to remain reachable and announceable.
+    // VoiceOver invokes AXSelect on a list item while moving its cursor. Exposing SelectionItem there
+    // would turn ordinary arrow navigation into a mark change, then speak the list's mark summary
+    // instead of the focused filename. The row still exposes its mark state in ItemStatus and HelpText;
+    // explicit keyboard/command marking remains available. AT-SPI lists only selection items as the
+    // children of a selection container, so Linux keeps the never-selected parent provider too.
     protected override object? GetProviderCore(Type providerType) =>
-        providerType == typeof(ISelectionItemProvider) && _kind == "parent navigation" && !OperatingSystem.IsLinux()
+        providerType == typeof(ISelectionItemProvider) &&
+            (OperatingSystem.IsMacOS() || (_kind == "parent navigation" && !OperatingSystem.IsLinux()))
             ? null : base.GetProviderCore(providerType);
     protected override string GetHelpTextCore() => Current ? _list.DescribeItem(_index, includeName: false) : "This item belongs to a previous listing and cannot be acted on.";
     protected override AutomationPeer GetParentCore() => _parent;
