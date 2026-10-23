@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import runpy
+import subprocess
 import sys
 import time
 
@@ -105,13 +106,19 @@ def ensure_source_panel():
 tell application "System Events"
     tell process "FileCat"
         set frontmost to true
-        return name of window 1 as text
+        repeat with w in windows
+            if (name of w as text) contains "FileCat" then return name of w as text
+        end repeat
+        error "No named FileCat window"
     end tell
 end tell
 ''')
     if title.startswith("source — FileCat"):
         return
-    find_click("AXRow", "source")
+    try:
+        find_click("AXRow", "source")
+    except AssertionError as exc:
+        raise AssertionError(f"Cannot reopen isolated source from {title!r}: {exc}") from exc
     osa('''
 tell application "System Events"
     tell process "FileCat"
@@ -122,7 +129,12 @@ end tell
 ''')
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        if osa('tell application "System Events" to tell process "FileCat" to get name of window 1 as text').startswith("source — FileCat"):
+        if osa('''tell application "System Events" to tell process "FileCat"
+    repeat with w in windows
+        if (name of w as text) starts with "source — FileCat" then return "yes"
+    end repeat
+    return "no"
+end tell''') == "yes":
             return
         time.sleep(0.2)
     raise AssertionError("The isolated source panel did not reopen")
@@ -136,9 +148,16 @@ def enter_query(query, visible_controls=False, first=False):
         osa(f'''
 tell application "System Events" to tell process "FileCat"
     set frontmost to true
+    set findField to value of attribute "AXFocusedUIElement"
+    if (role of findField as text) is not "AXTextField" or (name of findField as text) is not "Find in file" then
+        error "Visible Find click did not focus the query; actual " & (role of findField as text) & " / " & (name of findField as text)
+    end if
     keystroke "a" using {{command down}}
     key code 51
     keystroke {json.dumps(query)}
+    if (value of findField as text) is not {json.dumps(query)} then
+        error "Visible Find query input differed: " & (value of findField as text)
+    end if
     key code 36
     return "searched"
 end tell
@@ -290,9 +309,65 @@ end tell
 error "Owned Hex editor absent during resize"
 ''')
     size = [int(part) for part in actual.split("|")]
-    if len(size) != 2 or not (width - 2 <= size[0] < 1040 and height - 2 <= size[1] < 720):
-        raise AssertionError(f"Mac Hex editor did not shrink toward {width}x{height}: {actual!r}")
+    if len(size) != 2 or not (620 <= size[0] <= 1200 and 360 <= size[1] <= 850):
+        raise AssertionError(f"Mac Hex editor returned an implausible native frame: {actual!r}")
     return size
+
+
+def editor_frame():
+    raw = osa(f'''
+tell application "System Events" to tell process "FileCat"
+    repeat with w in windows
+        if (name of w as text) contains "{FIXTURE_NAME} — FileCat Hex Editor" then
+            set p to position of w
+            set s to size of w
+            return (item 1 of p as text) & "|" & (item 2 of p as text) & "|" & ¬
+                (item 1 of s as text) & "|" & (item 2 of s as text)
+        end if
+    end repeat
+end tell
+error "Owned Hex editor absent during frame inspection"
+''')
+    frame = [int(value) for value in raw.split("|")]
+    if len(frame) != 4 or frame[2] < 620 or frame[3] < 360:
+        raise AssertionError(f"Invalid native Hex editor frame: {raw!r}")
+    return frame
+
+
+def pointer_resize(target_width, target_height, screenshot=False):
+    before = editor_frame()
+    screenshot_path = None
+    if screenshot:
+        capture_dir = Path.home() / "FileCatValidation"
+        capture_app = capture_dir / "FileCatCapture.app"
+        captures = set(capture_dir.glob("native-screen-*.png"))
+        shot = subprocess.run(["/usr/bin/open", "-a", str(capture_app)],
+                              capture_output=True, text=True, timeout=30)
+        if shot.returncode:
+            raise AssertionError(shot.stderr.strip() or "Approved Mac capture failed")
+        for _ in range(50):
+            added = sorted(set(capture_dir.glob("native-screen-*.png")) - captures,
+                           key=lambda path: path.stat().st_mtime_ns)
+            if added:
+                screenshot_path = str(added[-1])
+                break
+            time.sleep(0.2)
+        if screenshot_path is None:
+            raise AssertionError("Approved Mac capture produced no image")
+    x, y, width, height = before
+    start = (x + width - 1, y + height - 1)
+    target = (start[0] - max(0, width - target_width),
+              start[1] - max(0, height - target_height))
+    done = subprocess.run(["/opt/homebrew/bin/cliclick", "-r", "-e", "4", "-w", "100",
+                           f"dd:{start[0]},{start[1]}", f"dm:{target[0]},{target[1]}",
+                           f"du:{target[0]},{target[1]}"], capture_output=True,
+                          text=True, timeout=15)
+    if done.returncode:
+        raise AssertionError(done.stderr.strip() or "Native Hex editor pointer drag failed")
+    time.sleep(0.5)
+    after = editor_frame()
+    return {"before": before, "after": after, "screenshot": screenshot_path, "dragStart": start,
+            "dragEnd": target, "shrunk": after[2] < width - 40 and after[3] < height - 40}
 
 
 def editor_find_layout():
@@ -429,7 +504,7 @@ end tell
         raise AssertionError("The owned hex editor remained open after close")
 
 
-def run(source, narrow=False):
+def run(source, narrow=False, pointer_probe=False):
     source = source.resolve(strict=True)
     if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
         raise AssertionError("The isolated two-file source fixture is not exact")
@@ -444,9 +519,40 @@ def run(source, narrow=False):
     try:
         ensure_source_panel()
         find_click("AXButton", "Reread")
-        find_click("AXRow", FIXTURE_NAME)
+        deadline = time.monotonic() + 12
+        while True:
+            try:
+                find_click("AXRow", FIXTURE_NAME)
+                break
+            except AssertionError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.25)
         open_editor()
         window_size = editor_size(720, 500) if narrow else None
+        if pointer_probe:
+            pointer = pointer_resize(620, 380, screenshot=True)
+            close_editor()
+            source_intact = hashlib.sha256(fixture.read_bytes()).digest() == digest
+            return {"passed": pointer["shrunk"] and source_intact and not editor_open(),
+                    "platform": "macOS", "mode": "Hex editor pointer resize",
+                    "requestedWindowSize": [720, 500], "axWindowSize": window_size,
+                    "pointer": pointer, "sourceBytesUnchanged": source_intact,
+                    "editorClosed": not editor_open()}
+        native_drags = []
+        for _ in range(3 if narrow else 0):
+            if window_size[0] <= 724 and window_size[1] <= 504:
+                break
+            drag = pointer_resize(720, 500)
+            native_drags.append(drag)
+            next_size = drag["after"][2:]
+            if next_size == window_size:
+                break
+            window_size = next_size
+        if narrow and (window_size[0] > 724 or window_size[1] > 504):
+            raise AssertionError(f"Mac Hex editor could not fit 720x500: {window_size!r}")
+        if native_drags:
+            time.sleep(0.3)
         enter_query("NEEDLE", visible_controls=narrow, first=narrow)
         first = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
         first_count = editor_match_count("1 distinct match visited · total not counted")
@@ -486,6 +592,7 @@ def run(source, narrow=False):
                 "sourceBytesUnchanged": True,
                 "requestedWindowSize": [720, 500] if narrow else None,
                 "windowSize": window_size, "resizeClamped": window_size != [720, 500] if narrow else None,
+                "nativeDrags": native_drags,
                 "findLayout": layout}
     finally:
         close_editor()
@@ -495,10 +602,11 @@ def run(source, narrow=False):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--narrow":
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--pointer-probe"):
         raise SystemExit(__doc__)
     try:
-        result = run(Path(sys.argv[1]), len(sys.argv) == 4)
+        result = run(Path(sys.argv[1]), len(sys.argv) == 4,
+                     len(sys.argv) == 4 and sys.argv[3] == "--pointer-probe")
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

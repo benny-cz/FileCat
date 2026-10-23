@@ -1200,11 +1200,16 @@ checks the visible, bounded distinct-visited match count, F3 and Shift+F3,
 the no-earlier message and count reset after changing the query. The runner
 requires an unlocked desktop, verifies that the editor has no unsaved changes
 and leaves the source bytes intact, and removes only its own fixture.
-`--narrow` requests a 720 × 500 logical-point editor and records the actual
-native size, including a platform clamp. It requires real shrinkage plus AX
-bounds for Find, Next, Previous and the truthful match status wholly inside
-that window before continuing the same search journey. A clamped result does
-not establish 720 × 500 support.
+`--narrow` requests a 720 × 500 logical-point editor. If macOS initially
+clamps the AX size, the runner drags the owned window's lower-right resize edge
+with native CGEvent input to reach that size. It requires the actual final
+frame to be no larger than 724 × 504 and AX bounds for Find, Next, Previous
+and the truthful match status wholly inside it before the search journey.
+Use `--pointer-probe` on a separate fresh fixture to request the same native
+size, then drag the exact editor's lower-right edge toward a smaller size
+with macOS CGEvent input. It records before/after AX frames, a screenshot and intact bytes,
+then closes the editor without running a search. This distinguishes an AX
+resize clamp from the physical window resize behavior.
 
 `mac-capture.swift` and `mac-capture-Info.plist` build a dedicated, locally
 signed screenshot helper for visual acceptance on the isolated Mac. Copy both
