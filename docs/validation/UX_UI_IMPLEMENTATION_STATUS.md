@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**23 October 2026, live SFTP upload cancellation (FCUX-001):**
+`RemoteLabTests.Canceling_a_live_SFTP_upload_removes_its_stage_without_consuming_the_source`
+now covers Copy and Move against the running Ubuntu VM's OpenSSH service.
+Each 8 MiB source was rate-limited until an independent connection observed
+a nonempty, incomplete `.fc-` stage and no public target. Cancel ended the
+job, removed the stage, left the public folder empty and preserved the exact
+source SHA-256. A separate Delete job removed the test-owned remote folder.
+Both live cases passed with 16 available workers. The complete Windows Remote
+Release suite passed 2,397 cases, skipped 159 platform/lab cases and failed
+none in 33 seconds with 16 workers. The final-head CI gate remains open.
+
 **23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
 LaunchServices runs with VoiceOver exposed the underlying intermittent focus
 race. The physical source-tab press reached FileCat and activated panel 1, but
