@@ -1280,6 +1280,16 @@ both screenshots for prose and table reflow; the runner does not claim a
 pixel-layout pass by itself. The helper saves captures in
 `~/FileCatValidation`, and the runner watches that folder for new PNGs.
 
+`python3 mac-ax-viewer-mode-layout.py SOURCE FileCatCapture.app REPORT.json`
+uses the same approved helper with one signed FileCat process showing the
+isolated `FileCatValidation/source` panel. It opens only its own text fixture,
+checks the exact viewer title and source bytes, and captures Text, Hex and
+Info at approximately 720 × 500 and 1,220 × 700 logical points. Inspect all
+six screenshots for wrapping, controls and scrollbars; the runner verifies
+the native sizes and removes its fixture. An AX row click can invoke Open
+asynchronously, so the runner waits before considering the separate View
+command.
+
 `python3 mac-ax-page-copy.py SOURCE REPORT.json` opens an isolated Markdown
 fixture in Page mode, clicks its accessible web content, then presses
 Command+A and Command+C. It first places a unique test sentinel on the Mac

@@ -2239,6 +2239,18 @@ supported Mac 1× display mode, with both complete hashes, explicit clipboard
 Copy, source and destination invariants and the visible panel in bounds
 (`mac-checksum-narrow-1x-20df90d0-r1.json`). The display wrapper restored the
 original 1440 × 900 logical / 2880 × 1800 pixel Retina mode afterward.
+
+**24 October 2026, Mac viewer layout:** The signed `faf9b566` candidate passed
+`mac-ax-viewer-mode-layout.py` on a test-owned 9,040-byte text file. Its Text,
+Hex and Info modes each resized to approximately 720 × 500 and 1,220 × 700
+logical points at Retina 2×; six native captures in
+`mac-viewer-mode-layout-pointerfix-r8.json` were visually inspected. Text
+wrapped the long line in the narrow viewer and used the wider region when
+expanded. Hex retained its byte and character columns with a horizontal
+scrollbar when needed. Info kept the report and mode controls within the
+window at both sizes. The runner verified the exact viewer title and
+unchanged source hash, then removed only its own fixture. Picture and
+structured Info content, 1× and other scaled states still need layout checks.
 FCUX-007 passed twice on fresh guest-local Windows fixtures: the native Text
 viewer opened a 13 MiB file at its end, and successive Previous button
 actions revealed matches near 8 MiB and 1 MiB, then reported no earlier
