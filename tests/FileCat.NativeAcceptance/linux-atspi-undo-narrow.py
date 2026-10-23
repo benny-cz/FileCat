@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run a real Move/Undo and inspect narrow review and report at Ubuntu 200%.
 
-Usage: linux-atspi-undo-narrow.py APP_PATH REPORT.json
+Usage: linux-atspi-undo-narrow.py APP_PATH REPORT.json [--orca-review-speech]
 Run in the logged-in Ubuntu VM's AT-SPI desktop session. This leaves only an
 owned fixture below ~/FileCatValidation and closes only its own FileCat.
 """
@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import subprocess
 import sys
 import time
@@ -83,12 +84,18 @@ def resize_owned(pid, width, height, title_fragment="FileCat"):
         raise AssertionError("The exact FileCat process has no owned WM window")
     subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
                     f"0,150,100,{width},{height}"], check=True, timeout=5)
+    subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
     time.sleep(0.35)
+    active = subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowpid"],
+                            check=True, capture_output=True, text=True, timeout=5).stdout.strip()
+    if active != str(pid):
+        raise AssertionError("The exact FileCat process did not receive desktop focus")
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--orca-review-speech":
         raise SystemExit(__doc__)
+    orca_speech = len(sys.argv) == 4
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
     report_path = Path(sys.argv[2]).resolve()
@@ -105,6 +112,9 @@ def main():
     scale = float(match.group(1)) if match else None
     if scale != 2.0:
         raise SystemExit(f"The isolated Ubuntu display must be at 200%, got {scale}")
+    if orca_speech and subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()),
+                                      "-x", "orca"], capture_output=True).returncode == 0:
+        raise SystemExit("Stop the existing Orca instance before the owned speech test")
 
     fixture = validation / "UndoNarrow" / uuid4().hex
     source = fixture / "source" / "active-client-work-with-a-long-project-location" / "daily-records"
@@ -120,8 +130,21 @@ def main():
         app_hash = hashlib.file_digest(assembly, "sha256").hexdigest()
     result = {"passed": False, "fixture": str(fixture), "appDllSha256": app_hash,
               "displayScale": scale, "source": str(source_file), "target": str(target_file)}
-    process = None
+    speech = shared_speech = None
+    if orca_speech:
+        shared_speech = runpy.run_path(str(Path(__file__).with_name("linux-orca-speech.py")))
+        speech = shared_speech["SpeechLog"](fixture / "orca-debug.log")
+        result["orcaSpeechLog"] = str(speech.path)
+        result["speechSteps"] = []
+    process = orca = None
     try:
+        if orca_speech:
+            with (fixture / "orca.err").open("wb") as error_log:
+                orca = subprocess.Popen(["/usr/bin/python3", "-c", shared_speech["ORCA_WRAPPER"],
+                                         str(speech.path)], stdout=subprocess.DEVNULL,
+                                        stderr=error_log, env=os.environ.copy())
+            wait_for(lambda: "Screen reader on" in " ".join(speech.take()),
+                     "owned Orca startup", seconds=20)
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(source), "--right", str(target)],
@@ -133,6 +156,28 @@ def main():
             if candidate.get_name() == "FileCat" and
             one(candidate, "list", f"Panel 1, source, {source}")), None),
             "isolated source panel")
+        if orca_speech:
+            resize_owned(process.pid, 1440, 1080)
+        def spoken(label, action, expected):
+            speech.take()
+            if action() is False:
+                raise AssertionError(f"Could not focus {label}")
+            heard, deadline = [], time.monotonic() + 8
+            while time.monotonic() < deadline:
+                heard += speech.take()
+                if expected.casefold() in " ".join(heard).casefold():
+                    break
+                time.sleep(0.15)
+            passed = expected.casefold() in " ".join(heard).casefold()
+            result["speechSteps"].append({"step": label, "expected": expected,
+                                          "heard": heard, "passed": passed})
+            return passed
+        def focus_after(other, target):
+            if not other.grab_focus():
+                raise AssertionError("Could not move speech focus away from the target")
+            time.sleep(0.25)
+            speech.take()
+            return target.grab_focus()
         row = wait_for(lambda: one(app, "list item", name), "exact source row")
         if not row.grab_focus():
             raise AssertionError("The owned source row could not receive focus")
@@ -156,7 +201,18 @@ def main():
             if node.get_role_name() in ("label", "text") and
             str(source_file) in node.get_name() and str(target_file) in node.get_name()), None),
             "complete source and target in the Undo action")
+        result["reviewAccessibleRows"] = [{"role": node.get_role_name(),
+            "name": node.get_name(), "bounds": bounds(node)} for node in descendants(app)
+            if node.get_role_name() in ("list item", "table row") and
+            str(source_file) in node.get_name() and str(target_file) in node.get_name()]
         cancel = wait_for(lambda: dialog_button(app, "Cancel"), "Undo Cancel action")
+        if orca_speech:
+            review_row = wait_for(lambda: next((node for node in descendants(app)
+                if node.get_role_name() == "list item" and
+                str(source_file) in node.get_name() and str(target_file) in node.get_name()), None),
+                "complete focusable Undo mapping")
+            spoken("complete inverse mapping", lambda: focus_after(cancel, review_row),
+                   str(source_file))
         review_bounds = {"frame": bounds(main_frame), "action": bounds(path_label),
                          "approve": bounds(approval), "cancel": bounds(cancel)}
         result["narrowReview"] = review_bounds
@@ -175,6 +231,12 @@ def main():
         report_frame = wait_for(lambda: next((node for node in descendants(app)
             if node.get_role_name() == "frame" and "Undo report" in node.get_name()), None),
             "native Undo report")
+        report_entry = wait_for(lambda: one(report_frame, "entry", "Undo report"),
+                                "accessible retained Undo report")
+        accessible_report = Atspi.Text.get_text(report_entry.get_text_iface(), 0, -1)
+        result["accessibleReportFullPath"] = str(source_file) in accessible_report
+        if not result["accessibleReportFullPath"]:
+            raise AssertionError("The accessible retained report lost the restored path")
         resize_owned(process.pid, 1200, 920, "Undo report")
         copy_all = wait_for(lambda: one(report_frame, "button", "Copy all"),
                             "report Copy all")
@@ -200,17 +262,20 @@ def main():
         result["reportCopy"] = {"bytes": len(report_text.encode("utf-8")),
                                 "fullRestoredPath": str(source_file) in report_text,
                                 "undoHeader": "Undo:" in report_text}
+        if orca_speech and not all(step["passed"] for step in result["speechSteps"]):
+            raise AssertionError("Orca did not speak the complete Undo review mapping")
         result["passed"] = True
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     finally:
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+        for owned in (process, orca):
+            if owned is not None and owned.poll() is None:
+                owned.terminate()
+                try:
+                    owned.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    owned.kill()
+                    owned.wait(timeout=5)
         report_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return 0 if result["passed"] else 1
 

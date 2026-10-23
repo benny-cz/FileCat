@@ -104,6 +104,11 @@ logged-in desktop with a Git-built executable and report below
 retained report to 600 × 460, checks both full paths and decision bounds,
 verifies exact restored bytes, and reads Copy all from the guest clipboard
 through a separate GTK 3 process. It closes only its own FileCat process.
+Pass `--orca-review-speech` to start an owned Orca debug log and require
+actual speech of both complete inverse paths after a controlled focus
+transition. The runner also requires the report's AT-SPI text interface to
+contain the full restored path; spoken navigation within that read-only
+report remains a separate acceptance gate.
 `win-ax-display-scale.ps1 -Percent 150|200|100 -ReportPath <guest-local.json>`
 selects a Windows display scale through the Settings accessibility control.
 It refuses a noninteractive session, a non-VMware host or a report outside
