@@ -117,7 +117,8 @@ public sealed class HexView : Control
         RefreshSemanticState();
     }
 
-    internal string SemanticStatus => DescribeState();
+    private string SearchPhrase => string.IsNullOrEmpty(_searchFeedback) ? "" : $"Find: {_searchFeedback}; ";
+    internal string SemanticStatus => SearchPhrase + DescribeState();
     private string? _searchFeedback;
 
     internal void SetSearchFeedback(string? feedback, bool announce = true)
@@ -153,8 +154,7 @@ public sealed class HexView : Control
     private string DescribeState()
     {
         var (start, length) = Selection;
-        return (string.IsNullOrEmpty(_searchFeedback) ? "" : $"Find: {_searchFeedback}; ")
-            + (length > 0 ? $"Selected bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes; " : "No byte selection; ")
+        return (length > 0 ? $"Selected bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes; " : "No byte selection; ")
             + (TracksActiveColumn ? $"active typing column: {(_textColumnActive ? "text (ASCII)" : "hex")}; " : "read-only byte inspection; ")
             + (_pendingNibble >= 0 ? $"pending first nibble {_pendingNibble:X}, type the second digit; " : "")
             + _editingState + $"; viewport begins at byte {_topRow * BytesPerRow:N0}, horizontal position {_horizontalOffset:0}.";
@@ -170,7 +170,7 @@ public sealed class HexView : Control
         int at = (int)(_cursor - row);
         var hex = string.Join(" ", bytes[..n].ToArray().Select(b => b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)));
         var value = at < n ? $"byte {bytes[at]:X2} hex" : "byte not loaded yet";
-        _committedValue = $"Offset {_cursor:N0} of {_reader.Length:N0}, {value}; row {row:X8}: {hex}. " + DescribeState();
+        _committedValue = SearchPhrase + $"Offset {_cursor:N0} of {_reader.Length:N0}, {value}; row {row:X8}: {hex}. " + DescribeState();
         if (_reader.ReadError is { } error) _committedValue += " Incomplete reading: " + error;
         _automationPeer?.AnnounceCursor();
     }

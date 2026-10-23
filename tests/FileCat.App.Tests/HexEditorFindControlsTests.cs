@@ -58,11 +58,11 @@ public sealed class HexEditorFindControlsTests
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{first:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("1 distinct match visited · total not counted", count.Text);
-            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
+            Assert.StartsWith("Find: " + count.Text, hex.DescribeCursor());
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{second:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
-            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
+            Assert.StartsWith("Find: " + count.Text, hex.DescribeCursor());
 
             var contentRoot = Assert.IsAssignableFrom<Control>(editor.Content);
             contentRoot.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -103,7 +103,7 @@ public sealed class HexEditorFindControlsTests
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{second + 7:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("1 distinct match visited · total not counted", count.Text);
-            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
+            Assert.StartsWith("Find: " + count.Text, hex.DescribeCursor());
             search.Text = "";
             Assert.False(previous.IsEnabled);
             Assert.False(next.IsEnabled);

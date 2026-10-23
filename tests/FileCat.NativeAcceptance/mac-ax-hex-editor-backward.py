@@ -600,10 +600,10 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False, spoken=F
                     "pointer": pointer, "sourceBytesUnchanged": source_intact,
                     "editorClosed": not editor_open()}
         native_drags = []
-        for _ in range(3 if narrow else 0):
+        for attempt in range(3 if narrow else 0):
             if window_size[0] <= 724 and window_size[1] <= 504:
                 break
-            drag = pointer_resize(720, 500)
+            drag = pointer_resize(720 - 20 * attempt, 500 - 20 * attempt)
             native_drags.append(drag)
             next_size = drag["after"][2:]
             if next_size == window_size:
@@ -618,10 +618,14 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False, spoken=F
         first = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
         first_count = editor_match_count("1 distinct match visited · total not counted")
         spoken_first = spoken_match("1 distinct match visited") if spoken else None
+        if spoken:
+            time.sleep(6)
         editor_click("AXButton", "Find next match")
         second = editor_status(f"Found at 0x{SECOND_OFFSET:X}")
         second_count = editor_match_count("2 distinct matches visited · total not counted")
         spoken_second = spoken_match("2 distinct matches visited") if spoken else None
+        if spoken:
+            time.sleep(6)
         refocused_find = refocus_find_with_ctrl_f() if keyboard_find else None
         layout = editor_find_layout() if narrow else None
         editor_click("AXButton", "Find previous match")
