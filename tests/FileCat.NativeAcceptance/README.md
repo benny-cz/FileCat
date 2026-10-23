@@ -1286,9 +1286,8 @@ isolated `FileCatValidation/source` panel. It opens only its own text fixture,
 checks the exact viewer title and source bytes, and captures Text, Hex and
 Info at approximately 720 × 500 and 1,220 × 700 logical points. Inspect all
 six screenshots for wrapping, controls and scrollbars; the runner verifies
-the native sizes and removes its fixture. An AX row click can invoke Open
-asynchronously, so the runner waits before considering the separate View
-command.
+the native sizes and removes its fixture. It focuses the exact AX row and
+uses FileCat's View command, which avoids an external Open handler.
 
 `python3 mac-ax-viewer-media-layout.py SOURCE FileCatCapture.app REPORT.json`
 creates a 640 × 480 PNG and a copy of the signed app's Mach-O executable in

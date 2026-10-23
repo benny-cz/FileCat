@@ -47,6 +47,44 @@ end tell
 ''')
 
 
+def open_exact(name):
+    click_named("AXButton", "Reread")
+    time.sleep(0.5)
+    focused = osa(f'''
+tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    set targetRow to missing value
+    set rowNames to {{}}
+    set allElements to entire contents of window 1
+    repeat with e in allElements
+        try
+            if (role of e as text) is "AXRow" then
+                set end of rowNames to (name of e as text)
+                if (name of e as text) is {json.dumps(name)} then set targetRow to e
+            end if
+        end try
+    end repeat
+    if targetRow is missing value then return "missing: " & (name of window 1 as text) & " rows=" & (rowNames as text)
+    set focused of targetRow to true
+    if not (focused of targetRow) then error "Row did not receive focus"
+    return "focused"
+end tell
+''')
+    if focused != "focused" or focused_name() != name:
+        raise AssertionError(f"Could not focus {name}: {focused}; actual={focused_name()}")
+    # AXPress invokes Open, which can launch an external handler. View opens
+    # FileCat's viewer for the exact focused item on every supported mode.
+    click_named("AXButton", "View")
+    for _ in range(25):
+        if viewer_open():
+            break
+        time.sleep(0.2)
+    else:
+        raise AssertionError(f"View did not open {name}")
+    if name not in viewer_title():
+        raise AssertionError(f"View opened the wrong file: {viewer_title()}")
+
+
 def run(source, helper):
     source = source.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -75,25 +113,7 @@ def run(source, helper):
     result = {"passed": False, "platform": "macOS", "appDllSha256": app_hash,
               "modes": {}}
     try:
-        click_named("AXButton", "Reread")
-        time.sleep(0.5)
-        click_named("AXRow", NAME)
-        for _ in range(10):
-            if focused_name() == NAME:
-                break
-            time.sleep(0.2)
-        else:
-            raise AssertionError(f"AX row click did not focus {NAME}: {focused_name()}")
-        # AXPress on a row invokes Open asynchronously. Wait for that owned
-        # viewer before deciding whether the separate View command is needed.
-        for _ in range(15):
-            if viewer_open():
-                break
-            time.sleep(0.2)
-        if not viewer_open():
-            click_named("AXButton", "View")
-        if NAME not in viewer_title():
-            raise AssertionError(f"View opened the wrong file: {viewer_title()}")
+        open_exact(NAME)
         for mode in ("Text", "Hex", "Info"):
             click_named("AXButton", mode, viewer=True)
             states = {}

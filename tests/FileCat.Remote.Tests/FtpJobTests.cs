@@ -312,10 +312,13 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RemoteProtocols.Ftp)]
-    [InlineData(RemoteProtocols.FtpExplicitTls)]
-    [InlineData(RemoteProtocols.FtpImplicitTls)]
-    public async Task A_changed_local_move_source_discards_its_FTP_stage_without_publishing_or_deleting(string protocol)
+    [InlineData(RemoteProtocols.Ftp, false)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, false)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, false)]
+    [InlineData(RemoteProtocols.Ftp, true)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, true)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, true)]
+    public async Task A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(string protocol, bool retry)
     {
         bool encrypted = protocol != RemoteProtocols.Ftp;
         using var server = TestFtpServer.TryStart(
@@ -361,14 +364,35 @@ public sealed class FtpJobTests : IDisposable
                 await Task.Delay(20, ct);
             Assert.True(job.Decision is { Task.IsCompleted: false },
                 $"The changed {protocol} source did not reach its failure decision: {job.State}.");
-            job.Decision!.Resolve(new Decision(DecisionAction.Skip));
-            deadline.Restart();
-            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
-                await Task.Delay(20, ct);
-            Assert.Equal(JobState.Failed, job.State);
             Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
-            Assert.Empty(Directory.GetFiles(server.Root));
-            Assert.Contains(job.Issues, issue => issue.Message.Contains("source changed during uploading", StringComparison.Ordinal));
+            byte[] retriedBytes = new byte[bytes.Length];
+            new Random(219).NextBytes(retriedBytes);
+            if (retry)
+            {
+                // The first source handle has closed by the time the decision appears.
+                // A retry must recapture this newer version, not resume the old stage.
+                File.WriteAllBytes(source, retriedBytes);
+                File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(6));
+            }
+            job.Decision!.Resolve(new Decision(retry ? DecisionAction.Retry : DecisionAction.Skip));
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(retry ? 45 : 20))
+                await Task.Delay(20, ct);
+            if (retry)
+            {
+                Assert.Equal(JobState.Completed, job.State);
+                Assert.False(File.Exists(source));
+                string published = Path.Combine(server.Root, "changed-upload.bin");
+                Assert.Equal(SHA256.HashData(retriedBytes), SHA256.HashData(File.ReadAllBytes(published)));
+                Assert.Equal([published], Directory.GetFiles(server.Root));
+            }
+            else
+            {
+                Assert.Equal(JobState.Failed, job.State);
+                Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+                Assert.Empty(Directory.GetFiles(server.Root));
+                Assert.Contains(job.Issues, issue => issue.Message.Contains("source changed during uploading", StringComparison.Ordinal));
+            }
         }
         finally
         {

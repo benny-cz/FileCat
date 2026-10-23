@@ -32,6 +32,17 @@ explicit TLS and implicit TLS all passed the focused run (3/3); the complete
 Windows Remote Release suite passed 2,399 cases, skipped 161 platform/lab
 cases and failed none in 42 seconds with 16 workers.
 
+The real FTP changed-source Move regression now exercises a user-approved
+Retry as well as Skip across plain FTP, explicit TLS and implicit TLS. After
+the first partial upload, a changed source timestamp led to the failure
+decision. Retry replaced the local source bytes while that decision was
+pending, discarded the old stage, published exactly the new byte hash and
+removed the local source only after the new upload completed. Skip kept the
+original source hash and left no published file or stage. All six focused
+cases passed; the complete Windows Remote Release suite passed 2,414 cases,
+skipped 161 platform/lab cases and failed none with 16 workers. The final-head
+CI gate remains open.
+
 **23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
 LaunchServices runs with VoiceOver exposed the underlying intermittent focus
 race. The physical source-tab press reached FileCat and activated panel 1, but
@@ -2260,8 +2271,17 @@ fixture cleanup. Visual inspection confirmed the complete fitted picture,
 in-bounds mode controls, readable Mach-O header and libraries, and scrollable
 report at both sizes. The runner focuses each AX listing row before using
 FileCat's View action, so it does not launch Preview. The Mac reported no
-Preview process after the final run. Other dialogs, 1× and scaled layout
-states remain open.
+Preview process after the final Retina run. The same Picture and structured
+Info route passed again on the supported 1× 1,920 × 1,200 mode
+(`mac-viewer-media-layout-pointerfix-1x-r2.json`); four captures were
+inspected and the wrapper restored the original 1,440 × 900 logical /
+2,880 × 1,800 pixel Retina mode. The shared AX focus-and-View path also
+replaced the old row-invoke path in the Text/Hex/Info runner. Those three
+modes passed all six narrow/wide captures at 1×
+(`mac-viewer-mode-layout-pointerfix-1x-r2.json`), with wrapped Text, aligned
+Hex byte/character columns, readable unstructured Info, unchanged source
+bytes, and the original Retina mode restored. Other dialogs and their
+scaled layouts remain open.
 FCUX-007 passed twice on fresh guest-local Windows fixtures: the native Text
 viewer opened a 13 MiB file at its end, and successive Previous button
 actions revealed matches near 8 MiB and 1 MiB, then reported no earlier

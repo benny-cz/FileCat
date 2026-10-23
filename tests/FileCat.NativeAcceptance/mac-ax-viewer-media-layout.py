@@ -20,9 +20,7 @@ base = runpy.run_path(str(Path(__file__).with_name("mac-ax-viewer-mode-layout.py
 click_named = base["click_named"]
 viewer_open = base["viewer_open"]
 close_viewer = base["close_viewer"]
-viewer_title = base["viewer_title"]
-focused_name = base["focused_name"]
-osa = base["osa"]
+open_exact = base["open_exact"]
 resize = base["resize"]
 capture = base["capture"]
 PICTURE_NAME = "native-picture-layout.png"
@@ -43,44 +41,6 @@ def picture_bytes():
 
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(scanlines)) + chunk(b"IEND", b""))
-
-
-def open_exact(name):
-    click_named("AXButton", "Reread")
-    time.sleep(0.5)
-    focused = osa(f'''
-tell application "System Events" to tell process "FileCat"
-    set frontmost to true
-    set targetRow to missing value
-    set rowNames to {{}}
-    set allElements to entire contents of window 1
-    repeat with e in allElements
-        try
-            if (role of e as text) is "AXRow" then
-                set end of rowNames to (name of e as text)
-                if (name of e as text) is {json.dumps(name)} then set targetRow to e
-            end if
-        end try
-    end repeat
-    if targetRow is missing value then return "missing: " & (name of window 1 as text) & " rows=" & (rowNames as text)
-    set focused of targetRow to true
-    if not (focused of targetRow) then error "Row did not receive focus"
-    return "focused"
-end tell
-''')
-    if focused != "focused":
-        raise AssertionError(f"Could not focus {name}: {focused}")
-    if focused_name() != name:
-        raise AssertionError(f"Could not focus {name}: {focused_name()}")
-    click_named("AXButton", "View")
-    for _ in range(25):
-        if viewer_open():
-            break
-        time.sleep(0.2)
-    else:
-        raise AssertionError(f"View did not open {name}")
-    if name not in viewer_title():
-        raise AssertionError(f"View opened the wrong file: {viewer_title()}")
 
 
 def capture_mode(mode, helper, validation):

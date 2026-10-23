@@ -8,8 +8,8 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Mac visual layout checks for other dialogs, 1× display mode and
-  scaled states using the owner-approved
+- Finish Mac visual layout checks for other dialogs and their unverified
+  1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
@@ -42,7 +42,7 @@ increments to `main`.
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider failure-cleanup choices beyond the tested live SFTP
    and FTP/FTPS connection-loss Cancel, Skip and Retry cases, and the FTP/FTPS
-   changed-source cleanup cases. For FCUX-069/070,
+   changed-source Skip and Retry cleanup cases. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
