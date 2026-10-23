@@ -312,13 +312,16 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RemoteProtocols.Ftp, false)]
-    [InlineData(RemoteProtocols.FtpExplicitTls, false)]
-    [InlineData(RemoteProtocols.FtpImplicitTls, false)]
-    [InlineData(RemoteProtocols.Ftp, true)]
-    [InlineData(RemoteProtocols.FtpExplicitTls, true)]
-    [InlineData(RemoteProtocols.FtpImplicitTls, true)]
-    public async Task A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(string protocol, bool retry)
+    [InlineData(RemoteProtocols.Ftp, DecisionAction.Skip)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, DecisionAction.Skip)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, DecisionAction.Skip)]
+    [InlineData(RemoteProtocols.Ftp, DecisionAction.Retry)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, DecisionAction.Retry)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, DecisionAction.Retry)]
+    [InlineData(RemoteProtocols.Ftp, DecisionAction.CancelJob)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, DecisionAction.CancelJob)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, DecisionAction.CancelJob)]
+    public async Task A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(string protocol, DecisionAction action)
     {
         bool encrypted = protocol != RemoteProtocols.Ftp;
         using var server = TestFtpServer.TryStart(
@@ -367,18 +370,19 @@ public sealed class FtpJobTests : IDisposable
             Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
             byte[] retriedBytes = new byte[bytes.Length];
             new Random(219).NextBytes(retriedBytes);
-            if (retry)
+            if (action == DecisionAction.Retry)
             {
                 // The first source handle has closed by the time the decision appears.
                 // A retry must recapture this newer version, not resume the old stage.
                 File.WriteAllBytes(source, retriedBytes);
                 File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(6));
             }
-            job.Decision!.Resolve(new Decision(retry ? DecisionAction.Retry : DecisionAction.Skip));
+            if (action == DecisionAction.CancelJob) job.Cancel();
+            else job.Decision!.Resolve(new Decision(action));
             deadline.Restart();
-            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(retry ? 45 : 20))
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(action == DecisionAction.Retry ? 45 : 20))
                 await Task.Delay(20, ct);
-            if (retry)
+            if (action == DecisionAction.Retry)
             {
                 Assert.Equal(JobState.Completed, job.State);
                 Assert.False(File.Exists(source));
@@ -388,10 +392,11 @@ public sealed class FtpJobTests : IDisposable
             }
             else
             {
-                Assert.Equal(JobState.Failed, job.State);
+                Assert.Equal(action == DecisionAction.Skip ? JobState.Failed : JobState.Canceled, job.State);
                 Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
                 Assert.Empty(Directory.GetFiles(server.Root));
-                Assert.Contains(job.Issues, issue => issue.Message.Contains("source changed during uploading", StringComparison.Ordinal));
+                if (action == DecisionAction.Skip)
+                    Assert.Contains(job.Issues, issue => issue.Message.Contains("source changed during uploading", StringComparison.Ordinal));
             }
         }
         finally
@@ -496,16 +501,21 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading(bool retainSizeAndTime, bool encrypted)
+    [InlineData(false, RemoteProtocols.Ftp)]
+    [InlineData(true, RemoteProtocols.Ftp)]
+    [InlineData(false, RemoteProtocols.FtpExplicitTls)]
+    [InlineData(true, RemoteProtocols.FtpExplicitTls)]
+    [InlineData(false, RemoteProtocols.FtpImplicitTls)]
+    [InlineData(true, RemoteProtocols.FtpImplicitTls)]
+    public async Task FTP_replacement_refuses_a_target_changed_while_its_stage_is_uploading(bool retainSizeAndTime, string protocol)
     {
-        using var server = TestFtpServer.TryStart(encrypted ? TestFtpServer.SelfSigned("FileCat replacement test").Pem : null);
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat replacement test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
         if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
         var ct = TestContext.Current.CancellationToken;
-        var profile = server.Profile(encrypted ? RemoteProtocols.FtpExplicitTls : RemoteProtocols.Ftp);
+        var profile = server.Profile(protocol);
         profile.PlainTextAccepted = !encrypted;
         using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
             new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),

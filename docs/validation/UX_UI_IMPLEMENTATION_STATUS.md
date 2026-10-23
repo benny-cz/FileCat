@@ -32,16 +32,19 @@ explicit TLS and implicit TLS all passed the focused run (3/3); the complete
 Windows Remote Release suite passed 2,399 cases, skipped 161 platform/lab
 cases and failed none in 42 seconds with 16 workers.
 
-The real FTP changed-source Move regression now exercises a user-approved
-Retry as well as Skip across plain FTP, explicit TLS and implicit TLS. After
+The real FTP changed-source Move regression now exercises Cancel, Skip and
+user-approved Retry across plain FTP, explicit TLS and implicit TLS. After
 the first partial upload, a changed source timestamp led to the failure
 decision. Retry replaced the local source bytes while that decision was
 pending, discarded the old stage, published exactly the new byte hash and
-removed the local source only after the new upload completed. Skip kept the
-original source hash and left no published file or stage. All six focused
-cases passed; the complete Windows Remote Release suite passed 2,414 cases,
-skipped 161 platform/lab cases and failed none with 16 workers. The final-head
-CI gate remains open.
+removed the local source only after the new upload completed. Cancel and
+Skip kept the original source hash and left no published file or stage. All
+nine focused cases passed. The replacement guard now also runs under implicit
+TLS: a changed target, including changed bytes with its size and timestamp
+restored, stayed intact while the local Move source and unpublished stage were
+handled safely. All six focused replacement cases passed. The complete
+Windows Remote Release suite passed 2,419 cases, skipped 161 platform/lab
+cases and failed none with 16 workers. The final-head CI gate remains open.
 
 **23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
 LaunchServices runs with VoiceOver exposed the underlying intermittent focus
