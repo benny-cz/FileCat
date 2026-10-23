@@ -1123,7 +1123,10 @@ event because the current Wayland File menu exposes no AT-SPI action. The
 check uses the exact source, process ID and editor title, exercises visible
 Next/Previous, physical F3 and Shift+F3, match status and changed-query reset,
 and closes the test-owned editor. It also accepts an already open test-owned
-editor.
+editor. `--scaled` requires the GNOME display at 200% and records the editor,
+Find query, Previous/Next and count bounds; every control must remain inside
+the editor window. `--narrow` adds a measured 720 × 500 app-unit window at
+that display scale and repeats the same visibility and search checks.
 
 ## macOS logged-in desktop
 

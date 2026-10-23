@@ -8,6 +8,7 @@ then run `check ROOT REPORT.json UINPUT_HELPER` in the logged-in desktop session
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
@@ -112,7 +113,7 @@ def close_window(app, title, expected_pid):
     wait_for(lambda: find(app, "frame", title) is None, "Hex editor closure")
 
 
-def check(root, helper):
+def check(root, helper, require_scaled=False, narrow=False):
     import gi
     gi.require_version("Atspi", "2.0")
     from gi.repository import Atspi
@@ -148,7 +149,46 @@ def check(root, helper):
                  "test file focus")
         open_with_command_search(app, helper)
         editor = wait_for(lambda: find(app, "frame", title), "native Hex editor")
+    window_size_dip = None
     try:
+        if narrow:
+            listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], capture_output=True,
+                                     text=True, timeout=5, check=True).stdout
+            ids = [line.split()[0] for line in listing.splitlines()
+                   if len(line.split()) > 4 and line.split()[2] == str(pid) and
+                   line.split(maxsplit=4)[4] == title]
+            if len(ids) != 1:
+                raise AssertionError(f"Expected one exact owned Hex editor window, found {ids!r}")
+            hints = subprocess.run(["/usr/bin/xprop", "-id", ids[0], "WM_NORMAL_HINTS"],
+                                   capture_output=True, text=True, timeout=5, check=True).stdout
+            minimum = re.search(r"minimum size:\s*(\d+) by (\d+)", hints)
+            if minimum is None:
+                raise AssertionError("The Hex editor's native minimum size is unavailable")
+            render_scale = int(minimum.group(1)) / 620
+            if not (0.5 <= render_scale <= 4 and
+                    abs(render_scale - int(minimum.group(2)) / 360) < 0.02):
+                raise AssertionError("The Hex editor's native minimum conflicts with its 620 × 360 app-unit limit")
+            requested = (round(720 * render_scale), round(500 * render_scale))
+            subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-b", "remove,maximized_vert,maximized_horz"],
+                           timeout=5, check=True)
+            subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-e",
+                            f"0,100,80,{requested[0]},{requested[1]}"], timeout=5, check=True)
+
+            def settled_size():
+                geometry = subprocess.run(["/usr/bin/xdotool", "getwindowgeometry", "--shell", ids[0]],
+                                          capture_output=True, text=True, timeout=5, check=True).stdout
+                values = dict(line.split("=", 1) for line in geometry.splitlines() if "=" in line)
+                size = [int(values["WIDTH"]) / render_scale, int(values["HEIGHT"]) / render_scale]
+                if 700 <= size[0] <= 760 and 480 <= size[1] <= 540:
+                    return size
+                return None
+
+            try:
+                window_size_dip = wait_for(settled_size, "720 × 500 app-unit Hex editor", seconds=3)
+            except AssertionError:
+                subprocess.run(["/usr/bin/xdotool", "windowsize", ids[0],
+                                str(requested[0]), str(requested[1])], timeout=5, check=True)
+                window_size_dip = wait_for(settled_size, "720 × 500 app-unit Hex editor")
         activate(find(editor, "button", "Show or hide hex editor Find bar"), "Find toggle")
         query = wait_for(lambda: find(editor, "entry", "Find in file"), "Find entry")
         if not query.set_text_contents("NEEDLE"):
@@ -161,6 +201,35 @@ def check(root, helper):
         wait_for(lambda: named(editor, "label", f"Found at 0x{SECOND:X}"), "distant match")
         wait_for(lambda: find(editor, "label", "2 distinct matches visited · total not counted"),
                  "two-match status")
+        scale_text = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
+                                    text=True, timeout=5, check=True).stdout
+        scale_match = re.search(r"\bScale: ([0-9.]+)", scale_text)
+        if scale_match is None:
+            raise AssertionError("The Ubuntu desktop scale is unavailable")
+        scale = float(scale_match.group(1))
+        if require_scaled and abs(scale - 2) > 0.02:
+            raise AssertionError(f"Expected the Ubuntu 200% display for scaled acceptance, found {scale}")
+
+        def rect(node, description):
+            if node is None:
+                raise AssertionError(f"The {description} control is absent")
+            area = node.get_component().get_extents(Atspi.CoordType.SCREEN)
+            bounds = [area.x, area.y, area.width, area.height]
+            if area.width < 8 or area.height < 8:
+                raise AssertionError(f"The {description} has unusable native bounds: {bounds}")
+            return bounds
+
+        frame = rect(editor, "Hex editor window")
+        visible = {
+            "query": rect(query, "Find query"),
+            "next": rect(find(editor, "button", "Find next match"), "Next"),
+            "previous": rect(find(editor, "button", "Find previous match"), "Previous"),
+            "status": rect(find(editor, "label", "2 distinct matches visited · total not counted"), "match status"),
+        }
+        fx, fy, fw, fh = frame
+        for name, (x, y, width, height) in visible.items():
+            if not (fx <= x and fy <= y and x + width <= fx + fw and y + height <= fy + fh):
+                raise AssertionError(f"The {name} control is outside the Hex editor window")
         activate(find(editor, "button", "Find previous match"), "Previous")
         wait_for(lambda: named(editor, "label", f"Found at 0x{FIRST:X}"), "earlier match")
         send_key(helper, "f3")
@@ -187,17 +256,21 @@ def check(root, helper):
             "secondHit": SECOND, "visibleControls": ["Next", "Previous"],
             "countAfterSecond": 2, "changedQueryCount": 1,
             "physicalF3AndShiftF3Verified": True,
-            "sourceIntact": True, "editorClosed": True}
+            "sourceIntact": True, "editorClosed": True,
+            "displayScale": scale, "editorBounds": frame, "findControlBounds": visible,
+            "windowSizeDip": window_size_dip}
 
 
 def main():
     if len(sys.argv) == 3 and sys.argv[1] == "seed":
         print(json.dumps(seed(Path(sys.argv[2]))))
         return 0
-    if len(sys.argv) != 5 or sys.argv[1] != "check":
-        raise SystemExit("Usage: linux-atspi-hex-editor-find.py seed ROOT | check ROOT REPORT.json UINPUT_HELPER")
+    if (len(sys.argv) not in (5, 6) or sys.argv[1] != "check" or
+            len(sys.argv) == 6 and sys.argv[5] not in ("--scaled", "--narrow")):
+        raise SystemExit("Usage: linux-atspi-hex-editor-find.py seed ROOT | check ROOT REPORT.json UINPUT_HELPER [--scaled|--narrow]")
     try:
-        result = check(Path(sys.argv[2]), Path(sys.argv[4]))
+        result = check(Path(sys.argv[2]), Path(sys.argv[4]), len(sys.argv) == 6,
+                       len(sys.argv) == 6 and sys.argv[5] == "--narrow")
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     Path(sys.argv[3]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

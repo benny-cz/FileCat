@@ -65,12 +65,10 @@ public sealed class FileListSmokeTests
                 scroll.Value = 100;
                 Assert.Equal(100, scroll.Value);
                 int focusedBeforeScroll = tab.Listing.FocusedIndex;
-                // Headless pointer coordinates are window-relative; Bounds is relative to the
-                // scrollbar's parent and can shift when the host runner lays out the panel.
-                var scrollTrack = scroll.TranslatePoint(new Point(scroll.Bounds.Width / 2,
-                    scroll.Bounds.Height * 0.75), window)!.Value;
-                window.MouseDown(scrollTrack, MouseButton.Left);
-                window.MouseUp(scrollTrack, MouseButton.Left);
+                // Wheel input is a direct user viewport change. A click at 75% of the
+                // scrollbar track can land on the thumb after the host runner lays out
+                // a different viewport, leaving the value unchanged.
+                window.MouseWheel(new Point(100, 200), new Vector(0, -5));
                 Assert.Equal(focusedBeforeScroll, tab.Listing.FocusedIndex);
                 double manuallyScrolledTop = scroll.Value;
                 Assert.True(manuallyScrolledTop > 100);
