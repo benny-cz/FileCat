@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect both complete synchronization endpoints and Mirror's target on Ubuntu.
 
-Usage: linux-atspi-sync-endpoints.py APP_PATH REPORT.json KEY_HELPER [--pause-review]
+Usage: linux-atspi-sync-endpoints.py APP_PATH REPORT.json KEY_HELPER [--pause-review] [--orca-speech]
 Run only in the logged-in Ubuntu VM against a Git-built app below
 ~/FileCatValidation. FILECAT_NATIVE_SUDO_PASSWORD is transient physical-input
 authorization and is removed from FileCat's environment before launch.
@@ -49,9 +49,12 @@ def sha256(path):
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "--pause-review"):
+    options = sys.argv[4:]
+    if len(sys.argv) < 4 or len(options) != len(set(options)) or not set(options) <= {
+            "--pause-review", "--orca-speech"}:
         raise SystemExit(__doc__)
-    pause_review = len(sys.argv) == 5
+    pause_review = "--pause-review" in options
+    orca_speech = "--orca-speech" in options
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
     report_path = Path(sys.argv[2]).resolve()
@@ -66,6 +69,9 @@ def main():
     os.environ.setdefault("DISPLAY", ":0")
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
+    if orca_speech and subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", "orca"],
+                                      capture_output=True).returncode == 0:
+        raise SystemExit("Stop the existing Orca instance before the owned speech test")
 
     fixture = validation / "SyncEndpointsFixture" / uuid4().hex
     left = fixture / "source" / "active-client-work-with-a-long-location" / "Project"
@@ -79,12 +85,28 @@ def main():
     result = {"passed": False, "app": str(app_path), "appDllSha256": sha256(app_path.with_name("FileCat.dll")),
               "fixture": str(fixture), "left": str(left), "right": str(right),
               "sourceSha256": expected, "steps": []}
+    speech = None
+    if orca_speech:
+        shared_speech = runpy.run_path(str(Path(__file__).with_name("linux-orca-speech.py")))
+        speech = shared_speech["SpeechLog"](fixture / "orca-debug.log")
+        result["orcaSpeechLog"] = str(speech.path)
+        result["speechSteps"] = []
     ready = report_path.with_suffix(".ready")
     resume = report_path.with_suffix(".resume")
     ready.unlink(missing_ok=True)
     resume.unlink(missing_ok=True)
-    process = None
+    process = orca = None
     try:
+        if orca_speech:
+            with (fixture / "orca.err").open("wb") as error_log:
+                orca = subprocess.Popen(["/usr/bin/python3", "-c", shared_speech["ORCA_WRAPPER"],
+                                         str(speech.path)], stdout=subprocess.DEVNULL,
+                                        stderr=error_log, env=os.environ.copy())
+            deadline = time.monotonic() + 20
+            while not any("Screen reader on" in phrase for phrase in speech.take()):
+                if time.monotonic() > deadline or orca.poll() is not None:
+                    raise AssertionError("Orca did not start in the isolated desktop")
+                time.sleep(0.2)
         with (fixture / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(left), "--right", str(right)],
@@ -102,6 +124,21 @@ def main():
                                   input=sudo_password + "\n", capture_output=True, text=True, timeout=15)
             if sent.returncode:
                 raise AssertionError(f"Physical {chord} failed: {sent.stderr[-300:]}")
+
+        def spoken(label, move, expected_text):
+            speech.take()
+            if move() is False:
+                raise AssertionError(f"Cannot focus {label}")
+            heard, deadline = [], time.monotonic() + 8
+            while time.monotonic() < deadline:
+                heard += speech.take()
+                if expected_text.casefold() in " ".join(heard).casefold():
+                    break
+                time.sleep(0.15)
+            passed = expected_text.casefold() in " ".join(heard).casefold()
+            result["speechSteps"].append({"step": label, "expected": expected_text,
+                                          "heard": heard, "passed": passed})
+            return passed
 
         search = one(app, "entry", "Search commands")
         if not search.get_editable_text().set_text_contents("compare directories"):
@@ -140,6 +177,9 @@ def main():
                 target_field.get_name() != "Target folder: " + str(right)):
             raise AssertionError("The first direction does not show complete, distinct Source and Target paths")
         result["steps"].append("Full selectable Source and Target paths distinguish identical basenames")
+        if orca_speech:
+            spoken("Source endpoint, first direction", source_field.grab_focus, str(left))
+            spoken("Target endpoint, first direction", target_field.grab_focus, str(right))
 
         direction = next((node for node in descendants(sync_window)
                           if node.get_role_name() == "combo box" and
@@ -150,9 +190,16 @@ def main():
         send("down")
         wait_for(lambda: endpoints()[2:] == (str(right), str(left)), "reversed full endpoint roles")
         result["steps"].append("Direction reversal swapped complete endpoint roles")
+        if orca_speech:
+            source_field, target_field, _, _ = endpoints()
+            spoken("Source endpoint, reversed direction", source_field.grab_focus, str(right))
+            spoken("Target endpoint, reversed direction", target_field.grab_focus, str(left))
         if not mode.grab_focus():
             raise AssertionError("The native synchronization mode is not focusable")
-        send("down")
+        if orca_speech:
+            spoken("Mirror target warning", lambda: send("down"), str(left))
+        else:
+            send("down")
         warning = wait_for(lambda: next((node.get_name() for node in descendants(sync_window)
             if "Mirror changes the target" in node.get_name() and str(left) in node.get_name()), None),
             "Mirror warning naming the currently selected target")
@@ -203,19 +250,22 @@ def main():
                 sorted(p.name for p in right.iterdir()) != ["old.txt"]):
             raise AssertionError("Cancel changed the owned synchronization fixture")
         result["steps"].append("Cancel preserved both exact folder trees and bytes")
+        if orca_speech and not all(step["passed"] for step in result["speechSteps"]):
+            raise AssertionError("Orca did not speak every complete endpoint and Mirror target")
         result["passed"] = True
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     finally:
         ready.unlink(missing_ok=True)
         resume.unlink(missing_ok=True)
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(5)
+        for owned in (process, orca):
+            if owned is not None and owned.poll() is None:
+                owned.terminate()
+                try:
+                    owned.wait(10)
+                except subprocess.TimeoutExpired:
+                    owned.kill()
+                    owned.wait(5)
         report_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return 0 if result["passed"] else 1
 

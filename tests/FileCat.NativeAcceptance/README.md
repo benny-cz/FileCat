@@ -51,6 +51,10 @@ paths wrap and that the controls stay inside the dialog, then cancels and
 checks both exact directory trees and file hashes. Optional `--pause-review`
 creates a `.ready` marker before Cancel; create the matching `.resume` file
 after capturing the isolated guest screen.
+Optional `--orca-speech` starts a test-owned Orca log and requires speech of
+both complete endpoints before and after reversing direction, plus the full
+Mirror target when the mode changes. It stops only its own Orca instance.
+Set `DOTNET_ROOT` to the guest's pinned SDK when it is not installed systemwide.
 `win-ax-sync-endpoints.ps1 -AppPath <isolated FileCat.exe> -ReportPath <guest JSON>
 [-PauseReview]` checks the equivalent Windows review using UI Automation and
 physical Down keys. It reads both full path values and accessible names,
