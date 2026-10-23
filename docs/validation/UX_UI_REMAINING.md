@@ -44,7 +44,7 @@ increments to `main`.
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider cancellation choices. For FCUX-018, finish 150% and 200%
-   Windows scaling, other-desktop narrow layouts and spoken Undo review and
+   Windows scaling, macOS narrow layout and spoken Undo review and
    retained-result checks. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut

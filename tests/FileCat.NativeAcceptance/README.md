@@ -97,6 +97,13 @@ fixture for inspection and closes only its own FileCat instance. It also
 resizes the native review to 720 × 540 logical pixels, requires the complete
 affected path to wrap and both decisions to remain inside, then resizes the
 report to 600 × 460 and requires Copy all to remain reachable.
+`linux-atspi-undo-narrow.py APP_PATH REPORT.json` checks the matching native
+Ubuntu 200% route with a fresh isolated Move/Undo fixture. Run it in the
+logged-in desktop with a Git-built executable and report below
+`~/FileCatValidation`. It resizes the review to 720 × 540 app units and the
+retained report to 600 × 460, checks both full paths and decision bounds,
+verifies exact restored bytes, and reads Copy all from the guest clipboard
+through a separate GTK 3 process. It closes only its own FileCat process.
 `win-ax-undo-active-close.ps1 -AppPath <isolated FileCat.exe> -ReportPath
 <guest-local.json> [-FileCount 5000] [-Action KeepCancelReport|StopExitRestart]`
 checks active Undo ownership in the logged-in Windows VM. The first route
