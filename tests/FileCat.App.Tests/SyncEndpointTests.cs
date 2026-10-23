@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
@@ -61,10 +62,18 @@ public sealed class SyncEndpointTests
             window.Show(); Dispatcher.UIThread.RunJobs();
             var box = window.GetVisualDescendants().OfType<TextBox>().Single(b => b.Text == left);
             Assert.True(box.IsReadOnly);
+            Assert.Equal(TextWrapping.Wrap, box.TextWrapping);
             Assert.Equal(left, ToolTip.GetTip(box));
             Assert.True(box.Bounds.Width > 0);
+            Assert.True(box.Bounds.Height > 48, $"Long source path stayed on one line: {box.Bounds}");
             box.Focus(); box.SelectAll();
             Assert.Equal(left.Length, Math.Abs(box.SelectionEnd - box.SelectionStart));
+            var options = window.GetVisualDescendants().OfType<WrapPanel>().Single(p =>
+                p.Children.OfType<ComboBox>().Any(c => AutomationProperties.GetName(c)?.StartsWith("Synchronization direction:", StringComparison.Ordinal) == true));
+            var combos = options.Children.OfType<ComboBox>().ToArray();
+            Assert.Equal(2, combos.Length);
+            Assert.True(combos[1].Bounds.Y > combos[0].Bounds.Y, "Direction and mode should stack at the minimum width");
+            Assert.All(combos, combo => Assert.InRange(combo.Bounds.Right, 0, window.Bounds.Width));
         }
         finally { window.Close(); }
     }

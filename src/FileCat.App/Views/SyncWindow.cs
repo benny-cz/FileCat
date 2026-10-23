@@ -95,9 +95,9 @@ public sealed class SyncWindow : Window
         var cancel = new Button { Content = "Cancel" };
         cancel.Click += (_, _) => Close();
         _run.Click += (_, _) => Run();
-        var options = new StackPanel
+        var options = new WrapPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6),
+            Orientation = Orientation.Horizontal, ItemSpacing = 8, LineSpacing = 4, Margin = new Thickness(8, 6),
             Children = { _direction, _mode, _showAll },
         };
         var endpoints = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowDefinitions = new RowDefinitions("Auto,Auto"), Margin = new Thickness(8, 0, 8, 6) };
@@ -272,8 +272,13 @@ public sealed class SyncWindow : Window
 
     private static TextBox EndpointBox()
     {
-        var box = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.NoWrap, Margin = new Thickness(0, 2), MinWidth = 0 };
-        ScrollViewer.SetHorizontalScrollBarVisibility(box, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        var box = new TextBox
+        {
+            IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2), MinWidth = 0, MaxHeight = 96,
+        };
+        ScrollViewer.SetHorizontalScrollBarVisibility(box, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        ScrollViewer.SetVerticalScrollBarVisibility(box, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         return box;
     }
 
