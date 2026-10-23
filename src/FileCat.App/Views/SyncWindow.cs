@@ -63,6 +63,7 @@ public sealed class SyncWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_direction, "Direction");
         Avalonia.Automation.AutomationProperties.SetName(_mode, "Mode");
         Avalonia.Automation.AutomationProperties.SetName(_list, "Synchronization steps");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_warning, Avalonia.Automation.AutomationLiveSetting.Polite);
         _direction.ItemsSource = new[] { "Left → right", "Right → left" };
         _direction.SelectedIndex = context.RightWritable || !context.LeftWritable ? 0 : 1;
         _mode.ItemsSource = new[] { "Update: copy new and newer items", "Mirror: make the target like the source" };

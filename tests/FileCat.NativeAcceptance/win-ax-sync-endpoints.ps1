@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
+    [string]$NvdaPath,
     [switch]$PauseReview
 )
 
@@ -34,6 +35,15 @@ if (!$app.StartsWith(($validation + [IO.Path]::DirectorySeparatorChar), [StringC
     [IO.Path]::GetFileName($app) -ine 'FileCat.exe' -or !(Test-Path -LiteralPath $app -PathType Leaf) -or
     [IO.Path]::GetDirectoryName($report) -ine $validation) {
     throw 'Use an isolated Git-built FileCat.exe and a report directly below FileCatValidation.'
+}
+if ($NvdaPath) {
+    $nvda = [IO.Path]::GetFullPath($NvdaPath)
+    if (!$nvda.StartsWith(($validation + [IO.Path]::DirectorySeparatorChar), [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($nvda) -ine 'nvda.exe' -or
+        (Get-AuthenticodeSignature -LiteralPath $nvda).Status -ne 'Valid' -or
+        (Get-Process -Name nvda -ErrorAction SilentlyContinue)) {
+        throw 'Use the signed isolated NVDA copy and stop any existing NVDA process.'
+    }
 }
 
 function Wait-For([scriptblock]$Check, [string]$Description, [int]$Seconds = 20) {
@@ -96,11 +106,69 @@ $result = [ordered]@{
     Right = $right
     Steps = [Collections.Generic.List[string]]::new()
 }
+$nvdaProcess = $null
+$nvdaLog = Join-Path $fixture 'nvda.log'
+$script:speechOffset = 0L
+function TakeSpeech {
+    if (!(Test-Path -LiteralPath $nvdaLog)) { return @() }
+    $stream = [IO.File]::Open($nvdaLog, 'Open', 'Read', 'ReadWrite')
+    try {
+        $stream.Seek($script:speechOffset, 'Begin') | Out-Null
+        $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
+        $text = $reader.ReadToEnd()
+        $last = $text.LastIndexOf("`n")
+        if ($last -lt 0) { return @() }
+        $complete = $text.Substring(0, $last + 1)
+        $script:speechOffset += [Text.Encoding]::UTF8.GetByteCount($complete)
+        return @($complete -split "`r?`n" | Where-Object { $_.StartsWith('Speaking [') } |
+            ForEach-Object { $_.Substring(9).Trim() })
+    }
+    finally { $stream.Dispose() }
+}
+function HearSync([string]$label, [scriptblock]$action, [string]$expected) {
+    TakeSpeech | Out-Null
+    & $action
+    $heard = @()
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    do {
+        $heard += @(TakeSpeech)
+        $spoken = ($heard -join ' ').Replace('\\', '\')
+        if ($spoken.IndexOf($expected, [StringComparison]::OrdinalIgnoreCase) -ge 0) { break }
+        Start-Sleep -Milliseconds 150
+    } while ($timer.Elapsed.TotalSeconds -lt 8)
+    $spoken = ($heard -join ' ').Replace('\\', '\')
+    $passed = $spoken.IndexOf($expected, [StringComparison]::OrdinalIgnoreCase) -ge 0
+    $result.SpeechSteps.Add([ordered]@{ Label = $label; Expected = $expected; Heard = $heard; Passed = $passed })
+    return $passed
+}
 $process = $null
 $ready = [IO.Path]::ChangeExtension($report, '.ready')
 $resume = [IO.Path]::ChangeExtension($report, '.resume')
 Remove-Item -LiteralPath $ready, $resume -ErrorAction SilentlyContinue
 try {
+    if ($NvdaPath) {
+        $config = Join-Path $fixture 'nvda-config'
+        New-Item -ItemType Directory -Path $config | Out-Null
+        [IO.File]::WriteAllText((Join-Path $config 'nvda.ini'), @"
+[general]
+	showWelcomeDialogAtStartup = False
+[update]
+	autoCheck = False
+	startupNotification = False
+	allowUsageStats = False
+	askedAllowUsageStats = True
+"@)
+        $result.NvdaSpeechLog = $nvdaLog
+        $result.SpeechSteps = [Collections.Generic.List[object]]::new()
+        $nvdaProcess = Start-Process -FilePath $nvda -ArgumentList @("--log-file=$nvdaLog", '--log-level=12',
+            "--config-path=$config", '--disable-addons') -PassThru -WindowStyle Hidden
+        $null = Wait-For {
+            if ($nvdaProcess.HasExited) { throw 'NVDA exited before startup.' }
+            if ((Test-Path -LiteralPath $nvdaLog) -and
+                (Select-String -LiteralPath $nvdaLog -Pattern 'NVDA initialized' -SimpleMatch -Quiet)) { $true }
+        } 'NVDA startup' 30
+        TakeSpeech | Out-Null
+    }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $left, '--right', $right) -PassThru
     $null = Wait-For { $process.Refresh(); if ($process.MainWindowHandle -ne [IntPtr]::Zero) { $process.MainWindowHandle } } 'isolated FileCat main window' 25
@@ -141,6 +209,11 @@ try {
         throw 'The first direction lacks complete, distinct endpoint text or accessible names.'
     }
     $result.Steps.Add('Full selectable Source and Target fields expose distinct paths')
+    if ($NvdaPath) {
+        [FileCatSyncInput]::SetForegroundWindow([IntPtr]$sync.Current.NativeWindowHandle) | Out-Null
+        $null = HearSync 'Source endpoint, first direction' { $endpoints.Source.SetFocus() } $left
+        $null = HearSync 'Target endpoint, first direction' { $endpoints.Target.SetFocus() } $right
+    }
     $direction = @(Descendants $sync | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox -and
         $_.Current.Name -like 'Synchronization direction: from *' })[0]
@@ -151,8 +224,15 @@ try {
     [FileCatSyncInput]::Press(0x28)
     $endpoints = Wait-For { $value = Endpoints; if ($value.SourceText -ceq $right -and $value.TargetText -ceq $left) { $value } } 'reversed full endpoint roles'
     $result.Steps.Add('Physical Down reversed both complete endpoint roles')
+    if ($NvdaPath) {
+        $null = HearSync 'Source endpoint, reversed direction' { $endpoints.Source.SetFocus() } $right
+        $null = HearSync 'Target endpoint, reversed direction' { $endpoints.Target.SetFocus() } $left
+    }
     $mode.SetFocus()
-    [FileCatSyncInput]::Press(0x28)
+    if ($NvdaPath) {
+        $null = HearSync 'Mirror target warning' { [FileCatSyncInput]::Press(0x28) } $left
+    }
+    else { [FileCatSyncInput]::Press(0x28) }
     $warning = Wait-For { @(Descendants $sync | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
         $_.Current.Name.Contains('Mirror changes the target') -and $_.Current.Name.Contains($left) })[0] } 'Mirror warning with the reversed full target'
@@ -205,6 +285,9 @@ try {
         throw 'Cancel changed the exact fixture trees.'
     }
     $result.Steps.Add('Cancel preserved both exact trees and file hashes')
+    if ($NvdaPath -and @($result.SpeechSteps | Where-Object { !$_.Passed }).Count) {
+        throw 'NVDA did not speak every complete synchronization endpoint and Mirror target.'
+    }
     $result.Passed = $true
 }
 catch {
@@ -224,6 +307,10 @@ finally {
     if ($process -and !$process.HasExited) {
         $process.CloseMainWindow() | Out-Null
         if (!$process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force }
+    }
+    if ($nvdaProcess -and !$nvdaProcess.HasExited) {
+        Start-Process -FilePath $nvda -ArgumentList @('-q') -Wait -WindowStyle Hidden | Out-Null
+        if (!$nvdaProcess.WaitForExit(15000)) { $nvdaProcess.Kill() }
     }
     [IO.File]::WriteAllText($report, ($result | ConvertTo-Json -Depth 8) + "`n")
 }

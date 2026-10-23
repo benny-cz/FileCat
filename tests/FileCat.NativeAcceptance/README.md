@@ -60,6 +60,10 @@ verifies field wrapping, in-bounds choices and unchanged fixture
 trees after Cancel. Run it in the logged-in Win11 VM, with paths below
 `%LOCALAPPDATA%\FileCatValidation`. Optional `-PauseReview` creates `.ready`;
 write the matching `.resume` file after capturing the VM desktop.
+Optional `-NvdaPath <signed portable nvda.exe>` starts an owned NVDA speech
+log, focuses both complete endpoints before and after direction reversal, and
+requires the reversed Mirror target to be spoken when the mode changes. It
+stops that NVDA instance and retains the log under its private fixture.
 `python3 mac-ax-sync-endpoints.py BUNDLE.app REPORT.json` checks the same
 journey on an unlocked Retina Mac. Keep `mac-ax-rename-snapshot.swift`,
 `mac-ax-panel-sort.py` and `mac-ax-markdown-resize.py` beside the runner and
