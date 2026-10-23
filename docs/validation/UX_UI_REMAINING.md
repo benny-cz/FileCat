@@ -58,10 +58,11 @@ increments to `main`.
    For FCUX-007, test the Hex editor controls and bounded match status with
    scaled and spoken input on Windows. The Ubuntu normal and 200% desktop
    runs, including a measured 720 × 500 app-unit window, passed. On Retina
-   Mac, investigate why a 720 × 500 logical-point Hex editor request clamps
-   near 911 × 648, and why Ctrl+F after resize exposes the Hex status as the
-   focused AX element instead of Find; the visible Find route passed at the
-   clamped size. Finish Mac spoken Find acceptance.
+   Mac, rerun 720 × 500 logical-point Hex sizing at 1× and 2× on the new
+   bounded-intrinsic-layout build; the earlier build clamped near 1013 × 727
+   and 911 × 648 respectively. Investigate why Ctrl+F after resize exposes
+   the Hex status as the focused AX element instead of Find; the visible Find
+   route passed at the clamped Retina size. Finish Mac spoken Find acceptance.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

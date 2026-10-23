@@ -1577,6 +1577,19 @@ resize reported the Hex status as the focused AX element, so that keyboard
 focus route and the unexpected native size clamp remain open. The initial
 stale-peer crash receipt and fixture remain isolated for diagnosis.
 
+**23 October 2026, Hex editor native minimum investigation:** The same signed
+`6ff4164d` app at a supported 1× Mac display also refused a 720 × 500
+request, reporting 1013 × 727 before the wrapper restored Retina. In a
+headless infinite-width measure, its long wrapping hint and toolbars reported
+a 3850-pixel intrinsic width; macOS used an oversized native minimum even
+though the controls fit a finite 720 × 500 viewport. The Hex editor root now
+bounds only its unconstrained intrinsic measure to 720 × 500, while real
+finite window layouts still use their available width and height. The focused
+headless test measures that bound, renders 720 × 500 with Find, Previous,
+Next and count inside the window, then verifies Ctrl+F returns focus to Find
+after a completed search. It passed locally with 16 build workers. Native
+1×/2× Mac resizing and focus reruns remain open on this change.
+
 **21 October 2026 validation:** An isolated Ubuntu Copy with a 65,536 bytes/s
 limit exposed a large-buffer rate defect: each callback waited only once for
 at most one second, even when the copied buffer required a longer allowance.

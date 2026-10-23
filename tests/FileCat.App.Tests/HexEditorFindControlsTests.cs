@@ -1,9 +1,13 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.Interactivity;
 using FileCat.App.Services;
 using FileCat.App.Views;
@@ -55,6 +59,11 @@ public sealed class HexEditorFindControlsTests
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{second:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
+
+            var contentRoot = Assert.IsAssignableFrom<Control>(editor.Content);
+            contentRoot.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Assert.InRange(contentRoot.DesiredSize.Width, 600, 760);
+            Assert.InRange(contentRoot.DesiredSize.Height, 350, 540);
             Click(previous);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{first:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
@@ -62,6 +71,26 @@ public sealed class HexEditorFindControlsTests
             await WaitFor(() => status.Text?.StartsWith("\"NEEDLE\" was not found before the cursor.",
                 StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
+
+            editor.Width = 720;
+            editor.Height = 500;
+            editor.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            editor.CaptureRenderedFrame()?.Dispose();
+            Assert.InRange(editor.ClientSize.Width, 700, 740);
+            Assert.InRange(editor.ClientSize.Height, 480, 520);
+            foreach (var control in new Control[] { search, previous, next, count })
+            {
+                Assert.True(control.Bounds.Width > 8 && control.Bounds.Height > 8);
+                var point = control.TranslatePoint(new Point(0, 0), editor);
+                Assert.NotNull(point);
+                Assert.InRange(point.Value.X, 0, editor.ClientSize.Width);
+                Assert.InRange(point.Value.Y, 0, editor.ClientSize.Height);
+                Assert.True(point.Value.X + control.Bounds.Width <= editor.ClientSize.Width + 1);
+                Assert.True(point.Value.Y + control.Bounds.Height <= editor.ClientSize.Height + 1);
+            }
+            editor.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsFocused);
 
             search.Text = "second";
             Assert.Equal("0 matches visited · total not counted", count.Text);

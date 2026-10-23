@@ -23,6 +23,21 @@ namespace FileCat.App.Views;
 /// </summary>
 public sealed class HexEditorWindow : Window
 {
+    private sealed class IntrinsicBoundedGrid : Grid
+    {
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            // macOS asks for an unconstrained content size when deriving a window's
+            // native minimum. The wrapped help and toolbar then report their full
+            // one-line width and pin the editor near its initial size. Only that
+            // intrinsic probe needs a compact viewport; finite layouts still use
+            // every pixel of the actual window.
+            var width = double.IsPositiveInfinity(availableSize.Width) ? 720 : availableSize.Width;
+            var height = double.IsPositiveInfinity(availableSize.Height) ? 500 : availableSize.Height;
+            return base.MeasureOverride(new Size(width, height));
+        }
+    }
+
     // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
         new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
@@ -195,7 +210,7 @@ public sealed class HexEditorWindow : Window
         var hexSurface = new Border { Child = _hex };
         main.Children.Add(hexSurface);
         var overlayHost = new Panel { IsVisible = false };
-        Content = ThemeLayers.Over(new Grid { Children = { main, overlayHost } }, hexSurface);
+        Content = ThemeLayers.Over(new IntrinsicBoundedGrid { Children = { main, overlayHost } }, hexSurface);
         _dialogs = new OverlayDialogService(overlayHost, () => _hex);
 
         _save.Click += async (_, _) => await SaveAsync();
