@@ -46,8 +46,7 @@ increments to `main`.
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
-   safely offered. FCUX-003 still needs native concurrent rule-change races.
-   On Mac, investigate the scrolling form body's zero AX bounds and preview
+   safely offered. On Mac, investigate the scrolling form body's zero AX bounds and preview
    list with no AX children, beyond the now verified spoken Previous/Next
    mapping route. For FCUX-004, exercise remaining
    modal focus and decision routes after the Mac, Windows and Ubuntu
