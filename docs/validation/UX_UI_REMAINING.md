@@ -40,7 +40,8 @@ increments to `main`.
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider failure-cleanup choices beyond the tested live SFTP
-   and FTP/FTPS connection-loss Cancel, Skip and Retry cases. For FCUX-069/070,
+   and FTP/FTPS connection-loss Cancel, Skip and Retry cases, and the FTP/FTPS
+   changed-source cleanup cases. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

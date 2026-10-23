@@ -312,6 +312,71 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task A_changed_local_move_source_discards_its_FTP_stage_without_publishing_or_deleting(string protocol)
+    {
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat changed source test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "changed-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "changed-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir, "changed-journal"));
+        var bytes = new byte[2 * 1024 * 1024];
+        new Random(218).NextBytes(bytes);
+        byte[] originalHash = SHA256.HashData(bytes);
+        string source = Path.Combine(_dir, "changed-upload.bin");
+        File.WriteAllBytes(source, bytes);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { RateLimit = 256 * 1024 },
+        });
+        try
+        {
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && !job.State.IsFinished() &&
+                   !Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                       .Any(path => new FileInfo(path).Length is > 0 and < 2 * 1024 * 1024))
+                await Task.Delay(20, ct);
+            Assert.Equal(JobState.Running, job.State);
+            File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(5));
+            deadline.Restart();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(25) && job.Decision is not { Task.IsCompleted: false } && !job.State.IsFinished())
+                await Task.Delay(20, ct);
+            Assert.True(job.Decision is { Task.IsCompleted: false },
+                $"The changed {protocol} source did not reach its failure decision: {job.State}.");
+            job.Decision!.Resolve(new Decision(DecisionAction.Skip));
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                await Task.Delay(20, ct);
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+            Assert.Empty(Directory.GetFiles(server.Root));
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("source changed during uploading", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (!job.State.IsFinished()) job.Cancel();
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task A_killed_FTP_upload_leaves_only_an_unpublished_stage_and_an_open_recovery_journal(bool move)

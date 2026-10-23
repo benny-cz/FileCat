@@ -2497,6 +2497,15 @@ removes the local source. The complete Windows Remote Release suite passed
 2,408, skipped 161 and failed 0 with 16 test workers. Other failure-cleanup
 paths and native provider acceptance remain open.
 
+A separate real-server failure cleanup test changes the local Move source's
+modified time while a rate-limited hidden upload is underway. On FTP,
+explicit-TLS FTPS and implicit-TLS FTPS, the job reaches the source-change
+decision, Skip closes it as a failed single-item job, and the original
+source bytes remain exact. All three focused cases passed with no published
+target or temporary server file. The complete Windows Remote Release suite
+passed 2,411, skipped 161 and failed 0 with 16 test workers. Other provider
+failure routes and native acceptance remain open.
+
 An isolated child-process regression now covers the FTP crash boundary in
 both Copy and Move. The parent starts its own loopback pyftpdlib server and
 8 MiB source, waits for a nonzero but incomplete `.fc-` upload, kills only
