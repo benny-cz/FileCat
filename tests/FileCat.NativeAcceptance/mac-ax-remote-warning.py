@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes [--probe]
-The probe ends at the expanded Copy options and records native AX controls.
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe]
+The probes end at the expanded Copy options; pointer-probe skips keyboard panel switching.
+Narrow tests both reviews at 640 × 480 points.
 """
 
 import hashlib
 import json
 from pathlib import Path
 import re
+import socket
 import subprocess
 import sys
 import time
@@ -69,7 +71,7 @@ tell application "System Events"
     end tell
 end tell
 error "The owned AX action was absent"
-'''.replace("ROLE", json.dumps(role)).replace("NAME", json.dumps(name))
+'''.replace("ROLE", json.dumps(role)).replace("NAME", json.dumps(name, ensure_ascii=False))
     if osa(script) != "clicked":
         raise AssertionError(f"Could not click {role} {name!r}")
 
@@ -128,15 +130,31 @@ def capture_screen(validation):
                     if path.stat().st_size > 100_000), None), "owned Mac warning screenshot", seconds=15)
 
 
-def run(bundle, report_path, ftp_helper, protocol, probe):
+def resize_window(width, height):
+    raw = osa(f'''
+tell application "System Events"
+    tell process "FileCat"
+        set size of window 1 to {{{width}, {height}}}
+        return size of window 1
+    end tell
+end tell
+''')
+    size = [int(value) for value in re.findall(r"\d+", raw)]
+    if len(size) != 2 or any(abs(actual - requested) > 2 for actual, requested in zip(size, (width, height))):
+        raise AssertionError(f"The native review refused {width} × {height}: {raw!r}")
+    return size
+
+
+def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
+    sftp_helper = Path(__file__).with_name("mac-sftp-owned-selftest.py").resolve(strict=True)
     report_path = report_path.resolve()
     executable = bundle / "Contents/MacOS/FileCat"
     if (bundle.parent != validation or bundle.suffix != ".app" or not executable.is_file() or
             report_path.parent != validation or ftp_helper.name != "win-ftp-owned-stage.py" or
-            ftp_helper.parent != validation):
+            ftp_helper.parent != validation or sftp_helper.parent != validation):
         raise AssertionError("Use only the isolated signed app and Git fixture helper below FileCatValidation")
     run_command(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle)])
     if app_pids():
@@ -151,7 +169,9 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
     source, target = source_dir / "target.txt", server_dir / "target.txt"
     source.write_bytes(b"owned incoming content\n")
     target.write_bytes(b"owned existing remote content\n")
-    receipt = {"passed": False, "probe": probe, "protocol": protocol, "bundle": str(bundle),
+    receipt = {"passed": False, "probe": probe, "narrow": narrow,
+               "pointerProbe": pointer_probe,
+               "protocol": protocol, "bundle": str(bundle),
                "appDllSha256": sha256(executable.with_name("FileCat.dll")),
                "fixture": str(fixture), "sourceSha256": sha256(source), "targetSha256": sha256(target),
                "steps": []}
@@ -167,17 +187,37 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
     pid = None
     try:
         ready = fixture / "server.ready"
-        with (fixture / "server.log").open("wb") as log:
-            server = subprocess.Popen([sys.executable, str(ftp_helper),
-                                       "serve-tls" if protocol == "ftpes" else "serve",
-                                       str(server_dir), str(ready)],
-                                      stdout=log, stderr=subprocess.STDOUT)
-        port = wait_for(lambda: ready.read_text(encoding="ascii").strip()
-                        if ready.is_file() and server.poll() is None else None,
-                        "test-owned loopback FTP server")
+        if protocol == "sftp":
+            ssh = json.loads(run_command([sys.executable, str(sftp_helper), "prepare",
+                                          str(fixture), str(server_dir)]))
+            if Path(ssh["fixture"]) != fixture or Path(ssh["serverDir"]) != server_dir:
+                raise AssertionError("The owned SFTP preparation escaped the exact fixture")
+            receipt["hostFingerprint"] = ssh["hostFingerprint"]
+            receipt["sshKeyFile"] = ssh["clientKey"]
+            port = str(ssh["port"])
+            with (fixture / "sshd.log").open("wb") as log:
+                server = subprocess.Popen(["/usr/sbin/sshd", "-D", "-e", "-f", ssh["config"]],
+                                          stdout=log, stderr=subprocess.STDOUT)
+            def listening():
+                if server.poll() is not None:
+                    raise AssertionError("The owned SFTP server exited before connection")
+                with socket.socket() as probe_socket:
+                    probe_socket.settimeout(0.2)
+                    return probe_socket.connect_ex(("127.0.0.1", int(port))) == 0
+            wait_for(listening, "test-owned loopback SFTP server", seconds=10)
+        else:
+            with (fixture / "server.log").open("wb") as log:
+                server = subprocess.Popen([sys.executable, str(ftp_helper),
+                                           "serve-tls" if protocol == "ftpes" else "serve",
+                                           str(server_dir), str(ready)],
+                                          stdout=log, stderr=subprocess.STDOUT)
+            port = wait_for(lambda: ready.read_text(encoding="ascii").strip()
+                            if ready.is_file() and server.poll() is None else None,
+                            "test-owned loopback FTP server")
         if not re.fullmatch(r"\d{1,5}", port) or not 1 <= int(port) <= 65535:
-            raise AssertionError("The owned FTP fixture returned an invalid port")
-        address = f"{protocol}://tester@127.0.0.1:{port}/"
+            raise AssertionError("The owned remote fixture returned an invalid port")
+        address = (f"sftp://benny@127.0.0.1:{port}{server_dir}/" if protocol == "sftp" else
+                   f"{protocol}://tester@127.0.0.1:{port}/")
         run_command(["/usr/bin/open", "-n", str(bundle), "--args", "--new-instance",
                      "--data", str(data), "--left", str(source_dir), "--right", str(server_dir)])
         pid = wait_for(lambda: next(iter(app_pids()), None), "isolated Mac FileCat process")
@@ -200,26 +240,42 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
             return matches[0]
 
         def open_remote_copy_review():
-            for attempt in range(4):
+            for attempt in range(6):
                 rows = [node for node in nodes() if node["role"] == "AXRow" and
                         node["name"] == "target.txt"]
                 source_row = min(rows, key=lambda node: node["bounds"][0])
+                source_tab = next((node for node in nodes() if node["role"] == "AXButton" and
+                                   node["name"].startswith("source, ") and
+                                   node["name"].endswith(", " + str(source_dir)) and
+                                   node["bounds"][2] > 8), None)
+                if source_tab is None:
+                    raise AssertionError("The exact local source tab is unavailable")
+                click_node(source_tab)
                 receipt["steps"].append(run_command([str(ax_setter), str(executable), str(pid),
                                                      "target.txt", "leftmost"]))
                 click_node(source_row)
                 if attempt:
                     click_node(source_row)  # VoiceOver can consume a click to move its cursor.
-                copy_buttons = [node for node in nodes() if node["role"] == "AXButton" and
-                                node["name"] == "Copy…"]
+                try:
+                    copy_buttons = wait_for(lambda: [node for node in nodes() if
+                                            node["role"] == "AXButton" and node["name"] == "Copy…" and
+                                            node["enabled"]], "enabled native Copy action", seconds=3)
+                except AssertionError:
+                    receipt["steps"].append(f"Copy remained disabled after source activation attempt {attempt + 1}")
+                    continue
                 if len(copy_buttons) != 1:
-                    raise AssertionError(f"Expected one Copy command, found {len(copy_buttons)}")
-                click_node(copy_buttons[0])
-                destination = wait_for(lambda: next((node["value"] for node in nodes() if
-                                       node["role"] == "AXTextField" and node["name"] == "Destination"), None),
-                                       "Copy review destination")
-                if destination == address:
+                    raise AssertionError(f"Expected one enabled Copy command, found {len(copy_buttons)}")
+                click_ax("AXButton", "Copy…")
+                try:
+                    destination = wait_for(lambda: next((node["value"] for node in nodes() if
+                                           node["role"] == "AXTextField" and node["name"] == "Destination"), None),
+                                           "Copy review destination", seconds=6)
+                except AssertionError:
+                    continue
+                if destination.rstrip("/") == address.rstrip("/"):
                     receipt["steps"].append(f"Copy review opened for exact remote destination on attempt {attempt + 1}")
                     return
+                receipt["steps"].append(f"Copy review opened for unexpected destination: {destination}")
                 click_ax("AXButton", "Cancel")
                 wait_for(lambda: not any(node["role"] == "AXTextField" and node["name"] == "Destination"
                                          for node in nodes()), "wrong-panel Copy review dismissed")
@@ -231,30 +287,91 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
         time.sleep(0.5)
         receipt["nativeWindows"] = [{"name": node["name"], "bounds": node["bounds"]}
                                     for node in nodes() if node["role"] == "AXWindow"]
-        set_field("Location", address, rightmost=True, enter=True)
-        receipt["steps"].append("Remote address entered")
+        if protocol == "sftp":
+            connect_buttons = [node for node in nodes() if node["role"] == "AXButton" and
+                               node["name"] == "Connect to a server…" and node["bounds"][2] > 8]
+            if len(connect_buttons) != 2:
+                raise AssertionError("The right panel's native Connect command is unavailable")
+            click_node(max(connect_buttons, key=lambda node: node["bounds"][0]))
+            wait_for(lambda: any(node["role"] == "AXTextField" and node["name"] == "Server"
+                                 for node in nodes()), "fresh SFTP connection form")
+            set_field("Server", "127.0.0.1")
+            set_field("Port", port)
+            set_field("User name", "benny")
+            click_ax("AXPopUpButton", "Sign in with")
+            key_choice = wait_for(lambda: next((node for node in nodes() if
+                                  node["name"] == "Private key file" and
+                                  node["role"] == "AXStaticText" and node["bounds"][2] > 8), None),
+                                  "native private-key sign-in choice")
+            click_node(key_choice)
+            set_field("Private key file", ssh["clientKey"])
+            set_field("Start folder", str(server_dir))
+            click_ax("AXButton", "Connect")
+            receipt["steps"].append("Public-key-only SFTP profile submitted")
+            wait_for(lambda: any("New server key" in node["name"] for node in nodes()),
+                     "new SFTP host-key review")
+            if not any(ssh["hostFingerprint"] in node["name"] for node in nodes()):
+                raise AssertionError("SFTP host-key prompt omitted the independent test fingerprint")
+            trust = [node for node in nodes() if node["role"] == "AXButton" and
+                     node["name"] == "Connect once" and node["bounds"][2] > 8]
+            if len(trust) != 1:
+                raise AssertionError(f"Expected one visible SFTP Connect once action, found {len(trust)}")
+            click_node(trust[0])
+            try:
+                wait_for(lambda: not any(node["role"] == "AXButton" and node["name"] == "Connect once"
+                                         for node in nodes()), "SFTP host-key prompt closure", seconds=3)
+            except AssertionError:
+                click_node(trust[0])  # VoiceOver may consume the first pointer click.
+                wait_for(lambda: not any(node["role"] == "AXButton" and node["name"] == "Connect once"
+                                         for node in nodes()), "SFTP host-key prompt closure", seconds=10)
+            receipt["steps"].append("Independent SFTP host fingerprint matched before Connect once")
+        else:
+            set_field("Location", address, rightmost=True, enter=True)
+            receipt["steps"].append("Remote address entered")
         if protocol == "ftp":
             wait_for(lambda: any(node["name"] == "Connect unencrypted" for node in nodes()),
                      "explicit FTP plaintext consent")
             receipt["steps"].append("Plaintext consent shown")
             click_ax("AXButton", "Connect unencrypted")
             receipt["steps"].append("Plaintext consent clicked")
-        wait_for(lambda: any(node["role"] == "AXTextField" and node["name"] == "Password" for node in nodes()),
-                 "test server password field")
-        one("AXTextField", "Password")
-        set_field("Password", "secret-pass")
-        receipt["steps"].append("Password entered")
-        click_ax("AXButton", "Connect")
-        receipt["steps"].append("Connect clicked")
-        if protocol == "ftpes":
-            wait_for(lambda: any(node["role"] == "AXButton" and node["name"] == "Connect once"
-                                 for node in nodes()), "fresh FTPS certificate decision")
-            click_ax("AXButton", "Connect once")
-            receipt["steps"].append("Fresh FTPS certificate accepted for this connection")
+        if protocol != "sftp":
+            wait_for(lambda: any(node["role"] == "AXTextField" and node["name"] == "Password" for node in nodes()),
+                     "test server password field")
+            one("AXTextField", "Password")
+            set_field("Password", "secret-pass")
+            receipt["steps"].append("Password entered")
+            click_ax("AXButton", "Connect")
+            receipt["steps"].append("Connect clicked")
+            if protocol == "ftpes":
+                wait_for(lambda: any(node["role"] == "AXButton" and node["name"] == "Connect once"
+                                     for node in nodes()), "fresh FTPS certificate decision")
+                click_ax("AXButton", "Connect once")
+                receipt["steps"].append("Fresh FTPS certificate accepted for this connection")
         wait_for(lambda: len([node for node in nodes() if node["role"] == "AXRow" and
                               node["name"] == "target.txt"]) >= 2,
                  "both exact source and remote target rows", seconds=45)
+        if protocol == "sftp" and not pointer_probe:
+            # After the host-key dialog, macOS may leave the right Location box
+            # editing the new address. Escape returns to that list; Tab then
+            # uses FileCat's own panel-switch command to reach the source.
+            osa('''tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    key code 53
+    key code 48
+end tell''')
+            wait_for(lambda: any(node["role"] == "AXWindow" and
+                                 node["name"].startswith("source — FileCat") for node in nodes()),
+                     "Mac keyboard return to the exact local source panel", seconds=8)
+            receipt["steps"].append("Esc then Tab returned focus from SFTP Location to the local source panel")
         open_remote_copy_review()
+        if narrow:
+            main = next((node for node in nodes() if node["role"] == "AXWindow" and
+                         node["bounds"][2] >= 600), None)
+            if main is None:
+                raise AssertionError("The original native window geometry is unavailable")
+            receipt["originalReviewSize"] = main["bounds"][2:4]
+            receipt["narrowReviewSize"] = resize_window(640, 480)
+            receipt["steps"].append("Copy review narrowed to 640 × 480 Mac points")
         review_nodes = nodes()
         receipt["reviewControls"] = [{"role": node["role"], "name": node["name"],
                                       "value": node["value"], "bounds": node["bounds"]}
@@ -303,6 +420,26 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
                                               "complete automatically spoken VoiceOver replacement warning", seconds=10)
         receipt["steps"].append("Complete replacement warning spoken automatically")
         receipt["warningScreenshot"] = capture_screen(validation)
+        if narrow:
+            window = next((node for node in nodes() if node["role"] == "AXWindow" and
+                           abs(node["bounds"][2] - 640) <= 2), None)
+            cancel = next((node for node in nodes() if node["role"] == "AXButton" and
+                           node["name"] == "Cancel" and node["bounds"][2] > 8), None)
+            if window is None or cancel is None:
+                raise AssertionError("Narrow warning review lost its native window or Cancel action")
+            approve = next((node for node in nodes() if node["role"] == "AXButton" and
+                            node["name"] == "Copy" and node["bounds"][2] > 8 and
+                            abs(node["bounds"][1] - cancel["bounds"][1]) <= 5), None)
+            if approve is None:
+                raise AssertionError("Narrow warning review lost its Copy approval action")
+            wx, wy, ww, wh = window["bounds"]
+            for name, action in (("Cancel", cancel), ("Copy", approve)):
+                x, y, w, h = action["bounds"]
+                if not (wx <= x and wy <= y and x + w <= wx + ww and y + h <= wy + wh):
+                    raise AssertionError(f"The narrow review's {name} action left the window")
+            receipt["narrowCancelBounds"] = cancel["bounds"]
+            receipt["narrowCopyBounds"] = approve["bounds"]
+            resize_window(*[round(value) for value in receipt["originalReviewSize"]])
         click_ax("AXButton", "Cancel")
         wait_for(lambda: not any(node["name"] == "Destination" and node["role"] == "AXTextField"
                                  for node in nodes()), "Copy review dismissed without transfer")
@@ -326,6 +463,24 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
         receipt["conflictSpeech"] = wait_for(lambda: (phrase if warning_text in phrase else None)
                                              if (phrase := voiceover_last()) else None,
                                              "complete automatically spoken per-item warning", seconds=10)
+        if narrow:
+            receipt["narrowConflictSize"] = resize_window(640, 480)
+            conflict_nodes = nodes()
+            window = next((node for node in conflict_nodes if node["role"] == "AXWindow" and
+                           abs(node["bounds"][2] - 640) <= 2), None)
+            if window is None:
+                raise AssertionError("The narrow per-item conflict review lost its native window")
+            wx, wy, ww, wh = window["bounds"]
+            for name in ("Skip", "Cancel operation"):
+                action = next((node for node in conflict_nodes if node["role"] == "AXButton" and
+                               node["name"] == name and node["bounds"][2] > 8), None)
+                if action is None:
+                    raise AssertionError(f"The narrow per-item conflict lost {name}")
+                x, y, w, h = action["bounds"]
+                if not (wx <= x and wy <= y and x + w <= wx + ww and y + h <= wy + wh):
+                    raise AssertionError(f"The narrow per-item conflict's {name} action left the window")
+                receipt[f"narrowConflict{name.replace(' ', '')}Bounds"] = action["bounds"]
+            receipt["conflictScreenshot"] = capture_screen(validation)
         click_ax("AXButton", "Skip")
         wait_for(lambda: not any(node["role"] == "AXButton" and node["name"] == "Skip"
                                  for node in nodes()), "per-item Skip decision closure")
@@ -363,10 +518,15 @@ end tell
             try:
                 receipt["failureControls"] = [{"role": node["role"], "name": node["name"],
                                                "value": "<redacted>" if node["name"] == "Password" else node["value"],
-                                               "bounds": node["bounds"]}
+                                               "bounds": node["bounds"], "enabled": node["enabled"],
+                                               "selected": node["selected"], "focused": node["focused"]}
                                               for node in nodes() if node["role"] in
-                                              ("AXTextField", "AXRow") and
-                                              len(node["name"]) < 100][:35]
+                                              ("AXWindow", "AXTextField", "AXRow", "AXButton", "AXStaticText") and
+                                              len(node["name"]) < 180][:100]
+            except Exception:
+                pass
+            try:
+                receipt["failureScreenshot"] = capture_screen(validation)
             except Exception:
                 pass
         return receipt
@@ -393,9 +553,11 @@ end tell
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes") or (
-            len(sys.argv) == 6 and sys.argv[5] != "--probe"):
+    if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "sftp") or (
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                 sys.argv[4], len(sys.argv) == 6)
+                 sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe"),
+                 len(sys.argv) == 6 and sys.argv[5] == "--narrow",
+                 len(sys.argv) == 6 and sys.argv[5] == "--pointer-probe")
     raise SystemExit(0 if result["passed"] else 1)

@@ -274,10 +274,14 @@ logical pixels, records actual GNOME scale and both warning/action bounds,
 and requires exact source and target hashes and a one-file server manifest.
 Run separate fresh sessions at 100%, 150% and 200% and restore the VM's
 original display scale afterward.
-`mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes`
+`mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp`
 checks a signed, isolated Git-built Mac bundle with VoiceOver running and Mac
-output muted. It owns a fresh loopback FTP or explicit FTPS server, records
-the certificate or plaintext consent, focuses the exact left source row using
+output muted. It owns a fresh loopback FTP, explicit FTPS, or public-key-only
+SFTP server. The SFTP fixture creates disposable host/client keys below its
+own folder, requires the new host-key prompt to show the independently
+computed fingerprint, and accepts that key only for the current connection.
+It does not change the Mac's system SSH configuration or `authorized_keys`.
+The runner records the certificate or plaintext consent for FTP, focuses the exact left source row using
 the PID-checked `mac-ax-set-field.swift` helper, and requires the Copy review
 to name the exact remote destination. It chooses Replace and waits for both
 the complete visible final-check warning and VoiceOver's full automatic
@@ -287,7 +291,16 @@ automatically speak the same complete per-item warning, and preserve the
 exact remote target after Skip. When the approved capture helper is available,
 the runner retains a screenshot of the first warning. The report and disposable fixture stay below
 `~/FileCatValidation`; `--probe` stops after exposing native options and is
-for diagnosing the Mac accessibility tree.
+for diagnosing the Mac accessibility tree. `--narrow` repeats the full
+journey with both the Copy warning and per-item conflict at 640 × 480 Mac
+points. It records both screenshots and requires the decision actions to
+remain inside the native window. `--pointer-probe` skips the keyboard panel
+switch after SFTP Connect once and requires the exact local source to activate
+by pointer and open the Copy review; it makes no transfer.
+`mac-sftp-owned-selftest.py REPORT.json` independently verifies that the
+disposable SFTP service lists only the expected fixture file and stops its
+server process afterward. The same script's `prepare` mode supplies the
+isolated server configuration to the native VoiceOver journey.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
