@@ -36,15 +36,7 @@ increments to `main`.
    final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
-   destination content check. In the Mac 1× mode with VoiceOver, investigate intermittent
-   pointer activation of the local source immediately after SFTP Connect once;
-   exact pointer coordinates and a frontmost FileCat still sometimes leave the
-   remote panel active. A subsequent physical source-row click also fails,
-   even though native hit testing identifies the source tab and source list
-   at the clicked coordinates. Diagnose macOS pointer event delivery or
-   delayed focus restoration. The exact source tab's AX action and the
-   complete warning journey pass.
-   Supported SFTP
+   destination content check. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider cancellation choices. For FCUX-069/070,

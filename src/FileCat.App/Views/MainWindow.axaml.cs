@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
@@ -29,6 +30,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
+    private PanelView? _pointerFocusOwner;
+    private long _pointerFocusAt;
     private readonly OverlayDialogService _dialogs;
     private readonly DispatcherTimer _notificationTimer;
     /// <summary>
@@ -64,6 +67,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
         AddHandler(KeyDownEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, RecordPointerFocusIntent, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyDownEvent, (_, _) => ClearPointerFocusIntent(), RoutingStrategies.Tunnel, handledEventsToo: true);
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _notificationTimer.Tick += (_, _) => TryExpireNotification();
         vm.PropertyChanged += OnViewModelPropertyChanged;
@@ -497,6 +502,31 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private PanelView? ActivePanelView() =>
         _vm.Workspace.ActivePanel is { } p && _panelViews.TryGetValue(p, out var v) ? v : null;
+
+    private void RecordPointerFocusIntent(object? sender, PointerPressedEventArgs e)
+    {
+        // A physical panel press outranks a late accessibility focus request for
+        // an editor in the previously active panel. A fresh press or key starts
+        // a new user intent; the short guard never changes ordinary navigation.
+        _pointerFocusOwner = !_dialogs.IsOpen && e.Source is Visual source &&
+                             source.FindAncestorOfType<PanelView>(includeSelf: true) is { } owner &&
+                             owner.PointerActivates(e.Source) ? owner : null;
+        _pointerFocusAt = Stopwatch.GetTimestamp();
+    }
+
+    private void ClearPointerFocusIntent()
+    {
+        _pointerFocusOwner = null;
+    }
+
+    internal bool ShouldRejectStalePanelAccessibilityFocus(Visual editor)
+    {
+        if (_dialogs.IsOpen || _pointerFocusOwner is not { } owner || !owner.IsEffectivelyVisible ||
+            Stopwatch.GetElapsedTime(_pointerFocusAt) > TimeSpan.FromMilliseconds(250) ||
+            editor.FindAncestorOfType<PanelView>(includeSelf: true) is not { } requested ||
+            ReferenceEquals(requested, owner)) return false;
+        return true;
+    }
 
     /// <summary>The active panel's file list (scripted input in the TV-01 benchmark).</summary>
     internal Controls.FileListControl? ActiveList => ActivePanelView()?.List;

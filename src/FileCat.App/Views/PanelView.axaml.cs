@@ -148,9 +148,7 @@ public partial class PanelView : UserControl
     /// </summary>
     private void OnAnyPress(object? sender, PointerPressedEventArgs e)
     {
-        if (Panel is not { } panel) return;
-        if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is { } button &&
-            ReferenceEquals(button, RoleButton) && panel.OffersTarget) return;
+        if (!PointerActivates(e.Source) || Panel is not { } panel) return;
         if (!panel.IsActive) Activated?.Invoke();
         // After the press is handled: a press that gave the keyboard to something here (the path box, a rename) keeps it.
         Dispatcher.UIThread.Post(() =>
@@ -158,6 +156,10 @@ public partial class PanelView : UserControl
             if (FocusIsInAnotherPanel() is not false) List.Focus();
         }, DispatcherPriority.Input);
     }
+
+    internal bool PointerActivates(object? source) => Panel is { } panel &&
+        !(source is Visual visual && visual.FindAncestorOfType<Button>(includeSelf: true) is { } button &&
+          ReferenceEquals(button, RoleButton) && panel.OffersTarget);
 
     /// <summary>
     /// Whether the keyboard is in another panel of this window: false when it is in this one or elsewhere in the window

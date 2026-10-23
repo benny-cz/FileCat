@@ -4,6 +4,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using FileCat.App.ViewModels;
+using FileCat.App.Views;
 using FileCat.Core.Diagnostics;
 
 namespace FileCat.App.Services;
@@ -55,10 +58,33 @@ internal static class MenuInteractionTrace
         menu.PropertyChanged += (_, e) => { if (e.Property == ItemsControl.ItemsSourceProperty) AttachItems(); };
         window.Activated += (_, _) => Write("window-activated");
         window.Deactivated += (_, _) => Write("window-deactivated");
-        window.AddHandler(InputElement.GotFocusEvent, (_, e) => Write("focus-got source=" + e.Source?.GetType().Name),
-            RoutingStrategies.Bubble, handledEventsToo: true);
+        window.AddHandler(InputElement.GotFocusEvent, (_, e) =>
+        {
+            Write("focus-got source=" + e.Source?.GetType().Name);
+            if (e.Source is TextBox box)
+            {
+                var panel = box.FindAncestorOfType<PanelView>()?.DataContext as PanelViewModel;
+                var stack = new StackTrace(false).ToString();
+                Write($"text-focus name={box.Name} panel={panel?.Number} stack={stack[..Math.Min(stack.Length, 2000)]}");
+            }
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         window.AddHandler(InputElement.LostFocusEvent, (_, e) => Write("focus-lost source=" + e.Source?.GetType().Name),
             RoutingStrategies.Bubble, handledEventsToo: true);
+        if (window.DataContext is MainViewModel vm)
+        {
+            void ActivePanelChanged(object? _, System.ComponentModel.PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(vm.Workspace.ActivePanel))
+                    Write("active-panel=" + vm.Workspace.ActivePanel?.Number);
+            }
+            vm.Workspace.PropertyChanged += ActivePanelChanged;
+            window.Closed += (_, _) => vm.Workspace.PropertyChanged -= ActivePanelChanged;
+            window.AddHandler(InputElement.PointerPressedEvent, (_, e) =>
+            {
+                var point = e.GetPosition(window);
+                Write($"pointer-press x={point.X:F0} y={point.Y:F0} source={e.Source?.GetType().Name} active={vm.Workspace.ActivePanel?.Number} handled={e.Handled}");
+            }, RoutingStrategies.Tunnel, handledEventsToo: true);
+        }
         void Key(string phase, KeyEventArgs e)
         {
             if (e.Key is Avalonia.Input.Key.LeftAlt or Avalonia.Input.Key.RightAlt or Avalonia.Input.Key.Escape or Avalonia.Input.Key.F10)

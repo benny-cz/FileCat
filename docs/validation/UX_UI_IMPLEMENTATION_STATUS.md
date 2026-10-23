@@ -1,5 +1,39 @@
 # Severity-ordered UX/UI audit implementation
 
+**23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
+LaunchServices runs with VoiceOver exposed the underlying intermittent focus
+race. The physical source-tab press reached FileCat and activated panel 1, but
+roughly 50 ms later macOS AX called `TextBoxAutomationPeer.SetFocusCore()` on
+the previous right panel's Filter field and reactivated panel 2. Native AX hit
+testing had already confirmed that the physical click landed on the source
+tab. A first asynchronous focus-reclaim prototype caused repeated panel
+switches during the short guard period; it was replaced before commit. The
+panel path and filter fields now use a TextBox automation peer that rejects a
+stale AX focus request for the previous panel during the 250 ms following a
+physical press in another panel. A new pointer press or keyboard input ends
+that priority immediately. The headless regression injects the late AX peer
+request for both fields, verifies that the active panel never changes, then
+checks that a new physical press and a key permit ordinary focus changes.
+It passed with the requested 16-worker setting. An isolated signed Mac
+candidate (`FileCat.dll` SHA-256
+`faf9b566291d548f16e8bc88a7d7609743e48c619803f163eedb57e0d869d59e`)
+passed the physical source-tab probe and the full 1× SFTP warning route.
+The latter activated the source on both first clicks, displayed and spoke
+the complete replacement warning in a 640 × 480 review, and kept source and
+target hashes unchanged after Cancel and Ask/Skip
+(`mac-remote-warning-pointer-fix-v2-probe-1x-r1.json`,
+`mac-remote-warning-pointer-fix-v2-narrow-1x-r1.json`). The new native race
+helper then clicked that source tab and sent `AXFocused=true` to the previous
+right Filter field 35 ms later. macOS accepted the request (`AX result=0`),
+but the source panel stayed active and the exact fixture hashes stayed
+unchanged (`mac-remote-warning-pointer-focus-race-v2-1x-r3.json`). Two
+attempts to run the same new helper against the previous bundle ended before
+the injected click: its source tab had zero native bounds after SFTP Connect
+once. They preserved both fixture hashes and cannot count as red comparisons.
+The earlier normal LaunchServices trace is the direct old-build failure
+evidence: it shows source activation followed about 50 ms later by AX focus
+returning to the previous Filter editor. The final-head CI gate remains open.
+
 **23 October 2026, CI native bootstrap and Mac SFTP pointer diagnosis:** The
 `3175ff3e` Windows CI lane compiled the managed projects but the Visual Studio
 native bootstrap compiler exceeded its two-minute deadline under runner load.

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--ax-probe|--ax-narrow]
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow]
 The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import socket
@@ -145,7 +146,10 @@ end tell
     return size
 
 
-def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route):
+def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route,
+        pointer_focus_race):
+    trace_launch = os.environ.get("FILECAT_POINTER_TRACE", "")
+    trace_mode = trace_launch in ("1", "open")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
@@ -170,7 +174,9 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
     source.write_bytes(b"owned incoming content\n")
     target.write_bytes(b"owned existing remote content\n")
     receipt = {"passed": False, "probe": probe, "narrow": narrow,
+               "pointerTraceEnabled": trace_mode, "pointerTraceLaunch": trace_launch,
                "pointerProbe": pointer_probe and probe, "axRoute": ax_route,
+               "pointerFocusRace": pointer_focus_race,
                "protocol": protocol, "bundle": str(bundle),
                "appDllSha256": sha256(executable.with_name("FileCat.dll")),
                "fixture": str(fixture), "sourceSha256": sha256(source), "targetSha256": sha256(target),
@@ -183,6 +189,11 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
     run_command(["/usr/bin/swiftc", "-sdk", str(sdk), str(swift), "-o", str(ax_helper)], seconds=40)
     run_command(["/usr/bin/swiftc", "-sdk", str(sdk),
                  str(Path(__file__).with_name("mac-ax-set-field.swift")), "-o", str(ax_setter)], seconds=40)
+    race_helper = fixture / "ax-pointer-focus-race"
+    if pointer_focus_race:
+        run_command(["/usr/bin/swiftc", "-sdk", str(sdk),
+                     str(Path(__file__).with_name("mac-ax-pointer-focus-race.swift")),
+                     "-o", str(race_helper)], seconds=60)
     server = None
     pid = None
     try:
@@ -218,8 +229,21 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
             raise AssertionError("The owned remote fixture returned an invalid port")
         address = (f"sftp://benny@127.0.0.1:{port}{server_dir}/" if protocol == "sftp" else
                    f"{protocol}://tester@127.0.0.1:{port}/")
-        run_command(["/usr/bin/open", "-n", str(bundle), "--args", "--new-instance",
-                     "--data", str(data), "--left", str(source_dir), "--right", str(server_dir)])
+        arguments = ["--new-instance", "--data", str(data),
+                     "--left", str(source_dir), "--right", str(server_dir)]
+        if trace_launch == "1":
+            with (fixture / "app-console.log").open("wb") as log:
+                subprocess.Popen([str(executable), *arguments], cwd=executable.parent,
+                                 env={**os.environ, "FILECAT_MENU_TRACE": "1"},
+                                 stdout=log, stderr=subprocess.STDOUT)
+        elif trace_launch == "open":
+            launched = subprocess.run(["/usr/bin/open", "-n", str(bundle), "--args", *arguments],
+                                      capture_output=True, text=True, timeout=15,
+                                      env={**os.environ, "FILECAT_MENU_TRACE": "1"})
+            if launched.returncode:
+                raise AssertionError(launched.stderr[-1200:] or "Could not open traced app")
+        else:
+            run_command(["/usr/bin/open", "-n", str(bundle), "--args", *arguments])
         pid = wait_for(lambda: next(iter(app_pids()), None), "isolated Mac FileCat process")
         command = run_command(["/bin/ps", "-p", str(pid), "-o", "command="], seconds=5)
         if not command.startswith(str(executable) + " --new-instance --data " + str(data)):
@@ -262,7 +286,13 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                             "tabBounds": source_tab["bounds"],
                             "frontmostBefore": osa('tell application "System Events" to get name of first process whose frontmost is true'),
                         })
-                        click_node(source_tab)
+                        if pointer_focus_race and activation == 0:
+                            x, y, width, height = source_tab["bounds"]
+                            receipt["staleFocusRequest"] = run_command([
+                                str(race_helper), str(executable), str(pid),
+                                str(x + width / 2), str(y + height / 2)], seconds=30)
+                        else:
+                            click_node(source_tab)
                         receipt["sourcePointerAttempts"][-1]["pointerAfter"] = run_command(
                             ["/opt/homebrew/bin/cliclick", "p"])
                         try:
@@ -274,6 +304,8 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                             break
                         except AssertionError:
                             receipt["sourcePointerAttempts"][-1]["activated"] = False
+                            if pointer_focus_race:
+                                raise AssertionError("The source panel lost the injected stale AX focus race")
                             if activation == 3:
                                 hit_source = Path(__file__).with_name("mac-ax-hit-test.swift")
                                 hit_helper = fixture / "mac-ax-hit-test"
@@ -341,11 +373,15 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
         receipt["nativeWindows"] = [{"name": node["name"], "bounds": node["bounds"]}
                                     for node in nodes() if node["role"] == "AXWindow"]
         if protocol == "sftp":
+            main_window = next(node for node in nodes() if node["role"] == "AXWindow" and
+                               node["bounds"][2] >= 600)
+            panel_midpoint = main_window["bounds"][0] + main_window["bounds"][2] / 2
             connect_buttons = [node for node in nodes() if node["role"] == "AXButton" and
-                               node["name"] == "Connect to a server…" and node["bounds"][2] > 8]
-            if len(connect_buttons) != 2:
+                               node["name"] == "Connect to a server…" and node["bounds"][2] > 8 and
+                               node["bounds"][0] >= panel_midpoint]
+            if len(connect_buttons) != 1:
                 raise AssertionError("The right panel's native Connect command is unavailable")
-            click_node(max(connect_buttons, key=lambda node: node["bounds"][0]))
+            click_node(connect_buttons[0])
             wait_for(lambda: any(node["role"] == "AXTextField" and node["name"] == "Server"
                                  for node in nodes()), "fresh SFTP connection form")
             set_field("Server", "127.0.0.1")
@@ -600,6 +636,13 @@ end tell
         receipt["sourceUnchanged"] = sha256(source) == receipt["sourceSha256"]
         receipt["targetUnchanged"] = sha256(target) == receipt["targetSha256"]
         receipt["manifest"] = sorted(path.name for path in server_dir.iterdir())
+        if trace_mode:
+            log_file = data / "local/diagnostics/filecat.log"
+            if log_file.is_file():
+                receipt["pointerTrace"] = [line for line in log_file.read_text(
+                    encoding="utf-8", errors="replace").splitlines() if "MenuTrace" in line and
+                    ("pointer-press" in line or "active-panel=" in line or
+                     "text-focus" in line)][-200:]
         receipt["passed"] = (receipt["passed"] and receipt["sourceUnchanged"] and
                              receipt["targetUnchanged"] and receipt["manifest"] == ["target.txt"])
         report_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
@@ -607,11 +650,12 @@ end tell
 
 if __name__ == "__main__":
     if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "sftp") or (
-            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--ax-probe", "--ax-narrow")):
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                 sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--ax-probe"),
+                 sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--pointer-race-probe", "--ax-probe"),
                  len(sys.argv) == 6 and sys.argv[5] in ("--narrow", "--pointer-narrow", "--ax-narrow"),
-                 len(sys.argv) == 6 and sys.argv[5] in ("--pointer-probe", "--pointer-narrow"),
-                 len(sys.argv) == 6 and sys.argv[5] in ("--ax-probe", "--ax-narrow"))
+                 len(sys.argv) == 6 and sys.argv[5] in ("--pointer-probe", "--pointer-narrow", "--pointer-race-probe"),
+                 len(sys.argv) == 6 and sys.argv[5] in ("--ax-probe", "--ax-narrow"),
+                 len(sys.argv) == 6 and sys.argv[5] == "--pointer-race-probe")
     raise SystemExit(0 if result["passed"] else 1)

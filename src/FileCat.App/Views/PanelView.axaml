@@ -58,7 +58,7 @@
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <!-- The path: its folders are links (PathLine) until it is edited in the box beneath (a click on its last part). -->
         <Panel x:Name="PathCell" Grid.Column="2">
-          <TextBox x:Name="PathBox" Classes="path linked" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
+          <ctl:PanelAddressTextBox x:Name="PathBox" Classes="path linked" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                    AutomationProperties.Name="Location" />
           <ctl:PathLine x:Name="PathLinks" Margin="6,0" />
         </Panel>
@@ -67,7 +67,7 @@
                    IsVisible="{Binding ActiveTab.FreeSpaceText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                    ToolTip.Tip="{Binding ActiveTab.FreeSpaceText}" />
         <!-- Which items show: a mask such as *.txt;*.log, applied on Enter ("*.*" or "*" shows everything). -->
-        <TextBox x:Name="FilterBox" Grid.Column="4" Classes="path filter" Width="96"
+        <ctl:PanelAddressTextBox x:Name="FilterBox" Grid.Column="4" Classes="path filter" Width="96"
                  AutomationProperties.Name="Filter"
                  AutomationProperties.HelpText="{Binding ActiveTab.FilterValidationError}"
                  ToolTip.Tip="Show only the items that match: *.txt;*.log, and after | what to leave out (*.*|*.tmp). Enter applies, Esc restores. Folders always show." />
