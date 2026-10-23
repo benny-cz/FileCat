@@ -67,7 +67,8 @@ internal sealed class BulkRenameReview : StackPanel
         _previousMapping = new Button { Content = "Previous", IsEnabled = false };
         _nextMapping = new Button { Content = "Next", IsEnabled = false };
         _position = new TextBlock { Text = "No mappings shown", VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(4, 0, 0, 0) };
+            Margin = new Thickness(4, 0, 0, 0), MaxWidth = 160,
+            TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
         AutomationProperties.SetName(_previousMapping, "Previous rename mapping");
         AutomationProperties.SetName(_nextMapping, "Next rename mapping");
         AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
@@ -159,10 +160,14 @@ internal sealed class BulkRenameReview : StackPanel
         int index = SelectedShownIndex();
         var selected = index >= 0 ? ShownRows[index] : null;
         _details.Text = selected?.Detail ?? string.Empty;
-        _position.Text = selected is null ? "No mappings shown" : $"{index + 1:N0} of {ShownRows.Count:N0} shown";
-        AutomationProperties.SetName(_position, selected is null
-            ? "No rename mappings match the current preview filter."
-            : $"Rename mapping {index + 1:N0} of {ShownRows.Count:N0} shown. {selected.Detail}");
+        // The live region must carry the complete utterance in Text. On Windows, NVDA speaks a
+        // live TextBlock's text rather than its AutomationProperties.Name. Trim only the visible
+        // rendering; the selected, read-only detail below remains fully readable and selectable.
+        _position.Text = selected is null ? "No rename mappings match the current preview filter."
+            : $"{index + 1:N0} of {ShownRows.Count:N0} shown · " +
+              selected.Detail.Replace("\n", " · ", StringComparison.Ordinal);
+        AutomationProperties.SetName(_position, _position.Text);
+        ToolTip.SetTip(_position, _position.Text);
         _previousMapping.IsEnabled = index > 0;
         _nextMapping.IsEnabled = index >= 0 && index < ShownRows.Count - 1;
         AutomationProperties.SetHelpText(_previousMapping, index > 0

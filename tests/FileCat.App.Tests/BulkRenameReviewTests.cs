@@ -67,36 +67,41 @@ public sealed class BulkRenameReviewTests
             Assert.False(previous.IsEnabled);
             Assert.True(next.IsEnabled);
             Assert.Contains(Path.Combine(root, "b.txt"), AutomationProperties.GetHelpText(next));
-            Assert.Equal("1 of 3 shown", position.Text);
-            Assert.Contains(Path.Combine(root, "review_1.txt"), AutomationProperties.GetName(position));
+            Assert.StartsWith("1 of 3 shown", position.Text);
+            Assert.Contains(Path.Combine(root, "a.txt"), position.Text);
+            Assert.Contains(Path.Combine(root, "review_1.txt"), position.Text);
+            Assert.Equal(position.Text, AutomationProperties.GetName(position));
+            Assert.Equal(160, position.MaxWidth);
+            Assert.Equal(Avalonia.Media.TextTrimming.CharacterEllipsis, position.TextTrimming);
 
             next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(1, Assert.IsType<BulkRenameReview.Row>(list.SelectedItem).Index);
-            Assert.Equal("2 of 3 shown", position.Text);
+            Assert.StartsWith("2 of 3 shown", position.Text);
             Assert.Contains(Path.Combine(root, "b.txt"), details.Text);
-            Assert.Contains(Path.Combine(root, "review_2.txt"), AutomationProperties.GetName(position));
+            Assert.Contains(Path.Combine(root, "b.txt"), position.Text);
+            Assert.Contains(Path.Combine(root, "review_2.txt"), position.Text);
             Assert.True(previous.IsEnabled);
             Assert.Contains(Path.Combine(root, "a.txt"), AutomationProperties.GetHelpText(previous));
             next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("3 of 3 shown", position.Text);
+            Assert.StartsWith("3 of 3 shown", position.Text);
             Assert.False(next.IsEnabled);
             previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("2 of 3 shown", position.Text);
+            Assert.StartsWith("2 of 3 shown", position.Text);
 
             var search = review.GetVisualDescendants().OfType<TextBox>().Single(b =>
                 AutomationProperties.GetName(b) == "Search rename preview");
             search.Text = "c.txt";
             Dispatcher.UIThread.RunJobs();
             Assert.Single(review.ShownRows);
-            Assert.Equal("1 of 1 shown", position.Text);
-            Assert.Contains(Path.Combine(root, "c.txt"), AutomationProperties.GetName(position));
+            Assert.StartsWith("1 of 1 shown", position.Text);
+            Assert.Contains(Path.Combine(root, "c.txt"), position.Text);
             Assert.False(previous.IsEnabled);
             Assert.False(next.IsEnabled);
 
             search.Text = "no matching mapping";
             Dispatcher.UIThread.RunJobs();
             Assert.Empty(review.ShownRows);
-            Assert.Equal("No mappings shown", position.Text);
+            Assert.Equal("No rename mappings match the current preview filter.", position.Text);
             Assert.Equal("No rename mappings match the current preview filter.",
                          AutomationProperties.GetName(position));
             Assert.Equal(string.Empty, details.Text);

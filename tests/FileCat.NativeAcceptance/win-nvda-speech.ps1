@@ -182,8 +182,9 @@ try {
                       Tab = @(0x09, $false); F7 = @(0x76, $false); Escape = @(0x1B, $false); Enter = @(0x0D, $false)
                       Slash = @(0xBF, $false); A = @(0x41, $false); F3 = @(0x72, $false); C = @(0x43, $false); H = @(0x48, $false)
                       R = @(0x52, $false); F5 = @(0x74, $false); Back = @(0x08, $false); Right = @(0x27, $true)
-                      S = @(0x53, $false); P = @(0x50, $false); L = @(0x4C, $false); I = @(0x49, $false); T = @(0x54, $false); E = @(0x45, $false) }
-    $chords = @{ CtrlC = 0x43; CtrlS = 0x53; CtrlA = 0x41 }
+                      S = @(0x53, $false); P = @(0x50, $false); L = @(0x4C, $false); I = @(0x49, $false); T = @(0x54, $false); E = @(0x45, $false)
+                      Space = @(0x20, $false) }
+    $chords = @{ CtrlC = 0x43; CtrlS = 0x53; CtrlA = 0x41; CtrlM = 0x4D }
     function Step([string]$label, [string]$key, [string]$expect, [bool]$flush = $true, [scriptblock]$before = $null) {
         if ($before) { & $before }
         if ($flush) { TakeSpeech | Out-Null }
@@ -272,6 +273,72 @@ try {
     # Returning to FileCat from another window announces its focused row again, once.
     Step 'switch away and back' '' 'c.txt' $true $switchAway
     $report.steps[-1].repeats = @($report.steps[-1].heard | Where-Object { $_ -like "*'c.txt'*" }).Count
+
+    # The virtualized preview has no native child rows on some desktops. The paired mapping
+    # buttons and the dynamic position are the complete spoken inspection route. Drive an
+    # actual two-item review and require both full paths from NVDA's own speech log.
+    $window = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+    function FindReviewButton([string]$name) {
+        $buttons = @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+                $_.Current.Name -eq $name -and !$_.Current.IsOffscreen
+            })
+        if ($buttons.Count -ne 1) { throw "Expected one visible $name button in the owned rename review, found $($buttons.Count)." }
+        return $buttons[0]
+    }
+    function MarkExactRow([string]$name) {
+        $rows = @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+                $_.Current.Name -eq $name -and !$_.Current.IsOffscreen
+            })
+        if ($rows.Count -ne 1) { throw "Expected one visible native row named $name, found $($rows.Count)." }
+        $selection = $null
+        if (!$rows[0].TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,
+                [ref]$selection)) { throw "$name has no native SelectionItem pattern." }
+        ([System.Windows.Automation.SelectionItemPattern]$selection).AddToSelection()
+        if (!([System.Windows.Automation.SelectionItemPattern]$selection).Current.IsSelected) {
+            throw "$name was not marked through its native SelectionItem pattern."
+        }
+        $rows[0].SetFocus()
+    }
+    function SpokenMapping([string]$label, [string]$button, [int]$position,
+                           [string]$name) {
+        EnsureForeground
+        $control = FindReviewButton $button
+        $control.SetFocus()
+        Start-Sleep -Milliseconds 250
+        $focusedBefore = [System.Windows.Automation.AutomationElement]::FocusedElement.Current.Name
+        TakeSpeech | Out-Null
+        $invoke = $null
+        if (!$control.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,
+                [ref]$invoke)) { throw "$button has no native Invoke pattern." }
+        ([System.Windows.Automation.InvokePattern]$invoke).Invoke()
+        $heard = @()
+        $deadline = [Diagnostics.Stopwatch]::StartNew()
+        $from = [IO.Path]::Combine($source, $name)
+        while ($deadline.Elapsed.TotalSeconds -lt 7) {
+            $heard += @(TakeSpeech)
+            # NVDA writes Python representations to its log, escaping each path separator.
+            $speech = ($heard -join ' ').Replace('\\', '\')
+            if ($speech.Contains($from) -and $speech.Contains("$position of 2")) { break }
+            Start-Sleep -Milliseconds 150
+        }
+        $speech = ($heard -join ' ').Replace('\\', '\')
+        $passed = $speech.Contains($from) -and $speech.Contains("To: $from") -and
+                  $speech.Contains("$position of 2")
+        $report.steps += [ordered]@{ step = $label; expect = "$position of 2; From: $from; To: $from"
+            focusedBeforeInvoke = $focusedBefore; heard = $heard; passed = $passed }
+        if (!$passed -and !$RecordAll) { throw "${label}: NVDA said $speech" }
+    }
+    MarkExactRow 'a.txt'
+    MarkExactRow 'b.txt'
+    TakeSpeech | Out-Null
+    Step 'open the two-item rename review' 'CtrlM' 'Bulk rename dialog'
+    SpokenMapping 'Next mapping speaks complete a.txt paths' 'Next rename mapping' 2 'a.txt'
+    SpokenMapping 'Previous mapping speaks complete b.txt paths' 'Previous rename mapping' 1 'b.txt'
+    Step 'cancel the spoken rename review' 'Escape' 'b.txt'
 
     $names = @(Get-ChildItem -LiteralPath $source -Name | Sort-Object)
     if (($names -join ',') -ne 'a.txt,b.txt,c.txt' -or @(Get-ChildItem -LiteralPath $target -Force).Count) {
