@@ -39,8 +39,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Verify the residual-risk warning in native
-   FTPS/SFTP replacement reviews; finish higher-scale and spoken output on all
-   supported desktops. Supported SFTP
+   SFTP replacement reviews; finish higher-scale and spoken FTP/FTPS/SFTP
+   output on all supported desktops. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
    remaining provider cancellation choices. For FCUX-018, finish VoiceOver

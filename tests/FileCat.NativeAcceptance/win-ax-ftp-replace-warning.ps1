@@ -1,10 +1,11 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [ValidateSet('ftp', 'ftpes')][string]$Protocol = 'ftp'
 )
 
-# Interactive Windows VM only. Use a fresh loopback FTP server and one
+# Interactive Windows VM only. Use a fresh loopback FTP or explicit-TLS FTPS server and one
 # FileCatValidation fixture; cancel the transfer form before any mutation.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
@@ -38,6 +39,7 @@ $sourceDir = Join-Path $root 'source'
 $serverRoot = Join-Path $root 'server'
 $data = Join-Path $root 'data'
 $ready = Join-Path $root 'server.ready'
+$serverError = Join-Path $root 'server.stderr.txt'
 New-Item -ItemType Directory -Force -Path $sourceDir, $serverRoot, $data | Out-Null
 $source = Join-Path $sourceDir 'target.txt'
 $target = Join-Path $serverRoot 'target.txt'
@@ -51,7 +53,8 @@ $process = $null
 $window = $null
 $result = [ordered]@{
     Passed = $false; Fixture = $root; AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
-    Dpi = 0; Consent = $false; SignedIn = $false; RemoteListed = $false;
+    Protocol = $Protocol; Dpi = 0; Consent = $false; CertificatePrompt = $false;
+    CertificateAcceptedOnce = $false; SignedIn = $false; RemoteListed = $false;
     WarningVisible = $false; WarningText = $null; NarrowBounds = $null;
     WarningClearedForKeepBoth = $false; ConflictWarning = $false;
     ConflictBounds = $null; ConflictSkipped = $false;
@@ -101,7 +104,8 @@ function ClickButton($window, [string]$name) {
 }
 
 try {
-    $server = Start-Process -FilePath $python -ArgumentList @($helper, 'serve', $serverRoot, $ready) -PassThru -WindowStyle Hidden
+    $serveMode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
+    $server = Start-Process -FilePath $python -ArgumentList @($helper, $serveMode, $serverRoot, $ready) -PassThru -WindowStyle Hidden -RedirectStandardError $serverError
     $port = Await {
         if ($server.HasExited) { throw 'Owned loopback FTP server exited.' }
         if (Test-Path -LiteralPath $ready -PathType Leaf) {
@@ -109,7 +113,7 @@ try {
             if ($value -match '^\d+$') { [int]$value }
         }
     } 'loopback FTP readiness'
-    $address = "ftp://tester@127.0.0.1:$port/"
+    $address = "${Protocol}://tester@127.0.0.1:$port/"
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $sourceDir, '--right', $serverRoot) -PassThru
     Await {
@@ -128,13 +132,24 @@ try {
     $rightLocation.SetFocus()
     (New-Object -ComObject WScript.Shell).AppActivate($process.Id) | Out-Null
     (New-Object -ComObject WScript.Shell).SendKeys('{ENTER}')
-    $consent = Await { Button $window 'Connect unencrypted' } 'explicit FTP consent' 15
-    $consent.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $result.Consent = $true
+    if ($Protocol -eq 'ftp') {
+        $consent = Await { Button $window 'Connect unencrypted' } 'explicit FTP consent' 15
+        $consent.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $result.Consent = $true
+    }
     $password = Await { One $window ([System.Windows.Automation.ControlType]::Edit) 'Password' } 'FTP password field'
     $password.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('secret-pass')
     ClickButton $window 'Connect'
     $result.SignedIn = $true
+    if ($Protocol -eq 'ftpes') {
+        $acceptOnce = Await { Button $window 'Connect once' } 'unverified FTPS certificate decision' 30
+        $result.CertificatePrompt = @((Snapshot $window) | Where-Object {
+            $_.Current.Name -like 'Unverified server certificate*' -and !$_.Current.IsOffscreen
+        }).Count -gt 0
+        if (!$result.CertificatePrompt) { throw 'The FTPS fixture did not expose its unverified-certificate decision.' }
+        $acceptOnce.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $result.CertificateAcceptedOnce = $true
+    }
     Await { @((Snapshot $window) | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
         $_.Current.Name -eq 'target.txt'
@@ -178,7 +193,7 @@ try {
     $scale = $result.Dpi / 96.0
     if (![FileCatFtpWarningSize]::MoveWindow($handle, 80, 80,
             [int][Math]::Round(720 * $scale), [int][Math]::Round(540 * $scale), $true)) {
-        throw 'Could not resize the owned FTP replacement review.'
+        throw 'Could not resize the owned remote replacement review.'
     }
     Start-Sleep -Milliseconds 350
     $frame = $window.Current.BoundingRectangle
@@ -190,7 +205,7 @@ try {
         $warnBounds.Left -lt $frame.Left -or $warnBounds.Right -gt $frame.Right -or
         $warnBounds.Top -lt $frame.Top -or $warnBounds.Bottom -gt $frame.Bottom -or
         $cancelBounds.Bottom -gt $frame.Bottom -or $cancelBounds.Right -gt $frame.Right) {
-        throw 'The narrow FTP replacement review clipped its warning or Cancel action.'
+        throw 'The narrow remote replacement review clipped its warning or Cancel action.'
     }
     $conflict.SetFocus()
     (New-Object -ComObject WScript.Shell).SendKeys('{HOME}{DOWN}{DOWN}{DOWN}{DOWN}')
@@ -234,7 +249,7 @@ try {
         $conflictBounds.Top -lt $conflictFrame.Top -or
         $conflictBounds.Bottom -gt $conflictFrame.Bottom -or
         $skipBounds.Bottom -gt $conflictFrame.Bottom) {
-        throw 'The per-item FTP conflict warning or safe Skip choice escaped the narrow window.'
+        throw 'The per-item remote conflict warning or safe Skip choice escaped the narrow window.'
     }
     $skip.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Await { !(Button $window 'Skip') } 'per-item decision closure'
@@ -243,12 +258,15 @@ try {
     $result.TargetUnchanged = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $targetHash
     if (!$result.SourceUnchanged -or !$result.TargetUnchanged -or
         @(Get-ChildItem -LiteralPath $serverRoot -File -Force).Count -ne 1) {
-        throw 'The canceled replacement review changed the owned source or FTP target.'
+        throw 'The canceled replacement review changed the owned source or remote target.'
     }
     $result.Passed = $true
 }
 catch {
     $result.Error = $_ | Out-String
+    if (Test-Path -LiteralPath $serverError -PathType Leaf) {
+        $result.Observed += 'ServerError: ' + (Get-Content -LiteralPath $serverError -Raw)
+    }
     if ($process) { $result.Observed += "ProcessHasExited: $($process.HasExited)" }
     $journalDir = Join-Path $data 'local\journal'
     if (Test-Path -LiteralPath $journalDir) {

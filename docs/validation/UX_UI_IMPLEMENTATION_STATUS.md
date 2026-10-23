@@ -55,8 +55,25 @@ with Ask each time, followed the compact strip's Review decision action, and
 checked the separate per-item conflict dialog. Its complete warning occupied
 `131,327,618,38` and Skip stayed inside the same narrow frame. Choosing Skip
 kept both exact hashes and left no server staging item; the passing receipt is
-`win-ftp-conflict-warning-probe5.json`. FTPS/SFTP native reviews, higher
+`win-ftp-conflict-warning-probe5.json`. SFTP native review, higher
 scales, spoken output and the intrinsic server-side final-check race remain
+open.
+
+**23 October 2026, native explicit-TLS replacement risk (FCUX-001):**
+The same Windows VM app and owned loopback target passed the extended
+`win-ax-ftp-replace-warning.ps1 -Protocol ftpes` journey. The fixture generated
+a fresh self-signed certificate. FileCat displayed an unverified-certificate
+decision, and the runner chose Connect once without changing system trust. At
+96 DPI and a 720 × 540 logical window, the full final-check warning and Cancel
+were inside the transfer review; changing to Keep both hid the warning. A
+second Copy reached the per-item conflict, where the same warning and Skip
+were also in bounds. Cancel and Skip left the exact source and target hashes
+unchanged, with no extra remote object. The passing guest receipt is
+`win-ftpes-warning.json` under `AppData\Local\FileCatValidation`; a fresh
+`-Protocol ftp` run passed the same checks plus explicit plaintext consent in
+`win-ftp-warning-regression.json`. The loopback FTP and FTPS fixture smoke test
+passed locally and runs in CI on Windows, Windows ARM64, Ubuntu and macOS.
+SFTP, higher scales, spoken review and the server-side final-check race remain
 open.
 
 **23 October 2026, narrow native Undo review and report (FCUX-018):**

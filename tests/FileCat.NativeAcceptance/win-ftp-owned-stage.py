@@ -7,20 +7,42 @@ import json
 import logging
 import pathlib
 import re
+import secrets
 import sys
 
 
-def serve(root: pathlib.Path, ready: pathlib.Path) -> None:
+def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False) -> None:
     from pyftpdlib.authorizers import DummyAuthorizer
-    from pyftpdlib.handlers import FTPHandler
     from pyftpdlib.servers import FTPServer
 
     if not root.is_dir() or ready.exists():
         raise ValueError("The isolated FTP root or ready path is invalid")
     authorizer = DummyAuthorizer()
     authorizer.add_user("tester", "secret-pass", str(root), perm="elradfmwMT")
-    FTPHandler.authorizer = authorizer
-    server = FTPServer(("127.0.0.1", 0), FTPHandler)
+    if tls:
+        from OpenSSL import crypto
+        from pyftpdlib.handlers import TLS_FTPHandler as handler
+
+        key = crypto.PKey()
+        key.generate_key(crypto.TYPE_RSA, 2048)
+        cert = crypto.X509()
+        cert.get_subject().CN = "FileCat owned loopback FTPS"
+        cert.set_serial_number(int.from_bytes(secrets.token_bytes(16), "big"))
+        cert.gmtime_adj_notBefore(-3600)
+        cert.gmtime_adj_notAfter(86400)
+        cert.set_issuer(cert.get_subject())
+        cert.set_pubkey(key)
+        cert.sign(key, "sha256")
+        cert_path = root.parent / "owned-ftps-cert.pem"
+        cert_path.write_bytes(crypto.dump_certificate(crypto.FILETYPE_PEM, cert) +
+                              crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
+        handler.certfile = str(cert_path)
+        handler.tls_control_required = True
+        handler.tls_data_required = True
+    else:
+        from pyftpdlib.handlers import FTPHandler as handler
+    handler.authorizer = authorizer
+    server = FTPServer(("127.0.0.1", 0), handler)
     ready.write_text(str(server.socket.getsockname()[1]) + "\n", encoding="ascii")
     server.serve_forever()
 
@@ -67,12 +89,14 @@ def main() -> None:
     logging.disable(logging.CRITICAL)
     if len(sys.argv) == 4 and sys.argv[1] == "serve":
         serve(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]))
+    elif len(sys.argv) == 4 and sys.argv[1] == "serve-tls":
+        serve(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]), tls=True)
     elif len(sys.argv) == 6 and sys.argv[1] == "inspect-delete":
         inspect_delete(
             int(sys.argv[2]), sys.argv[3], pathlib.Path(sys.argv[4]), pathlib.Path(sys.argv[5])
         )
     else:
-        raise SystemExit("Usage: serve ROOT READY | inspect-delete PORT STAGE SOURCE RECEIPT")
+        raise SystemExit("Usage: serve|serve-tls ROOT READY | inspect-delete PORT STAGE SOURCE RECEIPT")
 
 
 if __name__ == "__main__":

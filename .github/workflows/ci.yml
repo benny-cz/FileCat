@@ -95,6 +95,7 @@ jobs:
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - run: python -m pip install --quiet pyftpdlib pyopenssl
+      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       # Run the five inventories serially so project-level load cannot confound
       # the App picture worker's 30-second limit. The preceding hosted failure's
       # cause is unproven. Keep every TRX even when an earlier project fails.
@@ -216,6 +217,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -c "import platform, sys, importlib.metadata as m; from pyftpdlib.handlers import TLS_FTPHandler; import OpenSSL, cryptography; print(sys.version); print(platform.machine()); print({p: m.version(p) for p in ('pyftpdlib', 'pyOpenSSL', 'cryptography', 'cffi')})"
           exit $LASTEXITCODE
+      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -390,6 +392,7 @@ jobs:
           sudo umount /mnt/fc-vfat /mnt/fc-exfat
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
       - run: python -m pip install --quiet pyftpdlib pyopenssl
+      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # P9: the UI runs headless on Linux and macOS too.
