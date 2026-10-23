@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check real Mac viewer checksum scope, results, and explicit clipboard copying.
 
-Usage: python3 mac-ax-viewer-checksum.py BUNDLE.app REPORT.json
+Usage: python3 mac-ax-viewer-checksum.py BUNDLE.app REPORT.json [--narrow|--stale-scope]
 Run in the unlocked, isolated Mac desktop with the matching signed Git build.
 """
 
@@ -184,7 +184,35 @@ def checksum(scope, content):
     return {"scope": scope, "result": result, "explicitCopyMatched": True, "screenshot": visual}
 
 
-def run(bundle, report):
+def stale_scope(source_file):
+    osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+    helper = Path.home() / "FileCatValidation" / "mac-send-key-checksum"
+    sent = subprocess.run([str(helper), "checksum"], capture_output=True, text=True, timeout=5)
+    if sent.returncode:
+        raise AssertionError(sent.stderr.strip() or "Native Ctrl+K input failed")
+    set_clipboard(SENTINEL)
+    before = source_file.stat()
+    source_file.write_bytes(b"\x00ABD\n")
+    os.utime(source_file, ns=(before.st_atime_ns, before.st_mtime_ns + 2_000_000_000))
+    pointer_click_viewer(290, 132)
+    time.sleep(0.5)
+    if clipboard() != SENTINEL:
+        raise AssertionError("A changed source replaced the clipboard without Copy")
+    pointer_click_viewer(380, 132)  # Copy results must remain disabled after refusal.
+    if clipboard() != SENTINEL:
+        raise AssertionError("Copy results published a refused stale-scope hash")
+    pointer_click_viewer(400, 80)  # Focus the selectable result without copying it.
+    result = focused_value()
+    if ("changed" not in result.lower() or "SHA-256:" in result or
+            "checksum again" not in result.lower() and "refresh" not in result.lower()):
+        raise AssertionError(f"Changed source was not visibly refused: {result!r}")
+    visual = str(capture_screen())
+    osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+    pointer_click_viewer(500, 132)
+    return {"result": result, "clipboardUnchanged": True, "screenshot": visual}
+
+
+def run(bundle, report, narrow=False, changed=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents/MacOS/FileCat"
@@ -230,12 +258,32 @@ def run(bundle, report):
             raise AssertionError(f"Could not focus the test-owned source row: {focused_name()!r}")
         key(99)  # F3 opens the focused file in the viewer.
         until(viewer_open, "checksum viewer")
+        if narrow:
+            frame = osa('''tell application "System Events" to tell process "FileCat"
+                repeat with w in windows
+                    if (name of w as text) contains "FileCat Viewer" then
+                        set size of w to {720, 500}
+                        set s to size of w
+                        return (item 1 of s as text) & "|" & (item 2 of s as text)
+                    end if
+                end repeat
+            end tell''')
+            width, height = [int(value) for value in frame.split("|")]
+            if not 700 <= width <= 740 or not 480 <= height <= 520:
+                raise AssertionError(f"Narrow checksum viewer size was not applied: {frame!r}")
+            receipt["viewerSize"] = [width, height]
         if "Offset 0 of 5" not in focused_value():
             raise AssertionError("The test-owned binary did not open focused in Hex mode")
         key(123, shift=True)  # Shift+Left at byte zero selects exactly that one byte.
         selection = focused_value()
         if "Selected bytes 0 through 0, 1 bytes" not in selection:
             raise AssertionError(f"One-byte Hex selection was not active: {selection!r}")
+        if changed:
+            receipt["staleScope"] = stale_scope(source / FIXTURE)
+            if list(target.iterdir()):
+                raise AssertionError("Stale checksum scope changed destination files")
+            receipt["passed"] = True
+            return receipt
         receipt["selectedByte"] = checksum("selected range 0x0–0x0", CONTENT[:1])
         key(124)  # Right clears the selection before reviewing the whole-file scope.
         if "No byte selection" not in focused_value():
@@ -267,15 +315,18 @@ def run(bundle, report):
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
+        if changed and (source / FIXTURE).exists():
+            (source / FIXTURE).write_bytes(CONTENT)
         set_clipboard(original_clipboard)
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--stale-scope")):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
-        result = run(Path(sys.argv[1]), report)
+        mode = sys.argv[3] if len(sys.argv) == 4 else ""
+        result = run(Path(sys.argv[1]), report, narrow=mode == "--narrow", changed=mode == "--stale-scope")
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

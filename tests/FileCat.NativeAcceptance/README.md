@@ -856,7 +856,11 @@ publishes each complete result. It preserves the original clipboard, verifies
 all fixture bytes and the empty destination, and records native screenshots.
 Compile `mac-send-key.swift` as `~/FileCatValidation/mac-send-key-checksum`
 before running; Accessibility permission and the owner-approved capture helper
-are required on this test Mac.
+are required on this test Mac. The optional `--narrow` mode measures a
+720 × 500 viewer and repeats both explicit Copy journeys. The separate
+`--stale-scope` mode changes the source after a one-byte scope review, then
+requires visible refusal, disabled Copy, an unchanged clipboard, an empty
+destination and restoration of the original fixture byte.
 The Windows runner opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews
 the one-byte checksum scope, and verifies the complete known SHA-256, CRC-32,
 byte count and source revision text. It also checks that Compute leaves the
