@@ -141,6 +141,29 @@ the respective VMs' `FileCatValidation` folders. Higher scales, spoken review,
 other provider cancellation paths and the server-side final-check race remain
 open.
 
+**23 October 2026, exact-head remote replacement warning retest (FCUX-001):**
+The isolated Windows VM fetched and built Git `8ad02057` after a locked restore
+with 16 workers; the test executable's SHA-256 was
+`34196070208071D2967B1917CCEA429FDF2CA27875733935EFC45600C544ACFB`.
+The native warning runner now activates and verifies the owned FileCat window
+before sending Enter to its Location field, preventing the foreground lock
+from silently directing that key to another window. On this build, its owned
+loopback FTP and explicit-TLS FTPS runs both passed the 720 × 540 logical
+review at 96 DPI: Replace displayed the complete final-check risk, Keep both
+removed it, and the per-item conflict displayed it again with in-bounds Skip.
+Consent/certificate decisions were explicit and Cancel/Skip preserved both
+exact source and target hashes. The receipts are
+`win-ftp-warning-8ad02057-focus.json` and
+`win-ftpes-warning-8ad02057-focus.json` under the guest validation folder.
+The same runner passed SFTP against a new Ubuntu-owned fixture after matching
+the shown host key to independently read server fingerprints. Its source
+remained exact; the separate Ubuntu verifier found the original target SHA-256
+`71a6255cb042a7e0a187b15bb133d2dfcc48d94e5179f24a1c0df05997b1fce1`
+and only `target.txt`. The receipts are
+`win-sftp-warning-8ad02057-focus.json` and
+`SftpReplaceReview/verify-3cf9e6245b60473193491cf5838fcae4.json` in the
+respective VMs. Higher-scale and actual screen-reader acceptance remain open.
+
 **23 October 2026, narrow native Undo review and report (FCUX-018):**
 `linux-atspi-undo-narrow.py` passed a real Move and approved Undo in the
 logged-in Ubuntu VM on the isolated Git-built `8a8769fd` app (DLL SHA-256

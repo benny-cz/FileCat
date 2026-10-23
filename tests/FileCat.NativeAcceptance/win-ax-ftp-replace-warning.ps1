@@ -19,6 +19,43 @@ using System.Runtime.InteropServices;
 public static class FileCatFtpWarningSize {
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr handle, int x, int y, int width, int height, bool repaint);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr handle);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr handle);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern void mouse_event(int flags, int dx, int dy, int data, int extra);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out RECT rect);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr handle, uint flags);
+    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+    public static uint ForegroundProcessId() {
+        uint processId;
+        GetWindowThreadProcessId(GetForegroundWindow(), out processId);
+        return processId;
+    }
+    public static void ClickTitle(IntPtr handle) {
+        int screenWidth = GetSystemMetrics(0), screenHeight = GetSystemMetrics(1);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            RECT r;
+            GetWindowRect(handle, out r);
+            POINT p = new POINT { X = (r.Left + r.Right) / 2, Y = r.Top + 12 };
+            if (GetAncestor(WindowFromPoint(p), 2) == handle) {
+                SetCursorPos(p.X, p.Y);
+                mouse_event(2, 0, 0, 0, 0);
+                mouse_event(4, 0, 0, 0, 0);
+                return;
+            }
+            int width = r.Right - r.Left, height = r.Bottom - r.Top;
+            int[,] corners = { { 0, 0 }, { 0, screenHeight - height - 60 },
+                { screenWidth - width, screenHeight - height - 60 },
+                { screenWidth - width, 0 }, { 0, 0 } };
+            MoveWindow(handle, Math.Max(0, corners[attempt, 0]), Math.Max(0, corners[attempt, 1]), width, height, true);
+            System.Threading.Thread.Sleep(300);
+        }
+        throw new InvalidOperationException("Another window covers every title-bar position of the owned app.");
+    }
 }
 '@
 
@@ -112,6 +149,17 @@ function ClickButton($window, [string]$name) {
     (Await { Button $window $name } "enabled $name button").GetCurrentPattern(
         [System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
+function ActivateOwnedApp {
+    [FileCatFtpWarningSize]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
+    Start-Sleep -Milliseconds 200
+    if ([FileCatFtpWarningSize]::ForegroundProcessId() -ne $process.Id) {
+        [FileCatFtpWarningSize]::ClickTitle($process.MainWindowHandle)
+        Start-Sleep -Milliseconds 300
+    }
+    if ([FileCatFtpWarningSize]::ForegroundProcessId() -ne $process.Id) {
+        throw 'The isolated FileCat process did not become foreground; refusing to send keys.'
+    }
+}
 
 try {
     if ($Protocol -eq 'sftp') {
@@ -142,9 +190,12 @@ try {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and
         $_.Current.Name -eq 'Location' -and !$_.Current.IsOffscreen
     } | Sort-Object { $_.Current.BoundingRectangle.X })[-1] } 'right panel Location field'
+    ActivateOwnedApp
     $rightLocation.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($address)
     $rightLocation.SetFocus()
-    (New-Object -ComObject WScript.Shell).AppActivate($process.Id) | Out-Null
+    if ([System.Windows.Automation.AutomationElement]::FocusedElement.Current.ProcessId -ne $process.Id) {
+        throw 'The owned FileCat Location field did not receive keyboard focus.'
+    }
     (New-Object -ComObject WScript.Shell).SendKeys('{ENTER}')
     if ($Protocol -eq 'ftp') {
         $consent = Await { Button $window 'Connect unencrypted' } 'explicit FTP consent' 15

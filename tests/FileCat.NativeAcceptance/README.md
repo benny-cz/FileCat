@@ -218,15 +218,19 @@ reviewed in FileCat and verifies its closure. Copy and Move use separate fresh
 fixtures; their JSON reports and fixture roots remain for inspection.
 `win-ax-ftp-replace-warning.ps1 -AppPath <isolated FileCat.exe>
 -PythonHelperPath <copied win-ftp-owned-stage.py> -ReportPath <guest-local.json>
-[-Protocol ftp|ftpes]`
-checks native FTP and explicit-TLS FTPS replacement review without replacing
-the target. Run it with VMware `-interactive` against the exact Git build,
+[-Protocol ftp|ftpes|sftp]`
+checks native FTP, explicit-TLS FTPS and SFTP replacement review without
+replacing the target. For SFTP, supply a fresh owned Ubuntu fixture ID, the
+independently recorded SSH host-key fingerprints and the test credential with
+`-SftpFixtureId`, `-ExpectedHostFingerprints` and `-SftpPassword`. Run it with
+VMware `-interactive` against the exact Git build,
 after installing `pyftpdlib` and `pyOpenSSL` in the isolated guest. The TLS
 fixture generates a new self-signed certificate for each run. The runner
 requires FileCat's unverified-certificate prompt and accepts it for this
 connection only; it never alters operating-system trust. Plain FTP instead
 requires explicit plaintext consent. It signs in and chooses Replace in
-the Copy review. At 720 × 540 logical pixels it requires the complete
+the Copy review. The runner verifies FileCat is foreground before sending the
+Location Enter key. At 720 × 540 logical pixels it requires the complete
 final-check warning and Cancel to lie inside the real window. Keep both must
 hide the warning; Cancel must preserve both exact source and remote target
 hashes. It then starts a fresh Ask copy, follows the waiting operation's
