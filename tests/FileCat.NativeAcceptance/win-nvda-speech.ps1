@@ -336,8 +336,8 @@ try {
     MarkExactRow 'b.txt'
     TakeSpeech | Out-Null
     Step 'open the two-item rename review' 'CtrlM' 'Bulk rename dialog'
-    SpokenMapping 'Next mapping speaks complete a.txt paths' 'Next rename mapping' 2 'a.txt'
-    SpokenMapping 'Previous mapping speaks complete b.txt paths' 'Previous rename mapping' 1 'b.txt'
+    SpokenMapping 'Next mapping speaks complete b.txt paths' 'Next rename mapping' 2 'b.txt'
+    SpokenMapping 'Previous mapping speaks complete a.txt paths' 'Previous rename mapping' 1 'a.txt'
     Step 'cancel the spoken rename review' 'Escape' 'b.txt'
 
     $names = @(Get-ChildItem -LiteralPath $source -Name | Sort-Object)

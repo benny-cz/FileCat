@@ -52,7 +52,9 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external
    Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs spoken review and native concurrent rule-change races. On
+   FCUX-003 still needs Ubuntu Orca and macOS VoiceOver spoken review, and
+   native concurrent rule-change races. Windows NVDA spoke both complete
+   mappings from the revised live region. On
    Mac, investigate the visible review body's zero AX bounds and preview list
    with no AX children, and verify actual VoiceOver speech through the
    Previous/Next and full-path detail route. For FCUX-004/005, exercise remaining modal
