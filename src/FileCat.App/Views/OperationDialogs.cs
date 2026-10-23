@@ -144,11 +144,6 @@ public static class OperationDialogs
         var flatten = new CheckBox { Content = "Flatten: put all items directly into the destination (instead of keeping their folders)", IsVisible = input.FromResultSet };
         var grid = new DialogForm(("If an item already exists:", conflicts), ("Verification:", verify),
             ("Only files matching:", filter), ("Speed limit (MB/s):", limit)) { Margin = new Thickness(0, 4, 0, 0) };
-        var optionsPanel = new StackPanel { Spacing = 4 };
-        optionsPanel.Children.Add(grid);
-        optionsPanel.Children.Add(flatten);
-        var expander = new Expander { Header = "Options", Content = optionsPanel, HorizontalAlignment = HorizontalAlignment.Stretch, IsExpanded = input.RecoveryReviewNotice is not null };
-        body.Children.Add(expander);
         var remoteReplacementWarning = new TextBlock
         {
             Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap,
@@ -156,7 +151,14 @@ public static class OperationDialogs
         };
         AutomationProperties.SetAutomationId(remoteReplacementWarning, "Remote replacement concurrency warning");
         AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
-        body.Children.Add(remoteReplacementWarning);
+        var optionsPanel = new StackPanel { Spacing = 4 };
+        // Keep the consequential warning beside the choice. Placing it after
+        // the full options form left it below the viewport in a narrow window.
+        optionsPanel.Children.Add(remoteReplacementWarning);
+        optionsPanel.Children.Add(grid);
+        optionsPanel.Children.Add(flatten);
+        var expander = new Expander { Header = "Options", Content = optionsPanel, HorizontalAlignment = HorizontalAlignment.Stretch, IsExpanded = input.RecoveryReviewNotice is not null };
+        body.Children.Add(expander);
         CheckBox? includeHidden = null;
         if (input.HiddenMarked > 0)
         {
