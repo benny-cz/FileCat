@@ -255,7 +255,7 @@ public sealed class RecoverySafetyTests
         public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false) => throw new InvalidOperationException("Unexpected keyboard dialog");
         public Task<object?> ShowCustomAsync(string title, Avalonia.Controls.Control content, IReadOnlyList<DialogButton> buttons,
             Avalonia.Controls.Control? initialFocus = null, Func<bool>? canConfirm = null, DialogCloser? closer = null,
-            bool resizable = false) => throw new InvalidOperationException("Unexpected custom dialog");
+            bool resizable = false, Avalonia.Controls.Control? pinnedReview = null) => throw new InvalidOperationException("Unexpected custom dialog");
     }
 
     [AvaloniaFact]

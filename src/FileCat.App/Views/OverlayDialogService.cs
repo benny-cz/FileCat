@@ -243,8 +243,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }, DispatcherPriority.Input);
     }
 
-    private static DialogCard Card(string title, Control body, Control? buttons, double maxWidth = 560) =>
-        new DialogCard(title, body, buttons, maxWidth);
+    private static DialogCard Card(string title, Control body, Control? buttons, double maxWidth = 560,
+        Control? pinnedReview = null) => new DialogCard(title, body, buttons, maxWidth, pinnedReview);
 
     private static WrapPanel ButtonRow(params Button[] buttons)
     {
@@ -627,7 +627,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     }
 
     public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-        Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false)
+        Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
+        Control? pinnedReview = null)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
@@ -667,7 +668,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             requery.Tick += (_, _) => Requery();
             requery.Start();
         }
-        var card = Card(title, content, ButtonRow(btns), 760);
+        var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
         if (resizable) card.EnableResizing(host);
         // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
         // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a

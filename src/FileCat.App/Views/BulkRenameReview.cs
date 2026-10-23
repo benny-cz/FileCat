@@ -42,6 +42,8 @@ internal sealed class BulkRenameReview : StackPanel
     private readonly Button _previousMapping;
     private readonly Button _nextMapping;
     private readonly TextBlock _position;
+    private readonly WrapPanel _tools;
+    private readonly StackPanel _mappingNavigation;
     private IReadOnlyList<Row> _all = [];
 
     internal BulkRenameReview()
@@ -54,16 +56,16 @@ internal sealed class BulkRenameReview : StackPanel
         _problems = new Button { Content = "Problems (0)", IsEnabled = false };
         AutomationProperties.SetName(_problems, "Show blocking rename problems");
         _nextProblem = new Button { Content = "Next problem", IsEnabled = false };
-        var tools = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = double.NaN };
-        tools.Children.Add(_filter);
-        tools.Children.Add(_search);
-        tools.Children.Add(_problems);
-        tools.Children.Add(_nextProblem);
+        _tools = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = double.NaN };
+        _tools.Children.Add(_filter);
+        _tools.Children.Add(_search);
+        _tools.Children.Add(_problems);
+        _tools.Children.Add(_nextProblem);
         _list = new ListBox { Height = 280 };
         _list.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         _list.ItemTemplate = new FuncDataTemplate<Row>((row, _) => row is null ? new TextBlock() : Render(row));
         AutomationProperties.SetName(_list, "Preview of new names");
-        AutomationProperties.SetHelpText(_list, "Every selected item is available here. Filter to problems or changed names, search paths, or use Previous and Next mapping to inspect every full path below.");
+        AutomationProperties.SetHelpText(_list, "Every selected item is available here. Filter to problems or changed names, search paths, or use Previous and Next mapping to inspect every full path above.");
         _previousMapping = new Button { Content = "Previous", IsEnabled = false };
         _nextMapping = new Button { Content = "Next", IsEnabled = false };
         _position = new TextBlock { Text = "No mappings shown", VerticalAlignment = VerticalAlignment.Center,
@@ -74,17 +76,18 @@ internal sealed class BulkRenameReview : StackPanel
         AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
         var mappingButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
             Children = { _previousMapping, _nextMapping } };
-        tools.Children.Add(mappingButtons);
-        tools.Children.Add(_position);
+        _mappingNavigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
+            Children = { mappingButtons, _position } };
         _details = new TextBox
         {
             IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
             MinHeight = 75, MaxHeight = 160,
         };
         AutomationProperties.SetName(_details, "Full old and new paths of selected rename");
-        Children.Add(tools);
-        Children.Add(_list);
+        Children.Add(_tools);
+        Children.Add(_mappingNavigation);
         Children.Add(_details);
+        Children.Add(_list);
         _filter.SelectionChanged += (_, _) => UpdateView();
         _search.TextChanged += (_, _) => UpdateView();
         _list.SelectionChanged += (_, _) => UpdateSelectionPresentation();
@@ -92,6 +95,17 @@ internal sealed class BulkRenameReview : StackPanel
         _nextProblem.Click += (_, _) => NextProblem();
         _previousMapping.Click += (_, _) => StepMapping(-1);
         _nextMapping.Click += (_, _) => StepMapping(1);
+    }
+
+    /// <summary>Keep the exact decision visible below a scrolling rename form on every desktop.</summary>
+    internal StackPanel DetachNavigationForDialog()
+    {
+        Children.Remove(_mappingNavigation);
+        Children.Remove(_details);
+        // The fixed section must leave room for the scrollable form at the smallest supported dialog size.
+        // The complete text remains in the read-only field and its own scroll/selection route.
+        _details.MaxHeight = 96;
+        return new StackPanel { Spacing = 5, Children = { _mappingNavigation, _details } };
     }
 
     internal IReadOnlyList<Row> AllRows => _all;

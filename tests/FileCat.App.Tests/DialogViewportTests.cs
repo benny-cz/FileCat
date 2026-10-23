@@ -20,12 +20,46 @@ using FileCat.Core.Commands;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
+using FileCat.Core.Operations;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Tests;
 
 public sealed class DialogViewportTests
 {
+    [AvaloniaFact]
+    public async Task Bulk_rename_mapping_stays_visible_outside_the_scrolling_form()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 800, height: 620);
+        try
+        {
+            ProductStyles(window);
+            var item = ItemRef.ForFileSystemPath(Path.Combine(Path.GetTempPath(), "rename", "a.txt"), EntryKind.File);
+            var review = new BulkRenameReview();
+            review.SetRows(BulkRenamePlanner.Preview([item], new RenameRules("reviewed_[C]"), _ => false));
+            var pinned = review.DetachNavigationForDialog();
+            var body = new StackPanel { Children = { new Border { Height = 480 }, review } };
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var pending = dialogs.ShowCustomAsync("Bulk rename", body,
+                [new("Cancel", "cancel", IsCancel: true)], resizable: true, pinnedReview: pinned);
+            Layout(window);
+            var card = Card(window);
+            var detail = Named<TextBox>(pinned, "Full old and new paths of selected rename");
+            var next = Named<Button>(pinned, "Next rename mapping");
+            Assert.Null(pinned.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault());
+            Assert.True(Body(card).Extent.Height > Body(card).Viewport.Height);
+            Assert.True(detail.Bounds.Width > 100 && detail.Bounds.Height >= 75);
+            Assert.True(next.Bounds.Width > 0 && next.Bounds.Height > 0);
+            AssertInside(pinned, card);
+            var footer = Footer(card);
+            Assert.True(pinned.TranslatePoint(new Point(0, pinned.Bounds.Height), card)!.Value.Y <=
+                footer.TranslatePoint(default, card)!.Value.Y + 0.5);
+            dialogs.CancelAll();
+            await pending;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Undo_review_highlights_entire_quoted_paths_on_each_supported_path_shape()
     {
@@ -319,20 +353,29 @@ public sealed class DialogViewportTests
                 _ => Named<TextBox>(card, "Full old and new paths of selected rename"),
             };
             Assert.True(last.Focus(NavigationMethod.Tab));
-            // Caret and outer-dialog reveal each post at Loaded priority; wait for
-            // both layout passes before checking the final viewport geometry.
-            for (int attempt = 0; attempt < 300; attempt++)
+            if (operation == "bulk rename")
             {
                 Layout(window);
-                var viewport = Viewport(scroll);
-                if (last.TranslatePoint(default, viewport) is { } p &&
-                    p.X >= -0.6 && p.Y >= -0.6 &&
-                    p.X + last.Bounds.Width <= viewport.Bounds.Width + 0.6 &&
-                    p.Y + last.Bounds.Height <= viewport.Bounds.Height + 0.6) break;
-                await Task.Delay(10, TestContext.Current.CancellationToken);
+                Assert.Null(last.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault());
+                AssertInside(last, card);
             }
-            Assert.True(scroll.Offset.Y > 0, "Keyboard focus must reveal the lower field.");
-            AssertInside(last, Viewport(scroll));
+            else
+            {
+                // Caret and outer-dialog reveal each post at Loaded priority; wait for
+                // both layout passes before checking the final viewport geometry.
+                for (int attempt = 0; attempt < 300; attempt++)
+                {
+                    Layout(window);
+                    var viewport = Viewport(scroll);
+                    if (last.TranslatePoint(default, viewport) is { } p &&
+                        p.X >= -0.6 && p.Y >= -0.6 &&
+                        p.X + last.Bounds.Width <= viewport.Bounds.Width + 0.6 &&
+                        p.Y + last.Bounds.Height <= viewport.Bounds.Height + 0.6) break;
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                }
+                Assert.True(scroll.Offset.Y > 0, "Keyboard focus must reveal the lower field.");
+                AssertInside(last, Viewport(scroll));
+            }
             AssertChrome(window, card);
             if (operation == "bulk rename")
             {
@@ -343,9 +386,9 @@ public sealed class DialogViewportTests
                 var nextMapping = Named<Button>(card, "Next rename mapping");
                 Assert.True(editor.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
                     "The external-editor action must precede the long preview.");
-                Assert.True(previousMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y &&
-                            nextMapping.TranslatePoint(default, card)?.Y < preview.TranslatePoint(default, card)?.Y,
-                    "The mapping navigation must remain discoverable before the long preview.");
+                Assert.True(previousMapping.TranslatePoint(default, card)?.Y > Viewport(scroll).TranslatePoint(default, card)?.Y &&
+                            nextMapping.TranslatePoint(default, card)?.Y > Viewport(scroll).TranslatePoint(default, card)?.Y,
+                    "The mapping navigation must stay in the fixed review section.");
                 Assert.True(Math.Abs((previousMapping.TranslatePoint(default, card)?.Y ?? -1) -
                                      (nextMapping.TranslatePoint(default, card)?.Y ?? -2)) <= 1,
                     "Previous and Next mapping must stay together when the review narrows.");

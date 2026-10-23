@@ -63,6 +63,9 @@ public sealed class BulkRenameReviewTests
                 AutomationProperties.GetLiveSetting(b) == AutomationLiveSetting.Polite);
             var details = review.GetVisualDescendants().OfType<TextBox>().Single(b =>
                 AutomationProperties.GetName(b) == "Full old and new paths of selected rename");
+            Assert.True(review.Children.IndexOf(details) < review.Children.IndexOf(list),
+                "The full mapping must precede the tall preview list so it remains reachable in a narrow review.");
+            Assert.True(details.Bounds.Y < list.Bounds.Y);
             Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(details));
             Assert.False(previous.IsEnabled);
             Assert.True(next.IsEnabled);

@@ -3,6 +3,7 @@
 
 Usage: python3 mac-ax-rename-editor.py BUNDLE.app REPORT.json [--narrow]
 Runs only in the unlocked, isolated ~/FileCatValidation desktop session.
+VoiceOver must be running and the Mac output muted for the spoken review gate.
 """
 
 import hashlib
@@ -94,6 +95,10 @@ end tell'''.replace("ROLE", json.dumps(role, ensure_ascii=False)).replace(
         raise AssertionError(f"Could not focus the {name} native AX control")
 
 
+def voiceover_last():
+    return osa('tell application "VoiceOver" to get content of last phrase')
+
+
 def configure_editor(fixture):
     editor = fixture / "controlled-editor.py"
     editor.write_text('''#!/usr/bin/env python3
@@ -126,6 +131,9 @@ def run(bundle, report_path, narrow):
         raise AssertionError("Write the native report under FileCatValidation")
     if app_pids():
         raise AssertionError("An existing FileCat process makes this fixture ambiguous")
+    if "output muted:true" not in osa("get volume settings"):
+        raise AssertionError("Mute Mac output before VoiceOver acceptance")
+    voiceover_last()
     fixture = validation / "MacRenameEditor" / uuid4().hex
     source, target, data = (fixture / part for part in ("source", "target", "data"))
     for folder in (source, target, data):
@@ -185,7 +193,9 @@ def run(bundle, report_path, narrow):
 
         def marked():
             found = nodes()
-            marks = {n["name"] for n in found if n["role"] == "AXRow" and n["selected"]}
+            marks = {n["name"] for n in found if n["role"] == "AXRow" and
+                     n["name"] in expected and "marked" in n["help"].lower() and
+                     "not marked" not in n["help"].lower()}
             return found if marks == {"a.txt", "b.txt"} else None
 
         selected = wait_for(marked, "both selected source identities")
@@ -195,7 +205,9 @@ def run(bundle, report_path, narrow):
             raise AssertionError("Both panel Filter fields are required")
         x, y = center(filters[0])
         click(f"c:{x},{y}")
-        key('key code 0 using {command down}\nkeystroke "b*"\nkey code 36')
+        ax_focus("AXTextField", "Filter")
+        osa('tell application "System Events"\n'
+            'key code 0 using {command down}\nkeystroke "b*"\nkey code 36\nend tell')
 
         def filtered():
             found = nodes()
@@ -242,9 +254,14 @@ def run(bundle, report_path, narrow):
             return None
 
         preview = wait_for(proposed, "both reviewed rename mappings")
+        preview_capture = capture(validation / "FileCatCapture.app", validation)
+        (fixture / "preview-capture-path").write_text(str(preview_capture), encoding="utf-8")
+        time.sleep(1.2)
+        first_speech = voiceover_last()
         item(preview, "AXButton", "Next rename mapping")
         first_status = "1 of 2 shown"
-        if not any(n["role"] == "AXStaticText" and n["name"] == first_status for n in preview):
+        if not any(n["role"] == "AXStaticText" and n["name"].startswith(first_status)
+                   for n in preview):
             raise AssertionError("The first mapping position is not exposed")
         ax_activate("AXButton", "Next rename mapping")
         second_status = "2 of 2 shown"
@@ -253,12 +270,23 @@ def run(bundle, report_path, narrow):
             detail = next((n["value"] for n in found if n["role"] == "AXTextField" and
                            n["name"] == "Full old and new paths of selected rename"), "")
             if (detail == f"From: {source / 'a.txt'}\nTo: {source / 'reviewed_2.txt'}" and
-                            any(n["role"] == "AXStaticText" and n["name"] == second_status for n in found)):
+                            any(n["role"] == "AXStaticText" and n["name"].startswith(second_status)
+                                for n in found)):
                 return found
             return None
         wait_for(second_mapping, "second full-path mapping through the native Next action")
+        time.sleep(1.2)
+        second_speech = voiceover_last()
         ax_activate("AXButton", "Previous rename mapping")
         wait_for(proposed, "first full-path mapping through the native Previous action")
+        time.sleep(1.2)
+        previous_speech = voiceover_last()
+        phrases = [first_speech, second_speech, previous_speech]
+        for phrase, old_name, new_name in zip(phrases,
+                                              ["b.txt", "a.txt", "b.txt"],
+                                              ["reviewed_1.txt", "reviewed_2.txt", "reviewed_1.txt"]):
+            if str(source / old_name) not in phrase or str(source / new_name) not in phrase:
+                raise AssertionError(f"VoiceOver omitted a complete rename path. Heard: {phrases!r}")
         ax_focus("AXButton", "Next rename mapping")
         key("key code 36")  # Return on the focused Next button.
         wait_for(second_mapping, "second full-path mapping through keyboard Return")
@@ -319,6 +347,7 @@ def run(bundle, report_path, narrow):
                 "sourceNames": sorted(p.name for p in source.iterdir()), "targetEmpty": True,
                 "reviewedNames": ["reviewed_1.txt", "reviewed_2.txt"],
                 "mappingNavigation": [first_status, second_status, first_status],
+                "voiceOverMappingPhrases": [first_speech, second_speech, previous_speech],
                 "keyboardMappingNavigation": [second_status, first_status],
                 "editedNames": ["editor_b.txt", "editor_a.txt"],
                 "editorActionCapture": visual, "privateListRemoved": True,

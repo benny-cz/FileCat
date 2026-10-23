@@ -27,7 +27,7 @@ internal sealed class DialogCard : Border
     private Size _requestedSize;
     private bool _resizable;
 
-    internal DialogCard(string title, Control body, Control? buttons, double maxWidth)
+    internal DialogCard(string title, Control body, Control? buttons, double maxWidth, Control? pinnedReview = null)
     {
         _body = body;
         Classes.Add("card");
@@ -91,14 +91,21 @@ internal sealed class DialogCard : Border
             }
         };
         _bodyBorder = new Border { Classes = { "dialogBody" }, Child = scroll };
-        _layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        _layout = new Grid { RowDefinitions = new RowDefinitions(
+            pinnedReview is null ? "Auto,*,Auto" : "Auto,*,Auto,Auto") };
         _layout.Children.Add(new Border { Classes = { "dialogHeader" }, Child = titleLine });
         Grid.SetRow(_bodyBorder, 1);
         _layout.Children.Add(_bodyBorder);
+        if (pinnedReview is not null)
+        {
+            var review = new Border { Classes = { "dialogBody" }, Child = pinnedReview };
+            Grid.SetRow(review, 2);
+            _layout.Children.Add(review);
+        }
         if (buttons is not null)
         {
             var footer = new Border { Classes = { "dialogFooter" }, Child = buttons };
-            Grid.SetRow(footer, 2);
+            Grid.SetRow(footer, pinnedReview is null ? 2 : 3);
             _layout.Children.Add(footer);
         }
         Child = _layout;
@@ -121,7 +128,7 @@ internal sealed class DialogCard : Border
         gripRow.Children.Add(new TextBlock { Text = "◢", FontSize = 18, HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0), IsHitTestVisible = false });
         gripRow.Children.Add(thumb);
-        Grid.SetRow(gripRow, 3);
+        Grid.SetRow(gripRow, _layout.RowDefinitions.Count - 1);
         _layout.Children.Add(gripRow);
 
         void ClampSize()

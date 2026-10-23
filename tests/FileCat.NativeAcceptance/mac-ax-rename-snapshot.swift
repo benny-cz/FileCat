@@ -71,6 +71,7 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     if included.contains(role), let bounds = frame(element) {
         nodes.append(["role": role, "name": name, "title": title,
                       "description": description, "value": value, "bounds": bounds,
+                      "help": string(attribute(element, kAXHelpAttribute as CFString)),
                       "enabled": (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "selected": (attribute(element, kAXSelectedAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "focused": (attribute(element, kAXFocusedAttribute as CFString) as? NSNumber)?.boolValue ?? false])

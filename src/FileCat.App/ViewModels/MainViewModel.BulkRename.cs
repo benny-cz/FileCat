@@ -324,13 +324,15 @@ public sealed partial class MainViewModel
                 summary,
             },
         };
+        var pinnedReview = preview.DetachNavigationForDialog();
         Invalidate();
         RequestPreview();
         var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
             // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
             () => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
-                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes), resizable: true);
+                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes), resizable: true,
+            pinnedReview: pinnedReview);
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();

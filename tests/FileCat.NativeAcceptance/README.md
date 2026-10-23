@@ -1384,11 +1384,14 @@ target stay exact. `--narrow` repeats the route at 760 × 600.
 fresh two-file source and a private editor script in an isolated profile. It
 uses native pointer/Shift selection, filters one marked file, invokes Ctrl+M,
 explicitly includes the hidden mark, edits the counter mask, and verifies the
-scope summary and selected full-path mapping. A native capture records both
-preview rows because macOS AX currently omits the virtualized preview children
-and reports zero bounds for the visibly rendered modal body. The test
-activates Previous and Next through AX and then sends focused Return and Space
-to confirm keyboard mapping navigation. It loads the two names saved
+scope summary and selected full-path mapping. The mapping buttons, live
+position and complete selected paths stay below the scrolling form so the
+review remains visible in a narrow dialog. A native capture records the
+review; macOS AX still omits the virtualized preview children and reports zero
+bounds for controls inside the scrolling form. With Mac output muted, the test
+requires VoiceOver to speak both complete paths at the first mapping and after
+Previous/Next, then sends focused Return and Space to confirm keyboard mapping
+navigation. It loads the two names saved
 by the configured editor, checks the explicit editor-derived status, removes
 the private name list, and approves only the button inside the modal bounds.
 The two resulting filenames and contents must be exact and the target empty.
