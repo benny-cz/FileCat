@@ -211,6 +211,80 @@ public sealed class RemoteLabTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Canceling_a_live_SFTP_download_removes_its_local_stage_and_keeps_the_remote_source(bool move)
+    {
+        var lab = Lab();
+        var ct = TestContext.Current.CancellationToken;
+        var profile = Profile(RemoteProtocols.Sftp, 22, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "cancel-download"));
+        string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        string remoteFile = RemotePath.Combine(remoteRoot, "download.bin");
+        string destination = Directory.CreateDirectory(Path.Combine(_dir, "download")).FullName;
+        var bytes = new byte[8 * 1024 * 1024];
+        new Random(118).NextBytes(bytes);
+        byte[] originalHash = SHA256.HashData(bytes);
+        using (var setup = stack.Connections.Lease(profile.Id, ct))
+        {
+            setup.Channel.CreateDirectory(remoteRoot);
+            using var source = setup.Channel.CreateNew(remoteFile);
+            source.Write(bytes);
+        }
+        Job? job = null;
+        try
+        {
+            job = stack.Jobs.Submit(new JobRequest
+            {
+                Kind = move ? JobKind.Move : JobKind.Copy,
+                Sources = [new ItemRef(SftpProvider.At(profile, remoteRoot), "download.bin", EntryKind.File)],
+                Destination = Location.FileSystem(destination),
+                Options = new TransferOptions { RateLimit = 64 * 1024 },
+            });
+            var deadline = Stopwatch.StartNew();
+            bool staged = false;
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && !staged && !job.State.IsFinished())
+            {
+                staged = Directory.GetFiles(destination, $"{JournalRecovery.StagedPrefix}*")
+                    .Any(path => new FileInfo(path).Length is > 0 and < 8 * 1024 * 1024);
+                if (!staged) await Task.Delay(50, ct);
+            }
+            Assert.True(staged, "A nonempty but incomplete local download stage was not observed before cancellation.");
+            Assert.Equal(JobState.Running, job.State);
+            Assert.False(File.Exists(Path.Combine(destination, "download.bin")));
+
+            job.Cancel();
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                await Task.Delay(50, ct);
+            Assert.Equal(JobState.Canceled, job.State);
+            Assert.Empty(Directory.GetFiles(destination));
+            using (var inspection = stack.Connections.Lease(profile.Id, ct))
+            {
+                Assert.Equal(["download.bin"], inspection.Channel.List(remoteRoot, ct).Select(e => e.Name));
+                using var source = inspection.Channel.OpenRead(remoteFile);
+                Assert.Equal(originalHash, SHA256.HashData(source));
+            }
+        }
+        finally
+        {
+            if (job is { } active && !active.State.IsFinished())
+            {
+                active.Cancel();
+                var deadline = Stopwatch.StartNew();
+                while (!active.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                    await Task.Delay(50, CancellationToken.None);
+            }
+            var cleanup = await RunAsync(stack, new JobRequest
+            {
+                Kind = JobKind.Delete,
+                Sources = [new ItemRef(SftpProvider.At(profile, "."), remoteRoot, EntryKind.Directory)],
+            });
+            Assert.Equal(JobState.Completed, cleanup.State);
+        }
+    }
+
     [Fact]
     public async Task Sftp_replace_keeps_a_live_target_changed_without_metadata_change()
     {

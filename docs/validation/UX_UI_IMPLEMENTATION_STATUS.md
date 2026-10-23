@@ -11,6 +11,19 @@ Both live cases passed with 16 available workers. The complete Windows Remote
 Release suite passed 2,397 cases, skipped 159 platform/lab cases and failed
 none in 33 seconds with 16 workers. The final-head CI gate remains open.
 
+The same live OpenSSH lab now covers remote-to-local cancellation for both
+Copy and Move. Each 8 MiB server source was read through FileCat at 64 KiB/s
+until a nonempty, incomplete local `.fc-` stage appeared. Cancel removed that
+stage without publishing the destination, left the remote source as the sole
+server item with its original SHA-256, and completed exact test-folder
+cleanup. Both focused cases passed. The existing real FTP cancellation case
+now runs under explicit TLS too, using a fresh test certificate and a
+one-connection trust decision. Both FTP and FTPS observed a nonempty hidden
+upload stage, canceled before publication, removed that stage and preserved
+the exact local source. The final complete Windows Remote Release suite for
+this batch passed 2,398 cases, skipped 161 platform/lab cases and failed none
+in 38 seconds with 16 workers.
+
 **23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
 LaunchServices runs with VoiceOver exposed the underlying intermittent focus
 race. The physical source-tab press reached FileCat and activated panel 1, but

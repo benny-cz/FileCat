@@ -94,17 +94,21 @@ public sealed class FtpJobTests : IDisposable
         Assert.Contains($"HostUrl=ftp://127.0.0.1:{server.Port}/", ops.Marks[Path.Combine(dest, "report.txt")]);
     }
 
-    [Fact]
-    public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source(bool encrypted)
     {
-        using var server = TestFtpServer.TryStart();
-        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        using var server = TestFtpServer.TryStart(encrypted ? TestFtpServer.SelfSigned("FileCat cancellation test").Pem : null);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
         var ct = TestContext.Current.CancellationToken;
-        var profile = server.Profile(RemoteProtocols.Ftp);
-        profile.PlainTextAccepted = true;
+        var profile = server.Profile(encrypted ? RemoteProtocols.FtpExplicitTls : RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = !encrypted;
         using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
             new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
-            new HostKeyTrust(Path.Combine(_dir, "known_hosts")), new SessionSecretStore(), new FtpInteraction());
+            new HostKeyTrust(Path.Combine(_dir, "known_hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "cancel-trusted-certificates")));
         var remote = new SftpProvider(connections, () => [profile], p => p);
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
