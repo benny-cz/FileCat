@@ -21,6 +21,30 @@ are `win-ftp-copy-crash-review-final.json` and
 `AppData\Local\FileCatValidation`. Other provider failure/cancel paths and
 the non-atomic server-side final-check race remain open.
 
+**23 October 2026, native FTP replacement risk within the viewport (FCUX-001):**
+`win-ax-ftp-replace-warning.ps1` opened the isolated Git-built `9397baf4`
+Windows app (SHA-256
+`A70C24EF6C62873845F676CD09AB8821E62D0732A1769746E79C6B429D5482CE`)
+against an owned loopback FTP server. The runner explicitly accepted the
+unencrypted-connection warning, signed in, listed the existing target and
+opened Copy from an exact local source. The prior build exposed Replace's
+residual-risk warning in accessibility but placed it below a 720 × 540
+window (warning top 645 versus frame bottom 612). The new build puts that
+warning before the conflict options: at 96 DPI the complete warning occupied
+`148,372,584,38` inside the `88,111,704,501` frame. It warned that another
+client can change the target after the final check and suggested Keep both.
+Changing to Keep both removed the warning; Cancel kept source and server
+target hashes unchanged. The passing guest receipt is
+`win-ftp-replace-warning-final2.json` under
+`AppData\Local\FileCatValidation`. The same fixture then submitted a new Copy
+with Ask each time, followed the compact strip's Review decision action, and
+checked the separate per-item conflict dialog. Its complete warning occupied
+`131,327,618,38` and Skip stayed inside the same narrow frame. Choosing Skip
+kept both exact hashes and left no server staging item; the passing receipt is
+`win-ftp-conflict-warning-probe5.json`. FTPS/SFTP native reviews, higher
+scales, spoken output and the intrinsic server-side final-check race remain
+open.
+
 **23 October 2026, narrow native Undo review and report (FCUX-018):**
 The expanded `win-ax-undo-mixed-report.ps1` passed again on the same isolated
 Git-built `b1042cb6` executable. At 96 DPI it requested a 720 × 540 FileCat

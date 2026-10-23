@@ -174,6 +174,20 @@ checks it is a prefix of the owned source, deletes only that object, and checks
 the empty remote manifest. Finally, the runner explicitly marks that journal
 reviewed in FileCat and verifies its closure. Copy and Move use separate fresh
 fixtures; their JSON reports and fixture roots remain for inspection.
+`win-ax-ftp-replace-warning.ps1 -AppPath <isolated FileCat.exe>
+-PythonHelperPath <copied win-ftp-owned-stage.py> -ReportPath <guest-local.json>`
+checks the native FTP transfer form without starting a transfer. Run it with
+VMware `-interactive` against the exact Git build, after installing `pyftpdlib`
+in the isolated guest. It opens an owned loopback FTP target through the right
+panel, explicitly accepts plaintext FTP and signs in, then chooses Replace in
+the Copy review. At 720 × 540 logical pixels it requires the complete
+final-check warning and Cancel to lie inside the real window. Keep both must
+hide the warning; Cancel must preserve both exact source and remote target
+hashes. It then starts a fresh Ask copy, follows the waiting operation's
+Review decision action, requires the per-item conflict warning and Skip to
+stay inside the narrow viewport, and chooses Skip. Both hashes and the single
+server target must remain unchanged. The fixture and JSON receipt remain for
+inspection.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses

@@ -53,16 +53,23 @@ $result = [ordered]@{
     Passed = $false; Fixture = $root; AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
     Dpi = 0; Consent = $false; SignedIn = $false; RemoteListed = $false;
     WarningVisible = $false; WarningText = $null; NarrowBounds = $null;
-    WarningClearedForKeepBoth = $false; SourceUnchanged = $false; TargetUnchanged = $false;
+    WarningClearedForKeepBoth = $false; ConflictWarning = $false;
+    ConflictBounds = $null; ConflictSkipped = $false;
+    SourceUnchanged = $false; TargetUnchanged = $false;
     Observed = @(); Error = $null
 }
 
 function Snapshot($window) {
-    for ($retry = 0; $retry -lt 4; $retry++) {
+    for ($retry = 0; $retry -lt 8; $retry++) {
         try { return @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
                     [System.Windows.Automation.Condition]::TrueCondition)) }
         catch [Runtime.InteropServices.COMException] {
-            if ($retry -eq 3) { throw }
+            if ($retry -eq 7) { throw }
+            Start-Sleep -Milliseconds 150
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+            if ($retry -eq 7 -or !$process -or $process.HasExited) { throw }
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
             Start-Sleep -Milliseconds 150
         }
     }
@@ -86,7 +93,7 @@ function Button($window, [string]$name) {
     return @((Snapshot $window) | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
         $_.Current.Name -eq $name -and $_.Current.IsEnabled -and !$_.Current.IsOffscreen
-    })[0]
+    } | Sort-Object { $_.Current.BoundingRectangle.Y })[0]
 }
 function ClickButton($window, [string]$name) {
     (Await { Button $window $name } "enabled $name button").GetCurrentPattern(
@@ -160,6 +167,11 @@ try {
     })[0] } 'visible remote replacement risk'
     $result.WarningVisible = $true
     $result.WarningText = $warning.Current.Name
+    if ($result.WarningText.IndexOf("after FileCat's final check", [StringComparison]::Ordinal) -lt 0 -or
+        $result.WarningText.IndexOf('newer change could be lost', [StringComparison]::Ordinal) -lt 0 -or
+        $result.WarningText.IndexOf('Choose Keep both', [StringComparison]::Ordinal) -lt 0) {
+        throw 'The native warning omitted the residual risk or safer choice.'
+    }
 
     $handle = [IntPtr]$process.MainWindowHandle
     $result.Dpi = [FileCatFtpWarningSize]::GetDpiForWindow($handle)
@@ -189,6 +201,44 @@ try {
     }).Count -eq 0 } 'risk warning hidden for Keep both'
     $result.WarningClearedForKeepBoth = $true
     ClickButton $window 'Cancel'
+
+    ClickButton $window 'Copy'
+    $secondDestination = Await { One $window ([System.Windows.Automation.ControlType]::Edit) 'Destination' } 'second Copy destination'
+    $result.Observed += 'SecondDestination: ' + $secondDestination.GetCurrentPattern(
+        [System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+    $result.Observed += @((Snapshot $window) | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox
+    } | ForEach-Object { 'SecondCombo: ' + $_.Current.Name })
+    ClickButton $window 'Copy'
+    $reviewDecision = Await { @((Snapshot $window) | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+        $_.Current.Name.StartsWith('Review decision', [StringComparison]::Ordinal) -and
+        $_.Current.IsEnabled -and !$_.Current.IsOffscreen
+    })[0] } 'background operation review action'
+    $reviewDecision.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $conflictWarning = Await { @((Snapshot $window) | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+        $_.Current.Name.StartsWith("Another app can change this remote file", [StringComparison]::Ordinal) -and
+        !$_.Current.IsOffscreen
+    })[0] } 'per-item remote replacement warning' 15
+    $result.ConflictWarning = $true
+    $conflictFrame = $window.Current.BoundingRectangle
+    $conflictBounds = $conflictWarning.Current.BoundingRectangle
+    $skip = Await { Button $window 'Skip' } 'per-item Skip decision'
+    $skipBounds = $skip.Current.BoundingRectangle
+    $result.ConflictBounds = [ordered]@{
+        Frame = "$conflictFrame"; Warning = "$conflictBounds"; Skip = "$skipBounds"
+    }
+    if ($conflictBounds.Left -lt $conflictFrame.Left -or
+        $conflictBounds.Right -gt $conflictFrame.Right -or
+        $conflictBounds.Top -lt $conflictFrame.Top -or
+        $conflictBounds.Bottom -gt $conflictFrame.Bottom -or
+        $skipBounds.Bottom -gt $conflictFrame.Bottom) {
+        throw 'The per-item FTP conflict warning or safe Skip choice escaped the narrow window.'
+    }
+    $skip.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Await { !(Button $window 'Skip') } 'per-item decision closure'
+    $result.ConflictSkipped = $true
     $result.SourceUnchanged = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -eq $sourceHash
     $result.TargetUnchanged = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $targetHash
     if (!$result.SourceUnchanged -or !$result.TargetUnchanged -or
@@ -199,6 +249,12 @@ try {
 }
 catch {
     $result.Error = $_ | Out-String
+    if ($process) { $result.Observed += "ProcessHasExited: $($process.HasExited)" }
+    $journalDir = Join-Path $data 'local\journal'
+    if (Test-Path -LiteralPath $journalDir) {
+        $result.Observed += @(Get-ChildItem -LiteralPath $journalDir -File -Force |
+            ForEach-Object { "Journal: $($_.Name) $($_.Length) bytes" })
+    }
     try {
         if ($window) {
             $result.Observed += @((Snapshot $window) | Select-Object -First 220 | ForEach-Object {
