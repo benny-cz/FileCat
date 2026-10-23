@@ -192,19 +192,34 @@ public static class OperationDialogs
         TransferDestinationResolution? resolved = null;
         CancellationTokenSource? destinationCancellation = null;
         int announcedRemoteChoice = -1;
+        var macRemoteWarningTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        macRemoteWarningTimer.Tick += (_, _) =>
+        {
+            macRemoteWarningTimer.Stop();
+            if (!destinationOpen || !remoteReplacementWarning.IsEffectivelyVisible) return;
+            // VoiceOver can discard a live-region event while the native
+            // replacement popup still owns its cursor. Speak after it closes.
+            if (conflicts.IsDropDownOpen) macRemoteWarningTimer.Start();
+            else LiveRegions.Repeat(remoteReplacementWarning);
+        };
         void UpdateRemoteReplacementWarning()
         {
             bool visible = (resolved?.Destination?.Scheme is Schemes.Sftp or Schemes.Ftp) &&
                 (conflicts.SelectedIndex is 2 or 3);
             remoteReplacementWarning.IsVisible = visible;
             AutomationProperties.SetHelpText(conflicts, visible ? RemoteReplacementWarning : string.Empty);
-            if (!visible) announcedRemoteChoice = -1;
+            if (!visible)
+            {
+                announcedRemoteChoice = -1;
+                macRemoteWarningTimer.Stop();
+            }
             else if (announcedRemoteChoice != conflicts.SelectedIndex)
             {
                 announcedRemoteChoice = conflicts.SelectedIndex;
                 // The warning has static text. Showing it does not change its accessible name,
                 // so a live region alone stays silent to a screen reader.
-                LiveRegions.Repeat(remoteReplacementWarning);
+                if (OperatingSystem.IsMacOS()) macRemoteWarningTimer.Start();
+                else LiveRegions.Repeat(remoteReplacementWarning);
             }
         }
         conflicts.SelectionChanged += (_, _) => UpdateRemoteReplacementWarning();
@@ -344,6 +359,7 @@ public static class OperationDialogs
         destinationRevision++;
         destinationCancellation?.Cancel();
         destinationDebounce.Stop();
+        macRemoteWarningTimer.Stop();
         return !cancellationToken.IsCancellationRequested && result is ("start" or "queue") ? accepted : null;
     }
 
@@ -541,20 +557,35 @@ public static class OperationDialogs
         if (c.SuggestedExistingName is not null && !c.TypeMismatch)
             buttons.Add(new DialogButton("Rename existing", DecisionAction.KeepBothRenameExisting));
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
+        DispatcherTimer? macConflictWarningTimer = null;
         try
         {
             var pending = vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
             if (remoteReplacementWarning is { } warning)
-                Dispatcher.UIThread.Post(() =>
+            {
+                if (OperatingSystem.IsMacOS())
                 {
-                    if (dialogOpen) LiveRegions.Repeat(warning);
-                }, DispatcherPriority.Background);
+                    macConflictWarningTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+                    macConflictWarningTimer.Tick += (_, _) =>
+                    {
+                        macConflictWarningTimer.Stop();
+                        if (dialogOpen && warning.IsEffectivelyVisible) LiveRegions.Repeat(warning);
+                    };
+                    macConflictWarningTimer.Start();
+                }
+                else
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (dialogOpen) LiveRegions.Repeat(warning);
+                    }, DispatcherPriority.Background);
+            }
             var r = await pending;
             return r is DecisionAction a ? new Decision(a, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
         }
         finally
         {
             dialogOpen = false;
+            macConflictWarningTimer?.Stop();
             comparison?.Cancel();
             // The worker owns disposal, after its synchronous read has returned.
         }

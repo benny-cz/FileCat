@@ -274,6 +274,17 @@ logical pixels, records actual GNOME scale and both warning/action bounds,
 and requires exact source and target hashes and a one-file server manifest.
 Run separate fresh sessions at 100%, 150% and 200% and restore the VM's
 original display scale afterward.
+`mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes`
+checks a signed, isolated Git-built Mac bundle with VoiceOver running and Mac
+output muted. It owns a fresh loopback FTP or explicit FTPS server, records
+the certificate or plaintext consent, focuses the exact left source row using
+the PID-checked `mac-ax-set-field.swift` helper, and requires the Copy review
+to name the exact remote destination. It chooses Replace and waits for both
+the complete visible final-check warning and VoiceOver's full automatic
+phrase. Cancel must preserve source and remote target hashes and the one-file
+server manifest. The report and disposable fixture stay below
+`~/FileCatValidation`; `--probe` stops after exposing native options and is
+for diagnosing the Mac accessibility tree.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
