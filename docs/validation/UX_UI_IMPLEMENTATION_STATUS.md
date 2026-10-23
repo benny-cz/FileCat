@@ -183,13 +183,41 @@ The guest receipts are `win-ftpes-warning-150-8ad02057.json`,
 `win-sftp-warning-200-8ad02057.json`, and the Ubuntu
 `SftpReplaceReview/verify-5a7bc0251b9c4ab38cf2ee2f87df55c1.json` and
 `SftpReplaceReview/verify-ddaa40b826ee4e2ab38615ca1d8d8a02.json`.
-The Windows VM was again restored to 100%. Cross-desktop scale and actual
-screen-reader warning checks remain open.
+The Windows VM was again restored to 100%. Mac/Linux scale and spoken warning
+checks remained open at that point.
 The five-lane CI run for `9de8a57d` exposed one stale App test assertion that
 looked for the warning as a `TextBlock` after it became a selectable `TextBox`.
 `SyncReviewStateTests` now checks the read-only field and complete target
 identity; all six focused Sync review/endpoint cases passed locally with 16
-workers. The final CI gate remains pending on the correction commit.
+workers. The subsequent `314cd798` CI run passed the producer policy, Windows,
+Ubuntu, macOS and Windows ARM64 lanes. The final-head CI gate remains open.
+
+**23 October 2026, actual Windows speech for remote replacement (FCUX-001):**
+An owned NVDA 2026.2 run exposed that the static remote replacement warning
+was visible but silent when Replace was chosen: changing visibility alone did
+not change its live-region name. The Copy review now explicitly raises its
+complete warning on each newly risky choice; the per-item conflict raises the
+same warning when its review opens. A headless regression checks the live name
+events for SFTP, FTP and both FTPS profile types, plus the local control;
+the nine focused cases passed with the direct xUnit runner. The native runner
+now accepts a signed portable NVDA path, records only its owned speech log,
+uses extended navigation keys, and requires the whole final-check risk and
+Keep both choice in both reviews.
+The isolated Win11 VM built exact Git head `0dc92d25` from a clean checkout
+(FileCat.exe SHA-256
+`643624A3A9263FFF1916D84C5912EC3AB794068273E276AD270FB2C6557C2508`).
+Its native FTP, explicit-TLS FTPS and SFTP reviews all passed at 96 DPI: NVDA
+spoke the complete warning on selecting Replace and again when the per-item
+conflict opened. Keep both hid the warning, and Cancel/Skip preserved exact
+local sources. FTP/FTPS kept their single targets byte-exact; SFTP matched an
+independently recorded Ubuntu host key, and Ubuntu independently confirmed
+only `target.txt` remained with SHA-256
+`71a6255cb042a7e0a187b15bb133d2dfcc48d94e5179f24a1c0df05997b1fce1`.
+The retained receipts are `win-ftp-warning-nvda-0dc92d25.json`,
+`win-ftpes-warning-nvda-0dc92d25.json`, and
+`win-sftp-warning-nvda-0dc92d25.json` in the Windows VM validation folder,
+plus Ubuntu `SftpReplaceReview/verify-cb3e40929f004e94b678385ccaf90aa3.json`.
+The final CI run and Mac VoiceOver/Ubuntu Orca warning checks remain open.
 
 **23 October 2026, narrow native Undo review and report (FCUX-018):**
 `linux-atspi-undo-narrow.py` passed a real Move and approved Undo in the
