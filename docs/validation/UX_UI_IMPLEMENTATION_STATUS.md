@@ -1536,7 +1536,9 @@ that runner the point could land on the thumb and make no movement. The test
 now sends wheel input over the listing, then checks that a real user viewport
 change survives refresh and resize. The focused Release test passed five
 consecutive local Windows runs with 16 build workers. A green final-head CI
-gate remains required.
+gate remains required. Run `39967112375` on `dfd926b2` subsequently passed
+producer, Windows, Ubuntu, macOS and Windows ARM64, including the corrected
+refresh assertion.
 
 **23 October 2026, stale Mac accessibility row crash (FCUX-010):** An isolated
 Retina Hex editor run on signed `cc31c682` refreshed its 7 MiB fixture and
@@ -1555,7 +1557,10 @@ final CI remains open.
 The `6ff4164d` Ubuntu CI lane found one older AT-SPI parent-row test that
 expected native selection callbacks to throw. The test now asserts the safer
 contract: all three parent selection actions return without changing marks
-or focus. A rerun of that Linux case and final CI are pending.
+or focus. The exact Git-built `116d39ff` Ubuntu VM rerun passed all 14
+applicable `DescendantFocusAutomationTests` with one Windows-only skip, using
+16 build workers. Its log is `ubuntu-focus-ci-116d39ff.log` under the guest's
+`FileCatValidation`. Final CI remains pending.
 
 **23 October 2026, Retina Hex Find after the crash fix (FCUX-007):** The
 signed `6ff4164d` app (DLL SHA-256
