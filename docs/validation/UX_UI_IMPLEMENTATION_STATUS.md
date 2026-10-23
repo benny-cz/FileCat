@@ -170,7 +170,21 @@ and their safe actions stayed within the frames. Keep both cleared the Copy
 warning, and Skip preserved exact source and target bytes. The guest receipts
 are `win-ftp-warning-150-8ad02057.json` and
 `win-ftp-warning-200-8ad02057.json`; the VM was restored to its original 100%
-scale. FTPS/SFTP higher-scale and actual spoken warning checks remain open.
+scale. The same exact Git build then passed FTPS at 150% and 200% with fresh
+self-signed test certificates and explicit Connect once, and SFTP at 150% and
+200% with fresh Ubuntu-owned targets and independently matched host keys.
+The complete Copy/per-item warning and safe actions stayed within each narrow
+frame; Cancel/Skip kept all local sources byte-exact. Both Ubuntu SFTP
+post-test verifiers found only `target.txt` with its original SHA-256
+`71a6255cb042a7e0a187b15bb133d2dfcc48d94e5179f24a1c0df05997b1fce1`.
+The guest receipts are `win-ftpes-warning-150-8ad02057.json`,
+`win-ftpes-warning-200-8ad02057.json`,
+`win-sftp-warning-150-8ad02057.json`,
+`win-sftp-warning-200-8ad02057.json`, and the Ubuntu
+`SftpReplaceReview/verify-5a7bc0251b9c4ab38cf2ee2f87df55c1.json` and
+`SftpReplaceReview/verify-ddaa40b826ee4e2ab38615ca1d8d8a02.json`.
+The Windows VM was again restored to 100%. Cross-desktop scale and actual
+screen-reader warning checks remain open.
 The five-lane CI run for `9de8a57d` exposed one stale App test assertion that
 looked for the warning as a `TextBlock` after it became a selectable `TextBox`.
 `SyncReviewStateTests` now checks the read-only field and complete target
