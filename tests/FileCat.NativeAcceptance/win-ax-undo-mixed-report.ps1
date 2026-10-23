@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [string]$NvdaPath
 )
 
 # Run only inside the interactive Windows validation VM. All mutation is confined
@@ -27,6 +28,15 @@ if (!$app.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
     !(Test-Path -LiteralPath $app -PathType Leaf)) {
     throw 'Use a Git-built FileCat.exe and a report inside the isolated FileCatValidation directory.'
 }
+if ($NvdaPath) {
+    $nvda = [IO.Path]::GetFullPath($NvdaPath)
+    if (!$nvda.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($nvda) -ine 'nvda.exe' -or
+        (Get-AuthenticodeSignature -LiteralPath $nvda).Status -ne 'Valid' -or
+        (Get-Process -Name nvda -ErrorAction SilentlyContinue)) {
+        throw 'Use the signed isolated NVDA copy with no other NVDA process running.'
+    }
+}
 
 $root = Join-Path $validation ('UndoMixed-' + [guid]::NewGuid().ToString('N'))
 $source = Join-Path $root 'source'
@@ -45,12 +55,51 @@ $lockedName = 'item-35.txt'
 $changedName = 'item-36.txt'
 $changedContent = "changed after original move`n"
 $process = $null
+$nvdaProcess = $null
+$nvdaLog = Join-Path $root 'nvda.log'
+$script:speechOffset = 0L
 $lock = $null
 $result = [ordered]@{ Passed = $false; Fixture = $root; App = $app;
     AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
     OutcomeLines = 0; FailurePath = $null; KeptPath = $null;
     FinalPath = $null; Dpi = 0; NarrowReview = $null; NarrowReport = $null;
     Error = $null }
+function TakeSpeech {
+    if (!(Test-Path -LiteralPath $nvdaLog)) { return @() }
+    $stream = [IO.File]::Open($nvdaLog, 'Open', 'Read', 'ReadWrite')
+    try {
+        $stream.Seek($script:speechOffset, 'Begin') | Out-Null
+        $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
+        $text = $reader.ReadToEnd()
+        $last = $text.LastIndexOf("`n")
+        if ($last -lt 0) { return @() }
+        $complete = $text.Substring(0, $last + 1)
+        $script:speechOffset += [Text.Encoding]::UTF8.GetByteCount($complete)
+        return @($complete -split "`r?`n" | Where-Object { $_.StartsWith('Speaking [') } |
+            ForEach-Object { $_.Substring(9).Trim() })
+    }
+    finally { $stream.Dispose() }
+}
+function HearUndo([string]$label, [scriptblock]$action, [string[]]$expected) {
+    TakeSpeech | Out-Null
+    & $action
+    $heard = @()
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    do {
+        $heard += @(TakeSpeech)
+        $spoken = ($heard -join ' ').Replace('\\', '\')
+        if (@($expected | Where-Object {
+            $spoken.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -lt 0
+        }).Count -eq 0) { break }
+        Start-Sleep -Milliseconds 150
+    } while ($timer.Elapsed.TotalSeconds -lt 12)
+    $spoken = ($heard -join ' ').Replace('\\', '\')
+    $passed = @($expected | Where-Object {
+        $spoken.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -lt 0
+    }).Count -eq 0
+    $result.SpeechSteps.Add([ordered]@{ Label = $label; Expected = $expected; Heard = $heard; Passed = $passed })
+    return $passed
+}
 
 function Snapshot($window) {
     for ($retry = 0; $retry -lt 4; $retry++) {
@@ -96,6 +145,29 @@ function Foreground($process) {
 }
 
 try {
+    if ($NvdaPath) {
+        $config = Join-Path $root 'nvda-config'
+        New-Item -ItemType Directory -Path $config | Out-Null
+        [IO.File]::WriteAllText((Join-Path $config 'nvda.ini'), @"
+[general]
+	showWelcomeDialogAtStartup = False
+[update]
+	autoCheck = False
+	startupNotification = False
+	allowUsageStats = False
+	askedAllowUsageStats = True
+"@)
+        $result.NvdaSpeechLog = $nvdaLog
+        $result.SpeechSteps = [Collections.Generic.List[object]]::new()
+        $nvdaProcess = Start-Process -FilePath $nvda -ArgumentList @("--log-file=$nvdaLog",
+            '--log-level=12', "--config-path=$config", '--disable-addons') -PassThru -WindowStyle Hidden
+        Await {
+            if ($nvdaProcess.HasExited) { throw 'NVDA exited before startup.' }
+            if ((Test-Path -LiteralPath $nvdaLog) -and
+                (Select-String -LiteralPath $nvdaLog -Pattern 'NVDA initialized' -SimpleMatch -Quiet)) { $true }
+        } 'NVDA startup' 30 | Out-Null
+        TakeSpeech | Out-Null
+    }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $source, '--right', $target) -PassThru
     Await {
@@ -165,6 +237,24 @@ try {
         $approveBounds.Right -gt $frame.Right -or $approveBounds.Bottom -gt $frame.Bottom -or
         $cancelBounds.Left -lt $frame.Left -or $cancelBounds.Bottom -gt $frame.Bottom) {
         throw 'The narrow Undo review did not wrap its full path or keep the decisions inside the window.'
+    }
+    if ($NvdaPath) {
+        $mapping = @((Snapshot $window) | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+            $_.Current.Name -like 'Move back:*' -and !$_.Current.IsOffscreen
+        })[0]
+        if (!$mapping) { throw 'The complete inverse mapping is not a focusable list item.' }
+        $name = @($expected.Keys | Where-Object {
+            $mapping.Current.Name.Contains((Join-Path $source $_)) -and
+            $mapping.Current.Name.Contains((Join-Path $target $_))
+        })[0]
+        if (!$name) { throw 'The inverse mapping omitted a complete source or target path.' }
+        $cancel.SetFocus()
+        Start-Sleep -Milliseconds 250
+        if (!(HearUndo 'complete inverse mapping' { $mapping.SetFocus() } @(
+            (Join-Path $source $name), (Join-Path $target $name)))) {
+            throw 'NVDA did not speak both complete paths in the Undo review.'
+        }
     }
     ClickButton $window 'Run these inverse actions'
     Await { (ExactFiles $source ($count - 2)) -and (ExactFiles $target 2) } 'mixed inverse result' 90 | Out-Null
@@ -238,6 +328,9 @@ finally {
         $process.CloseMainWindow() | Out-Null
         $process.WaitForExit(5000) | Out-Null
         if (!$process.HasExited) { $process.Kill(); $process.WaitForExit(5000) | Out-Null }
+    }
+    if ($nvdaProcess -and !$nvdaProcess.HasExited) {
+        $nvdaProcess.Kill(); $nvdaProcess.WaitForExit(5000) | Out-Null
     }
     $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $report -Encoding UTF8
 }

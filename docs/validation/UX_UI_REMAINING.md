@@ -43,9 +43,9 @@ increments to `main`.
    supported desktops. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
-   remaining provider cancellation choices. For FCUX-018, finish NVDA and
-   VoiceOver spoken Undo review and the retained-report navigation on all
-   desktops. Ubuntu Orca speaks both full review paths, but focusing the
+   remaining provider cancellation choices. For FCUX-018, finish VoiceOver
+   spoken Undo review and retained-report navigation on all desktops. Ubuntu
+   Orca and Win11 NVDA speak both full review paths, but focusing the
    retained report announces its name and status without reading its full
    result line. For FCUX-069/070,
    validate supported cross-app Move effects and
