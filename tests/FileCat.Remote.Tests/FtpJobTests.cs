@@ -160,10 +160,13 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RemoteProtocols.Ftp)]
-    [InlineData(RemoteProtocols.FtpExplicitTls)]
-    [InlineData(RemoteProtocols.FtpImplicitTls)]
-    public async Task Canceling_after_an_FTP_connection_drops_reports_the_retained_unpublished_stage(string protocol)
+    [InlineData(RemoteProtocols.Ftp, false)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, false)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, false)]
+    [InlineData(RemoteProtocols.Ftp, true)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, true)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, true)]
+    public async Task Canceling_or_skipping_after_an_FTP_connection_drops_reports_the_retained_unpublished_stage(string protocol, bool skip)
     {
         bool encrypted = protocol != RemoteProtocols.Ftp;
         using var server = TestFtpServer.TryStart(
@@ -214,12 +217,17 @@ public sealed class FtpJobTests : IDisposable
             Assert.True(job.Decision is { Task.IsCompleted: false },
                 $"The dropped {protocol} upload did not reach its retry/skip/cancel decision: {job.State}.");
 
-            job.Cancel();
+            if (skip) job.Decision!.Resolve(new Decision(DecisionAction.Skip));
+            else job.Cancel();
             deadline.Restart();
             while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
                 await Task.Delay(20, ct);
-            Assert.True(job.State == JobState.Canceled,
-                $"Expected canceled after the lost {protocol} connection, got {job.State}: {string.Join("; ", job.Issues.Select(i => i.Message))}");
+            // A single-item job whose only item failed is Failed; Skip declines retry,
+            // and the issue records that choice even though no item could complete.
+            JobState expected = skip ? JobState.Failed : JobState.Canceled;
+            Assert.True(job.State == expected,
+                $"Expected {expected} after the lost {protocol} connection, got {job.State}: {string.Join("; ", job.Issues.Select(i => i.Message))}");
+            if (skip) Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Skipped);
             Assert.False(File.Exists(Path.Combine(server.Root, "dropped-upload.bin")));
             Assert.Equal([stage], Directory.GetFiles(server.Root));
             Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));

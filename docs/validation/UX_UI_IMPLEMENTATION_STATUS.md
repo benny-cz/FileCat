@@ -2475,15 +2475,16 @@ suite with 2,371 passed and 156 platform/lab skips. Live FTP process
 interruption, changed server state and other failure/cleanup choices remain
 for native acceptance.
 
-A further three real-server regressions now drop the connection during an
+A further six real-server regressions now drop the connection during an
 8 MiB rate-limited FTP, explicit-TLS FTPS or implicit-TLS FTPS Move, wait for
-the job's Retry/Skip/Cancel decision, then choose Cancel. All three require
-Canceled, the byte-exact local source, no published target, the one partial
-server stage, and an issue naming that retained stage. They exposed a
+the job's Retry/Skip/Cancel decision, then choose Cancel or Skip. Cancel
+requires Canceled; Skip on the only item requires Failed with a skipped-step
+issue. All six require the byte-exact local source, no published target, the
+one partial server stage, and an issue naming that retained stage. They exposed a
 FluentFTP null dereference when cleanup tried to list through its closed
 control socket; `FtpChannel` now translates that specific disconnected
-library failure into a connection-loss error. The focused cases pass 3/3.
-The complete Windows Remote Release suite passed 2,402, skipped 161 and
+library failure into a connection-loss error. The focused cases pass 6/6.
+The complete Windows Remote Release suite passed 2,405, skipped 161 and
 failed 0 with 16 test workers. Other failure-cleanup paths and native
 provider acceptance remain open.
 
