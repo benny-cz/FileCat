@@ -309,7 +309,21 @@ public sealed class UndoLifecycleTests : IDisposable
             string error = child.HasExited ? await child.StandardError.ReadToEndAsync(ct) : "worker still running";
             Assert.True(File.Exists(marker) && !child.HasExited,
                 $"The dependent inverse did not reach its held temporary rename; exit={child.HasExited}; error={error}");
-            using (var eventData = JsonDocument.Parse(await File.ReadAllTextAsync(marker, ct)))
+            // The harness publishes the completed marker with a rename. On Windows,
+            // directory visibility can precede release of the writer's handle.
+            // Wait for a readable marker rather than treating that short interval
+            // as a failed crash fixture (especially on the slower ARM64 runner).
+            string markerJson;
+            var markerRead = Stopwatch.StartNew();
+            while (true)
+            {
+                try { markerJson = await File.ReadAllTextAsync(marker, ct); break; }
+                catch (IOException) when (markerRead.Elapsed < TimeSpan.FromSeconds(5) && !child.HasExited)
+                {
+                    await Task.Delay(25, ct);
+                }
+            }
+            using (var eventData = JsonDocument.Parse(markerJson))
             {
                 string source = eventData.RootElement.GetProperty("source").GetString()!;
                 string destination = eventData.RootElement.GetProperty("destination").GetString()!;

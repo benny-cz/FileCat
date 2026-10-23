@@ -101,7 +101,17 @@ try {
         $child.Refresh()
     }
     if (-not (Test-Path -LiteralPath $marker) -or $child.HasExited) { throw 'Dependent inverse did not reach the held rename.' }
-    $held = Get-Content -LiteralPath $marker -Raw | ConvertFrom-Json
+    # On Windows, a renamed marker can become visible before its writer's
+    # handle is released. Only read the completed marker after it is shareable.
+    $markerDeadline = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        try { $held = [IO.File]::ReadAllText($marker) | ConvertFrom-Json; break }
+        catch [IO.IOException] {
+            $child.Refresh()
+            if ($markerDeadline.Elapsed -ge [TimeSpan]::FromSeconds(5) -or $child.HasExited) { throw }
+            Start-Sleep -Milliseconds 25
+        }
+    }
     $prefix = [IO.Path]::GetFullPath($items) + [IO.Path]::DirectorySeparatorChar
     foreach ($path in @($held.source, $held.destination)) {
         if (-not [IO.Path]::GetFullPath($path).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Crash marker escaped fixture.' }
