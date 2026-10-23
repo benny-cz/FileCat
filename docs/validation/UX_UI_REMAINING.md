@@ -34,10 +34,8 @@ increments to `main`.
 
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
-   failing lane before declaring the audit complete. The earlier Windows CI
-   Core run timed out four job/filesystem cases on a three-core runner with
-   sixteen parallel collections; validate the processor-capped Core run and
-   rerun the complete final-head gate.
+   failing lane before declaring the audit complete. Validate the
+   processor-capped Windows Core run and rerun the complete final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Verify the residual-risk warning in native
@@ -49,8 +47,8 @@ increments to `main`.
    recovery choices plus safe review and cleanup of the remote stage after an
    FTP process crash. For FCUX-018, verify
    native Windows close/restart ownership during a held inverse after the
-   headless active-close test passed, and inspection of a report with a
-   failure beyond row 30, and incomplete or mixed-effect attempts. For FCUX-069/070,
+   headless active-close test passed, plus a native canceled inverse with
+   unattempted actions. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation after the completed Copy effect and supported external

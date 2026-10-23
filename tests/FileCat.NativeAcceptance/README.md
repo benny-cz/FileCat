@@ -86,6 +86,14 @@ Cancel, reviewed rename fallback and the explicit Mark reviewed decision, and
 checks exact bytes and journal state throughout. Its result is
 `AppData\Local\FileCatValidation\win-undo-last.json`; the fixture remains for
 inspection. The script closes only the FileCat instance it started.
+`win-ax-undo-mixed-report.ps1 -AppPath <isolated FileCat.exe> -ReportPath
+<guest-local.json>` checks the native FCUX-018 report beyond row 30. Run it
+with `-interactive` in the logged-in Windows VM. It moves 42 exact files,
+holds the 36th target open exclusively and changes the 37th, then approves
+Undo. It requires 40 byte-exact restorations, one retained failed inverse and
+one safely kept changed file. The actual Undo report's Copy all text must
+contain all 42 outcomes and complete fixture paths after row 30. It leaves its
+fixture for inspection and closes only its own FileCat instance.
 `win-ax-modal-guard.ps1` is a separate Windows UI Automation check that does
 not need Windows Application Driver. Run it in the interactive guest session
 with `-AppPath` pointing to an isolated `FileCat.exe` below the guest's
