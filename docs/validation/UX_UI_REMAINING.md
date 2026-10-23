@@ -32,8 +32,8 @@ increments to `main`.
 
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
-   failing lane before declaring the audit complete. Validate the
-   processor-capped Windows Core run and rerun the complete final-head gate.
+   failing lane before declaring the audit complete. Rerun the complete
+   final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. In the Mac 1× mode with VoiceOver, investigate intermittent

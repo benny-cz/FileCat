@@ -15,6 +15,64 @@ namespace FileCat.App.Tests;
 public sealed class BulkRenameScopeTests
 {
     [AvaloniaFact]
+    public async Task Editor_result_from_old_rules_cannot_replace_the_new_preview_or_submission()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
+            listing.MarkNames(["a.txt", "b.txt"], true);
+            vm.BulkRenameEditorLauncher = path => File.WriteAllText(path, "stale_a.txt\nstale_b.txt\n");
+            vm.Execute(CommandIds.BulkRename);
+            await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen);
+            window.UpdateLayout();
+            var mask = window.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Name mask");
+            var preview = window.GetVisualDescendants().OfType<BulkRenameReview>().Single();
+            var editor = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                button.Content as string == "Edit names in editor…");
+            var rename = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                button.Content as string == "Rename");
+            mask.Text = "first_[C]";
+            await Until(() => editor.IsEnabled && rename.IsEnabled && preview.AllRows.Count == 2 &&
+                preview.AllRows.All(row => row.Plan.NewName.StartsWith("first_", StringComparison.Ordinal)));
+            editor.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(button =>
+                button.Content as string == "Load names"));
+
+            // The editor confirmation is modal. Changing the underlying rule here
+            // simulates a concurrent update without activating an obscured field.
+            mask.Text = "second_[C]";
+            await Until(() => rename.IsEnabled && preview.AllRows.Count == 2 && preview.AllRows.All(row =>
+                row.Plan.NewName.StartsWith("second_", StringComparison.Ordinal)));
+            var load = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                button.Content as string == "Load names");
+            load.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => vm.Notification?.Contains("rename rules or scope changed", StringComparison.Ordinal) == true);
+            await Until(() => rename.IsEnabled && preview.AllRows.Count == 2);
+            Assert.Equal(["second_1.txt", "second_2.txt"], preview.AllRows.Select(row => row.Plan.NewName));
+            Assert.DoesNotContain(preview.AllRows, row => row.Plan.NewName.StartsWith("stale_", StringComparison.Ordinal));
+
+            rename.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished());
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal("alpha", File.ReadAllText(Path.Combine(root, "files", "second_1.txt")));
+            Assert.Equal("beta", File.ReadAllText(Path.Combine(root, "files", "second_2.txt")));
+            Assert.False(File.Exists(Path.Combine(root, "files", "stale_a.txt")));
+
+            async Task Until(Func<bool> condition)
+            {
+                for (int i = 0; i < 300 && !condition(); i++) await Task.Delay(20, ct);
+                Assert.True(condition(), "Expected editor confirmation, rule preview or rename result did not arrive.");
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Editor_result_from_old_hidden_mark_scope_cannot_replace_the_new_preview_or_submission()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
