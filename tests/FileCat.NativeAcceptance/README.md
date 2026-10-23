@@ -847,7 +847,17 @@ measures the 720 × 540 physical-pixel main window and requires the same exact
 marks, focus and fixture-byte checks as its normal-width counterpart.
 For FCUX-008, use a fresh `seed-selection` fixture and its launched isolated
 app, then run `checksum-native <report.json>` in the interactive guest desktop.
-It opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews
+On the unlocked Mac desktop, run `mac-ax-viewer-checksum.py BUNDLE.app REPORT.json`
+with a signed validation bundle and a fresh report under `~/FileCatValidation`.
+The script creates an isolated five-byte source, uses actual Hex selection and
+Ctrl+K input, checks one-byte and whole-file SHA-256/CRC-32 results and byte
+counts, and verifies that Compute leaves the clipboard unchanged while Copy
+publishes each complete result. It preserves the original clipboard, verifies
+all fixture bytes and the empty destination, and records native screenshots.
+Compile `mac-send-key.swift` as `~/FileCatValidation/mac-send-key-checksum`
+before running; Accessibility permission and the owner-approved capture helper
+are required on this test Mac.
+The Windows runner opens `a.txt` in the viewer, selects exactly byte zero in Hex mode, reviews
 the one-byte checksum scope, and verifies the complete known SHA-256, CRC-32,
 byte count and source revision text. It also checks that Compute leaves the
 clipboard unchanged and explicit Copy publishes the complete visible result.

@@ -61,8 +61,8 @@ increments to `main`.
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
-   scaled display and other narrow-layout states, and
-   clipboard behavior on other supported desktops. For FCUX-009, include long
+   scaled display and other narrow-layout states, and Ubuntu clipboard
+   behavior. For FCUX-009, include long
    lines, font fallback, pointer/keyboard navigation and automation on all
    supported desktops. For FCUX-010, verify VoiceOver's remaining item and
    action routes, Orca's repeated row description as a tutorial
