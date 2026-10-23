@@ -43,7 +43,9 @@ def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False) -> None:
         from pyftpdlib.handlers import FTPHandler as handler
     handler.authorizer = authorizer
     server = FTPServer(("127.0.0.1", 0), handler)
-    ready.write_text(str(server.socket.getsockname()[1]) + "\n", encoding="ascii")
+    publishing = ready.with_name(ready.name + ".publishing")
+    publishing.write_text(str(server.socket.getsockname()[1]) + "\n", encoding="ascii")
+    publishing.replace(ready)
     server.serve_forever()
 
 

@@ -2,6 +2,14 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**23 October 2026, CI FTP fixture readiness:** The five-lane `8c6a3950`
+run passed producer, Ubuntu and macOS, but both Windows lanes hit the same
+fixture race: `ready.txt` existed briefly before its port number was written.
+The fixture now publishes that file with an atomic same-directory replace, and
+the smoke test waits for a complete port while explicitly testing an absent,
+empty and populated ready file. The local loopback FTP and explicit-TLS FTPS
+smoke tests passed after the fix. The final-head CI gate remains required.
+
 **23 October 2026, Windows CI native-bootstrap cleanup:** The
 `b74e8b00` five-lane run passed producer, Ubuntu, macOS and Windows ARM64,
 but Windows solution build failed after compilation when another process
