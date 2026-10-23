@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--review]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--review|--review-pages]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -51,7 +51,7 @@ def screenshot():
     return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
 
 
-def run(bundle, report_path, actions=False, review=False):
+def run(bundle, report_path, actions=False, review=False, review_pages=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -70,6 +70,9 @@ def run(bundle, report_path, actions=False, review=False):
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     expected = {"a.txt": b"alpha\n", "b.txt": b"beta\n", "c.txt": b"charlie\n"}
+    if review_pages:
+        expected.update({f"item-{index:03}.txt": f"entry {index}\n".encode()
+                         for index in range(70)})
     for name, content in expected.items():
         (source / name).write_bytes(content)
     original = {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()}
@@ -101,6 +104,25 @@ def run(bundle, report_path, actions=False, review=False):
             if done.returncode:
                 raise AssertionError("AX focused-element probe failed: " + done.stderr[-800:])
             return json.loads(done.stdout or "{}")
+
+        def prepare_review_search():
+            search_focus = {}
+            for attempt in range(3):
+                osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+                osa('tell application "System Events" to key code 35 using {control down, shift down}')
+                try:
+                    wait_for(lambda: focused().get("title") == "Search commands", seconds=3)
+                except AssertionError:
+                    continue
+                time.sleep(.5)  # Let macOS release the synthesized shortcut modifiers.
+                setter = subprocess.run(["/opt/homebrew/bin/cliclick", "t:Review marked items"],
+                                        capture_output=True, text=True, timeout=10)
+                if setter.returncode:
+                    raise AssertionError(setter.stderr.strip() or "Could not type command search query")
+                search_focus = focused()
+                if search_focus.get("value") == "Review marked items":
+                    return attempt + 1
+            raise AssertionError(f"Command search did not keep the requested review query: {search_focus!r}")
 
         osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
         time.sleep(1.5)
@@ -180,25 +202,7 @@ def run(bundle, report_path, actions=False, review=False):
             osa('tell application "System Events" to key code 126')
             if focused().get("title") != "b.txt":
                 raise AssertionError("Review setup did not retain the marked source row")
-            search_focus = {}
-            for attempt in range(3):
-                osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
-                osa('tell application "System Events" to key code 35 using {control down, shift down}')
-                try:
-                    wait_for(lambda: focused().get("title") == "Search commands", seconds=3)
-                except AssertionError:
-                    continue
-                time.sleep(.5)  # Let macOS release the synthesized shortcut modifiers.
-                setter = subprocess.run(["/opt/homebrew/bin/cliclick", "t:Review marked items"],
-                                        capture_output=True, text=True, timeout=10)
-                if setter.returncode:
-                    raise AssertionError(setter.stderr.strip() or "Could not type command search query")
-                search_focus = focused()
-                if search_focus.get("value") == "Review marked items":
-                    receipt["reviewSearchAttempts"] = attempt + 1
-                    break
-            if search_focus.get("value") != "Review marked items":
-                raise AssertionError(f"Command search did not keep the requested review query: {search_focus!r}")
+            receipt["reviewSearchAttempts"] = prepare_review_search()
             focus_log, focus_stop = fixture / "review-focus.jsonl", fixture / "review-focus.stop"
             watcher = subprocess.Popen([str(observer), "observe", str(process),
                                         str(focus_log), str(focus_stop)],
@@ -258,6 +262,50 @@ def run(bundle, report_path, actions=False, review=False):
             receipt["markedReview"]["markedAfterClose"] = still_marked
             if still_marked.get("title") != "b.txt" or ", marked," not in still_marked.get("help", ""):
                 raise AssertionError(f"The reviewed mark changed while the dialog was open: {still_marked!r}")
+        if review_pages:
+            osa('tell application "System Events" to key code 0 using {control down, shift down}')
+            wait_for(lambda: ", marked," in focused().get("help", ""), seconds=10)
+            receipt["reviewSearchAttempts"] = prepare_review_search()
+            osa('tell application "System Events" to key code 36')
+            time.sleep(.8)
+            first = focused()
+            receipt["pagesOpenFocus"] = first
+            receipt["pagesFirstSpeech"] = last_phrase()
+            receipt["pagesScreenshot"] = screenshot()
+            if first.get("role") != "AXRow" or not first.get("title", "").endswith(", file"):
+                raise AssertionError(f"The paged review did not focus a marked item: {first!r}")
+            if first["title"].split(",", 1)[0] not in receipt["pagesFirstSpeech"]:
+                raise AssertionError("VoiceOver did not speak the first page's focused item")
+            found = subprocess.run([str(observer), "find", str(process), "Marked items 1"],
+                                   capture_output=True, text=True, check=True, timeout=15)
+            if "of 73" not in found.stdout:
+                raise AssertionError("The first native review page does not expose all 73 marks")
+            visited = []
+            for _ in range(8):
+                current = focused()
+                visited.append(current)
+                if current.get("title") == "Next page of marked items":
+                    break
+                osa('tell application "System Events" to key code 48')
+                time.sleep(.25)
+            else:
+                raise AssertionError(f"Tab did not reach the marked-review Next page button: {visited!r}")
+            osa('tell application "System Events" to key code 36')
+            time.sleep(.5)
+            second = subprocess.run([str(observer), "find", str(process), "Marked items 65"],
+                                    capture_output=True, text=True, check=True, timeout=15)
+            if "of 73" not in second.stdout:
+                raise AssertionError("The second native review page is missing its remaining nine marks")
+            second_speech = last_phrase()
+            receipt["markedReviewPages"] = {"firstFocus": first, "tabRoute": visited,
+                                            "firstScope": found.stdout, "secondScope": second.stdout,
+                                            "secondSpeech": second_speech}
+            if "Marked items 65" not in second_speech or "of 73" not in second_speech:
+                raise AssertionError("VoiceOver did not speak the second page's remaining scope")
+            osa('tell application "System Events" to key code 53')
+            time.sleep(.4)
+            if focused().get("role") != "AXRow":
+                raise AssertionError("Closing the paged review did not restore the source list")
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the fixture inventory")
         if any(hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
@@ -279,7 +327,8 @@ def run(bundle, report_path, actions=False, review=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--review")):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--review", "--review-pages")):
         raise SystemExit(__doc__)
     mode = sys.argv[3] if len(sys.argv) == 4 else ""
-    run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions", review=mode == "--review")
+    run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions",
+        review=mode == "--review", review_pages=mode == "--review-pages")

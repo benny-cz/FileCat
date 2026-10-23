@@ -395,10 +395,7 @@ public sealed class FileListAutomationTests
         Assert.Contains(review.CurrentItems, i => i.Hidden);
         var spoken = Assert.Single(review.Children.OfType<TextBlock>());
         Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(spoken));
-        Assert.Contains("Current item: item-000", AutomationProperties.GetName(spoken));
-        var list = Assert.Single(review.Children.OfType<ListBox>());
-        list.SelectedIndex = 1;
-        Assert.Contains("Current item: item-001", AutomationProperties.GetName(spoken));
+        Assert.Null(AutomationProperties.GetName(spoken)); // The changing Text remains the live name.
         var next = review.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Next page"));
         var previous = review.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Previous page"));
         for (int i = 0; i < 2; i++)

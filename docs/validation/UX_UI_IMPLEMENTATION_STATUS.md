@@ -33,8 +33,8 @@ closed the spoken entry gap. Command dispatch clears and leaves the search
 field before opening a modal, and the main window removes that field from the
 visual/accessibility tree while an overlay is open. The marked-items review
 repeats its bounded, polite scope summary once after it attaches, and exposes
-the selected item's short label in the summary's accessible name while its
-full path remains in the details field. On the muted Mac, the native
+the focused item through the list row while its full path remains in the
+details field. On the muted Mac, the native
 `mac-voiceover-list.py --review` runner twice heard VoiceOver speak
 `b.txt, file`; the VoiceOver cursor was inside `Marked items on this page`,
 and AX emitted the one-item scope announcement without later search-field
@@ -45,6 +45,21 @@ Windows search, list automation, dialog and lifetime tests pass 78/78 with
 candidate (`mac-voiceover-list-actions-modal-announce-r1.json`). Full App and
 final-head CI remain open; multi-item paging,
 hidden marks and other native item actions still need spoken acceptance.
+
+The complete App suite exposed a live-region naming gate: assigning a fixed
+accessible name to the changing review summary would prevent later text from
+being announced. The summary now keeps its text-derived name. All 79 focused
+review, search, live-region, focus and lifetime tests pass with 16 workers.
+The corrected signed Mac candidate (`FileCat.dll` SHA-256
+`2c8795102bfc21cdd519085f874efe427b97a17e0fe92adacb0128631c494e85`)
+again passed the spoken one-item review
+(`mac-voiceover-marked-review-live-name-r1.json`). Its new `--review-pages`
+journey marked 73 exact source files, heard VoiceOver speak the first focused
+item, reached Next page by Tab, and heard the remaining `65–73 of 73` scope;
+both pages exposed their counts through native AX with the empty target and
+all source hashes unchanged (`mac-voiceover-marked-review-pages-live-name-r1.json`).
+Filtered hidden marks, other item actions and the complete final-head suite
+remain open.
 
 **23 October 2026, native Mac long-line comparison (FCUX-009):** A signed
 `20df90d0` Mac build opened two files whose changed suffixes followed 2,000
