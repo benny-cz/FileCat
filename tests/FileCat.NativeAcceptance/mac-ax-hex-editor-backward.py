@@ -427,6 +427,49 @@ error "Owned Hex editor absent during layout inspection"
     return layout
 
 
+def refocus_find_with_ctrl_f():
+    try:
+        return {"input": "System Events", "focused": osa('''
+tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    key code 3 using {control down}
+    set focusedElement to missing value
+    repeat 30 times
+        delay 0.1
+        set focusedElement to value of attribute "AXFocusedUIElement"
+        if (role of focusedElement as text) is "AXTextField" and (name of focusedElement as text) is "Find in file" then
+            return "Find in file"
+        end if
+    end repeat
+    error "Ctrl+F after search navigation did not refocus Find; actual " & ¬
+        (role of focusedElement as text) & " / " & (name of focusedElement as text)
+end tell
+''')}
+    except AssertionError as synthetic_failure:
+        helper = Path(__file__).with_name("mac-send-key-find")
+        native = subprocess.run([str(helper), "find"],
+                                capture_output=True, text=True, timeout=30)
+        if native.returncode:
+            raise AssertionError(f"Native Ctrl+F failed after System Events: "
+                                 f"{native.stderr.strip()}; {synthetic_failure}")
+        focused = osa('''
+tell application "System Events" to tell process "FileCat"
+    set focusedElement to missing value
+    repeat 30 times
+        delay 0.1
+        set focusedElement to value of attribute "AXFocusedUIElement"
+        if (role of focusedElement as text) is "AXTextField" and (name of focusedElement as text) is "Find in file" then
+            return "Find in file"
+        end if
+    end repeat
+    error "Native Ctrl+F did not refocus Find; actual " & ¬
+        (role of focusedElement as text) & " / " & (name of focusedElement as text)
+end tell
+''')
+        return {"input": "CGEvent after System Events failed",
+                "syntheticFailure": str(synthetic_failure), "focused": focused}
+
+
 def editor_set_query(query):
     actual = osa(f'''
 on setQuery(itemRef, newValue, depth)
@@ -504,7 +547,7 @@ end tell
         raise AssertionError("The owned hex editor remained open after close")
 
 
-def run(source, narrow=False, pointer_probe=False):
+def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
     source = source.resolve(strict=True)
     if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
         raise AssertionError("The isolated two-file source fixture is not exact")
@@ -553,12 +596,14 @@ def run(source, narrow=False, pointer_probe=False):
             raise AssertionError(f"Mac Hex editor could not fit 720x500: {window_size!r}")
         if native_drags:
             time.sleep(0.3)
-        enter_query("NEEDLE", visible_controls=narrow, first=narrow)
+        enter_query("NEEDLE", visible_controls=narrow and not keyboard_find,
+                    first=narrow and not keyboard_find)
         first = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
         first_count = editor_match_count("1 distinct match visited · total not counted")
         editor_click("AXButton", "Find next match")
         second = editor_status(f"Found at 0x{SECOND_OFFSET:X}")
         second_count = editor_match_count("2 distinct matches visited · total not counted")
+        refocused_find = refocus_find_with_ctrl_f() if keyboard_find else None
         layout = editor_find_layout() if narrow else None
         editor_click("AXButton", "Find previous match")
         previous = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
@@ -593,6 +638,8 @@ def run(source, narrow=False, pointer_probe=False):
                 "requestedWindowSize": [720, 500] if narrow else None,
                 "windowSize": window_size, "resizeClamped": window_size != [720, 500] if narrow else None,
                 "nativeDrags": native_drags,
+                "findOpening": "Ctrl+F" if keyboard_find else "visible Find" if narrow else "Ctrl+F",
+                "refocusedFind": refocused_find,
                 "findLayout": layout}
     finally:
         close_editor()
@@ -602,11 +649,12 @@ def run(source, narrow=False, pointer_probe=False):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--pointer-probe"):
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--narrow-ctrl", "--pointer-probe"):
         raise SystemExit(__doc__)
     try:
-        result = run(Path(sys.argv[1]), len(sys.argv) == 4,
-                     len(sys.argv) == 4 and sys.argv[3] == "--pointer-probe")
+        mode = sys.argv[3] if len(sys.argv) == 4 else ""
+        result = run(Path(sys.argv[1]), mode in ("--narrow", "--narrow-ctrl", "--pointer-probe"),
+                     mode == "--pointer-probe", mode == "--narrow-ctrl")
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

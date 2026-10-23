@@ -56,9 +56,7 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, test the Hex editor controls and bounded match status with
-   scaled and spoken input on Windows. Investigate why Ctrl+F after native
-   resize sometimes exposes the Hex status as the focused Mac AX element
-   instead of Find. Finish Mac spoken Find acceptance.
+   scaled and spoken input on Windows. Finish Mac spoken Find acceptance.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

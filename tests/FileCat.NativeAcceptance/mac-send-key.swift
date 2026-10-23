@@ -8,8 +8,9 @@ import CoreGraphics
 import Foundation
 
 guard CommandLine.arguments.count == 2,
-      let operation = ["cut": CGKeyCode(7), "copy": CGKeyCode(8), "paste": CGKeyCode(9)][CommandLine.arguments[1]] else {
-    fputs("Usage: mac-send-key cut|copy|paste\n", stderr)
+      let operation = ["cut": CGKeyCode(7), "copy": CGKeyCode(8),
+                       "paste": CGKeyCode(9), "find": CGKeyCode(3)][CommandLine.arguments[1]] else {
+    fputs("Usage: mac-send-key cut|copy|paste|find\n", stderr)
     exit(2)
 }
 guard AXIsProcessTrusted() else {
@@ -28,8 +29,9 @@ guard let source = CGEventSource(stateID: .hidSystemState),
     fputs("Cannot construct the keyboard event\n", stderr)
     exit(5)
 }
-down.flags = .maskCommand
-up.flags = .maskCommand
+let modifier: CGEventFlags = CommandLine.arguments[1] == "find" ? .maskControl : .maskCommand
+down.flags = modifier
+up.flags = modifier
 down.post(tap: .cghidEventTap)
 usleep(50_000)
 up.post(tap: .cghidEventTap)
