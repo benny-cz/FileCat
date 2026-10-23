@@ -256,6 +256,24 @@ transfer review and per-item conflict, then Cancel and Skip. Afterward run
 separate receipt: the remote target must retain the exact SHA-256 and be the
 only file. The Windows receipt intentionally leaves `TargetUnchanged` null
 because only the independent Ubuntu verifier can establish that fact.
+`linux-atspi-ftp-warning-speech.py APP_PATH REPORT.json KEY_HELPER FTP_HELPER
+ftp|ftpes|sftp` checks the same consequential replacement warning in the
+logged-in Ubuntu desktop. Use the isolated Git-built `FileCat`, the tracked
+`linux-uinput-key.py` and `win-ftp-owned-stage.py` helpers copied below
+`~/FileCatValidation`, and the local `ftps-venv` fixture environment. Supply
+`FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process for physical keys;
+SFTP also needs the transient `FILECAT_NATIVE_SFTP_PASSWORD`. The runner
+removes both from child environments, refuses an existing Orca instance,
+starts its own speech log and owns a fresh loopback server or SFTP folder.
+For SFTP it compares the new host-key prompt with independently read SSH
+server public keys before Connect once. It chooses Replace, requires Orca to
+speak the complete final-check risk and Keep both choice, then chooses Keep
+both and Cancel. A second Ask copy opens the per-item conflict; Orca must
+speak the same complete warning before Skip. It resizes FileCat to 720 × 540
+logical pixels, records actual GNOME scale and both warning/action bounds,
+and requires exact source and target hashes and a one-file server manifest.
+Run separate fresh sessions at 100%, 150% and 200% and restore the VM's
+original display scale afterward.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
