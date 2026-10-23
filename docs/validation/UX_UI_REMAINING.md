@@ -25,10 +25,8 @@ increments to `main`.
   resized from command search. Extend these journeys for the "spoken" criteria of other
   findings (Find results, the panel filter field of FCUX-028, which needs a
   keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
-  Hearing VoiceOver itself needs the owner to enable "Allow
-  VoiceOver to be controlled with AppleScript" in VoiceOver Utility, which
-  macOS protects with an administrator authorization prompt; that prompt was
-  cancelled and the setting is still off.
+  Extend the Mac journeys to assert VoiceOver's actual spoken phrases. Its
+  AppleScript control is enabled with owner approval, and Mac audio is muted.
 
 ## Next actions, in severity order
 
@@ -39,13 +37,13 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Verify the residual-risk warning in native
-   SFTP replacement reviews; finish higher-scale and spoken FTP/FTPS/SFTP
+   finish higher-scale and spoken FTP/FTPS/SFTP
    output on all supported desktops. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
-   remaining provider cancellation choices. For FCUX-018, finish VoiceOver
-   spoken Undo review and retained-report navigation on all desktops. Ubuntu
-   Orca and Win11 NVDA speak both full review paths, but focusing the
+   remaining provider cancellation choices. For FCUX-018, finish spoken
+   retained-report navigation on Ubuntu and Windows. Orca and NVDA speak
+   both full review paths, but focusing the
    retained report announces its name and status without reading its full
    result line. For FCUX-069/070,
    validate supported cross-app Move effects and

@@ -28,6 +28,15 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def voiceover_last():
+    done = subprocess.run(["/usr/bin/osascript", "-e",
+                           'tell application "VoiceOver" to get content of last phrase'],
+                          capture_output=True, text=True, timeout=12)
+    if done.returncode:
+        raise AssertionError("VoiceOver speech readout failed: " + done.stderr.strip())
+    return done.stdout.strip()
+
+
 def inside(frame, area):
     x, y, width, height = area
     fx, fy, fw, fh = frame
@@ -65,6 +74,9 @@ def run(bundle, report_path):
             not executable.is_file() or report_path.parent != validation or
             not capture_app.is_dir()):
         raise AssertionError("Use the isolated signed app, guest-local report and approved capture helper")
+    volume = osa("get volume settings")
+    if "output muted:true" not in volume:
+        raise AssertionError("Mute the Mac output before VoiceOver acceptance")
     if app_pids():
         raise AssertionError("An existing FileCat process makes Mac Undo ownership ambiguous")
     fixture = validation / "MacUndoNarrow" / uuid4().hex
@@ -154,6 +166,12 @@ def run(bundle, report_path):
                 any(not inside(frame, receipt["narrowReview"][key])
                     for key in ("action", "approve", "cancel"))):
             raise AssertionError("The narrow Mac Undo review clipped a complete path or decision")
+        click_item(action)
+        time.sleep(1.2)
+        receipt["voiceOverReviewPhrase"] = voiceover_last()
+        if str(target_file) not in receipt["voiceOverReviewPhrase"] or \
+                str(source_file) not in receipt["voiceOverReviewPhrase"]:
+            raise AssertionError("VoiceOver did not speak both complete Undo review paths")
         receipt["reviewCapture"] = capture(capture_app, validation)
         click_item(cancel)
         wait_for(lambda: target_file.is_file() and not source_file.exists() and
@@ -175,6 +193,18 @@ def run(bundle, report_path):
             n["name"] == "Undo report"), None), "retained Undo report"))
         receipt["reportSize"] = resize("Undo report", 600, 460)
         current = nodes()
+        report_view = next((n for n in current if n["role"] == "AXStaticText" and
+                            n["name"] == "Undo report" and
+                            str(source_file) in n.get("value", "") and
+                            str(target_file) in n.get("value", "")), None)
+        if report_view is None:
+            raise AssertionError("The retained report omitted its accessible full-path text")
+        click_item(report_view)
+        time.sleep(1.2)
+        receipt["voiceOverReportPhrase"] = voiceover_last()
+        if str(source_file) not in receipt["voiceOverReportPhrase"] or \
+                str(target_file) not in receipt["voiceOverReportPhrase"]:
+            raise AssertionError("VoiceOver did not speak both complete retained-report paths")
         report_frame = next((n["bounds"] for n in current if n["role"] == "AXWindow" and
                              "Undo report" in n["name"]), None)
         copy_all = next((n for n in current if n["role"] == "AXButton" and n["name"] == "Copy all"), None)

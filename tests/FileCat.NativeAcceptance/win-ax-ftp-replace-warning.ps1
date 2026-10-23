@@ -2,11 +2,14 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('ftp', 'ftpes')][string]$Protocol = 'ftp'
+    [ValidateSet('ftp', 'ftpes', 'sftp')][string]$Protocol = 'ftp',
+    [string]$SftpFixtureId,
+    [string]$ExpectedHostFingerprints,
+    [string]$SftpPassword
 )
 
-# Interactive Windows VM only. Use a fresh loopback FTP or explicit-TLS FTPS server and one
-# FileCatValidation fixture; cancel the transfer form before any mutation.
+# Interactive Windows VM only. Use a fresh loopback FTP/FTPS server or an
+# independently seeded Ubuntu SFTP target; cancel or skip before replacement.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -33,6 +36,11 @@ if ([IO.Path]::GetFileName($app) -ine 'FileCat.exe' -or
     }).Count -gt 0) {
     throw 'Use the isolated Git-built app, copied helper and guest-local report.'
 }
+if ($Protocol -eq 'sftp' -and ($SftpFixtureId -cnotmatch '^[0-9a-f]{32}$' -or
+    [string]::IsNullOrWhiteSpace($ExpectedHostFingerprints) -or
+    [string]::IsNullOrEmpty($SftpPassword))) {
+    throw 'SFTP requires an exact owned Ubuntu fixture ID, checked host fingerprints and a test credential.'
+}
 
 $root = Join-Path $validation ('FtpReplaceReview-' + [guid]::NewGuid().ToString('N'))
 $sourceDir = Join-Path $root 'source'
@@ -44,21 +52,23 @@ New-Item -ItemType Directory -Force -Path $sourceDir, $serverRoot, $data | Out-N
 $source = Join-Path $sourceDir 'target.txt'
 $target = Join-Path $serverRoot 'target.txt'
 [IO.File]::WriteAllText($source, "owned incoming content`n")
-[IO.File]::WriteAllText($target, "owned existing remote content`n")
+if ($Protocol -ne 'sftp') { [IO.File]::WriteAllText($target, "owned existing remote content`n") }
 $sourceHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
-$targetHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+$targetHash = if ($Protocol -ne 'sftp') { (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash } else { $null }
 $python = (Get-Command python -ErrorAction Stop).Source
 $server = $null
 $process = $null
 $window = $null
 $result = [ordered]@{
     Passed = $false; Fixture = $root; AppSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
-    Protocol = $Protocol; Dpi = 0; Consent = $false; CertificatePrompt = $false;
+    Protocol = $Protocol; SftpFixtureId = $SftpFixtureId;
+    RemoteVerificationRequired = ($Protocol -eq 'sftp'); HostKeyPrompt = $false;
+    HostKeyFingerprintMatched = $false; Dpi = 0; Consent = $false; CertificatePrompt = $false;
     CertificateAcceptedOnce = $false; SignedIn = $false; RemoteListed = $false;
     WarningVisible = $false; WarningText = $null; NarrowBounds = $null;
     WarningClearedForKeepBoth = $false; ConflictWarning = $false;
     ConflictBounds = $null; ConflictSkipped = $false;
-    SourceUnchanged = $false; TargetUnchanged = $false;
+    SourceUnchanged = $false; TargetUnchanged = $(if ($Protocol -eq 'sftp') { $null } else { $false });
     Observed = @(); Error = $null
 }
 
@@ -104,16 +114,20 @@ function ClickButton($window, [string]$name) {
 }
 
 try {
-    $serveMode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
-    $server = Start-Process -FilePath $python -ArgumentList @($helper, $serveMode, $serverRoot, $ready) -PassThru -WindowStyle Hidden -RedirectStandardError $serverError
-    $port = Await {
-        if ($server.HasExited) { throw 'Owned loopback FTP server exited.' }
-        if (Test-Path -LiteralPath $ready -PathType Leaf) {
-            $value = (Get-Content -LiteralPath $ready -Raw).Trim()
-            if ($value -match '^\d+$') { [int]$value }
-        }
-    } 'loopback FTP readiness'
-    $address = "${Protocol}://tester@127.0.0.1:$port/"
+    if ($Protocol -eq 'sftp') {
+        $address = "sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpReplaceReview/$SftpFixtureId/"
+    } else {
+        $serveMode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
+        $server = Start-Process -FilePath $python -ArgumentList @($helper, $serveMode, $serverRoot, $ready) -PassThru -WindowStyle Hidden -RedirectStandardError $serverError
+        $port = Await {
+            if ($server.HasExited) { throw 'Owned loopback FTP server exited.' }
+            if (Test-Path -LiteralPath $ready -PathType Leaf) {
+                $value = (Get-Content -LiteralPath $ready -Raw).Trim()
+                if ($value -match '^\d+$') { [int]$value }
+            }
+        } 'loopback FTP readiness'
+        $address = "${Protocol}://tester@127.0.0.1:$port/"
+    }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $sourceDir, '--right', $serverRoot) -PassThru
     Await {
@@ -137,10 +151,28 @@ try {
         $consent.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
         $result.Consent = $true
     }
-    $password = Await { One $window ([System.Windows.Automation.ControlType]::Edit) 'Password' } 'FTP password field'
-    $password.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('secret-pass')
+    $password = Await { One $window ([System.Windows.Automation.ControlType]::Edit) 'Password' } 'remote password field'
+    $password.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue(
+        $(if ($Protocol -eq 'sftp') { $SftpPassword } else { 'secret-pass' }))
     ClickButton $window 'Connect'
     $result.SignedIn = $true
+    if ($Protocol -eq 'sftp') {
+        $acceptKey = Await { Button $window 'Connect once' } 'new SFTP host-key decision' 30
+        $result.HostKeyPrompt = @((Snapshot $window) | Where-Object {
+            $_.Current.Name -eq 'New server key' -and !$_.Current.IsOffscreen
+        }).Count -gt 0
+        $expected = @($ExpectedHostFingerprints.Split(',') | Where-Object { $_ -match '^SHA256:[A-Za-z0-9+/]{43}$' })
+        if ($expected.Count -eq 0) { throw 'No valid independent SSH host-key fingerprint was provided.' }
+        $shown = @((Snapshot $window) | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            !$_.Current.IsOffscreen
+        } | ForEach-Object { $_.Current.Name })
+        $result.HostKeyFingerprintMatched = @($shown | Where-Object { $expected -contains $_ }).Count -gt 0
+        if (!$result.HostKeyPrompt -or !$result.HostKeyFingerprintMatched) {
+            throw 'The SFTP host-key prompt did not match an independently observed server key.'
+        }
+        $acceptKey.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
     if ($Protocol -eq 'ftpes') {
         $acceptOnce = Await { Button $window 'Connect once' } 'unverified FTPS certificate decision' 30
         $result.CertificatePrompt = @((Snapshot $window) | Where-Object {
@@ -255,9 +287,11 @@ try {
     Await { !(Button $window 'Skip') } 'per-item decision closure'
     $result.ConflictSkipped = $true
     $result.SourceUnchanged = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -eq $sourceHash
-    $result.TargetUnchanged = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $targetHash
-    if (!$result.SourceUnchanged -or !$result.TargetUnchanged -or
-        @(Get-ChildItem -LiteralPath $serverRoot -File -Force).Count -ne 1) {
+    if ($Protocol -ne 'sftp') {
+        $result.TargetUnchanged = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $targetHash
+    }
+    if (!$result.SourceUnchanged -or ($Protocol -ne 'sftp' -and (!$result.TargetUnchanged -or
+        @(Get-ChildItem -LiteralPath $serverRoot -File -Force).Count -ne 1))) {
         throw 'The canceled replacement review changed the owned source or remote target.'
     }
     $result.Passed = $true

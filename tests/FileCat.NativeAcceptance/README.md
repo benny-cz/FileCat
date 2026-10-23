@@ -226,6 +226,18 @@ stay inside the narrow viewport, and chooses Skip. Both hashes and the single
 server target must remain unchanged. The fixture and JSON receipt remain for
 inspection. `test_win_ftp_owned_stage.py` smoke-tests both loopback fixture
 protocols; CI runs it on Windows, Windows ARM64, Ubuntu and macOS.
+For SFTP, seed one target in the Ubuntu VM with
+`python3 linux-sftp-replace-fixture.py seed <fresh-32-hex-id>`, copy the seed
+receipt, and run the Windows harness with `-Protocol sftp`,
+`-SftpFixtureId <id>`, `-ExpectedHostFingerprints <comma-separated SHA256
+fingerprints from seed receipt>` and `-SftpPassword <test-VM credential>`.
+The harness requires FileCat's New server key prompt and an exact visible
+fingerprint match before choosing Connect once. It checks the same narrow
+transfer review and per-item conflict, then Cancel and Skip. Afterward run
+`python3 linux-sftp-replace-fixture.py verify <id>` in Ubuntu and inspect its
+separate receipt: the remote target must retain the exact SHA-256 and be the
+only file. The Windows receipt intentionally leaves `TargetUnchanged` null
+because only the independent Ubuntu verifier can establish that fact.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
@@ -1070,9 +1082,10 @@ Command key; Avalonia reports such a change as the A key, which FileCat now
 ignores (before, Command+C first selected every file). The observer's `find PID
 TEXT` mode is a diagnostic that searches the AX tree and so creates elements;
 never use it inside a journey. Reading
-VoiceOver's own speech additionally needs "Allow VoiceOver to be controlled
-with AppleScript", which macOS only enables after an administrator
-authorization prompt; leave that to the owner.
+VoiceOver's own speech can be read through its AppleScript `content of last
+phrase` property after the owner-approved VoiceOver Utility and SSH helper
+permissions. Keep Mac output muted during spoken acceptance. The narrow Undo
+runner asserts VoiceOver's complete review and retained-report path phrases.
 
 `python3 mac-visual-dialog-pointer-dismiss.py BUNDLE.app REPORT.json` runs
 against a newly signed Git-built FileCat bundle under `~/FileCatValidation` on
