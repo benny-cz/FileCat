@@ -59,6 +59,15 @@ window and verifies field wrapping, in-bounds choices and unchanged fixture
 trees after Cancel. Run it in the logged-in Win11 VM, with paths below
 `%LOCALAPPDATA%\FileCatValidation`. Optional `-PauseReview` creates `.ready`;
 write the matching `.resume` file after capturing the VM desktop.
+`python3 mac-ax-sync-endpoints.py BUNDLE.app REPORT.json` checks the same
+journey on an unlocked Retina Mac. Keep `mac-ax-rename-snapshot.swift`,
+`mac-ax-panel-sort.py` and `mac-ax-markdown-resize.py` beside the runner and
+use the signed, isolated FileCat bundle and approved `FileCatCapture.app` under
+`~/FileCatValidation`. It reads both full selectable endpoint values and
+accessible names through bounded native AX traversal, uses pointer input and
+physical Down/Return to reverse direction and choose Mirror, resizes the
+review to 640 × 600 logical points, captures its wrapped paths and warning,
+then cancels and verifies the exact fixture trees and file hashes.
 `win-ax-dependent-undo-crash.ps1 -DotnetPath <guest-dotnet.exe>` is a
 Windows-only FCUX-018 check. Build the app and Core crash harness in the same
 guest Git checkout first, then run this script in the interactive desktop. It

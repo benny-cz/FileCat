@@ -58,7 +58,8 @@ let windows = attribute(app, kAXWindowsAttribute as CFString) as? [AXUIElement] 
 var nodes: [[String: Any]] = []
 var visited = 0
 let included: Set<String> = ["AXWindow", "AXRow", "AXButton", "AXCheckBox",
-                             "AXTextField", "AXStaticText", "AXList", "AXGroup"]
+                             "AXTextField", "AXTextArea", "AXComboBox", "AXPopUpButton",
+                             "AXStaticText", "AXList", "AXGroup"]
 func scan(_ element: AXUIElement, _ depth: Int) {
     guard depth <= 22 && visited < 5000 else { return }
     visited += 1
@@ -70,6 +71,7 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     if included.contains(role), let bounds = frame(element) {
         nodes.append(["role": role, "name": name, "title": title,
                       "description": description, "value": value, "bounds": bounds,
+                      "enabled": (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "selected": (attribute(element, kAXSelectedAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "focused": (attribute(element, kAXFocusedAttribute as CFString) as? NSNumber)?.boolValue ?? false])
     }
