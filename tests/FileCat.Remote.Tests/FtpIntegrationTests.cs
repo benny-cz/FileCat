@@ -32,10 +32,18 @@ internal sealed class TestFtpServer : IDisposable
         from pyftpdlib.authorizers import DummyAuthorizer
         from pyftpdlib.servers import FTPServer
         root, user, password, cert = sys.argv[1], sys.argv[2], sys.argv[3], (sys.argv[4] if len(sys.argv) > 4 else "")
+        implicit_tls = len(sys.argv) > 5 and sys.argv[5] == "implicit"
         auth = DummyAuthorizer()
         auth.add_user(user, password, root, perm="elradfmwMT")
         if cert:
-            from pyftpdlib.handlers import TLS_FTPHandler as Handler
+            from pyftpdlib.handlers import TLS_FTPHandler
+            if implicit_tls:
+                class Handler(TLS_FTPHandler):
+                    def on_connect(self):
+                        # Wrap before pyftpdlib sends its 220 greeting: implicit FTPS begins with TLS.
+                        self.secure_connection(self.get_ssl_context())
+            else:
+                Handler = TLS_FTPHandler
             Handler.certfile = cert
             Handler.tls_control_required = True
             Handler.tls_data_required = True
@@ -73,8 +81,9 @@ internal sealed class TestFtpServer : IDisposable
 
     /// <param name="certificatePem">A PEM certificate with its key: explicit TLS (AUTH TLS) is then required.</param>
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
-    public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null)
+    public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false)
     {
+        if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (Python() is not { } python) return null;
         var dir = Path.Combine(Path.GetTempPath(), "filecat-ftp-tests", Guid.NewGuid().ToString("N")[..8]);
         var root = Directory.CreateDirectory(Path.Combine(dir, "root")).FullName;
@@ -86,6 +95,7 @@ internal sealed class TestFtpServer : IDisposable
             var cert = Path.Combine(dir, "server.pem");
             File.WriteAllText(cert, certificatePem);
             args += $" \"{cert}\"";
+            if (implicitTls) args += " implicit";
         }
         var start = new ProcessStartInfo(python, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         if (advertise is not null)

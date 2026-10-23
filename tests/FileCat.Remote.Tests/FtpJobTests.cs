@@ -95,14 +95,18 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source(bool encrypted)
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source(string protocol)
     {
-        using var server = TestFtpServer.TryStart(encrypted ? TestFtpServer.SelfSigned("FileCat cancellation test").Pem : null);
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat cancellation test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
         if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
         var ct = TestContext.Current.CancellationToken;
-        var profile = server.Profile(encrypted ? RemoteProtocols.FtpExplicitTls : RemoteProtocols.Ftp);
+        var profile = server.Profile(protocol);
         profile.PlainTextAccepted = !encrypted;
         using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
             new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),

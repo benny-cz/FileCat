@@ -39,7 +39,7 @@ increments to `main`.
    destination content check. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
-   remaining implicit-TLS, connection-loss and failure-cleanup cancellation choices. For FCUX-069/070,
+   remaining connection-loss and failure-cleanup cancellation choices. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

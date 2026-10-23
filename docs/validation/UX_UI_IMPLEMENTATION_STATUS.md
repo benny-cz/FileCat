@@ -24,6 +24,14 @@ the exact local source. The final complete Windows Remote Release suite for
 this batch passed 2,398 cases, skipped 161 platform/lab cases and failed none
 in 38 seconds with 16 workers.
 
+The disposable pyftpdlib fixture now also starts TLS before the initial FTP
+greeting for `ftps://` (implicit TLS). The cancellation regression reached a
+nonempty private stage over that encrypted connection, canceled it, found no
+public target or remaining stage, and preserved the source SHA-256. Plain FTP,
+explicit TLS and implicit TLS all passed the focused run (3/3); the complete
+Windows Remote Release suite passed 2,399 cases, skipped 161 platform/lab
+cases and failed none in 42 seconds with 16 workers.
+
 **23 October 2026, native Mac SFTP panel pointer ownership (FCUX-001):**
 LaunchServices runs with VoiceOver exposed the underlying intermittent focus
 race. The physical source-tab press reached FileCat and activated panel 1, but
