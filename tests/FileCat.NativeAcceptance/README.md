@@ -1299,6 +1299,15 @@ content, controls and scrollbars. The runner checks the app identity, exact
 viewer titles, window sizes and unchanged fixture bytes, then removes only
 its own fixtures.
 
+`python3 mac-ax-large-listing.py SOURCE TARGET REPORT.json` uses the existing
+signed Mac validation app and `mac-ax-panel-sort-snapshot.swift` to measure a
+2,002-file panel: the two original files plus 2,000 temporary empty files.
+It reads a bounded direct AX tree, checks the visible row count, focused row,
+ten real Down keys and source/target invariants, then removes only its own
+files and refreshes the panel. Run it in both supported Retina 2× and 1×
+display modes. It requires the same isolated source and empty target used by
+the viewer layout runners.
+
 `python3 mac-ax-page-copy.py SOURCE REPORT.json` opens an isolated Markdown
 fixture in Page mode, clicks its accessible web content, then presses
 Command+A and Command+C. It first places a unique test sentinel on the Mac

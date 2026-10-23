@@ -67,7 +67,7 @@ increments to `main`.
    behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   large-listing latency and remaining Mac/Linux provider item routes. The
+   larger and provider-backed native listings across desktops. The
    Mac review's spoken entry, 73-item two-page navigation, full original
    location and filtered hidden-mark state now pass.
    Check Orca's repeated row description as a tutorial

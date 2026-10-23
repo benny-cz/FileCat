@@ -67,7 +67,7 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     if name.hasPrefix("Sort files:") || name.hasPrefix("Sort by ") ||
        name.hasPrefix("Marked ") || name.hasPrefix("0 folders") ||
        name == "Filter" || name == "Command line" ||
-       name.contains(", Unlocked tab, ") ||
+       name.contains(", Unlocked tab, ") || name.hasPrefix("native-list-") ||
        ["0.txt", "a.txt", "b.txt", "c.txt", "d.txt", "second", "e.txt", "f.txt"].contains(name) {
         if let bounds = frame(element) {
             nodes.append(["role": label(attribute(element, kAXRoleAttribute as CFString)),
