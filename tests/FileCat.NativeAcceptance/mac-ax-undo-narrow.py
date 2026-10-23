@@ -205,6 +205,21 @@ def run(bundle, report_path):
         if str(source_file) not in receipt["voiceOverReportPhrase"] or \
                 str(target_file) not in receipt["voiceOverReportPhrase"]:
             raise AssertionError("VoiceOver did not speak both complete retained-report paths")
+        next_line = next((n for n in current if n["role"] == "AXButton" and
+                          n["name"] == "Next report line"), None)
+        if next_line is None:
+            raise AssertionError("The retained report omitted line navigation")
+        click_item(next_line)
+        click_item(next_line)
+        readout = wait_for(lambda: next((n for n in nodes() if n["role"] == "AXStaticText" and
+            n["name"].startswith("Line ") and str(source_file) in n["name"] and
+            str(target_file) in n["name"]), None), "complete report line readout")
+        time.sleep(1.2)
+        receipt["voiceOverLinePhrase"] = voiceover_last()
+        if str(source_file) not in receipt["voiceOverLinePhrase"] or \
+                str(target_file) not in receipt["voiceOverLinePhrase"]:
+            raise AssertionError("VoiceOver did not speak both complete navigated report paths")
+        receipt["reportLineBounds"] = readout["bounds"]
         report_frame = next((n["bounds"] for n in current if n["role"] == "AXWindow" and
                              "Undo report" in n["name"]), None)
         copy_all = next((n for n in current if n["role"] == "AXButton" and n["name"] == "Copy all"), None)

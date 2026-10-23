@@ -36,16 +36,11 @@ increments to `main`.
    processor-capped Windows Core run and rerun the complete final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
-   destination content check. Verify the residual-risk warning in native
-   finish higher-scale and spoken FTP/FTPS/SFTP
-   output on all supported desktops. Supported SFTP
+   destination content check. Finish higher-scale and spoken FTP/FTPS/SFTP
+   replacement warnings on all supported desktops. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
-   remaining provider cancellation choices. For FCUX-018, finish spoken
-   retained-report navigation on Ubuntu and Windows. Orca and NVDA speak
-   both full review paths, but focusing the
-   retained report announces its name and status without reading its full
-   result line. For FCUX-069/070,
+   remaining provider cancellation choices. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -41,6 +42,15 @@ public sealed class ReportWindow : Window
     private readonly SemaphoreSlim _copyWrites = new(1, 1);
     private readonly ContentCopyNotice _copyNotice = new();
     private readonly Button _copyVisible = new() { Content = "Copy visible source text" };
+    private readonly Button _previousLine = new() { Content = "Previous report line" };
+    private readonly Button _nextLine = new() { Content = "Next report line" };
+    private readonly TextBlock _spokenLine = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    private const int SpokenSegmentLength = 4096;
+    private readonly List<int> _segmentStarts = [];
+    private int _lineCount;
+    private int _lineIndex;
+    private int _lineStart;
+    private int _segmentIndex;
     private PagedReader? _reader;
     private string _text = "";
     private long _lastHit = -1;
@@ -78,11 +88,27 @@ public sealed class ReportWindow : Window
         ToolTip.SetTip(save, "Save the report as a text file");
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         foreach (var part in new Control[] { _refresh, _search, _matchCase, _wrap, copy, _copyVisible, displayed, save }) toolbar.Children.Add(part);
+        var lineActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        lineActions.Children.Add(_previousLine);
+        lineActions.Children.Add(_nextLine);
+        var lineText = new ScrollViewer
+        {
+            MaxHeight = 84,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = _spokenLine,
+        };
+        var lineNavigation = new StackPanel { Margin = new Thickness(8, 2, 8, 4), Spacing = 4 };
+        lineNavigation.Children.Add(lineActions);
+        lineNavigation.Children.Add(lineText);
+        AutomationProperties.SetLiveSetting(_spokenLine, AutomationLiveSetting.Polite);
         var statusBar = new Border { Classes = { "status" }, Child = _status };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(lineNavigation, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
+        root.Children.Add(lineNavigation);
         root.Children.Add(statusBar);
         DockPanel.SetDock(_copyNotice, Dock.Bottom);
         root.Children.Add(_copyNotice);
@@ -92,6 +118,8 @@ public sealed class ReportWindow : Window
         Content = ThemeLayers.Over(root, surface);
 
         _refresh.Click += async (_, _) => await ReadAsync();
+        _previousLine.Click += (_, _) => MoveReportLine(forward: false);
+        _nextLine.Click += (_, _) => MoveReportLine(forward: true);
         copy.Click += async (_, _) => await CopyAsync(all: true);
         save.Click += async (_, _) => await SaveAsync();
         _wrap.IsCheckedChanged += (_, _) => _view.Wrap = _wrap.IsChecked == true;
@@ -139,6 +167,7 @@ public sealed class ReportWindow : Window
     public string Text => _text;
 
     internal string StatusText => _status.Text ?? "";
+    internal string SpokenLine => _spokenLine.Text ?? "";
 
     /// <summary>Where the report is scrolled to, in bytes of its text (tests).</summary>
     internal long TopOffset => _view.TopOffset;
@@ -201,12 +230,92 @@ public sealed class ReportWindow : Window
         _searching?.Cancel();
         _copying?.Cancel();
         _text = text;
+        _lineCount = text.Length == 0 ? 0 : 1 + text.AsSpan(0, text[^1] == '\n' ? text.Length - 1 : text.Length).Count('\n');
+        _lineIndex = _lineStart = _segmentIndex = 0;
+        _segmentStarts.Clear();
+        if (_lineCount > 0) _segmentStarts.Add(0);
+        UpdateSpokenLine();
         var old = _reader;
         _reader = new PagedReader(new MemoryContentSource("Report", Encoding.UTF8.GetBytes(text)));
         _view.SetReader(_reader, new UTF8Encoding(false), 0);
         // Its pages count against the shared content budget until it is disposed.
         old?.Dispose();
         _lastHit = -1;
+    }
+
+    private (int End, int Next) LineBounds()
+    {
+        int newline = _text.IndexOf('\n', _lineStart);
+        int next = newline < 0 ? _text.Length : newline + 1;
+        int end = newline < 0 ? _text.Length : newline;
+        if (end > _lineStart && _text[end - 1] == '\r') end--;
+        return (end, next);
+    }
+
+    private int SegmentEnd(int start, int end)
+    {
+        int last = Math.Min(start + SpokenSegmentLength, end);
+        if (last < end && last > start && char.IsHighSurrogate(_text[last - 1]) &&
+            char.IsLowSurrogate(_text[last])) last++;
+        return last;
+    }
+
+    private void MoveReportLine(bool forward)
+    {
+        if (_lineCount == 0) return;
+        var (end, next) = LineBounds();
+        if (forward)
+        {
+            int nextSegment = SegmentEnd(_segmentStarts[_segmentIndex], end);
+            if (nextSegment < end)
+            {
+                if (_segmentIndex + 1 == _segmentStarts.Count) _segmentStarts.Add(nextSegment);
+                _segmentIndex++;
+            }
+            else if (_lineIndex + 1 < _lineCount)
+            {
+                _lineIndex++;
+                _lineStart = next;
+                _segmentStarts.Clear();
+                _segmentStarts.Add(next);
+                _segmentIndex = 0;
+            }
+        }
+        else if (_segmentIndex > 0)
+        {
+            _segmentIndex--;
+        }
+        else if (_lineIndex > 0)
+        {
+            int before = _lineStart - 2;
+            _lineStart = before < 0 ? 0 : _text.LastIndexOf('\n', before) + 1;
+            _lineIndex--;
+            _segmentStarts.Clear();
+            _segmentStarts.Add(_lineStart);
+            int priorEnd = LineBounds().End;
+            while (SegmentEnd(_segmentStarts[^1], priorEnd) < priorEnd)
+                _segmentStarts.Add(SegmentEnd(_segmentStarts[^1], priorEnd));
+            _segmentIndex = _segmentStarts.Count - 1;
+        }
+        UpdateSpokenLine();
+    }
+
+    private void UpdateSpokenLine()
+    {
+        if (_lineCount == 0)
+        {
+            _spokenLine.Text = "No report lines yet.";
+            _previousLine.IsEnabled = _nextLine.IsEnabled = false;
+            return;
+        }
+        int end = LineBounds().End;
+        int segmentStart = _segmentStarts[_segmentIndex];
+        int segmentEnd = SegmentEnd(segmentStart, end);
+        string body = segmentStart == end ? "(blank line)" : _text[segmentStart..segmentEnd];
+        string part = _segmentIndex > 0 || segmentEnd < end ? $", part {_segmentIndex + 1}" : string.Empty;
+        _spokenLine.Text = $"Line {_lineIndex + 1} of {_lineCount}{part}. {Formatters.SafeName(body)}";
+        _previousLine.IsEnabled = _lineIndex > 0 || _segmentIndex > 0;
+        _nextLine.IsEnabled = _lineIndex + 1 < _lineCount || segmentEnd < end;
     }
 
     private void UpdateStatus()

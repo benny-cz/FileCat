@@ -1,6 +1,10 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using FileCat.App.Views;
 
 namespace FileCat.App.Tests;
@@ -8,6 +12,70 @@ namespace FileCat.App.Tests;
 /// <summary>The report window (D-56 file-system records): opens at once, fills in, finds, reads again, and says why it could not read.</summary>
 public sealed class ReportWindowTests
 {
+    [AvaloniaFact]
+    public async Task Report_lines_have_bounded_spoken_navigation_without_losing_complete_paths()
+    {
+        string source = @"C:\work\active\approved-work-item-with-a-long-filename.txt";
+        string target = @"C:\work\archive\approved-work-item-with-a-long-filename.txt";
+        string result = $"Restored \"{target}\" to \"{source}\".";
+        string longLine = new string('x', 4095) + "😀tail";
+        string text = $"Undo: Move\r\n{result}\r\n{longLine}\nLast outcome\n";
+        var window = new ReportWindow("Undo report", "owned fixture", _ => Task.FromResult(text));
+        window.Show();
+        try
+        {
+            await window.Reading!;
+            var controls = window.GetVisualDescendants().ToArray();
+            var previous = Assert.Single(controls.OfType<Button>(), b => b.Content as string == "Previous report line");
+            var next = Assert.Single(controls.OfType<Button>(), b => b.Content as string == "Next report line");
+            var readout = Assert.Single(controls.OfType<TextBlock>(), b => b.Text == window.SpokenLine);
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(readout));
+            Assert.Equal("Line 1 of 4. Undo: Move", window.SpokenLine);
+            Assert.False(previous.IsEnabled);
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal($"Line 2 of 4. {result}", window.SpokenLine);
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.StartsWith("Line 3 of 4, part 1. ", window.SpokenLine, StringComparison.Ordinal);
+            Assert.EndsWith("😀", window.SpokenLine, StringComparison.Ordinal);
+            Assert.True(window.SpokenLine.Length < 4200);
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("Line 3 of 4, part 2. tail", window.SpokenLine);
+            previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.EndsWith("😀", window.SpokenLine, StringComparison.Ordinal);
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("Line 4 of 4. Last outcome", window.SpokenLine);
+            Assert.False(next.IsEnabled);
+            previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("Line 3 of 4, part 2. tail", window.SpokenLine);
+            previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.EndsWith("😀", window.SpokenLine, StringComparison.Ordinal);
+            previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal($"Line 2 of 4. {result}", window.SpokenLine);
+            Assert.Equal(text, window.Text);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Report_line_readout_escapes_hidden_name_characters()
+    {
+        var window = new ReportWindow("Undo report", "owned fixture",
+            _ => Task.FromResult("Heading\nKept C:\\work\\bad\u202e.txt\n"));
+        window.Show();
+        try
+        {
+            await window.Reading!;
+            var next = Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+                b => b.Content as string == "Next report line");
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains(@"bad\u202E.txt", window.SpokenLine, StringComparison.Ordinal);
+            Assert.DoesNotContain('\u202e', window.SpokenLine);
+            Assert.Contains("bad\u202e.txt", window.Text, StringComparison.Ordinal);
+        }
+        finally { window.Close(); }
+    }
+
     private static string Report(int read) =>
         $"File-system record · NTFS\n\nItem\n  Path  C:\\data\\file.bin\n  Read  {read}\n" +
         string.Concat(Enumerable.Range(0, 300).Select(i => $"  line {i}\n")) + "\nSecurity\n  Owner  someone\n";

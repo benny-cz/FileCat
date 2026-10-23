@@ -291,6 +291,43 @@ try {
         $copyBounds.Top -lt $reportFrame.Top -or $copyBounds.Bottom -gt $reportFrame.Bottom) {
         throw 'The narrow Undo report hid Copy all or did not accept the requested size.'
     }
+    if ($NvdaPath) {
+        $nextLine = Await { Button $reportWindow 'Next report line' } 'report line navigation'
+        $nextLine.SetFocus()
+        TakeSpeech | Out-Null
+        $spokenLine = $false
+        for ($i = 0; $i -lt 8; $i++) {
+            $nextLine = Await { Button $reportWindow 'Next report line' } 'next report line'
+            TakeSpeech | Out-Null
+            $nextLine.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Milliseconds 350
+            $line = @((Snapshot $reportWindow) | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $_.Current.Name -match '^Line [0-9]+ of [0-9]+'
+            } | ForEach-Object { $_.Current.Name })[0]
+            if (!$line) { throw 'The report line readout is not accessible.' }
+            $name = @($expected.Keys | Where-Object {
+                $line.Contains((Join-Path $source $_)) -and
+                $line.Contains((Join-Path $target $_))
+            })[0]
+            $heard = @()
+            if ($name) {
+                $timer = [Diagnostics.Stopwatch]::StartNew()
+                do {
+                    $heard += @(TakeSpeech)
+                    $said = ($heard -join ' ').Replace('\\', '\')
+                    $spokenLine = $said.Contains((Join-Path $source $name)) -and
+                        $said.Contains((Join-Path $target $name))
+                    if ($spokenLine) { break }
+                    Start-Sleep -Milliseconds 150
+                } while ($timer.Elapsed.TotalSeconds -lt 8)
+            }
+            $result.SpeechSteps.Add([ordered]@{ Label = 'retained report line';
+                Visible = $line; Heard = $heard; Passed = $spokenLine })
+            if ($spokenLine) { break }
+        }
+        if (!$spokenLine) { throw 'NVDA did not speak both complete paths through retained report line navigation.' }
+    }
     ClickButton $reportWindow 'Copy all'
     $copy = Await {
         $value = Get-Clipboard -Raw

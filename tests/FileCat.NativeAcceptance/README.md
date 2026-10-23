@@ -100,7 +100,9 @@ report to 600 × 460 and requires Copy all to remain reachable.
 Pass `-NvdaPath <signed portable nvda.exe>` to own an NVDA speech log during
 the same mixed Undo run. The test moves focus from Cancel to the complete
 inverse row and requires NVDA itself to speak both full paths; it stops only
-its own NVDA process.
+its own NVDA process. The same runner uses Next report line and requires NVDA
+to speak both complete paths from one visibly accessible outcome; all 42
+outcomes and Copy all remain checked independently.
 `linux-atspi-undo-narrow.py APP_PATH REPORT.json` checks the matching native
 Ubuntu 200% route with a fresh isolated Move/Undo fixture. Run it in the
 logged-in desktop with a Git-built executable and report below
@@ -111,8 +113,8 @@ through a separate GTK 3 process. It closes only its own FileCat process.
 Pass `--orca-review-speech` to start an owned Orca debug log and require
 actual speech of both complete inverse paths after a controlled focus
 transition. The runner also requires the report's AT-SPI text interface to
-contain the full restored path; spoken navigation within that read-only
-report remains a separate acceptance gate.
+contain the full restored path, then uses Next report line and requires Orca
+to speak both complete paths from the visible outcome.
 `win-ax-display-scale.ps1 -Percent 150|200|100 -ReportPath <guest-local.json>`
 selects a Windows display scale through the Settings accessibility control.
 It refuses a noninteractive session, a non-VMware host or a report outside
@@ -129,7 +131,10 @@ the isolated validation folder. Direct AX checks both complete highlighted
 paths, wrapped row geometry and in-bounds choices at 720 × 540 points;
 native captures record the review and 600 × 460 report. The runner verifies
 unchanged bytes after Cancel, exact restoration after approval, and Copy all
-through macOS `pbpaste`. It closes only its own app process.
+through macOS `pbpaste`. With Mac audio muted and the owner-approved VoiceOver
+controls, it also requires actual speech of both complete review paths,
+retained-report paths and a navigated Next report line. It closes only its own
+app process.
 `win-ax-undo-active-close.ps1 -AppPath <isolated FileCat.exe> -ReportPath
 <guest-local.json> [-FileCount 5000] [-Action KeepCancelReport|StopExitRestart]`
 checks active Undo ownership in the logged-in Windows VM. The first route

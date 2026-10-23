@@ -245,6 +245,34 @@ def main():
         if (not 1100 <= report_bounds["frame"][2] <= 1300 or
                 not inside(report_bounds["frame"], report_bounds["copyAll"])):
             raise AssertionError("The narrow retained Undo report hides Copy all")
+        if orca_speech:
+            next_line = wait_for(lambda: one(report_frame, "button", "Next report line"),
+                                 "retained report line navigation")
+            if not next_line.grab_focus():
+                raise AssertionError("The report's Next line action could not receive focus")
+            speech.take()
+            result["reportSpeechSteps"] = []
+            full_line_spoken = False
+            for index in range(8):
+                invoke(next_line, "Next report line")
+                heard, deadline = [], time.monotonic() + 2
+                while time.monotonic() < deadline:
+                    heard += speech.take()
+                    if str(source_file) in " ".join(heard) and str(target_file) in " ".join(heard):
+                        full_line_spoken = True
+                        break
+                    time.sleep(0.15)
+                visible = [node.get_name() for node in descendants(report_frame)
+                    if node.get_name().startswith("Line ") and
+                    str(source_file) in node.get_name() and str(target_file) in node.get_name()]
+                result["reportSpeechSteps"].append({"line": index + 2, "heard": heard,
+                    "fullLineVisible": bool(visible), "bothPathsSpoken": full_line_spoken})
+                if full_line_spoken:
+                    if not visible:
+                        raise AssertionError("Orca spoke a report line that is not visibly accessible")
+                    break
+            if not full_line_spoken:
+                raise AssertionError("Orca did not speak both complete paths via retained report line navigation")
         reader = ("import gi; gi.require_version('Gtk','3.0'); "
                   "gi.require_version('Gdk','3.0'); from gi.repository import Gtk,Gdk; "
                   "Gtk.init([]); c=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD); "
