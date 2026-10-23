@@ -104,6 +104,13 @@ logged-in desktop with a Git-built executable and report below
 retained report to 600 × 460, checks both full paths and decision bounds,
 verifies exact restored bytes, and reads Copy all from the guest clipboard
 through a separate GTK 3 process. It closes only its own FileCat process.
+`win-ax-display-scale.ps1 -Percent 150|200|100 -ReportPath <guest-local.json>`
+selects a Windows display scale through the Settings accessibility control.
+It refuses a noninteractive session, a non-VMware host or a report outside
+`FileCatValidation`. Run `win-ax-undo-mixed-report.ps1` in a new process at
+each scale and require its measured DPI of 144 or 192. Restore the original
+100% scale afterward and verify 96 DPI from a fresh process; the scale
+setter's own process can retain its old DPI value.
 `win-ax-undo-active-close.ps1 -AppPath <isolated FileCat.exe> -ReportPath
 <guest-local.json> [-FileCount 5000] [-Action KeepCancelReport|StopExitRestart]`
 checks active Undo ownership in the logged-in Windows VM. The first route
