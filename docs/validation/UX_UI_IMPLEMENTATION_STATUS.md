@@ -2249,8 +2249,19 @@ wrapped the long line in the narrow viewer and used the wider region when
 expanded. Hex retained its byte and character columns with a horizontal
 scrollbar when needed. Info kept the report and mode controls within the
 window at both sizes. The runner verified the exact viewer title and
-unchanged source hash, then removed only its own fixture. Picture and
-structured Info content, 1× and other scaled states still need layout checks.
+unchanged source hash, then removed only its own fixture.
+
+The signed candidate then passed `mac-ax-viewer-media-layout.py` at Retina
+2× on its own 640 × 480 PNG and a byte-exact Mach-O copy. Picture and
+structured Info both reached 720 × 500 and 1,220 × 700 logical points;
+`mac-viewer-media-layout-pointerfix-r8.json` records four native captures,
+the signed DLL SHA-256, exact viewer titles, unchanged source bytes and
+fixture cleanup. Visual inspection confirmed the complete fitted picture,
+in-bounds mode controls, readable Mach-O header and libraries, and scrollable
+report at both sizes. The runner focuses each AX listing row before using
+FileCat's View action, so it does not launch Preview. The Mac reported no
+Preview process after the final run. Other dialogs, 1× and scaled layout
+states remain open.
 FCUX-007 passed twice on fresh guest-local Windows fixtures: the native Text
 viewer opened a 13 MiB file at its end, and successive Previous button
 actions revealed matches near 8 MiB and 1 MiB, then reported no earlier

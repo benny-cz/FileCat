@@ -8,8 +8,8 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Mac visual layout checks for Picture and structured Info content,
-  other dialogs, 1× display mode and scaled states using the owner-approved
+- Finish Mac visual layout checks for other dialogs, 1× display mode and
+  scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,

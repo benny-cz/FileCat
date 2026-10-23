@@ -1290,6 +1290,16 @@ the native sizes and removes its fixture. An AX row click can invoke Open
 asynchronously, so the runner waits before considering the separate View
 command.
 
+`python3 mac-ax-viewer-media-layout.py SOURCE FileCatCapture.app REPORT.json`
+creates a 640 × 480 PNG and a copy of the signed app's Mach-O executable in
+the isolated source panel. It focuses each listing row through macOS AX and
+uses FileCat's View command, avoiding the external Open handler for images.
+The approved helper captures Picture and structured Info at approximately
+720 × 500 and 1,220 × 700 logical points. Inspect all four screenshots for
+content, controls and scrollbars. The runner checks the app identity, exact
+viewer titles, window sizes and unchanged fixture bytes, then removes only
+its own fixtures.
+
 `python3 mac-ax-page-copy.py SOURCE REPORT.json` opens an isolated Markdown
 fixture in Page mode, clicks its accessible web content, then presses
 Command+A and Command+C. It first places a unique test sentinel on the Mac
