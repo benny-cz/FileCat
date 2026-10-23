@@ -7,7 +7,8 @@ Run in the logged-in GNOME session against an isolated Git-built FileCat below ~
 Orca instance running. The caller passes the one-time guest sudo password for the physical-key helper through
 FILECAT_NATIVE_SUDO_PASSWORD; it is removed before Orca or FileCat starts. The runner starts its own Orca with a
 test-owned debug log and judges only what Orca actually sent to speech ("SPEECH OUTPUT"). It never inspects
-FileCat's accessibility tree: enumerating it would create the very nodes whose focus announcements are tested.
+FileCat's accessibility tree during those focus tests: enumerating it would create the very nodes whose focus
+announcements are tested. A later, separate rename-review phase queries its already-open modal actions.
 """
 
 import hashlib
@@ -100,7 +101,7 @@ def main():
     # The FileCat launcher is identical across builds; FileCat.dll identifies the tested code.
     report = {"passed": False, "appSha256": sha256(app_path), "appDllSha256": sha256(app_path.with_name("FileCat.dll")),
               "orca": orca_version, "fixture": str(fixture),
-              "input": "uinput keyboard", "sourceSha256": source_sha, "steps": []}
+              "input": "uinput keyboard and AT-SPI review actions", "sourceSha256": source_sha, "steps": []}
     speech = SpeechLog(fixture / "orca-debug.log")
     orca = process = None
     try:
@@ -237,6 +238,75 @@ def main():
         finally:
             switch.terminate()
             switch.wait(10)
+
+        # Orca's own modifier consumes Insert, so use FileCat's documented Shift+movement
+        # route to mark the exact two rows. Only after the focus/speech baseline is complete
+        # do we inspect the review's native actions and ask Orca what their updates say.
+        step("home before marking rename sources", key("home"), says("Go to parent location"))
+        step("focus first rename source", key("down"), says("a.txt"))
+        step("mark a.txt and focus b.txt", key("shift+down"), says("b.txt"))
+        step("mark b.txt and focus c.txt", key("shift+down"), says("c.txt"))
+        marked_b_spoken = any("file, 5 bytes" in phrase and ", marked," in phrase
+                              for phrase in report["steps"][-1]["heard"])
+        report["steps"].append({"step": "Orca announces the newly marked b.txt",
+                                "heard": report["steps"][-1]["heard"], "passed": marked_b_spoken})
+        if not marked_b_spoken and not record_all:
+            raise AssertionError("Orca did not announce the exact newly marked b.txt row")
+        key("up")()  # Keep b.txt focused; Orca may suppress repeating it immediately.
+        speech.take()
+        step("open two-item rename review", key("ctrl+m"), says("Bulk rename"))
+
+        import gi
+        gi.require_version("Atspi", "2.0")
+        from gi.repository import Atspi
+
+        def descendants(node):
+            yield node
+            for index in range(node.get_child_count()):
+                yield from descendants(node.get_child_at_index(index))
+
+        desktop = Atspi.get_desktop(0)
+        candidates = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
+        apps = [candidate for candidate in candidates if candidate.get_name() == "FileCat" and
+                any(node.get_role_name() == "list" and node.get_name() == f"Panel 1, source, {source}"
+                    for node in descendants(candidate))]
+        if len(apps) != 1:
+            raise AssertionError(f"Expected one isolated FileCat accessibility app, found {len(apps)}")
+
+        def button(name):
+            found = [node for node in descendants(apps[0])
+                     if node.get_role_name() == "button" and node.get_name() == name]
+            if len(found) != 1:
+                raise AssertionError(f"Expected one native review button {name!r}, found {len(found)}")
+            return found[0]
+
+        def mapping_step(label, control, position, name):
+            expected_path = str(source / name)
+            speech.take()
+            if not control.grab_focus():
+                raise AssertionError(f"Could not focus {control.get_name()}")
+            speech.take()
+            if control.get_n_actions() < 1 or not control.do_action(0):
+                raise AssertionError(f"Could not invoke {control.get_name()}")
+            heard, deadline = [], time.monotonic() + 8
+            while time.monotonic() < deadline:
+                heard += speech.take()
+                combined = " ".join(heard)
+                if all(part in combined for part in
+                       (f"{position} of 2", f"From: {expected_path}", f"To: {expected_path}")):
+                    break
+                time.sleep(0.15)
+            combined = " ".join(heard)
+            passed = all(part in combined for part in
+                         (f"{position} of 2", f"From: {expected_path}", f"To: {expected_path}"))
+            report["steps"].append({"step": label, "heard": heard, "passed": passed,
+                                    "expectedPath": expected_path})
+            if not passed and not record_all:
+                raise AssertionError(f"{label}: Orca said {heard!r}")
+
+        mapping_step("Next mapping speaks complete b.txt paths", button("Next rename mapping"), 2, "b.txt")
+        mapping_step("Previous mapping speaks complete a.txt paths", button("Previous rename mapping"), 1, "a.txt")
+        step("cancel spoken rename review", key("escape"), says("b.txt"))
 
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the owned fixture folders")
