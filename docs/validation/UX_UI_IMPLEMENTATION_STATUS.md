@@ -59,7 +59,17 @@ item, reached Next page by Tab, and heard the remaining `65–73 of 73` scope;
 both pages exposed their counts through native AX with the empty target and
 all source hashes unchanged (`mac-voiceover-marked-review-pages-live-name-r1.json`).
 Filtered hidden marks, other item actions and the complete final-head suite
-remain open.
+were still open at that stage.
+
+The same signed candidate then passed the native filtered selection route
+(`mac-voiceover-marked-review-hidden-r3.json`). After reviewing all 73 marks
+across two pages, the Mac Quick filter accepted `item-00*`, leaving ten visible
+files and 63 hidden marks. The reopened review exposed `63 marks are hidden`
+through AX, kept a hidden `item-010.txt` row, and exposed its complete original
+source location in the read-only details field. VoiceOver spoke the row's
+`hidden in file list` state; all 73 source hashes and the empty target stayed
+exact. Other Mac item actions, other desktop assistive-technology routes and
+the full final-head gate remain open.
 
 **23 October 2026, native Mac long-line comparison (FCUX-009):** A signed
 `20df90d0` Mac build opened two files whose changed suffixes followed 2,000

@@ -65,13 +65,12 @@ increments to `main`.
    scaled display and other narrow-layout states, and Ubuntu clipboard
    behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
-   supported desktops. For FCUX-010, verify VoiceOver's other item actions
-   and filtered hidden-mark scope. The Mac review's spoken entry, 73-item
-   two-page navigation and VoiceOver cursor movement now pass.
+   supported desktops. For FCUX-010, verify VoiceOver's other item actions,
+   large-listing latency and remaining Mac/Linux provider item routes. The
+   Mac review's spoken entry, 73-item two-page navigation, full original
+   location and filtered hidden-mark state now pass.
    Check Orca's repeated row description as a tutorial
-   message (Avalonia maps one help text to both AT-SPI properties),
-   large-listing latency, complete marked-item review and other
-   Mac/Linux item and action routes.
+   message (Avalonia maps one help text to both AT-SPI properties).
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and

@@ -306,6 +306,45 @@ def run(bundle, report_path, actions=False, review=False, review_pages=False):
             time.sleep(.4)
             if focused().get("role") != "AXRow":
                 raise AssertionError("Closing the paged review did not restore the source list")
+            osa('tell application "System Events" to key code 1 using {control down}')
+            time.sleep(.5)
+            receipt["filterPromptFocus"] = focused()
+            if receipt["filterPromptFocus"].get("role") != "AXTextField":
+                raise AssertionError(f"Quick filter did not focus its prompt: {receipt['filterPromptFocus']!r}")
+            typed = subprocess.run(["/opt/homebrew/bin/cliclick", "t:item-00*"],
+                                   capture_output=True, text=True, timeout=10)
+            if typed.returncode:
+                raise AssertionError(typed.stderr.strip() or "Could not type the Quick filter mask")
+            time.sleep(.3)
+            receipt["filterDraftFocus"] = focused()
+            if receipt["filterDraftFocus"].get("value") != "item-00*":
+                raise AssertionError(f"Quick filter draft differed: {receipt['filterDraftFocus']!r}")
+            osa('tell application "System Events" to key code 36')
+            wait_for(lambda: focused().get("role") == "AXRow", seconds=5)
+            receipt["reviewSearchAttemptsAfterFilter"] = prepare_review_search()
+            osa('tell application "System Events" to key code 36')
+            time.sleep(.8)
+            hidden_scope = subprocess.run([str(observer), "find", str(process), "marks are hidden"],
+                                          capture_output=True, text=True, check=True, timeout=15)
+            hidden_row = subprocess.run([str(observer), "find", str(process), "hidden in file list"],
+                                        capture_output=True, text=True, check=True, timeout=15)
+            receipt["hiddenReview"] = {"scope": hidden_scope.stdout, "row": hidden_row.stdout,
+                                       "speech": last_phrase(), "focus": focused()}
+            if "63 marks are hidden" not in hidden_scope.stdout:
+                raise AssertionError("The filtered review did not disclose all 63 hidden marks")
+            hidden_records = [json.loads(line) for line in hidden_row.stdout.splitlines()]
+            if not any(record.get("role") == "AXRow" and "hidden in file list" in record.get("title", "")
+                       for record in hidden_records):
+                raise AssertionError("The filtered review did not expose a hidden marked row")
+            if not any(record.get("title") == "Full details of the reviewed item" and
+                       str(source) in record.get("value", "") for record in hidden_records):
+                raise AssertionError("The filtered review did not expose the complete original location")
+            if "hidden in file list" not in receipt["hiddenReview"]["speech"]:
+                raise AssertionError("VoiceOver did not speak the hidden mark state")
+            osa('tell application "System Events" to key code 53')
+            time.sleep(.4)
+            if focused().get("role") != "AXRow":
+                raise AssertionError("Closing the filtered review did not restore the source list")
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the fixture inventory")
         if any(hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
