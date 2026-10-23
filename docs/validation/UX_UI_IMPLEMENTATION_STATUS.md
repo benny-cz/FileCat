@@ -2,6 +2,20 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**23 October 2026, Windows CI native-bootstrap cleanup:** The
+`b74e8b00` five-lane run passed producer, Ubuntu, macOS and Windows ARM64,
+but Windows solution build failed after compilation when another process
+briefly held `NativeBootstrap.obj` and `Remove-Item` in a `finally` block
+turned temporary cleanup into a build error. The exact-directory guard now
+retries cleanup and reports a still-locked directory as a warning while
+preserving any original compilation failure. A Windows regression holds the
+object open, verifies that cleanup does not delete it, releases the lock,
+verifies removal, and rejects an unsafe directory. It passed under both
+Windows PowerShell 5.1 and PowerShell 7. The local PrivilegedHost Release
+build then succeeded with the native compiler inventory (229 headers,
+11 libraries, 7 tool components). The final-head five-lane CI gate remains
+required.
+
 **23 October 2026, real FTP crash recovery in the native UI (FCUX-001):**
 `win-ax-ftp-crash-stage-review.ps1` and `win-ftp-owned-stage.py` ran against
 the isolated Windows Git build of `b1042cb6` (`FileCat.exe` SHA-256

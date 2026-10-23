@@ -9,6 +9,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'validation/Remove-BootstrapTemporary.ps1')
 function InputPin([string]$Path) {
     $File=Get-Item -LiteralPath $Path
     $Stream=[IO.File]::OpenRead($File.FullName);$Hash=[Security.Cryptography.SHA256]::Create()
@@ -184,8 +185,7 @@ Move-Item -LiteralPath $NativeOutput -Destination $OutputFile -Force
 Write-Host ("Native bootstrap built: {0} reported headers, {1} searched libraries, {2} reported tool components." -f $HeaderPins.Count,$Libraries.Count,$ToolComponents.Count)
 }
 finally {
-    if ([IO.Path]::GetFullPath($Temporary) -ne (Join-Path $TemporaryParent ([IO.Path]::GetFileName($Temporary))) -or
-        [IO.Path]::GetFileName($Temporary) -notmatch '^FileCatBootstrap-[0-9a-f]{32}$' -or
-        (Get-Item -LiteralPath $Temporary).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unsafe native compiler cleanup path.' }
-    Remove-Item -LiteralPath $Temporary -Recurse -Force
+    if (!(Remove-BootstrapTemporary -Temporary $Temporary -TemporaryParent $TemporaryParent)) {
+        Write-Warning "Native compiler temporary directory could not be removed after retries: $Temporary"
+    }
 }

@@ -89,6 +89,9 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/draft-package-set-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest/**
           if-no-files-found: error
+      - name: Native bootstrap cleanup lock regression
+        shell: pwsh
+        run: ./eng/validation/test-bootstrap-cleanup.ps1
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - run: python -m pip install --quiet pyftpdlib pyopenssl
