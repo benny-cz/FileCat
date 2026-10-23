@@ -61,9 +61,8 @@ increments to `main`.
    modal focus and decision routes after the Mac, Windows and Ubuntu
    Copy/Delete background accessibility guards passed. For FCUX-005, finish
    actual VoiceOver speech for both complete synchronization
-   endpoints and the reversed Mirror target; confirm the
-   existing overlap, target revision, case collision and recycling gates on
-   the final head. Preserve captured scope and mapping throughout each test.
+   endpoints and the reversed Mirror target. Require the final-head CI gate;
+   preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
