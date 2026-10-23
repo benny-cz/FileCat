@@ -9,6 +9,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.Interactivity;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.State;
@@ -43,6 +44,7 @@ public sealed class HexEditorFindControlsTests
             var next = Field<Button>(editor, "_nextMatch");
             var count = Field<TextBlock>(editor, "_matchCount");
             var status = Field<TextBlock>(editor, "_status");
+            var hex = Field<HexView>(editor, "_hex");
             Assert.Equal("Find previous match", AutomationProperties.GetName(previous));
             Assert.Equal("Find next match", AutomationProperties.GetName(next));
             Assert.False(previous.IsEnabled);
@@ -56,9 +58,11 @@ public sealed class HexEditorFindControlsTests
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{first:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("1 distinct match visited · total not counted", count.Text);
+            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{second:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
+            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
 
             var contentRoot = Assert.IsAssignableFrom<Control>(editor.Content);
             contentRoot.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -71,6 +75,7 @@ public sealed class HexEditorFindControlsTests
             await WaitFor(() => status.Text?.StartsWith("\"NEEDLE\" was not found before the cursor.",
                 StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
+            Assert.Contains("No earlier match", hex.SemanticStatus);
 
             editor.Width = 720;
             editor.Height = 500;
@@ -94,13 +99,16 @@ public sealed class HexEditorFindControlsTests
 
             search.Text = "second";
             Assert.Equal("0 matches visited · total not counted", count.Text);
+            Assert.DoesNotContain("2 distinct matches visited", hex.SemanticStatus);
             Click(next);
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{second + 7:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("1 distinct match visited · total not counted", count.Text);
+            Assert.Contains("Find: " + count.Text, hex.DescribeCursor());
             search.Text = "";
             Assert.False(previous.IsEnabled);
             Assert.False(next.IsEnabled);
             Assert.Equal("Enter text to find matches", count.Text);
+            Assert.DoesNotContain("Find:", hex.SemanticStatus);
             Assert.False(editor.HasUnsavedWork);
         }
         finally

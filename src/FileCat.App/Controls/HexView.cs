@@ -118,6 +118,14 @@ public sealed class HexView : Control
     }
 
     internal string SemanticStatus => DescribeState();
+    private string? _searchFeedback;
+
+    internal void SetSearchFeedback(string? feedback, bool announce = true)
+    {
+        if (_searchFeedback == feedback) return;
+        _searchFeedback = feedback;
+        if (announce) RefreshSemanticState();
+    }
     internal double HorizontalOffset => _horizontalOffset;
     private double VerticalBarWidth => _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
     private double HorizontalBarHeight => _hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12;
@@ -145,7 +153,8 @@ public sealed class HexView : Control
     private string DescribeState()
     {
         var (start, length) = Selection;
-        return (length > 0 ? $"Selected bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes; " : "No byte selection; ")
+        return (string.IsNullOrEmpty(_searchFeedback) ? "" : $"Find: {_searchFeedback}; ")
+            + (length > 0 ? $"Selected bytes {start:N0} through {start + length - 1:N0}, {length:N0} bytes; " : "No byte selection; ")
             + (TracksActiveColumn ? $"active typing column: {(_textColumnActive ? "text (ASCII)" : "hex")}; " : "read-only byte inspection; ")
             + (_pendingNibble >= 0 ? $"pending first nibble {_pendingNibble:X}, type the second digit; " : "")
             + _editingState + $"; viewport begins at byte {_topRow * BytesPerRow:N0}, horizontal position {_horizontalOffset:0}.";

@@ -777,6 +777,7 @@ public sealed class HexEditorWindow : Window
             if (found < 0)
             {
                 Status($"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
+                _hex.SetSearchFeedback($"No {(forward ? "later" : "earlier")} match. {_matchCount.Text}");
                 return;
             }
             _lastHit = found;
@@ -784,6 +785,7 @@ public sealed class HexEditorWindow : Window
             _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
             if (_observedMatches.Count < MaxObservedMatches) _observedMatches.Add(found);
             UpdateMatchCount();
+            _hex.SetSearchFeedback(_matchCount.Text, announce: false);
             _revealingSearch = true;
             try { _hex.GoTo(found, select: true, _lastHitLength); }
             finally { _revealingSearch = false; }
@@ -792,11 +794,19 @@ public sealed class HexEditorWindow : Window
         }
         catch (OperationCanceledException)
         {
-            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader)) Status("Search stopped.");
+            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader))
+            {
+                Status("Search stopped.");
+                _hex.SetSearchFeedback($"Search stopped. {_matchCount.Text}");
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
-            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader)) Status("Search could not finish: " + ex.Message);
+            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader))
+            {
+                Status("Search could not finish: " + ex.Message);
+                _hex.SetSearchFeedback($"Search could not finish. {_matchCount.Text}");
+            }
         }
         finally
         {
@@ -812,6 +822,7 @@ public sealed class HexEditorWindow : Window
         _lastHit = -1;
         _lastSearch = null;
         _observedMatches.Clear();
+        _hex.SetSearchFeedback(null, announce: false);
         UpdateMatchCount();
     }
 

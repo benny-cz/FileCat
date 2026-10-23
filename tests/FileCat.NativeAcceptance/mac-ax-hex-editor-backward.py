@@ -470,6 +470,19 @@ end tell
                 "syntheticFailure": str(synthetic_failure), "focused": focused}
 
 
+def spoken_match(fragment):
+    heard = []
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        phrase = osa('tell application "VoiceOver" to get content of last phrase')
+        if phrase and phrase not in heard:
+            heard.append(phrase)
+        if fragment in phrase:
+            break
+        time.sleep(0.2)
+    return {"expected": fragment, "heard": heard, "matched": any(fragment in p for p in heard)}
+
+
 def editor_set_query(query):
     actual = osa(f'''
 on setQuery(itemRef, newValue, depth)
@@ -547,12 +560,16 @@ end tell
         raise AssertionError("The owned hex editor remained open after close")
 
 
-def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
+def run(source, narrow=False, pointer_probe=False, keyboard_find=False, spoken=False):
     source = source.resolve(strict=True)
     if (source / "a.txt").read_bytes() != b"alpha\n" or (source / "b.txt").read_bytes() != b"beta\n":
         raise AssertionError("The isolated two-file source fixture is not exact")
     if editor_open():
         raise AssertionError("Close the existing editor before this test")
+    if spoken:
+        if "output muted:true" not in osa("get volume settings"):
+            raise AssertionError("Mute the Mac before VoiceOver Hex acceptance")
+        osa('tell application "VoiceOver" to get content of last phrase')
     fixture = source / FIXTURE_NAME
     if fixture.exists():
         raise AssertionError("The test-owned editor search fixture already exists")
@@ -600,9 +617,11 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
                     first=narrow and not keyboard_find)
         first = editor_status(f"Found at 0x{FIRST_OFFSET:X}")
         first_count = editor_match_count("1 distinct match visited · total not counted")
+        spoken_first = spoken_match("1 distinct match visited") if spoken else None
         editor_click("AXButton", "Find next match")
         second = editor_status(f"Found at 0x{SECOND_OFFSET:X}")
         second_count = editor_match_count("2 distinct matches visited · total not counted")
+        spoken_second = spoken_match("2 distinct matches visited") if spoken else None
         refocused_find = refocus_find_with_ctrl_f() if keyboard_find else None
         layout = editor_find_layout() if narrow else None
         editor_click("AXButton", "Find previous match")
@@ -620,13 +639,16 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
             enter_query("second")
         changed = editor_status(f"Found at 0x{SECOND_OFFSET + 7:X}")
         changed_count = editor_match_count("1 distinct match visited · total not counted")
+        spoken_changed = spoken_match("1 distinct match visited") if spoken else None
         save_state = editor_save_state()
         if "No unsaved changes" not in save_state:
             raise AssertionError(f"Search left unexpected editor edits: {save_state!r}")
         close_editor()
         if editor_open() or hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Editor remained open or changed the source bytes")
-        return {"passed": True, "platform": "macOS", "mode": "Hex editor",
+        speech_results = [spoken_first, spoken_second, spoken_changed] if spoken else None
+        return {"passed": all(item["matched"] for item in speech_results) if spoken else True,
+                "platform": "macOS", "mode": "Hex editor",
                 "firstHit": FIRST_OFFSET, "secondHit": SECOND_OFFSET,
                 "firstStatus": first, "firstCount": first_count,
                 "secondStatus": second, "secondCount": second_count,
@@ -640,6 +662,7 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
                 "nativeDrags": native_drags,
                 "findOpening": "Ctrl+F" if keyboard_find else "visible Find" if narrow else "Ctrl+F",
                 "refocusedFind": refocused_find,
+                "spokenMatches": speech_results,
                 "findLayout": layout}
     finally:
         close_editor()
@@ -649,12 +672,12 @@ def run(source, narrow=False, pointer_probe=False, keyboard_find=False):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--narrow-ctrl", "--pointer-probe"):
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--narrow", "--narrow-ctrl", "--narrow-voiceover", "--pointer-probe"):
         raise SystemExit(__doc__)
     try:
         mode = sys.argv[3] if len(sys.argv) == 4 else ""
-        result = run(Path(sys.argv[1]), mode in ("--narrow", "--narrow-ctrl", "--pointer-probe"),
-                     mode == "--pointer-probe", mode == "--narrow-ctrl")
+        result = run(Path(sys.argv[1]), mode in ("--narrow", "--narrow-ctrl", "--narrow-voiceover", "--pointer-probe"),
+                     mode == "--pointer-probe", mode == "--narrow-ctrl", mode == "--narrow-voiceover")
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
