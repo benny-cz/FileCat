@@ -26,13 +26,23 @@ target hashes unchanged after Cancel and Ask/Skip
 helper then clicked that source tab and sent `AXFocused=true` to the previous
 right Filter field 35 ms later. macOS accepted the request (`AX result=0`),
 but the source panel stayed active and the exact fixture hashes stayed
-unchanged (`mac-remote-warning-pointer-focus-race-v2-1x-r3.json`). Two
-attempts to run the same new helper against the previous bundle ended before
-the injected click: its source tab had zero native bounds after SFTP Connect
-once. They preserved both fixture hashes and cannot count as red comparisons.
-The earlier normal LaunchServices trace is the direct old-build failure
-evidence: it shows source activation followed about 50 ms later by AX focus
-returning to the previous Filter editor. The final-head CI gate remains open.
+unchanged (`mac-remote-warning-pointer-focus-race-v2-1x-r3.json`). The first
+two previous-build attempts could not click the tab because overlapping macOS
+Apple Account and Archive Utility alerts hid it and made its native bounds
+zero. After dismissing those authorized system dialogs, the same helper
+reached the click on the previous build, macOS accepted the stale Filter
+focus, and the source panel lost the race as expected
+(`mac-remote-warning-pointer-focus-race-old-1x-r3.json`); both fixture hashes
+still matched. The race runner now waits another 350 ms for delayed AX and
+VoiceOver notifications before reading the active panel; the fixed build
+passed that stronger check with the same native `AX result=0`, a first-click
+source activation and unchanged hashes
+(`mac-remote-warning-pointer-focus-race-v2-1x-r4.json`). The earlier normal
+LaunchServices trace also shows source
+activation followed about 50 ms later by AX focus returning to that Filter
+editor. The complete Windows App Release suite passed 2,461 cases, skipped
+63 platform-specific cases and failed none with 16 workers. The final-head
+five-lane CI gate remains open.
 
 **23 October 2026, CI native bootstrap and Mac SFTP pointer diagnosis:** The
 `3175ff3e` Windows CI lane compiled the managed projects but the Visual Studio

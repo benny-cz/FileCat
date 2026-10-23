@@ -291,6 +291,9 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                             receipt["staleFocusRequest"] = run_command([
                                 str(race_helper), str(executable), str(pid),
                                 str(x + width / 2), str(y + height / 2)], seconds=30)
+                            # Allow native AX and VoiceOver focus notifications to settle before
+                            # reading the title; an immediate sample could miss the late bounce.
+                            time.sleep(0.35)
                         else:
                             click_node(source_tab)
                         receipt["sourcePointerAttempts"][-1]["pointerAfter"] = run_command(
