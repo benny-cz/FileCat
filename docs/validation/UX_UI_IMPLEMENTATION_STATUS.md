@@ -17,8 +17,11 @@ last VoiceOver phrase during the review was the window name rather than the
 marked row; spoken marked-review content and other focus routes still need
 native acceptance. The same candidate passed the existing spoken F3 viewer
 open/Escape return journey (`mac-voiceover-list-actions-modal-focus-r1.json`).
-The complete Windows App Release suite is running for
-this candidate; the final-head CI gate remains open.
+The first complete Windows App Release run found 12 dialog-lifetime failures:
+the initial root focus callback captured a closed dialog's session. The root
+handler now uses an instance method so closed sessions can be collected;
+all 32 affected focus and lifetime cases pass. A complete rerun and the
+final-head CI gate remain open.
 
 **23 October 2026, native Mac long-line comparison (FCUX-009):** A signed
 `20df90d0` Mac build opened two files whose changed suffixes followed 2,000

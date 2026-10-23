@@ -5,6 +5,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -62,6 +63,22 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         top.OnEscape();
     }
 
+    private void OnRootGotFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not TopLevel root || _sessions.Count == 0 || e.Source is not Visual source) return;
+        var currentSession = _sessions[^1];
+        if (currentSession.Layer.IsVisualAncestorOf(source)) return;
+        long focusRevision = _focusRevision;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (focusRevision != _focusRevision || !IsCurrent(currentSession)) return;
+            var focused = root.FocusManager?.GetFocusedElement();
+            if (focused is Visual visual && currentSession.Layer.IsVisualAncestorOf(visual)) return;
+            var target = CanFocus(currentSession.InitialFocus) ? currentSession.InitialFocus : currentSession.Layer.Child;
+            if (CanFocus(target)) Controls.ListKeys.Focus(target!);
+        }, DispatcherPriority.Input);
+    }
+
     private Session Show(Control card, Control? initialFocus, bool top, Action onEscape)
     {
         var focusManager = TopLevel.GetTopLevel(host)?.FocusManager;
@@ -80,21 +97,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             _escapeRoot = root;
             root.AddHandler(InputElement.KeyDownEvent, OnRootKeyDown, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
-            root.AddHandler(InputElement.GotFocusEvent, (_, e) =>
-            {
-                if (_sessions.Count == 0 || e.Source is not Visual source) return;
-                var currentSession = _sessions[^1];
-                if (currentSession.Layer.IsVisualAncestorOf(source)) return;
-                long focusRevision = _focusRevision;
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (focusRevision != _focusRevision || !IsCurrent(currentSession)) return;
-                    var focused = root.FocusManager?.GetFocusedElement();
-                    if (focused is Visual visual && currentSession.Layer.IsVisualAncestorOf(visual)) return;
-                    var target = CanFocus(currentSession.InitialFocus) ? currentSession.InitialFocus : currentSession.Layer.Child;
-                    if (CanFocus(target)) Controls.ListKeys.Focus(target!);
-                }, DispatcherPriority.Input);
-            }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            root.AddHandler(InputElement.GotFocusEvent, OnRootGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
         }
         card.HorizontalAlignment = HorizontalAlignment.Center;
         card.Focusable = true;
