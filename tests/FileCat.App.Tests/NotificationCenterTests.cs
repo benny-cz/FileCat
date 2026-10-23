@@ -19,6 +19,25 @@ namespace FileCat.App.Tests;
 public sealed class NotificationCenterTests
 {
     [AvaloniaFact]
+    public void Administrator_notice_uses_the_existing_six_second_info_lifetime()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            App.NotifyAdministratorNotice(vm);
+            var notice = vm.CurrentNotification!;
+            Assert.Contains("running as administrator", notice.Message);
+            Assert.False(notice.IsError);
+            Assert.True(window.NotificationTimerEnabled);
+            Assert.Equal(TimeSpan.FromSeconds(6), window.NotificationTimerInterval);
+            window.TryExpireNotification(notice.LastAt.AddSeconds(6));
+            Assert.Null(vm.CurrentNotification);
+            Assert.Contains(vm.RecentNotifications, item => item.Id == notice.Id);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public void Live_notification_names_remain_nonempty_across_severity_and_dismissal()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

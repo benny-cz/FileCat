@@ -70,7 +70,7 @@ public partial class App : Application
                 if (vm.ShouldBlockSessionEnd) e.Cancel = true;
             };
             if (!benchmark && services.Shell.IsElevated)
-                vm.Notify("FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.", true);
+                NotifyAdministratorNotice(vm);
             if (services.Paths.PortableUnavailableReason is { } portable) vm.Notify(portable, true);
             desktop.Exit += (_, _) =>
             {
@@ -100,6 +100,9 @@ public partial class App : Application
         }
         base.OnFrameworkInitializationCompleted();
     }
+
+    internal static void NotifyAdministratorNotice(MainViewModel vm) =>
+        vm.Notify("FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.");
 
     /// <summary>
     /// A UI exception is logged with its stack and reported instead of terminating FileCat; jobs keep their

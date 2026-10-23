@@ -1,5 +1,14 @@
 # Severity-ordered UX/UI audit implementation
 
+**23 October 2026, timed administrator notice (FCUX-029):** The startup
+administrator advisory now uses the existing informational toast lifetime:
+it expires after six seconds, pauses while the notice is hovered or focused,
+and remains in Recent notifications for later review. Actual failures still
+require deliberate dismissal. `NotificationCenterTests` verifies the real
+startup notice classification, timer, expiry and retained history; all seven
+notification tests pass with 16 test workers. Native Windows elevation and
+scaled-layout acceptance remain open.
+
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
 **23 October 2026, CI FTP fixture readiness:** The five-lane `8c6a3950`

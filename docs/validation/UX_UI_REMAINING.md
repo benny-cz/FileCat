@@ -75,7 +75,8 @@ increments to `main`.
    viewer semantics (012, 076, 072, 073, 056), theme/readability (013, 049,
    050, 051), safe listing and panel geometry (014, 022–028, 030–033, 047,
    048), external transfer (071, 075), operation evidence and recovery
-   (015–017, 019–021, 042, 043, 068), notification lifetime (029: clipboard and scaled layout; its notices are spoken on all three desktops), Settings
+   (015–017, 019–021, 042, 043, 068), notification lifetime (029: clipboard,
+   scaled layout and native Windows timed administrator notice; its notices are spoken on all three desktops), Settings
    and command consistency (035–037, 046, 057), bulk rename (038–040), Find
    and preview behavior (044, 045, 052, 053, 055). The status table identifies
    each group's exact provider, input, scaling and assistive-technology gate.
