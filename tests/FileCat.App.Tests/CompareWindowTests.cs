@@ -395,7 +395,9 @@ public sealed class CompareWindowTests
                 bool Titled(CompareWindow w) => w.Title == title;
                 for (int i = 0; i < 250 && !CompareWindow.OpenWindows.Any(Titled); i++) await Task.Delay(20, ct);
                 var compare = Assert.Single(CompareWindow.OpenWindows, Titled);
-                for (int i = 0; i < 250 && compare.IsComparing; i++) await Task.Delay(20, ct);
+                for (int i = 0; i < 250 && (compare.IsComparing || compare.Summary.StartsWith("Comparing", StringComparison.Ordinal)); i++)
+                    await Task.Delay(20, ct);
+                Assert.False(compare.IsComparing);
                 return compare;
             }
 

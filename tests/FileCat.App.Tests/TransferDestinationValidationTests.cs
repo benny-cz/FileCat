@@ -69,10 +69,11 @@ public sealed class TransferDestinationValidationTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
             Assert.Equal(warning.Text, AutomationProperties.GetHelpText(conflicts));
+            await Until(() => spokenWarnings.Count == 1);
             Assert.Equal([OperationDialogs.RemoteReplacementWarning], spokenWarnings);
             conflicts.SelectedIndex = 3;
             Assert.True(warning.IsVisible);
-            Dispatcher.UIThread.RunJobs();
+            await Until(() => spokenWarnings.Count == 2);
             Assert.Equal(2, spokenWarnings.Count);
             conflicts.SelectedIndex = 4;
             Assert.False(warning.IsVisible);
@@ -82,7 +83,7 @@ public sealed class TransferDestinationValidationTests
 
             conflicts.SelectedIndex = 2;
             Assert.True(warning.IsVisible);
-            Dispatcher.UIThread.RunJobs();
+            await Until(() => spokenWarnings.Count == 3);
             Assert.Equal(3, spokenWarnings.Count);
             destination.Text = local + Path.DirectorySeparatorChar;
             await Until(() => !warning.IsVisible);
