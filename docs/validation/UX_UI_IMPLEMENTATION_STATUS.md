@@ -2,6 +2,17 @@
 
 Work starts with the 13 S1 findings in the supplied [76-finding audit](FileCat_UX_UI_Audit.md), then continues into the shared S2 dialog and viewer foundations and the S3 refinements. The implementation is organized by finding below. The second batch also resolves the original test failures and verifies ordinary-user permission behavior. Native desktop acceptance remains separate from automated headless checks.
 
+**23 October 2026, final Windows validation gate:** the complete local
+Release App suite passed 2,452, skipped 63 platform-specific cases and failed
+none; the complete local Release Core suite passed 4,437, skipped 151 and failed
+none. An earlier three-core hosted Windows runner timed out four Core
+filesystem/job tests while its fixed assembly setting admitted sixteen
+parallel collections. The Windows CI Core invocation now caps xUnit collection
+threads at the runner's actual processor count, up to sixteen. A transfer
+progress test also waits for its canceled job to relinquish the journal before
+removing its fixture, and retains the original timeout diagnostic if the job
+does not stop. Final-head CI is still required.
+
 **23 October 2026, complete bulk-rename mapping navigation (FCUX-003 and
 FCUX-038):** macOS exposed no children for the virtualized rename preview,
 leaving only the selected full-path detail available to Accessibility. The

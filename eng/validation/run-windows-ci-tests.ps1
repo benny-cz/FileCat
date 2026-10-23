@@ -21,7 +21,17 @@ try {
     foreach ($project in $projects) {
         $started = [DateTimeOffset]::UtcNow
         Write-Host "::group::Windows tests: $project"
-        & dotnet test $project -c Release --no-build --logger 'trx;LogFileName=results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini
+        # Core tests run independent job and filesystem fixtures in parallel.
+        # Bound them to this runner's actual processors; a small hosted runner
+        # must not schedule the workstation's sixteen concurrent collections.
+        if ($project -like '*FileCat.Core.Tests*') {
+            $coreThreads = [Math]::Min(16, [Environment]::ProcessorCount)
+            Write-Host "Core test collections: $coreThreads parallel threads on $([Environment]::ProcessorCount) processors"
+            & dotnet test $project -c Release --no-build --logger 'trx;LogFileName=results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini -- "xUnit.MaxParallelThreads=$coreThreads"
+        }
+        else {
+            & dotnet test $project -c Release --no-build --logger 'trx;LogFileName=results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini
+        }
         $code = $LASTEXITCODE
         Write-Host "::endgroup::"
         $results.Add([ordered]@{

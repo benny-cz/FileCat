@@ -50,7 +50,13 @@ public sealed class TransferMoveProgressTests(ITestOutputHelper output)
         }
         finally
         {
-            foreach (var job in jobs.Jobs) job.Cancel(); SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(3)); Directory.Delete(root, true);
+            foreach (var job in jobs.Jobs) job.Cancel();
+            // A timed-out job may still own its journal. Do not replace the
+            // original timeout with an unrelated sharing violation from cleanup.
+            if (SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(30)))
+                Directory.Delete(root, true);
+            else
+                output.WriteLine($"Canceled worker still owns fixture {root}; preserving it for failure inspection.");
         }
     }
 

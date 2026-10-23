@@ -34,7 +34,10 @@ increments to `main`.
 
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
-   failing lane before declaring the audit complete.
+   failing lane before declaring the audit complete. The earlier Windows CI
+   Core run timed out four job/filesystem cases on a three-core runner with
+   sixteen parallel collections; validate the processor-capped Core run and
+   rerun the complete final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Verify the residual-risk warning in native
