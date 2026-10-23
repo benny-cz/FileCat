@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe]
-The probes end at the expanded Copy options; pointer-probe skips keyboard panel switching.
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--ax-probe|--ax-narrow]
+The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
 
@@ -145,7 +145,7 @@ end tell
     return size
 
 
-def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe):
+def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
@@ -170,7 +170,7 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe)
     source.write_bytes(b"owned incoming content\n")
     target.write_bytes(b"owned existing remote content\n")
     receipt = {"passed": False, "probe": probe, "narrow": narrow,
-               "pointerProbe": pointer_probe,
+               "pointerProbe": pointer_probe and probe, "axRoute": ax_route,
                "protocol": protocol, "bundle": str(bundle),
                "appDllSha256": sha256(executable.with_name("FileCat.dll")),
                "fixture": str(fixture), "sourceSha256": sha256(source), "targetSha256": sha256(target),
@@ -250,7 +250,24 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe)
                                    node["bounds"][2] > 8), None)
                 if source_tab is None:
                     raise AssertionError("The exact local source tab is unavailable")
-                click_node(source_tab)
+                if ax_route:
+                    click_ax("AXButton", source_tab["name"])
+                    wait_for(lambda: any(node["role"] == "AXWindow" and
+                                 node["name"].startswith("source — FileCat") for node in nodes()),
+                             "AX activation of the exact local source panel", seconds=4)
+                    receipt["steps"].append("Local source panel activated through its AX tab action")
+                else:
+                    for activation in range(4):
+                        click_node(source_tab)
+                        try:
+                            wait_for(lambda: any(node["role"] == "AXWindow" and
+                                         node["name"].startswith("source — FileCat") for node in nodes()),
+                                     "pointer activation of the exact local source panel", seconds=1)
+                            receipt["steps"].append(f"Local source panel activated on tab click {activation + 1}")
+                            break
+                        except AssertionError:
+                            if activation == 3:
+                                raise AssertionError("The exact local source tab did not activate its panel by pointer")
                 receipt["steps"].append(run_command([str(ax_setter), str(executable), str(pid),
                                                      "target.txt", "leftmost"]))
                 click_node(source_row)
@@ -350,7 +367,7 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe)
         wait_for(lambda: len([node for node in nodes() if node["role"] == "AXRow" and
                               node["name"] == "target.txt"]) >= 2,
                  "both exact source and remote target rows", seconds=45)
-        if protocol == "sftp" and not pointer_probe:
+        if protocol == "sftp" and not pointer_probe and not ax_route:
             # After the host-key dialog, macOS may leave the right Location box
             # editing the new address. Escape returns to that list; Tab then
             # uses FileCat's own panel-switch command to reach the source.
@@ -554,10 +571,11 @@ end tell
 
 if __name__ == "__main__":
     if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "sftp") or (
-            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe")):
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--ax-probe", "--ax-narrow")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
-                 sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe"),
-                 len(sys.argv) == 6 and sys.argv[5] == "--narrow",
-                 len(sys.argv) == 6 and sys.argv[5] == "--pointer-probe")
+                 sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--ax-probe"),
+                 len(sys.argv) == 6 and sys.argv[5] in ("--narrow", "--pointer-narrow", "--ax-narrow"),
+                 len(sys.argv) == 6 and sys.argv[5] in ("--pointer-probe", "--pointer-narrow"),
+                 len(sys.argv) == 6 and sys.argv[5] in ("--ax-probe", "--ax-narrow"))
     raise SystemExit(0 if result["passed"] else 1)

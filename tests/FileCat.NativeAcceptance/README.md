@@ -296,7 +296,10 @@ journey with both the Copy warning and per-item conflict at 640 × 480 Mac
 points. It records both screenshots and requires the decision actions to
 remain inside the native window. `--pointer-probe` skips the keyboard panel
 switch after SFTP Connect once and requires the exact local source to activate
-by pointer and open the Copy review; it makes no transfer.
+by pointer and open the Copy review; it makes no transfer. `--pointer-narrow`
+uses the same pointer route and completes both 640 × 480 warning reviews.
+`--ax-probe` and `--ax-narrow` activate the same exact source tab through
+macOS accessibility, independently of physical pointer focus.
 `mac-sftp-owned-selftest.py REPORT.json` independently verifies that the
 disposable SFTP service lists only the expected fixture file and stops its
 server process afterward. The same script's `prepare` mode supplies the
