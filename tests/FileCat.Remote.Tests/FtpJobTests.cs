@@ -240,6 +240,78 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Retrying_after_an_FTP_connection_drops_reconnects_and_publishes_only_a_complete_move(string protocol)
+    {
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat retry test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "retry-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "retry-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir, "retry-journal"));
+        var bytes = new byte[2 * 1024 * 1024];
+        new Random(177).NextBytes(bytes);
+        byte[] originalHash = SHA256.HashData(bytes);
+        string source = Path.Combine(_dir, "retry-upload.bin");
+        File.WriteAllBytes(source, bytes);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { RateLimit = 256 * 1024 },
+        });
+        try
+        {
+            string? stage = null;
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && stage is null && !job.State.IsFinished())
+            {
+                stage = Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                    .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < 2 * 1024 * 1024);
+                if (stage is null) await Task.Delay(20, ct);
+            }
+            Assert.NotNull(stage);
+            server.Stop();
+            deadline.Restart();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && job.Decision is not { Task.IsCompleted: false } && !job.State.IsFinished())
+                await Task.Delay(20, ct);
+            Assert.True(job.Decision is { Task.IsCompleted: false },
+                $"The dropped {protocol} upload did not reach a retry decision: {job.State}.");
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+            Assert.False(File.Exists(Path.Combine(server.Root, "retry-upload.bin")));
+
+            server.Restart();
+            job.Decision!.Resolve(new Decision(DecisionAction.Retry));
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(45))
+                await Task.Delay(20, ct);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.False(File.Exists(source));
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(Path.Combine(server.Root, "retry-upload.bin"))));
+            Assert.Equal([Path.Combine(server.Root, "retry-upload.bin")], Directory.GetFiles(server.Root));
+        }
+        finally
+        {
+            if (!job.State.IsFinished()) job.Cancel();
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task A_killed_FTP_upload_leaves_only_an_unpublished_stage_and_an_open_recovery_journal(bool move)

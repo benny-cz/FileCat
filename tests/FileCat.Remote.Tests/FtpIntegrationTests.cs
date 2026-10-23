@@ -11,15 +11,17 @@ namespace FileCat.Remote.Tests;
 /// <summary>A real FTP server for tests: pyftpdlib (MIT) when Python has it; tests skip otherwise.</summary>
 internal sealed class TestFtpServer : IDisposable
 {
-    private readonly Process _process;
+    private Process _process;
+    private readonly ProcessStartInfo _start;
     public string Root { get; }
     public int Port { get; }
     public const string User = "tester";
     public const string Password = "secret-pass";
 
-    private TestFtpServer(Process process, string root, int port)
+    private TestFtpServer(Process process, ProcessStartInfo start, string root, int port)
     {
         _process = process;
+        _start = start;
         Root = root;
         Port = port;
     }
@@ -57,7 +59,7 @@ internal sealed class TestFtpServer : IDisposable
             Handler.masquerade_address = os.environ["FILECAT_FTP_ADVERTISE"]
         if os.environ.get("FILECAT_FTP_NO_EPSV"):
             Handler.proto_cmds = {k: v for k, v in Handler.proto_cmds.items() if k != "EPSV"}
-        server = FTPServer(("127.0.0.1", 0), Handler)
+        server = FTPServer(("127.0.0.1", int(os.environ.get("FILECAT_FTP_PORT", "0"))), Handler)
         print("READY", server.socket.getsockname()[1], flush=True)
         server.serve_forever()
         """;
@@ -103,17 +105,25 @@ internal sealed class TestFtpServer : IDisposable
             start.Environment["FILECAT_FTP_ADVERTISE"] = advertise;
             start.Environment["FILECAT_FTP_NO_EPSV"] = "1";
         }
+        var launched = Launch(start);
+        if (launched is null) return null;
+        return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
+    }
+
+    private static (Process Process, int Port)? Launch(ProcessStartInfo start)
+    {
         var process = Process.Start(start)!;
         var ready = process.StandardOutput.ReadLineAsync();
         if (!ready.Wait(TimeSpan.FromSeconds(30)) || ready.Result is not { } line || !line.StartsWith("READY ", StringComparison.Ordinal))
         {
             try { process.Kill(true); } catch (InvalidOperationException) { }
+            process.Dispose();
             return null; // pyftpdlib without TLS support (pyOpenSSL) cannot run the TLS server
         }
         // The server logs to its output streams: unread, a full pipe buffer would stop it after a few hundred transfers.
         _ = process.StandardOutput.ReadToEndAsync();
         _ = process.StandardError.ReadToEndAsync();
-        return new TestFtpServer(process, root, int.Parse(line[6..]));
+        return (process, int.Parse(line[6..]));
     }
 
     public RemoteProfile Profile(string protocol) => new()
@@ -138,6 +148,23 @@ internal sealed class TestFtpServer : IDisposable
     {
         try { _process.Kill(true); } catch (InvalidOperationException) { }
         _process.WaitForExit(10_000);
+    }
+
+    /// <summary>Restart the same test-owned server on its original port and root after a connection loss.</summary>
+    public void Restart()
+    {
+        Stop();
+        _start.Environment["FILECAT_FTP_PORT"] = Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var launched = Launch(_start) ?? throw new IOException("The test FTP server did not restart.");
+        if (launched.Port != Port)
+        {
+            launched.Process.Kill(true);
+            launched.Process.Dispose();
+            throw new IOException("The test FTP server restarted on a different port.");
+        }
+        var previous = _process;
+        _process = launched.Process;
+        previous.Dispose();
     }
 
     /// <summary>A self-signed certificate for 127.0.0.1 as PEM (certificate and key), and its SHA-256.</summary>

@@ -2485,8 +2485,17 @@ FluentFTP null dereference when cleanup tried to list through its closed
 control socket; `FtpChannel` now translates that specific disconnected
 library failure into a connection-loss error. The focused cases pass 6/6.
 The complete Windows Remote Release suite passed 2,405, skipped 161 and
-failed 0 with 16 test workers. Other failure-cleanup paths and native
-provider acceptance remain open.
+failed 0 with 16 test workers.
+
+The remaining Retry choice has a real-server regression for each of those
+three protocols. It kills the server during a 2 MiB rate-limited Move, checks
+the exact local source and unpublished target while the decision is pending,
+restarts the server on its original port with the same partial stage, and
+chooses Retry. All three cases passed: the job reconnects, publishes the
+byte-exact complete target, removes its temporary stage, and only then
+removes the local source. The complete Windows Remote Release suite passed
+2,408, skipped 161 and failed 0 with 16 test workers. Other failure-cleanup
+paths and native provider acceptance remain open.
 
 An isolated child-process regression now covers the FTP crash boundary in
 both Copy and Move. The parent starts its own loopback pyftpdlib server and

@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 23 October 2026. Maintain this file after every validated batch. The
+Updated: 24 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -39,8 +39,8 @@ increments to `main`.
    destination content check. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
    atomically replace, so neither closes the final-check race. Finish the
-   remaining provider failure-cleanup cancellation choices beyond the tested
-   live SFTP and FTP/FTPS connection-loss cases. For FCUX-069/070,
+   remaining provider failure-cleanup choices beyond the tested live SFTP
+   and FTP/FTPS connection-loss Cancel, Skip and Retry cases. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
