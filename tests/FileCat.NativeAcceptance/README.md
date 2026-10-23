@@ -111,6 +111,16 @@ It refuses a noninteractive session, a non-VMware host or a report outside
 each scale and require its measured DPI of 144 or 192. Restore the original
 100% scale afterward and verify 96 DPI from a fresh process; the scale
 setter's own process can retain its old DPI value.
+`python3 mac-ax-undo-narrow.py BUNDLE.app REPORT.json` runs a real Mac
+Move, narrow Undo review, Cancel, reopened approval and retained report. It
+requires the signed Git bundle, `mac-ax-panel-sort.py`,
+`mac-ax-markdown-resize.py`, `mac-ax-markdown-find.py`,
+`mac-ax-rename-snapshot.swift` and owner-approved `FileCatCapture.app` in
+the isolated validation folder. Direct AX checks both complete highlighted
+paths, wrapped row geometry and in-bounds choices at 720 × 540 points;
+native captures record the review and 600 × 460 report. The runner verifies
+unchanged bytes after Cancel, exact restoration after approval, and Copy all
+through macOS `pbpaste`. It closes only its own app process.
 `win-ax-undo-active-close.ps1 -AppPath <isolated FileCat.exe> -ReportPath
 <guest-local.json> [-FileCount 5000] [-Action KeepCancelReport|StopExitRestart]`
 checks active Undo ownership in the logged-in Windows VM. The first route
