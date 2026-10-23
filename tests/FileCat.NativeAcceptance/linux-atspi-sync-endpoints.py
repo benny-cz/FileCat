@@ -166,6 +166,32 @@ def main():
         if result["displayScale"] != 2.0:
             raise AssertionError("Native sync review was not checked at the VM's 200% display scale")
         result["steps"].append("200% native display scale confirmed")
+        subprocess.run(["/usr/bin/wmctrl", "-r", "Synchronize folders", "-e", "0,250,150,1280,1000"],
+                       check=True, timeout=5)
+        time.sleep(0.5)
+        def bounds(node):
+            area = node.get_component().get_extents(Atspi.CoordType.SCREEN)
+            return [area.x, area.y, area.width, area.height]
+        frame = bounds(sync_window)
+        source_bounds = bounds(source_field)
+        target_bounds = bounds(target_field)
+        direction_bounds = bounds(direction)
+        mode_bounds = bounds(mode)
+        cancel_bounds = bounds(one(sync_window, "button", "Cancel"))
+        result["narrowBounds"] = {"frame": frame, "source": source_bounds,
+                                  "target": target_bounds, "direction": direction_bounds,
+                                  "mode": mode_bounds, "cancel": cancel_bounds}
+        if not (1200 <= frame[2] <= 1500 and mode_bounds[1] > direction_bounds[1] and
+                source_bounds[3] > 70 and target_bounds[3] > 70):
+            raise AssertionError("The narrow scaled review did not reflow controls and wrap both paths")
+        for label, area in result["narrowBounds"].items():
+            if label == "frame":
+                continue
+            if (area[0] < frame[0] or area[1] < frame[1] or
+                    area[0] + area[2] > frame[0] + frame[2] or
+                    area[1] + area[3] > frame[1] + frame[3]):
+                raise AssertionError(f"Narrow scaled review clips {label}: {area} outside {frame}")
+        result["steps"].append("Narrow 200% review wraps both full paths and keeps choices inside the dialog")
         if pause_review:
             ready.write_text("Capture the 200% sync review, then create the matching .resume file.\n")
             wait_for(lambda: resume.exists(), "native review capture signal", seconds=120)

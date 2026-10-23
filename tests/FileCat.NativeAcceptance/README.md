@@ -41,6 +41,16 @@ binding for that route and restore its exact previous value afterward.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
+`linux-atspi-sync-endpoints.py APP_PATH REPORT.json KEY_HELPER [--pause-review]`
+checks FCUX-005 in the logged-in Ubuntu VM. It compares two isolated folders
+with the same final name, opens Synchronize, reads both complete selectable
+endpoint fields through AT-SPI, reverses direction with a physical key, and
+checks the full target path in the Mirror warning. At the guest's 200% display
+scale it resizes the review to 1280 × 1000 physical pixels, verifies that both
+paths wrap and that the controls stay inside the dialog, then cancels and
+checks both exact directory trees and file hashes. Optional `--pause-review`
+creates a `.ready` marker before Cancel; create the matching `.resume` file
+after capturing the isolated guest screen.
 `win-ax-dependent-undo-crash.ps1 -DotnetPath <guest-dotnet.exe>` is a
 Windows-only FCUX-018 check. Build the app and Core crash harness in the same
 guest Git checkout first, then run this script in the interactive desktop. It

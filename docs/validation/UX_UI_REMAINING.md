@@ -57,11 +57,13 @@ increments to `main`.
    mappings from the revised live region. On
    Mac, investigate the visible review body's zero AX bounds and preview list
    with no AX children, and verify actual VoiceOver speech through the
-   Previous/Next and full-path detail route. For FCUX-004/005, exercise remaining modal
-   focus/decision ownership and full synchronization endpoints, including
-   other modal focus and decision routes after the Mac, Windows and Ubuntu
-   Copy/Delete background accessibility guards passed. Preserve captured
-   scope and mapping throughout each test.
+   Previous/Next and full-path detail route. For FCUX-004, exercise remaining
+   modal focus and decision routes after the Mac, Windows and Ubuntu
+   Copy/Delete background accessibility guards passed. For FCUX-005, finish
+   Windows and Mac native scaled sight and spoken inspection of both complete
+   synchronization endpoints and the reversed Mirror target; confirm the
+   existing overlap, target revision, case collision and recycling gates on
+   the final head. Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
