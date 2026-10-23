@@ -39,21 +39,16 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Verify the residual-risk warning in native
-   FTP/FTPS/SFTP replacement reviews, including spoken output; the four
-   protocol variants pass headless form and per-item tests. Supported SFTP
+   FTP/FTPS/SFTP replacement reviews, including spoken output. Supported SFTP
    can atomically replace without an expected-version condition; FTP cannot
-   atomically replace, so neither closes the final-check race. Also finish
-   native
-   recovery choices plus safe review and cleanup of the remote stage after an
-   FTP process crash. For FCUX-018, finish scaled and spoken Undo review and
-   retained-result checks. For FCUX-069/070,
+   atomically replace, so neither closes the final-check race. Finish the
+   remaining provider cancellation choices. For FCUX-018, finish scaled and
+   spoken Undo review and retained-result checks. For FCUX-069/070,
    validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
-   presentation after the completed Copy effect and supported external
-   Move/delete-on-paste handling, if safely offered.
-   FCUX-003 still needs macOS VoiceOver spoken review and native concurrent
-   rule-change races. Windows NVDA and Ubuntu Orca spoke both complete
-   mappings from the revised live region. On
+   presentation and supported external Move/delete-on-paste handling, if
+   safely offered. FCUX-003 still needs macOS VoiceOver spoken review and
+   native concurrent rule-change races. On
    Mac, investigate the visible review body's zero AX bounds and preview list
    with no AX children, and verify actual VoiceOver speech through the
    Previous/Next and full-path detail route. For FCUX-004, exercise remaining

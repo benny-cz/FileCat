@@ -156,6 +156,21 @@ requires the journal-derived `.fc-<job-id>-` search hint in the row, approval
 dialog and saved report. It also checks that the local source hash is unchanged,
 the target folder is empty and the remote journal remains open. No server file
 is inspected or deleted by this check. The report includes all evidence fields.
+`win-ax-ftp-crash-stage-review.ps1 -AppPath <isolated FileCat.exe> -DotnetPath
+<guest dotnet.exe> -HarnessPath <Git-built FileCat.RemoteCrashHarness.dll>
+-PythonHelperPath <copied win-ftp-owned-stage.py> -ReportPath <guest-local.json>
+[-Kind Copy|Move]` covers the real FCUX-001 FTP crash boundary in the logged-in
+Windows VM. Install `pyftpdlib` in that isolated guest and run with VMware
+`-interactive`. The helper serves only `127.0.0.1` and an owned directory below
+`FileCatValidation`. The runner kills only its own rate-limited upload worker
+after the hidden stage is created, then requires the exact partial stage,
+unchanged source and open journal. FileCat's native recovery row, confirmation
+and retained report must name the journal-derived candidate prefix without
+deleting the remote object. The helper then retrieves the exact stage over FTP,
+checks it is a prefix of the owned source, deletes only that object, and checks
+the empty remote manifest. Finally, the runner explicitly marks that journal
+reviewed in FileCat and verifies its closure. Copy and Move use separate fresh
+fixtures; their JSON reports and fixture roots remain for inspection.
 `linux-atspi-dialog-pointer-dismiss.py APP_PATH REPORT.json` opens Create folder
 in an isolated Git-built Linux app below `~/FileCatValidation`. It verifies the
 close control's accessible name, description and pointer bounds, then uses
