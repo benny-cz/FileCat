@@ -76,8 +76,9 @@ use the signed, isolated FileCat bundle and approved `FileCatCapture.app` under
 reads both full selectable endpoint values and accessible names through bounded
 native AX traversal, requires VoiceOver's actual speech for both paths before
 and after reversal, selects direction and Mirror from their native popups, and
-uses Tab to reach the complete target warning if its polite announcement is
-obscured. It resizes the review to 640 × 600 logical points, captures its
+records whether VoiceOver automatically announces the complete target warning
+after the popup closes (with a Tab route for diagnostics if it does not). It
+resizes the review to 640 × 600 logical points, captures its
 wrapped paths and warning, then cancels and verifies the exact fixture trees
 and file hashes.
 `win-ax-dependent-undo-crash.ps1 -DotnetPath <guest-dotnet.exe>` is a

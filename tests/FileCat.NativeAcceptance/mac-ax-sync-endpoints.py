@@ -38,7 +38,7 @@ return "no"
 
 
 def resize(width, height):
-    raw = osa('''
+    script = '''
 tell application "System Events" to tell process "FileCat"
     repeat with w in windows
         if (name of w as text) is "Synchronize folders" then
@@ -50,11 +50,13 @@ tell application "System Events" to tell process "FileCat"
     end repeat
 end tell
 error "Sync review absent during resize"
-'''.replace("WIDTH", str(width)).replace("HEIGHT", str(height)))
-    actual = [int(part) for part in raw.split("|")]
-    if len(actual) != 2 or any(abs(got - want) > 2 for got, want in zip(actual, (width, height))):
-        raise AssertionError(f"Mac sync review refused {width}x{height}: {actual}")
-    return actual
+'''.replace("WIDTH", str(width)).replace("HEIGHT", str(height))
+    for _ in range(4):
+        actual = [int(part) for part in osa(script).split("|")]
+        if len(actual) == 2 and all(abs(got - want) <= 2 for got, want in zip(actual, (width, height))):
+            return actual
+        time.sleep(0.2)
+    raise AssertionError(f"Mac sync review refused {width}x{height}: {actual}")
 
 
 def sha256(path):
@@ -242,12 +244,14 @@ end tell
         receipt["mirrorWarning"] = warning
         try:
             await_spoken_path("Reversed Mirror target", left, "Mirror changes the target")
+            receipt["warningSpeechRoute"] = "automatic"
         except AssertionError:
             warning_node = match("AXTextField", warning)
             receipt["warningBounds"] = warning_node["bounds"]
             click_node(warning_node)
             try:
                 await_spoken_path("Reversed Mirror target", left, "Mirror changes the target")
+                receipt["warningSpeechRoute"] = "pointer"
                 receipt["steps"].append("Clicked the selectable Mirror warning for its complete spoken target")
             except AssertionError:
                 heard = []
@@ -259,11 +263,14 @@ end tell
                     if str(left) in phrase and "Mirror changes the target" in phrase:
                         receipt["spoken"].append({"role": "Reversed Mirror target", "path": str(left),
                                                    "phrase": phrase, "heard": heard})
+                        receipt["warningSpeechRoute"] = "keyboard"
                         receipt["steps"].append("Keyboard-reached the complete spoken Mirror warning")
                         break
                 else:
                     raise AssertionError(f"VoiceOver did not read the Mirror warning by pointer or Tab: {heard!r}")
         receipt["steps"].append("Mirror warning named the reversed full target")
+        if receipt.get("warningSpeechRoute") != "automatic":
+            raise AssertionError("VoiceOver did not automatically announce the full Mirror target after the popup closed")
         receipt["narrowSize"] = resize(640, 600)
         if endpoint_values()[1::2] != [str(right), str(left)]:
             raise AssertionError("Narrow Mac review lost the complete endpoint values")

@@ -50,6 +50,10 @@ public sealed class SyncWindow : Window
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBox _sourcePath = EndpointBox();
     private readonly TextBox _targetPath = EndpointBox();
+    private readonly Avalonia.Threading.DispatcherTimer _mirrorWarningTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(350),
+    };
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
     private readonly Button _run = new() { Content = "Synchronize", Classes = { "primary" } };
     private List<SyncItem> _items = [];
@@ -75,6 +79,16 @@ public sealed class SyncWindow : Window
         _direction.SelectedIndex = context.RightWritable || !context.LeftWritable ? 0 : 1;
         _mode.ItemsSource = new[] { "Update: copy new and newer items", "Mirror: make the target like the source" };
         _mode.SelectedIndex = 0;
+        _mirrorWarningTimer.Tick += (_, _) =>
+        {
+            _mirrorWarningTimer.Stop();
+            if (_closed || !IsActive || !_warning.IsEffectivelyVisible) return;
+            // VoiceOver can discard a live-region change while its native popup still owns the cursor.
+            if (_mode.IsDropDownOpen || _direction.IsDropDownOpen)
+                _mirrorWarningTimer.Start();
+            else
+                Controls.LiveRegions.Repeat(_warning);
+        };
         _direction.SelectionChanged += (_, _) => Propose();
         _mode.SelectionChanged += (_, _) => Propose();
         _showAll.IsCheckedChanged += (_, _) => Refresh();
@@ -149,6 +163,7 @@ public sealed class SyncWindow : Window
         {
             if (_closed) return;
             _closed = true;
+            _mirrorWarningTimer.Stop();
             ControlRetirement.ClearItems(_list);
             _items = [];
             // The input is borrowed: another open preview or its caller can still own the original comparison.
@@ -251,9 +266,16 @@ public sealed class SyncWindow : Window
             warnings.Add("The target has no Recycle Bin: removals run only if you choose to delete permanently.");
         if (!_comparison.Complete) warnings.Add("The comparison did not finish: only what was compared is listed.");
         if (whyNot is not null) warnings.Add(whyNot);
-        _warning.Text = string.Join(" ", warnings);
+        string warning = string.Join(" ", warnings);
+        bool warningChanged = _warning.Text != warning;
+        if (warningChanged) _mirrorWarningTimer.Stop();
+        _warning.Text = warning;
         Avalonia.Automation.AutomationProperties.SetName(_warning, _warning.Text);
         _warning.IsVisible = warnings.Count > 0;
+        if (warningChanged && OperatingSystem.IsMacOS() && Mode == SyncMode.Mirror && IsVisible)
+        {
+            _mirrorWarningTimer.Start();
+        }
 
         string plan = SyncPlanner.Describe(RunnableItems());
         int leftAlone = _items.Count(i => !i.Include || !i.CanInclude);
