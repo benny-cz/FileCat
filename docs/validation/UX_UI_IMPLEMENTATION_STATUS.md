@@ -2475,6 +2475,18 @@ suite with 2,371 passed and 156 platform/lab skips. Live FTP process
 interruption, changed server state and other failure/cleanup choices remain
 for native acceptance.
 
+A further three real-server regressions now drop the connection during an
+8 MiB rate-limited FTP, explicit-TLS FTPS or implicit-TLS FTPS Move, wait for
+the job's Retry/Skip/Cancel decision, then choose Cancel. All three require
+Canceled, the byte-exact local source, no published target, the one partial
+server stage, and an issue naming that retained stage. They exposed a
+FluentFTP null dereference when cleanup tried to list through its closed
+control socket; `FtpChannel` now translates that specific disconnected
+library failure into a connection-loss error. The focused cases pass 3/3.
+The complete Windows Remote Release suite passed 2,402, skipped 161 and
+failed 0 with 16 test workers. Other failure-cleanup paths and native
+provider acceptance remain open.
+
 An isolated child-process regression now covers the FTP crash boundary in
 both Copy and Move. The parent starts its own loopback pyftpdlib server and
 8 MiB source, waits for a nonzero but incomplete `.fc-` upload, kills only

@@ -178,6 +178,13 @@ internal sealed partial class FtpChannel : ISftpChannel
         {
             throw new IOException($"The server refused: {ReplyText(ex)} ({ex.CompletionCode})", ex);
         }
+        catch (NullReferenceException ex) when (!_client.IsConnected)
+        {
+            // FluentFTP can dereference its closed control socket while opening a data stream
+            // after the server disappears. Report the lost connection through our channel
+            // contract so cancellation cleanup can retain and name the unpublished stage.
+            throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(ex), ex);
+        }
         catch (Exception ex) when (ex is SocketException or TimeoutException || ex is IOException && !_client.IsConnected)
         {
             throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(ex), ex);

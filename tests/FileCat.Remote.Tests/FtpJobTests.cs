@@ -160,6 +160,78 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Canceling_after_an_FTP_connection_drops_reports_the_retained_unpublished_stage(string protocol)
+    {
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat dropped connection test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "dropped-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "dropped-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir, "dropped-journal"));
+        var bytes = new byte[8 * 1024 * 1024];
+        new Random(119).NextBytes(bytes);
+        byte[] originalHash = SHA256.HashData(bytes);
+        string source = Path.Combine(_dir, "dropped-upload.bin");
+        File.WriteAllBytes(source, bytes);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { RateLimit = 64 * 1024 },
+        });
+        try
+        {
+            string? stage = null;
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && stage is null && !job.State.IsFinished())
+            {
+                stage = Directory.GetFiles(server.Root, $"{JournalRecovery.StagedPrefix}*")
+                    .FirstOrDefault(path => new FileInfo(path).Length is > 0 and < 8 * 1024 * 1024);
+                if (stage is null) await Task.Delay(20, ct);
+            }
+            Assert.NotNull(stage);
+            Assert.Equal(JobState.Running, job.State);
+            server.Stop();
+            deadline.Restart();
+            while (deadline.Elapsed < TimeSpan.FromSeconds(20) && job.Decision is not { Task.IsCompleted: false } && !job.State.IsFinished())
+                await Task.Delay(20, ct);
+            Assert.True(job.Decision is { Task.IsCompleted: false },
+                $"The dropped {protocol} upload did not reach its retry/skip/cancel decision: {job.State}.");
+
+            job.Cancel();
+            deadline.Restart();
+            while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(20))
+                await Task.Delay(20, ct);
+            Assert.True(job.State == JobState.Canceled,
+                $"Expected canceled after the lost {protocol} connection, got {job.State}: {string.Join("; ", job.Issues.Select(i => i.Message))}");
+            Assert.False(File.Exists(Path.Combine(server.Root, "dropped-upload.bin")));
+            Assert.Equal([stage], Directory.GetFiles(server.Root));
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(source)));
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("partial copy is left on the server", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (!job.State.IsFinished()) job.Cancel();
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task A_killed_FTP_upload_leaves_only_an_unpublished_stage_and_an_open_recovery_journal(bool move)

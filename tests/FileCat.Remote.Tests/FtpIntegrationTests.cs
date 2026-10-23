@@ -128,9 +128,16 @@ internal sealed class TestFtpServer : IDisposable
 
     public void Dispose()
     {
-        try { _process.Kill(true); } catch (InvalidOperationException) { }
+        Stop();
         _process.Dispose();
         try { Directory.Delete(Path.GetDirectoryName(Root)!, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Drop only this test-owned server connection, retaining its backing files for interruption checks.</summary>
+    public void Stop()
+    {
+        try { _process.Kill(true); } catch (InvalidOperationException) { }
+        _process.WaitForExit(10_000);
     }
 
     /// <summary>A self-signed certificate for 127.0.0.1 as PEM (certificate and key), and its SHA-256.</summary>
