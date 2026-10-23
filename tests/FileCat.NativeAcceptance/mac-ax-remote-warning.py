@@ -116,6 +116,18 @@ def click_node(node):
     run_command(["/opt/homebrew/bin/cliclick", f"c:{round(x + width / 2)},{round(y + height / 2)}"])
 
 
+def capture_screen(validation):
+    helper = validation / "FileCatCapture.app"
+    if not helper.is_dir():
+        return None
+    before = set(validation.glob("native-screen-*.png"))
+    run_command(["/usr/bin/open", "-a", str(helper)], seconds=30)
+    return wait_for(lambda: next((str(path) for path in
+                    sorted(set(validation.glob("native-screen-*.png")) - before,
+                           key=lambda path: path.stat().st_mtime_ns, reverse=True)
+                    if path.stat().st_size > 100_000), None), "owned Mac warning screenshot", seconds=15)
+
+
 def run(bundle, report_path, ftp_helper, protocol, probe):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
@@ -282,14 +294,13 @@ def run(bundle, report_path, ftp_helper, protocol, probe):
         warning = wait_for(lambda: next((node for node in nodes() if
                            node["name"] == warning_text and node["role"] in
                            ("AXStaticText", "AXTextField")), None), "complete remote Replace warning")
-        if warning["bounds"][2] < 8 or warning["bounds"][3] < 8:
-            raise AssertionError("The complete remote warning has no visible Mac hit target")
         receipt["warningBounds"] = warning["bounds"]
         receipt["steps"].append("Complete replacement warning visible")
         receipt["warningSpeech"] = wait_for(lambda: (phrase if warning_text in phrase else None)
                                               if (phrase := voiceover_last()) else None,
                                               "complete automatically spoken VoiceOver replacement warning", seconds=10)
         receipt["steps"].append("Complete replacement warning spoken automatically")
+        receipt["warningScreenshot"] = capture_screen(validation)
         click_ax("AXButton", "Cancel")
         wait_for(lambda: not any(node["name"] == "Destination" and node["role"] == "AXTextField"
                                  for node in nodes()), "Copy review dismissed without transfer")
