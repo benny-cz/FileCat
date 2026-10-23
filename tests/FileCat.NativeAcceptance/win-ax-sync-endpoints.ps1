@@ -161,7 +161,13 @@ try {
 
     $handle = [IntPtr]$sync.Current.NativeWindowHandle
     $result.Dpi = [FileCatSyncInput]::GetDpiForWindow($handle)
-    if (![FileCatSyncInput]::MoveWindow($handle, 120, 80, 640, 720, $true)) { throw 'Native narrow resize failed.' }
+    $scale = $result.Dpi / 96.0
+    $narrowWidth = [int][Math]::Round(640 * $scale)
+    $narrowHeight = [int][Math]::Round(600 * $scale)
+    $result.NarrowRequested = [ordered]@{ Logical = '640x600'; Physical = "${narrowWidth}x${narrowHeight}" }
+    if (![FileCatSyncInput]::MoveWindow($handle, 120, 80, $narrowWidth, $narrowHeight, $true)) {
+        throw 'Native narrow resize failed.'
+    }
     Start-Sleep -Milliseconds 350
     $frame = $sync.Current.BoundingRectangle
     $sourceBounds = $endpoints.Source.Current.BoundingRectangle
@@ -173,8 +179,8 @@ try {
         Frame = "$frame"; Source = "$sourceBounds"; Target = "$targetBounds"
         Direction = "$directionBounds"; Mode = "$modeBounds"; Cancel = "$cancelBounds"
     }
-    if ($frame.Width -gt 650 -or $modeBounds.Top -le $directionBounds.Top -or
-        $sourceBounds.Height -le 35 -or $targetBounds.Height -le 35) {
+    if ($frame.Width -gt ($narrowWidth + 10) -or $modeBounds.Top -le $directionBounds.Top -or
+        $sourceBounds.Height -le (35 * $scale) -or $targetBounds.Height -le (35 * $scale)) {
         throw 'The native narrow review did not reflow controls and wrap both paths.'
     }
     foreach ($bounds in @($sourceBounds, $targetBounds, $directionBounds, $modeBounds, $cancelBounds)) {

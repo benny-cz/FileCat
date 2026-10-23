@@ -55,7 +55,8 @@ after capturing the isolated guest screen.
 [-PauseReview]` checks the equivalent Windows review using UI Automation and
 physical Down keys. It reads both full path values and accessible names,
 reverses direction, checks the exact Mirror target, resizes to a 640-pixel
-window and verifies field wrapping, in-bounds choices and unchanged fixture
+logical-width window (physical size derived from measured window DPI) and
+verifies field wrapping, in-bounds choices and unchanged fixture
 trees after Cancel. Run it in the logged-in Win11 VM, with paths below
 `%LOCALAPPDATA%\FileCatValidation`. Optional `-PauseReview` creates `.ready`;
 write the matching `.resume` file after capturing the VM desktop.
