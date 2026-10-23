@@ -716,6 +716,14 @@ full native source values, navigates to the second difference, verifies a
 source-faithful Copy, and checks that wrapping keeps the selected changed row
 on screen. `compare-stop <report.json>` gracefully closes only that isolated
 FileCat process, including a comparison window that outlives the main window.
+On the unlocked Mac desktop, run `mac-ax-compare-long-lines.py BUNDLE.app
+REPORT.json` with a signed validation bundle and fresh report under
+`~/FileCatValidation`. It creates two 2,000-character suffix differences
+separated by an equal line, uses native Ctrl+I and F8, captures both changed
+spans, verifies that Copy line returns each complete source line and navigation
+does not replace the clipboard, then checks source hashes and restores the
+prior clipboard. Add `--narrow` to repeat in a measured 640 × 600 comparison
+window; the toolbar reflows while both changed suffixes remain visible.
 For FCUX-003, start from a fresh `seed-clipboard` fixture and launch the
 Git-built app with the reported paths. `rename-native <report.json>` marks
 both files, filters `a.txt` out, verifies the default one-file preview, and

@@ -10,8 +10,8 @@ import Foundation
 guard CommandLine.arguments.count == 2,
       let operation = ["cut": CGKeyCode(7), "copy": CGKeyCode(8),
                        "paste": CGKeyCode(9), "find": CGKeyCode(3),
-                       "checksum": CGKeyCode(40)][CommandLine.arguments[1]] else {
-    fputs("Usage: mac-send-key cut|copy|paste|find|checksum\n", stderr)
+                       "checksum": CGKeyCode(40), "compare": CGKeyCode(34)][CommandLine.arguments[1]] else {
+    fputs("Usage: mac-send-key cut|copy|paste|find|checksum|compare\n", stderr)
     exit(2)
 }
 guard AXIsProcessTrusted() else {
@@ -30,7 +30,7 @@ guard let source = CGEventSource(stateID: .hidSystemState),
     fputs("Cannot construct the keyboard event\n", stderr)
     exit(5)
 }
-let modifier: CGEventFlags = ["find", "checksum"].contains(CommandLine.arguments[1]) ? .maskControl : .maskCommand
+let modifier: CGEventFlags = ["find", "checksum", "compare"].contains(CommandLine.arguments[1]) ? .maskControl : .maskCommand
 down.flags = modifier
 up.flags = modifier
 down.post(tap: .cghidEventTap)
