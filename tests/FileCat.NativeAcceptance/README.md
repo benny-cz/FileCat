@@ -1186,6 +1186,9 @@ block VoiceOver's AppleScript readout. Keep `mac-ax-focus-observer.swift` beside
 it: one-shot focused-element probes verify each row and that ordinary movement
 does not mark it. Space then deliberately marks and clears one row. The runner
 requires an isolated signed bundle and exact unchanged fixture bytes.
+Add `--actions` to open the focused `b.txt` with F3 and close its viewer with
+Escape. The extension requires VoiceOver to speak the opened viewer and the
+restored unmarked `b.txt` row, then checks exact fixture bytes again.
 
 `python3 mac-visual-dialog-pointer-dismiss.py BUNDLE.app REPORT.json` runs
 against a newly signed Git-built FileCat bundle under `~/FileCatValidation` on

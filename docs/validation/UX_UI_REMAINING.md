@@ -64,8 +64,8 @@ increments to `main`.
    scaled display and other narrow-layout states, and Ubuntu clipboard
    behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
-   supported desktops. For FCUX-010, verify VoiceOver's remaining item and
-   action routes, Orca's repeated row description as a tutorial
+   supported desktops. For FCUX-010, verify VoiceOver's other item actions
+   and marked-item review, Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties),
    large-listing latency, complete marked-item review and other
    Mac/Linux item and action routes.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -43,7 +43,7 @@ def wait_for(check, seconds=20):
     raise AssertionError("The isolated FileCat process did not start")
 
 
-def run(bundle, report_path):
+def run(bundle, report_path, actions=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -136,6 +136,36 @@ def run(bundle, report_path):
         receipt["explicitMark"]["unmarked"] = unmarked
         if unmarked.get("title") != "b.txt" or ", not marked," not in unmarked.get("help", ""):
             raise AssertionError("Explicit Space did not clear the b.txt mark")
+        if actions:
+            osa('tell application "System Events" to key code 99')  # F3, open the focused item.
+            def windows():
+                return osa('tell application "System Events" to tell process "FileCat" to get name of every window')
+            wait_for(lambda: "b.txt — FileCat Viewer" in windows())
+            heard_viewer = []
+            for _ in range(12):
+                phrase = last_phrase()
+                if phrase not in heard_viewer:
+                    heard_viewer.append(phrase)
+                time.sleep(.25)
+            osa('tell application "System Events" to key code 53')  # Escape closes the viewer.
+            wait_for(lambda: "FileCat Viewer" not in windows())
+            heard_return = []
+            for _ in range(12):
+                phrase = last_phrase()
+                if phrase not in heard_return:
+                    heard_return.append(phrase)
+                if "b.txt" in phrase:
+                    break
+                time.sleep(.25)
+            returned = focused()
+            receipt["fileAction"] = {"viewerSpeech": heard_viewer,
+                                     "returnSpeech": heard_return, "returnedFocus": returned}
+            if not any("b.txt" in phrase and "FileCat Viewer" in phrase for phrase in heard_viewer):
+                raise AssertionError("VoiceOver did not announce the opened b.txt viewer")
+            if returned.get("title") != "b.txt" or ", not marked," not in returned.get("help", ""):
+                raise AssertionError("Closing the viewer did not restore the unmarked source-row focus")
+            if not any("b.txt" in phrase for phrase in heard_return):
+                raise AssertionError("VoiceOver did not speak the restored source-row focus")
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the fixture inventory")
         if any(hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
@@ -157,6 +187,6 @@ def run(bundle, report_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--actions"):
         raise SystemExit(__doc__)
-    run(Path(sys.argv[1]), Path(sys.argv[2]))
+    run(Path(sys.argv[1]), Path(sys.argv[2]), actions=len(sys.argv) == 4)
