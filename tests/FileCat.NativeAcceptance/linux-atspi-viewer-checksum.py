@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a Git-built Ubuntu Hex viewer's checksum scope and clipboard.
 
-Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER
+Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER [--stale-scope]
 Run in the logged-in desktop session with AT-SPI and a guest-only uinput key helper.
 """
 
@@ -90,7 +90,7 @@ def checksum(viewer, helper, scope, content):
     return {"scope": scope, "result": result, "copiedExactly": True}
 
 
-def run(app_path, helper):
+def run(app_path, helper, stale_scope=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -136,6 +136,28 @@ def run(app_path, helper):
             choices = [node.get_name() for node in descendants(viewer)
                        if "Selected range" in (node.get_name() or "")]
             assert choices, "The one-byte selection is absent from checksum scope"
+            if stale_scope:
+                before = fixture.stat()
+                fixture.write_bytes(b"\x00ABD\n")
+                os.utime(fixture, ns=(before.st_atime_ns, before.st_mtime_ns + 2_000_000_000))
+                action(viewer, "Compute")
+                refused = wait_for(lambda: text if (text := result_text(viewer))
+                                   and "changed" in text.lower() else None,
+                                   "changed-source checksum refusal")
+                assert "SHA-256:" not in refused, "A stale scope published a hash"
+                copy = find(viewer, "button", "Copy results")
+                assert copy is not None and not copy.get_state_set().contains(Atspi.StateType.ENABLED), \
+                    "A stale scope left Copy results enabled"
+                assert clipboard_text() == SENTINEL, "A stale checksum replaced the clipboard"
+                assert not list(target.iterdir()), "A stale checksum changed the destination"
+                fixture.write_bytes(CONTENT)
+                assert fixture.read_bytes() == CONTENT, "The test fixture was not restored"
+                with app_path.with_name("FileCat.dll").open("rb") as library:
+                    dll_hash = hashlib.file_digest(library, "sha256").hexdigest()
+                return {"passed": True, "platform": "Ubuntu", "appDllSha256": dll_hash,
+                        "fixture": str(root),
+                        "staleScope": {"refusal": refused, "copyDisabled": True,
+                                       "clipboardUnchanged": True, "sourceBytesRestored": True}}
             action(viewer, "Close checksums")
             selected = checksum(viewer, helper, "selected range 0x0–0x0", CONTENT[:1])
             send_key(helper, "right")
@@ -161,15 +183,17 @@ def run(app_path, helper):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        if stale_scope and fixture.exists():
+            fixture.write_bytes(CONTENT)
         set_clipboard(original_clipboard)
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "--stale-scope"):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[3]))
+        result = run(Path(sys.argv[1]), Path(sys.argv[3]), stale_scope=len(sys.argv) == 5)
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

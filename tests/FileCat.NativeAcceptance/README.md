@@ -1154,6 +1154,9 @@ destination. It uses the same guest-only uinput access and requires `xclip`
 to independently read and restore the XWayland clipboard. Set `DISPLAY`,
 `XAUTHORITY`, `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` to the logged-in
 desktop. The runner terminates only its own FileCat process.
+Add `--stale-scope` to change the source after opening the selected-byte
+scope. The runner requires a visible and accessible refusal, disabled Copy,
+unchanged clipboard and target, and exact fixture restoration.
 
 `linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
 desktop and the helper script above. It creates one short, exact Markdown

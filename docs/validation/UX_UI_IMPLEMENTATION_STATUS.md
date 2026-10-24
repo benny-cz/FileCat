@@ -18,7 +18,17 @@ AT-SPI; the XWayland clipboard retained its sentinel until each explicit
 Copy, then held the exact visible result; and the source and target stayed
 byte-exact. The runner uses `xclip` because a long-lived GTK test clipboard
 object cached its own sentinel after FileCat replaced the selection. Native
-incomplete-source and scaled/narrow checks remain open.
+`--stale-scope` separately changed the source after opening a one-byte scope:
+the viewer showed the changed-file refusal through AT-SPI, disabled Copy,
+kept the clipboard and target unchanged, and the fixture was restored
+(`ubuntu-checksum-stale-candidate-r2.json`). Native incomplete-source,
+mutation-during-read and scaled/narrow checks remain open.
+
+The complete Windows Release App suite started on `0fdd8d4f` and finished
+with 2,462 passed, 63 platform/environment skips, zero failures and a
+20-minute-40-second test duration using 16 workers. The checksum change on
+`0746cf93` retains its separate focused Linux and native Ubuntu checks;
+final-head CI remains the cross-platform gate.
 
 **24 October 2026, Mac spoken in-window Copy entry (FCUX-004/010):** A new
 `mac-voiceover-list.py --copy-action` journey exposed a real speech gap:
