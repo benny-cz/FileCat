@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--review|--review-pages]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--filter|--review|--review-pages]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -51,7 +51,7 @@ def screenshot():
     return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
 
 
-def run(bundle, report_path, actions=False, copy_action=False, review=False, review_pages=False):
+def run(bundle, report_path, actions=False, copy_action=False, filter_field=False, review=False, review_pages=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -182,6 +182,50 @@ def run(bundle, report_path, actions=False, copy_action=False, review=False, rev
         receipt["explicitMark"]["unmarked"] = unmarked
         if unmarked.get("title") != "b.txt" or ", not marked," not in unmarked.get("help", ""):
             raise AssertionError("Explicit Space did not clear the b.txt mark")
+        if filter_field:
+            osa('tell application "System Events" to key code 3 using {command down, shift down}')
+            inline = wait_for(lambda: focused() if focused().get("title") == "Filter" else None, seconds=6)
+            heard_focus = []
+            deadline = time.monotonic() + 4
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in heard_focus:
+                    heard_focus.append(phrase)
+                if "Filter" in phrase:
+                    break
+                time.sleep(.15)
+            receipt["inlineFilter"] = {"focus": inline, "focusSpeech": heard_focus}
+            if inline.get("role") != "AXTextField" or not any("Filter" in phrase for phrase in heard_focus):
+                raise AssertionError("VoiceOver did not speak the focused inline Filter field")
+            osa('tell application "System Events" to key code 44')  # Slash replaces the selected mask.
+            osa('tell application "System Events" to key code 36')  # Enter rejects the unclosed expression.
+            invalid = wait_for(lambda: focused() if focused().get("value") == "/" else None, seconds=5)
+            heard_error = []
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in heard_error:
+                    heard_error.append(phrase)
+                if "Unclosed regular expression in mask" in phrase:
+                    break
+                time.sleep(.15)
+            receipt["inlineFilter"].update({"rejectedFocus": invalid, "errorSpeech": heard_error})
+            if not any("Unclosed regular expression in mask" in phrase for phrase in heard_error):
+                raise AssertionError("VoiceOver did not speak the inline filter validation error")
+            osa('tell application "System Events" to key code 53')  # Esc restores the applied mask.
+            returned = wait_for(lambda: focused() if focused().get("title") == "b.txt" else None, seconds=6)
+            heard_return = []
+            deadline = time.monotonic() + 4
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in heard_return:
+                    heard_return.append(phrase)
+                if "b.txt" in phrase:
+                    break
+                time.sleep(.15)
+            receipt["inlineFilter"].update({"returnedFocus": returned, "returnSpeech": heard_return})
+            if not any("b.txt" in phrase for phrase in heard_return):
+                raise AssertionError("VoiceOver did not speak the restored file row after Filter Escape")
         if actions:
             osa('tell application "System Events" to key code 99')  # F3, open the focused item.
             def windows():
@@ -436,9 +480,9 @@ def run(bundle, report_path, actions=False, copy_action=False, review=False, rev
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--review", "--review-pages")):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--filter", "--review", "--review-pages")):
         raise SystemExit(__doc__)
     mode = sys.argv[3] if len(sys.argv) == 4 else ""
     run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions",
-        copy_action=mode == "--copy-action",
+        copy_action=mode == "--copy-action", filter_field=mode == "--filter",
         review=mode == "--review", review_pages=mode == "--review-pages")

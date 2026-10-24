@@ -16,10 +16,10 @@ increments to `main`.
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the spoken criteria of other
-  findings (Find results, the panel filter field of FCUX-028 on Windows and
-  Mac, UXBUG-015 and FCUX-040/041 form errors, tabs). Check the Ubuntu filter's
-  scaled visual layout.
-  Assert VoiceOver's actual spoken phrases on Mac. Keep Mac audio muted.
+  findings (Find results, the panel filter field of FCUX-028 on Windows,
+  UXBUG-015 and FCUX-040/041 form errors, tabs). Check the panel filter's
+  scaled visual layout on Windows, Ubuntu and Mac. Assert VoiceOver's actual
+  spoken phrases for the other Mac routes. Keep Mac audio muted.
 
 ## Next actions, in severity order
 

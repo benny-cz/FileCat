@@ -26,6 +26,7 @@ public partial class PanelView : UserControl
     public PanelView()
     {
         InitializeComponent();
+        LiveRegions.Watch(FilterAnnouncement);
         AddressRow.SizeChanged += (_, _) => UpdateAddressDensity();
         StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
         List.ActivateRequested += (_, _) => Activated?.Invoke();
@@ -484,6 +485,7 @@ public partial class PanelView : UserControl
         }
         _hookedTab = next;
         if (_hookedTab is not null) _hookedTab.PropertyChanged += OnTabPropertyChanged;
+        UpdateFilterErrorName();
         UpdatePathLinks();
         ShowFilter(force: true);
         MarkCurrentPlace();
@@ -498,6 +500,18 @@ public partial class PanelView : UserControl
             ShowFilter(force: true);
         }
         else if (e.PropertyName == nameof(TabViewModel.FilterText)) ShowFilter();
+        else if (e.PropertyName == nameof(TabViewModel.FilterValidationError)) UpdateFilterErrorName();
+    }
+
+    private void UpdateFilterErrorName()
+    {
+        // The visible error can become hidden and unnamed as its binding clears.
+        // Avalonia.Native aborts on a nil live-region name, so only the stable
+        // and always named announcement node owns the live event.
+        var error = _hookedTab?.FilterValidationError;
+        string announcement = string.IsNullOrWhiteSpace(error) ? "Filter ready" : error;
+        AutomationProperties.SetName(FilterError, announcement);
+        FilterAnnouncement.Text = announcement;
     }
 
     /// <summary>What shows everything: "*.*" on Windows, as Salamander and Total Commander write it; "*" elsewhere.</summary>

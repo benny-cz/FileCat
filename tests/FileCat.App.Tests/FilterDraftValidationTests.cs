@@ -1,4 +1,5 @@
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -32,6 +33,11 @@ public sealed class FilterDraftValidationTests
             var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
             var box = view.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(b => b.Name == "FilterBox");
             var error = view.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().Single(b => b.Name == "FilterError");
+            var announcement = view.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().Single(b => b.Name == "FilterAnnouncement");
+            Assert.Equal("Filter ready", ControlAutomationPeer.CreatePeerForElement(announcement).GetName());
+            Assert.True(announcement.IsEffectivelyVisible);
+            Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(announcement));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(error));
             Assert.True(tab.SetFilter("*.txt"));
             await Wait(() => tab.Listing.VisibleCount == 4);
             tab.Banner = "Registry notifications stopped. Reread this key to check for changes.";
@@ -48,8 +54,9 @@ public sealed class FilterDraftValidationTests
             Assert.NotNull(tab.FilterValidationError);
             Assert.True(error.IsVisible);
             Assert.Equal(tab.FilterValidationError, error.Text);
+            Assert.Equal(tab.FilterValidationError, ControlAutomationPeer.CreatePeerForElement(error).GetName());
+            Assert.Equal(tab.FilterValidationError, ControlAutomationPeer.CreatePeerForElement(announcement).GetName());
             Assert.Equal(tab.FilterValidationError, AutomationProperties.GetHelpText(box));
-            Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(error));
             Assert.StartsWith("Registry notifications stopped", tab.Banner);
 
             if (corrected is not null)
@@ -60,6 +67,7 @@ public sealed class FilterDraftValidationTests
                 Assert.False(box.IsFocused);
                 Assert.Null(tab.FilterValidationError);
                 Assert.False(error.IsVisible);
+                Assert.Equal("Filter ready", ControlAutomationPeer.CreatePeerForElement(announcement).GetName());
                 Assert.Equal(corrected, tab.FilterText);
                 Assert.StartsWith("Registry notifications stopped", tab.Banner);
             }
@@ -70,6 +78,7 @@ public sealed class FilterDraftValidationTests
                 Assert.Equal("*.txt", box.Text);
                 Assert.Equal("*.txt", tab.FilterText);
                 Assert.Null(tab.FilterValidationError);
+                Assert.Equal("Filter ready", ControlAutomationPeer.CreatePeerForElement(announcement).GetName());
                 Assert.Equal(4, tab.Listing.VisibleCount);
             }
         }
@@ -91,6 +100,7 @@ public sealed class FilterDraftValidationTests
             var panel = vm.Workspace.Panels[0];
             var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
             var box = view.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(b => b.Name == "FilterBox");
+            var announcement = view.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().Single(b => b.Name == "FilterAnnouncement");
             var list = view.GetVisualDescendants().OfType<FileCat.App.Controls.FileListControl>().Single();
             Assert.True(tab.SetFilter("*.txt"));
             await Wait(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion);
@@ -98,11 +108,13 @@ public sealed class FilterDraftValidationTests
             box.Text = "\"unfinished";
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Assert.NotNull(tab.FilterValidationError);
+            Assert.Equal(tab.FilterValidationError, announcement.Text);
             Assert.Equal(warning, tab.Banner);
 
             list.Focus();
             Assert.Equal("*.txt", box.Text);
             Assert.Null(tab.FilterValidationError);
+            Assert.Equal("Filter ready", announcement.Text);
             Assert.Equal("*.txt", tab.FilterText);
             Assert.Equal(warning, tab.Banner);
             Assert.True(tab.SetFilter(PanelView.AllItemsMask));
@@ -120,6 +132,7 @@ public sealed class FilterDraftValidationTests
             Assert.Same(next, panel.ActiveTab);
             Assert.Null(tab.FilterValidationError);
             Assert.Equal(PanelView.AllItemsMask, box.Text);
+            Assert.Equal("Filter ready", announcement.Text);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

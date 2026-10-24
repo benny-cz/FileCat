@@ -74,10 +74,13 @@
         <TextBlock x:Name="FilterError" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="4"
                    HorizontalAlignment="Right" MaxWidth="400" Margin="4,0,4,3"
                    Classes="small warning" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2"
+                   AutomationProperties.Name="Filter validation"
                    Text="{Binding ActiveTab.FilterValidationError}"
                    ToolTip.Tip="{Binding ActiveTab.FilterValidationError}"
-                   IsVisible="{Binding ActiveTab.FilterValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   AutomationProperties.LiveSetting="Assertive" />
+                   IsVisible="{Binding ActiveTab.FilterValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <!-- The visible error can disappear. Keep its announcement on a stable, nonempty AX node. -->
+        <TextBlock x:Name="FilterAnnouncement" Grid.Column="4" Width="1" Height="1" Opacity="0"
+                   IsHitTestVisible="False" Text="Filter ready" AutomationProperties.LiveSetting="Assertive" />
         <!-- TARGET, "Set as target" on the other panels, or the active panel's own target (plan §4.2). -->
         <Button x:Name="RoleButton" Grid.Column="5" Classes="role" Classes.target="{Binding IsTarget}" Classes.offer="{Binding OffersTarget}"
                 ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
