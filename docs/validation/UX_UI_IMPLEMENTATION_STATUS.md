@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, native Ubuntu implicit-FTPS large listing (FCUX-010):**
+The Ubuntu VMware guest passed a fresh 2,000-file implicit-TLS FTPS journey
+on Git-built `c3a8138f` (app DLL SHA-256
+`60905f3ff6c16443f825a7586ff86ad08f1981697a61384873e07802c3fd621c`).
+After one-time certificate approval, AT-SPI exposed 21 rows and 477 nodes
+on load (1.135 seconds). Physical End focused `native-remote-1999.txt` in
+2.264 seconds; the final tree exposed 20 rows and 476 nodes (1.317 seconds).
+The two local source files and 2,000 remote files retained their bytes, and
+the runner stopped its owned app and loopback server and removed the fixture
+(`ubuntu-ftps-implicit-large-list-20261024-r3.json`). Two earlier runs
+exposed a VM-restart test-harness issue: an SSH process lacked the logged-in
+desktop's Xwayland authorization. The runner now selects exactly one
+same-user Xwayland display and a bounded, regular auth file under that
+user's runtime directory before launching FileCat; a failed startup also
+reports a bounded app-log tail. The updated runner passed on the restarted
+guest. Windows implicit-FTPS native listing remains open.
+
 **24 October 2026, elevated Windows recovery admission (UXBUG-017):** The
 owner's disposable `G:` scan was refused despite no second FileCat window.
 An elevated Windows 11 VMware process census reproduced the cause without

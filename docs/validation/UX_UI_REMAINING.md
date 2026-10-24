@@ -63,7 +63,7 @@ increments to `main`.
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions
    and bounded native listings on other supported provider types; Windows
-   and Ubuntu still need implicit-TLS FTPS listings.
+   still needs the implicit-TLS FTPS listing.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one

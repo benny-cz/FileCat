@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure bounded native AT-SPI work for a 2,000-file FTP/FTPS/SFTP listing.
 
-Usage: linux-atspi-ftp-large-listing.py APP REPORT.json KEY_HELPER FTP_HELPER ftp|ftpes|sftp
+Usage: linux-atspi-ftp-large-listing.py APP REPORT.json KEY_HELPER FTP_HELPER ftp|ftpes|ftps|sftp
 The runner owns its loopback server, FileCat process and disposable fixture.
 """
 
@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import runpy
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -124,6 +125,38 @@ def stop(process):
             process.wait(timeout=10)
 
 
+def desktop_environment():
+    """Use only the logged-in user's own Xwayland authority after a VM restart."""
+    uid = os.getuid()
+    runtime = Path(f"/run/user/{uid}").resolve(strict=True)
+    candidates = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != uid or (entry / "comm").read_text().strip() != "Xwayland":
+                continue
+            raw = (entry / "environ").read_bytes()
+            if len(raw) > 65536:
+                continue
+            values = dict(part.split("=", 1) for part in raw.decode(errors="replace").split("\0")
+                          if "=" in part)
+            display = values.get("DISPLAY", "")
+            authority = Path(values.get("XAUTHORITY", "")).resolve(strict=True)
+            info = authority.stat()
+            if (re.fullmatch(r":[0-9]+", display) and authority.parent == runtime and
+                    info.st_uid == uid and stat.S_ISREG(info.st_mode) and info.st_size <= 65536):
+                candidates.append((display, str(authority)))
+        except (OSError, ValueError):
+            continue
+    if len(candidates) != 1:
+        raise AssertionError(f"Expected one owned Xwayland display, found {len(candidates)}")
+    display, authority = candidates[0]
+    return {"DISPLAY": display, "XAUTHORITY": authority,
+            "XDG_RUNTIME_DIR": str(runtime),
+            "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime}/bus"}
+
+
 def run(app_path, report_path, helper, ftp_helper, protocol):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, helper, ftp_helper = (path.resolve(strict=True)
@@ -167,7 +200,7 @@ def run(app_path, report_path, helper, ftp_helper, protocol):
         else:
             with (root / "server.log").open("wb") as log:
                 server = subprocess.Popen([str(venv), str(ftp_helper),
-                                           "serve-tls" if protocol == "ftpes" else "serve",
+                                           {"ftpes": "serve-tls", "ftps": "serve-implicit-tls"}.get(protocol, "serve"),
                                            str(server_dir), str(ready)],
                                           cwd=root, stdout=log, stderr=subprocess.STDOUT)
             port = wait_for(lambda: ready.read_text(encoding="ascii").strip()
@@ -175,19 +208,22 @@ def run(app_path, report_path, helper, ftp_helper, protocol):
             if not re.fullmatch(r"\d{1,5}", port) or not 1 <= int(port) <= 65535:
                 raise AssertionError("The owned FTP port was invalid")
             address = f"{protocol}://tester@127.0.0.1:{port}/"
+        os.environ.update(desktop_environment())
         env = os.environ.copy()
-        env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
-        env.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={env['XDG_RUNTIME_DIR']}/bus")
-        env.setdefault("DISPLAY", ":0")
         with (root / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(source), "--right", str(server_dir)],
                                        cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT)
         desktop = Atspi.get_desktop(0)
-        app = wait_for(lambda: next((node for node in
-                       (desktop.get_child_at_index(i) for i in range(desktop.get_child_count()))
-                       if node.get_process_id() == process.pid and node.get_name() == "FileCat"), None),
-                       "the exact test-owned FileCat")
+        try:
+            app = wait_for(lambda: next((node for node in
+                           (desktop.get_child_at_index(i) for i in range(desktop.get_child_count()))
+                           if node.get_process_id() == process.pid and node.get_name() == "FileCat"), None),
+                           "the exact test-owned FileCat")
+        except AssertionError as error:
+            # Keep a bounded startup diagnosis before the owned fixture is removed.
+            log_tail = (root / "app.log").read_text(encoding="utf-8", errors="replace")[-1200:]
+            raise AssertionError(f"{error}; exit={process.poll()}; appLogTail={log_tail!r}") from error
         wait_for(lambda: snapshot(app)["fileCount"] == COUNT,
                  "complete initial local right-panel listing")
         locations = wait_for(lambda: matching(app, "entry", "Location")
@@ -218,7 +254,7 @@ def run(app_path, report_path, helper, ftp_helper, protocol):
             result["hostKeyMatched"] = matched
             action(wait_for(lambda: next(iter(matching(app, "button", "Connect once")), None),
                             "verified SFTP host-key consent"), "one-time SFTP consent")
-        if protocol == "ftpes":
+        if protocol in ("ftpes", "ftps"):
             action(wait_for(lambda: next(iter(matching(app, "button", "Connect once")), None),
                             "fresh FTPS certificate consent"), "one-time FTPS consent")
         first_name = "native-remote-0000.txt"
@@ -257,7 +293,7 @@ def run(app_path, report_path, helper, ftp_helper, protocol):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 6 or sys.argv[5] not in ("ftp", "ftpes", "sftp"):
+    if len(sys.argv) != 6 or sys.argv[5] not in ("ftp", "ftpes", "ftps", "sftp"):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
