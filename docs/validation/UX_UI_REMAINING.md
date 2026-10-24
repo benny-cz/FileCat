@@ -53,7 +53,7 @@ increments to `main`.
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   Windows provider-backed native listing latency and other supported
+   Windows SFTP provider-backed native listing latency and other supported
    provider types beyond FTP, explicit-TLS FTPS and SFTP.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
