@@ -28,7 +28,30 @@ public sealed partial class WindowsFileRecordsTests
 
     private static string Field(InspectionSection section, string name) => section.Fields.Single(f => f.Name == name).Value;
 
-    private static bool TwoSigns(InspectionReport report) => report.Warnings.Any(w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal));
+    private const string BackdatedCreationPattern = @"⚠ \$LogFile \(LSN [\d\s\u00A0\u202F,.']+\) shows its created time set back from \d{4}-\d\d-\d\d \d\d:\d\d:\d\d to 2019-05-01 12:00:00";
+
+    private static string TimestampChecksText(InspectionReport report) =>
+        System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
+
+    private static bool LogShowsBackdatedCreation(InspectionReport report) =>
+        System.Text.RegularExpressions.Regex.IsMatch(TimestampChecksText(report), BackdatedCreationPattern);
+
+    [Fact]
+    public void Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs()
+    {
+        var unrelated = new InspectionReport("test",
+            [new InspectionSection("Timestamp checks", []) { Lines = ["⚠ Its creation time was changed."] }],
+            ["Timestamp checks: 2 signs that its times were set rather than kept (see below)."]);
+        Assert.False(LogShowsBackdatedCreation(unrelated));
+        var logged = unrelated with
+        {
+            Sections = [new InspectionSection("Timestamp checks", [])
+            {
+                Lines = ["⚠ $LogFile (LSN 123) shows its created time set back from 2026-10-24 09:00:00 to 2019-05-01 12:00:00: a program set it."]
+            }]
+        };
+        Assert.True(LogShowsBackdatedCreation(logged));
+    }
 
     /// <summary>The report's warnings and the named sections as it prints them: what a failure needs to be understood.</summary>
     private static string Excerpt(InspectionReport report, params string[] titles) =>
@@ -179,10 +202,10 @@ public sealed partial class WindowsFileRecordsTests
             // The MFT record comes from NTFS's cache; its before/after log images can reach disk later. Retain
             // the bounded retry, but a circular log can also move past the fixture (CI run 37181433089).
             var report = Read(file);
-            for (var until = DateTime.UtcNow.AddSeconds(15); !TwoSigns(report) && DateTime.UtcNow < until; report = Read(file)) Thread.Sleep(1000);
+            for (var until = DateTime.UtcNow.AddSeconds(15); !LogShowsBackdatedCreation(report) && DateTime.UtcNow < until; report = Read(file)) Thread.Sleep(1000);
             var log = Section(report, "NTFS log ($LogFile)");
             string excerpt = Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)");
-            if (log.Table is null && !TwoSigns(report) && log.Fields.Any(f => f.Name == "This item"
+            if (log.Table is null && !LogShowsBackdatedCreation(report) && log.Fields.Any(f => f.Name == "This item"
                 && f.Value.StartsWith("none of them: its last change (LSN ", StringComparison.Ordinal)
                 && f.Value.EndsWith("is older than anything the log still holds", StringComparison.Ordinal)))
                 Assert.Skip("The live circular NTFS log no longer holds this fixture; its history was not validated:\n" + excerpt);
@@ -190,10 +213,13 @@ public sealed partial class WindowsFileRecordsTests
             Assert.True(log.Table is not null, excerpt);
             Assert.Contains(log.Table!.Rows, r => r[1] == "InitializeFileRecordSegment" && r[2].Contains("as “stomped.bin”", StringComparison.Ordinal));
             Assert.Contains(log.Table.Rows, r => r[2].StartsWith("its name “stomped.bin” added to the index of", StringComparison.Ordinal));
-            if (!TwoSigns(report))
+            if (!LogShowsBackdatedCreation(report))
+            {
+                Assert.DoesNotContain(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
                 Assert.Skip("The live log contains this fixture's creation/name, but its before/after time change did not arrive within the retry; that change was not validated:\n" + excerpt);
-            var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
-            Assert.Matches(@"⚠ \$LogFile \(LSN [\d\s\u00A0\u202F,.']+\) shows its created time set back from \d{4}-\d\d-\d\d \d\d:\d\d:\d\d to 2019-05-01 12:00:00", checks);
+            }
+            var checks = TimestampChecksText(report);
+            Assert.Matches(BackdatedCreationPattern, checks);
             Assert.Contains(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
         }
         finally { Directory.Delete(dir, recursive: true); }

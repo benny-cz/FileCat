@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Windows CI live NTFS log test:** The `bba12fd8` Windows
+lane failed one privileged `WindowsFileRecordsTests` case. Its bounded retry
+stopped when the report had two timestamp signs, although those signs could
+come from the MFT and journal before the raw `$LogFile` held the fixture's
+backdated-time image. The retry now waits for that specific `$LogFile` finding.
+If the live circular log retains the creation and name but never exposes the
+time image within the deadline, the test records a skip; if the detailed time
+row exists without its warning, it still fails with the report. A regression
+case proves unrelated aggregate signs do not satisfy the gate. The focused
+case passed 1/1 and the complete non-elevated Windows platform suite passed
+424, skipped 46 and failed none with the normal parallel runner; privileged
+CI validation of this correction remains pending.
+
 **24 October 2026, Ubuntu Orca Hex search speech (FCUX-007):** The Git-built
 `44f246a2` Ubuntu app passed the 200% native Hex editor journey while an owned
 Orca instance read its match-count live region. Orca's `SPEECH OUTPUT` log
