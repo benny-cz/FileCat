@@ -863,6 +863,7 @@ public sealed class ClipboardIntentTests
         public void FocusPathBox() => inner.FocusPathBox();
         public void FocusCommandLine() => inner.FocusCommandLine();
         public bool FocusCommandSearch() => inner.FocusCommandSearch();
+        public void FocusPanelFilter() => inner.FocusPanelFilter();
         public void CloseWhenIdle() => inner.CloseWhenIdle();
         public void OpenMenuBar() => inner.OpenMenuBar();
         public void ShowContextMenu() => inner.ShowContextMenu();

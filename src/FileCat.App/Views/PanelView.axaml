@@ -70,7 +70,7 @@
         <ctl:PanelAddressTextBox x:Name="FilterBox" Grid.Column="4" Classes="path filter" Width="96"
                  AutomationProperties.Name="Filter"
                  AutomationProperties.HelpText="{Binding ActiveTab.FilterValidationError}"
-                 ToolTip.Tip="Show only the items that match: *.txt;*.log, and after | what to leave out (*.*|*.tmp). Enter applies, Esc restores. Folders always show." />
+                 ToolTip.Tip="Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show." />
         <TextBlock x:Name="FilterError" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="4"
                    HorizontalAlignment="Right" MaxWidth="400" Margin="4,0,4,3"
                    Classes="small warning" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2"

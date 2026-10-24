@@ -440,6 +440,9 @@ public sealed partial class MainViewModel
             case CommandIds.QuickFilter:
                 await QuickFilterAsync();
                 break;
+            case CommandIds.FocusPanelFilter:
+                View.FocusPanelFilter();
+                break;
 
             // ---- Clipboard (text) ----------------------------------------------------------------------
             case CommandIds.CopyNames:

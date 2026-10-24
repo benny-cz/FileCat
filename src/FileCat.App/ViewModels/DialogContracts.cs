@@ -122,6 +122,7 @@ public interface IViewActions
     void FocusActivePanel();
     Task<string?> RenameInlineAsync(PromptOptions options);
     void FocusPathBox();
+    void FocusPanelFilter();
     void FocusCommandLine();
     /// <summary>Puts the keyboard in the command search (Ctrl+Shift+P); false where the window shows none.</summary>
     bool FocusCommandSearch();

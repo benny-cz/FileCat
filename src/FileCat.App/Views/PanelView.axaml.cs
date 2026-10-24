@@ -756,6 +756,12 @@ public partial class PanelView : UserControl
         PathBox.SelectAll();
     }
 
+    public void FocusFilterBox()
+    {
+        FilterBox.Focus(NavigationMethod.Tab);
+        FilterBox.SelectAll();
+    }
+
     private void RevertPath() => PathBox.Text = Panel?.ActiveTab?.DisplayPath;
 
     private readonly PathCompletion _completion;

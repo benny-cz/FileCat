@@ -165,6 +165,7 @@ public static class CommandIds
     public const string SortNone = "sort.none";
     public const string ColumnProfilePrefix = "view.columns";
     public const string QuickFilter = "view.filter";
+    public const string FocusPanelFilter = "view.focusFilter";
     public const string FlatView = "view.flat";
     public const string AnalyzeFolder = "view.analyze";
 
@@ -410,6 +411,7 @@ public sealed class CommandRegistry
         for (int i = 0; i <= 9; i++)
             Add(CommandIds.ColumnProfilePrefix + i, $"Column profile {i}", V, null, CommandContext.Panel, $"Alt+{i}");
         Add(CommandIds.QuickFilter, "Quick filter…", V, null, CommandContext.Panel, "Ctrl+S");
+        Add(CommandIds.FocusPanelFilter, "Edit active panel filter", V, null, CommandContext.Panel, "Ctrl+Shift+F");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
         Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
 
@@ -569,6 +571,7 @@ public sealed class CommandRegistry
         K(CommandIds.OpenWithSystem, "open with", "default program", "associated program");
         K(CommandIds.OpenTerminal, "shell", "console", "cmd", "powershell", "command prompt", "bash");
         K(CommandIds.QuickFilter, "filter", "narrow");
+        K(CommandIds.FocusPanelFilter, "filter field", "edit filter", "address filter");
         K(CommandIds.FlatView, "branch view", "all files", "recursive listing", "flatten");
         K(CommandIds.ToggleHidden, "hidden files", "show hidden", "dotfiles", "system files");
         K(CommandIds.ToggleDriveButtons, "drive buttons", "drive bar", "places", "bookmarks bar");

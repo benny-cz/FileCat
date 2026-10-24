@@ -1234,6 +1234,8 @@ public sealed class FindWindow : Window, IViewActions
 
     public void FocusPathBox() => _lookIn.Focus();
 
+    public void FocusPanelFilter() { }
+
     public void FocusCommandLine() { }
 
     public bool FocusCommandSearch() => false;

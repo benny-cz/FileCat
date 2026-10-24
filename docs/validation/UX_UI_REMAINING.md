@@ -16,8 +16,8 @@ increments to `main`.
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the spoken criteria of other
-  findings (Find results, the panel filter field of FCUX-028, which needs a
-  keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
+  findings (Find results, the panel filter field of FCUX-028 via its new
+  `Ctrl+Shift+F` route, UXBUG-015 and FCUX-040/041 form errors, tabs).
   Assert VoiceOver's actual spoken phrases on Mac. Keep Mac audio muted.
 
 ## Next actions, in severity order

@@ -926,6 +926,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     public void FocusPathBox() => ActivePanelView()?.FocusPathBox();
 
+    public void FocusPanelFilter() => ActivePanelView()?.FocusFilterBox();
+
     public bool OpenAncestorMenu() => ActivePanelView()?.OpenAncestorMenu() == true;
 
     public void CloseWhenIdle()
