@@ -115,8 +115,10 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(data.Length, job.BytesDone);
     }
 
-    [Fact]
-    public async Task Canceling_after_a_dropped_upload_reports_a_stage_the_server_refuses_to_delete()
+    [Theory]
+    [InlineData(DecisionAction.CancelJob)]
+    [InlineData(DecisionAction.Skip)]
+    public async Task Declining_a_dropped_upload_reports_a_stage_the_server_refuses_to_delete(DecisionAction action)
     {
         string source = LocalFile("cancel.bin", new string('s', 2 * 1024 * 1024));
         _server.Dir("/up");
@@ -138,15 +140,18 @@ public sealed class SftpJobTests : IDisposable
 
             _server.Down = false;
             _server.RefuseStageDelete = true;
-            job.Cancel();
+            if (action == DecisionAction.CancelJob) job.Cancel();
+            else job.Decision!.Resolve(new Decision(action));
             for (int i = 0; i < 500 && !job.State.IsFinished(); i++)
                 await Task.Delay(10, TestContext.Current.CancellationToken);
-            Assert.Equal(JobState.Canceled, job.State);
+            Assert.Equal(action == DecisionAction.CancelJob ? JobState.Canceled : JobState.Failed, job.State);
             Assert.Equal([stage], Names("/up"));
             Assert.False(_server.Exists("/up/cancel.bin"));
             Assert.Equal(2 * 1024 * 1024, new FileInfo(source).Length);
             Assert.Contains(job.Issues, issue => issue.Path == "/up/" + stage &&
                 issue.Message.Contains("partial copy is left on the server", StringComparison.Ordinal));
+            if (action == DecisionAction.Skip)
+                Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Skipped);
         }
         finally
         {
@@ -154,6 +159,53 @@ public sealed class SftpJobTests : IDisposable
             if (!job.State.IsFinished()) job.Cancel();
             for (int i = 0; i < 500 && !job.State.IsFinished(); i++)
                 await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task Retrying_a_changed_move_after_stage_cleanup_is_refused_reports_both_versions()
+    {
+        string source = LocalFile("changed-retry.bin", new string('o', 2 * 1024 * 1024));
+        _server.Dir("/up");
+        _server.DropAfterBytes = 128 * 1024;
+        var job = _jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+        });
+        try
+        {
+            for (int i = 0; i < 500 && job.Decision is not { Task.IsCompleted: false }; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.True(job.Decision is { Task.IsCompleted: false });
+            string stage = Assert.Single(Names("/up"));
+            Assert.StartsWith(".fc-", stage, StringComparison.Ordinal);
+            byte[] oldPrefix = _server.Lookup("/up/" + stage, true)!.Data.ToArray();
+            Assert.NotEmpty(oldPrefix);
+
+            _server.Down = false;
+            _server.RefuseStageDelete = true;
+            byte[] changed = Enumerable.Repeat((byte)'n', 2 * 1024 * 1024).ToArray();
+            File.WriteAllBytes(source, changed);
+            File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(2));
+            job.Decision!.Resolve(new Decision(DecisionAction.Retry));
+            for (int i = 0; i < 1000 && !job.State.IsFinished(); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+
+            Assert.Equal(JobState.CompletedWithIssues, job.State);
+            Assert.False(File.Exists(source));
+            Assert.Equal(changed, _server.Lookup("/up/changed-retry.bin", true)!.Data);
+            Assert.Equal(oldPrefix, _server.Lookup("/up/" + stage, true)!.Data);
+            Assert.Contains(job.Issues, issue => issue.Path == "/up/" + stage &&
+                issue.Message.Contains("partial copy is left on the server", StringComparison.Ordinal));
+            Assert.Equal(2, Names("/up").Count());
+        }
+        finally
+        {
+            _server.Down = false;
+            _server.RefuseStageDelete = false;
+            if (!job.State.IsFinished()) job.Cancel();
         }
     }
 

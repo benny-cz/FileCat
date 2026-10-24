@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, refused SFTP staging cleanup (FCUX-001):** The controlled
+SFTP job tests now cover both Cancel and Skip after a dropped upload when the
+server refuses to remove the unpublished partial stage. Both leave the source
+and stage intact, publish no target, and report the exact stage path. A new
+changed-source Move retry case verifies that only the new source bytes receive
+the public name; a refused deletion retains the old partial stage and reports
+it as an issue, so the job finishes `CompletedWithIssues` rather than silently
+claiming a clean result. All 28 focused SFTP job cases passed on Windows with
+up to 16 build workers. The broader Remote Release suite is running; native
+provider failure/cleanup and server-side final-check acceptance remain open.
+
 **24 October 2026, Mac 1× inline filter and reliable return speech
 (FCUX-028):** The 1× display wrapper exercised the signed Git-built Mac arm64
 candidate (app DLL SHA-256
