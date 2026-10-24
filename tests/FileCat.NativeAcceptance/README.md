@@ -1036,6 +1036,18 @@ its exact process and removes only its checked fixture path. It permits the
 specific validation checkout as Git's safe directory for one read when VMware
 Tools uses a different Admin token, without changing global Git settings.
 
+`linux-atspi-ftp-large-listing.py APP REPORT.json KEY_HELPER FTP_HELPER
+ftp|ftpes|sftp` extends the 2,000-file AT-SPI bound to a fresh owned remote
+listing in the logged-in Ubuntu desktop. It starts a disposable loopback FTP
+or explicit-TLS FTPS server, or uses the local SSH server for SFTP; each route
+shows its actual connection and credential dialog. Plain FTP requires explicit
+unencrypted consent, FTPS one-time certificate consent, and SFTP matches the
+shown host key to independently read SSH server public keys before one-time
+consent. Supply transient `FILECAT_NATIVE_SUDO_PASSWORD` and, for SFTP only,
+`FILECAT_NATIVE_SFTP_PASSWORD` to the runner. It removes both from the app
+environment, verifies complete remote counts, bounded peers and physical End
+navigation, preserves fixture bytes, and stops its owned app/server and fixture.
+
 `linux-atspi-modal-guard.py APP_PATH REPORT.json` runs against a Git-built,
 isolated Linux `FileCat` binary below the logged-in user's
 `~/FileCatValidation` directory. It creates a fresh source, destination and

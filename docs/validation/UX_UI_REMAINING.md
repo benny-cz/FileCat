@@ -53,7 +53,8 @@ increments to `main`.
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   provider-backed native listing latency.
+   Mac and Windows provider-backed native listing latency and other supported
+   provider types beyond Ubuntu FTP, explicit-TLS FTPS and SFTP.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one
@@ -123,4 +124,4 @@ increments to `main`.
   acceptance pass, or record a justified equivalent route with the same
   consequential scenarios. Update this file and the implementation status
   after each batch, commit and push to `main`, and retain unrelated untracked
-  user files. Do not create source or changes ZIP handoffs.
+  user files.
