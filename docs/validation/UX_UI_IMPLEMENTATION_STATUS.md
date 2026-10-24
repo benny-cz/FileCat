@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Windows scaled shared-dialog pointer acceptance
+(UXBUG-016):** A separate Windows VM Git worktree built `fd141cc3` with .NET
+10.0.402 and 16 workers (app SHA-256
+`9647CA9F01912FEF1569FF9F0A9DAAE0C2F7B7A85D13BA06444719E254F85E2C`).
+The native Display Settings selector was set to 150% and visually confirmed;
+the Registry, Create folder, Copy, Move and Delete guarded pointer runners
+each reported 144 DPI, a 45 × 45 physical-pixel close target, a centered X
+with (0, 0) centroid offset, accessible cancel help, and successful close-X
+and backdrop cancellation. The Copy, Move and Delete source hashes and empty
+targets remained unchanged. Receipts are
+`win-{registry,folder,copy,move,delete}-pointer-150-fd141cc3*.json` in the
+guest's isolated validation directory. Display Settings initially retained
+foreground and the Registry runner correctly refused to send F7 to it; after
+closing only Settings, all five routes passed. The native Scale selector was
+restored to its original 100% value, confirmed in
+`win-scale-restored-20261024.json`, and Settings closed.
+
 **24 October 2026, Ubuntu scaled popup and Find acceptance (UXBUG-016):**
 The Git-built `278b8655` app passed physical Shift+F10 context-menu and
 Alt+F7 Find journeys at GNOME 200% scale. A bounded native runner pause let

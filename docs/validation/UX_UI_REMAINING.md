@@ -114,14 +114,16 @@ increments to `main`.
    UXBUG-015 needs localized speed entry, keyboard error navigation and
    actual screen-reader announcements on supported desktops. Report
    Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
-   UXBUG-016 needs native checks of Registry, overwrite and other dialog
+   UXBUG-016 needs native checks of overwrite and other dialog
    families and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
+   Windows Registry, Create folder, Copy, Move and Delete pointer routes pass at
+   150% scale, and the VM display setting was restored to 100% afterward.
    Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation
    passes at both supported 1× and Retina 2× modes; Copy, Move and Delete also
    pass in a 640 × 480 point window at both Retina 2× and 1×.
-   Open-dialog SIGTERM with an unsubmitted draft passes at Retina 2×. Capture
-   Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
+   Open-dialog SIGTERM with an unsubmitted draft passes at Retina 2×. Report
+   Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
 
 ## Evidence required to finish
