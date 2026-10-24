@@ -37,8 +37,9 @@ increments to `main`.
    presentation and supported external Move/delete-on-paste handling, if
    safely offered. On Mac, investigate the scrolling form body's zero AX bounds
    and preview list with no AX children. For FCUX-004, exercise other modal
-   focus and decision routes on each desktop; preserve captured scope and
-   mapping throughout each test.
+   focus and decision routes on each desktop. On Mac, make VoiceOver announce
+   the restored file row after Copy Cancel; AX focus already returns to it.
+   Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.

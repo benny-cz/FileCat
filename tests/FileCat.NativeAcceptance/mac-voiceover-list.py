@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--review|--review-pages]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--review|--review-pages]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -51,7 +51,7 @@ def screenshot():
     return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
 
 
-def run(bundle, report_path, actions=False, review=False, review_pages=False):
+def run(bundle, report_path, actions=False, copy_action=False, review=False, review_pages=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -85,6 +85,14 @@ def run(bundle, report_path, actions=False, review=False, review_pages=False):
                                "-o", str(observer)], capture_output=True, text=True, timeout=120)
     if compiled.returncode:
         raise AssertionError("AX focus probe build failed: " + compiled.stderr[-1200:])
+    dialog_probe = fixture / "ax-dialog-label"
+    dialog_report = fixture / "dialog-label.json"
+    if copy_action:
+        dialog_source = Path(__file__).with_name("mac-ax-dialog-label.swift")
+        built = subprocess.run(["/usr/bin/swiftc", "-o", str(dialog_probe), str(dialog_source)],
+                               capture_output=True, text=True, timeout=120)
+        if built.returncode:
+            raise AssertionError("AX dialog probe build failed: " + built.stderr[-1200:])
     receipt = {"passed": False, "fixture": str(fixture),
                "appDllSha256": hashlib.sha256((executable.parent / "FileCat.dll").read_bytes()).hexdigest(),
                "phrases": [], "error": None}
@@ -104,6 +112,14 @@ def run(bundle, report_path, actions=False, review=False, review_pages=False):
             if done.returncode:
                 raise AssertionError("AX focused-element probe failed: " + done.stderr[-800:])
             return json.loads(done.stdout or "{}")
+
+        def copy_review():
+            checked = subprocess.run([str(dialog_probe), str(executable), str(process),
+                                      str(dialog_report)], capture_output=True, text=True, timeout=15)
+            state = json.loads(dialog_report.read_text(encoding="utf-8"))
+            if checked.returncode not in (0, 1):
+                raise AssertionError("AX Copy review probe failed: " + state.get("error", checked.stderr[-800:]))
+            return state
 
         def prepare_review_search():
             search_focus = {}
@@ -196,6 +212,58 @@ def run(bundle, report_path, actions=False, review=False, review_pages=False):
                 raise AssertionError("Closing the viewer did not restore the unmarked source-row focus")
             if not any("b.txt" in phrase for phrase in heard_return):
                 raise AssertionError("VoiceOver did not speak the restored source-row focus")
+        if copy_action:
+            osa('tell application "System Events" to key code 96')  # F5, Copy focused b.txt.
+            def open_copy_review():
+                found = copy_review()
+                if (found.get("copyApproval") and found.get("destinationField") and
+                        len(found.get("matches", [])) == 1):
+                    return found
+                return None
+            state = wait_for(open_copy_review, seconds=10)
+            heard_open = []
+            for _ in range(16):
+                phrase = last_phrase()
+                if phrase not in heard_open:
+                    heard_open.append(phrase)
+                if "Copy" in phrase or "Destination" in phrase:
+                    break
+                time.sleep(.25)
+            opened_focus = focused()
+            voiceover_cursor = osa('tell application "VoiceOver" to get text under cursor of vo cursor')
+            osa('tell application "System Events" to key code 48')  # Tab through the review.
+            heard_tab = []
+            for _ in range(12):
+                phrase = last_phrase()
+                if phrase not in heard_tab:
+                    heard_tab.append(phrase)
+                if phrase != heard_open[-1]:
+                    break
+                time.sleep(.25)
+            after_tab = focused()
+            osa('tell application "System Events" to key code 53')  # Escape cancels Copy.
+            wait_for(lambda: not copy_review().get("matches"), seconds=10)
+            heard_return = []
+            for _ in range(16):
+                phrase = last_phrase()
+                if phrase not in heard_return:
+                    heard_return.append(phrase)
+                if "b.txt" in phrase:
+                    break
+                time.sleep(.25)
+            returned = focused()
+            receipt["copyAction"] = {"review": {"copyApproval": state["copyApproval"],
+                                                "destinationField": state["destinationField"],
+                                                "close": state["matches"][0]},
+                                     "openSpeech": heard_open, "openFocus": opened_focus,
+                                     "voiceOverCursorAtOpen": voiceover_cursor,
+                                     "tabSpeech": heard_tab, "tabFocus": after_tab,
+                                     "returnSpeech": heard_return, "returnedFocus": returned}
+            if not any("Copy" in phrase or "Destination" in phrase for phrase in heard_open):
+                raise AssertionError("VoiceOver did not speak the opened Copy review")
+            if returned.get("title") != "b.txt" or ", not marked," not in returned.get("help", ""):
+                raise AssertionError("Cancel did not restore the unmarked b.txt source-row focus")
+            receipt["copyAction"]["returnedRowSpoken"] = any("b.txt" in phrase for phrase in heard_return)
         if review:
             osa('tell application "System Events" to key code 49')
             time.sleep(.4)
@@ -366,8 +434,9 @@ def run(bundle, report_path, actions=False, review=False, review_pages=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--review", "--review-pages")):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--review", "--review-pages")):
         raise SystemExit(__doc__)
     mode = sys.argv[3] if len(sys.argv) == 4 else ""
     run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions",
+        copy_action=mode == "--copy-action",
         review=mode == "--review", review_pages=mode == "--review-pages")

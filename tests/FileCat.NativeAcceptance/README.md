@@ -1266,6 +1266,12 @@ contents` enumeration can return zero for a visibly populated Avalonia window;
 the native AXUIElement children expose the control tree directly. This route
 checks the accessible label and pointer behavior; actual VoiceOver speech and
 other display scales need separate acceptance.
+`mac-voiceover-list.py BUNDLE.app REPORT.json --copy-action` checks actual
+muted VoiceOver speech when F5 opens a Copy review for the focused file. It
+requires the spoken Copy title, native AX Destination field and enabled Copy
+action, then cancels and checks restored unmarked row focus and unchanged
+bytes. The report separately records whether VoiceOver speaks that restored
+row automatically; this remains an open acceptance gap.
 
 `python3 mac-ax-finished-speed.py SOURCE DESTINATION REPORT.json` runs a
 one-file Copy in the signed validation app, then requires an explicitly

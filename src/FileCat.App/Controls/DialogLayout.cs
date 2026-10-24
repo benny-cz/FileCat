@@ -21,6 +21,7 @@ internal sealed class DialogCard : Border
 
     private readonly Border _bodyBorder;
     private readonly Control _body;
+    private readonly TextBlock _titleText;
     private readonly WidthConstrainedContent _content;
     private readonly Grid _layout;
     private double _lastAvailableWidth = double.NaN;
@@ -49,9 +50,11 @@ internal sealed class DialogCard : Border
         });
         var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*,Auto"), ColumnSpacing = 10 };
         titleLine.Children.Add(new Border { Classes = { "dialogAccent" }, Height = 20, VerticalAlignment = VerticalAlignment.Center });
-        var titleText = new TextBlock { Text = title, Classes = { "dialogTitle" }, TextWrapping = TextWrapping.Wrap };
-        Grid.SetColumn(titleText, 1);
-        titleLine.Children.Add(titleText);
+        _titleText = new TextBlock { Text = title, Classes = { "dialogTitle" }, TextWrapping = TextWrapping.Wrap };
+        if (OperatingSystem.IsMacOS())
+            AutomationProperties.SetLiveSetting(_titleText, AutomationLiveSetting.Polite);
+        Grid.SetColumn(_titleText, 1);
+        titleLine.Children.Add(_titleText);
         var close = new Button
         {
             Name = "DialogCloseButton",
@@ -109,6 +112,14 @@ internal sealed class DialogCard : Border
             _layout.Children.Add(footer);
         }
         Child = _layout;
+    }
+
+    internal void AnnounceOpened()
+    {
+        // VoiceOver can leave its last spoken phrase on a background listing update even
+        // after native focus reaches the first field of an in-window dialog. Repeat the
+        // visible title through the existing live-region bridge once layout is attached.
+        if (OperatingSystem.IsMacOS()) LiveRegions.Repeat(_titleText);
     }
 
     /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>

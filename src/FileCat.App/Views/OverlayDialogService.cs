@@ -184,6 +184,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (_sessions.Contains(session) && card is Border border && border.Background is null)
                 border.Background = Brushes.Transparent;
         }, DispatcherPriority.Loaded);
+        if (card is DialogCard announced)
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (IsCurrent(session)) announced.AnnounceOpened();
+            }, DispatcherPriority.Background);
         long revision = ++_focusRevision;
         // A list takes focus through its selected item, so its arrow keys work at once.
         Dispatcher.UIThread.Post(() =>

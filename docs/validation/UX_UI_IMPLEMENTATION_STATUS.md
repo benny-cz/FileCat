@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac spoken in-window Copy entry (FCUX-004/010):** A new
+`mac-voiceover-list.py --copy-action` journey exposed a real speech gap:
+the native AX tree focused the Destination field of an actionable Copy review,
+but VoiceOver's last phrase remained the prior listing update. The shared
+`DialogCard` now repeats its visible title through the existing Mac live-region
+bridge after attachment; Windows and Linux focus behavior is unchanged. A
+separate signed Mac bundle (binary SHA-256
+`4a8e1e28d756b0a55392f7fb777ff6f05cb82f1a521c9260d400618d905f2d97`)
+made VoiceOver speak “Copy” at Retina 2× and 1×. Both runs confirmed the
+Destination AX field, enabled Copy action, accessible close X, unchanged
+source/target, and AX focus restored to the unmarked `b.txt` row on Escape
+(`mac-voiceover-copy-action-livedialog-20261024-r3.json`,
+`mac-voiceover-copy-action-livedialog-1x-20261024-r1.json`). The 1× wrapper
+restored the original Retina mode. VoiceOver did **not** automatically speak
+the returned row on either run, so that remains open. A delayed repeat of the
+window focus event did not change this and was discarded. The same signed
+bundle passed minimum-window native X/backdrop Copy cancellation and the
+existing marked-review VoiceOver journey. Thirty-six related App tests passed
+with 16 workers; the native speech test provides the Mac-specific regression.
+
 **24 October 2026, final-head modal ownership on Windows and Ubuntu
 (FCUX-004):** The Windows VM's Git-built `fd141cc3` app passed
 `win-ax-modal-guard.ps1`: native UI Automation invoked background toolbar
