@@ -53,8 +53,8 @@ increments to `main`.
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   Mac and Windows provider-backed native listing latency and other supported
-   provider types beyond Ubuntu FTP, explicit-TLS FTPS and SFTP.
+   Windows provider-backed native listing latency and other supported
+   provider types beyond FTP, explicit-TLS FTPS and SFTP.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one
@@ -97,7 +97,7 @@ increments to `main`.
    actual screen-reader announcements on supported desktops. Report
    Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
    UXBUG-016 needs native checks of overwrite and other dialog
-   families and the remaining
+   families, including their popup choices, and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.

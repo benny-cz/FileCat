@@ -48,6 +48,20 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     // An event's Source can retain the closed dialog; the guard is needed only while that event is routed.
     private WeakReference<KeyEventArgs>? _escapeClosing;
 
+    internal static bool IsInCardOrPopup(Visual source, Visual card)
+    {
+        if (ReferenceEquals(source, card) || card.IsVisualAncestorOf(source)) return true;
+        // ComboBox and completion menus can render in a separate PopupRoot.
+        // Their content still belongs to the active modal even though it is
+        // no longer a visual descendant of the card itself.
+        return card.GetVisualDescendants().OfType<Popup>().Any(popup =>
+            popup.IsOpen && popup.Child is Visual child &&
+            (ReferenceEquals(source, child) || child.IsVisualAncestorOf(source)));
+    }
+
+    private static bool IsInCardOrPopup(Visual source, Session session) =>
+        session.Layer.Child is Visual card && IsInCardOrPopup(source, card);
+
     /// <summary>
     /// Esc closes the topmost dialog even when the keyboard is outside it (a click elsewhere, focus that never
     /// arrived): the dialog's own handler takes Esc pressed inside it, including what its controls close first.
@@ -58,7 +72,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (_escapeClosing is { } remembered && remembered.TryGetTarget(out var closing) && ReferenceEquals(e, closing)) return;
         if (e.Handled || e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || _sessions.Count == 0) return;
         var top = _sessions[^1];
-        if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) || top.Layer.IsVisualAncestorOf(source))) return;
+        if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) ||
+            IsInCardOrPopup(source, top))) return;
         e.Handled = true;
         top.OnEscape();
     }
@@ -70,8 +85,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         // At minimum window sizes a native hit can land on a footer or other
         // window chrome outside the overlay's arranged hit surface. Treat it
         // like the backdrop before the obscured control receives its press.
-        if (top.Layer.Child is Visual card &&
-            (ReferenceEquals(source, card) || card.IsVisualAncestorOf(source))) return;
+        if (IsInCardOrPopup(source, top)) return;
         e.Handled = true;
         top.OnEscape();
     }
@@ -80,13 +94,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         if (sender is not TopLevel root || _sessions.Count == 0 || e.Source is not Visual source) return;
         var currentSession = _sessions[^1];
-        if (currentSession.Layer.IsVisualAncestorOf(source)) return;
+        if (currentSession.Layer.IsVisualAncestorOf(source) || IsInCardOrPopup(source, currentSession)) return;
         long focusRevision = _focusRevision;
         Dispatcher.UIThread.Post(() =>
         {
             if (focusRevision != _focusRevision || !IsCurrent(currentSession)) return;
             var focused = root.FocusManager?.GetFocusedElement();
-            if (focused is Visual visual && currentSession.Layer.IsVisualAncestorOf(visual)) return;
+            if (focused is Visual visual && (currentSession.Layer.IsVisualAncestorOf(visual) ||
+                IsInCardOrPopup(visual, currentSession))) return;
             var target = CanFocus(currentSession.InitialFocus) ? currentSession.InitialFocus : currentSession.Layer.Child;
             if (CanFocus(target)) Controls.ListKeys.Focus(target!);
         }, DispatcherPriority.Input);

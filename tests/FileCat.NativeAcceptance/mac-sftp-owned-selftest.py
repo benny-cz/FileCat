@@ -28,7 +28,8 @@ def prepare(fixture, server_dir):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     fixture = fixture.resolve(strict=True)
     server_dir = server_dir.resolve(strict=True)
-    if (fixture.parent not in (validation / "MacOwnedSftp", validation / "MacRemoteWarning") or
+    if (fixture.parent not in (validation / "MacOwnedSftp", validation / "MacRemoteWarning",
+                               validation / "MacRemoteLargeListing") or
             not re.fullmatch(r"[0-9a-f]{32}", fixture.name) or
             server_dir != fixture / "server" or not (server_dir / "target.txt").is_file()):
         raise AssertionError("The SFTP fixture must contain one owned server target below FileCatValidation")

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -97,6 +98,35 @@ public sealed class OverlayDialogPointerDismissTests
             Assert.False(pending.IsCompleted);
             Click(window, new Point(5, 5));
             Assert.False(await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        finally { dialogs.CancelAll(); window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Open_combo_popup_belongs_to_its_modal_while_the_backdrop_does_not()
+    {
+        var (window, host, dialogs) = Open();
+        try
+        {
+            var choices = new ComboBox
+            {
+                ItemsSource = new[] { "Password", "Private key file" },
+                SelectedIndex = 0,
+                Width = 260,
+            };
+            var pending = dialogs.ShowCustomAsync("New connection", choices,
+                [new DialogButton("Cancel", "cancel", IsCancel: true)]);
+            Layout(window);
+            choices.IsDropDownOpen = true;
+            Layout(window);
+            var popup = Assert.Single(choices.GetVisualDescendants().OfType<Popup>(), p => p.IsOpen);
+            var content = Assert.IsAssignableFrom<Avalonia.Visual>(popup.Child);
+            var card = Assert.Single(host.GetVisualDescendants().OfType<FileCat.App.Controls.DialogCard>());
+            Assert.True(OverlayDialogService.IsInCardOrPopup(content, card));
+            Assert.False(OverlayDialogService.IsInCardOrPopup(new Button(), card));
+            Assert.False(pending.IsCompleted);
+            Click(window, new Point(5, 5));
+            Assert.Equal("cancel", await pending.WaitAsync(TimeSpan.FromSeconds(5)));
         }
         finally { dialogs.CancelAll(); window.Close(); }
     }
