@@ -50,7 +50,7 @@ public sealed class ChecksumDialogGenerationTests
             finally { SynchronizationContext.SetSynchronizationContext(context); }
             Assert.Equal(1, held.Started);
             // Hold only the actual UI continuation; the real Task.Run, file open and hashing execute.
-            Assert.True(SpinWait.SpinUntil(() => held.Pending > 0, TimeSpan.FromSeconds(5)), "The actual checksum worker did not post its continuation.");
+            await Until(() => held.Pending > 0, TimeSpan.FromSeconds(20), "The actual checksum worker did not post its continuation.");
             exclusive?.Dispose(); exclusive = null;
             if (action == "replace")
             {
@@ -111,12 +111,12 @@ public sealed class ChecksumDialogGenerationTests
         }
     }
 
-    private static async Task Until(Func<bool> condition, TimeSpan limit)
+    private static async Task Until(Func<bool> condition, TimeSpan limit, string message = "The actual checksum dialog did not reach its checkpoint.")
     {
         var clock = Stopwatch.StartNew();
         while (!condition())
         {
-            if (clock.Elapsed > limit) throw new TimeoutException("The actual checksum dialog did not reach its checkpoint.");
+            if (clock.Elapsed > limit) throw new TimeoutException(message);
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }

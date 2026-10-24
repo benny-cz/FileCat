@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, macOS CI checksum generation test:** The `ac342092` macOS
+App lane failed one checksum-dialog generation case because its test's busy
+five-second spin did not observe the actual worker continuation. The test now
+polls asynchronously for up to 20 seconds, yielding the UI scheduler while
+still requiring the real worker to post. All six focused Windows cases passed
+with 16 available test workers. The complete App suite and newer macOS CI
+receipts remain pending. A separate clean Mac test checkout could resolve the
+pinned .NET 10.0.101 SDK, but its first restore exited after five minutes
+without compiler errors; it is not counted as a passing Mac test.
+
 **24 October 2026, FTP link traversal safety (FCUX-001):** A restored Ubuntu
 FTP/FTPS lab exposed that its MLSD response reports a directory symbolic link
 as a directory. FileCat's delete journey then followed that link and removed
