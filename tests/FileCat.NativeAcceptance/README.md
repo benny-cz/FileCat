@@ -1016,6 +1016,16 @@ Supply
 uinput checks. `--record-all` keeps a complete transcript after an unmet
 expectation.
 
+`linux-atspi-large-listing.py APP_PATH REPORT.json KEY_HELPER` launches an
+isolated Git-built FileCat with 2,000 generated zero-byte files and two known
+source files. It waits for the complete file count, measures bounded native
+AT-SPI enumeration and visible row peers, then sends physical Home/Down/End
+keys to the first and last generated files. The JSON receipt records counts,
+query and jump times, exact focus and the app DLL hash. It checks the original
+source bytes and empty target, stops only its owned app and removes its entire
+owned fixture. Use the logged-in GNOME session and transient
+`FILECAT_NATIVE_SUDO_PASSWORD` as for the Orca runner.
+
 `linux-atspi-modal-guard.py APP_PATH REPORT.json` runs against a Git-built,
 isolated Linux `FileCat` binary below the logged-in user's
 `~/FileCatValidation` directory. It creates a fresh source, destination and
