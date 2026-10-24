@@ -13,7 +13,16 @@ passed the muted native VoiceOver journey: Command+Shift+F spoke the Filter
 field, Enter on `/` spoke “Unclosed regular expression in mask,” Escape
 restored and spoke the `b.txt` row, fixture bytes remained exact, and the app
 did not crash (`mac-voiceover-filter-livefix-20261024-r1.json`). Windows
-screen-reader speech and scaled layouts on all three desktops remain open.
+screen-reader speech and scaled layouts on all three desktops remained open.
+The native runner now has a separate narrow visual mode, so opening the
+approved screenshot helper cannot steal VoiceOver's Escape announcement.
+The signed Mac build then passed a 760 × 600 Retina 2× main-window visual
+check with the entire orange inline error below the Filter field, no clipped
+error or panel row, exact fixture bytes, and the specific error spoken
+(`mac-voiceover-filter-livefix-20261024-r7.json`, captured with
+`FileCatCapture`). A fresh, screenshot-free speech run again passed Filter,
+error and restored `b.txt` utterances (`r8.json`). Windows spoken filter
+acceptance, Windows/Ubuntu scaled layouts and Mac 1× remain open.
 
 **24 October 2026, direct keyboard access to the panel filter (FCUX-028):**
 `Ctrl+Shift+F` now focuses and selects the active panel's inline Filter field;

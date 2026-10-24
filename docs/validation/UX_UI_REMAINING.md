@@ -18,7 +18,8 @@ increments to `main`.
   `mac-ax-focus-speech.py` journeys for the spoken criteria of other
   findings (Find results, the panel filter field of FCUX-028 on Windows,
   UXBUG-015 and FCUX-040/041 form errors, tabs). Check the panel filter's
-  scaled visual layout on Windows, Ubuntu and Mac. Assert VoiceOver's actual
+  scaled visual layout on Windows and Ubuntu, and its 1× Mac layout; the
+  760 × 600 Retina 2× Mac route passed. Assert VoiceOver's actual
   spoken phrases for the other Mac routes. Keep Mac audio muted.
 
 ## Next actions, in severity order
