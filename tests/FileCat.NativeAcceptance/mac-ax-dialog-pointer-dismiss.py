@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check native Mac close-X, backdrop and open-dialog termination in an isolated app.
+"""Check native Mac overlay cancellation and termination in an isolated app.
 
-Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm]
+Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete]
 Requires the logged-in Mac desktop, native AXUIElement access, and cliclick.
 """
 
@@ -46,6 +46,24 @@ def open_folder():
     osa('tell application "System Events" to key code 98')  # F7
 
 
+def open_review(kind):
+    key_code = {"Copy": 96, "Move": 97, "Delete": 100}[kind]
+    def attempt():
+        return osa(f'''
+tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    key code 126
+    key code 125
+    delay 0.1
+    set sourceRow to value of attribute "AXFocusedUIElement"
+    if (role of sourceRow as text) is not "AXRow" or (name of sourceRow as text) is not "b.txt" then return "waiting"
+    key code {key_code}
+    return "opened"
+end tell
+''')
+    wait_for(lambda: attempt() == "opened", f"the loaded {kind} fixture controls", seconds=20)
+
+
 def close_bounds(helper, executable, pid, report):
     run = subprocess.run([str(helper), str(executable), str(pid), str(report)],
                          capture_output=True, text=True, timeout=15)
@@ -80,9 +98,12 @@ def click(x, y):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--sigterm":
-        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm]")
-    sigterm = len(sys.argv) == 4
+    modes = {"--copy": "Copy", "--move": "Move", "--delete": "Delete"}
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--sigterm", *modes):
+        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete]")
+    mode = sys.argv[3] if len(sys.argv) == 4 else ""
+    sigterm = mode == "--sigterm"
+    review = modes.get(mode)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = Path(sys.argv[1]).resolve(strict=True)
     executable = bundle / "Contents" / "MacOS" / "FileCat"
@@ -95,6 +116,8 @@ def main():
     source, target, data = (fixture / name for name in ("source", "target", "data"))
     for folder in (source, target, data):
         folder.mkdir(parents=True)
+    if review:
+        (source / "b.txt").write_bytes(b"beta\n")
     ax_source = Path(__file__).with_name("mac-ax-dialog-label.swift")
     if not ax_source.is_file():
         raise SystemExit("The native AX dialog-label source is missing beside this runner")
@@ -104,7 +127,8 @@ def main():
     ax_report = fixture / "dialog-label.json"
     digest = hashlib.sha256(executable.read_bytes()).hexdigest()
     result = {"passed": False, "bundle": str(bundle), "appSha256": digest,
-              "input": "System Events and SIGTERM" if sigterm else "cliclick-CGEvent-mouse"}
+              "input": "System Events and SIGTERM" if sigterm else "cliclick-CGEvent-mouse",
+              "dialog": review or "Create folder"}
     pid = None
     try:
         launched = subprocess.run(["/usr/bin/open", "-na", str(bundle), "--args", "--new-instance",
@@ -119,11 +143,18 @@ def main():
             raise AssertionError("The launched FileCat process is outside the owned bundle")
         wait_for(lambda: int(osa('''tell application "System Events" to get count of windows of process "FileCat"''')) > 0,
                  "the isolated FileCat window")
-        open_folder()
+        opener = (lambda: open_review(review)) if review else open_folder
+        opener()
         (x, y, width, height), first_match = wait_for(
             lambda: close_bounds(ax_helper, executable, pid, ax_report), "the dialog close button")
         result["closeBounds"] = [x, y, width, height]
         result["closeAccessibility"] = first_match
+        if review:
+            review_state = json.loads(ax_report.read_text(encoding="utf-8"))
+            approval = review_state.get(review.lower() + "Approval")
+            if not approval or (review != "Delete" and not review_state.get("destinationField")):
+                raise AssertionError(f"The open overlay is not an actionable {review} review")
+            result["reviewControls"] = True
         if width < 25 or height < 25:
             raise AssertionError("The close control has an undersized Mac pointer target")
         if sigterm:
@@ -149,7 +180,7 @@ end tell
             click(round(x + width / 2), round(y + height / 2))
             wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
                      "close-X cancellation")
-            open_folder()
+            opener()
             wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
                      "the reopened dialog close button")
             wx, wy, ww, wh = window_bounds()
@@ -162,7 +193,9 @@ end tell
                      "backdrop cancellation")
             result.update({"nativeCloseX": True, "nativeBackdropClick": True,
                            "outsidePoint": outside})
-        if list(source.iterdir()) or list(target.iterdir()):
+        source_entries = list(source.iterdir())
+        source_files = {item.name: item.read_bytes() for item in source_entries if item.is_file()}
+        if len(source_entries) != len(source_files) or source_files != ({"b.txt": b"beta\n"} if review else {}) or list(target.iterdir()):
             raise AssertionError("A canceled Mac dialog changed the fixture")
         result.update({"passed": True, "fixtureUnchanged": True})
     except Exception as exc:

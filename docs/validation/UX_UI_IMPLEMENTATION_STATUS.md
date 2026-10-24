@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac transfer and deletion review pointer acceptance
+(UXBUG-016):** The signed `20df90d0` Retina build passed native CGEvent close-X
+and backdrop cancellation for Copy (`mac-dialog-copy-pointer-20261024-r4.json`),
+Move (`mac-dialog-move-pointer-20261024-r1.json`) and Delete
+(`mac-dialog-delete-pointer-20261024-r1.json`). An exact-PID AX probe confirmed
+each review's enabled approval control, the Destination field for Copy/Move,
+and one accessible 30 × 30 point Close dialog button. Each run reopened its
+review for the second pointer route, then verified the owned `b.txt` source
+remained byte exact, the target empty and the test app stopped. The same AX
+helper change passed Create folder pointer cancellation and open-dialog
+SIGTERM again (`mac-dialog-create-pointer-20261024-r5.json`,
+`mac-dialog-create-sigterm-20261024-r3.json`).
+
 **24 October 2026, Mac open-dialog termination (UXBUG-016):** On the signed
 `20df90d0` Retina build, the native AX runner entered and read back the
 `unsubmitted` Create folder draft, verified the dialog was still open, sent

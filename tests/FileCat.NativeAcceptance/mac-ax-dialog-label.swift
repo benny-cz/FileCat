@@ -1,6 +1,6 @@
 // Native Mac acceptance for the shared overlay dialog close control.
 // Usage: mac-ax-dialog-label FILECAT_EXE PID REPORT.json
-// Open an isolated FileCat Create folder dialog (F7) before invoking it.
+// Open an isolated FileCat overlay dialog before invoking it.
 import Foundation
 import ApplicationServices
 
@@ -96,12 +96,29 @@ do {
     }
     var matches: [Match] = []
     var visited = 0
+    var copyApproval = false
+    var moveApproval = false
+    var deleteApproval = false
+    var destinationField = false
     func scan(_ element: AXUIElement, _ window: Rect, _ depth: Int) {
         guard depth <= 20 && visited < 3000 else { return }
         visited += 1
         let title = label(attribute(element, kAXTitleAttribute as CFString))
+        let role = label(attribute(element, kAXRoleAttribute as CFString))
+        if role == "AXButton" && title == "Copy" {
+            copyApproval = copyApproval ||
+                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+        }
+        if role == "AXButton" && title == "Move" {
+            moveApproval = moveApproval ||
+                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+        }
+        if role == "AXButton" && title == "Delete" {
+            deleteApproval = deleteApproval ||
+                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+        }
+        if role == "AXTextField" && title == "Destination" { destinationField = true }
         if title == "Close dialog", let frame = bounds(element) {
-            let role = label(attribute(element, kAXRoleAttribute as CFString))
             let help = label(attribute(element, kAXHelpAttribute as CFString))
             let enabled = (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false
             matches.append(Match(role: role, title: title, help: help,
@@ -114,6 +131,10 @@ do {
         if let frame = bounds(window) { scan(window, frame, 0) }
     }
     result["visited"] = visited
+    result["copyApproval"] = copyApproval
+    result["moveApproval"] = moveApproval
+    result["deleteApproval"] = deleteApproval
+    result["destinationField"] = destinationField
     result["matches"] = matches.map { match in
         ["role": match.role, "title": match.title, "help": match.help,
          "enabled": match.enabled,
