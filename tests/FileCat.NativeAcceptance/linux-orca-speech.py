@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Hear FileCat through Orca while physical keys move file-list focus and open a dialog.
 
-Usage: linux-orca-speech.py APP_PATH REPORT.json KEY_HELPER [--record-all]
+Usage: linux-orca-speech.py APP_PATH REPORT.json KEY_HELPER [--record-all] [--scaled-filter]
 --record-all continues after an unmet expectation so a complete transcript is kept (the report still fails).
+--scaled-filter requires the native 200% display, resizes the app to 720 × 500 app units, and pauses
+after the invalid inline mask for an external VMware screen capture. Create REPORT.filter.resume
+after capture; the bounded pause and its markers are removed on exit.
 Run in the logged-in GNOME session against an isolated Git-built FileCat below ~/FileCatValidation, with no other
 Orca instance running. The caller passes the one-time guest sudo password for the physical-key helper through
 FILECAT_NATIVE_SUDO_PASSWORD; it is removed before Orca or FileCat starts. The runner starts its own Orca with a
@@ -71,12 +74,17 @@ class SpeechLog:
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--record-all":
+    modes = sys.argv[4:]
+    if len(sys.argv) < 4 or len(modes) != len(set(modes)) or any(
+            mode not in ("--record-all", "--scaled-filter") for mode in modes):
         raise SystemExit(__doc__)
-    record_all = len(sys.argv) == 5
+    record_all = "--record-all" in modes
+    scaled_filter = "--scaled-filter" in modes
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, key_helper = (Path(value).resolve(strict=True) for value in (sys.argv[1], sys.argv[3]))
     report_path = Path(sys.argv[2]).resolve()
+    filter_ready = report_path.with_suffix(".filter.ready")
+    filter_resume = report_path.with_suffix(".filter.resume")
     if (app_path.name != "FileCat" or validation not in app_path.parents or report_path.parent != validation or
             key_helper.name != "linux-uinput-key.py" or validation not in key_helper.parents):
         raise SystemExit("Use the isolated FileCat build, the owned key helper and a report under ~/FileCatValidation")
@@ -199,6 +207,29 @@ def main():
             key("enter")()
         step("Enter on the rejected mask explains it again", type_and_enter, says("Unclosed regular expression in mask."))
         step("Escape closes Quick filter", key("escape"), says("c.txt"))
+        if scaled_filter:
+            display = subprocess.run(["/usr/bin/gdctl", "show"], check=True, capture_output=True,
+                                     text=True, timeout=10).stdout
+            match = re.search(r"\bScale: ([0-9.]+)", display)
+            scale = float(match.group(1)) if match else None
+            if scale != 2.0:
+                raise AssertionError(f"The isolated Ubuntu desktop is not at 200% scale: {scale}")
+            window = windows_of(process.pid)[0]
+            requested = [1440, 1000]  # 720 × 500 app units on the 200% display.
+            subprocess.run(["/usr/bin/wmctrl", "-ir", window, "-e",
+                            f"0,80,80,{requested[0]},{requested[1]}"], check=True, timeout=5)
+            time.sleep(.5)
+            geometry = subprocess.run(["/usr/bin/xwininfo", "-id", window], check=True,
+                                      capture_output=True, text=True, timeout=5).stdout
+            width = re.search(r"\bWidth: (\d+)", geometry)
+            height = re.search(r"\bHeight: (\d+)", geometry)
+            if width is None or height is None:
+                raise AssertionError("The scaled FileCat window geometry was unavailable")
+            actual = [int(width.group(1)), int(height.group(1))]
+            if not 1400 <= actual[0] <= 1500 or not 960 <= actual[1] <= 1040:
+                raise AssertionError(f"The narrow 200% window size was not applied: {actual}")
+            report["scaledFilter"] = {"displayScale": scale, "requestedPhysicalSize": requested,
+                                      "actualPhysicalSize": actual}
         step("Ctrl+Shift+F focuses the active inline Filter field", key("ctrl+shift+f"),
              lambda phrase: phrase.strip() == "Filter")
         if not any("entry" in phrase.casefold() for phrase in report["steps"][-1]["heard"]):
@@ -208,6 +239,13 @@ def main():
             key("enter")()
         step("the inline filter speaks its validation error on Enter", reject_inline_mask,
              says("Unclosed regular expression in mask."))
+        if scaled_filter:
+            filter_ready.write_text("Capture the isolated 200% FileCat window, then create the matching .filter.resume file.\n")
+            deadline = time.monotonic() + 120
+            while not filter_resume.exists():
+                if time.monotonic() >= deadline or process.poll() is not None:
+                    raise AssertionError("The bounded scaled-filter capture pause expired")
+                time.sleep(.2)
         step("Escape restores the inline filter and focused row", key("escape"), says("c.txt"))
         # A viewer search reports its result count through a live region.
         step("F3 opens the viewer", key("f3"), says("FileCat Viewer"))
@@ -345,6 +383,8 @@ def main():
         report["error"] = f"{type(exc).__name__}: {exc}"
         raise
     finally:
+        filter_ready.unlink(missing_ok=True)
+        filter_resume.unlink(missing_ok=True)
         for owned in (process, orca):
             if owned is not None and owned.poll() is None:
                 owned.terminate()
