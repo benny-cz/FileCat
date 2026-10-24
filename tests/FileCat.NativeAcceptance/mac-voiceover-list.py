@@ -264,6 +264,8 @@ def run(bundle, report_path, actions=False, copy_action=False, review=False, rev
             if returned.get("title") != "b.txt" or ", not marked," not in returned.get("help", ""):
                 raise AssertionError("Cancel did not restore the unmarked b.txt source-row focus")
             receipt["copyAction"]["returnedRowSpoken"] = any("b.txt" in phrase for phrase in heard_return)
+            if not receipt["copyAction"]["returnedRowSpoken"]:
+                raise AssertionError("VoiceOver did not speak the restored b.txt source row after Copy cancellation")
         if review:
             osa('tell application "System Events" to key code 49')
             time.sleep(.4)

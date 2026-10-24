@@ -20,7 +20,8 @@ namespace FileCat.App.Views;
 /// In-window modal dialogs on a dimmed backdrop. Keyboard-first: Enter confirms, Esc cancels, Tab cycles
 /// inside the dialog, and focus returns to where it was when the dialog closes (plan §4.3).
 /// </summary>
-public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallbackFocus) : IDialogService
+public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallbackFocus,
+    Action<FileListControl>? announceRestoredRow = null) : IDialogService
 {
     private int _open;
 
@@ -292,6 +293,20 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             {
                 if (restore is Control control) Controls.ListKeys.Focus(control);
                 else restore?.Focus();
+                if (announceRestoredRow is not null &&
+                    remaining is null && restore is FileListControl list &&
+                    TopLevel.GetTopLevel(host) is Window window)
+                {
+                    // Speak the current row after the modal's AX subtree retires.
+                    // A second focus event for the same VoiceOver cursor does not
+                    // speak the filename, even though the AX focus is correct.
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (revision == _focusRevision && !IsOpen && list.IsFocused &&
+                            ReferenceEquals(window.FocusManager?.GetFocusedElement(), list))
+                            announceRestoredRow(list);
+                    }, DispatcherPriority.Background);
+                }
             }
         }, DispatcherPriority.Input);
     }

@@ -98,6 +98,46 @@ public sealed class DialogFocusOwnershipTests
     }
 
     [AvaloniaFact]
+    public async Task Restored_row_is_announced_only_after_the_last_modal_releases_its_focus()
+    {
+        using var f = new FileListFixture("b.txt");
+        await f.Load();
+        var content = Assert.IsAssignableFrom<Control>(f.Window.Content);
+        f.Window.Content = null;
+        var host = new Grid();
+        f.Window.Content = new Grid { Children = { content, host } };
+        f.List.Focus();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(f.List.IsFocused);
+        var announced = new List<string>();
+        var dialogs = new OverlayDialogService(host, () => f.List,
+            list => announced.Add(list.DescribeFocus()));
+        try
+        {
+            var first = dialogs.PromptAsync(new PromptOptions("First", "Name"));
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(f.List.IsFocused);
+            dialogs.CancelAll();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(first.IsCompletedSuccessfully);
+            Assert.True(f.List.IsFocused);
+            Assert.Single(announced);
+            Assert.Contains("b.txt", announced[0]);
+
+            var retired = dialogs.PromptAsync(new PromptOptions("Retired", "Name"));
+            Dispatcher.UIThread.RunJobs();
+            dialogs.CancelAll();
+            var current = dialogs.PromptAsync(new PromptOptions("Current", "Name"));
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(retired.IsCompletedSuccessfully);
+            Assert.False(current.IsCompleted);
+            Assert.Single(announced);
+            Assert.False(f.List.IsFocused);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); }
+    }
+
+    [AvaloniaFact]
     public void Closing_an_inner_prompt_returns_to_the_outer_input_and_preserves_its_caret()
     {
         var (window, host, _, dialogs) = Open();

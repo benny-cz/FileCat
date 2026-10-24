@@ -61,6 +61,10 @@
       <TextBlock x:Name="ResizeText" Classes="small" TextWrapping="Wrap" />
     </Border>
 
+    <!-- Kept in the AX tree so a restored list row can be spoken after a modal closes. -->
+    <TextBlock x:Name="RestoredFocusAnnouncement" Grid.Row="1" Width="1" Height="1" Opacity="0"
+               IsHitTestVisible="False" AutomationProperties.LiveSetting="Polite" />
+
     <local:OperationsView x:Name="OperationsPane" Grid.Row="2" DataContext="{Binding Operations}" />
 
     <Border Grid.Row="3" Classes="status" IsVisible="{Binding ShowCommandLine}">

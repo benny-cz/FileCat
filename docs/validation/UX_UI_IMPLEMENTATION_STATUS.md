@@ -1,5 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac spoken row restoration after Copy cancellation
+(FCUX-004/010):** Repeating the native AX focus event for the same row did not
+make VoiceOver speak its filename. The main window now keeps a quiet,
+non-interactive polite live region in the AX tree and announces the current
+row's name and details only after the last modal has closed and that same
+list still owns keyboard focus. A newer modal or focus move cancels the
+announcement. `DialogFocusOwnershipTests` passed 27/27 focused cases on
+Windows and 12/12 modal cases on Mac. The strict muted native VoiceOver
+Copy-cancel journey on the signed Mac app (DLL SHA-256
+`0ec2838a210fed389cf7ab48e541260cfcf7858c6c31659dc6c30d6a066633ce`)
+heard “Focus returned to b.txt, file, 5 bytes…” on two consecutive runs
+while AX focus remained on the unmarked `b.txt` row; the same build passed
+the viewer return-focus journey
+(`mac-voiceover-copy-action-focus-speech-20261024-r2/r3.json`,
+`mac-voiceover-viewer-action-focus-speech-20261024-r1.json`). The native
+runner now fails if Copy cancellation does not speak the restored filename.
+Other modal routes and final-head CI remain open.
+
 **24 October 2026, native Windows 2,001-file FTP/FTPS/SFTP listings
 (FCUX-010):** `win-ax-remote-large-listing.ps1` passed plain FTP, explicit-TLS
 FTPS and SFTP on the Win11 VMware guest using a fresh detached Git worktree at
@@ -118,7 +136,8 @@ passed the actual muted VoiceOver Copy journey: it spoke “Copy” on entry,
 focused the Destination field, exposed the close X and Copy action, then
 returned AX focus to the unchanged `b.txt` row after Escape
 (`mac-voiceover-copy-action-macfix-20261024-r1.json`). The previously observed
-failure to speak that restored row remains open. Final-head CI remains open.
+failure to speak that restored row was subsequently fixed and verified in
+the Mac spoken row restoration run above. Final-head CI remains open.
 
 The Ubuntu Orca runner now starts under the logged-in Wayland backend when
 invoked over SSH and fails promptly if its owned Orca exits. Its mark assertion

@@ -60,8 +60,14 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _vm = vm;
         DataContext = vm;
         UpdateNotificationLiveSettings();
+        LiveRegions.Watch(RestoredFocusAnnouncement);
         Classes.Set("comfortable", ReadabilityPolicy.Comfortable(vm.Services.Settings.RowDensity));
-        _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List);
+        _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List, list =>
+        {
+            if (!OperatingSystem.IsMacOS()) return;
+            RestoredFocusAnnouncement.Text = "Focus returned to " + list.DescribeFocus();
+            LiveRegions.Repeat(RestoredFocusAnnouncement);
+        });
         vm.Dialogs = _dialogs;
         vm.View = this;
         // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
