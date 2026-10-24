@@ -119,11 +119,10 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation
    passes at both supported 1× and Retina 2× modes; Copy, Move and Delete also
-   pass in a 640 × 480 point window at Retina 2×, with Copy repeated at 1×.
+   pass in a 640 × 480 point window at both Retina 2× and 1×.
    Open-dialog SIGTERM with an unsubmitted draft passes at Retina 2×. Capture
-   Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
-   synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
-   agrees.
+   Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
+   upstream if the owner agrees.
 
 ## Evidence required to finish
 

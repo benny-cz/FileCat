@@ -1,9 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Ubuntu scaled popup and Find acceptance (UXBUG-016):**
+The Git-built `278b8655` app passed physical Shift+F10 context-menu and
+Alt+F7 Find journeys at GNOME 200% scale. A bounded native runner pause let
+the VM capture both open states; the menu and Find controls fit within the
+2560 × 1600 physical display with readable labels and visible actions
+(`ubuntu-popup-200-278b8655.png`, `ubuntu-find-200-278b8655.png` in the
+isolated VM validation directory). The runner's
+`ubuntu-keybar-scaled-visual-278b8655.json` report confirms the menu and
+Find windows opened, Esc restored the twelve-key bar after each, the source
+hash and empty target remained unchanged, and the display scale was 2.0.
+GNOME's Alt+F7 window-move binding was restored exactly; the runner stopped
+its owned FileCat process and removed all capture markers. The two captures
+were verified byte identical after transfer into the VM validation directory.
+
 **24 October 2026, Mac minimum-window dialog pointer acceptance
 (UXBUG-016):** Copy, Move and Delete review dialogs passed native close-X and
-backdrop mouse cancellation in a 640 × 480 point FileCat window at Retina 2×;
-Copy also passed at 1×. Native AX confirmed each enabled approval button was
+backdrop mouse cancellation in a 640 × 480 point FileCat window at Retina 2×
+and 1×. Native AX confirmed each enabled approval button was
 inside the narrowed window and measured the accessible close button at 30 ×
 30 points. Exact fixture bytes and the empty destination survived every
 cancellation. The first narrow attempt was a test-runner error: a transient
@@ -21,6 +35,13 @@ related dialog/focus cases passed with 16 workers. The Mac signed build uses
 an isolated locally installed .NET 10 SDK; its focused App suite passed 6/6.
 The privileged Windows `$LogFile` retry correction passed all five lanes of
 CI run `40075217938`; the final-head five-lane gate remains open.
+
+The further 1× minimum-window Move and Delete runs passed with the same
+signed build (`mac-dialog-move-pointer-narrow-1x-overlayroot-20261024-r1.json`,
+`mac-dialog-delete-pointer-narrow-1x-overlayroot-20261024-r1.json`). Each
+recorded an in-window approval button and close target, delivered native X and
+backdrop clicks, preserved the byte-exact source, and restored the original
+Retina display mode.
 
 **24 October 2026, Mac dialog pointer scaling (UXBUG-016):** The signed
 `20df90d0` build repeated Create folder, Copy, Move and Delete native close-X

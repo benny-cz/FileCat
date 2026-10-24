@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the key bar recovers when a popup or Find window receives modifier release.
 
-Usage: linux-atspi-keybar-popup.py APP_PATH REPORT.json KEY_HELPER [--expect-find]
+Usage: linux-atspi-keybar-popup.py APP_PATH REPORT.json KEY_HELPER [--expect-find] [--pause]
 Run in the logged-in Ubuntu session. The isolated Git-built app, report and
 test input helper must live below ~/FileCatValidation. Pass the guest's sudo
 password only through FILECAT_NATIVE_SUDO_PASSWORD for the physical uinput
@@ -65,9 +65,12 @@ def keybar(app):
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--expect-find":
+    options = sys.argv[4:]
+    if len(sys.argv) < 4 or options not in ([], ["--expect-find"],
+                                           ["--expect-find", "--pause"]):
         raise SystemExit(__doc__)
-    expect_find = len(sys.argv) == 5
+    expect_find = "--expect-find" in options
+    pause = "--pause" in options
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, helper = (Path(value).resolve(strict=True) for value in (sys.argv[1], sys.argv[3]))
     report_path = Path(sys.argv[2]).resolve()
@@ -75,6 +78,18 @@ def main():
             helper.name != "linux-uinput-key.py" or validation not in helper.parents or
             report_path.parent != validation):
         raise SystemExit("Use only the owned app, input helper and report under FileCatValidation")
+    markers = [(validation / f"{report_path.stem}.{stage}.{suffix}")
+               for stage in ("menu", "find") for suffix in ("ready", "resume")]
+    if pause and any(marker.exists() for marker in markers):
+        raise SystemExit("A previous capture marker exists for this report")
+
+    def capture_pause(stage):
+        if not pause:
+            return
+        ready = validation / f"{report_path.stem}.{stage}.ready"
+        resume = validation / f"{report_path.stem}.{stage}.resume"
+        ready.write_text(stage + "\n", encoding="utf-8")
+        wait_for(resume.exists, f"{stage} capture to resume", seconds=120)
     sudo_password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     if not sudo_password:
         raise SystemExit("Transient guest sudo authentication is required for physical key input")
@@ -128,6 +143,7 @@ def main():
                             "the keyboard-opened context menu")
             report["steps"].append({"action": "Shift+F10", "menu": menu[:20],
                                     "keyBarWhileOpen": keybar(app)})
+            capture_pause("menu")
             send("escape")
             after_menu = wait_for(lambda: keybar(app) == baseline and keybar(app),
                                   "normal key bar after context menu dismissal")
@@ -147,6 +163,7 @@ def main():
                 raise AssertionError("Alt+F7 neither opened Find nor changed the held key-bar layer")
             report["steps"].append({"action": "Alt+F7", "findWindows": find_windows[:3],
                                     "keyBarWhileOpen": bar_after_alt})
+            capture_pause("find")
             send("escape")
             if find_windows:
                 wait_for(lambda: len(windows_of(process.pid)) == 1,
@@ -160,6 +177,9 @@ def main():
     except Exception as error:
         report["error"] = str(error)
     finally:
+        if pause:
+            for marker in markers:
+                marker.unlink(missing_ok=True)
         if process is not None and process.poll() is None:
             process.terminate()
             try:

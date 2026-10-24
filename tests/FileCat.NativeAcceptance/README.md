@@ -38,6 +38,10 @@ before starting FileCat, preserves fixture bytes, and kills only its own app.
 GNOME may reserve Alt+F7 for Move window. With `--expect-find`, the runner
 requires FileCat's Find window; temporarily release GNOME's `begin-move`
 binding for that route and restore its exact previous value afterward.
+With `--expect-find --pause`, the runner waits at bounded `<report-stem>.menu.ready`
+and `<report-stem>.find.ready` markers for native screen capture. Create each
+matching `.resume` file after capture. The runner removes all four markers
+when it finishes, including on failure.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
