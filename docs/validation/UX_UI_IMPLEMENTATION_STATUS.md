@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, FTP link traversal safety (FCUX-001):** A restored Ubuntu
+FTP/FTPS lab exposed that its MLSD response reports a directory symbolic link
+as a directory. FileCat's delete journey then followed that link and removed
+a file in its target. The FTP channel now cross-checks machine listings against
+LIST before jobs recurse, retains machine-listing names and metadata, and
+treats entries absent from the corroborating listing as opaque links. The live
+link test checks link identity before any mutation, preserves a hidden entry,
+and verifies the target file survives rename, move, replacement and recursive
+delete. A local pyftpdlib integration test checks the same classification and
+target preservation in CI. The temporary lab's SFTP and FTP link cases, trust
+and refused-upload cases, and the local integration test passed. The complete
+restored all-protocol suite is running; its result remains an open gate.
+
 **24 October 2026, live SFTP changed-source decisions (FCUX-001):** The
 isolated OpenSSH lab now covers a local Move source changed while a nonempty,
 incomplete SFTP upload stage is on the server. Cancel and Skip retained the
@@ -13,9 +26,8 @@ to 16 build workers. A separate full run with the live lab enabled passed
 2,434 cases, skipped 139 and failed 10: the rebooted Ubuntu guest has SSH on
 port 22 but no FTP/FTPS listeners on ports 21 or 990, so those FTP cases
 could not connect or reach their certificate prompts. The focused SFTP cases
-passed in that live run. Restore the optional FTP/FTPS lab before rerunning
-the all-protocol live gate; no product regression was inferred from absent
-services.
+passed in that live run. The FTP/FTPS lab was subsequently restored as
+described above; no product regression was inferred from absent services.
 
 **24 October 2026, Windows scaled Hex Find acceptance (FCUX-007):** The clean
 Win11 VMware Git checkout at `9cfb6b3c` built successfully with eight guest

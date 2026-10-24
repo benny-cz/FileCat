@@ -210,14 +210,32 @@ internal sealed partial class FtpChannel : ISftpChannel
     public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => Run(() =>
     {
         var items = _client.GetListing(Safe(path), FtpListOption.AllFiles);
+        // Some FTP servers report a link to a directory as type=dir in MLSD. Keep MLSD's
+        // complete names and precise metadata, but corroborate its types with LIST before a
+        // job can recurse. An item absent from LIST is opaque: treating it as a link prevents
+        // descent through an unverified directory (including a hidden one).
+        Dictionary<string, FtpListItem>? listByName = null;
+        if (_client.HasFeature(FtpCapability.MLST))
+        {
+            listByName = new Dictionary<string, FtpListItem>(StringComparer.Ordinal);
+            foreach (var listed in _client.GetListing(Safe(path), FtpListOption.ForceList))
+            {
+                ct.ThrowIfCancellationRequested();
+                string listedName = ExactName(listed.Name, listed.Input, listed.Type == FtpObjectType.Link ? listed.LinkTarget : null);
+                if (listedName is not ("." or ".." or "")) listByName.TryAdd(listedName, listed);
+            }
+        }
         var list = new List<IRemoteEntry>(items.Length);
         foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
             string name = ExactName(item.Name, item.Input, item.Type == FtpObjectType.Link ? item.LinkTarget : null);
             if (name is "." or ".." or "") continue;
-            list.Add(new FtpEntry(this, _client, name, RemotePath.Combine(path, name), item.Type == FtpObjectType.Directory,
-                item.Type == FtpObjectType.Link, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified), TimePrecision(item.Input)));
+            bool isLink = item.Type == FtpObjectType.Link;
+            if (listByName is not null)
+                isLink |= !listByName.TryGetValue(name, out var listed) || listed.Type == FtpObjectType.Link || listed.Input?.StartsWith('l') == true;
+            list.Add(new FtpEntry(this, _client, name, RemotePath.Combine(path, name), item.Type == FtpObjectType.Directory && !isLink,
+                isLink, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified), TimePrecision(item.Input)));
         }
         return (IReadOnlyList<IRemoteEntry>)list;
     });

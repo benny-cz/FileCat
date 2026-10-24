@@ -99,7 +99,8 @@ public sealed class RemoteLabTests : IDisposable
     {
         Directory.CreateDirectory(state);
         var connections = new SftpConnections(id => id == profile.Id ? profile : null, new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
-            new HostKeyTrust(Path.Combine(state, "known_hosts")), new SessionSecretStore(), interaction,
+            // Live tests own their trust decisions; the developer's OpenSSH entries must not change the first-use result.
+            new HostKeyTrust(Path.Combine(state, "known_hosts"), []), new SessionSecretStore(), interaction,
             new CertificateTrust(Path.Combine(state, "trusted_certificates")));
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
@@ -739,7 +740,7 @@ public sealed class RemoteLabTests : IDisposable
             Assert.True(run.ExitStatus == 0, $"{command}: {run.Error}");
             return run.Result;
         }
-        Shell($"cd && mkdir {root} && cd {root} && mkdir real into up doomed && echo target > target.txt && echo kept > real/inside.txt"
+        Shell($"cd && mkdir {root} && cd {root} && mkdir real into up doomed && echo target > target.txt && echo hidden > .hidden && echo kept > real/inside.txt"
             + " && ln -s target.txt 'file link' && ln -s real 'dir link' && ln -s ../target.txt up/a.txt && ln -s ../target.txt up/b.txt"
             + " && ln -s ../real doomed/to-real");
         string local = Directory.CreateDirectory(Path.Combine(_dir, "links-src-" + protocol)).FullName;
@@ -748,6 +749,19 @@ public sealed class RemoteLabTests : IDisposable
         var at = SftpProvider.At(profile, root);
         try
         {
+            // Fail before any mutation if the server's metadata conceals a link. In particular,
+            // deleting doomed/to-real must not descend into real/inside.txt.
+            using (var lease = stack.Connections.Lease(profile.Id, TestContext.Current.CancellationToken))
+            {
+                var top = lease.Channel.List(root, TestContext.Current.CancellationToken);
+                var doomed = lease.Channel.List(root + "/doomed", TestContext.Current.CancellationToken);
+                TestContext.Current.TestOutputHelper?.WriteLine("top: " + string.Join("; ", top.Select(e => $"{e.Name} link={e.IsLink} dir={e.IsDirectory}")));
+                TestContext.Current.TestOutputHelper?.WriteLine("doomed: " + string.Join("; ", doomed.Select(e => $"{e.Name} link={e.IsLink} dir={e.IsDirectory}")));
+                Assert.True(top.Single(e => e.Name == "file link").IsLink);
+                Assert.True(top.Single(e => e.Name == "dir link").IsLink);
+                Assert.False(top.Single(e => e.Name == ".hidden").IsLink);
+                Assert.True(doomed.Single(e => e.Name == "to-real").IsLink);
+            }
             var jobs = new[]
             {
                 await RunAsync(stack, new JobRequest { Kind = JobKind.Rename, Sources = [new ItemRef(at, "file link", EntryKind.File)], NewName = "renamed link" }),
@@ -773,6 +787,7 @@ public sealed class RemoteLabTests : IDisposable
             // On every server: the targets stay where they were, as they were; a replaced link is now the uploaded file,
             // and a deleted folder's link took nothing with it.
             Assert.Contains("f ./target.txt>", lines);
+            Assert.Contains("f ./.hidden>", lines);
             Assert.Contains("d ./real>", lines);
             Assert.Contains("f ./real/inside.txt>", lines);
             Assert.Contains("f ./up/a.txt>", lines);
@@ -956,20 +971,38 @@ public sealed class RemoteLabTests : IDisposable
         using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "refused-" + protocol));
         string file = Path.Combine(Directory.CreateDirectory(Path.Combine(_dir, "refused-src-" + protocol)).FullName, "note.txt");
         File.WriteAllText(file, "not allowed here");
-        // The server's root folder: the test account may read it, not write it. The job asks what to do; skip.
-        stack.Jobs.DecisionRequested += d => d.Resolve(new Decision(DecisionAction.Skip));
-        var job = await RunAsync(stack, new JobRequest
+        // An FTP server may map / to the account's writable home. Make the refusal inside a unique
+        // read-only directory visible through every protocol, so the test cannot touch a stale /note.txt.
+        string root = "filecat-lab-refused-" + Guid.NewGuid().ToString("N")[..8];
+        using var shell = new Renci.SshNet.SshClient(lab.Host, 22, lab.User, lab.Password);
+        shell.Connect();
+        void Shell(string command)
         {
-            Kind = JobKind.Copy,
-            Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)],
-            Destination = SftpProvider.At(profile, "/"),
-        });
-        Assert.NotEqual(JobState.Completed, job.State);
-        Assert.Equal(1, job.ItemsFailed + job.ItemsSkipped);
-        var issue = Assert.Single(job.Issues, i => i.Severity == IssueSeverity.Error);
-        Assert.Matches("(?i)permission|denied|not allowed|refused", issue.Message);
-        using var check = stack.Connections.Lease(profile.Id, TestContext.Current.CancellationToken);
-        Assert.DoesNotContain(check.Channel.List("/", TestContext.Current.CancellationToken), e => e.Name == "note.txt" || e.Name.StartsWith(".fc", StringComparison.Ordinal));
+            using var run = shell.RunCommand(command);
+            Assert.True(run.ExitStatus == 0, $"{command}: {run.Error}");
+        }
+        Shell($"cd && mkdir -- {root} && chmod 555 -- {root}");
+        try
+        {
+            stack.Jobs.DecisionRequested += d => d.Resolve(new Decision(DecisionAction.Skip));
+            var job = await RunAsync(stack, new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)],
+                Destination = SftpProvider.At(profile, root),
+            });
+            Assert.NotEqual(JobState.Completed, job.State);
+            Assert.Equal(1, job.ItemsFailed + job.ItemsSkipped);
+            var issue = Assert.Single(job.Issues, i => i.Severity == IssueSeverity.Error);
+            Assert.Matches("(?i)permission|denied|not allowed|refused", issue.Message);
+            using var check = stack.Connections.Lease(profile.Id, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain(check.Channel.List(root, TestContext.Current.CancellationToken),
+                e => e.Name == "note.txt" || e.Name.StartsWith(".fc", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Shell($"cd && chmod 755 -- {root} && rm -rf -- {root}");
+        }
     }
 
     [Theory]

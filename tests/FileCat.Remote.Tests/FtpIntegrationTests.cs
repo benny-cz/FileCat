@@ -208,6 +208,35 @@ public sealed class FtpIntegrationTests : IDisposable
 {
     private readonly string _state = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-ftp-state", Guid.NewGuid().ToString("N")[..8])).FullName;
 
+    [Fact]
+    public void An_MLSD_server_cannot_hide_a_directory_link_from_the_delete_listing()
+    {
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        string real = Directory.CreateDirectory(Path.Combine(server.Root, "real")).FullName;
+        string doomed = Directory.CreateDirectory(Path.Combine(server.Root, "doomed")).FullName;
+        string kept = Path.Combine(real, "kept.txt");
+        File.WriteAllText(kept, "keep this target");
+        File.WriteAllText(Path.Combine(server.Root, ".hidden"), "keep hidden entries visible");
+        try { Directory.CreateSymbolicLink(Path.Combine(doomed, "to-real"), real); }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && (ex is UnauthorizedAccessException or IOException))
+        {
+            Assert.Skip("This Windows runner cannot create a symbolic link for the FTP fixture.");
+        }
+
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = true;
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, TestContext.Current.CancellationToken);
+        Assert.Contains(lease.Channel.List(".", TestContext.Current.CancellationToken), e => e.Name == ".hidden");
+        var link = Assert.Single(lease.Channel.List("doomed", TestContext.Current.CancellationToken));
+        Assert.Equal("to-real", link.Name);
+        Assert.True(link.IsLink);
+        link.Delete();
+        Assert.Empty(lease.Channel.List("doomed", TestContext.Current.CancellationToken));
+        Assert.Equal("keep this target", File.ReadAllText(kept));
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_state, true); } catch (IOException) { }

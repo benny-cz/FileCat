@@ -14,10 +14,10 @@ increments to `main`.
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
-- Restore the Ubuntu VM's disposable FTP/FTPS lab services after its restart.
-  SSH is active, but the live all-protocol Remote run cannot connect to FTP
-  or FTPS on ports 21 and 990. Rerun that lab gate once its test servers are
-  available; the portable Remote suite and focused live SFTP decisions passed.
+- Complete the restored Ubuntu SFTP/FTP/FTPS lab gate after the FTP symbolic-link
+  safety repair. The temporary listeners are active on the private VMware
+  network; focused link, trust and refused-upload cases pass. Validate the
+  full suite and repeat link handling against a distinct FTP server implementation.
 - Spoken acceptance now has native harnesses: `linux-orca-speech.py` reads
   Orca's own speech log in the Ubuntu VM, `win-nvda-speech.ps1` reads a signed
   portable NVDA 2026.2 log in the Win11 VM (below
