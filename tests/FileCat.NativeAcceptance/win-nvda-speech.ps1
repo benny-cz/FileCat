@@ -193,6 +193,7 @@ try {
             # A comma-separated key sequence, such as typed text followed by Enter; Ctrl chords by name.
             foreach ($name in $key.Split(',')) {
                 if ($name -eq 'CtrlShiftP') { [FileCatNvdaInput]::Chord2(0x11, 0x10, 0x50) }
+                elseif ($name -eq 'CtrlShiftF') { [FileCatNvdaInput]::Chord2(0x11, 0x10, 0x46) }
                 elseif ($chords.ContainsKey($name)) { [FileCatNvdaInput]::Chord(0x11, [byte]$chords[$name]) }
                 else { [FileCatNvdaInput]::Press([byte]$virtualKeys[$name][0], [bool]$virtualKeys[$name][1]) }
                 Start-Sleep -Milliseconds 80
@@ -255,6 +256,9 @@ try {
     Step 'typing an unclosed mask is announced' 'Slash' 'Unclosed regular expression in mask.'
     Step 'Enter on the rejected mask explains it again' 'A,Enter' 'Unclosed regular expression in mask.'
     Step 'Escape closes Quick filter' 'Escape' 'c.txt'
+    Step 'Ctrl+Shift+F focuses the inline Filter field' 'CtrlShiftF' 'Filter'
+    Step 'Enter rejects an invalid inline filter' 'Slash,Enter' 'Unclosed regular expression in mask.'
+    Step 'Escape restores the current file row' 'Escape' 'c.txt'
     # A viewer search reports its result count through a live region.
     Step 'F3 opens the viewer' 'F3' 'FileCat Viewer'
     Step 'F7 opens the viewer search' 'F7' 'Find in file'
