@@ -60,7 +60,7 @@ increments to `main`.
    For FCUX-007, finish the other scaled layouts with real pointer and
    keyboard input and the remaining assistive-technology routes. The measured
    narrow 200% Windows Hex route and first-click selection now pass; NVDA
-   spoke the Hex match counts in order on Windows at 100%.
+   spoke the Hex match counts in order on Windows at 100% and 200%.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

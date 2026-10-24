@@ -104,20 +104,20 @@ try {
     Start-Sleep -Seconds 2
     $speech = @(Get-Content -LiteralPath $log -Encoding UTF8 |
         Where-Object { $_.StartsWith('Speaking [') })
-    $matches = @()
+    $spokenHits = @()
     $cursor = 0
     foreach ($expected in $result.expectedSpeech) {
         $pattern = '(?<!\d)' + [regex]::Escape($expected) + '(?!\d)'
         $found = -1
         for ($i = $cursor; $i -lt $speech.Count; $i++) {
-            if ($speech[$i] -match $pattern) { $found = $i; break }
+            if ([regex]::IsMatch($speech[$i].ToString(), $pattern)) { $found = $i; break }
         }
         if ($found -lt 0) { throw "NVDA did not speak '$expected' in order." }
-        $matches += [ordered]@{ expected = $expected; logIndex = $found;
+        $spokenHits += [ordered]@{ expected = $expected; logIndex = $found;
             spoken = $speech[$found].ToString() }
         $cursor = $found + 1
     }
-    $result.spokenMatches = $matches
+    $result.spokenMatches = $spokenHits
     $result.passed = $true
 } catch {
     $result.error = $_.Exception.Message
