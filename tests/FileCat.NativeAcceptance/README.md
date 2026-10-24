@@ -1006,7 +1006,12 @@ AT-SPI tree, because enumerating it would create the nodes whose focus
 announcements are under test. Physical uinput keys perform the same journey as
 the NVDA runner, including both copy notices and the rejected Quick filter
 mask, which FileCat sends as AT-SPI announcements, and end with a switch to a test-owned X11 GTK window and back;
-the report records how often the focused file was named on return. Supply
+the report records how often the focused file was named on return. It also
+checks that the marked b.txt state is spoken after the two-source rename
+review closes and records repeated row descriptions for diagnosis. Orca uses
+the logged-in Wayland backend even when the SSH caller supplies XWayland's
+`DISPLAY`; otherwise GTK can exit on `X_QueryPointer` before speaking.
+Supply
 `FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process, as for the other
 uinput checks. `--record-all` keeps a complete transcript after an unmet
 expectation.

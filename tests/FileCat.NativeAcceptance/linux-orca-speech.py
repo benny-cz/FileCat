@@ -105,8 +105,13 @@ def main():
     speech = SpeechLog(fixture / "orca-debug.log")
     orca = process = None
     try:
+        # The logged-in GNOME session is Wayland. Over SSH, DISPLAY alone can
+        # make GTK choose Xwayland; Orca then may exit on X_QueryPointer's
+        # BadWindow before speaking any FileCat item.
+        orca_env = {**os.environ, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
         orca = subprocess.Popen(["/usr/bin/python3", "-c", ORCA_WRAPPER, str(speech.path)],
-                                stdout=subprocess.DEVNULL, stderr=(fixture / "orca.err").open("wb"))
+                                env=orca_env, stdout=subprocess.DEVNULL,
+                                stderr=(fixture / "orca.err").open("wb"))
         deadline = time.monotonic() + 20
         while not any("Screen reader on" in phrase for phrase in speech.take()):
             if time.monotonic() > deadline or orca.poll() is not None:
@@ -145,6 +150,8 @@ def main():
             action()
             heard, deadline = [], time.monotonic() + seconds
             while time.monotonic() < deadline:
+                if orca.poll() is not None:
+                    raise AssertionError(f"The test-owned Orca exited with {orca.returncode} during {label}")
                 heard += speech.take()
                 if any(expect(phrase) for phrase in heard):
                     time.sleep(0.6)
@@ -246,13 +253,10 @@ def main():
         step("focus first rename source", key("down"), says("a.txt"))
         step("mark a.txt and focus b.txt", key("shift+down"), says("b.txt"))
         step("mark b.txt and focus c.txt", key("shift+down"), says("c.txt"))
-        marked_b_spoken = any("file, 5 bytes" in phrase and ", marked," in phrase
-                              for phrase in report["steps"][-1]["heard"])
-        report["steps"].append({"step": "Orca announces the newly marked b.txt",
-                                "heard": report["steps"][-1]["heard"], "passed": marked_b_spoken})
-        if not marked_b_spoken and not record_all:
-            raise AssertionError("Orca did not announce the exact newly marked b.txt row")
-        key("up")()  # Keep b.txt focused; Orca may suppress repeating it immediately.
+        # Shift+Down marks the row being left. Move back to b.txt for the
+        # review, then judge its spoken marked state when Esc restores focus;
+        # Orca can suppress a rapid repeat while navigating into the review.
+        key("up")()
         speech.take()
         step("open two-item rename review", key("ctrl+m"), says("Bulk rename"))
 
@@ -307,11 +311,23 @@ def main():
         mapping_step("Next mapping speaks complete b.txt paths", button("Next rename mapping"), 2, "b.txt")
         mapping_step("Previous mapping speaks complete a.txt paths", button("Previous rename mapping"), 1, "a.txt")
         step("cancel spoken rename review", key("escape"), says("b.txt"))
+        marked_b_spoken = any("file, 5 bytes" in phrase and ", marked," in phrase
+                              for phrase in report["steps"][-1]["heard"])
+        report["steps"].append({"step": "Orca announces the newly marked b.txt after review",
+                                "heard": report["steps"][-1]["heard"], "passed": marked_b_spoken})
+        if not marked_b_spoken and not record_all:
+            raise AssertionError("Orca did not announce the exact newly marked b.txt row")
 
         if sorted(path.name for path in source.iterdir()) != sorted(expected) or any(target.iterdir()):
             raise AssertionError("The speech journey changed the owned fixture folders")
         if any(sha256(source / name) != digest for name, digest in source_sha.items()):
             raise AssertionError("A source file changed during the speech journey")
+        report["rowHelpRepetitions"] = {}
+        for name, label in (("a.txt", "down to a.txt"), ("b.txt", "down to b.txt"),
+                            ("c.txt", "down to c.txt")):
+            heard = next(entry["heard"] for entry in report["steps"] if entry["step"] == label)
+            descriptions = [phrase.rstrip(" .") for phrase in heard if phrase.startswith("file, ")]
+            report["rowHelpRepetitions"][name] = max((descriptions.count(value) for value in set(descriptions)), default=0)
         report["passed"] = all(entry["passed"] for entry in report["steps"])
         if not report["passed"]:
             raise AssertionError("Orca did not announce every expected focus change")

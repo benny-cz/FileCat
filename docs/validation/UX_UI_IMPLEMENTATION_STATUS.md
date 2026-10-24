@@ -1,5 +1,32 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac dialog title CI repair and Ubuntu Orca journey:**
+The macOS App lane on `0fdd8d4f` exposed 13 regressions after the new Copy
+dialog title announcement: a headless Mac window produced an extra live-region
+phrase and retained closed dialog controls and icon borrowers. `DialogCard`
+now enables that title's polite live setting only after attachment to a real
+native macOS window. The affected Mac App tests passed 14/14 on the Git-built
+candidate with 16 workers; the same 14 passed on Windows. A signed native Mac
+bundle with app DLL SHA-256
+`df5104138969f85a02275794408d95e4830ac95dee22e661760e5415ce6148cb`
+passed the actual muted VoiceOver Copy journey: it spoke “Copy” on entry,
+focused the Destination field, exposed the close X and Copy action, then
+returned AX focus to the unchanged `b.txt` row after Escape
+(`mac-voiceover-copy-action-macfix-20261024-r1.json`). The previously observed
+failure to speak that restored row remains open. Final-head CI remains open.
+
+The Ubuntu Orca runner now starts under the logged-in Wayland backend when
+invoked over SSH and fails promptly if its owned Orca exits. Its mark assertion
+checks b.txt after the rename review returns focus, when Orca announces that
+row's updated state. On the Git-built `278b8655` candidate with app DLL SHA-256
+`5b7543d929e7fa33ed0bf53c05ffd44909c251186beae3cdc6edfdbd0127d1b0`,
+the actual Orca 50.2 journey passed all 39 speech checks, including the
+two-source rename review's complete paths, Previous/Next mappings, Cancel,
+and marked b.txt on return. The source and target remained byte-exact
+(`ubuntu-orca-list-check-candidate-r4.json`). The same report measured two
+spoken copies of each a.txt, b.txt and c.txt row detail, so the duplicate
+Orca tutorial/description remains open.
+
 **24 October 2026, native Ubuntu checksum scope and clipboard (FCUX-008):**
 The logged-in Ubuntu desktop exposed an Avalonia 12.1 AT-SPI gap: its read-only
 checksum result entry returned the fixed label “Checksum results” through the

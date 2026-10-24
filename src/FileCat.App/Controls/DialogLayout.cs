@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
@@ -51,8 +53,6 @@ internal sealed class DialogCard : Border
         var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*,Auto"), ColumnSpacing = 10 };
         titleLine.Children.Add(new Border { Classes = { "dialogAccent" }, Height = 20, VerticalAlignment = VerticalAlignment.Center });
         _titleText = new TextBlock { Text = title, Classes = { "dialogTitle" }, TextWrapping = TextWrapping.Wrap };
-        if (OperatingSystem.IsMacOS())
-            AutomationProperties.SetLiveSetting(_titleText, AutomationLiveSetting.Polite);
         Grid.SetColumn(_titleText, 1);
         titleLine.Children.Add(_titleText);
         var close = new Button
@@ -119,7 +119,13 @@ internal sealed class DialogCard : Border
         // VoiceOver can leave its last spoken phrase on a background listing update even
         // after native focus reaches the first field of an in-window dialog. Repeat the
         // visible title through the existing live-region bridge once layout is attached.
-        if (OperatingSystem.IsMacOS()) LiveRegions.Repeat(_titleText);
+        if (!OperatingSystem.IsMacOS() || TopLevel.GetTopLevel(this) is not Window window ||
+            ControlAutomationPeer.CreatePeerForElement(window) is not IRootProvider { PlatformImpl: { } platform }) return;
+        // Headless Mac tests have no native accessibility bridge. Publishing
+        // a live title there creates a peer that outlives a closed test dialog.
+        if (platform.GetType().Assembly.GetName().Name == "Avalonia.Headless") return;
+        AutomationProperties.SetLiveSetting(_titleText, AutomationLiveSetting.Polite);
+        LiveRegions.Repeat(_titleText);
     }
 
     /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>

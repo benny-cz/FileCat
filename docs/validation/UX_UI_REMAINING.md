@@ -54,8 +54,11 @@ increments to `main`.
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
    larger and provider-backed native listings across desktops.
-   Check Orca's repeated row description as a tutorial
-   message (Avalonia maps one help text to both AT-SPI properties).
+   Remove Orca's duplicate row details: the native 39-step journey passed,
+   but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
+   details spoken twice because Avalonia maps one help text to both AT-SPI
+   description and tutorial properties. Preserve size, mark and position
+   speech while correcting the duplication.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and
