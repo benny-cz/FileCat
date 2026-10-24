@@ -1915,6 +1915,14 @@ public sealed class ViewerWindow : Window
     {
         Avalonia.Automation.AutomationProperties.SetName(_checksumScope, "Checksum scope");
         Avalonia.Automation.AutomationProperties.SetName(_checksumResult, "Checksum results");
+        if (OperatingSystem.IsLinux())
+        {
+            // Avalonia 12.1's AT-SPI Text interface returns this entry's fixed
+            // accessible name instead of its value. Keep the complete, current
+            // result in its description so Orca can inspect the actual digest.
+            _checksumResult.TextChanged += (_, _) =>
+                Avalonia.Automation.AutomationProperties.SetHelpText(_checksumResult, _checksumResult.Text ?? string.Empty);
+        }
         var close = new Button { Content = "Close checksums" };
         close.Click += (_, _) =>
         {

@@ -53,6 +53,11 @@ public sealed class ViewerChecksumScopeTests
         Assert.InRange(origin.Y, 0, f.Viewer.Bounds.Height - box.Bounds.Height);
         Assert.True(box.IsReadOnly);
         Assert.Equal("Checksum results", AutomationProperties.GetName(box));
+        if (OperatingSystem.IsLinux())
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(f.Result, AutomationProperties.GetHelpText(box));
+        }
         box.SelectAll();
         Assert.Equal(f.Result, box.SelectedText);
         string result = f.Result;

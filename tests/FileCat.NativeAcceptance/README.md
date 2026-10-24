@@ -1144,6 +1144,17 @@ count, then close its viewer and app. Grant the helper native input access as
 for the Hex editor check. The JSON report records the executable hash and
 fixture path.
 
+`linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER` launches a
+Git-built app on an isolated five-byte binary, selects byte zero with a
+physical Shift+Left, then checks selected-byte and whole-file hashes. It
+requires the complete result in the checksum entry's AT-SPI description,
+SHA-256/CRC-32 and byte counts for each scope, unchanged clipboard until
+Copy results, exact clipboard text after each Copy, and unchanged source and
+destination. It uses the same guest-only uinput access and requires `xclip`
+to independently read and restore the XWayland clipboard. Set `DISPLAY`,
+`XAUTHORITY`, `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` to the logged-in
+desktop. The runner terminates only its own FileCat process.
+
 `linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
 desktop and the helper script above. It creates one short, exact Markdown
 fixture in the source folder, refreshes the panel, opens Page view and enters

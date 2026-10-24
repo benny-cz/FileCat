@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, native Ubuntu checksum scope and clipboard (FCUX-008):**
+The logged-in Ubuntu desktop exposed an Avalonia 12.1 AT-SPI gap: its read-only
+checksum result entry returned the fixed label “Checksum results” through the
+Text interface, leaving the actual digest unavailable there. On Linux the
+viewer now mirrors the complete current result into that entry's accessible
+description while keeping its concise name. The focused Linux App scope suite
+passed 13/13 with 16 workers, including a check that the description follows
+the completed result. An isolated Git-built candidate on the Ubuntu VM built
+with zero warnings (app DLL SHA-256
+`5b7543d929e7fa33ed0bf53c05ffd44909c251186beae3cdc6edfdbd0127d1b0`)
+and passed `linux-atspi-viewer-checksum.py`
+(`ubuntu-checksum-candidate-r7.json`): native
+Shift+Left selected byte zero; the selected-byte and whole-file SHA-256,
+CRC-32 and counts were exact; both complete results were exposed through
+AT-SPI; the XWayland clipboard retained its sentinel until each explicit
+Copy, then held the exact visible result; and the source and target stayed
+byte-exact. The runner uses `xclip` because a long-lived GTK test clipboard
+object cached its own sentinel after FileCat replaced the selection. Native
+incomplete-source and scaled/narrow checks remain open.
+
 **24 October 2026, Mac spoken in-window Copy entry (FCUX-004/010):** A new
 `mac-voiceover-list.py --copy-action` journey exposed a real speech gap:
 the native AX tree focused the Destination field of an actionable Copy review,
