@@ -11,7 +11,10 @@ and verifies the target file survives rename, move, replacement and recursive
 delete. A local pyftpdlib integration test checks the same classification and
 target preservation in CI. The temporary lab's SFTP and FTP link cases, trust
 and refused-upload cases, and the local integration test passed. The complete
-restored all-protocol suite is running; its result remains an open gate.
+restored SFTP/FTP/explicit TLS/implicit TLS Remote suite then passed 2,445
+cases, skipped 139 lab/platform cases and failed none in 6 minutes 21 seconds
+with up to 16 build workers. Link handling on another FTP implementation and
+the final-head CI gate remain open.
 
 **24 October 2026, live SFTP changed-source decisions (FCUX-001):** The
 isolated OpenSSH lab now covers a local Move source changed while a nonempty,

@@ -14,10 +14,10 @@ increments to `main`.
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
-- Complete the restored Ubuntu SFTP/FTP/FTPS lab gate after the FTP symbolic-link
-  safety repair. The temporary listeners are active on the private VMware
-  network; focused link, trust and refused-upload cases pass. Validate the
-  full suite and repeat link handling against a distinct FTP server implementation.
+- Repeat FTP symbolic-link safety, including a link to a directory, against a
+  distinct FTP server implementation. The restored Ubuntu pyftpdlib lab's full
+  SFTP/FTP/FTPS gate passed; its temporary listeners remain available on the
+  private VMware network for further provider checks.
 - Spoken acceptance now has native harnesses: `linux-orca-speech.py` reads
   Orca's own speech log in the Ubuntu VM, `win-nvda-speech.ps1` reads a signed
   portable NVDA 2026.2 log in the Win11 VM (below
