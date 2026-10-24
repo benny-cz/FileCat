@@ -1,5 +1,39 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, elevated Windows recovery admission (UXBUG-017):** The
+owner's disposable `G:` scan was refused despite no second FileCat window.
+An elevated Windows 11 VMware process census reproduced the cause without
+reading the source: of 75 processes, there were no FileCat or `dotnet` peers,
+but `Idle`, `System`, `Registry` and `Memory Compression` had no executable
+image. The production guard returned unknown because `Idle.HasExited` raised
+access denied, and the other three image queries returned Win32 error 31.
+The guard now skips PID 0 before its liveness query and exempts the other
+kernel bookkeeping entries only with their expected PID or session, name and
+no-image error. Other inaccessible executables still refuse recovery.
+Seven focused Windows identity tests and three focused App safety tests pass;
+the full Windows Platform suite passed 429/46 skipped/0 failed. The Git-built
+production `FileCat.InstanceSmoke` returned `running:false` in the same
+elevated VM after the fix, and `running:true` while a separate, isolated
+`FileCat.exe`-named process was alive. The test process, guest fixture and
+temporary VMware share were removed. The VM has no `G:` drive, so the actual
+updated UI scan of the owner's disposable volume remains a native acceptance
+check; no recovery-source bytes were written during this diagnosis.
+
+**24 October 2026, native Mac implicit-FTPS large listing (FCUX-010):** The
+same signed Git-built arm64 candidate (app DLL SHA-256
+`671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
+passed a fresh, owned 2,001-file implicit-TLS FTPS listing at Retina 2× and
+at the supported 1920 × 1200 1× display mode. Native AX exposed at most
+27–28 rows and visited 499–500 nodes; initial queries took 0.231/0.203
+seconds. Physical End reached the tail in 0.295/0.297 seconds, then physical
+Down reached `target.txt` in 0.781/0.801 seconds. The original source and
+remote bytes remained unchanged; the runner removed its server, test app
+and fixture. The 1× wrapper verified restoration of the original 1440 × 900
+logical / 2880 × 1800 physical Retina mode
+(`mac-ftps-implicit-large-list-20261024-r4.json`,
+`mac-ftps-implicit-large-list-1x-20261024-r5.json`). The AX probe now
+includes the final visible row within its bounded child inspection.
+
 **24 October 2026, Mac implicit-TLS replacement review (FCUX-001):** The
 native Mac runner now covers `ftps://` with its own loopback implicit-TLS
 server and fresh, connection-only certificate decision. The signed Git-built

@@ -15,8 +15,34 @@ public sealed partial class ProcessIdentityTests(ITestOutputHelper output)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows process metadata API.");
         Assert.Equal(Environment.ProcessPath, ProcessIdentity.ImagePath(Environment.ProcessId), ignoreCase: true);
-        Assert.Null(ProcessIdentity.ImagePath(0)); // Idle is not openable; this is not an absence exemption.
+        Assert.Null(ProcessIdentity.ImagePath(0)); // The recovery census checks its PID and error separately.
         Assert.Null(ProcessIdentity.ImagePath(-1));
+    }
+
+    [Theory]
+    [InlineData(0, "Idle", 0, 87)]
+    [InlineData(4, "System", 0, 31)]
+    [InlineData(164, "Registry", 0, 31)]
+    [InlineData(3376, "Memory Compression", 0, 31)]
+    public void Only_kernel_bookkeeping_entries_with_the_expected_no_image_failure_are_exempt(
+        int pid, string name, int session, int error)
+    {
+        var missing = new ProcessIdentity.ImagePathResult(null, error);
+        Assert.True(ProcessIdentity.IsKernelOnlyProcess(pid, name, session, missing));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(pid, name, session, new("C:\\app.exe", 0)));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(pid, name, session, new(null, 5 /* access denied */)));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(pid, name, session, new(null, 0)));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(pid, "FileCat", session, missing));
+        if (pid is not 0 and not 4)
+            Assert.False(ProcessIdentity.IsKernelOnlyProcess(pid, name, 1, missing));
+    }
+
+    [Fact]
+    public void A_same_named_user_process_or_wrong_kernel_pid_never_gets_the_exemption()
+    {
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(25, "Idle", 0, new(null, 87)));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(25, "System", 0, new(null, 31)));
+        Assert.False(ProcessIdentity.IsKernelOnlyProcess(4, "Registry", 0, new(null, 31)));
     }
 
     [Fact]
@@ -50,7 +76,10 @@ public sealed partial class ProcessIdentityTests(ITestOutputHelper output)
                     output.WriteLine($"Owned child {child.Id}: MainModule error {denied.NativeErrorCode}; limited image {image}");
 
                     SetOwnedDacl(ownedHandle, "D:(D;;0x1000;;;WD)(A;;GA;;;WD)"); // Deny the limited query as a negative control.
-                    Assert.Null(ProcessIdentity.ImagePath(child.Id));
+                    var blocked = ProcessIdentity.QueryImagePath(child.Id);
+                    Assert.Null(blocked.Path);
+                    Assert.Equal(5, blocked.Error);
+                    Assert.False(ProcessIdentity.IsKernelOnlyProcess(child.Id, "Registry", 0, blocked));
                     output.WriteLine($"Owned child {child.Id}: limited query denial returns unknown.");
                 });
         }

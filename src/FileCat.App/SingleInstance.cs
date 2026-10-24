@@ -56,6 +56,9 @@ public static partial class SingleInstance
                 if (process.Id == Environment.ProcessId || process.Id == additionallyExcludedProcessId) continue;
                 try
                 {
+                    // PID 0 is Windows' idle accounting entry, not an executable. Even HasExited can
+                    // raise access denied for it, before an image-path query is possible.
+                    if (OperatingSystem.IsWindows() && process.Id == 0 && process.ProcessName == "Idle") continue;
                     if (process.HasExited) continue;
                     if (OperatingSystem.IsMacOS())
                     {
@@ -71,9 +74,17 @@ public static partial class SingleInstance
                     }
                     // The existing test seam supplies an already selected candidate inventory. Production also
                     // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
-                    bool? match = identify is not null ? identify(process) : enumerate is not null ? true :
-                        names.Contains(process.ProcessName) ? true : IsFileCatAppHost(OperatingSystem.IsWindows()
-                            ? Platform.Windows.ProcessIdentity.ImagePath(process.Id) : process.MainModule?.FileName);
+                    bool? match;
+                    if (identify is not null) match = identify(process);
+                    else if (enumerate is not null || names.Contains(process.ProcessName)) match = true;
+                    else if (OperatingSystem.IsWindows())
+                    {
+                        var image = Platform.Windows.ProcessIdentity.QueryImagePath(process.Id);
+                        if (Platform.Windows.ProcessIdentity.IsKernelOnlyProcess(
+                                process.Id, process.ProcessName, process.SessionId, image)) continue;
+                        match = IsFileCatAppHost(image.Path);
+                    }
+                    else match = IsFileCatAppHost(process.MainModule?.FileName);
                     if (match == true) return true;
                     unknown |= match is null;
                 }

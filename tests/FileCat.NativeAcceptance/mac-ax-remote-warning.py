@@ -119,14 +119,11 @@ def click_node(node):
     run_command(["/opt/homebrew/bin/cliclick", f"c:{round(x + width / 2)},{round(y + height / 2)}"])
 
 
-def capture_screen(validation):
-    helper = validation / "FileCatCapture.app"
-    if not helper.is_dir():
-        return None
+def dismiss_account_notice():
     # A Mac lab account notice can float above the app for minutes and hide
     # the very warning this image must prove. Dismiss only its explicit Later
     # action, never a FileCat decision or a different system prompt.
-    run_command(["/usr/bin/osascript", "-e", '''
+    return run_command(["/usr/bin/osascript", "-e", '''
 tell application "System Events"
     if not (exists process "UserNotificationCenter") then return "absent"
     tell process "UserNotificationCenter"
@@ -141,6 +138,13 @@ tell application "System Events"
 end tell
 return "absent"
 '''])
+
+
+def capture_screen(validation):
+    helper = validation / "FileCatCapture.app"
+    if not helper.is_dir():
+        return None
+    dismiss_account_notice()
     before = set(validation.glob("native-screen-*.png"))
     run_command(["/usr/bin/open", "-a", str(helper)], seconds=30)
     return wait_for(lambda: next((str(path) for path in

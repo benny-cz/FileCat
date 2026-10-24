@@ -62,8 +62,8 @@ increments to `main`.
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions
-   and bounded native listings on other supported provider types beyond
-   FTP, explicit-TLS FTPS and SFTP.
+   and bounded native listings on other supported provider types; Windows
+   and Ubuntu still need implicit-TLS FTPS listings.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one
@@ -83,7 +83,9 @@ increments to `main`.
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
-   paths.
+   paths. For UXBUG-017, run the updated elevated Windows UI against the
+   owner's disposable `G:` (`FCTEST`) and confirm scan admission, a read-only
+   source and off-source recovery; the isolated Windows VM has no `G:` drive.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and

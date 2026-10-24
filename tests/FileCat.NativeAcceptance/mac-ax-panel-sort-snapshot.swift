@@ -79,7 +79,7 @@ func scan(_ element: AXUIElement, _ depth: Int) {
         }
     }
     let children = attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
-    for child in children.prefix(60) { scan(child, depth + 1) }
+    for child in children.prefix(80) { scan(child, depth + 1) }
 }
 for window in windows.prefix(5) { scan(window, 0) }
 let result: [String: Any] = ["visited": visited, "windows": windows.count, "nodes": nodes]

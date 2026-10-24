@@ -425,6 +425,15 @@ public sealed class RecoverySafetyTests
     }
 
     [Fact]
+    public void The_Windows_idle_accounting_entry_is_skipped_before_its_inaccessible_liveness_query()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows idle process metadata.");
+        Assert.False(SingleInstance.OtherFileCatRunning(
+            () => [System.Diagnostics.Process.GetProcessById(0)],
+            _ => throw new InvalidOperationException("PID 0 must never reach candidate identification.")));
+    }
+
+    [Fact]
     public void Privileged_recovery_census_accepts_only_the_matching_complete_reply()
     {
         const string nonce = "0123456789ABCDEF0123456789ABCDEF";

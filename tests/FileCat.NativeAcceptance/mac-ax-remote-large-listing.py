@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure native Mac AX latency for an owned 2,001-item FTP, FTPS or SFTP panel.
 
-Usage: mac-ax-remote-large-listing.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp
+Usage: mac-ax-remote-large-listing.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp
 The runner owns and removes its loopback server, data profile, app and fixture.
 """
 
@@ -28,6 +28,7 @@ app_pids = remote["app_pids"]
 click_ax = remote["click_ax"]
 click_node = remote["click_node"]
 run_command = remote["run_command"]
+dismiss_account_notice = remote["dismiss_account_notice"]
 set_field = remote["set_field"]
 wait_for = remote["wait_for"]
 snapshot_data = large["snapshot_data"]
@@ -122,7 +123,7 @@ def run(bundle, report_path, ftp_helper, protocol):
         else:
             with (root / "server.log").open("wb") as log:
                 server = subprocess.Popen([sys.executable, str(ftp_helper),
-                                           "serve-tls" if protocol == "ftpes" else "serve",
+                                           {"ftpes": "serve-tls", "ftps": "serve-implicit-tls"}.get(protocol, "serve"),
                                            str(server_dir), str(ready)], stdout=log,
                                           stderr=subprocess.STDOUT)
             port = int(wait_for(lambda: ready.read_text(encoding="ascii").strip()
@@ -217,7 +218,7 @@ def run(bundle, report_path, ftp_helper, protocol):
                                  for node in nodes()), "owned FTP password field")
             set_exact_field("Password", "secret-pass")
             click_ax("AXButton", "Connect")
-            if protocol == "ftpes":
+            if protocol in ("ftpes", "ftps"):
                 wait_for(lambda: any(node["name"] == "Connect once" and node["role"] == "AXButton"
                                      for node in nodes()), "fresh FTPS certificate decision")
                 click_ax("AXButton", "Connect once")
@@ -245,6 +246,7 @@ def run(bundle, report_path, ftp_helper, protocol):
             raise AssertionError("The first remote row has unusable native bounds")
         # macOS can consume the first pointer click while dismissing its
         # connection popup. Verify focus after each physical click.
+        receipt["accountNoticeBeforeFocus"] = dismiss_account_notice()
         osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
         for _ in range(3):
             click_node(first_row)
@@ -253,15 +255,32 @@ def run(bundle, report_path, ftp_helper, protocol):
                 break
         else:
             raise AssertionError(f"The remote row did not take focus: {focused_name()}")
+        receipt["accountNoticeBeforeEnd"] = dismiss_account_notice()
         started = time.perf_counter()
         osa('''tell application "System Events" to tell process "FileCat"
     set frontmost to true
     key code 119
 end tell''')
-        tail = wait_for(lambda: (state if any(row["name"] == "target.txt"
-                          for row in state["rows"]) else None)
-                        if (state := snapshot(helper, executable, pid)) else None,
-                        "remote listing tail after End", seconds=15)
+        try:
+            tail = wait_for(lambda: (state if any(row["name"] == "target.txt"
+                              for row in state["rows"]) else None)
+                            if (state := snapshot(helper, executable, pid)) else None,
+                            "remote listing tail after End", seconds=15)
+        except AssertionError as error:
+            state = snapshot(helper, executable, pid)
+            try:
+                focused_frame = osa('''tell application "System Events" to tell process "FileCat"
+    set e to value of attribute "AXFocusedUIElement"
+    return ((role of e as text) & "|" & (name of e as text) & "|" & ¬
+        (position of e as text) & "|" & (size of e as text))
+end tell''')
+            except AssertionError as frame_error:
+                focused_frame = f"unavailable: {frame_error}"
+            raise AssertionError(f"{error}; focused={focused_name()!r}, "
+                                 f"focusedFrame={focused_frame!r}, "
+                                 f"visible={[row['name'] for row in state['rows']]}, "
+                                 f"status={state['status']!r}, "
+                                 f"notice={receipt['accountNoticeBeforeEnd']!r}") from error
         end_seconds = round(time.perf_counter() - started, 3)
         end_focus = focused_name()
         # The Mac End key scrolls to the tail while retaining the nearest
@@ -314,7 +333,7 @@ end tell''')
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5 or sys.argv[4] not in ("ftp", "ftpes", "sftp"):
+    if len(sys.argv) != 5 or sys.argv[4] not in ("ftp", "ftpes", "ftps", "sftp"):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
