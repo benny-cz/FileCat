@@ -13,8 +13,11 @@ target preservation in CI. The temporary lab's SFTP and FTP link cases, trust
 and refused-upload cases, and the local integration test passed. The complete
 restored SFTP/FTP/explicit TLS/implicit TLS Remote suite then passed 2,445
 cases, skipped 139 lab/platform cases and failed none in 6 minutes 21 seconds
-with up to 16 build workers. Link handling on another FTP implementation and
-the final-head CI gate remain open.
+with up to 16 build workers. The same guarded link journey then passed against
+Ubuntu's independent `vsftpd` 3.0.5 server over explicit TLS, whose FEAT
+response omits MLST, checking the LIST-only path as well. The temporary
+`vsftpd` listener was stopped and its separate configuration removed. The
+final-head CI gate remains open.
 
 **24 October 2026, live SFTP changed-source decisions (FCUX-001):** The
 isolated OpenSSH lab now covers a local Move source changed while a nonempty,
