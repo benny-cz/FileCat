@@ -281,11 +281,11 @@ logical pixels, records actual GNOME scale and both warning/action bounds,
 and requires exact source and target hashes and a one-file server manifest.
 Run separate fresh sessions at 100%, 150% and 200% and restore the VM's
 original display scale afterward.
-`mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp`
+`mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp`
 checks a signed, isolated Git-built Mac bundle with VoiceOver running and Mac
-output muted. It owns a fresh loopback FTP, explicit FTPS, or public-key-only
-SFTP server. The SFTP fixture creates disposable host/client keys below its
-own folder, requires the new host-key prompt to show the independently
+output muted. It owns a fresh loopback FTP, explicit or implicit FTPS, or
+public-key-only SFTP server. The SFTP fixture creates disposable host/client
+keys below its own folder, requires the new host-key prompt to show the independently
 computed fingerprint, and accepts that key only for the current connection.
 It does not change the Mac's system SSH configuration or `authorized_keys`.
 The runner records the certificate or plaintext consent for FTP, focuses the exact left source row using
@@ -296,7 +296,8 @@ phrase. Cancel must preserve source and remote target hashes and the one-file
 server manifest. A separate Ask copy must open the background Review decision,
 automatically speak the same complete per-item warning, and preserve the
 exact remote target after Skip. When the approved capture helper is available,
-the runner retains a screenshot of the first warning. The report and disposable fixture stay below
+the runner dismisses only an overlapping Mac Apple Account “Later” notice,
+then retains a screenshot of the first warning. The report and disposable fixture stay below
 `~/FileCatValidation`; `--probe` stops after exposing native options and is
 for diagnosing the Mac accessibility tree. `--narrow` repeats the full
 journey with both the Copy warning and per-item conflict at 640 × 480 Mac

@@ -8,10 +8,11 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Unlock the Win11 VMware guest desktop for the native implicit-TLS FTPS
-  replacement-review run; VMware currently refuses `-interactive` at its lock
-  screen. The updated runner and loopback helper are already in its isolated
-  validation folder.
+- Restore an interactive Win11 VMware guest desktop for the native implicit-TLS
+  FTPS replacement-review run. A VMware screen capture shows the lock screen,
+  Guest Tools reports no signed-in user, and guest keystroke injection is denied
+  by host permissions; the VMware console appears blank to the owner. The
+  updated runner and loopback helper are in its isolated validation folder.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
@@ -34,9 +35,10 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Investigate whether the
    supported SFTP, FTP and FTPS providers offer a safe way to narrow the
-   final-check race; add bounded tests for any mitigation. Finish Windows and
-   Mac native failure-cleanup and replacement checks for the FTP/FTPS modes,
-   and remaining SFTP provider failures. For FCUX-069/070, validate
+   final-check race; add bounded tests for any mitigation. Finish Windows
+   scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
+   Windows and Mac FTP/FTPS failure cleanup and remaining SFTP provider
+   failures. For FCUX-069/070, validate
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

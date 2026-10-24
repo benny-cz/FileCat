@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow]
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow]
 The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
@@ -123,6 +123,24 @@ def capture_screen(validation):
     helper = validation / "FileCatCapture.app"
     if not helper.is_dir():
         return None
+    # A Mac lab account notice can float above the app for minutes and hide
+    # the very warning this image must prove. Dismiss only its explicit Later
+    # action, never a FileCat decision or a different system prompt.
+    run_command(["/usr/bin/osascript", "-e", '''
+tell application "System Events"
+    if not (exists process "UserNotificationCenter") then return "absent"
+    tell process "UserNotificationCenter"
+        repeat with noticeWindow in windows
+            if (exists button "Later" of noticeWindow) and ¬
+               ((name of every button of noticeWindow as text) contains "Account Settings") then
+                click button "Later" of noticeWindow
+                return "dismissed"
+            end if
+        end repeat
+    end tell
+end tell
+return "absent"
+'''])
     before = set(validation.glob("native-screen-*.png"))
     run_command(["/usr/bin/open", "-a", str(helper)], seconds=30)
     return wait_for(lambda: next((str(path) for path in
@@ -219,7 +237,7 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
         else:
             with (fixture / "server.log").open("wb") as log:
                 server = subprocess.Popen([sys.executable, str(ftp_helper),
-                                           "serve-tls" if protocol == "ftpes" else "serve",
+                                           {"ftpes": "serve-tls", "ftps": "serve-implicit-tls"}.get(protocol, "serve"),
                                            str(server_dir), str(ready)],
                                           stdout=log, stderr=subprocess.STDOUT)
             port = wait_for(lambda: ready.read_text(encoding="ascii").strip()
@@ -434,7 +452,7 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
             receipt["steps"].append("Password entered")
             click_ax("AXButton", "Connect")
             receipt["steps"].append("Connect clicked")
-            if protocol == "ftpes":
+            if protocol in ("ftpes", "ftps"):
                 wait_for(lambda: any(node["role"] == "AXButton" and node["name"] == "Connect once"
                                      for node in nodes()), "fresh FTPS certificate decision")
                 click_ax("AXButton", "Connect once")
@@ -652,7 +670,7 @@ end tell
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "sftp") or (
+    if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "ftps", "sftp") or (
             len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),

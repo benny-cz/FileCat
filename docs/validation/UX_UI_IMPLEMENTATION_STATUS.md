@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac implicit-TLS replacement review (FCUX-001):** The
+native Mac runner now covers `ftps://` with its own loopback implicit-TLS
+server and fresh, connection-only certificate decision. The signed Git-built
+arm64 candidate (app DLL SHA-256
+`671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
+passed full Copy and per-item conflict journeys at Retina 2×, and at a
+640 × 480 point window in both Retina 2× and 1× modes. VoiceOver spoke the
+complete warning about a change after the final check and the Keep both
+alternative in both reviews. Cancel and Skip retained exact source and target
+SHA-256 hashes and the single target file. The 1× captures show the complete
+orange warning, visible close/Cancel/Skip actions and a usable scroll region
+(`mac-remote-warning-ftps-implicit-narrow-1x-20261024-r2.json`,
+`native-screen-586C124F-D639-4AA0-A816-E369FE4B00EB.png`,
+`native-screen-D67943BF-F0FD-4460-9FC9-ABEFE7454609.png`). The test runner
+dismisses only the Mac lab's overlapping Apple Account “Later” notice before
+capture; an earlier obscured capture was discarded. The 1× wrapper restored
+the original Retina display mode. Windows implicit-TLS native review,
+failure cleanup and the server-side final-check race remain open.
+
 **24 October 2026, Mac Copy return speech (FCUX-004):** The current signed
 Mac arm64 candidate (app DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
