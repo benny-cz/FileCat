@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Windows CI provenance timeout:** The Windows lane of
+CI run `40117503403` timed out while recording the first `dotnet --version`
+after `setup-dotnet`; it reached no tests. The build-inventory script now
+allows a bounded 120 seconds for .NET CLI commands while preserving its
+30-second limit for Git commands. A local unsandboxed provenance invocation
+completed with the exact pinned SDK `10.0.101` and a valid receipt. The full
+Windows Release App suite also passed 2,468 cases, with 63 platform skips
+and no failures; the Platform.Windows suite passed 429 cases, with 46 skips.
+The updated script still needs the final-head hosted CI gate.
+
 **24 October 2026, native Ubuntu implicit-FTPS large listing (FCUX-010):**
 The Ubuntu VMware guest passed a fresh 2,000-file implicit-TLS FTPS journey
 on Git-built `c3a8138f` (app DLL SHA-256
@@ -17,7 +27,7 @@ user's runtime directory before launching FileCat; a failed startup also
 reports a bounded app-log tail. The updated runner passed on the restarted
 guest. Windows implicit-FTPS native listing remains open.
 
-**24 October 2026, elevated Windows recovery admission (UXBUG-017):** The
+**24 October 2026, elevated Windows recovery admission (UXBUG-019):** The
 owner's disposable `G:` scan was refused despite no second FileCat window.
 An elevated Windows 11 VMware process census reproduced the cause without
 reading the source: of 75 processes, there were no FileCat or `dotnet` peers,

@@ -20,10 +20,14 @@ function ReadCommand([string]$Executable, [string]$Arguments, [int[]]$AllowedExi
         [void]$Process.Start()
         $Stdout = $Process.StandardOutput.ReadToEndAsync()
         $Stderr = $Process.StandardError.ReadToEndAsync()
-        if (-not $Process.WaitForExit(30000)) {
-            $Process.Kill()
+        # Hosted runners can spend more than 30 seconds on the first dotnet CLI startup
+        # immediately after setup-dotnet. Keep a finite inventory deadline without
+        # mistaking that cold start for an invalid SDK installation.
+        $DeadlineMilliseconds = if ($Executable -eq 'dotnet') { 120000 } else { 30000 }
+        if (-not $Process.WaitForExit($DeadlineMilliseconds)) {
+            $Process.Kill($true)
             $Process.WaitForExit()
-            throw "Build inventory command timed out: $Executable"
+            throw "Build inventory command timed out after $DeadlineMilliseconds ms: $Executable $Arguments"
         }
         $Code = $Process.ExitCode
         $Text = $Stdout.GetAwaiter().GetResult()

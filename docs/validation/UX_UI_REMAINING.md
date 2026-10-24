@@ -33,9 +33,7 @@ increments to `main`.
    final-head gate after the last audit change.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
-   after the final destination content check. Investigate whether the
-   supported SFTP, FTP and FTPS providers offer a safe way to narrow the
-   final-check race; add bounded tests for any mitigation. Finish Windows
+   after the final destination content check. Finish Windows
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
    Windows and Mac FTP/FTPS failure cleanup and remaining SFTP provider
    failures. For FCUX-069/070, validate
@@ -83,7 +81,7 @@ increments to `main`.
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
-   paths. For UXBUG-017, run the updated elevated Windows UI against the
+   paths. For UXBUG-019, run the updated elevated Windows UI against the
    owner's disposable `G:` (`FCTEST`) and confirm scan admission, a read-only
    source and off-source recovery; the isolated Windows VM has no `G:` drive.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
