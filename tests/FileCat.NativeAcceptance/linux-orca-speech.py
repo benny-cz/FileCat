@@ -199,6 +199,16 @@ def main():
             key("enter")()
         step("Enter on the rejected mask explains it again", type_and_enter, says("Unclosed regular expression in mask."))
         step("Escape closes Quick filter", key("escape"), says("c.txt"))
+        step("Ctrl+Shift+F focuses the active inline Filter field", key("ctrl+shift+f"),
+             lambda phrase: phrase.strip() == "Filter")
+        if not any("entry" in phrase.casefold() for phrase in report["steps"][-1]["heard"]):
+            raise AssertionError("Orca did not identify the focused Filter field as an entry")
+        def reject_inline_mask():
+            key("slash")()
+            key("enter")()
+        step("the inline filter speaks its validation error on Enter", reject_inline_mask,
+             says("Unclosed regular expression in mask."))
+        step("Escape restores the inline filter and focused row", key("escape"), says("c.txt"))
         # A viewer search reports its result count through a live region.
         step("F3 opens the viewer", key("f3"), says("FileCat Viewer"))
         step("F7 opens the viewer search", key("f7"), says("Find in file"))
