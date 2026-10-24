@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac Copy return speech (FCUX-004):** The current signed
+Mac arm64 candidate (app DLL SHA-256
+`671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
+passed the native `--copy-action` journey at Retina 2× and 1×. VoiceOver spoke
+the Copy review title and, after Escape, the restored `b.txt` row with its
+size, mark state and position. AX focus returned to the same row; source and
+target bytes stayed unchanged (`mac-copy-return-filterfix-r3.json` and
+`mac-copy-return-filterfix-1x-r4.json`). The 1× wrapper restored the original
+Retina mode. The runner now compiles its dialog probe against the selected
+Xcode SDK, matching its focus observer. Other modal focus routes remain open.
+
 **24 October 2026, macOS CI pointer-focus timing:** CI run `40107929968`
 passed producer, Ubuntu, Windows and Windows ARM64 lanes but had one macOS App
 failure: `PointerFocusOwnershipTests` slept 60 ms before simulating an old AX
@@ -395,7 +406,8 @@ source/target, and AX focus restored to the unmarked `b.txt` row on Escape
 (`mac-voiceover-copy-action-livedialog-20261024-r3.json`,
 `mac-voiceover-copy-action-livedialog-1x-20261024-r1.json`). The 1× wrapper
 restored the original Retina mode. VoiceOver did **not** automatically speak
-the returned row on either run, so that remains open. A delayed repeat of the
+the returned row on either run with that earlier bundle; the current bundle
+passes the retest recorded above. A delayed repeat of the
 window focus event did not change this and was discarded. The same signed
 bundle passed minimum-window native X/backdrop Copy cancellation and the
 existing marked-review VoiceOver journey. Thirty-six related App tests passed

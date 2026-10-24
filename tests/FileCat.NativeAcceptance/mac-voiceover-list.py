@@ -89,7 +89,7 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
     dialog_report = fixture / "dialog-label.json"
     if copy_action:
         dialog_source = Path(__file__).with_name("mac-ax-dialog-label.swift")
-        built = subprocess.run(["/usr/bin/swiftc", "-o", str(dialog_probe), str(dialog_source)],
+        built = subprocess.run(["/usr/bin/swiftc", "-sdk", str(sdk), "-o", str(dialog_probe), str(dialog_source)],
                                capture_output=True, text=True, timeout=120)
         if built.returncode:
             raise AssertionError("AX dialog probe build failed: " + built.stderr[-1200:])
