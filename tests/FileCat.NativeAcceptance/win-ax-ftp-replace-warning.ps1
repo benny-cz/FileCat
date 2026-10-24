@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('ftp', 'ftpes', 'sftp')][string]$Protocol = 'ftp',
+    [ValidateSet('ftp', 'ftpes', 'ftps', 'sftp')][string]$Protocol = 'ftp',
     [string]$SftpFixtureId,
     [string]$ExpectedHostFingerprints,
     [string]$SftpPassword,
@@ -242,7 +242,11 @@ try {
     if ($Protocol -eq 'sftp') {
         $address = "sftp://benny@192.168.58.129/home/benny/FileCatValidation/SftpReplaceReview/$SftpFixtureId/"
     } else {
-        $serveMode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
+        $serveMode = switch ($Protocol) {
+            'ftpes' { 'serve-tls' }
+            'ftps' { 'serve-implicit-tls' }
+            default { 'serve' }
+        }
         $server = Start-Process -FilePath $python -ArgumentList @($helper, $serveMode, $serverRoot, $ready) -PassThru -WindowStyle Hidden -RedirectStandardError $serverError
         $port = Await {
             if ($server.HasExited) { throw 'Owned loopback FTP server exited.' }
@@ -301,7 +305,7 @@ try {
         }
         $acceptKey.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     }
-    if ($Protocol -eq 'ftpes') {
+    if ($Protocol -in @('ftpes', 'ftps')) {
         $acceptOnce = Await { Button $window 'Connect once' } 'unverified FTPS certificate decision' 30
         $result.CertificatePrompt = @((Snapshot $window) | Where-Object {
             $_.Current.Name -like 'Unverified server certificate*' -and !$_.Current.IsOffscreen

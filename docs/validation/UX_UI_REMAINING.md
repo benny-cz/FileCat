@@ -8,6 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
+- Unlock the Win11 VMware guest desktop for the native implicit-TLS FTPS
+  replacement-review run; VMware currently refuses `-interactive` at its lock
+  screen. The updated runner and loopback helper are already in its isolated
+  validation folder.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked

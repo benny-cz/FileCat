@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, implicit-TLS native review fixture (FCUX-001):** The
+Windows replacement-review runner now accepts `ftps` as well as FTP,
+explicit-TLS FTPS and SFTP. Its owned pyftpdlib fixture negotiates TLS before
+the greeting, exposes the same unverified-certificate decision, and retains
+the exact source/target hash and narrow warning checks. The independent
+loopback fixture smoke test passed for all three FTP/FTPS modes; Python and
+PowerShell syntax checks passed. The updated runner and helper were copied to
+the Win11 guest, but its console was at the lock screen and VMware refused an
+interactive run. Native implicit-TLS review remains open until the guest is
+unlocked and the test runs against a Git-built app.
+
 **24 October 2026, refused SFTP staging cleanup (FCUX-001):** The controlled
 SFTP job tests now cover both Cancel and Skip after a dropped upload when the
 server refuses to remove the unpublished partial stage. Both leave the source

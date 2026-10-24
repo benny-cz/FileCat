@@ -11,7 +11,7 @@ import secrets
 import sys
 
 
-def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False) -> None:
+def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False, implicit_tls: bool = False) -> None:
     from pyftpdlib.authorizers import DummyAuthorizer
     from pyftpdlib.servers import FTPServer
 
@@ -21,7 +21,14 @@ def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False) -> None:
     authorizer.add_user("tester", "secret-pass", str(root), perm="elradfmwMT")
     if tls:
         from OpenSSL import crypto
-        from pyftpdlib.handlers import TLS_FTPHandler as handler
+        from pyftpdlib.handlers import TLS_FTPHandler
+        if implicit_tls:
+            class handler(TLS_FTPHandler):
+                def on_connect(self):
+                    # TLS starts before the 220 greeting on implicit FTPS.
+                    self.secure_connection(self.get_ssl_context())
+        else:
+            handler = TLS_FTPHandler
 
         key = crypto.PKey()
         key.generate_key(crypto.TYPE_RSA, 2048)
@@ -93,12 +100,14 @@ def main() -> None:
         serve(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]))
     elif len(sys.argv) == 4 and sys.argv[1] == "serve-tls":
         serve(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]), tls=True)
+    elif len(sys.argv) == 4 and sys.argv[1] == "serve-implicit-tls":
+        serve(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]), tls=True, implicit_tls=True)
     elif len(sys.argv) == 6 and sys.argv[1] == "inspect-delete":
         inspect_delete(
             int(sys.argv[2]), sys.argv[3], pathlib.Path(sys.argv[4]), pathlib.Path(sys.argv[5])
         )
     else:
-        raise SystemExit("Usage: serve|serve-tls ROOT READY | inspect-delete PORT STAGE SOURCE RECEIPT")
+        raise SystemExit("Usage: serve|serve-tls|serve-implicit-tls ROOT READY | inspect-delete PORT STAGE SOURCE RECEIPT")
 
 
 if __name__ == "__main__":

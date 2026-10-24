@@ -3,12 +3,24 @@
 import ftplib
 from pathlib import Path
 import re
+import socket
 import ssl
 import subprocess
 import sys
 import tempfile
 import time
 from unittest.mock import patch
+
+
+class ImplicitFTP(ftplib.FTP_TLS):
+    def connect(self, host: str, port: int) -> str:
+        self.host, self.port = host, port
+        self.sock = socket.create_connection((host, port), timeout=self.timeout)
+        self.af = self.sock.family
+        self.sock = self.context.wrap_socket(self.sock, server_hostname=host)
+        self.file = self.sock.makefile("r", encoding=self.encoding)
+        self.welcome = self.getresp()
+        return self.welcome
 
 
 def read_port(ready: Path) -> int | None:
@@ -63,10 +75,12 @@ def test_server(mode: str) -> None:
                     error = process.stderr.read().decode("utf-8", errors="replace") if process.poll() is not None else ""
                     raise AssertionError(f"Owned {mode} server did not start: {error[-800:]}")
                 time.sleep(0.05)
-            if mode == "serve-tls":
-                with ftplib.FTP_TLS(context=ssl._create_unverified_context(), timeout=5) as ftp:
+            if mode in ("serve-tls", "serve-implicit-tls"):
+                client = ImplicitFTP if mode == "serve-implicit-tls" else ftplib.FTP_TLS
+                with client(context=ssl._create_unverified_context(), timeout=5) as ftp:
                     ftp.connect("127.0.0.1", port)
-                    ftp.auth()
+                    if mode == "serve-tls":
+                        ftp.auth()
                     ftp.login("tester", "secret-pass")
                     ftp.prot_p()
                     assert ftp.nlst() == ["target.txt"]
@@ -89,6 +103,6 @@ def test_server(mode: str) -> None:
 
 if __name__ == "__main__":
     test_delayed_ready_file()
-    for server_mode in ("serve", "serve-tls"):
+    for server_mode in ("serve", "serve-tls", "serve-implicit-tls"):
         test_server(server_mode)
-    print("Owned FTP and explicit-TLS FTPS fixtures passed")
+    print("Owned FTP, explicit-TLS and implicit-TLS FTPS fixtures passed")

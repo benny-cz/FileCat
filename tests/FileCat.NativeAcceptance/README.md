@@ -222,14 +222,15 @@ reviewed in FileCat and verifies its closure. Copy and Move use separate fresh
 fixtures; their JSON reports and fixture roots remain for inspection.
 `win-ax-ftp-replace-warning.ps1 -AppPath <isolated FileCat.exe>
 -PythonHelperPath <copied win-ftp-owned-stage.py> -ReportPath <guest-local.json>
-[-Protocol ftp|ftpes|sftp] [-NvdaPath <signed portable nvda.exe>]`
-checks native FTP, explicit-TLS FTPS and SFTP replacement review without
+[-Protocol ftp|ftpes|ftps|sftp] [-NvdaPath <signed portable nvda.exe>]`
+checks native FTP, explicit-TLS FTPS, implicit-TLS FTPS and SFTP replacement review without
 replacing the target. For SFTP, supply a fresh owned Ubuntu fixture ID, the
 independently recorded SSH host-key fingerprints and the test credential with
 `-SftpFixtureId`, `-ExpectedHostFingerprints` and `-SftpPassword`. Run it with
 VMware `-interactive` against the exact Git build,
 after installing `pyftpdlib` and `pyOpenSSL` in the isolated guest. The TLS
-fixture generates a new self-signed certificate for each run. The runner
+fixture generates a new self-signed certificate for each run; implicit TLS
+starts before the FTP greeting. The runner
 requires FileCat's unverified-certificate prompt and accepts it for this
 connection only; it never alters operating-system trust. Plain FTP instead
 requires explicit plaintext consent. It signs in and chooses Replace in
@@ -241,7 +242,7 @@ hashes. It then starts a fresh Ask copy, follows the waiting operation's
 Review decision action, requires the per-item conflict warning and Skip to
 stay inside the narrow viewport, and chooses Skip. Both hashes and the single
 server target must remain unchanged. The fixture and JSON receipt remain for
-inspection. `test_win_ftp_owned_stage.py` smoke-tests both loopback fixture
+inspection. `test_win_ftp_owned_stage.py` smoke-tests all three loopback fixture
 protocols; CI runs it on Windows, Windows ARM64, Ubuntu and macOS.
 With `-NvdaPath`, the runner starts an owned NVDA 2026.2 instance from the
 isolated validation folder and requires its actual speech log to include the
