@@ -57,8 +57,9 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, finish Windows spoken Hex acceptance and narrow 200% layouts
-   with real pointer and keyboard input.
+   For FCUX-007, finish Windows spoken Hex acceptance and other scaled layouts
+   with real pointer and keyboard input. The measured narrow 200% Windows Hex
+   route and first-click selection now pass.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.
