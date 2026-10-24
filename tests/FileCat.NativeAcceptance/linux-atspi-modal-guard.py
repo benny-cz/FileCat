@@ -74,6 +74,8 @@ def main():
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     os.environ.setdefault("DISPLAY", ":0")
+    if (validation / "dotnet-sdk").is_dir():
+        os.environ.setdefault("DOTNET_ROOT", str(validation / "dotnet-sdk"))
     env = os.environ.copy()
     process = None
     try:

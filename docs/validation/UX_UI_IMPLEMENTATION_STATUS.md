@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, final-head modal ownership on Windows and Ubuntu
+(FCUX-004):** The Windows VM's Git-built `fd141cc3` app passed
+`win-ax-modal-guard.ps1`: native UI Automation invoked background toolbar
+and key-bar Copy/Delete controls while exactly one Copy review was open.
+All four actions left that review and its Destination field intact; Cancel
+closed it with unchanged source SHA-256 and no target
+(`win-modal-guard-fd141cc3.json`). The Ubuntu VM at GNOME 200% passed the
+same four AT-SPI actions against Git-built `278b8655`, with one review before,
+none after Cancel, and no target (`ubuntu-modal-guard-200-278b8655-r3.json`).
+The first Ubuntu run lacked `DOTNET_ROOT` for its framework-dependent Git
+build. `linux-atspi-modal-guard.py` now detects the test VM's isolated pinned
+SDK when present; the final run passed without an external runtime override.
+Neither VM left a FileCat process running.
+
 **24 October 2026, Windows scaled shared-dialog pointer acceptance
 (UXBUG-016):** A separate Windows VM Git worktree built `fd141cc3` with .NET
 10.0.402 and 16 workers (app SHA-256

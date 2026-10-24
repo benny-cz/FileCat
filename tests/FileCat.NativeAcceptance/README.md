@@ -1019,6 +1019,8 @@ key-bar Copy/Delete actions through AT-SPI. It requires one unchanged Copy
 review, no target, and the original source hash after Cancel. The JSON report
 records the app hash, fixture and four invocation outcomes. Run it with the
 user's AT-SPI session bus; it needs system Python with `gi.repository.Atspi`.
+If `~/FileCatValidation/dotnet-sdk` exists, the runner uses it for a
+framework-dependent Git build unless `DOTNET_ROOT` was explicitly set.
 
 `linux-atspi-copy-review.py SOURCE DESTINATION REPORT.json` tests a Git-built
 FileCat running as the logged-in user. Use an isolated source folder containing

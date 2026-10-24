@@ -14,66 +14,45 @@ increments to `main`.
   desktop session. Keep the Mac display awake while finishing Mac input and
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
-- Spoken acceptance now has native harnesses: `linux-orca-speech.py` reads
-  Orca's own speech log in the Ubuntu VM, `win-nvda-speech.ps1` reads a signed
-  portable NVDA 2026.2 log in the Win11 VM (below
-  `%LOCALAPPDATA%\FileCatValidation\NVDA\portable`), and
-  `mac-ax-focus-speech.py` records the AX focus notifications and
-  announcements VoiceOver speaks from. All three also check the first and a
-  repeated copy notice, a rejected Quick filter mask spoken as it appears
-  and again on a refused Enter (the shared prompt that F7, Go to and other
-  prompts use), the viewer search's outcome alone, and a panel boundary
-  resized from command search. Extend these journeys for the "spoken" criteria of other
+- Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
+  `mac-ax-focus-speech.py` journeys for the spoken criteria of other
   findings (Find results, the panel filter field of FCUX-028, which needs a
   keyboard route into it, UXBUG-015 and FCUX-040/041 form errors, tabs).
-  Extend the Mac journeys to assert VoiceOver's actual spoken phrases. Its
-  AppleScript control is enabled with owner approval, and Mac audio is muted.
+  Assert VoiceOver's actual spoken phrases on Mac. Keep Mac audio muted.
 
 ## Next actions, in severity order
 
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
-   failing lane before declaring the audit complete. The correction to the
-   privileged Windows `$LogFile` test's retry gate passed all five lanes of
-   CI run `40075217938`; rerun the complete final-head gate.
+   failing lane before declaring the audit complete. Rerun the complete
+   final-head gate after the last audit change.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
-   remaining supported provider failure paths, including races after the final
-   destination content check. Supported SFTP
-   can atomically replace without an expected-version condition; FTP cannot
-   atomically replace, so neither closes the final-check race. Finish the
-   remaining provider failure-cleanup choices beyond the tested live SFTP
-   and FTP/FTPS connection-loss Cancel, Skip and Retry cases, and the FTP/FTPS
-   changed-source Cancel, Skip and Retry cleanup cases and replacement checks
-   on all three FTP/FTPS modes. For FCUX-069/070,
-   validate supported cross-app Move effects and
+   remaining supported provider failure and cleanup paths, including races
+   after the final destination content check. Investigate whether the
+   supported SFTP, FTP and FTPS providers offer a safe way to narrow the
+   final-check race; add bounded tests for any mitigation. Finish untested
+   failure-cleanup choices and replacement checks on all three FTP/FTPS
+   modes. For FCUX-069/070, validate supported cross-app Move effects and
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
-   safely offered. On Mac, investigate the scrolling form body's zero AX bounds and preview
-   list with no AX children, beyond the now verified spoken Previous/Next
-   mapping route. For FCUX-004, exercise remaining
-   modal focus and decision routes after the Mac, Windows and Ubuntu
-   Copy/Delete background accessibility guards and the Mac command-search to
-   marked-review focus route passed. Require the final-head
-   CI gate; preserve captured scope and mapping throughout each test.
+   safely offered. On Mac, investigate the scrolling form body's zero AX bounds
+   and preview list with no AX children. For FCUX-004, exercise other modal
+   focus and decision routes on each desktop; preserve captured scope and
+   mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, finish the other scaled layouts with real pointer and
-   keyboard input and the remaining assistive-technology routes. The measured
-   narrow 200% Windows Hex route and first-click selection now pass; NVDA
-   spoke the Hex match counts in order on Windows at 100%, 150% and 200%,
-   and Orca did so on Ubuntu at 200%.
-   Test visible Stop, changed-query ownership beyond the verified Text and
-   Hex routes, provider cancellation, other scaled layouts and spoken Find
+   For FCUX-007, finish other scaled layouts with real pointer and keyboard
+   input and the remaining assistive-technology routes. Test visible Stop,
+   changed-query ownership on other viewer routes, provider cancellation,
+   and spoken Find
    results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    scaled display and other narrow-layout states, and Ubuntu clipboard
    behavior. For FCUX-009, finish long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   larger and provider-backed native listings across desktops. The
-   Mac review's spoken entry, 73-item two-page navigation, full original
-   location and filtered hidden-mark state now pass.
+   larger and provider-backed native listings across desktops.
    Check Orca's repeated row description as a tutorial
    message (Avalonia maps one help text to both AT-SPI properties).
 4. **Work through S2 native acceptance in audit order.** The remaining groups
@@ -83,19 +62,17 @@ increments to `main`.
    050, 051), safe listing and panel geometry (014, 022–028, 030–033, 047,
    048), external transfer (071, 075), operation evidence and recovery
    (015–017, 019–021, 042, 043, 068), notification lifetime (029: clipboard,
-   scaled layout and native Windows timed administrator notice; its notices are spoken on all three desktops), Settings
+   scaled layout and native Windows timed administrator notice), Settings
    and command consistency (035–037, 046, 057), bulk rename (038–040), Find
    and preview behavior (044, 045, 052, 053, 055). The status table identifies
    each group's exact provider, input, scaling and assistive-technology gate.
-   FCUX-031 still needs nested and scaled layouts; its boundary is a slider
-   whose share NVDA, Orca and the macOS AX journey hear (`eebb8832`). FCUX-032
+   FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
    paths.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and
-   scaled-readability checks recorded in the status table. Update stale
-   historical “rerun pending” text when final receipts are available.
+   scaled-readability checks recorded in the status table.
 6. **Close the queued bug acceptance gates.** UXBUG-001/002/004/005/007/008
    need their remaining native scaling, keyboard, browser-engine or
    assistive-technology checks; UXBUG-006 needs Unix attribute acceptance;
@@ -103,8 +80,7 @@ increments to `main`.
    spoken dialog checks, including keys, full paths, reflow and disclosure in
    the revised review hierarchy and the other resizable review windows on the
    Windows VM. UXBUG-012 still needs other Mac Page focus routes and
-   assistive-technology acceptance beyond the verified Find, keyboard
-   Select All and rendered-text Copy journeys. Registry import
+   assistive-technology acceptance. Registry import
    and history review still need native narrow
    and scaled acceptance. Treat any new reproduction as an active regression,
    with a test and a new commit.
@@ -117,13 +93,7 @@ increments to `main`.
    UXBUG-016 needs native checks of overwrite and other dialog
    families and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
-   Windows Registry, Create folder, Copy, Move and Delete pointer routes pass at
-   150% scale, and the VM display setting was restored to 100% afterward.
-   Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation
-   passes at both supported 1× and Retina 2× modes; Copy, Move and Delete also
-   pass in a 640 × 480 point window at both Retina 2× and 1×.
-   Open-dialog SIGTERM with an unsubmitted draft passes at Retina 2×. Report
-   Avalonia's synthetic macOS modifier and scaled-bitmap behavior
+   Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
 
 ## Evidence required to finish
