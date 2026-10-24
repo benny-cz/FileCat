@@ -8,8 +8,10 @@ changed-source Move retry case verifies that only the new source bytes receive
 the public name; a refused deletion retains the old partial stage and reports
 it as an issue, so the job finishes `CompletedWithIssues` rather than silently
 claiming a clean result. All 28 focused SFTP job cases passed on Windows with
-up to 16 build workers. The broader Remote Release suite is running; native
-provider failure/cleanup and server-side final-check acceptance remain open.
+up to 16 build workers. The complete Remote Release suite passed 2,422,
+skipped 164 lab/platform cases and failed none in 3 minutes 53 seconds.
+Native provider failure/cleanup and server-side final-check acceptance remain
+open.
 
 **24 October 2026, Mac 1× inline filter and reliable return speech
 (FCUX-028):** The 1× display wrapper exercised the signed Git-built Mac arm64

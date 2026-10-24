@@ -30,10 +30,11 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Investigate whether the
    supported SFTP, FTP and FTPS providers offer a safe way to narrow the
-   final-check race; add bounded tests for any mitigation. Finish untested
+   final-check race; add bounded tests for any mitigation. Finish native
    failure-cleanup choices and replacement checks on all three FTP/FTPS
-   modes. For FCUX-069/070, validate supported cross-app Move effects and
-   delayed Paste destination on each desktop. Windows still needs Explorer Cut
+   modes and remaining SFTP provider failures. For FCUX-069/070, validate
+   supported cross-app Move effects and delayed Paste destination on each
+   desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
    safely offered. On Mac, investigate the scrolling form body's zero AX bounds
    and preview list with no AX children. The native `Bulk rename content`
