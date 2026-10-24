@@ -138,6 +138,7 @@ public sealed class FileListControl : Control
     private readonly TextBlock _renameErrorText;
     private TaskCompletionSource<string?>? _renameCompletion;
     private PromptOptions? _renameOptions;
+    private EntryStore? _renameStore;
     private int _renameStoreIndex = -1;
 
     public bool IsRenaming => _renameCompletion is not null;
@@ -287,6 +288,7 @@ public sealed class FileListControl : Control
         EnsureFocusVisible();
         ScrollToHorizontalOffset(0);
         _renameOptions = options;
+        _renameStore = _listing.Store;
         _renameStoreIndex = _listing.FocusedStoreIndex;
         _renameEditor.Text = options.Text;
         _renameCompletion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -359,14 +361,26 @@ public sealed class FileListControl : Control
     {
         var completion = _renameCompletion;
         if (completion is null) return;
+        var store = _renameStore;
+        int storeIndex = _renameStoreIndex;
         _renameCompletion = null;
         _renameOptions = null;
+        _renameStore = null;
         _renameStoreIndex = -1;
         _renameEditor.IsVisible = false;
         ClearRenameError();
         InvalidateMeasure();
         InvalidateArrange();
-        if (restoreFocus) Focus();
+        if (restoreFocus)
+        {
+            Focus();
+            // The native editor can leave the model or AX cursor on a different
+            // row while it is closing. Return to the exact item that was being
+            // renamed, only if it still belongs to this visible listing.
+            if (_listing is { } listing && ReferenceEquals(listing.Store, store) &&
+                listing.GetVisibleIndex(storeIndex) is int row and >= 0)
+                listing.SetFocus(row);
+        }
         completion.TrySetResult(name);
     }
 

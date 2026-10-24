@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Follow FileCat's macOS accessibility focus while keys move between files and into a dialog.
 
-Usage: python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json
+Usage: python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json [--decision-returns]
 Run in the unlocked desktop session against a signed, isolated FileCat bundle under ~/FileCatValidation, with
 mac-ax-focus-observer.swift beside this runner. VoiceOver speaks the element named by each
 AXFocusedUIElementChanged notification and by the application's AXFocusedUIElement after an activation; this
@@ -23,7 +23,8 @@ FOREGROUND = '''tell application "System Events" to tell process "FileCat"
     set frontmost to true
 end tell'''
 KEY_CODES = {"down": "key code 125", "up": "key code 126", "home": "key code 115", "end": "key code 119",
-             "tab": "key code 48", "f7": "key code 98", "escape": "key code 53", "copy": "key code 8 using {command down}",
+             "tab": "key code 48", "f2": "key code 120", "f7": "key code 98", "f8": "key code 100",
+             "escape": "key code 53", "copy": "key code 8 using {command down}",
              "filter": "key code 1 using {command down}", "slash": "key code 44", "a": "key code 0", "return": "key code 36",
              "f3": "key code 99", "c": "key code 8", "h": "key code 4", "r": "key code 15",
              "f5": "key code 96", "select-all": "key code 0 using {command down}", "backspace": "key code 51",
@@ -57,7 +58,7 @@ def spoken(record):
     return " ".join(record.get(key, "") for key in ("title", "description", "value", "help"))
 
 
-def run(bundle, report_path):
+def run(bundle, report_path, decision_returns=False):
     root = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents" / "MacOS" / "FileCat"
@@ -195,6 +196,26 @@ def run(bundle, report_path):
         step("tab back to the source panel", "tab", "c.txt")
         step("F7 opens Create folder", "f7", "folder")
         step("Escape returns to the list", "escape", "c.txt")
+        step("F8 opens Delete", "f8", "Delete")
+        step("Escape cancels Delete and returns to the same row", "escape", "c.txt")
+        step("F2 opens Rename", "f2", "name")
+        step("Escape cancels Rename and returns to the same row", "escape", "c.txt")
+        # An earlier focus event can precede a queued row update. Inspect the settled
+        # AX focus too, so a transient c.txt notification does not count as a return.
+        time.sleep(0.5)
+        settled = focused()
+        result["steps"].append({"step": "Rename cancellation settled focus", "focused": settled,
+                                "passed": settled.get("title") == "c.txt"})
+        if settled.get("title") != "c.txt":
+            raise AssertionError(f"Rename cancellation settled on {settled!r}")
+        if decision_returns:
+            names = sorted(path.name for path in source.iterdir())
+            if names != sorted(expected) or any(target.iterdir()) or any(
+                    hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
+                    for name, digest in hashes.items()):
+                raise AssertionError("Cancel changed the owned fixture")
+            result["passed"] = True
+            return
         # The first notice after startup, then the same notice again, must each be announced once.
         announce("Command+C announces the copy notice", ["copy"], "Copied 1 item")
         announce("a repeated copy is announced again", ["copy"], "Copied 1 item")
@@ -250,6 +271,6 @@ def run(bundle, report_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--decision-returns":
         raise SystemExit(__doc__)
-    run(Path(sys.argv[1]), Path(sys.argv[2]).resolve())
+    run(Path(sys.argv[1]), Path(sys.argv[2]).resolve(), len(sys.argv) == 4)
