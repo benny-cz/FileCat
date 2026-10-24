@@ -117,8 +117,9 @@ increments to `main`.
    UXBUG-016 needs native checks of Registry, overwrite and other dialog
    families and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
-   Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation,
-   plus open-dialog SIGTERM with an unsubmitted draft, pass on Retina 2×. Capture
+   Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation
+   passes at both supported 1× and Retina 2× modes; open-dialog SIGTERM with an
+   unsubmitted draft passes at Retina 2×. Capture
    Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
    synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
    agrees.

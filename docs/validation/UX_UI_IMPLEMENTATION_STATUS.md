@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac dialog pointer scaling (UXBUG-016):** The signed
+`20df90d0` build repeated Create folder, Copy, Move and Delete native close-X
+and backdrop cancellation in the supported 1920 × 1200 logical/physical
+**1×** display mode. All four exact-process AX reports found a 30 × 30 point
+close target; the review reports confirmed their enabled approval controls,
+and source/target fixtures stayed unchanged
+(`mac-dialog-{create,copy,move,delete}-pointer-1x-20261024-r1.json`). Each run
+used `mac-display-run.swift` to verify restoration to the original 1440 × 900
+logical / 2880 × 1800 physical Retina mode.
+
 **24 October 2026, Mac transfer and deletion review pointer acceptance
 (UXBUG-016):** The signed `20df90d0` Retina build passed native CGEvent close-X
 and backdrop cancellation for Copy (`mac-dialog-copy-pointer-20261024-r4.json`),

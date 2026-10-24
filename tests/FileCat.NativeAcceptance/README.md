@@ -1245,7 +1245,10 @@ the source byte exact and the target empty. Pass `--sigterm` after the report
 for a separate Create folder run that types and
 verifies an unsubmitted folder name, sends SIGTERM to the exact owned app PID
 while the dialog remains open, requires a bounded exit, and checks that no
-folder was created. The runner always stops its own process and captures a
+folder was created. To exercise the supported 1× Mac display mode, run this
+script as the child of `mac-display-run.swift 1920 1200 1920 1200`; the wrapper
+restores and verifies the original display mode after the child exits. The
+runner always stops its own process and captures a
 diagnostic screenshot on failure. System Events' `entire
 contents` enumeration can return zero for a visibly populated Avalonia window;
 the native AXUIElement children expose the control tree directly. This route
