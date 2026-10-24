@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, live SFTP changed-source decisions (FCUX-001):** The
+isolated OpenSSH lab now covers a local Move source changed while a nonempty,
+incomplete SFTP upload stage is on the server. Cancel and Skip retained the
+original local SHA-256 and left no public target or stage. Retry changed the
+local bytes while the decision was pending, discarded the old stage, published
+only the new SHA-256 and removed the local source after completion. All three
+focused cases passed against the Ubuntu VMware guest. The complete portable
+Remote Release suite then passed 2,419 cases, skipped 164 lab/platform cases
+and failed none using the repository's resource-bounded xUnit setting and up
+to 16 build workers. A separate full run with the live lab enabled passed
+2,434 cases, skipped 139 and failed 10: the rebooted Ubuntu guest has SSH on
+port 22 but no FTP/FTPS listeners on ports 21 or 990, so those FTP cases
+could not connect or reach their certificate prompts. The focused SFTP cases
+passed in that live run. Restore the optional FTP/FTPS lab before rerunning
+the all-protocol live gate; no product regression was inferred from absent
+services.
+
 **24 October 2026, Windows scaled Hex Find acceptance (FCUX-007):** The clean
 Win11 VMware Git checkout at `9cfb6b3c` built successfully with eight guest
 workers using its installed .NET 10.0.402 SDK from the validation directory;
