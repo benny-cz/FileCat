@@ -1026,6 +1026,16 @@ source bytes and empty target, stops only its owned app and removes its entire
 owned fixture. Use the logged-in GNOME session and transient
 `FILECAT_NATIVE_SUDO_PASSWORD` as for the Orca runner.
 
+`win-ax-large-listing.ps1 -AppPath FILECAT.exe -ReportPath REPORT.json` runs in
+the logged-in Windows guest against a Git checkout under its isolated
+`FileCatValidation` directory. It creates the same 2,000 zero-byte files,
+measures native UI Automation rows and enumeration, focuses the first generated
+row, sends End to the last, then verifies the original bytes and empty target.
+The receipt records the Git head, app DLL hash and bounds; the runner stops
+its exact process and removes only its checked fixture path. It permits the
+specific validation checkout as Git's safe directory for one read when VMware
+Tools uses a different Admin token, without changing global Git settings.
+
 `linux-atspi-modal-guard.py APP_PATH REPORT.json` runs against a Git-built,
 isolated Linux `FileCat` binary below the logged-in user's
 `~/FileCatValidation` directory. It creates a fresh source, destination and

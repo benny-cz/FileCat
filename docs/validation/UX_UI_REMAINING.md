@@ -53,7 +53,7 @@ increments to `main`.
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   larger Windows native listings and provider-backed native listing latency.
+   provider-backed native listing latency.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one
