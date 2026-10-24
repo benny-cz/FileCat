@@ -262,14 +262,16 @@ separate receipt: the remote target must retain the exact SHA-256 and be the
 only file. The Windows receipt intentionally leaves `TargetUnchanged` null
 because only the independent Ubuntu verifier can establish that fact.
 `linux-atspi-ftp-warning-speech.py APP_PATH REPORT.json KEY_HELPER FTP_HELPER
-ftp|ftpes|sftp` checks the same consequential replacement warning in the
+ftp|ftpes|ftps|sftp` checks the same consequential replacement warning in the
 logged-in Ubuntu desktop. Use the isolated Git-built `FileCat`, the tracked
 `linux-uinput-key.py` and `win-ftp-owned-stage.py` helpers copied below
 `~/FileCatValidation`, and the local `ftps-venv` fixture environment. Supply
 `FILECAT_NATIVE_SUDO_PASSWORD` only to the runner process for physical keys;
 SFTP also needs the transient `FILECAT_NATIVE_SFTP_PASSWORD`. The runner
 removes both from child environments, refuses an existing Orca instance,
-starts its own speech log and owns a fresh loopback server or SFTP folder.
+starts its own Orca instance on the logged-in Wayland session with a speech
+log, and owns a fresh loopback server or SFTP folder. Implicit-TLS FTPS starts
+TLS before the server greeting.
 For SFTP it compares the new host-key prompt with independently read SSH
 server public keys before Connect once. It chooses Replace, requires Orca to
 speak the complete final-check risk and Keep both choice, then chooses Keep

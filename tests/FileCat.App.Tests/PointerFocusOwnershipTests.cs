@@ -13,7 +13,7 @@ namespace FileCat.App.Tests;
 public sealed class PointerFocusOwnershipTests
 {
     [AvaloniaFact]
-    public async Task A_panel_click_rejects_a_late_accessibility_request_for_the_previous_filter()
+    public void A_panel_click_rejects_a_late_accessibility_request_for_the_previous_filter()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -45,7 +45,9 @@ public sealed class PointerFocusOwnershipTests
             Dispatcher.UIThread.RunJobs();
             Assert.Same(first, vm.Workspace.ActivePanel);
 
-            await Task.Delay(60, TestContext.Current.CancellationToken);
+            // The stale AX callback is simulated after the pointer event has
+            // dispatched. Wall-clock sleep here made the 250 ms ownership
+            // window expire under heavily loaded macOS CI runners.
             ControlAutomationPeer.CreatePeerForElement(filter).SetFocus();
             ControlAutomationPeer.CreatePeerForElement(path).SetFocus();
             Dispatcher.UIThread.RunJobs();

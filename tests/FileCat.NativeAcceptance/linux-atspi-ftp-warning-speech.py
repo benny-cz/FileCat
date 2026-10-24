@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hear FTP/FTPS/SFTP replacement risk through Orca in an isolated Ubuntu desktop.
 
-Usage: linux-atspi-ftp-warning-speech.py APP_PATH REPORT.json KEY_HELPER FTP_HELPER ftp|ftpes|sftp
+Usage: linux-atspi-ftp-warning-speech.py APP_PATH REPORT.json KEY_HELPER FTP_HELPER ftp|ftpes|ftps|sftp
 The caller supplies FILECAT_NATIVE_SUDO_PASSWORD only for the owned uinput key
 helper. The secret is removed from child environments before FileCat, Orca or
 the loopback server starts. SFTP also requires FILECAT_NATIVE_SFTP_PASSWORD;
@@ -32,9 +32,13 @@ WARNING_PARTS = ("after FileCat's final check", "newer change could be lost", "C
 
 
 def descendants(node):
+    if node is None:
+        return
     yield node
     for index in range(node.get_child_count()):
-        yield from descendants(node.get_child_at_index(index))
+        child = node.get_child_at_index(index)
+        if child is not None:
+            yield from descendants(child)
 
 
 def matching(node, role, name):
@@ -71,7 +75,7 @@ def windows_of(pid):
 
 
 def main():
-    if len(sys.argv) != 6 or sys.argv[5] not in ("ftp", "ftpes", "sftp"):
+    if len(sys.argv) != 6 or sys.argv[5] not in ("ftp", "ftpes", "ftps", "sftp"):
         raise SystemExit(__doc__)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = Path(sys.argv[1]).resolve(strict=True)
@@ -127,8 +131,10 @@ def main():
             if not server_python.is_file():
                 raise AssertionError("The owned FTP fixture environment is missing")
             with (fixture / "server.log").open("wb") as log:
+                server_mode = {"ftp": "serve", "ftpes": "serve-tls",
+                               "ftps": "serve-implicit-tls"}[protocol]
                 server = subprocess.Popen([str(server_python), str(ftp_helper),
-                                           "serve-tls" if protocol == "ftpes" else "serve",
+                                           server_mode,
                                            str(server_dir), str(ready)],
                                           cwd=fixture, stdout=log, stderr=subprocess.STDOUT)
             port = wait_for(lambda: ready.read_text(encoding="ascii").strip()
@@ -139,8 +145,11 @@ def main():
             address = f"{protocol}://tester@127.0.0.1:{port}/"
 
         with (fixture / "orca.err").open("wb") as error_log:
+            # SSH supplies Xwayland DISPLAY for FileCat, while Orca must use
+            # the logged-in Wayland session to receive native focus events.
+            orca_env = {**os.environ, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
             orca = subprocess.Popen(["/usr/bin/python3", "-c", shared["ORCA_WRAPPER"], str(speech.path)],
-                                    stdout=subprocess.DEVNULL, stderr=error_log, env=os.environ.copy())
+                                    stdout=subprocess.DEVNULL, stderr=error_log, env=orca_env)
         wait_for(lambda: any("Screen reader on" in phrase for phrase in speech.take()),
                  "owned Orca startup", seconds=25)
         with (fixture / "app.log").open("wb") as log:
@@ -262,7 +271,7 @@ def main():
             report["hostKeyMatched"] = matched
             action(button("Connect once"), "checked SFTP host key")
             report["steps"].append("New SFTP host key matched an independent server public key")
-        if protocol == "ftpes":
+        if protocol in ("ftpes", "ftps"):
             action(button("Connect once"), "self-signed FTPS certificate consent")
             report["steps"].append("Fresh FTPS certificate accepted for this connection only")
         wait_for(lambda: len(matching(app, "list item", "target.txt")) >= 2,

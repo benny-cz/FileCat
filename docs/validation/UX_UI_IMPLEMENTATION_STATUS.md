@@ -1,5 +1,33 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, macOS CI pointer-focus timing:** CI run `40107929968`
+passed producer, Ubuntu, Windows and Windows ARM64 lanes but had one macOS App
+failure: `PointerFocusOwnershipTests` slept 60 ms before simulating an old AX
+focus request, letting its 250 ms ownership guard expire under a loaded runner.
+The test now dispatches the pointer press and immediately issues the delayed
+AX callback without relying on scheduler wall time. The behavior still checks
+that the clicked panel owns focus until a new physical press or key. The
+focused test passed 1/1 on Windows and four consecutive 1/1 runs on Mac arm64.
+The current main-head CI run must confirm the full lane.
+
+**24 October 2026, Ubuntu native FTP/FTPS replacement speech (FCUX-001):**
+The Ubuntu VMware guest used the Git-built `c3a8138f` app (DLL SHA-256
+`60905f3ff6c16443f825a7586ff86ad08f1981697a61384873e07802c3fd621c`)
+and an owned loopback server for separate plain FTP, explicit-TLS FTPS and
+implicit-TLS FTPS runs. The runner now starts Orca on the actual Wayland
+session and tolerates a child that disappears during AT-SPI tree traversal.
+At measured 200% scale in a 720 × 540 logical window, all three protocols
+showed the complete Replace warning and in-bounds Cancel/Skip choices in both
+the Copy review and per-item conflict. Orca spoke the complete final-check
+risk and Keep both choice in both places. Plain FTP used explicit plaintext
+consent; each TLS mode accepted only the test certificate for its connection.
+Cancel and Skip preserved both exact source/target hashes and the server's
+single `target.txt` (`linux-ftp-warning-20261024-r1.json`,
+`linux-ftpes-warning-20261024-r1.json`,
+`linux-ftps-implicit-warning-20261024-r3.json` in the guest validation
+folder). Windows and Mac native provider routes, other failure cleanup and
+the intrinsic final-check race remain open.
+
 **24 October 2026, implicit-TLS native review fixture (FCUX-001):** The
 Windows replacement-review runner now accepts `ftps` as well as FTP,
 explicit-TLS FTPS and SFTP. Its owned pyftpdlib fixture negotiates TLS before

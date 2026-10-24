@@ -34,9 +34,9 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Investigate whether the
    supported SFTP, FTP and FTPS providers offer a safe way to narrow the
-   final-check race; add bounded tests for any mitigation. Finish native
-   failure-cleanup choices and replacement checks on all three FTP/FTPS
-   modes and remaining SFTP provider failures. For FCUX-069/070, validate
+   final-check race; add bounded tests for any mitigation. Finish Windows and
+   Mac native failure-cleanup and replacement checks for the FTP/FTPS modes,
+   and remaining SFTP provider failures. For FCUX-069/070, validate
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
