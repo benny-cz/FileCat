@@ -52,9 +52,9 @@ increments to `main`.
    other scaled displays and narrow-layout states. For FCUX-009, finish
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
-   supported desktops. For FCUX-010, verify VoiceOver's other item actions,
-   Windows SFTP provider-backed native listing latency and other supported
-   provider types beyond FTP, explicit-TLS FTPS and SFTP.
+   supported desktops. For FCUX-010, verify VoiceOver's other item actions
+   and bounded native listings on other supported provider types beyond
+   FTP, explicit-TLS FTPS and SFTP.
    Remove Orca's duplicate row details: the native 39-step journey passed,
    but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
    details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one

@@ -2,7 +2,10 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('ftp', 'ftpes')][string]$Protocol = 'ftp'
+    [ValidateSet('ftp', 'ftpes', 'sftp')][string]$Protocol = 'ftp',
+    [string]$SftpFixtureId,
+    [string]$ExpectedHostFingerprints,
+    [string]$SftpPassword
 )
 
 # Native Win11 UI Automation acceptance for a test-owned 2,001-file provider.
@@ -73,6 +76,11 @@ if (!$app.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
 if (Get-Process -Name FileCat -ErrorAction SilentlyContinue) {
     throw 'Close other FileCat processes before the isolated provider test.'
 }
+if ($Protocol -eq 'sftp' -and ($SftpFixtureId -cnotmatch '^[0-9a-f]{32}$' -or
+    [string]::IsNullOrWhiteSpace($ExpectedHostFingerprints) -or
+    [string]::IsNullOrEmpty($SftpPassword))) {
+    throw 'SFTP needs an exact owned Ubuntu fixture, independent host fingerprints and a transient credential.'
+}
 $repo = [IO.Path]::GetFullPath((Join-Path (Split-Path $app) '..\..\..\..\..'))
 $gitExe = 'C:\Program Files\Git\cmd\git.exe'
 if (!(Test-Path -LiteralPath $gitExe -PathType Leaf)) {
@@ -94,10 +102,13 @@ New-Item -ItemType Directory -Force -Path $source, $localTarget, $serverRoot, $d
 $original = @{ 'a.txt' = [Text.Encoding]::UTF8.GetBytes("alpha`n"); 'b.txt' = [Text.Encoding]::UTF8.GetBytes("beta`n") }
 foreach ($name in $original.Keys) { [IO.File]::WriteAllBytes((Join-Path $source $name), $original[$name]) }
 $target = Join-Path $serverRoot 'target.txt'
-[IO.File]::WriteAllBytes($target, [Text.Encoding]::UTF8.GetBytes("owned unchanged remote target`n"))
-$targetHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
-for ($index = 0; $index -lt 2000; $index++) {
-    [IO.File]::Create((Join-Path $serverRoot ('native-list-{0:D4}.txt' -f $index))).Dispose()
+$targetHash = $null
+if ($Protocol -ne 'sftp') {
+    [IO.File]::WriteAllBytes($target, [Text.Encoding]::UTF8.GetBytes("owned unchanged remote target`n"))
+    $targetHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+    for ($index = 0; $index -lt 2000; $index++) {
+        [IO.File]::Create((Join-Path $serverRoot ('native-list-{0:D4}.txt' -f $index))).Dispose()
+    }
 }
 $python = (Get-Command python -ErrorAction Stop).Source
 $server = $null
@@ -105,7 +116,7 @@ $process = $null
 $result = [ordered]@{
     Passed = $false; Protocol = $Protocol; Fixture = $root; GitHead = $gitHead;
     AppDllSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $app) 'FileCat.dll') -Algorithm SHA256).Hash;
-    GeneratedFiles = 2000
+    GeneratedFiles = 2000; SftpFixtureId = $SftpFixtureId
 }
 
 function Await([scriptblock]$condition, [string]$description, [int]$seconds = 30) {
@@ -180,18 +191,22 @@ function ActivateOwnedApp {
 }
 
 try {
-    $mode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
-    $server = Start-Process -FilePath $python -ArgumentList @($helper, $mode, $serverRoot, $ready) -PassThru `
-        -WindowStyle Hidden -RedirectStandardError $serverError
-    $port = Await {
-        if ($server.HasExited) { throw 'The owned FTP server exited before readiness.' }
-        if (Test-Path -LiteralPath $ready -PathType Leaf) {
-            $text = (Get-Content -LiteralPath $ready -Raw).Trim()
-            if ($text -match '^\d+$') { [int]$text }
-        }
-    } 'owned FTP port' 15
-    if ($port -lt 1 -or $port -gt 65535) { throw 'The owned FTP port is invalid.' }
-    $address = "${Protocol}://tester@127.0.0.1:$port/"
+    if ($Protocol -eq 'sftp') {
+        $address = "sftp://benny@192.168.58.129/home/benny/FileCatValidation/WindowsLargeSftpListing/$SftpFixtureId/"
+    } else {
+        $mode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
+        $server = Start-Process -FilePath $python -ArgumentList @($helper, $mode, $serverRoot, $ready) -PassThru `
+            -WindowStyle Hidden -RedirectStandardError $serverError
+        $port = Await {
+            if ($server.HasExited) { throw 'The owned FTP server exited before readiness.' }
+            if (Test-Path -LiteralPath $ready -PathType Leaf) {
+                $text = (Get-Content -LiteralPath $ready -Raw).Trim()
+                if ($text -match '^\d+$') { [int]$text }
+            }
+        } 'owned FTP port' 15
+        if ($port -lt 1 -or $port -gt 65535) { throw 'The owned FTP port is invalid.' }
+        $address = "${Protocol}://tester@127.0.0.1:$port/"
+    }
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $source, '--right', $localTarget) -PassThru
     Await {
@@ -220,9 +235,26 @@ try {
         $result.PlaintextConsent = $true
     }
     $password = Await { One $window ([System.Windows.Automation.ControlType]::Edit) 'Password' } 'owned password field'
-    $password.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('secret-pass')
+    $password.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue(
+        $(if ($Protocol -eq 'sftp') { $SftpPassword } else { 'secret-pass' }))
     $connect = Await { Button $window 'Connect' } 'remote Connect action'
     $connect.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ($Protocol -eq 'sftp') {
+        $trust = Await { Button $window 'Connect once' } 'new SFTP host-key decision' 30
+        $expected = @($ExpectedHostFingerprints.Split(',') |
+            Where-Object { $_ -match '^SHA256:[A-Za-z0-9+/]{43}$' })
+        if ($expected.Count -eq 0) { throw 'No valid independent SSH host-key fingerprint was provided.' }
+        $shown = @((SnapshotAll $window) | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            !$_.Current.IsOffscreen
+        } | ForEach-Object { $_.Current.Name })
+        $match = @($shown | Where-Object { $expected -contains $_ })
+        if (!$match.Count -or 'New server key' -notin $shown) {
+            throw 'The native SFTP host-key prompt did not match an independently observed server key.'
+        }
+        $result.HostKeyMatched = $match[0]
+        $trust.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
     if ($Protocol -eq 'ftpes') {
         $trust = Await { Button $window 'Connect once' } 'fresh FTPS certificate decision'
         $trust.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -257,12 +289,15 @@ try {
         if ([BitConverter]::ToString([IO.File]::ReadAllBytes((Join-Path $source $name))) -ne
             [BitConverter]::ToString([byte[]]$original[$name])) { throw "The $name source bytes changed." }
     }
-    if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $targetHash -or
-        (Get-ChildItem -LiteralPath $serverRoot -File).Count -ne 2001 -or
-        (Get-ChildItem -LiteralPath $localTarget).Count -ne 0 -or
-        @((Get-ChildItem -LiteralPath $serverRoot -Filter 'native-list-*.txt') |
-            Where-Object { $_.Length -ne 0 }).Count -ne 0) {
-        throw 'The source, server or initial local target changed during the provider journey.'
+    if ((Get-ChildItem -LiteralPath $localTarget).Count -ne 0) {
+        throw 'The initial local target changed during the provider journey.'
+    }
+    if ($Protocol -ne 'sftp' -and
+        ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $targetHash -or
+         (Get-ChildItem -LiteralPath $serverRoot -File).Count -ne 2001 -or
+         @((Get-ChildItem -LiteralPath $serverRoot -Filter 'native-list-*.txt') |
+             Where-Object { $_.Length -ne 0 }).Count -ne 0)) {
+        throw 'The owned loopback server files changed during the provider journey.'
     }
     $result.Loaded = @{ FileCount = $first.FileCount; Status = $first.Status; RowCount = $first.RowCount;
         Visited = $first.Visited; QuerySeconds = $first.QuerySeconds }
@@ -270,7 +305,7 @@ try {
         Visited = $last.Visited; QuerySeconds = $last.QuerySeconds; Focused = 'target.txt' }
     $result.EndKeySeconds = [math]::Round($jump.Elapsed.TotalSeconds, 3)
     $result.SourceBytesUnchanged = $true
-    $result.ServerFilesUnchanged = $true
+    $result.ServerFilesUnchanged = if ($Protocol -eq 'sftp') { $null } else { $true }
     $result.Passed = $true
 } catch { $result.Error = $_.Exception.Message }
 finally {
