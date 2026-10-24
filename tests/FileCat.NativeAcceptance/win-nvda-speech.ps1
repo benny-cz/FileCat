@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [Parameter(Mandatory)][string]$NvdaPath,
-    [switch]$RecordAll
+    [switch]$RecordAll,
+    [ValidateSet(0, 150, 200)][int]$FilterDisplayScale = 0
 )
 
 # Hears FileCat through NVDA while native keys move file-list focus and open a dialog. NVDA runs from a portable
@@ -18,7 +19,9 @@ public static class FileCatNvdaInput {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr handle, int command);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr handle);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out RECT rect);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr handle, int attribute, out RECT rect, int size);
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr handle, int x, int y, int width, int height, bool repaint);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(int flags, int dx, int dy, int data, int extra);
@@ -109,6 +112,8 @@ $report = [ordered]@{
     nvda = (Get-Item -LiteralPath $nvda).VersionInfo.ProductVersion; fixture = $fixture; input = 'Windows virtual-key keyboard'
     sourceSha256 = $sourceHash; steps = @()
 }
+$scaledReady = "$ReportPath.filter.ready"
+$scaledResume = "$ReportPath.filter.resume"
 $script:offset = 0L
 function TakeSpeech {
     if (!(Test-Path -LiteralPath $log)) { return @() }
@@ -256,9 +261,60 @@ try {
     Step 'typing an unclosed mask is announced' 'Slash' 'Unclosed regular expression in mask.'
     Step 'Enter on the rejected mask explains it again' 'A,Enter' 'Unclosed regular expression in mask.'
     Step 'Escape closes Quick filter' 'Escape' 'c.txt'
+    if ($FilterDisplayScale) {
+        $dpi = [FileCatNvdaInput]::GetDpiForWindow($process.MainWindowHandle)
+        if ([Math]::Abs($dpi - [int](96 * $FilterDisplayScale / 100)) -gt 1) {
+            throw "The FileCat window is at $dpi DPI, not the requested $FilterDisplayScale% display scale."
+        }
+        # This PowerShell runner is DPI-unaware; MoveWindow uses virtualized coordinates.
+        # DWM supplies the physical rectangle independently, so a wide false pass is impossible.
+        $width = 720
+        $height = 500
+        $physicalWidth = [int]($width * $FilterDisplayScale / 100)
+        $physicalHeight = [int]($height * $FilterDisplayScale / 100)
+        if (![FileCatNvdaInput]::MoveWindow($process.MainWindowHandle, 120, 80, $width, $height, $true)) {
+            throw 'Could not resize the owned FileCat window for scaled Filter acceptance.'
+        }
+        Start-Sleep -Milliseconds 400
+        $rect = New-Object FileCatNvdaInput+RECT
+        if (![FileCatNvdaInput]::GetWindowRect($process.MainWindowHandle, [ref]$rect)) {
+            throw 'The scaled FileCat window bounds were unavailable.'
+        }
+        $actualVirtual = @(($rect.Right - $rect.Left), ($rect.Bottom - $rect.Top))
+        if ([Math]::Abs($actualVirtual[0] - $width) -gt 4 -or [Math]::Abs($actualVirtual[1] - $height) -gt 4) {
+            throw "The narrow scaled FileCat window has unexpected virtualized bounds: $($actualVirtual -join ' × ')."
+        }
+        $physicalRect = New-Object FileCatNvdaInput+RECT
+        $status = [FileCatNvdaInput]::DwmGetWindowAttribute($process.MainWindowHandle, 9,
+            [ref]$physicalRect, [Runtime.InteropServices.Marshal]::SizeOf($physicalRect))
+        if ($status -ne 0) { throw "DWM physical window bounds failed: $status" }
+        $actualPhysical = @(($physicalRect.Right - $physicalRect.Left), ($physicalRect.Bottom - $physicalRect.Top))
+        if ([Math]::Abs($actualPhysical[0] - $physicalWidth) -gt 35 -or
+            [Math]::Abs($actualPhysical[1] - $physicalHeight) -gt 35) {
+            throw "The narrow FileCat window has unexpected physical bounds: $($actualPhysical -join ' × ')."
+        }
+        $report.filterScale = [ordered]@{ percent = $FilterDisplayScale; dpi = $dpi;
+            requestedLogicalSize = @($width, $height); actualVirtualSize = $actualVirtual;
+            requestedPhysicalSize = @($physicalWidth, $physicalHeight); actualPhysicalSize = $actualPhysical }
+    }
     Step 'Ctrl+Shift+F focuses the inline Filter field' 'CtrlShiftF' 'Filter'
     Step 'Enter rejects an invalid inline filter' 'Slash,Enter' 'Unclosed regular expression in mask.'
+    if ($FilterDisplayScale) {
+        'Capture the owned scaled FileCat Filter error, then create the matching .filter.resume file.' |
+            Set-Content -LiteralPath $scaledReady -Encoding UTF8
+        $deadline = [Diagnostics.Stopwatch]::StartNew()
+        while (!(Test-Path -LiteralPath $scaledResume)) {
+            if ($deadline.Elapsed.TotalSeconds -gt 120 -or $process.HasExited) {
+                throw 'The bounded scaled Filter capture pause expired.'
+            }
+            Start-Sleep -Milliseconds 200
+        }
+    }
     Step 'Escape restores the current file row' 'Escape' 'c.txt'
+    if ($FilterDisplayScale) {
+        [FileCatNvdaInput]::MoveWindow($process.MainWindowHandle, 440, 0, 1300, 900, $true) | Out-Null
+        Start-Sleep -Milliseconds 300
+    }
     # A viewer search reports its result count through a live region.
     Step 'F3 opens the viewer' 'F3' 'FileCat Viewer'
     Step 'F7 opens the viewer search' 'F7' 'Find in file'
@@ -357,6 +413,7 @@ try {
     $report.error = $_.Exception.Message
     throw
 } finally {
+    Remove-Item -LiteralPath $scaledReady, $scaledResume -ErrorAction SilentlyContinue
     if ($switchTarget -and !$switchTarget.HasExited) { $switchTarget.Kill() }
     if ($process -and !$process.HasExited) {
         $process.CloseMainWindow() | Out-Null
