@@ -2105,14 +2105,22 @@ try
             NativeWindow.ClickAt(pointerX, pointerY);
             var hitAfterFirstPointer = NativeWindow.HitAt(pointerX, pointerY);
             XElement? focusedRow = null;
-            for (int attempt = 0; attempt < 3; attempt++)
+            XDocument afterFirstSnapshot = listing;
+            var firstPointerWatch = Stopwatch.StartNew();
+            do
             {
-                focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
+                afterFirstSnapshot = ParseSource(await ReadSourceAsync(client, sessionId));
+                focusedRow = Row(afterFirstSnapshot);
                 if ((string?)focusedRow?.Attribute("HasKeyboardFocus") == "True") break;
                 await Task.Delay(100);
             }
+            while (firstPointerWatch.Elapsed < TimeSpan.FromSeconds(2));
             bool firstPointerFocused =
                 (string?)focusedRow?.Attribute("HasKeyboardFocus") == "True";
+            string? focusedElementAfterFirst = afterFirstSnapshot.Descendants()
+                .FirstOrDefault(element => (string?)element.Attribute("HasKeyboardFocus") == "True")
+                ?.Attribute("Name")?.Value;
+            long firstPointerObservedMs = firstPointerWatch.ElapsedMilliseconds;
             bool foregroundAfterFirstPointer = NativeWindow.IsRecoveryForeground("selection-source");
             if (!firstPointerFocused)
             {
@@ -2211,12 +2219,13 @@ try
             bool sourceIntact = (await File.ReadAllBytesAsync(sourceFile)).AsSpan().SequenceEqual(bytes);
             if (editorClosed && sourceIntact) File.Delete(sourceFile);
             bool fixtureRemoved = !File.Exists(sourceFile);
-            bool passed = editorClosed && sourceIntact && fixtureRemoved
+            bool passed = firstPointerFocused && editorClosed && sourceIntact && fixtureRemoved
                 && secondHit - firstHit > 4 * 1024 * 1024;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, foregroundBeforePointer, foregroundAfterFirstPointer,
-                pointerX, pointerY, hitBeforeFirstPointer, hitAfterFirstPointer,
+                fileRowBounds, pointerX, pointerY, hitBeforeFirstPointer, hitAfterFirstPointer,
+                firstPointerObservedMs, focusedElementAfterFirst,
                 firstPointerFocused, nativePointerFocused, firstHit, secondHit,
                 firstStatus, countAfterFirst, secondStatus, countAfterSecond,
                 previousStatus, beforeFirst, changedStatus, countAfterChangedQuery,
@@ -6212,6 +6221,9 @@ internal static partial class NativeWindow
             throw new InvalidOperationException("Cannot position guest pointer.");
         Thread.Sleep(80);
         MouseEvent(LeftDown, 0, 0, 0, 0);
+        // Keep a human-scale pressed interval between the native edges, including
+        // when the guest has a scaled desktop or is scheduling an activation.
+        Thread.Sleep(40);
         MouseEvent(LeftUp, 0, 0, 0, 0);
     }
 
