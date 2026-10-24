@@ -132,7 +132,10 @@ def main():
         wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
                  "the reopened dialog close button")
         wx, wy, ww, wh = window_bounds()
-        outside = [wx + 20, wy + wh - 80]
+        # VoiceOver's floating caption can cover the lower-left corner of the
+        # window. Press the visible left pane above it, outside the centered
+        # modal, so this remains a real FileCat backdrop click.
+        outside = [wx + min(80, ww // 8), wy + min(250, wh // 3)]
         click(*outside)
         wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
                  "backdrop cancellation")

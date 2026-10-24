@@ -114,9 +114,10 @@ increments to `main`.
    UXBUG-015 needs localized speed entry, keyboard error navigation and
    actual screen-reader announcements on supported desktops. Report
    Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
-   UXBUG-016 needs native checks of other dialog families and non-Windows
-   scaled visuals and actual screen-reader speech on each desktop. Investigate
-   FileCat's response to SIGTERM while a dialog is open on macOS. Capture
+   UXBUG-016 needs native checks of other dialog families and the remaining
+   non-Windows scaled visuals and actual screen-reader speech on each desktop.
+   Mac Create folder X/backdrop pointer cancellation now passes on Retina 2×.
+   Investigate FileCat's response to SIGTERM while a dialog is open on macOS. Capture
    Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
    synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
    agrees.

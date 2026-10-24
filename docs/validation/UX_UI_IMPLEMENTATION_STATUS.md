@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac dialog pointer acceptance (UXBUG-016):** The signed
+`20df90d0` Retina build passed a fresh Create folder close-X and backdrop
+mouse journey (`mac-dialog-pointer-20261024-r3.json`). Native AX measured one
+enabled, cancel-labeled `Close dialog` button at 30 × 30 points; both exits
+closed the overlay and left the owned source and target empty. An initial
+backdrop run was obscured by an unrelated FaceTime account alert. After its
+authorized dismissal, a second run showed VoiceOver's floating caption over
+the test's lower-left click point. The runner now clicks the visible left
+pane above that caption, outside the centered dialog. The corrected result
+passed with point (160, 280) in the 1280 × 799 point FileCat window.
+
 **24 October 2026, Windows CI live NTFS log test:** The `bba12fd8` Windows
 lane failed one privileged `WindowsFileRecordsTests` case. Its bounded retry
 stopped when the report had two timestamp signs, although those signs could
