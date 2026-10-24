@@ -1172,6 +1172,18 @@ Find query, Previous/Next and count bounds; every control must remain inside
 the editor window. `--narrow` adds a measured 720 × 500 app-unit window at
 that display scale and repeats the same visibility and search checks.
 
+`linux-orca-hex-search.py APP_PATH REPORT.json HEX_RUNNER KEY_HELPER ORCA_RUNNER`
+adds actual Orca speech acceptance to the 200% native Hex route. All five
+paths must be in `~/FileCatValidation`; pass the one-time uinput credential
+through `FILECAT_NATIVE_SUDO_PASSWORD` only to this process. The wrapper
+locates the logged-in user's Xwayland authorization and Wayland socket, starts
+one owned Orca instance with a private speech log, launches an isolated
+Git-built FileCat and runs `linux-atspi-hex-editor-find.py check --scaled`.
+It passes only when the native offsets, controls, source bytes and cleanup
+pass and Orca's `SPEECH OUTPUT` records contain one, two, then one distinct
+match for the changed query. The JSON summary retains paths to the private
+Orca log and native report, and the wrapper closes only its owned processes.
+
 ## macOS logged-in desktop
 
 `python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json` follows the macOS
