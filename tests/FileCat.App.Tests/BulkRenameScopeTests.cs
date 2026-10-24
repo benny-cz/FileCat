@@ -15,6 +15,57 @@ namespace FileCat.App.Tests;
 public sealed class BulkRenameScopeTests
 {
     [AvaloniaFact]
+    public async Task A_completed_preview_publishes_the_full_mapping_after_its_count_summary()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            async Task Until(Func<bool> condition)
+            {
+                for (int i = 0; i < 300 && !condition(); i++) await Task.Delay(20, ct);
+                Assert.True(condition());
+            }
+            await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
+            listing.MarkNames(["a.txt", "b.txt"], true);
+            vm.Execute(CommandIds.BulkRename);
+            await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen);
+            window.UpdateLayout();
+            var preview = window.GetVisualDescendants().OfType<BulkRenameReview>().Single();
+            await Until(() => preview.AllRows.Count == 2);
+            var summary = window.GetVisualDescendants().OfType<TextBlock>().Single(block =>
+                AutomationProperties.GetAutomationId(block) == "Bulk rename validation status");
+            var position = window.GetVisualDescendants().OfType<TextBlock>().Single(block =>
+                AutomationProperties.GetLiveSetting(block) == AutomationLiveSetting.Polite &&
+                block.Text?.Contains(" of 2 shown", StringComparison.Ordinal) == true);
+            var mask = window.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Name mask");
+            var published = new List<string>();
+            summary.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == TextBlock.TextProperty && summary.Text?.Contains("names change", StringComparison.Ordinal) == true)
+                    published.Add("summary");
+            };
+            position.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == TextBlock.TextProperty && position.Text?.Contains("reviewed_1.txt", StringComparison.Ordinal) == true)
+                    published.Add("mapping");
+            };
+            mask.Text = "reviewed_[C]";
+            await Until(() => preview.AllRows.Count == 2 &&
+                preview.AllRows.All(row => row.Plan.NewName.StartsWith("reviewed_", StringComparison.Ordinal)));
+            Assert.Contains("summary", published);
+            Assert.Contains("mapping", published);
+            Assert.True(published.LastIndexOf("summary") < published.LastIndexOf("mapping"),
+                string.Join(", ", published));
+            Assert.Equal("alpha", File.ReadAllText(Path.Combine(root, "files", "a.txt")));
+            Assert.Equal("beta", File.ReadAllText(Path.Combine(root, "files", "b.txt")));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Editor_result_from_old_rules_cannot_replace_the_new_preview_or_submission()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

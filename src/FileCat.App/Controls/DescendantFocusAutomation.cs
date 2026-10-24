@@ -186,7 +186,14 @@ internal static class LiveRegions
             region = new Region(ControlAutomationPeer.CreatePeerForElement(control));
             s_watched.Add(control, region);
             var watched = region;
-            control.AttachedToVisualTree += (_, _) => Track(control, watched.Peer);
+            control.AttachedToVisualTree += (_, _) =>
+            {
+                Track(control, watched.Peer);
+                // A dialog can prepare its first result before being attached.
+                // Its name change was deferred while it had no window; publish
+                // the final text after its native element has a visible parent.
+                if (watched.Deferred && control.IsEffectivelyVisible) Shown(control, watched);
+            };
             control.PropertyChanged += (_, e) =>
             {
                 if (e.Property == Visual.IsVisibleProperty && control.IsVisible) Shown(control, watched);
@@ -239,7 +246,7 @@ internal static class LiveRegions
     {
         if (e.Property != AutomationElementIdentifiers.NameProperty || Text(region) is not { } text) return;
         // A change while shown is the platform bridges' own event, raised as it happens; deferring it would repeat it.
-        if (!control.IsEffectivelyVisible)
+        if (!control.IsEffectivelyVisible || TopLevel.GetTopLevel(control) is not Window)
         {
             region.Deferred = true;
             return;

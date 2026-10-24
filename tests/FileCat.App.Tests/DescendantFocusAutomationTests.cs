@@ -346,6 +346,31 @@ public sealed class DescendantFocusAutomationTests
     }
 
     [AvaloniaFact]
+    public void A_dialog_live_result_prepared_before_attachment_speaks_when_its_window_is_shown()
+    {
+        var result = new TextBlock();
+        AutomationProperties.SetLiveSetting(result, AutomationLiveSetting.Polite);
+        LiveRegions.Watch(result);
+        result.Text = "1 of 2 shown · From: source/b.txt · To: target/reviewed_1.txt";
+        var window = new FocusWindow { Width = 400, Height = 200,
+            Content = new StackPanel { Children = { result } } };
+        window.Show();
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var node = new FakeBridgeNode(new FakeBridgeServer(), root);
+            root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            Dispatcher.UIThread.RunJobs();
+            var spoken = Assert.Single(node.EventObjectHandler.Signals);
+            Assert.Equal("1 of 2 shown · From: source/b.txt · To: target/reviewed_1.txt",
+                Assert.IsType<FakeVariant>(spoken.Body[3]).Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Single(node.EventObjectHandler.Signals);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void A_rejected_prompt_value_is_spoken_described_on_its_field_and_explained_again_on_Enter()
     {
         var host = new Grid();

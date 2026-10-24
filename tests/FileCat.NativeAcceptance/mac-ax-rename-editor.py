@@ -99,6 +99,13 @@ def voiceover_last():
     return osa('tell application "VoiceOver" to get content of last phrase')
 
 
+def spoken_mapping(old_path, new_path, description):
+    def heard():
+        phrase = voiceover_last()
+        return phrase if str(old_path) in phrase and str(new_path) in phrase else None
+    return wait_for(heard, description, seconds=5)
+
+
 def configure_editor(fixture):
     editor = fixture / "controlled-editor.py"
     editor.write_text('''#!/usr/bin/env python3
@@ -254,10 +261,13 @@ def run(bundle, report_path, narrow):
             return None
 
         preview = wait_for(proposed, "both reviewed rename mappings")
+        # Preserve the exact AX tree while the review is open; later probes
+        # replace last-snapshot.json after the modal has closed.
+        (fixture / "preview-ax-snapshot.json").write_bytes((fixture / "last-snapshot.json").read_bytes())
         preview_capture = capture(validation / "FileCatCapture.app", validation)
         (fixture / "preview-capture-path").write_text(str(preview_capture), encoding="utf-8")
-        time.sleep(1.2)
-        first_speech = voiceover_last()
+        first_speech = spoken_mapping(source / "b.txt", source / "reviewed_1.txt",
+                                      "VoiceOver's first complete rename mapping")
         item(preview, "AXButton", "Next rename mapping")
         first_status = "1 of 2 shown"
         if not any(n["role"] == "AXStaticText" and n["name"].startswith(first_status)
@@ -275,12 +285,12 @@ def run(bundle, report_path, narrow):
                 return found
             return None
         wait_for(second_mapping, "second full-path mapping through the native Next action")
-        time.sleep(1.2)
-        second_speech = voiceover_last()
+        second_speech = spoken_mapping(source / "a.txt", source / "reviewed_2.txt",
+                                       "VoiceOver's second complete rename mapping")
         ax_activate("AXButton", "Previous rename mapping")
         wait_for(proposed, "first full-path mapping through the native Previous action")
-        time.sleep(1.2)
-        previous_speech = voiceover_last()
+        previous_speech = spoken_mapping(source / "b.txt", source / "reviewed_1.txt",
+                                         "VoiceOver's restored first rename mapping")
         phrases = [first_speech, second_speech, previous_speech]
         for phrase, old_name, new_name in zip(phrases,
                                               ["b.txt", "a.txt", "b.txt"],

@@ -1,5 +1,35 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, initial Mac rename mapping speech and AX diagnosis
+(FCUX-003/010):** Native VoiceOver intermittently left the first complete
+rename mapping silent or let the aggregate count replace it, although
+Previous/Next spoke both paths. Live regions now defer name changes prepared
+before window attachment, the bulk-rename summary publishes before the
+selected mapping, and the first attached mapping is repeated once after the
+dialog's initial announcements settle. A new portable test proves deferred
+text speaks once on attachment; another proves the count precedes the full
+mapping. Focused Windows tests passed 29/29 for dialog/live-region behavior
+and 26/26 for rename/review/live-region behavior; the Mac arm64 attachment
+and ordering tests passed 15/15 and 1/1. A signed Mac app (DLL SHA-256
+`6c891618777050f7c2bde3f0629127c612948df87812ed85aa3263a1071bdd72`)
+passed four consecutive 760 × 600 muted VoiceOver rename runs: the first,
+Next and Previous phrases contained exact complete source and target paths;
+the external editor wrote the expected names and all source bytes stayed
+exact (`mac-rename-initial-mapping-20261024-r1` through `r4.json`). The
+native runner now waits a bounded five seconds for each exact path phrase and
+retains its in-dialog AX snapshot.
+
+The retained Mac AX snapshots confirm a separate unresolved geometry issue:
+the visible `Bulk rename content` scroll area has a real frame, but its first
+content child and visible Name mask, hidden-mark checkbox and preview list
+report `[0, 900, 0, 0]`; the pinned mapping controls have real frames.
+Managed automation bounds are valid on Windows and Mac. Refreshing the
+native scroll peer and temporarily bypassing the custom width wrapper did
+not change the native bounds, so neither experiment was retained. The
+virtualized preview still exposes no native Mac AX rows; the complete
+Previous/Next mapping route remains available. Final-head CI for this batch
+and other Mac form-body accessibility work remain open.
+
 **24 October 2026, Mac spoken row restoration after Copy cancellation
 (FCUX-004/010):** Repeating the native AX focus event for the same row did not
 make VoiceOver speak its filename. The main window now keeps a quiet,

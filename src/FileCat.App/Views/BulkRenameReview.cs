@@ -1,9 +1,13 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Operations;
 
@@ -45,6 +49,8 @@ internal sealed class BulkRenameReview : StackPanel
     private readonly WrapPanel _tools;
     private readonly StackPanel _mappingNavigation;
     private IReadOnlyList<Row> _all = [];
+    private int _initialSpeechRevision;
+    private bool _initialMappingSpoken;
 
     internal BulkRenameReview()
     {
@@ -74,6 +80,8 @@ internal sealed class BulkRenameReview : StackPanel
         AutomationProperties.SetName(_previousMapping, "Previous rename mapping");
         AutomationProperties.SetName(_nextMapping, "Next rename mapping");
         AutomationProperties.SetLiveSetting(_position, AutomationLiveSetting.Polite);
+        _position.AttachedToVisualTree += (_, _) => ScheduleInitialMappingSpeech();
+        _position.DetachedFromVisualTree += (_, _) => _initialSpeechRevision++;
         var mappingButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
             Children = { _previousMapping, _nextMapping } };
         _mappingNavigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
@@ -188,6 +196,27 @@ internal sealed class BulkRenameReview : StackPanel
             ? "Previous mapping: " + ShownRows[index - 1].Detail : "No previous mapping.");
         AutomationProperties.SetHelpText(_nextMapping, index >= 0 && index < ShownRows.Count - 1
             ? "Next mapping: " + ShownRows[index + 1].Detail : "No next mapping.");
+        if (selected is not null) ScheduleInitialMappingSpeech();
+    }
+
+    private void ScheduleInitialMappingSpeech()
+    {
+        if (_initialMappingSpoken || ShownRows.Count == 0 || !OperatingSystem.IsMacOS() ||
+            TopLevel.GetTopLevel(_position) is not Window window ||
+            ControlAutomationPeer.CreatePeerForElement(window) is not IRootProvider { PlatformImpl: { } platform } ||
+            platform.GetType().Assembly.GetName().Name == "Avalonia.Headless") return;
+        int revision = ++_initialSpeechRevision;
+        // The dialog title and asynchronous count can otherwise displace the
+        // initial mapping before VoiceOver speaks it. Its full path is the
+        // consequential choice, so repeat it once after those events settle.
+        DispatcherTimer.RunOnce(() =>
+        {
+            if (revision != _initialSpeechRevision || _initialMappingSpoken ||
+                !_position.IsEffectivelyVisible || !_position.IsEffectivelyEnabled ||
+                TopLevel.GetTopLevel(_position) is not Window) return;
+            LiveRegions.Repeat(_position);
+            _initialMappingSpoken = true;
+        }, TimeSpan.FromMilliseconds(350));
     }
 
     private void UpdateView(int selected = -1)

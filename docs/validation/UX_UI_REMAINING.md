@@ -36,7 +36,10 @@ increments to `main`.
    delayed Paste destination on each desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
    safely offered. On Mac, investigate the scrolling form body's zero AX bounds
-   and preview list with no AX children. For FCUX-004, exercise other modal
+   and preview list with no AX children. The native `Bulk rename content`
+   scroll area has a valid frame, while its first content child and visible
+   fields report `[0, 900, 0, 0]`; a scroll-peer refresh and removal of the
+   width wrapper did not correct it. For FCUX-004, exercise other modal
    focus and decision routes on each desktop.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For

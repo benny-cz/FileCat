@@ -225,13 +225,16 @@ public sealed partial class MainViewModel
             rows = result;
             plannedFor = rules;
             plannedScope = scope;
-            preview.SetRows(rows);
             editorButton.IsEnabled = rows.Count > 0;
             int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
             summary.Text = $"{changing:N0} of {rows.Count:N0} names change" + (problems > 0 ? $" · {problems:N0} problems block the rename" : "") +
                            (sel.Value.HiddenMarked > 0 ? hidden.IsChecked == true ? $" · includes {sel.Value.HiddenMarked:N0} hidden marked items" : $" · {sel.Value.HiddenMarked:N0} hidden marked items excluded" : "") +
                            (names is not null ? " · names come from the editor; change a rule to go back to the rules" : "");
             summary.Classes.Set("error", problems > 0);
+            // The selected full-path mapping is the decision the user must
+            // review. Publish its live region after the summary so VoiceOver
+            // does not replace that mapping with only the aggregate count.
+            preview.SetRows(rows);
         }
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         debounce.Tick += (_, _) => { debounce.Stop(); RequestPreview(); };

@@ -59,8 +59,8 @@ var nodes: [[String: Any]] = []
 var visited = 0
 let included: Set<String> = ["AXWindow", "AXRow", "AXButton", "AXCheckBox",
                              "AXTextField", "AXTextArea", "AXComboBox", "AXPopUpButton",
-                             "AXStaticText", "AXList", "AXGroup"]
-func scan(_ element: AXUIElement, _ depth: Int) {
+                             "AXStaticText", "AXList", "AXGroup", "AXScrollArea"]
+func scan(_ element: AXUIElement, _ depth: Int, _ ancestry: [String]) {
     guard depth <= 22 && visited < 5000 else { return }
     visited += 1
     let role = string(attribute(element, kAXRoleAttribute as CFString))
@@ -68,22 +68,24 @@ func scan(_ element: AXUIElement, _ depth: Int) {
     let description = string(attribute(element, kAXDescriptionAttribute as CFString))
     let value = string(attribute(element, kAXValueAttribute as CFString))
     let name = title.isEmpty ? (description.isEmpty ? value : description) : title
+    let path = ancestry + [role + (name.isEmpty ? "" : ":" + String(name.prefix(48)))]
     if included.contains(role), let bounds = frame(element) {
         nodes.append(["role": role, "name": name, "title": title,
                       "description": description, "value": value, "bounds": bounds,
+                      "path": path, "identifier": string(attribute(element, "AXIdentifier" as CFString)),
                       "help": string(attribute(element, kAXHelpAttribute as CFString)),
                       "enabled": (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "selected": (attribute(element, kAXSelectedAttribute as CFString) as? NSNumber)?.boolValue ?? false,
                       "focused": (attribute(element, kAXFocusedAttribute as CFString) as? NSNumber)?.boolValue ?? false])
     }
     let children = attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
-    for child in children.prefix(80) { scan(child, depth + 1) }
+    for child in children.prefix(80) { scan(child, depth + 1, path) }
     if role == "AXList" && children.isEmpty {
         let rows = attribute(element, kAXRowsAttribute as CFString) as? [AXUIElement] ?? []
-        for row in rows.prefix(80) { scan(row, depth + 1) }
+        for row in rows.prefix(80) { scan(row, depth + 1, path) }
     }
 }
-for window in windows.prefix(5) { scan(window, 0) }
+for window in windows.prefix(5) { scan(window, 0, []) }
 let result: [String: Any] = ["visited": visited, "windows": windows.count, "nodes": nodes]
 let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
 print(String(data: data, encoding: .utf8)!)
