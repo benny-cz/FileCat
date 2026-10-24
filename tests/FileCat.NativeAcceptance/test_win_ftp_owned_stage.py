@@ -8,12 +8,15 @@ import subprocess
 import sys
 import tempfile
 import time
+from unittest.mock import patch
 
 
 def read_port(ready: Path) -> int | None:
     try:
         value = ready.read_text(encoding="ascii").strip()
-    except FileNotFoundError:
+    except (FileNotFoundError, PermissionError):
+        # Windows may briefly deny an open while the child replaces its
+        # publishing file with the ready file. The caller has a deadline.
         return None
     if not value:
         return None
@@ -31,6 +34,9 @@ def test_delayed_ready_file() -> None:
         ready.write_text("", encoding="ascii")
         assert read_port(ready) is None
         ready.write_text("43210\n", encoding="ascii")
+        assert read_port(ready) == 43210
+        with patch.object(Path, "read_text", side_effect=PermissionError):
+            assert read_port(ready) is None
         assert read_port(ready) == 43210
 
 

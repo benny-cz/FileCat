@@ -1,5 +1,13 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Windows ARM64 FTP fixture readiness:** The `3a4bce53`
+ARM64 CI lane exposed a transient Windows sharing denial while the owned FTP
+server replaced its readiness file. The bounded fixture poll now treats that
+denial like an unpublished file and retries until its existing deadline. A
+focused test injects the denial and confirms the next read succeeds; the full
+owned FTP and explicit TLS fixture smoke test passed locally. The final-head
+ARM64 CI receipt remains pending.
+
 **24 October 2026, macOS CI checksum generation test:** The `ac342092` macOS
 App lane failed one checksum-dialog generation case because its test's busy
 five-second spin did not observe the actual worker continuation. The test now
