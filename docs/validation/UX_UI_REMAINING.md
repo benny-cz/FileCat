@@ -45,7 +45,8 @@ increments to `main`.
    scroll area has a valid frame, while its first content child and visible
    fields report `[0, 900, 0, 0]`; a scroll-peer refresh and removal of the
    width wrapper did not correct it. For FCUX-004, exercise other modal
-   focus and decision routes on each desktop.
+   focus and decision routes on each desktop; Mac Create/Delete/Rename
+   Escape return is verified.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its

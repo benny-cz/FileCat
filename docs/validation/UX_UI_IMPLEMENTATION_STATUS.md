@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac inline Rename focus return (FCUX-004):** A native
+VoiceOver/AX focus journey on the earlier signed build reproduced an
+intermittent wrong-row return after Escape from inline Rename: focus moved
+from `c.txt` to `b.txt` or the parent row. `FileListControl` now retains the
+originating entry store and index and restores that exact visible item when
+the editor closes; a changed or hidden listing is not revived. A headless
+regression moves model focus during editing, cancels and checks the original
+item; the focused FileList/App selection passed 23/23. The signed Git-built
+`a3354ef1` Mac app (DLL SHA-256
+`86495712533301d8fb3b6cb11cb330df0752d70ae9fede26ae3fa4d992be0c87`)
+passed four fresh, isolated Create/Delete/Rename Escape journeys with settled
+AX focus on `c.txt` and unchanged source/target bytes
+(`mac-focus-decision-returns-a3354ef1-r2.json` through `r5.json`). The native
+runner offers a short decision-return route so unrelated later focus journeys
+do not obscure this regression. Other modal return paths remain open.
+
 **24 October 2026, Windows CI provenance timeout:** The Windows lane of
 CI run `40117503403` timed out while recording the first `dotnet --version`
 after `setup-dotnet`; it reached no tests. The build-inventory script now
