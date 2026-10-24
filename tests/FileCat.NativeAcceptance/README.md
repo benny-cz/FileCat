@@ -1157,6 +1157,10 @@ desktop. The runner terminates only its own FileCat process.
 Add `--stale-scope` to change the source after opening the selected-byte
 scope. The runner requires a visible and accessible refusal, disabled Copy,
 unchanged clipboard and target, and exact fixture restoration.
+Add `--narrow` in the Ubuntu VM at GNOME 200% to request a 1440 × 1000 physical
+viewer frame (720 × 500 app units), then verify scope, Compute, Copy results,
+Close checksums and the result entry remain within the frame before and after
+both computations. The report retains the measured AT-SPI rectangles.
 
 `linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
 desktop and the helper script above. It creates one short, exact Markdown

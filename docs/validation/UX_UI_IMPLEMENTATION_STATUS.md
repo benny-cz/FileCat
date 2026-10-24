@@ -21,8 +21,15 @@ object cached its own sentinel after FileCat replaced the selection. Native
 `--stale-scope` separately changed the source after opening a one-byte scope:
 the viewer showed the changed-file refusal through AT-SPI, disabled Copy,
 kept the clipboard and target unchanged, and the fixture was restored
-(`ubuntu-checksum-stale-candidate-r2.json`). Native incomplete-source,
-mutation-during-read and scaled/narrow checks remain open.
+(`ubuntu-checksum-stale-candidate-r2.json`).
+
+The same candidate passed `--narrow` at GNOME 200% in a measured 1440 × 1000
+physical viewer frame (720 × 500 app units). AT-SPI bounds kept the scope,
+Compute, Copy results, Close checksums and selectable result entry within the
+frame before computation and after each selected-byte and whole-file result;
+hashes, exact clipboard Copy and fixture preservation still passed
+(`ubuntu-checksum-narrow-candidate-r2.json`). Other display scales and native
+incomplete-source/mutation-during-read paths remain open.
 
 The complete Windows Release App suite started on `0fdd8d4f` and finished
 with 2,462 passed, 63 platform/environment skips, zero failures and a

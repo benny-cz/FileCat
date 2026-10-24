@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a Git-built Ubuntu Hex viewer's checksum scope and clipboard.
 
-Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER [--stale-scope]
+Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER [--stale-scope|--narrow]
 Run in the logged-in desktop session with AT-SPI and a guest-only uinput key helper.
 """
 
@@ -9,9 +9,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
+import time
 from uuid import uuid4
 import zlib
 
@@ -26,6 +28,7 @@ wait_for = common["wait_for"]
 checked_action = common["checked_action"]
 send_key = common["send_key"]
 close_viewer = common["close_viewer"]
+viewer_window_id = common["exact_viewer_window_id"]
 
 CONTENT = b"\x00ABC\n"
 SENTINEL = "FileCat checksum clipboard sentinel"
@@ -57,7 +60,30 @@ def action(viewer, name):
     checked_action(find(viewer, "button", name), name)
 
 
-def checksum(viewer, helper, scope, content):
+def rect(node):
+    bounds = node.get_component().get_extents(Atspi.CoordType.SCREEN)
+    return [bounds.x, bounds.y, bounds.width, bounds.height]
+
+
+def visible_controls(viewer):
+    frame = rect(viewer)
+    controls = {}
+    for role, name in (("combo box", "Checksum scope"), ("button", "Compute"),
+                       ("button", "Copy results"), ("button", "Close checksums"),
+                       ("entry", "Checksum results")):
+        node = find(viewer, role, name)
+        assert node is not None, f"Missing accessible {name}"
+        area = rect(node)
+        assert area[2] > 0 and area[3] > 0, f"{name} has no size: {area}"
+        assert (area[0] >= frame[0] and area[1] >= frame[1] and
+                area[0] + area[2] <= frame[0] + frame[2] and
+                area[1] + area[3] <= frame[1] + frame[3]), \
+            f"{name} escapes the viewer frame: {area} outside {frame}"
+        controls[name] = area
+    return {"frame": frame, "controls": controls}
+
+
+def checksum(viewer, helper, scope, content, measure=False):
     send_key(helper, "ctrl+k")
     wait_for(lambda: find(viewer, "button", "Compute"), "checksum controls")
     assert clipboard_text() == SENTINEL, "Opening checksum changed clipboard"
@@ -75,6 +101,7 @@ def checksum(viewer, helper, scope, content):
                              f"attributes={node.get_attributes()!r}") from error
     assert f"CRC-32: {crc}" in result and f"{len(content)} of {len(content)} bytes read" in result
     assert scope in result, result
+    layout = visible_controls(viewer) if measure else None
     assert clipboard_text() == SENTINEL, "Computing checksum changed clipboard"
     action(viewer, "Copy results")
     try:
@@ -87,10 +114,10 @@ def checksum(viewer, helper, scope, content):
     assert copied == result, "Copied checksum differed from visible complete result"
     action(viewer, "Close checksums")
     set_clipboard(SENTINEL)
-    return {"scope": scope, "result": result, "copiedExactly": True}
+    return {"scope": scope, "result": result, "copiedExactly": True, "layout": layout}
 
 
-def run(app_path, helper, stale_scope=False):
+def run(app_path, helper, stale_scope=False, narrow=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -130,12 +157,28 @@ def run(app_path, helper, stale_scope=False):
             viewer = wait_for(lambda: find(app, "frame", title), "binary viewer")
             # Hex mode is selected automatically for the leading zero byte.
             wait_for(lambda: find(viewer, "label", "Mode: Hex"), "Hex mode")
+            geometry = None
+            if narrow:
+                scale_info = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
+                                            text=True, check=True, timeout=5).stdout
+                match = re.search(r"\bScale: ([0-9.]+)", scale_info)
+                scale = float(match.group(1)) if match else None
+                assert scale == 2.0, f"Expected the test VM's 200% scale, got {scale}"
+                window_id = viewer_window_id(title, process.pid)
+                subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
+                                "0,150,100,1440,1000"], check=True, timeout=5)
+                subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
+                time.sleep(.4)
+                geometry = {"displayScale": scale, "requestedPhysicalSize": [1440, 1000],
+                            "frame": rect(viewer)}
             send_key(helper, "shift+left")
             send_key(helper, "ctrl+k")
             wait_for(lambda: find(viewer, "button", "Compute"), "selected-range checksum controls")
             choices = [node.get_name() for node in descendants(viewer)
                        if "Selected range" in (node.get_name() or "")]
             assert choices, "The one-byte selection is absent from checksum scope"
+            if narrow:
+                geometry["selectedScope"] = visible_controls(viewer)
             if stale_scope:
                 before = fixture.stat()
                 fixture.write_bytes(b"\x00ABD\n")
@@ -159,9 +202,9 @@ def run(app_path, helper, stale_scope=False):
                         "staleScope": {"refusal": refused, "copyDisabled": True,
                                        "clipboardUnchanged": True, "sourceBytesRestored": True}}
             action(viewer, "Close checksums")
-            selected = checksum(viewer, helper, "selected range 0x0–0x0", CONTENT[:1])
+            selected = checksum(viewer, helper, "selected range 0x0–0x0", CONTENT[:1], measure=narrow)
             send_key(helper, "right")
-            whole = checksum(viewer, helper, "whole file", CONTENT)
+            whole = checksum(viewer, helper, "whole file", CONTENT, measure=narrow)
             assert fixture.read_bytes() == CONTENT and not list(target.iterdir()), "Checksum changed fixture bytes"
             with app_path.open("rb") as binary:
                 app_hash = hashlib.file_digest(binary, "sha256").hexdigest()
@@ -169,7 +212,8 @@ def run(app_path, helper, stale_scope=False):
                 dll_hash = hashlib.file_digest(library, "sha256").hexdigest()
             return {"passed": True, "platform": "Ubuntu", "appSha256": app_hash,
                     "appDllSha256": dll_hash, "fixture": str(root),
-                    "selectedByte": selected, "wholeFile": whole, "sourceBytesUnchanged": True}
+                    "selectedByte": selected, "wholeFile": whole, "geometry": geometry,
+                    "sourceBytesUnchanged": True}
     finally:
         if viewer is not None and process is not None:
             try:
@@ -189,11 +233,13 @@ def run(app_path, helper, stale_scope=False):
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "--stale-scope"):
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] not in ("--stale-scope", "--narrow")):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[3]), stale_scope=len(sys.argv) == 5)
+        mode = sys.argv[4] if len(sys.argv) == 5 else ""
+        result = run(Path(sys.argv[1]), Path(sys.argv[3]), stale_scope=mode == "--stale-scope",
+                     narrow=mode == "--narrow")
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
