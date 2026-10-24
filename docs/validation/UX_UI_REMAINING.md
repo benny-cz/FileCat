@@ -57,13 +57,8 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, finish Windows spoken Hex acceptance and the first-click
-   activation route at 200% scale. A steady, already active FileCat window
-   selected the row with one native pointer click at 200%; immediately after
-   the Windows display Settings window, the first press focused the panel and
-   the second selected the file, despite FileCat owning the foreground HWND.
-   Determine whether activation or FileCat consumes that first press, then
-   verify one-click selection with real pointer input and narrow 200% layouts.
+   For FCUX-007, finish Windows spoken Hex acceptance and narrow 200% layouts
+   with real pointer and keyboard input.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

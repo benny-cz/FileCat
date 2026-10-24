@@ -5727,6 +5727,20 @@ internal static partial class NativeWindow
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetClientRect(nint window, out Rect rect);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ClientToScreen(nint window, ref ClientPoint point);
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int index);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ClientPoint { public int X; public int Y; }
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetForegroundWindow(nint window);
 
     [LibraryImport("user32.dll")]
@@ -6083,25 +6097,54 @@ internal static partial class NativeWindow
         const uint noMove = 0x0002;
         const uint noSize = 0x0001;
         const uint noActivate = 0x0010;
-        if (!GetWindowRect(window, out var rect)
-            || !SetWindowPos(window, -1, 0, 0, 0, 0, noMove | noSize | noActivate))
+        const uint noZOrder = 0x0004;
+        if (!GetWindowRect(window, out var rect))
+            throw new InvalidOperationException("Cannot expose the isolated recovery window.");
+        // At 200% a restored default-size window can extend above and left of
+        // the desktop. Never click a guessed title-bar coordinate: it can land
+        // on FileCat's menu and leave a popup over the file row being tested.
+        if ((rect.Left < 0 || rect.Top < 0) &&
+            !SetWindowPos(window, 0, 0, 0, 0, 0, noSize | noZOrder | noActivate))
+            throw new InvalidOperationException("Cannot bring the isolated recovery window onto the desktop.");
+        if (!SetWindowPos(window, -1, 0, 0, 0, 0, noMove | noSize | noActivate))
             throw new InvalidOperationException("Cannot expose the isolated recovery window.");
         try
         {
-            ClickAt(rect.Left + 75, rect.Top + 15);
-            if (!IsForegroundProcess(processId))
+            for (var attempt = 0; attempt < 10; attempt++)
             {
-                var foreground = GetForegroundWindow();
-                GetWindowThreadProcessId(foreground, out var actualProcessId);
-                throw new InvalidOperationException(
-                    $"Cannot focus the isolated recovery window; expected process {processId}, foreground process {actualProcessId}.");
+                if (ActivateWindow(window, processId)) return (int)processId;
+                Thread.Sleep(50);
             }
+            // Foreground-lock policy may require actual pointer input. Verify a
+            // visible non-client caption band before clicking: client content
+            // includes the menu and must never be used for activation.
+            var clientOrigin = new ClientPoint();
+            if (!GetWindowRect(window, out rect) || !GetClientRect(window, out _) ||
+                !ClientToScreen(window, ref clientOrigin))
+                throw new InvalidOperationException("Cannot locate the isolated window's caption for activation.");
+            int captionHeight = clientOrigin.Y - rect.Top;
+            int captionX = rect.Left + 75;
+            int captionY = rect.Top + captionHeight / 2;
+            if (captionHeight < 16 || captionX < 0 || captionX >= GetSystemMetrics(0) ||
+                captionY < 0 || captionY >= GetSystemMetrics(1) ||
+                GetAncestor(WindowFromPoint(new ScreenPoint(captionX, captionY)), 2) != window)
+                throw new InvalidOperationException(
+                    $"The isolated window has no visible safe caption target (bounds={rect}, clientTop={clientOrigin.Y}).");
+            ClickAt(captionX, captionY);
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                if (IsForegroundProcess(processId)) return (int)processId;
+                Thread.Sleep(50);
+            }
+            var foreground = GetForegroundWindow();
+            GetWindowThreadProcessId(foreground, out var actualProcessId);
+            throw new InvalidOperationException(
+                $"Cannot focus the isolated recovery window; expected process {processId}, foreground process {actualProcessId}.");
         }
         finally
         {
             SetWindowPos(window, -2, 0, 0, 0, 0, noMove | noSize | noActivate);
         }
-        return (int)processId;
     }
 
     internal static Rect ResizeSelectionWindow(int width, int height,
