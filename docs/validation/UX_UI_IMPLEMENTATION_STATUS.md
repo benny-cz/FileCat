@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac open-dialog termination (UXBUG-016):** On the signed
+`20df90d0` Retina build, the native AX runner entered and read back the
+`unsubmitted` Create folder draft, verified the dialog was still open, sent
+SIGTERM to the exact owned FileCat PID and observed exit within ten seconds.
+The source and target remained empty; the runner stopped its owned process
+and removed its fixture (`mac-dialog-sigterm-20261024-r2.json`). Its pointer
+mode also passed again after the runner change
+(`mac-dialog-pointer-20261024-r4.json`). This supersedes the earlier
+exploratory observation below that an open dialog prevented SIGTERM exit.
+
 **24 October 2026, Mac dialog pointer acceptance (UXBUG-016):** The signed
 `20df90d0` Retina build passed a fresh Create folder close-X and backdrop
 mouse journey (`mac-dialog-pointer-20261024-r3.json`). Native AX measured one

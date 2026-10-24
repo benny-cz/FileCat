@@ -1238,7 +1238,11 @@ AXUIElement probe in its isolated fixture, verifies the exact app PID, and
 requires one enabled `AXButton` named `Close dialog` with cancel help and a
 usable pointer target. It then clicks the X and backdrop with native CGEvent
 mouse input, requires both dialogs to close, and checks unchanged source and
-target. It captures a diagnostic screenshot on failure. System Events' `entire
+target. Pass `--sigterm` after the report for a separate run that types and
+verifies an unsubmitted folder name, sends SIGTERM to the exact owned app PID
+while the dialog remains open, requires a bounded exit, and checks that no
+folder was created. The runner always stops its own process and captures a
+diagnostic screenshot on failure. System Events' `entire
 contents` enumeration can return zero for a visibly populated Avalonia window;
 the native AXUIElement children expose the control tree directly. This route
 checks the accessible label and pointer behavior; actual VoiceOver speech and

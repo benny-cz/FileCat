@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check native Mac close-X and backdrop pointer cancellation in an isolated app.
+"""Check native Mac close-X, backdrop and open-dialog termination in an isolated app.
 
-Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json
+Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm]
 Requires the logged-in Mac desktop, native AXUIElement access, and cliclick.
 """
 
@@ -80,8 +80,9 @@ def click(x, y):
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json")
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--sigterm":
+        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm]")
+    sigterm = len(sys.argv) == 4
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = Path(sys.argv[1]).resolve(strict=True)
     executable = bundle / "Contents" / "MacOS" / "FileCat"
@@ -103,7 +104,7 @@ def main():
     ax_report = fixture / "dialog-label.json"
     digest = hashlib.sha256(executable.read_bytes()).hexdigest()
     result = {"passed": False, "bundle": str(bundle), "appSha256": digest,
-              "input": "cliclick-CGEvent-mouse"}
+              "input": "System Events and SIGTERM" if sigterm else "cliclick-CGEvent-mouse"}
     pid = None
     try:
         launched = subprocess.run(["/usr/bin/open", "-na", str(bundle), "--args", "--new-instance",
@@ -125,24 +126,45 @@ def main():
         result["closeAccessibility"] = first_match
         if width < 25 or height < 25:
             raise AssertionError("The close control has an undersized Mac pointer target")
-        click(round(x + width / 2), round(y + height / 2))
-        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
-                 "close-X cancellation")
-        open_folder()
-        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
-                 "the reopened dialog close button")
-        wx, wy, ww, wh = window_bounds()
-        # VoiceOver's floating caption can cover the lower-left corner of the
-        # window. Press the visible left pane above it, outside the centered
-        # modal, so this remains a real FileCat backdrop click.
-        outside = [wx + min(80, ww // 8), wy + min(250, wh // 3)]
-        click(*outside)
-        wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
-                 "backdrop cancellation")
+        if sigterm:
+            osa('tell application "System Events" to tell process "FileCat" to set frontmost to true')
+            osa('tell application "System Events" to keystroke "unsubmitted"')
+            draft = osa('''
+tell application "System Events" to tell process "FileCat"
+    set focusedElement to value of attribute "AXFocusedUIElement"
+    if (role of focusedElement as text) is not "AXTextField" then
+        error "Create folder draft field is not focused"
+    end if
+    return value of focusedElement as text
+end tell
+''')
+            if draft != "unsubmitted":
+                raise AssertionError(f"The Create folder draft was not entered: {draft!r}")
+            if not close_bounds(ax_helper, executable, pid, ax_report):
+                raise AssertionError("The draft dialog closed before SIGTERM")
+            os.kill(pid, signal.SIGTERM)
+            wait_for(lambda: pid not in app_pids(), "open-dialog SIGTERM exit", seconds=10)
+            result.update({"openDialogSigtermExited": True, "draftName": draft})
+        else:
+            click(round(x + width / 2), round(y + height / 2))
+            wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
+                     "close-X cancellation")
+            open_folder()
+            wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
+                     "the reopened dialog close button")
+            wx, wy, ww, wh = window_bounds()
+            # VoiceOver's floating caption can cover the lower-left corner of
+            # the window. Press the visible left pane above it, outside the
+            # centered modal, so this remains a real FileCat backdrop click.
+            outside = [wx + min(80, ww // 8), wy + min(250, wh // 3)]
+            click(*outside)
+            wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
+                     "backdrop cancellation")
+            result.update({"nativeCloseX": True, "nativeBackdropClick": True,
+                           "outsidePoint": outside})
         if list(source.iterdir()) or list(target.iterdir()):
             raise AssertionError("A canceled Mac dialog changed the fixture")
-        result.update({"passed": True, "nativeCloseX": True, "nativeBackdropClick": True,
-                       "outsidePoint": outside, "fixtureUnchanged": True})
+        result.update({"passed": True, "fixtureUnchanged": True})
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
         helper = validation / "FileCatCapture.app"
@@ -161,7 +183,21 @@ def main():
             process = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "command="],
                                      capture_output=True, text=True, timeout=5)
             if process.stdout.strip().startswith(str(executable)):
-                os.kill(pid, signal.SIGTERM)
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                deadline = time.monotonic() + 5
+                while pid in app_pids() and time.monotonic() < deadline:
+                    time.sleep(0.1)
+                if pid in app_pids():
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+        result["ownedProcessStopped"] = pid is None or pid not in app_pids()
+        if not result["ownedProcessStopped"]:
+            result["passed"] = False
         shutil.rmtree(fixture)
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result))

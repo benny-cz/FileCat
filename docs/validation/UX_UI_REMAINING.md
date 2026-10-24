@@ -116,8 +116,8 @@ increments to `main`.
    Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
    UXBUG-016 needs native checks of other dialog families and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
-   Mac Create folder X/backdrop pointer cancellation now passes on Retina 2×.
-   Investigate FileCat's response to SIGTERM while a dialog is open on macOS. Capture
+   Mac Create folder X/backdrop pointer cancellation and open-dialog SIGTERM
+   with an unsubmitted draft pass on Retina 2×. Capture
    Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
    synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
    agrees.
