@@ -17,6 +17,18 @@ question rather than treating it as a Hex Find failure. The VM display was
 restored from 200% to its original 100%. Windows spoken and narrow 200%
 acceptance remain open.
 
+Follow-up 200% runs isolated the pointer behavior further. Replacing the
+legacy click with `SendInput` did not fix the *first* press; a second press
+focused the row with either API. Even after a 500 ms pointer hover, the first
+press missed focus. A final run confirmed that FileCat was foreground before
+and after the first press (`foregroundBeforePointer = true`,
+`foregroundAfterFirstPointer = true`), while `firstPointerFocused = false` and
+`nativePointerFocused = true` after the second identical press. Hex Find,
+unchanged bytes and cleanup still passed. The runner now records both presses,
+keeps an element-targeted fallback for the Hex route, and leaves native
+one-click selection at 200% open for focused follow-up. The VM was restored
+again to 100%.
+
 **23 October 2026, live SFTP upload cancellation (FCUX-001):**
 `RemoteLabTests.Canceling_a_live_SFTP_upload_removes_its_stage_without_consuming_the_source`
 now covers Copy and Move against the running Ubuntu VM's OpenSSH service.

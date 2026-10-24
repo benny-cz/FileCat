@@ -2089,10 +2089,15 @@ try
             }
             var row = Row(listing) ?? throw new InvalidOperationException("The owned hex-editor file is not listed.");
             string appScope = $"//Window[@ProcessId='{appProcessId.ToString(CultureInfo.InvariantCulture)}']";
-            // Click the name cell and verify focus before using Search commands.
-            // The VM's legacy raw mouse injection can miss this row at 200%; an
-            // element-targeted native click gives an independent route and the
-            // report retains whether the raw pointer route worked.
+            bool foregroundBeforePointer = NativeWindow.IsRecoveryForeground("selection-source");
+            if (!foregroundBeforePointer)
+                NativeWindow.FocusRecovery("selection-source",
+                    Environment.GetEnvironmentVariable("FILECAT_NATIVE_TEST_APP"));
+            if (!NativeWindow.IsRecoveryForeground("selection-source"))
+                throw new InvalidOperationException("The isolated app is not foreground before pointer selection.");
+            // Click the name cell and verify native pointer focus before
+            // using Search commands. An element-targeted click is a bounded
+            // fallback, reported separately from the physical pointer route.
             var fileRowBounds = ReadNativeRect(row);
             NativeWindow.ClickAt(fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2),
                 CenterY(row));
@@ -2102,6 +2107,22 @@ try
                 focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
                 if ((string?)focusedRow?.Attribute("HasKeyboardFocus") == "True") break;
                 await Task.Delay(100);
+            }
+            bool firstPointerFocused =
+                (string?)focusedRow?.Attribute("HasKeyboardFocus") == "True";
+            bool foregroundAfterFirstPointer = NativeWindow.IsRecoveryForeground("selection-source");
+            if (!firstPointerFocused)
+            {
+                // Repeat the same physical row click to distinguish a missed
+                // first press from a persistent file-selection failure.
+                NativeWindow.ClickAt(
+                    fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2), CenterY(row));
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
+                    if ((string?)focusedRow?.Attribute("HasKeyboardFocus") == "True") break;
+                    await Task.Delay(100);
+                }
             }
             bool nativePointerFocused =
                 (string?)focusedRow?.Attribute("HasKeyboardFocus") == "True";
@@ -2119,7 +2140,7 @@ try
             }
             if ((string?)focusedRow?.Attribute("HasKeyboardFocus") != "True")
                 throw new InvalidOperationException(
-                    $"The hex editor file did not take keyboard focus after native and element clicks " +
+                    $"The hex editor file did not take keyboard focus after pointer and element clicks " +
                     $"at {fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2)},{CenterY(row)} " +
                     $"(row {fileRowBounds}, focus={focusedRow?.Attribute("HasKeyboardFocus")}).");
             var commands = await FindXPathAsync(client, sessionId,
@@ -2192,7 +2213,9 @@ try
                 && secondHit - firstHit > 4 * 1024 * 1024;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, nativePointerFocused, firstHit, secondHit, firstStatus, countAfterFirst, secondStatus, countAfterSecond,
+                passed, foregroundBeforePointer, foregroundAfterFirstPointer,
+                firstPointerFocused, nativePointerFocused, firstHit, secondHit,
+                firstStatus, countAfterFirst, secondStatus, countAfterSecond,
                 previousStatus, beforeFirst, changedStatus, countAfterChangedQuery,
                 editorClosed, sourceIntact, fixtureRemoved
             }, new JsonSerializerOptions { WriteIndented = true }));

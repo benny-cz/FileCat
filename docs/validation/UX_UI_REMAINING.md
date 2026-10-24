@@ -58,10 +58,12 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish Windows spoken Hex acceptance and investigate the
-   raw mouse pointer selection at 200% scale. The native Hex Find journey passed
-   at 100% and 150% with pointer input, and at 200% after an element-targeted
-   click; its report records `nativePointerFocused = false` at 200%, so the
-   raw pointer route is still open. Verify narrow 200% layouts as well.
+   first mouse click on a file row at 200% scale. The native Hex Find journey
+   passed at 100% and 150% with one pointer click; at 200%, FileCat was
+   foreground before and after the first press, yet focus moved to the file
+   only after a second identical native click. The full Hex search then passed.
+   Verify the one-click selection expectation with real pointer input and
+   narrow 200% layouts before closing that route.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

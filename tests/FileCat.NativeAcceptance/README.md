@@ -408,6 +408,9 @@ the report path. If multiple isolated FileCat windows have the same title, set
 Its `nativePointerFocused` result distinguishes a raw pointer selection from
 the element-targeted click fallback. A passing Hex search with that value false
 still leaves the raw pointer route for separate scaled acceptance.
+`firstPointerFocused` shows whether one click sufficed; the runner retries the
+same physical click once and records the foreground state on both sides of the
+first click.
 
 Run `FileCat.NativeAcceptance.exe find-resize <report.json>` in the Windows
 desktop session. The runner opens **Find files** if needed, drags its lower-right
