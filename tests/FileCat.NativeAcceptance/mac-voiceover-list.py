@@ -237,7 +237,11 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
                 receipt["inlineFilter"]["errorScreenshot"] = screenshot()
             else:
                 osa('tell application "System Events" to key code 53')  # Esc restores the applied mask.
-                returned = wait_for(lambda: focused() if focused().get("title") == "b.txt" else None, seconds=6)
+                try:
+                    returned = wait_for(lambda: focused() if focused().get("title") == "b.txt" else None, seconds=6)
+                except AssertionError:
+                    receipt["inlineFilter"]["focusAfterEscape"] = focused()
+                    raise
                 heard_return = []
                 deadline = time.monotonic() + 4
                 while time.monotonic() < deadline:

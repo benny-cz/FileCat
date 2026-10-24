@@ -80,6 +80,15 @@ public sealed class FilterDraftValidationTests
                 Assert.Null(tab.FilterValidationError);
                 Assert.Equal("Filter ready", ControlAutomationPeer.CreatePeerForElement(announcement).GetName());
                 Assert.Equal(4, tab.Listing.VisibleCount);
+                if (OperatingSystem.IsMacOS())
+                {
+                    var list = view.GetVisualDescendants().OfType<FileCat.App.Controls.FileListControl>().Single();
+                    var returned = window.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>()
+                        .Single(b => b.Name == "RestoredFocusAnnouncement");
+                    await Wait(() => returned.Text == "Focus returned to " + list.DescribeFocus());
+                    Assert.True(list.IsFocused);
+                    Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(returned));
+                }
             }
         }
         finally { AccessibilityTests.Close(services, window, root); }

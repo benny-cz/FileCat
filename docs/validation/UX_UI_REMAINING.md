@@ -17,10 +17,8 @@ increments to `main`.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the spoken criteria of other
   findings (Find results, UXBUG-015 and FCUX-040/041 form errors, tabs).
-  Check the panel filter's 1× Mac layout; its 720 × 500 Windows 150%/200% and
-  Ubuntu 200% routes and 760 × 600 Retina 2× Mac route passed. Assert
-  VoiceOver's actual
-  spoken phrases for the other Mac routes. Keep Mac audio muted.
+  Assert VoiceOver's actual spoken phrases for the other Mac routes. Keep Mac
+  audio muted.
 
 ## Next actions, in severity order
 

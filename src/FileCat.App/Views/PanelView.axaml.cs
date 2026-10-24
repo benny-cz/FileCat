@@ -536,9 +536,20 @@ public partial class PanelView : UserControl
         else if (e.Key == Key.Escape)
         {
             e.Handled = true;
-            if (Panel?.ActiveTab is { } tab) tab.FilterValidationError = null;
+            var tab = Panel?.ActiveTab;
+            if (tab is not null) tab.FilterValidationError = null;
             ShowFilter(force: true);
             List.Focus();
+            // On macOS the AX row can regain keyboard focus without VoiceOver
+            // speaking it. Announce only after focus settles, and only while the
+            // same tab still owns the list; a later user action must win.
+            if (OperatingSystem.IsMacOS() && tab is not null &&
+                TopLevel.GetTopLevel(this) is MainWindow window)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (ReferenceEquals(Panel?.ActiveTab, tab))
+                        window.AnnounceRestoredRowIfCurrent(List);
+                }, DispatcherPriority.Background);
         }
     }
 

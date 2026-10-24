@@ -64,9 +64,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         Classes.Set("comfortable", ReadabilityPolicy.Comfortable(vm.Services.Settings.RowDensity));
         _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List, list =>
         {
-            if (!OperatingSystem.IsMacOS()) return;
-            RestoredFocusAnnouncement.Text = "Focus returned to " + list.DescribeFocus();
-            LiveRegions.Repeat(RestoredFocusAnnouncement);
+            AnnounceRestoredRowIfCurrent(list);
         });
         vm.Dialogs = _dialogs;
         vm.View = this;
@@ -231,6 +229,14 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             }, DispatcherPriority.Background);
             _interruptedStartup = LoadInterruptedAsync();
         };
+    }
+
+    internal void AnnounceRestoredRowIfCurrent(FileListControl list)
+    {
+        if (!OperatingSystem.IsMacOS() || !list.IsFocused ||
+            !ReferenceEquals(FocusManager?.GetFocusedElement(), list)) return;
+        RestoredFocusAnnouncement.Text = "Focus returned to " + list.DescribeFocus();
+        LiveRegions.Repeat(RestoredFocusAnnouncement);
     }
 
     /// <summary>Jobs whose journal has no end are shown as interrupted, never silently resumed (plan §9.3).</summary>

@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac 1× inline filter and reliable return speech
+(FCUX-028):** The 1× display wrapper exercised the signed Git-built Mac arm64
+candidate (app DLL SHA-256
+`671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
+and restored the original Retina mode after each run. At 760 × 600 native
+pixels, the whole orange inline validation error remained visible and the
+source/target lists usable. The independent native screenshot and VoiceOver
+error receipt is `mac-filter-return-1x-visual-r16.json` with its referenced
+`native-screen-C4FD8B81-8606-4B13-A8B0-7033955DD490.png`. A separate
+screenshot-free journey spoke the Filter field, exact invalid-mask error and
+restored `b.txt` row, with the fixture bytes unchanged
+(`mac-filter-return-1x-r15.json`). VoiceOver sometimes left a restored AX row
+silent on the earlier build even when keyboard focus was correct; Filter Escape
+now repeats the current row through the existing named, polite focus-return
+live region after focus settles, provided that the same tab and list still own
+focus. The focused filter tests passed 4/4 on Windows and 4/4 on Mac arm64.
+The runner retains post-Escape AX focus on failure. VoiceOver's welcome prompt
+was dismissed during validation; Mac output remained muted. The filter's
+100%/150%/200% desktop layout and spoken routes recorded here are complete;
+other FCUX-028 input/provider acceptance remains in the audit backlog.
+
 **24 October 2026, Windows scaled inline filter (FCUX-028):** On the Win11
 VMware guest, signed portable NVDA 2026.2 repeated its 37-step native journey
 at 150% and 200% display scale against Git-built `b6aa9383` (app DLL SHA-256
@@ -12,8 +33,8 @@ complete orange error below the field and a usable two-panel list. Each run
 spoke the Filter field, exact validation error and restored `c.txt` row, and
 preserved all fixture bytes (`win-nvda-filter-150-b6aa9383-r3.json/.png`,
 `win-nvda-filter-200-b6aa9383-r1.json/.png` in the guest validation folder).
-The VM's original 100% scale was restored and confirmed. Mac 1× remains the
-filter's only open display-scale gate.
+The VM's original 100% scale was restored and confirmed. The subsequent Mac
+1× gate passed above.
 
 **24 October 2026, Ubuntu scaled inline filter (FCUX-028):** A fresh Ubuntu
 VMware checkout of Git head `c3a8138f` published with 16 workers (app DLL
@@ -26,8 +47,7 @@ The 42-step physical-key Orca journey passed again: it spoke the focused
 Filter entry, the precise invalid-mask error and the restored `c.txt` row;
 fixture inventory and bytes were unchanged
 (`ubuntu-filter-scaled-c3a8138f-r2.json` and `.png` in the guest validation
-folder). Windows scaled acceptance subsequently passed above; Mac 1× remains
-open. Orca's
+folder). Windows scaled and Mac 1× acceptance subsequently passed above. Orca's
 twice-spoken row details remain a separate FCUX-010 issue.
 
 **24 October 2026, Windows spoken inline filter (FCUX-028):** The Win11
@@ -40,8 +60,7 @@ mask,” and Escape said “Filter ready” before restoring the focused `c.txt`
 row. The runner checked the test-owned files and destination remained exact
 (`win-nvda-filter-b6aa9383-r1.json`). Ubuntu Orca and Mac VoiceOver had
 already passed the same three consequential routes. Ubuntu's scaled layout
-subsequently passed above; Windows scaled acceptance passed above too. Mac 1×
-remains open.
+subsequently passed above; Windows scaled and Mac 1× acceptance passed above too.
 
 **24 October 2026, Mac inline filter validation and crash prevention
 (FCUX-028):** The native VoiceOver filter journey on the signed `2bd71147`
@@ -67,7 +86,7 @@ error or panel row, exact fixture bytes, and the specific error spoken
 `FileCatCapture`). A fresh, screenshot-free speech run again passed Filter,
 error and restored `b.txt` utterances (`r8.json`). Windows spoken filter
 acceptance was subsequently completed above. Ubuntu's 200% layout also passed
-above; Windows scaled acceptance passed above too. Mac 1× remains open.
+above; Windows scaled and Mac 1× acceptance passed above too.
 
 **24 October 2026, direct keyboard access to the panel filter (FCUX-028):**
 `Ctrl+Shift+F` now focuses and selects the active panel's inline Filter field;
