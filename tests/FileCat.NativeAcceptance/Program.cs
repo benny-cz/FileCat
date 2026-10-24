@@ -2099,8 +2099,11 @@ try
             // using Search commands. An element-targeted click is a bounded
             // fallback, reported separately from the physical pointer route.
             var fileRowBounds = ReadNativeRect(row);
-            NativeWindow.ClickAt(fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2),
-                CenterY(row));
+            int pointerX = fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2);
+            int pointerY = CenterY(row);
+            var hitBeforeFirstPointer = NativeWindow.HitAt(pointerX, pointerY);
+            NativeWindow.ClickAt(pointerX, pointerY);
+            var hitAfterFirstPointer = NativeWindow.HitAt(pointerX, pointerY);
             XElement? focusedRow = null;
             for (int attempt = 0; attempt < 3; attempt++)
             {
@@ -2115,8 +2118,7 @@ try
             {
                 // Repeat the same physical row click to distinguish a missed
                 // first press from a persistent file-selection failure.
-                NativeWindow.ClickAt(
-                    fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2), CenterY(row));
+                NativeWindow.ClickAt(pointerX, pointerY);
                 for (int attempt = 0; attempt < 3; attempt++)
                 {
                     focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
@@ -2214,6 +2216,7 @@ try
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, foregroundBeforePointer, foregroundAfterFirstPointer,
+                pointerX, pointerY, hitBeforeFirstPointer, hitAfterFirstPointer,
                 firstPointerFocused, nativePointerFocused, firstHit, secondHit,
                 firstStatus, countAfterFirst, secondStatus, countAfterSecond,
                 previousStatus, beforeFirst, changedStatus, countAfterChangedQuery,
@@ -5728,6 +5731,29 @@ internal static partial class NativeWindow
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint WindowFromPoint(ScreenPoint point);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetAncestor(nint window, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(nint window, StringBuilder buffer, int capacity);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct ScreenPoint(int X, int Y);
+
+    internal static object HitAt(int x, int y)
+    {
+        nint hit = WindowFromPoint(new ScreenPoint(x, y));
+        nint root = hit == 0 ? 0 : GetAncestor(hit, 2); // GA_ROOT
+        uint processId = 0;
+        if (root != 0) GetWindowThreadProcessId(root, out processId);
+        var className = new StringBuilder(128);
+        if (hit != 0) GetClassName(hit, className, className.Capacity);
+        return new { Handle = hit.ToInt64(), RootHandle = root.ToInt64(), ProcessId = processId, ClassName = className.ToString() };
+    }
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
