@@ -100,22 +100,26 @@ do {
     var moveApproval = false
     var deleteApproval = false
     var destinationField = false
+    var approvalBounds: [String: Rect] = [:]
     func scan(_ element: AXUIElement, _ window: Rect, _ depth: Int) {
         guard depth <= 20 && visited < 3000 else { return }
         visited += 1
         let title = label(attribute(element, kAXTitleAttribute as CFString))
         let role = label(attribute(element, kAXRoleAttribute as CFString))
         if role == "AXButton" && title == "Copy" {
-            copyApproval = copyApproval ||
-                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+            let enabled = (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false
+            copyApproval = copyApproval || enabled
+            if enabled, let frame = bounds(element) { approvalBounds[title] = frame }
         }
         if role == "AXButton" && title == "Move" {
-            moveApproval = moveApproval ||
-                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+            let enabled = (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false
+            moveApproval = moveApproval || enabled
+            if enabled, let frame = bounds(element) { approvalBounds[title] = frame }
         }
         if role == "AXButton" && title == "Delete" {
-            deleteApproval = deleteApproval ||
-                ((attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false)
+            let enabled = (attribute(element, kAXEnabledAttribute as CFString) as? NSNumber)?.boolValue ?? false
+            deleteApproval = deleteApproval || enabled
+            if enabled, let frame = bounds(element) { approvalBounds[title] = frame }
         }
         if role == "AXTextField" && title == "Destination" { destinationField = true }
         if title == "Close dialog", let frame = bounds(element) {
@@ -135,6 +139,9 @@ do {
     result["moveApproval"] = moveApproval
     result["deleteApproval"] = deleteApproval
     result["destinationField"] = destinationField
+    result["approvalBounds"] = approvalBounds.mapValues { frame in
+        ["x": frame.x, "y": frame.y, "width": frame.width, "height": frame.height]
+    }
     result["matches"] = matches.map { match in
         ["role": match.role, "title": match.title, "help": match.help,
          "enabled": match.enabled,

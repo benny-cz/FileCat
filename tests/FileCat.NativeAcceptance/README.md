@@ -1248,6 +1248,12 @@ while the dialog remains open, requires a bounded exit, and checks that no
 folder was created. To exercise the supported 1× Mac display mode, run this
 script as the child of `mac-display-run.swift 1920 1200 1920 1200`; the wrapper
 restores and verifies the original display mode after the child exits. The
+review modes also accept `--narrow` after the mode to resize the main FileCat
+window to 640 × 480 points and require the enabled approval button to remain
+inside it. The runner identifies the main window by its FileCat title and
+minimum dimensions because macOS can list a transient tooltip before it. It
+records the window and outside-click coordinates so a failed native route can
+be distinguished from a click delivered to another app. The
 runner always stops its own process and captures a
 diagnostic screenshot on failure. System Events' `entire
 contents` enumeration can return zero for a visibly populated Avalonia window;

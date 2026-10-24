@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check native Mac overlay cancellation and termination in an isolated app.
 
-Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete]
+Usage: python3 mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete] [--narrow]
 Requires the logged-in Mac desktop, native AXUIElement access, and cliclick.
 """
 
@@ -81,13 +81,47 @@ def window_bounds():
     raw = osa('''
 tell application "System Events"
     tell process "FileCat"
-        set p to position of window 1
-        set s to size of window 1
+        set mainWindow to missing value
+        repeat with w in windows
+            try
+                set s to size of w
+                if (name of w as text) contains "FileCat" and (item 1 of s) >= 600 and (item 2 of s) >= 400 then
+                    set mainWindow to w
+                    exit repeat
+                end if
+            end try
+        end repeat
+        if mainWindow is missing value then error "The FileCat main window is unavailable"
+        set p to position of mainWindow
+        set s to size of mainWindow
         return ((item 1 of p) as text) & "|" & ((item 2 of p) as text) & "|" & ((item 1 of s) as text) & "|" & ((item 2 of s) as text)
     end tell
 end tell
 ''')
     return tuple(int(n) for n in raw.split("|"))
+
+
+def set_window_size(width, height):
+    osa(f'''
+tell application "System Events" to tell process "FileCat"
+    set mainWindow to missing value
+    repeat with w in windows
+        try
+            set s to size of w
+            if (name of w as text) contains "FileCat" and (item 1 of s) >= 600 and (item 2 of s) >= 400 then
+                set mainWindow to w
+                exit repeat
+            end if
+        end try
+    end repeat
+    if mainWindow is missing value then error "The FileCat main window is unavailable"
+    set size of mainWindow to {{{width}, {height}}}
+end tell
+''')
+    def resized():
+        bounds = window_bounds()
+        return bounds if abs(bounds[2] - width) <= 2 and abs(bounds[3] - height) <= 2 else None
+    return wait_for(resized, f"{width} by {height} Mac window")
 
 
 def click(x, y):
@@ -97,11 +131,26 @@ def click(x, y):
         raise AssertionError(f"Mac native pointer click failed: {result.stderr.strip()}")
 
 
+def capture(validation):
+    helper = validation / "FileCatCapture.app"
+    if not helper.is_dir():
+        raise AssertionError("The owner-approved Mac capture helper is unavailable")
+    before = set(validation.glob("native-screen-*.png"))
+    subprocess.run(["/usr/bin/open", "-a", str(helper)], check=True,
+                   capture_output=True, timeout=15)
+    return str(wait_for(lambda: next(iter(set(validation.glob("native-screen-*.png")) - before), None),
+                        "Mac diagnostic screen capture", seconds=10))
+
+
 def main():
     modes = {"--copy": "Copy", "--move": "Move", "--delete": "Delete"}
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--sigterm", *modes):
-        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete]")
-    mode = sys.argv[3] if len(sys.argv) == 4 else ""
+    options = sys.argv[3:]
+    accepted = [[], ["--sigterm"], *[[name] for name in modes],
+                *[[name, "--narrow"] for name in modes]]
+    if len(sys.argv) < 3 or options not in accepted:
+        raise SystemExit("Usage: mac-ax-dialog-pointer-dismiss.py BUNDLE.app REPORT.json [--sigterm|--copy|--move|--delete] [--narrow]")
+    mode = options[0] if options else ""
+    narrow = len(options) == 2
     sigterm = mode == "--sigterm"
     review = modes.get(mode)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
@@ -145,6 +194,9 @@ def main():
                  "the isolated FileCat window")
         opener = (lambda: open_review(review)) if review else open_folder
         opener()
+        if narrow:
+            result["windowBeforeResize"] = window_bounds()
+            result["windowAfterResize"] = set_window_size(640, 480)
         (x, y, width, height), first_match = wait_for(
             lambda: close_bounds(ax_helper, executable, pid, ax_report), "the dialog close button")
         result["closeBounds"] = [x, y, width, height]
@@ -155,6 +207,14 @@ def main():
             if not approval or (review != "Delete" and not review_state.get("destinationField")):
                 raise AssertionError(f"The open overlay is not an actionable {review} review")
             result["reviewControls"] = True
+            if narrow:
+                frame = review_state.get("approvalBounds", {}).get(review)
+                wx, wy, ww, wh = window_bounds()
+                if frame is None or not (wx <= frame["x"] and wy <= frame["y"]
+                                         and frame["x"] + frame["width"] <= wx + ww
+                                         and frame["y"] + frame["height"] <= wy + wh):
+                    raise AssertionError(f"The {review} approval action is outside the narrowed window: {frame}")
+                result["approvalBounds"] = frame
         if width < 25 or height < 25:
             raise AssertionError("The close control has an undersized Mac pointer target")
         if sigterm:
@@ -184,10 +244,13 @@ end tell
             wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report),
                      "the reopened dialog close button")
             wx, wy, ww, wh = window_bounds()
+            result["windowBeforeBackdrop"] = [wx, wy, ww, wh]
             # VoiceOver's floating caption can cover the lower-left corner of
             # the window. Press the visible left pane above it, outside the
             # centered modal, so this remains a real FileCat backdrop click.
-            outside = [wx + min(80, ww // 8), wy + min(250, wh // 3)]
+            outside = ([wx + ww // 2, wy + 75] if narrow else
+                       [wx + min(80, ww // 8), wy + min(250, wh // 3)])
+            result["attemptedOutsidePoint"] = outside
             click(*outside)
             wait_for(lambda: close_bounds(ax_helper, executable, pid, ax_report) is None,
                      "backdrop cancellation")
@@ -200,17 +263,10 @@ end tell
         result.update({"passed": True, "fixtureUnchanged": True})
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
-        helper = validation / "FileCatCapture.app"
-        if helper.is_dir():
-            try:
-                before = set(validation.glob("native-screen-*.png"))
-                subprocess.run(["/usr/bin/open", "-a", str(helper)], check=True,
-                               capture_output=True, timeout=15)
-                captured = wait_for(lambda: next(iter(set(validation.glob("native-screen-*.png")) - before), None),
-                                    "Mac diagnostic screen capture", seconds=10)
-                result["diagnosticCapture"] = str(captured)
-            except Exception as capture_error:
-                result["captureError"] = str(capture_error)
+        try:
+            result["diagnosticCapture"] = capture(validation)
+        except Exception as capture_error:
+            result["captureError"] = str(capture_error)
     finally:
         if pid is not None and pid in app_pids():
             process = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "command="],

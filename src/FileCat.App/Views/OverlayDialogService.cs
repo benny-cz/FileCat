@@ -63,6 +63,19 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         top.OnEscape();
     }
 
+    private void OnRootPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_sessions.Count == 0 || e.Source is not Visual source) return;
+        var top = _sessions[^1];
+        // At minimum window sizes a native hit can land on a footer or other
+        // window chrome outside the overlay's arranged hit surface. Treat it
+        // like the backdrop before the obscured control receives its press.
+        if (top.Layer.Child is Visual card &&
+            (ReferenceEquals(source, card) || card.IsVisualAncestorOf(source))) return;
+        e.Handled = true;
+        top.OnEscape();
+    }
+
     private void OnRootGotFocus(object? sender, RoutedEventArgs e)
     {
         if (sender is not TopLevel root || _sessions.Count == 0 || e.Source is not Visual source) return;
@@ -97,6 +110,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             _escapeRoot = root;
             root.AddHandler(InputElement.KeyDownEvent, OnRootKeyDown, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            root.AddHandler(InputElement.PointerPressedEvent, OnRootPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
             root.AddHandler(InputElement.GotFocusEvent, OnRootGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
         }
         card.HorizontalAlignment = HorizontalAlignment.Center;

@@ -34,8 +34,8 @@ increments to `main`.
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete. The correction to the
-   privileged Windows `$LogFile` test's retry gate awaits CI validation.
-   Rerun the complete final-head gate.
+   privileged Windows `$LogFile` test's retry gate passed all five lanes of
+   CI run `40075217938`; rerun the complete final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure paths, including races after the final
    destination content check. Supported SFTP
@@ -118,8 +118,9 @@ increments to `main`.
    families and the remaining
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Mac Create folder, Copy, Move and Delete X/backdrop pointer cancellation
-   passes at both supported 1× and Retina 2× modes; open-dialog SIGTERM with an
-   unsubmitted draft passes at Retina 2×. Capture
+   passes at both supported 1× and Retina 2× modes; Copy, Move and Delete also
+   pass in a 640 × 480 point window at Retina 2×, with Copy repeated at 1×.
+   Open-dialog SIGTERM with an unsubmitted draft passes at Retina 2×. Capture
    Ubuntu popup menus and the Find window at 200% scale. Report Avalonia's
    synthetic macOS modifier and scaled-bitmap behavior upstream if the owner
    agrees.

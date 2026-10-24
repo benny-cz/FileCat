@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Mac minimum-window dialog pointer acceptance
+(UXBUG-016):** Copy, Move and Delete review dialogs passed native close-X and
+backdrop mouse cancellation in a 640 × 480 point FileCat window at Retina 2×;
+Copy also passed at 1×. Native AX confirmed each enabled approval button was
+inside the narrowed window and measured the accessible close button at 30 ×
+30 points. Exact fixture bytes and the empty destination survived every
+cancellation. The first narrow attempt was a test-runner error: a transient
+tooltip appeared as System Events' `window 1`, so its supposed backdrop click
+went to a different app. The runner now identifies the main FileCat window
+by title and size and records the actual click position. The corrected runner
+passed against both the earlier signed build and the new root pointer guard
+build (`mac-dialog-copy-pointer-narrow-oldcorrected-20261024-r1.json`,
+`mac-dialog-{copy,move,delete}-pointer-narrow-overlayroot-20261024-r4/r1/r1.json`,
+`mac-dialog-copy-pointer-narrow-1x-overlayroot-20261024-r1.json`). The root
+pointer guard separately prevents a minimum-window press on a footer beyond
+an overlay hit surface from invoking an underlying action; a focused headless
+test failed before the guard and passed afterward. Six pointer cases and 25
+related dialog/focus cases passed with 16 workers. The Mac signed build uses
+an isolated locally installed .NET 10 SDK; its focused App suite passed 6/6.
+The privileged Windows `$LogFile` retry correction passed all five lanes of
+CI run `40075217938`; the final-head five-lane gate remains open.
+
 **24 October 2026, Mac dialog pointer scaling (UXBUG-016):** The signed
 `20df90d0` build repeated Create folder, Copy, Move and Delete native close-X
 and backdrop cancellation in the supported 1920 × 1200 logical/physical

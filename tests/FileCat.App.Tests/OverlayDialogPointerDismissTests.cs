@@ -101,6 +101,38 @@ public sealed class OverlayDialogPointerDismissTests
         finally { dialogs.CancelAll(); window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task Narrow_window_footer_press_outside_modal_cancels_without_invoking_underlying_action()
+    {
+        // At the minimum window size a dialog can leave a narrow footer strip
+        // outside its overlay hit surface. A native pointer press there must
+        // still cancel the active decision and must not run the obscured action.
+        var root = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
+        var host = new Grid();
+        var footer = new Button { Content = "Underlying action", Height = 34 };
+        Grid.SetRow(footer, 1);
+        root.Children.Add(host);
+        root.Children.Add(footer);
+        var window = new Window { Width = 640, Height = 480, Content = root };
+        window.Styles.Add(new StyleInclude(new Uri("avares://FileCat/"))
+            { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
+        window.Show();
+        var dialogs = new OverlayDialogService(host, () => null);
+        bool invoked = false;
+        footer.Click += (_, _) => invoked = true;
+        try
+        {
+            var pending = dialogs.ConfirmAsync("Copy", "Review before continuing", "Copy");
+            Layout(window);
+            Assert.True(dialogs.IsOpen);
+            Click(window, Center(footer, window));
+            Assert.False(await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.False(invoked);
+            Assert.False(dialogs.IsOpen);
+        }
+        finally { dialogs.CancelAll(); window.Close(); }
+    }
+
     private static (Window Window, Grid Host, OverlayDialogService Dialogs) Open()
     {
         var host = new Grid();
