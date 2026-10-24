@@ -978,6 +978,19 @@ its searching and counting states, the empty destination must be heard as
 unchanged. `-RecordAll` keeps a complete transcript after an
 unmet expectation, which documents a pre-fix build.
 
+`win-nvda-hex-search.ps1 -AppPath <FileCat.exe> -RunnerPath <FileCat.NativeAcceptance.exe> -NvdaPath <nvda.exe> -ReportPath <fresh-report.json>`
+adds actual NVDA speech acceptance to `hex-editor-search-native`. Run it in
+the interactive VM session at a tested display scale, with the signed portable
+NVDA copy and both Git-built executables below `FileCatValidation`. It starts
+one owned NVDA instance with a private log, seeds an isolated 13 MiB source,
+and runs the native pointer, distant-match, Previous, changed-query and
+source-integrity checks. The report passes only if the native result passes
+and NVDA's `Speaking [...]` records contain the match counts in order:
+`1 distinct match visited`, `2 distinct matches visited`, then
+`1 distinct match visited` for the changed query. The script closes its
+isolated FileCat and NVDA processes and retains the private speech log and
+native report for diagnosis.
+
 ## Linux logged-in desktop
 
 `linux-orca-speech.py APP_PATH REPORT.json KEY_HELPER [--record-all]` hears an
