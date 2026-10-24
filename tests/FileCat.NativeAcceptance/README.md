@@ -339,6 +339,15 @@ target. On the Wayland VM, the mouse variant uses
 the owned absolute-touch helper only to select the narrow source row; the X
 and backdrop clicks under test remain native mouse clicks. The touch variant
 uses touch for all three taps. The default `Folder` journey remains available.
+`linux-atspi-rename-cancel-focus.py APP_PATH REPORT.json linux-uinput-key.py`
+uses a fresh three-file fixture and physical End, F2, F7, F8 and Escape keys.
+It requires each canceled action to restore the exact focused row and keep
+source/target bytes unchanged. Pass `--dialog-only` to exercise Create folder
+and Delete while the stricter inline Rename editor's AT-SPI exposure is under
+repair. Both routes record a bounded failure probe and clean their owned
+fixture and app. Give the runner the transient sudo password only in
+`FILECAT_NATIVE_SUDO_PASSWORD`; it removes the variable before starting
+FileCat.
 `linux-atspi-selection-keyboard.py APP_PATH REPORT.json KEY_HELPER TOUCH_HELPER`
 creates two byte-checked files in an isolated profile and exercises a physical
 touch anchor followed by Shift+Down, Up and Shift+Down from the transient
@@ -1257,8 +1266,11 @@ beside it; the runner compiles that read-only `AXObserver` with the matching
 Xcode SDK, retries its registration until the starting app's accessibility
 answers, and records every `AXFocusedUIElementChanged` with the focused
 element's role, title, description, value and help. After each System Events
-key it also reads the application's `AXFocusedUIElement`. The journey matches
-the NVDA and Orca runners (Finder takes the foreground for the switch step):
+key it also reads the application's `AXFocusedUIElement`. It checks the
+three-file Create/Delete/Rename Escape path. Pass `--decision-returns` for
+a short, repeated check of those decisions and the settled original row.
+The full journey matches the NVDA and Orca runners (Finder takes the
+foreground for the switch step):
 each move must post a notification for the expected `AXRow`, the dialog field
 must be the focused `AXTextField`, each Command+C must post exactly one
 `AXAnnouncementRequested` reading "Copied 1 item to the clipboard.", typing

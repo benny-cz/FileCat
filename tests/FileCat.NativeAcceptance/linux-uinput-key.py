@@ -19,7 +19,7 @@ import time
 KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": (103,),
         "down": (108,), "shift+down": (42, 108),
         "shift+down-hold": (42, 108), "left": (105,),
-        "shift+down-hold-controlled": (42, 108), "shift+left": (42, 105),
+        "shift+down-hold-controlled": (42, 108), "shift+left": (42, 105), "f2": (60,),
         "shift-hold-controlled": (42,), "ctrl-hold-controlled": (29,),
         "f3": (61,), "shift+f3": (42, 61), "f5": (63,), "f7": (65,), "f8": (66,),
         "end": (107,), "pageup": (104,), "pagedown": (109,), "space": (57,),

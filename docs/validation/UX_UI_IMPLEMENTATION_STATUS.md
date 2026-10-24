@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Ubuntu decision focus and inline Rename accessibility
+(FCUX-004):** On uninstrumented Git-built `6825ecb2` (app DLL SHA-256
+`a025ecf6e8863580bf78551ace41e68d2c7b961251d02d51fc079d760e42262d`),
+the physical-key/AT-SPI `--dialog-only` journey passed Create folder and
+Delete Escape: focus settled on the same `c.txt` row and the source bytes and
+empty target stayed exact (`ubuntu-dialog-focus-6825ecb2-r10.json`). The
+strict F2 Rename route remains open. Disposable diagnostic builds proved F2
+and Shift+F6 reach FileCat with the list focused; `RenameAsync` sees `c.txt`,
+and `BeginRename` returns a live, visible and focused TextBox. AT-SPI still
+omits that editor from the app's tree. A headless peer-child test and explicit
+child invalidation did not change the native result, so that unverified peer
+change was discarded. The tracked runner retains the strict Rename route to
+check a later bridge or presentation fix. The complete Windows App suite on
+the committed focus code passed 2,468/63 skipped/0 failed; final-head CI is
+still pending.
+
 **24 October 2026, Mac inline Rename focus return (FCUX-004):** A native
 VoiceOver/AX focus journey on the earlier signed build reproduced an
 intermittent wrong-row return after Escape from inline Rename: focus moved
