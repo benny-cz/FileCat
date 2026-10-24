@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**24 October 2026, Windows scaled Hex Find acceptance (FCUX-007):** The clean
+Win11 VMware Git checkout at `9cfb6b3c` built successfully with eight guest
+workers using its installed .NET 10.0.402 SDK from the validation directory;
+the pinned repository `global.json` was not changed. Isolated 13 MiB Hex
+editor runs passed at Windows 100% and 150% display scale, with exact matches
+at 0x100014 and 0x800014, Previous/Next, F3/Shift+F3, no-earlier feedback,
+changed-query reset, unchanged source bytes and fixture cleanup. At 200%,
+UI Automation exposed the file row at its physical screen bounds, but the
+native test's raw `mouse_event` click failed to give it keyboard focus. The
+runner now verifies focus before invoking Search commands and falls back to
+an element-targeted native click while recording `nativePointerFocused`. The
+200% journey then passed the full Hex Find sequence with
+`nativePointerFocused = false`; this isolates the remaining raw pointer
+question rather than treating it as a Hex Find failure. The VM display was
+restored from 200% to its original 100%. Windows spoken and narrow 200%
+acceptance remain open.
+
 **23 October 2026, live SFTP upload cancellation (FCUX-001):**
 `RemoteLabTests.Canceling_a_live_SFTP_upload_removes_its_stage_without_consuming_the_source`
 now covers Copy and Move against the running Ubuntu VM's OpenSSH service.

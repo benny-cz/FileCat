@@ -57,8 +57,11 @@ increments to `main`.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
-   For FCUX-007, test the Hex editor controls and bounded match status with
-   scaled and spoken input on Windows.
+   For FCUX-007, finish Windows spoken Hex acceptance and investigate the
+   raw mouse pointer selection at 200% scale. The native Hex Find journey passed
+   at 100% and 150% with pointer input, and at 200% after an element-targeted
+   click; its report records `nativePointerFocused = false` at 200%, so the
+   raw pointer route is still open. Verify narrow 200% layouts as well.
    Test visible Stop, changed-query ownership beyond the verified Text and
    Hex routes, provider cancellation, other scaled layouts and spoken Find
    results. Assistive-technology routes still need native checks.

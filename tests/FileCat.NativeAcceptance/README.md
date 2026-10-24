@@ -405,6 +405,9 @@ the report path. If multiple isolated FileCat windows have the same title, set
 `FILECAT_NATIVE_TEST_APP` in the runner process to the exact test app
 `FileCat.exe`. The runner accepts only an executable below the guest's
 `AppData\Local\FileCatValidation` root and selects its window by process ID.
+Its `nativePointerFocused` result distinguishes a raw pointer selection from
+the element-targeted click fallback. A passing Hex search with that value false
+still leaves the raw pointer route for separate scaled acceptance.
 
 Run `FileCat.NativeAcceptance.exe find-resize <report.json>` in the Windows
 desktop session. The runner opens **Find files** if needed, drags its lower-right

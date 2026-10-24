@@ -2088,8 +2088,40 @@ try
                 listing = ParseSource(await ReadSourceAsync(client, sessionId));
             }
             var row = Row(listing) ?? throw new InvalidOperationException("The owned hex-editor file is not listed.");
-            NativeWindow.ClickAt(CenterX(row), CenterY(row));
             string appScope = $"//Window[@ProcessId='{appProcessId.ToString(CultureInfo.InvariantCulture)}']";
+            // Click the name cell and verify focus before using Search commands.
+            // The VM's legacy raw mouse injection can miss this row at 200%; an
+            // element-targeted native click gives an independent route and the
+            // report retains whether the raw pointer route worked.
+            var fileRowBounds = ReadNativeRect(row);
+            NativeWindow.ClickAt(fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2),
+                CenterY(row));
+            XElement? focusedRow = null;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
+                if ((string?)focusedRow?.Attribute("HasKeyboardFocus") == "True") break;
+                await Task.Delay(100);
+            }
+            bool nativePointerFocused =
+                (string?)focusedRow?.Attribute("HasKeyboardFocus") == "True";
+            if (!nativePointerFocused)
+            {
+                await ClickXPathAsync(client, sessionId,
+                    appScope + "//ListItem[@Name='hex-editor-backward.bin']",
+                    "hex editor file row");
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    focusedRow = Row(ParseSource(await ReadSourceAsync(client, sessionId)));
+                    if ((string?)focusedRow?.Attribute("HasKeyboardFocus") == "True") break;
+                    await Task.Delay(100);
+                }
+            }
+            if ((string?)focusedRow?.Attribute("HasKeyboardFocus") != "True")
+                throw new InvalidOperationException(
+                    $"The hex editor file did not take keyboard focus after native and element clicks " +
+                    $"at {fileRowBounds.X + Math.Min(60, fileRowBounds.Width / 2)},{CenterY(row)} " +
+                    $"(row {fileRowBounds}, focus={focusedRow?.Attribute("HasKeyboardFocus")}).");
             var commands = await FindXPathAsync(client, sessionId,
                 appScope + "//Edit[@Name='Search commands']", "command search");
             await ClickXPathAsync(client, sessionId,
@@ -2160,7 +2192,7 @@ try
                 && secondHit - firstHit > 4 * 1024 * 1024;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
-                passed, firstHit, secondHit, firstStatus, countAfterFirst, secondStatus, countAfterSecond,
+                passed, nativePointerFocused, firstHit, secondHit, firstStatus, countAfterFirst, secondStatus, countAfterSecond,
                 previousStatus, beforeFirst, changedStatus, countAfterChangedQuery,
                 editorClosed, sourceIntact, fixtureRemoved
             }, new JsonSerializerOptions { WriteIndented = true }));
