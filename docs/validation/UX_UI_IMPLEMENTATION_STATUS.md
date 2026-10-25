@@ -15,7 +15,14 @@ validation folder. The operation-issue row's macOS accessibility name exposed
 raw `JobIssue` record fields even though its visual text was friendly. The
 row now binds a concise severity, reason and complete path label; a headless
 Avalonia test checks that exact row name and a Core test covers present and
-absent paths. Mac native speech on this revised build remains to be checked.
+absent paths. The signed Git-built `94f16034` Mac app (DLL SHA-256
+`ec8bde1e9d6abb5a33d4a6d0aac81c78be36271d6ba6a9ecd78e2875862822a8`)
+ran the same native FTP interruption route. Its macOS accessibility row name
+was the concise `Warning: A partial copy is left on the server ... Path:
+/.fc-3e0f7c0a-1`, with no raw record fields; the new runner assertion requires
+that complete stage path. Its source/target preservation and partial-stage
+checks also passed (`mac-ftp-issue-accessibility-94f16034-r2.json`). Native
+VoiceOver speech of that row remains to be heard directly.
 
 **25 October 2026, CI and reverted Win11 VM:** On `c10bb076`, Ubuntu CI run
 `40186163627` built successfully and passed 4,472 Core tests with 110 skips,
@@ -29,7 +36,17 @@ Defender reports real-time, behavior, downloaded-file and script scanning off,
 with Tamper Protection off; its protected antivirus service still reports
 running. An exact Git clone of `c10bb076` and pinned .NET SDK `10.0.101`
 built the Windows app with zero warnings and errors using eight guest cores.
-Native acceptance on that restored guest remains to run.
+The guest then installed a Python.org signed Python 3.13.17 in an isolated
+validation folder and restored `pyftpdlib`/`pyOpenSSL` in a private venv. The
+native implicit-TLS FTPS review initially refused keyboard input because an
+elevated Salamander window held foreground focus. After clearing that idle
+overlap, the same Git-built FileCat executable (SHA-256
+`6309E9601B8C744A62CDC70CFC451E0B6C34DF5BB037F8B7D14CDDB9273A959F`)
+passed a fresh `win-ax-ftps-replace-c10bb076-r3.json` journey at 96 DPI:
+one-connection certificate consent, listing, complete replacement warning,
+Keep both clearing the warning, narrow per-item warning, Skip, and unchanged
+source/remote target hashes. Native 150%/200% and NVDA speech checks on this
+route remain open.
 
 **25 October 2026, native Mac FTP/FTPS changed-destination cleanup
 (FCUX-001):** The signed Git-built arm64 app (DLL SHA-256

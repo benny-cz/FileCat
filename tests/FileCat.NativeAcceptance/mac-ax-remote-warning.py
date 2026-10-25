@@ -596,6 +596,10 @@ end tell''')
                 receipt["retainedStageIssue"] = wait_for(lambda: next((node["name"] for node in nodes() if
                     "partial copy is left on the server" in node["name"].lower()), None),
                     "visible retained-stage warning in operation details", seconds=10)
+                if not receipt["retainedStageIssue"].startswith("Warning: A partial copy is left on the server") or (
+                        f"Path: /{stage.name}" not in receipt["retainedStageIssue"] or
+                        "JobIssue {" in receipt["retainedStageIssue"]):
+                    raise AssertionError("The operation issue must expose a concise warning and its complete stage path")
                 receipt["expectedManifest"] = sorted([stage.name, target.name])
                 receipt["stageBytesAfterDrop"] = stage.stat().st_size
                 if not 0 < receipt["stageBytesAfterDrop"] < source.stat().st_size:

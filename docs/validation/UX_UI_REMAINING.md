@@ -8,10 +8,9 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Run the native implicit-TLS FTPS replacement-review journey on the restored,
-  interactive Win11 VMware guest. Its exact `main` Git checkout and pinned
-  .NET SDK are built. Install the native runner's missing Python dependencies,
-  then test the Git-built executable in the guest desktop.
+- Repeat the Win11 implicit-TLS FTPS replacement-review journey at 150% and
+  200% scale and with NVDA speech. The restored guest now has a Git build and
+  the native runner's isolated Python dependencies; its 96 DPI route passed.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
@@ -36,9 +35,9 @@ increments to `main`.
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and remaining
-   SFTP provider failures. Verify the revised operation-issue row's concise
-   severity, reason and complete-path announcement with native Mac VoiceOver;
-   the headless AX-name and Core tests pass.
+   SFTP provider failures. Hear the revised operation-issue row's concise
+   severity, reason and complete-path announcement with Mac VoiceOver; the
+   headless tests and native macOS accessibility name pass.
    Recheck Mac VoiceOver's automatic remote warning after repeated FTPS
    certificate prompts: one preliminary native run exposed the warning
    visually but VoiceOver kept reading Destination. For FCUX-069/070, validate
