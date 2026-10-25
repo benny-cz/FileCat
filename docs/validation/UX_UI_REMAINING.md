@@ -36,10 +36,7 @@ increments to `main`.
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and remaining
    SFTP provider failures.
-   Recheck Mac VoiceOver's automatic remote warning after repeated FTPS
-   certificate prompts with the new assertive warning build: the second
-   implicit-TLS run exposed the warning visually but VoiceOver kept reading
-   Destination. For FCUX-069/070, validate
+   For FCUX-069/070, validate
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

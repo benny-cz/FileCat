@@ -19,7 +19,11 @@ keyboard movement, accessibility text and scroll bounds. A >4 GiB source
 geometry test now checks every byte in the computed row; a new two-mode
 viewer/editor test covers narrowing, widening, selected search ranges,
 vertical scroll preservation and pointer hits. The focused App selection
-passed 100 tests with no failures or skips. A signed, Git-built Mac arm64
+passed 100 tests with no failures or skips. The complete Windows Release App
+suite passed 2,470 tests, skipped 63 platform-specific tests and failed none.
+CI exposed two older scroll tests that assumed 16 bytes per Hex row; they now
+derive both PageUp distance and next-page wheel distance from the fitted row
+width, and their focused 18-test selection passed. A signed, Git-built Mac arm64
 bundle with DLL SHA-256
 `8081d370a10ff1011842e0531363e285f7786c317a1e9a5bab4ee0c421cbc0c4`
 passed the native Text/Hex/Info narrow/wide capture journey
@@ -38,6 +42,18 @@ approved capture. The passed captures show rows at 0x00/0x10 in the narrow
 720 × 500 frame and 0x00/0x20 in the wider 1154 × 681 frame, with aligned
 decoded text, byte-exact source preservation and no unsaved changes. Other
 desktop and combined interaction checks remain in `UX_UI_REMAINING.md`.
+
+**25 October 2026, repeated Mac FTPS warning speech (FCUX-001):** The
+Git-matched native runner passed an implicit-TLS FTPS Replace review and its
+subsequent per-item decision with muted VoiceOver speaking the complete
+warning at each step (`mac-ftps-warning-recheck-a6.json`). A second run
+stopped before the per-item decision because its zero-frame tab fallback
+pressed Tab while the source panel was already active. The fallback now checks
+the active panel before switching. A normal repeat and a forced keyboard
+fallback both passed both automatic speech checks and preserved the exact
+source and target bytes (`mac-ftps-warning-active-panel.json` and
+`mac-ftps-warning-keyboard-source.json`). The warnings still expose zero Mac
+AX bounds; that separate bridge/layout investigation remains open.
 
 **25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**
 The signed Git-built Mac arm64 app ran three fresh, owned loopback journeys

@@ -312,21 +312,28 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                         node["name"].endswith(", " + str(source_dir))), None)
                     if source_tab_unframed is None:
                         raise AssertionError("The exact local source tab is unavailable")
-                    osa('''tell application "System Events" to tell process "FileCat"
+                    source_active = any(node["role"] == "AXWindow" and
+                                        node["name"].startswith("source — FileCat")
+                                        for node in nodes())
+                    if not source_active:
+                        osa('''tell application "System Events" to tell process "FileCat"
     set frontmost to true
     key code 48
-    key code 119
 end tell''')
                     wait_for(lambda: any(node["role"] == "AXWindow" and
                              node["name"].startswith("source — FileCat") for node in nodes()),
                              "keyboard activation of the exact local source panel", seconds=8)
+                    osa('''tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    key code 119
+end tell''')
                     click_ax("AXButton", "Copy…")
                     destination = wait_for(lambda: next((node["value"] for node in nodes() if
                         node["role"] == "AXTextField" and node["name"] == "Destination"), None),
                         "keyboard-route Copy review destination", seconds=6)
                     if destination.rstrip("/") != address.rstrip("/"):
                         raise AssertionError("Keyboard-route Copy review changed the destination")
-                    receipt["steps"].append("Zero-frame AX tab bypassed with native Tab and End")
+                    receipt["steps"].append("Zero-frame AX tab bypassed with active-panel check and native End")
                     return
                 if ax_route:
                     click_ax("AXButton", source_tab["name"])
