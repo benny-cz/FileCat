@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Ubuntu spoken inline Rename (FCUX-004):** The native Orca
+50.2 journey now checks physical F2, the focused inline field's spoken name and
+entry role, and physical Escape back to the same file row. The Git-built Ubuntu
+app (DLL SHA-256
+`010b58b4f3b1e1a491f636bf6ebb74a4bf92b43b29ee0efc1cbf28106e7468de`)
+passed all 44 speech checks: Orca said `Rename selected item`, `entry`, and
+`c.txt` on entry, then returned to the `c.txt` row on Escape. The runner now
+discovers the logged-in user's current Xwayland authority, since VMware guest
+launches do not inherit it after a VM restart. The receipt is
+`ubuntu-orca-inline-rename-r2.json` in the Ubuntu validation folder. Other
+modal routes remain to be checked for actual Orca speech. The duplicate row
+details heard on Escape remain a separate FCUX-010 issue.
+
 **25 October 2026, Ubuntu inline Rename editor accessibility (FCUX-004):**
 The strict physical-F2/AT-SPI journey reproduced the missing editor on the
 Git-built `38bc114c` app: its TextBox was visible and focused but absent from
@@ -19,8 +32,7 @@ bytes intact. A second journey edited that entry through AT-SPI at its
 98 × 307 × 140 × 24 pixel screen bounds, pressed physical Enter, and verified
 `renamed.txt`, its exact source bytes, focus return and an empty target. The
 receipts are `ubuntu-rename-overlay-candidate-r1.json` and
-`ubuntu-rename-overlay-commit-r1.json` in the Ubuntu validation folder. Actual
-Orca speech for the inline field and other modal routes remain open.
+`ubuntu-rename-overlay-commit-r1.json` in the Ubuntu validation folder.
 
 **25 October 2026, Ubuntu scaled Hex input investigation (UXBUG-020):**
 Mutter's DisplayConfig accepted a temporary 1920 × 1200 virtual monitor at

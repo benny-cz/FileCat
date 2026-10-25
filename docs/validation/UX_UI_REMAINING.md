@@ -44,9 +44,9 @@ increments to `main`.
    and preview list with no AX children. The native `Bulk rename content`
    scroll area has a valid frame, while its first content child and visible
    fields report `[0, 900, 0, 0]`; a scroll-peer refresh and removal of the
-   width wrapper did not correct it. For FCUX-004, verify actual Ubuntu Orca
-   speech for the now-exposed inline Rename field and exercise the other modal
-   focus and decision routes on each desktop.
+   width wrapper did not correct it. For FCUX-004, exercise the other modal
+   focus and decision routes on each desktop, including actual Orca speech
+   where required.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its

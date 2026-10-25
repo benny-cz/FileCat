@@ -19,6 +19,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -102,9 +103,11 @@ def main():
     for name, content in expected.items():
         (source / name).write_bytes(content)
     source_sha = {name: hashlib.sha256(content).hexdigest() for name, content in expected.items()}
-    os.environ.setdefault("DISPLAY", ":0")
-    os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
-    os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
+    # Guest-tool launches do not inherit GNOME's current Xwayland cookie. Discover
+    # the logged-in user's owned display after a VM restart instead of guessing :0.
+    desktop_environment = runpy.run_path(
+        str(Path(__file__).with_name("linux-atspi-ftp-large-listing.py")))["desktop_environment"]
+    os.environ.update(desktop_environment())
     orca_version = subprocess.run(["/usr/bin/orca", "--version"], capture_output=True, text=True, timeout=10).stdout.strip()
     # The FileCat launcher is identical across builds; FileCat.dll identifies the tested code.
     report = {"passed": False, "appSha256": sha256(app_path), "appDllSha256": sha256(app_path.with_name("FileCat.dll")),
@@ -191,6 +194,10 @@ def main():
         step("up to b.txt", key("up"), says("b.txt"))
         step("home to parent", key("home"), says("Go to parent location"))
         step("end to c.txt", key("end"), says("c.txt"))
+        step("F2 speaks the inline Rename field", key("f2"), says("Rename selected item"))
+        if not any("entry" in phrase.casefold() for phrase in report["steps"][-1]["heard"]):
+            raise AssertionError("Orca did not identify the focused Rename field as an entry")
+        step("Escape returns from inline Rename", key("escape"), says("c.txt"))
         step("tab to the target panel", key("tab"), says("Go to parent location"))
         step("tab back to the source panel", key("tab"), says("c.txt"))
         step("F7 opens Create folder", key("f7"), lambda phrase: "folder" in phrase.casefold())
