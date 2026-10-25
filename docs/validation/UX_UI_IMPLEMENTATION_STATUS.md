@@ -11,15 +11,39 @@ visible opacity and mask value in two-panel resizes and a four-panel workspace,
 and require a path text presenter. Nine focused Windows App tests passed.
 The isolated Windows VM reproduced the missing mask on the earlier Git-built
 app: UIA reported `*.*` at both filter positions while the screenshot showed
-no text. Native verification of the corrected Git head is pending.
+no text. A fresh guest Git clone of the pushed `2f1f43c9` head built a Release
+app (DLL SHA-256 `af5e45be2ad6669546ca50b7575eef2eb5f043dd59b6323d34dcc81aa24490aa`).
+The native screenshot shows the mask in both panels. Physical pointer input
+then created the screenshot's four-panel layout; all four `*.*` values have
+visible accessibility bounds and are painted beside the path/free-space and
+target controls. The guest receipt is `panel-mask-four.json`. The same
+four-panel window was resized to 1,500 × 900 physical pixels. All four masks
+remained visible, and the focused path editor painted its full
+`C:\Users\Admin` path. The guest receipt is `panel-mask-resize.json`; final-head
+CI remains open. A signed Mac ARM64 build of the same Git head (DLL SHA-256
+`1dad0b6faa53748d8ac9867c56e8576b88b7aeeb6e826c090a24d8a2fa953f2e`)
+passed the SFTP first-click and stale AX focus-race probe with the restored
+TextBox template; source and target hashes remained unchanged. Its receipt is
+`mac-panel-mask-pointer-race-2f1f43c9.json` in the Mac validation folder.
 
 **25 October 2026, Ubuntu CI diagnosis:** On `7a5492fe` and `8042cd54`, the
 portable Ubuntu App test process aborted with exit code 134 after 625 and 334
 passing cases respectively; the Core and Remote suites passed. The final
 App TRX records no failed assertions and points to a blame sequence XML that
-the workflow had not uploaded. CI now retains that bounded sequence trace so
-the next run can identify the in-flight test and its cause. The final green
-five-lane gate remains open.
+the workflow had not uploaded. CI now retains that bounded sequence trace.
+On `2f1f43c9`, the CI trace identified
+`DescendantFocusAutomationTests.Linux_attachment_enumerates_each_ancestor_down_to_the_focused_row`
+as in flight. An isolated Ubuntu VM full App run of the prior candidate
+independently aborted in
+`AccessibilityTests.File_list_announces_the_focused_item_with_its_details`.
+The row's Linux speech-mode lookup called `CreatePeerForElement(window)`
+while the row peer was still constructing. Creating the root peer can resolve
+the focused row and reenter that construction. The lookup now reads a weakly
+tracked bridge state, updated only by the root's existing AT-SPI subscription;
+it never creates another peer. The new regression checks bridge state on
+attach and detach. Four focused Windows and six focused Ubuntu accessibility,
+mask and path tests passed; the Ubuntu exact test had previously aborted after
+60 seconds when run alone. The final green five-lane gate remains open.
 
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged

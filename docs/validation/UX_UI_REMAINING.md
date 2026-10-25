@@ -32,12 +32,12 @@ increments to `main`.
    Ubuntu metadata-demand extra read (CI `40223594897`) and macOS inline
    Rename focus return to `..` (CI `40226086392`) if either recurs; both
    exact tests passed 16 isolated reruns and the later full CI run passed.
-   Ubuntu App runs `40236905515` and `40238344602` then aborted with process
-   exit code 134 after zero reported test failures. Retrieve the newly
-   uploaded blame sequence XML from the next failed run, identify the active
-   test and fix the crash rather than accepting a retry as qualification.
-   Native-check the corrected panel mask and editable path text on the
-   isolated Windows VM, including the four-panel layout and resize.
+   Ubuntu App runs `40236905515`, `40238344602` and `40240407805` aborted
+   with process exit code 134 after zero reported test failures. The uploaded
+   sequence and an isolated VM reproduction identified recursive window-peer
+   creation from Linux row speech; the passive bridge-state fix passed the
+   exact focused tests. Require a complete Ubuntu App run and final-head CI
+   before closing this failure.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows

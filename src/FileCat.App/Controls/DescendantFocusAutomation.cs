@@ -33,6 +33,9 @@ internal interface IFocusedDescendantPeer
 /// </summary>
 internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer, IRootProvider
 {
+    private sealed class AtSpiState { internal bool Attached; }
+    private static readonly ConditionalWeakTable<Window, AtSpiState> NativeAtSpi = new();
+    private readonly Window _window;
     private EventHandler? _focusChanged;
     private IFocusedDescendantPeer? _owner;
     private AutomationPeer? _reported;
@@ -40,6 +43,7 @@ internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer
 
     public DescendantFocusWindowAutomationPeer(Window owner) : base(owner)
     {
+        _window = owner;
         base.FocusChanged += OnControlFocusChanged;
         owner.Activated += OnActivated;
         // A list can already own keyboard focus when this peer is first requested.
@@ -48,7 +52,22 @@ internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer
     }
 
     /// <summary>This window's AT-SPI bridge on Linux, from the bridge's own subscription to its focus.</summary>
-    internal AtSpiBridge? AtSpi { get; set; }
+    private AtSpiBridge? _atSpi;
+    internal AtSpiBridge? AtSpi
+    {
+        get => _atSpi;
+        set
+        {
+            _atSpi = value;
+            NativeAtSpi.GetValue(_window, static _ => new AtSpiState()).Attached = value is not null;
+        }
+    }
+
+    // A row peer can be created while this root peer is still constructing.
+    // Querying CreatePeerForElement(window) from that row recursively creates
+    // another root and row; read only the state of an already attached bridge.
+    internal static bool HasAtSpi(Window window) =>
+        NativeAtSpi.TryGetValue(window, out var state) && state.Attached;
 
     AutomationPeer? IRootProvider.GetFocus() => ResolveFocus();
     AutomationPeer? IRootProvider.GetPeerFromPoint(Point p) => GetPeerFromPoint(p);

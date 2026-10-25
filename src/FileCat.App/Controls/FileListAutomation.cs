@@ -396,7 +396,7 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
     // the separate help text; headless Linux peers keep those semantics too.
     private bool FoldHelpIntoName => OperatingSystem.IsLinux() &&
         TopLevel.GetTopLevel(_list) is Window window &&
-        ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: not null };
+        DescendantFocusWindowAutomationPeer.HasAtSpi(window);
 
     internal static (string Name, string Help) SpeechParts(FileListControl list, int storeIndex,
         string safeName, bool foldHelpIntoName) => foldHelpIntoName

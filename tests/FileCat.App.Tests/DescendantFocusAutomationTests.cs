@@ -256,9 +256,11 @@ public sealed class DescendantFocusAutomationTests
         window.Show();
         try
         {
+            Assert.False(DescendantFocusWindowAutomationPeer.HasAtSpi(window));
             var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
             var node = new FakeBridgeNode(new FakeBridgeServer(), root);
             root.AtSpi = Assert.IsType<AtSpiBridge>(AtSpiBridge.ForNode(node));
+            Assert.True(DescendantFocusWindowAutomationPeer.HasAtSpi(window));
             LiveRegions.Watch(status);
 
             status.Text = "Cut 1 item to the clipboard";
@@ -283,6 +285,8 @@ public sealed class DescendantFocusAutomationTests
             status.Text = string.Empty;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(2, node.EventObjectHandler.Signals.Count);
+            root.AtSpi = null;
+            Assert.False(DescendantFocusWindowAutomationPeer.HasAtSpi(window));
         }
         finally { window.Close(); }
     }
