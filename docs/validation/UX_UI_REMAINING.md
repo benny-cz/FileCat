@@ -115,15 +115,18 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
-   UXBUG-020 still needs scaled Ubuntu checks and combined editor search,
-   selection, scroll, zoom and pointer alignment while resizing on the
-   supported desktops. Mac viewer and editor narrow/wide Hex row reflow now
-   pass with exact fixture bytes. The Ubuntu guest's `scaling-factor=2` setting
-   left the tested native window at scale 1, so it did not close scaled
-   acceptance; the original automatic setting was restored. Mac and Windows
-   physical scrollbar and explicit content-selection journeys now pass on
-   Windows, Mac and Ubuntu at their tested scales. Finish scaled Ubuntu and
-   combined search, scroll, zoom, resize and pointer-alignment journeys.
+   UXBUG-020 still needs scaled Ubuntu physical pointer checks and combined
+   editor search, selection, scroll, zoom and pointer alignment while resizing
+   on the supported desktops. Mac viewer and editor narrow/wide Hex row
+   reflow pass with exact fixture bytes. GNOME temporarily reported 200%
+   scaling and the Hex row reflow assertions passed, but its physical uinput
+   drag did not move the viewport; a 125% change left Xwayland's prior 192 DPI
+   in place, and a soft VM restart restored the original 100% mode. Establish
+   one stable scaled Ubuntu session with matching compositor, Xwayland and
+   physical pointer coordinates, then repeat the full native journey. The
+   original VM display setting is restored. Physical scrollbar and explicit
+   content-selection journeys pass on Windows, Mac and Ubuntu at their tested
+   scales.
 
 ## Evidence required to finish
 

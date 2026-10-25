@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Ubuntu scaled Hex input investigation (UXBUG-020):**
+Mutter's DisplayConfig accepted a temporary 1920 × 1200 virtual monitor at
+200% and reported that scale in its active configuration. The Git-built
+`38bc114c` Hex journey passed its narrow/wide row reflow assertions before
+the physical-thumb check, but the disposable uinput mouse did not move the
+compositor cursor through the requested drag; the test failed with the Hex
+viewport still at byte 0 and no selection. A separately tried Xwayland cursor
+warp reached the thumb coordinate, but the physical drag still did not scroll,
+so it was removed from the test runner. A 125% DisplayConfig setting on the
+original 1280 × 800 monitor also left Xwayland at the prior 192 DPI and
+2048 × 1280 root size, so it was not a valid 125% app test. Even a persisted
+200% DisplayConfig setting returned to the VM's original 1280 × 800 at 100%
+after a soft restart; Xwayland then reported 96 DPI again. All three failed
+runner fixtures were removed only after verifying their exact generated source
+bytes and empty targets. The VM is back at its original display scale. This
+does not establish a Hex regression or close the scaled Ubuntu physical-input
+gate; a stable scaled VM session and matching pointer coordinates are still
+needed.
+
 **25 October 2026, native Ubuntu Hex scrollbar selection (UXBUG-020):**
 The 100% Ubuntu VM ran the Git-built `38bc114c` viewer/editor journey three times
 with a short-lived physical uinput mouse. A feedback loop moved the Wayland
