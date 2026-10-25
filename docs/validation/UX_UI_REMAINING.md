@@ -117,7 +117,9 @@ increments to `main`.
    selection, scroll, zoom and pointer alignment while resizing on the
    supported desktops. The Ubuntu 100% viewer already passed combined Find,
    selection, scroll and zoom checks; use its recorded receipt in the status
-   document.
+   document. Recheck the newly reported scrollbar-thumb drag on Windows,
+   Ubuntu and Mac: dragging or releasing the thumb must not create or alter a
+   byte selection, while a drag begun in the content must still select bytes.
 
 ## Evidence required to finish
 

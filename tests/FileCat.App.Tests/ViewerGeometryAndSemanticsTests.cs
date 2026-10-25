@@ -506,6 +506,59 @@ public sealed class ViewerGeometryAndSemanticsTests
         finally { view.SetReader(null); window.Close(); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Dragging_hex_scrollbar_never_starts_or_changes_a_byte_selection(bool editor)
+    {
+        using var reader = new PagedReader(new VirtualSource(8192));
+        var view = new HexView { TracksActiveColumn = editor };
+        var window = new Window { Width = 620, Height = 480, Content = view };
+        view.SetReader(reader); window.Show();
+        try
+        {
+            await Wait(() => view.Bounds.Width > 0);
+            window.CaptureRenderedFrame()?.Dispose();
+            var bar = view.GetVisualDescendants().OfType<ScrollBar>()
+                .Single(b => b.Orientation == Avalonia.Layout.Orientation.Vertical);
+            var thumb = bar.GetVisualDescendants().OfType<Thumb>().Single(t => t.IsVisible);
+            Assert.True(bar.Maximum > 0);
+
+            void DragThumb(double fraction)
+            {
+                Point start = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+                double distance = (bar.Bounds.Height - thumb.Bounds.Height) * fraction;
+                window.MouseDown(start, MouseButton.Left);
+                for (int i = 1; i <= 8; i++)
+                    window.MouseMove(new Point(start.X, start.Y + distance * i / 8), RawInputModifiers.LeftMouseButton);
+                window.MouseUp(new Point(start.X, start.Y + distance), MouseButton.Left);
+            }
+
+            DragThumb(.75);
+            Assert.True(bar.Value > 0);
+            Assert.Equal((0L, 0L), view.Selection);
+            Assert.Equal(0, view.CursorOffset);
+
+            view.GoTo(view.TopByteOffset + 1, select: true, length: 3);
+            var selected = view.Selection;
+            window.CaptureRenderedFrame()?.Dispose();
+            DragThumb(-.5);
+            Assert.Equal(selected, view.Selection);
+            Assert.True(view.TopByteOffset >= 0);
+
+            // A drag begun in the content still selects bytes deliberately.
+            view.GoTo(1);
+            Point first = view.TranslatePoint(view.CursorBounds(textColumn: false).Center, window)!.Value;
+            view.GoTo(3);
+            Point third = view.TranslatePoint(view.CursorBounds(textColumn: false).Center, window)!.Value;
+            window.MouseDown(first, MouseButton.Left);
+            window.MouseMove(third, RawInputModifiers.LeftMouseButton);
+            window.MouseUp(third, MouseButton.Left);
+            Assert.Equal((1L, 3L), view.Selection);
+        }
+        finally { view.SetReader(null); window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task Content_events_commit_new_rows_before_notification_without_waiting_for_paint()
     {

@@ -31,6 +31,7 @@ public sealed class HexView : Control
     private long _topRow;
     private long _cursor;
     private long _anchor = -1;
+    private IPointer? _selectionPointer;
     private Typeface _typeface = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"));
     private double _fontSize = 13;
     private double _charWidth = 8;
@@ -75,6 +76,7 @@ public sealed class HexView : Control
         };
         VisualChildren.Add(_hbar);
         LogicalChildren.Add(_hbar);
+        PointerCaptureLost += (_, _) => _selectionPointer = null;
     }
 
     public event Action? CursorMoved;
@@ -209,6 +211,8 @@ public sealed class HexView : Control
 
     public void SetReader(PagedReader? reader)
     {
+        if (_selectionPointer is { } selecting && ReferenceEquals(selecting.Captured, this)) selecting.Capture(null);
+        _selectionPointer = null;
         _wheelRows.Reset();
         if (_reader is not null && _pageLoaded is not null) _reader.PageLoaded -= _pageLoaded;
         _reader = reader;
@@ -526,11 +530,11 @@ public sealed class HexView : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        Focus();
         var p = e.GetPosition(this);
         if (!ContentViewport.Contains(p) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         long pos = HitTest(p);
         if (pos < 0) return;
+        Focus();
         _textColumnActive = p.X + _horizontalOffset >= TextColumnX;
         if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
         {
@@ -540,13 +544,18 @@ public sealed class HexView : Control
         _cursor = pos;
         _highlight = null;
         EnsureVisible();
+        _selectionPointer = e.Pointer;
         e.Pointer.Capture(this);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        // A scrollbar thumb's routed pointer movement also reaches this control.
+        // Only a press begun in the byte canvas may extend a byte selection.
+        if (!ReferenceEquals(e.Pointer, _selectionPointer) ||
+            !ReferenceEquals(e.Pointer.Captured, this) ||
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         long pos = HitTest(e.GetPosition(this));
         if (pos < 0 || pos == _cursor) return;
         if (_anchor < 0) _anchor = _cursor;
@@ -557,7 +566,9 @@ public sealed class HexView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        e.Pointer.Capture(null);
+        if (!ReferenceEquals(e.Pointer, _selectionPointer)) return;
+        _selectionPointer = null;
+        if (ReferenceEquals(e.Pointer.Captured, this)) e.Pointer.Capture(null);
     }
 
     private double TextColumnX => HexColumnX + TextColumnCharacters(BytesPerRow) * _charWidth;

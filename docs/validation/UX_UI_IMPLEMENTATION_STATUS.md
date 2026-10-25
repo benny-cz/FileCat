@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Hex scrollbar selection (UXBUG-020):** A routed pointer
+move from a scrollbar thumb reached `HexView`'s byte-drag handler and could
+extend a byte selection while the user was only scrolling. The view now owns a
+selection pointer only after a left press inside its byte canvas, requires its
+own pointer capture for subsequent selection moves, and releases only its own
+capture. Pressing or releasing a scrollbar no longer shifts focus to the byte
+canvas or releases the scrollbar's capture. Replacing the source also retires
+an in-progress byte drag. A real pointer regression drags the vertical thumb
+with no selection, preserves an existing exact selection through another
+scrollbar drag, and then confirms that a content drag still selects the
+intended bytes in both read-only viewer and editor modes. Both focused cases
+passed; 77 related viewer, editor and fractional-scroll cases passed with no
+failures or skips. Native desktop acceptance remains open.
+
 **25 October 2026, combined native Ubuntu Hex resize (UXBUG-020):** The
 Git-built Ubuntu viewer at 100% scale passed an extended
 `linux-atspi-hex-resize.py` journey (`ubuntu-hex-resize-combined-9081bd6e-r2.json`).
