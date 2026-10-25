@@ -84,9 +84,10 @@ increments to `main`.
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
-   paths. For UXBUG-019, run the updated elevated Windows UI against the
-   owner's disposable `G:` (`FCTEST`) and confirm scan admission, a read-only
-   source and off-source recovery; the isolated Windows VM has no `G:` drive.
+   paths. For UXBUG-019, the elevated production process census and disk-safety
+   preflight now admit the owner's disposable `G:` (`FCTEST`) with unrelated
+   build and desktop apps running. Run the updated elevated Windows UI and
+   confirm a read-only scan and off-source recovery.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and

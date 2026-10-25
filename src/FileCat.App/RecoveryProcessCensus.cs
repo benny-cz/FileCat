@@ -20,7 +20,9 @@ internal static class RecoveryProcessCensus
 
     internal static bool? OtherFileCatRunning()
     {
-        bool? ordinary = SingleInstance.OtherFileCatRunning();
+        // A process may exit between enumeration and identity lookup. Retry the whole
+        // snapshot before treating a transient unknown as a reason to refuse recovery.
+        bool? ordinary = RepeatUncertain(SingleInstance.OtherFileCatRunning);
         if (ordinary is not null || !OperatingSystem.IsLinux()) return ordinary;
         return AskAdministrator();
     }

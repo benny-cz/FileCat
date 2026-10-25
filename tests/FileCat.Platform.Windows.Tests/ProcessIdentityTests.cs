@@ -20,10 +20,51 @@ public sealed partial class ProcessIdentityTests(ITestOutputHelper output)
     }
 
     [Theory]
+    [InlineData("\"C:\\Program Files\\dotnet\\dotnet.exe\" \"C:\\Program Files\\dotnet\\sdk\\10.0.101\\MSBuild.dll\" /nodemode:1", false)]
+    [InlineData("dotnet C:\\apps\\FileCat.dll --data D:\\state", true)]
+    [InlineData("dotnet exec \"C:\\apps\\FileCat.dll\"", true)]
+    [InlineData("dotnet C:\\apps\\OtherFileCat.dll", true)] // Conservative false positive, never a false negative.
+    public void Managed_host_command_identification_distinguishes_unrelated_dotnet_workers(string command, bool expected)
+    {
+        Assert.Equal(expected, ProcessIdentity.IsFileCatManagedHostCommand(command));
+    }
+
+    [Fact]
+    public void Missing_managed_host_command_never_clears_a_device_scan()
+    {
+        Assert.Null(ProcessIdentity.IsFileCatManagedHostCommand(null));
+        Assert.Null(ProcessIdentity.IsFileCatManagedHostCommand("  "));
+        Assert.Null(ProcessIdentity.CommandLine(-1));
+    }
+
+    [Theory]
+    [InlineData(true, false, true)] // A FileCat apphost renamed dotnet.exe must still be caught.
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    [InlineData(null, false, null)]
+    [InlineData(false, null, null)]
+    public void Dotnet_named_processes_need_both_image_and_command_to_clear(
+        bool? apphost, bool? managed, bool? expected)
+    {
+        Assert.Equal(expected, ProcessIdentity.CombineAppHostAndManagedCommand(apphost, managed));
+    }
+
+    [Fact]
+    public void Windows_reads_a_live_non_FileCat_host_command_without_memory_access()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows WMI process metadata.");
+        string? command = ProcessIdentity.CommandLine(Environment.ProcessId);
+        Assert.False(string.IsNullOrWhiteSpace(command));
+        Assert.False(ProcessIdentity.IsFileCatManagedHostCommand(command));
+    }
+
+    [Theory]
     [InlineData(0, "Idle", 0, 87)]
     [InlineData(4, "System", 0, 31)]
     [InlineData(164, "Registry", 0, 31)]
     [InlineData(3376, "Memory Compression", 0, 31)]
+    [InlineData(336, "Secure System", 0, 31)]
+    [InlineData(12332, "vmmemCmZygote", 0, 31)]
     public void Only_kernel_bookkeeping_entries_with_the_expected_no_image_failure_are_exempt(
         int pid, string name, int session, int error)
     {

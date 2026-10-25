@@ -491,8 +491,23 @@ public sealed class RecoverySafetyTests
         System.Text.Encoding.UTF8.GetBytes("/FileCat.dll\0").CopyTo(bytes, 8187);
         using (var input = new MemoryStream(bytes)) Assert.True(SingleInstance.IsFileCatAppHost(input));
         using (var input = new MemoryStream("OtherFileCat.dll\0"u8.ToArray())) Assert.False(SingleInstance.IsFileCatAppHost(input));
-        using (var input = new MemoryStream(new byte[SingleInstance.RecoveryProcessImageReadLimit + 1])) Assert.Null(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new OversizeReadStream()) Assert.Null(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new MemoryStream(new byte[64 * 1024 * 1024 + 1])) Assert.False(SingleInstance.IsFileCatAppHost(input));
         using (var input = new MemoryStream(new byte[8 * 1024 * 1024])) Assert.False(SingleInstance.IsFileCatAppHost(input));
+    }
+
+    private sealed class OversizeReadStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => (long)SingleInstance.RecoveryProcessImageReadLimit + 1;
+        public override long Position { get; set; }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new InvalidOperationException("An oversized image must not be read.");
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     [Fact]

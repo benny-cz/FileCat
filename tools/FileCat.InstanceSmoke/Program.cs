@@ -1,6 +1,9 @@
 using System.Text.Json;
 using FileCat.App;
 using FileCat.Core.State;
+using FileCat.App.Services;
+using FileCat.App.ViewModels;
+using FileCat.Platform.Windows.Recovery;
 
 // Runs the production instance protocol without a desktop. The caller owns every fixture and bounds each process.
 if (args.Length < 2 || !File.Exists(Path.Combine(args[1], ".filecat-owned")))
@@ -13,6 +16,25 @@ try
     {
         case "other-processes":
             Console.WriteLine(JsonSerializer.Serialize(new { running = SingleInstance.OtherFileCatRunning() }));
+            return 0;
+        case "other-processes-debug":
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                running = SingleInstance.OtherFileCatRunning(null, null, null,
+                    (pid, name, reason) => Console.Error.WriteLine($"{pid} {name}: {reason}")),
+            }));
+            return 0;
+        case "disk-safety":
+            if (!OperatingSystem.IsWindows() || args.Length != 3)
+                throw new ArgumentException("Requires one Windows drive root.");
+            string device = DeviceTopology.VolumeDevice(args[2]) ??
+                throw new InvalidOperationException("The drive is not a local volume.");
+            using (var services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Path.Combine(root, "data"))))
+            {
+                var vm = new MainViewModel(services);
+                var safety = vm.CheckDiskSafety(device, $"drive {args[2]}");
+                Console.WriteLine(JsonSerializer.Serialize(new { admitted = safety.Refusal is null, safety.Refusal, safety.HeldOff }));
+            }
             return 0;
         case "probe":
             Console.WriteLine(JsonSerializer.Serialize(new { running = SingleInstance.UsualInstanceRunning(options.Profile) }));

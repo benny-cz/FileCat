@@ -165,6 +165,29 @@ temporary VMware share were removed. The VM has no `G:` drive, so the actual
 updated UI scan of the owner's disposable volume remains a native acceptance
 check; no recovery-source bytes were written during this diagnosis.
 
+**25 October 2026, host G: recovery census recurrence (UXBUG-019):** The
+owner permitted local diagnosis on the disposable `G:` (`FCTEST`). With no
+FileCat process running, the Git-built production census initially returned
+`running:true`: six unrelated `dotnet.exe` MSBuild workers were treated as
+FileCat peers. After distinguishing managed hosts by their Windows process
+command line, an elevated diagnostic census still returned unknown. It named
+two session-zero, no-image kernel entries (`Secure System` and
+`vmmemCmZygote`) and mainstream Slack, Signal, Claude, Dropbox, Codex and
+Node executables larger than the former 64 MiB image-inspection bound. The
+Windows guard now identifies actual `dotnet FileCat.dll` commands, exempts only
+the two additional kernel entries with their characteristic no-image error,
+and caches bounded image scans across processes sharing an executable. An
+unreadable command, inaccessible image, or executable beyond the new 512 MiB
+bound still refuses a scan. A second elevated production census on this host,
+with those desktop apps and build workers still present, returned
+`running:false` and no unknowns. The exact production `CheckDiskSafety` path
+also admitted the real `G:` volume (`Refusal:null`) with its state files on
+`E:`; the check did not open or write the recovery source. Whole-census
+retries now absorb a process that exits between enumeration and inspection,
+while persistent unknowns still refuse recovery. The focused App recovery
+tests and Windows identity tests pass. The updated native UI scan and
+off-source recovery on `G:` remain to be checked.
+
 **24 October 2026, native Mac implicit-FTPS large listing (FCUX-010):** The
 same signed Git-built arm64 candidate (app DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Management;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
@@ -10,6 +11,36 @@ public static partial class ProcessIdentity
 
     /// <summary>A Win32 image path, or null when the process cannot be identified. Failure never means absence.</summary>
     public static string? ImagePath(int processId) => QueryImagePath(processId).Path;
+
+    /// <summary>Read the launch command of a managed host without requesting VM access to that process.</summary>
+    public static string? CommandLine(int processId)
+    {
+        if (!OperatingSystem.IsWindows() || processId <= 0) return null;
+        try
+        {
+            using var search = new ManagementObjectSearcher(
+                $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {processId}");
+            using var results = search.Get();
+            foreach (ManagementBaseObject item in results)
+                return item["CommandLine"] as string;
+        }
+        catch (Exception ex) when (ex is ManagementException or UnauthorizedAccessException or COMException)
+        {
+            // Unreadable process metadata is never proof that a managed FileCat is absent.
+        }
+        return null;
+    }
+
+    public static bool? IsFileCatManagedHostCommand(string? commandLine)
+    {
+        if (string.IsNullOrWhiteSpace(commandLine)) return null;
+        // The framework-dependent entry assembly is always named FileCat.dll. A broader
+        // match can only delay a scan; a narrow argv parser could miss valid host forms.
+        return commandLine.Contains("FileCat.dll", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool? CombineAppHostAndManagedCommand(bool? apphost, bool? managed) =>
+        apphost == true || managed == true ? true : apphost == false && managed == false ? false : null;
 
     /// <summary>Retain the Win32 failure code so recovery can distinguish kernel-only entries from inaccessible executables.</summary>
     public static unsafe ImagePathResult QueryImagePath(int processId)
@@ -40,7 +71,7 @@ public static partial class ProcessIdentity
         image.Path is null && (processId == 0 && processName == "Idle" && image.Error == 87 ||
                                processId == 4 && processName == "System" && image.Error == 31 ||
                                processId > 4 && sessionId == 0 && image.Error == 31 &&
-                               processName is ("Registry" or "Memory Compression"));
+                               processName is ("Registry" or "Memory Compression" or "Secure System" or "vmmemCmZygote"));
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial SafeProcessHandle OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint processId);

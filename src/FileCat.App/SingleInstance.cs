@@ -38,9 +38,10 @@ public static partial class SingleInstance
     public static bool? OtherFileCatRunning() => OtherFileCatRunning(null);
 
     internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null,
-        int? additionallyExcludedProcessId = null)
+        int? additionallyExcludedProcessId = null, Action<int, string, string>? diagnostic = null)
     {
         var snapshot = new List<Process>();
+        var inspectedImages = new Dictionary<string, bool?>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FileCat", "dotnet" };
@@ -75,23 +76,51 @@ public static partial class SingleInstance
                     // The existing test seam supplies an already selected candidate inventory. Production also
                     // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
                     bool? match;
+                    string? unknownReason = null;
                     if (identify is not null) match = identify(process);
-                    else if (enumerate is not null || names.Contains(process.ProcessName)) match = true;
+                    else if (enumerate is not null) match = true;
+                    else if (OperatingSystem.IsWindows() && process.ProcessName.Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // A renamed FileCat apphost can itself be called dotnet.exe. Inspect both the
+                        // image and the managed host command before declaring this process unrelated.
+                        var image = Platform.Windows.ProcessIdentity.QueryImagePath(process.Id);
+                        bool? apphost = image.Path is { } path && inspectedImages.TryGetValue(path, out var inspected)
+                            ? inspected : IsFileCatAppHost(image.Path);
+                        if (image.Path is { } inspectedPath) inspectedImages[inspectedPath] = apphost;
+                        bool? managed = Platform.Windows.ProcessIdentity.IsFileCatManagedHostCommand(
+                            Platform.Windows.ProcessIdentity.CommandLine(process.Id));
+                        match = Platform.Windows.ProcessIdentity.CombineAppHostAndManagedCommand(apphost, managed);
+                    }
+                    else if (names.Contains(process.ProcessName)) match = true;
                     else if (OperatingSystem.IsWindows())
                     {
                         var image = Platform.Windows.ProcessIdentity.QueryImagePath(process.Id);
                         if (Platform.Windows.ProcessIdentity.IsKernelOnlyProcess(
                                 process.Id, process.ProcessName, process.SessionId, image)) continue;
-                        match = IsFileCatAppHost(image.Path);
+                        if (image.Path is { } path && inspectedImages.TryGetValue(path, out var inspected))
+                            match = inspected;
+                        else
+                        {
+                            match = IsFileCatAppHost(image.Path);
+                            if (image.Path is { } inspectedPath) inspectedImages[inspectedPath] = match;
+                        }
+                        if (match is null)
+                            unknownReason = image.Path is null ? $"image error {image.Error}" : $"incomplete image scan: {image.Path}";
                     }
                     else match = IsFileCatAppHost(process.MainModule?.FileName);
-                    if (match == true) return true;
+                    if (match == true)
+                    {
+                        diagnostic?.Invoke(process.Id, process.ProcessName, "match");
+                        return true;
+                    }
+                    if (match is null) diagnostic?.Invoke(process.Id, process.ProcessName, unknownReason ?? "unknown identity");
                     unknown |= match is null;
                 }
                 catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException
                                            or IOException or UnauthorizedAccessException)
                 {
                     // An inaccessible or disappearing executable is not evidence that no FileCat is running.
+                    diagnostic?.Invoke(process.Id, process.ProcessName, $"{ex.GetType().Name}: {ex.Message}");
                     unknown = true;
                 }
             }
@@ -111,7 +140,9 @@ public static partial class SingleInstance
         return IsFileCatAppHost(input);
     }
 
-    internal const int RecoveryProcessImageReadLimit = 64 * 1024 * 1024;
+    // Electron and native tooling apphosts commonly exceed 64 MiB. Keep a finite
+    // limit, but inspect mainstream executable sizes before declaring identity unknown.
+    internal const int RecoveryProcessImageReadLimit = 512 * 1024 * 1024;
 
     internal static bool? KernelThreadFromStat(string stat)
     {
@@ -129,6 +160,7 @@ public static partial class SingleInstance
         // Bound reads of other executables; an incomplete inspection remains unknown, never an absent process.
         ReadOnlySpan<byte> binding = "FileCat.dll\0"u8;
         const int limit = RecoveryProcessImageReadLimit;
+        if (input.CanSeek && input.Length > limit) return null;
         byte[] buffer = new byte[8192 + binding.Length];
         int carry = 0, total = 0;
         while (total < limit)
