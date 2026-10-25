@@ -233,6 +233,10 @@ public enum IssueSeverity
 public sealed record JobIssue(IssueSeverity Severity, string Path, string Message, StepOutcome Outcome)
 {
     public DateTime TimeUtc { get; } = DateTime.UtcNow;
+    /// <summary>A concise, complete label for an issue when it is selected with assistive technology.</summary>
+    public string AccessibleSummary => string.IsNullOrWhiteSpace(Path)
+        ? $"{Severity}: {Message}"
+        : $"{Severity}: {Message} Path: {Path}";
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
     /// <summary>Explicit source and target identities, when the operation can establish them.</summary>

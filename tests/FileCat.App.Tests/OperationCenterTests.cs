@@ -265,6 +265,13 @@ public sealed class OperationCenterTests
             await Until(() => job.IssueCount == 1 && job.State == JobState.AwaitingDecision && center.SelectedIssues.Count == 1);
             var first = center.SelectedIssues[0];
             issueList.SelectedItem = first;
+            window.UpdateLayout();
+            var issueRow = issueList.GetVisualDescendants().OfType<ListBoxItem>()
+                .Single(row => ReferenceEquals(row.DataContext, first));
+            Assert.Equal(first.AccessibleSummary, AutomationProperties.GetName(issueRow));
+            Assert.Contains(first.Message, AutomationProperties.GetName(issueRow));
+            Assert.Contains(first.Path, AutomationProperties.GetName(issueRow));
+            Assert.DoesNotContain("JobIssue {", AutomationProperties.GetName(issueRow));
             var changes = new List<NotifyCollectionChangedAction>();
             center.SelectedIssues.CollectionChanged += (_, e) => changes.Add(e.Action);
             for (int i = 0; i < 20; i++) center.Refresh(job); // progress refreshes do not rebuild the report

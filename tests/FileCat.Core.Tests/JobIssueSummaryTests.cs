@@ -8,6 +8,16 @@ public sealed class JobIssueSummaryTests
 {
     private static JobIssue Warning(string path, string message) => new(IssueSeverity.Warning, path, message, StepOutcome.Committed);
 
+    [Theory]
+    [InlineData("/remote/.fc-123-1", "Warning: A partial copy is left on the server. Path: /remote/.fc-123-1")]
+    [InlineData("", "Warning: A partial copy is left on the server.")]
+    public void Accessible_issue_summary_names_the_reason_and_complete_path_without_record_fields(string path, string expected)
+    {
+        var issue = Warning(path, "A partial copy is left on the server.");
+        Assert.Equal(expected, issue.AccessibleSummary);
+        Assert.DoesNotContain("TimeUtc", issue.AccessibleSummary);
+    }
+
     [Fact]
     public void Repeated_warnings_are_counted_and_an_error_comes_first()
     {

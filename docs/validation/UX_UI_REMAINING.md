@@ -8,11 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Restore an interactive Win11 VMware guest desktop for the native implicit-TLS
-  FTPS replacement-review run. A VMware screen capture shows the lock screen,
-  Guest Tools reports no signed-in user, and guest keystroke injection is denied
-  by host permissions; the VMware console appears blank to the owner. The
-  updated runner and loopback helper are in its isolated validation folder.
+- Run the native implicit-TLS FTPS replacement-review journey on the restored,
+  interactive Win11 VMware guest. Its exact `main` Git checkout and pinned
+  .NET SDK are built. Install the native runner's missing Python dependencies,
+  then test the Git-built executable in the guest desktop.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
@@ -36,7 +35,10 @@ increments to `main`.
    after the final destination content check. Finish Windows
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
-   changed-destination staging cleanup, and remaining SFTP provider failures.
+   changed-destination and dropped-connection staging behavior, and remaining
+   SFTP provider failures. Verify the revised operation-issue row's concise
+   severity, reason and complete-path announcement with native Mac VoiceOver;
+   the headless AX-name and Core tests pass.
    Recheck Mac VoiceOver's automatic remote warning after repeated FTPS
    certificate prompts: one preliminary native run exposed the warning
    visually but VoiceOver kept reading Destination. For FCUX-069/070, validate

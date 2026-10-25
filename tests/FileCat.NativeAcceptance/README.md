@@ -318,6 +318,12 @@ the default route separately checks its automatic VoiceOver speech.
 `--change-content-during-upload` keeps the destination's size and exact
 modification timestamp while changing its bytes, then requires the more
 specific changed-content refusal with the same preservation and cleanup.
+`--disconnect-during-upload` stops only its owned loopback FTP/FTPS server
+after the unpublished stage contains source bytes. It chooses Skip at the
+native operation decision, opens Details, and requires the retained-stage
+warning. The partial stage must remain an exact source prefix; the original
+source and remote target must keep their exact hashes. The report records the
+stage name, size and final two-item server manifest for deliberate cleanup.
 Set `FILECAT_FORCE_KEYBOARD_SOURCE=1` in a disposable run to exercise the
 Mac Tab/End fallback when AX reports a zero-size frame for the visible source
 tab after a certificate decision.

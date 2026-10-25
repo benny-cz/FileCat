@@ -1,5 +1,36 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**
+The signed Git-built Mac arm64 app ran three fresh, owned loopback journeys
+where a 1 MB Replace was rate limited until its exact `.fc-` stage held
+262,144 source bytes. The runner stopped only that server during upload,
+chose Skip at FileCat's native Review decision, opened Details and required
+the retained-stage warning. FTP, explicit-TLS FTPS and implicit-TLS FTPS all
+preserved the original source and destination byte-exactly, retained only a
+partial stage whose bytes equal the source prefix, and left a two-item server
+manifest. Receipts are `mac-ftp-disconnect-during-upload-20261025-r2.json`,
+`mac-ftpes-disconnect-during-upload-20261025-r1.json`, and
+`mac-ftps-disconnect-during-upload-20261025-r1.json` in the isolated Mac
+validation folder. The operation-issue row's macOS accessibility name exposed
+raw `JobIssue` record fields even though its visual text was friendly. The
+row now binds a concise severity, reason and complete path label; a headless
+Avalonia test checks that exact row name and a Core test covers present and
+absent paths. Mac native speech on this revised build remains to be checked.
+
+**25 October 2026, CI and reverted Win11 VM:** On `c10bb076`, Ubuntu CI run
+`40186163627` built successfully and passed 4,472 Core tests with 110 skips,
+but the hostile Markdown `<` case crossed its five-second wall-clock limit by
+0.184 seconds on the shared runner; the other five hostile cases passed.
+The test keeps the same large pathological input and a finite ten-second
+bound, allowing modest scheduler delay while detecting a severe parser
+regression. On the owner's reverted isolated Win11 VM, automatic updates were
+disabled by `NoAutoUpdate=1` and the stopped `wuauserv` has Disabled startup.
+Defender reports real-time, behavior, downloaded-file and script scanning off,
+with Tamper Protection off; its protected antivirus service still reports
+running. An exact Git clone of `c10bb076` and pinned .NET SDK `10.0.101`
+built the Windows app with zero warnings and errors using eight guest cores.
+Native acceptance on that restored guest remains to run.
+
 **25 October 2026, native Mac FTP/FTPS changed-destination cleanup
 (FCUX-001):** The signed Git-built arm64 app (DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)

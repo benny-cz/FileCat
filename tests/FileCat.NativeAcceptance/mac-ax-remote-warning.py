@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow|--change-during-upload|--change-content-during-upload]
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow|--change-during-upload|--change-content-during-upload|--disconnect-during-upload]
 The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
@@ -169,11 +169,12 @@ end tell
 
 
 def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route,
-        pointer_focus_race, change_during_upload=False, same_metadata_change=False):
+        pointer_focus_race, change_during_upload=False, same_metadata_change=False,
+        disconnect_during_upload=False):
     trace_launch = os.environ.get("FILECAT_POINTER_TRACE", "")
     trace_mode = trace_launch in ("1", "open")
-    if (change_during_upload or same_metadata_change) and protocol == "sftp":
-        raise ValueError("Changed-target upload acceptance requires an owned FTP/FTPS server")
+    if (change_during_upload or same_metadata_change or disconnect_during_upload) and protocol == "sftp":
+        raise ValueError("Upload failure acceptance requires an owned FTP/FTPS server")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
@@ -196,11 +197,13 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
         folder.mkdir(parents=True)
     source, target = source_dir / "target.txt", server_dir / "target.txt"
     source.write_bytes((b"owned incoming content\n" * 50_000)[:1_000_000]
-                       if change_during_upload or same_metadata_change else b"owned incoming content\n")
+                       if change_during_upload or same_metadata_change or disconnect_during_upload
+                       else b"owned incoming content\n")
     target.write_bytes(b"owned existing remote content\n")
     receipt = {"passed": False, "probe": probe, "narrow": narrow,
                "changeDuringUpload": change_during_upload or same_metadata_change,
                "sameMetadataChange": same_metadata_change,
+               "disconnectDuringUpload": disconnect_during_upload,
                "pointerTraceEnabled": trace_mode, "pointerTraceLaunch": trace_launch,
                "pointerProbe": pointer_probe and probe, "axRoute": ax_route,
                "pointerFocusRace": pointer_focus_race,
@@ -557,7 +560,7 @@ end tell''')
                            ("AXStaticText", "AXTextField")), None), "complete remote Replace warning")
         receipt["warningBounds"] = warning["bounds"]
         receipt["steps"].append("Complete replacement warning visible")
-        if change_during_upload or same_metadata_change:
+        if change_during_upload or same_metadata_change or disconnect_during_upload:
             receipt["warningScreenshot"] = capture_screen(validation)
             set_field("Speed limit (MB/s):", "0.0625")
             copies = [node for node in nodes() if node["role"] == "AXButton" and
@@ -573,6 +576,35 @@ end tell''')
 
             stage = wait_for(partial_stage, "partial owned upload stage", seconds=20)
             receipt["stagedBytesBeforeChange"] = stage.stat().st_size
+            if disconnect_during_upload:
+                staged_prefix = stage.read_bytes()
+                if not source.read_bytes().startswith(staged_prefix):
+                    raise AssertionError("The owned remote stage does not contain the exact source prefix")
+                receipt["stageName"] = stage.name
+                server.terminate()
+                server.wait(timeout=5)
+                decision = wait_for(lambda: next((node for node in nodes() if
+                    node["role"] == "AXButton" and node["name"].startswith("Review decision") and
+                    node["bounds"][2] > 8), None), "dropped-connection Review decision", seconds=30)
+                click_node(decision)
+                wait_for(lambda: any(node["role"] == "AXButton" and node["name"] == "Skip"
+                                     for node in nodes()), "dropped-connection Skip choice", seconds=10)
+                click_ax("AXButton", "Skip")
+                wait_for(lambda: not any(node["role"] == "AXButton" and node["name"] == "Skip"
+                                         for node in nodes()), "dropped-connection decision closure")
+                click_ax("AXButton", "Details (Ctrl+J)")
+                receipt["retainedStageIssue"] = wait_for(lambda: next((node["name"] for node in nodes() if
+                    "partial copy is left on the server" in node["name"].lower()), None),
+                    "visible retained-stage warning in operation details", seconds=10)
+                receipt["expectedManifest"] = sorted([stage.name, target.name])
+                receipt["stageBytesAfterDrop"] = stage.stat().st_size
+                if not 0 < receipt["stageBytesAfterDrop"] < source.stat().st_size:
+                    raise AssertionError("The retained stage is not a partial upload")
+                if not source.read_bytes().startswith(stage.read_bytes()):
+                    raise AssertionError("The retained stage no longer matches the source prefix")
+                receipt["steps"].append("Server stopped mid-upload; Skip retained only the exact unpublished stage")
+                receipt["passed"] = True
+                return receipt
             if same_metadata_change:
                 prior = target.stat()
                 changed = b"N" * prior.st_size
@@ -742,13 +774,14 @@ end tell
                     ("pointer-press" in line or "active-panel=" in line or
                      "text-focus" in line)][-200:]
         receipt["passed"] = (receipt["passed"] and receipt["sourceUnchanged"] and
-                             receipt["targetUnchanged"] and receipt["manifest"] == ["target.txt"])
+                             receipt["targetUnchanged"] and receipt["manifest"] ==
+                             receipt.get("expectedManifest", ["target.txt"]))
         report_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
     if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "ftps", "sftp") or (
-            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow", "--change-during-upload", "--change-content-during-upload")):
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow", "--change-during-upload", "--change-content-during-upload", "--disconnect-during-upload")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
                  sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--pointer-race-probe", "--ax-probe"),
@@ -757,5 +790,6 @@ if __name__ == "__main__":
                  len(sys.argv) == 6 and sys.argv[5] in ("--ax-probe", "--ax-narrow"),
                  len(sys.argv) == 6 and sys.argv[5] == "--pointer-race-probe",
                  len(sys.argv) == 6 and sys.argv[5] == "--change-during-upload",
-                 len(sys.argv) == 6 and sys.argv[5] == "--change-content-during-upload")
+                 len(sys.argv) == 6 and sys.argv[5] == "--change-content-during-upload",
+                 len(sys.argv) == 6 and sys.argv[5] == "--disconnect-during-upload")
     raise SystemExit(0 if result["passed"] else 1)
