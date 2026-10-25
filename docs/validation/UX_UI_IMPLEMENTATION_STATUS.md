@@ -53,7 +53,16 @@ VM the fixture lies on a filtered temporary mount, so no listed drive should
 be marked current. The assertion now checks the exact current mount when it
 is listed and requires no unrelated highlighted drive otherwise; it also
 checks the selected drive's actual destination. The adjusted case passed on
-both Windows and the same Ubuntu VM. A full final-head suite is still required.
+both Windows and the same Ubuntu VM. The complete Ubuntu App rerun then passed
+2,414 cases with 126 platform skips, zero failures and no process abort
+(`ubuntu-app-full-orca-final.log`, 14 minutes 8 seconds). A green five-lane
+final-head CI gate is still required.
+The same updated guest app (DLL SHA-256
+`8c258e6c0078dc3c260d5c8f96df78964a890e9bd3b56ccff68b0909727bf664`)
+then passed all 48 steps of `linux-orca-speech.py` with physical keyboard
+input and Orca's actual speech log. The receipt is
+`orca-final-peer-fix-20261026-r2.json`; row details, marks, dialogs and
+source-to-target review speech passed after the passive peer-state change.
 
 **26 October 2026, Mac FTP interruption (FCUX-001):** On the signed
 `2f1f43c9` Mac bundle, a plain FTP connection dropped after 262,144 staged
@@ -86,6 +95,25 @@ stage path in its finished issue. VoiceOver spoke the warning and full path.
 The incoming source and existing target hashes remained unchanged. The
 passing receipt is `mac-sftp-disconnect-speech-2f1f43c9.json` in the Mac
 validation folder.
+
+**26 October 2026, Win11 implicit-TLS FTPS review (FCUX-001):** The restored
+Win11 VM built the exact `2f1f43c9` Git app and ran a native, interactive
+test against an owned loopback FTPS server. At 96 DPI the connection showed a
+certificate decision accepted for this session, listed the remote target,
+displayed the full replacement risk and safer Keep both choice, cleared that
+warning when Keep both was selected, then showed the per-item conflict and
+accepted Skip. Source and existing target hashes remained unchanged. The
+passing receipt is `ftps-implicit-warning-2f1f43c9.json` in the guest
+validation folder. A restored VM Python 3.9 environment first needed
+compatible `pyftpdlib`, `pyOpenSSL` and 32-bit `cryptography` test-server
+dependencies; the native run used VMware's interactive guest channel to
+ensure foreground-safe input. A signed NVDA 2026.2 portable copy prepared
+from NV Access's stable launcher then passed the same owned, 96-DPI review.
+Its speech log contains the complete replacement risk, safer Keep both choice
+and per-item conflict warning; both speech assertions passed. Source and
+target hashes remained unchanged. The passing receipt is
+`ftps-implicit-warning-nvda-2f1f43c9.json` in the guest validation folder.
+Other scales and spoken routes remain open.
 
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged

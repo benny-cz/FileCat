@@ -8,9 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Hear the Win11 implicit-TLS FTPS replacement and per-item warnings with
-  NVDA. The restored guest has passed the native visual/input route at 100%,
-  150% and 200% display scale.
+- Finish Win11 scaled implicit-TLS FTPS and the remaining FTP/FTPS spoken
+  routes with NVDA. The restored guest passed native visual/input and both
+  warning-speech checks for implicit TLS at 100%; its other FTP/FTPS visual
+  reviews passed at 100%, 150% and 200%.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
@@ -39,12 +40,14 @@ increments to `main`.
    exact focused tests. The isolated Ubuntu VM then completed the full App
    suite without an abort; its sole failed assertion assumed a filtered
    temporary mount would appear among the Places buttons. That test now passes
-   on Ubuntu and Windows. Require a clean complete Ubuntu App run and
-   final-head CI before closing this failure.
+   on Ubuntu and Windows, and the complete Ubuntu VM App rerun passed all
+   2,540 cases (2,414 passed, 126 platform skips). Require final-head CI
+   before closing this failure.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
-   scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
+   scaled/spoken FTP/FTPS replacement reviews, including scaled implicit TLS,
+   plus
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
    provider failures beyond the native destination-content, metadata and
