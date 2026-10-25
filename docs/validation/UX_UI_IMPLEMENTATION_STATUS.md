@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Linux row speech (FCUX-010):** Avalonia.FreeDesktop.AtSpi
+12.1.1 exposes a row's HelpText as both Description and HelpText, so Orca
+previously spoke the same size, modified time, mark and position details
+twice. With that native bridge attached, the row now exposes its safe full
+description in Name and an empty HelpText. Windows, macOS and headless Linux
+peers retain their concise filename and separate details. The changed name
+raises a semantic property event when cached row state changes. The new App
+regression checks complete details, mark changes and the single-source
+presentation; the 25 focused accessibility cases passed.
+
+The isolated Ubuntu VM built a clean `df449513` Git baseline and confirmed
+that each tested file detail was spoken twice. After compiling the candidate
+source in that same checkout, `linux-orca-speech.py` passed all 48 native
+steps with Orca 50.2 and physical keyboard input. Each tested file detail
+was spoken exactly once; the complete Rename, dialog, marked-selection and
+Move/Cancel journey also passed, with exact source and target checks. Its
+final receipt is `~/FileCatValidation/orca-current-candidate-r3.json`, app DLL
+SHA-256 `2cfc3173910e6977415bc3771bcfbe81cba33cfcb1a48a9e9bde21ef2bcd5713`.
+The earlier short runs used older Git revision `38bc114c` and then a cached
+assembly; neither qualified as current-main acceptance. The complete Release
+App suite and final-head CI gate remain open.
+
 **25 October 2026, restored Windows Hex acceptance (UXBUG-020):** The owner
 confirmed the isolated VMware guest's desktop selection once again follows
 the physical pointer after restoring `updated #38`. A powered-off policy
@@ -34,14 +56,14 @@ its final receipt confirms restoration to 100% and a closed Settings window.
 The scaled Ubuntu physical-pointer and combined interaction routes remain
 open in `UX_UI_REMAINING.md`.
 
-**25 October 2026, CI follow-up:** GitHub run `40226638787` completed all
-required lanes successfully on `f587a779`. The earlier `a6b550a0` Ubuntu Core
-run `40223594897` observed six rather than five reads in
+**25 October 2026, CI follow-up:** GitHub runs `40226638787` (`f587a779`) and
+`40233350090` (`df449513`) completed every required lane successfully. The
+earlier `a6b550a0` Ubuntu Core run `40223594897` observed six rather than five reads in
 `MetadataDemandTests.Forgetting_the_files_a_check_read_asks_only_their_rows_again`;
 the later `1f478800` macOS App run `40226086392` found `..` instead of
 `sample.txt` after canceling inline Rename. Each exact test passed 16
-parallel isolated reruns on its respective desktop, and the next complete
-CI run passed. Their intermittent cause remains under review; the final
+parallel isolated reruns on its respective desktop. Their intermittent
+cause remains under review; the final
 post-change CI gate is still required.
 
 **25 October 2026, Windows scaled Hex pointer investigation (UXBUG-020):**

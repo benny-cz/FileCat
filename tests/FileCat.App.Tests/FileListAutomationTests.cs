@@ -24,6 +24,29 @@ namespace FileCat.App.Tests;
 public sealed class FileListAutomationTests
 {
     [AvaloniaFact]
+    public async Task Linux_AtSpi_row_details_have_one_complete_spoken_source()
+    {
+        using var fixture = new FileListFixture("a.txt");
+        await fixture.Load();
+        Assert.True(fixture.Tab.Listing.FocusName("a.txt"));
+        int index = fixture.Tab.Listing.FocusedStoreIndex;
+        var separate = FileListItemAutomationPeer.SpeechParts(fixture.List, index, "a.txt", false);
+        var folded = FileListItemAutomationPeer.SpeechParts(fixture.List, index, "a.txt", true);
+
+        Assert.Equal("a.txt", separate.Name);
+        Assert.Contains("not marked", separate.Help);
+        Assert.Equal(fixture.List.DescribeItem(index), folded.Name);
+        Assert.Contains("a.txt", folded.Name);
+        Assert.Contains("not marked", folded.Name);
+        Assert.Empty(folded.Help);
+
+        fixture.Tab.Listing.SetStoreMark(index, true);
+        var marked = FileListItemAutomationPeer.SpeechParts(fixture.List, index, "a.txt", true);
+        Assert.Contains(", marked", marked.Name);
+        Assert.Empty(marked.Help);
+    }
+
+    [AvaloniaFact]
     public async Task Inline_rename_editor_in_sibling_overlay_stays_accessible_and_returns_to_its_row()
     {
         using var f = new FileListFixture("a.txt", "b.txt");

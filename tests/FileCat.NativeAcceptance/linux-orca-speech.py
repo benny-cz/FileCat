@@ -50,7 +50,13 @@ def sha256(path):
 
 
 def windows_of(pid):
-    listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True, capture_output=True, text=True, timeout=5)
+    # Immediately after the logged-in GNOME session is started, Xwayland can
+    # reject one query while its window manager takes ownership. The caller's
+    # bounded wait retries the inventory; a hard failure must not end the
+    # entire speech journey before the app has had time to draw its window.
+    listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], capture_output=True, text=True, timeout=5)
+    if listing.returncode != 0:
+        return []
     return [line.split()[0] for line in listing.stdout.splitlines()
             if len(line.split()) > 2 and line.split()[2] == str(pid)]
 
@@ -194,6 +200,12 @@ def main():
         step("up to b.txt", key("up"), says("b.txt"))
         step("home to parent", key("home"), says("Go to parent location"))
         step("end to c.txt", key("end"), says("c.txt"))
+        for label in ("down to a.txt", "down to b.txt", "down to c.txt",
+                      "up to b.txt", "end to c.txt"):
+            row = next(item for item in report["steps"] if item["step"] == label)
+            details = [phrase for phrase in row["heard"] if " bytes" in phrase and " of " in phrase]
+            if len(details) != 1:
+                raise AssertionError(f"{label}: expected one complete spoken row detail, heard {details!r}")
         step("F2 speaks the inline Rename field", key("f2"), says("Rename selected item"))
         if not any("entry" in phrase.casefold() for phrase in report["steps"][-1]["heard"]):
             raise AssertionError("Orca did not identify the focused Rename field as an entry")

@@ -313,6 +313,7 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
     private bool _selected;
     private string _status;
     private string _help;
+    private string _spokenName;
     private Rect _bounds;
 
     internal FileListItemAutomationPeer(FileListAutomationPeer parent, FileListControl list, ListingModel listing, EntryStore store, int index, int revision, Control owner)
@@ -330,6 +331,7 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
         _selected = IsSelected;
         _status = Status;
         _help = GetHelpTextCore();
+        _spokenName = GetNameCore();
         _bounds = Bounds;
     }
 
@@ -387,7 +389,22 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
     protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.ListItem;
     protected override string GetClassNameCore() => "FileListItem";
     protected override string GetAutomationIdCore() => _id;
-    protected override string GetNameCore() => _name;
+    // Avalonia.FreeDesktop.AtSpi 12.1 maps both Description and HelpText to the
+    // same peer HelpText. Orca reads both, repeating every row detail. While its
+    // native bridge is attached, put the safe, complete row description in the
+    // name and leave HelpText empty. Other platforms keep a concise filename and
+    // the separate help text; headless Linux peers keep those semantics too.
+    private bool FoldHelpIntoName => OperatingSystem.IsLinux() &&
+        TopLevel.GetTopLevel(_list) is Window window &&
+        ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: not null };
+
+    internal static (string Name, string Help) SpeechParts(FileListControl list, int storeIndex,
+        string safeName, bool foldHelpIntoName) => foldHelpIntoName
+        ? (list.DescribeItem(storeIndex), string.Empty)
+        : (safeName, list.DescribeItem(storeIndex, includeName: false));
+
+    protected override string GetNameCore() => Current && FoldHelpIntoName
+        ? SpeechParts(_list, _index, _name, true).Name : _name;
     protected override string GetItemTypeCore() => _kind;
     protected override string GetItemStatusCore() => Status;
     // VoiceOver invokes AXSelect on a list item while moving its cursor. Exposing SelectionItem there
@@ -399,7 +416,9 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
         providerType == typeof(ISelectionItemProvider) &&
             (OperatingSystem.IsMacOS() || (_kind == "parent navigation" && !OperatingSystem.IsLinux()))
             ? null : base.GetProviderCore(providerType);
-    protected override string GetHelpTextCore() => Current ? _list.DescribeItem(_index, includeName: false) : "This item belongs to a previous listing and cannot be acted on.";
+    protected override string GetHelpTextCore() => !Current
+        ? "This item belongs to a previous listing and cannot be acted on."
+        : FoldHelpIntoName ? string.Empty : SpeechParts(_list, _index, _name, false).Help;
     protected override AutomationPeer GetParentCore() => _parent;
     protected override bool TrySetParent(AutomationPeer? parent) => ReferenceEquals(parent, _parent);
     protected override AutomationPeer? GetLabeledByCore() => null;
@@ -415,10 +434,12 @@ internal sealed class FileListItemAutomationPeer : ControlAutomationPeer, ISelec
         bool selected = IsSelected;
         string status = Status;
         string help = GetHelpTextCore();
+        string spokenName = GetNameCore();
         var bounds = Bounds;
         if (_selected != selected) { RaisePropertyChangedEvent(SelectionItemPatternIdentifiers.IsSelectedProperty, _selected, selected); _selected = selected; }
         if (_status != status) { RaisePropertyChangedEvent(AutomationElementIdentifiers.ItemStatusProperty, _status, status); _status = status; }
         if (_help != help) { RaisePropertyChangedEvent(AutomationElementIdentifiers.HelpTextProperty, _help, help); _help = help; }
+        if (_spokenName != spokenName) { RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, _spokenName, spokenName); _spokenName = spokenName; }
         if (_bounds != bounds) { RaisePropertyChangedEvent(AutomationElementIdentifiers.BoundingRectangleProperty, _bounds, bounds); _bounds = bounds; }
     }
 }

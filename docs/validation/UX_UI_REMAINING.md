@@ -66,12 +66,8 @@ increments to `main`.
    supported desktops. For FCUX-010, verify VoiceOver's other item actions
    and bounded native listings on other supported provider types; Windows
    still needs the implicit-TLS FTPS listing.
-   Remove Orca's duplicate row details: the native 39-step journey passed,
-   but `ubuntu-orca-list-check-candidate-r4.json` records each tested file's
-   details spoken twice. Avalonia.FreeDesktop.AtSpi 12.1.1 maps one
-   `AutomationPeer.GetHelpText` to both AT-SPI Description and HelpText; fix
-   that bridge mapping or adopt a supported upstream separation while
-   preserving size, mark and position speech.
+   Finish the other provider, scale and spoken action routes recorded in the
+   status table.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
    are other shared dialogs and validation routes (FCUX-011 beyond the Mac Copy
    form, 034, 041, 054), comparison and
