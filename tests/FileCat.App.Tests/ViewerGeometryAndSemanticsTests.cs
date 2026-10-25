@@ -415,27 +415,93 @@ public sealed class ViewerGeometryAndSemanticsTests
         {
             await Wait(() => view.Bounds.Width > 0);
             Assert.InRange(window.Bounds.Width, width - 1, width + 1);
-            long row = (1L << 32) + 48;
+            int columns = view.BytesPerRow;
+            long row = ((1L << 32) + 48) / columns * columns;
             foreach (bool text in new[] { false, true })
             {
                 // The public editing-column action and pointer choice use this same geometry.
                 view.TextColumnActive = text;
                 view.GoTo(row); view.Focus();
-                for (int col = 0; col < 16; col++)
+                for (int col = 0; col < columns; col++)
                 {
                     Assert.Equal(row + col, view.CursorOffset);
                     var caret = view.CursorBounds(text);
                     AssertInside(view.ContentViewport, caret);
-                    if (col < 15) window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+                    if (col + 1 < columns) window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
                 }
                 Rect last = view.CursorBounds(text);
                 Click(window, view, last.Center);
-                Assert.Equal(row + 15, view.CursorOffset);
+                Assert.Equal(row + columns - 1, view.CursorOffset);
                 Assert.Equal(text, view.TextColumnActive);
                 window.KeyPress(Key.Left, RawInputModifiers.Shift, PhysicalKey.ArrowLeft, null);
-                Assert.Equal((row + 14, 2L), view.Selection);
-                Assert.Contains($"{row + 14:N0}", view.SemanticStatus);
+                Assert.Equal((row + columns - 2, 2L), view.Selection);
+                Assert.Contains($"{row + columns - 2:N0}", view.SemanticStatus);
             }
+        }
+        finally { view.SetReader(null); window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Hex_resize_reflows_both_columns_without_losing_search_selection_or_top_byte(bool editor)
+    {
+        using var reader = new PagedReader(new VirtualSource(4096));
+        var view = new HexView { TracksActiveColumn = editor };
+        var window = new Window { Width = 420, Height = 320, Content = view };
+        view.SetReader(reader); window.Show();
+        try
+        {
+            await Wait(() => view.Bounds.Width > 0);
+            int narrow = view.BytesPerRow;
+            Assert.InRange(narrow, 4, 128);
+            Assert.Equal(0, narrow % 4);
+            view.GoTo(1025, select: true, length: 17);
+            Assert.Equal((1025L, 17L), view.Selection);
+            var vertical = view.GetVisualDescendants().OfType<ScrollBar>()
+                .Single(b => b.Orientation == Avalonia.Layout.Orientation.Vertical);
+            vertical.Value = 20;
+            long first = view.TopByteOffset;
+            Assert.True(first > 0);
+
+            window.Width = 900;
+            await Wait(() => view.Bounds.Width >= 899 && view.BytesPerRow > narrow);
+            int wide = view.BytesPerRow;
+            Assert.Equal(0, wide % 4);
+            Assert.InRange(first - view.TopByteOffset, 0, wide - 1);
+            long wideTop = view.TopByteOffset;
+            Assert.Equal((1025L, 17L), view.Selection);
+            Assert.Equal(0, view.HorizontalOffset);
+            Assert.Contains($"{view.TopByteOffset:N0}", view.SemanticStatus);
+
+            window.Width = 580;
+            await Wait(() => view.Bounds.Width <= 581 && view.BytesPerRow < wide);
+            int medium = view.BytesPerRow;
+            Assert.InRange(wideTop - view.TopByteOffset, 0, medium - 1);
+            Assert.Equal((1025L, 17L), view.Selection);
+            foreach (bool text in new[] { false, true })
+            {
+                view.TextColumnActive = text;
+                long row = 1025 / medium * medium;
+                for (int col = 0; col < medium; col++)
+                {
+                    view.GoTo(row + col);
+                    AssertInside(view.ContentViewport, view.CursorBounds(text));
+                    Click(window, view, view.CursorBounds(text).Center);
+                    Assert.Equal(row + col, view.CursorOffset);
+                }
+            }
+            view.GoTo(1025, select: true, length: 17);
+            Assert.Equal((1025L, 17L), view.Selection);
+            Assert.Equal(17, view.ReadSelection().Length);
+            window.Width = 1400;
+            await Wait(() => view.Bounds.Width >= 1399);
+            int beforeZoom = view.BytesPerRow;
+            view.FontSize = 22;
+            Assert.True(view.BytesPerRow < beforeZoom, $"Font zoom: {beforeZoom} -> {view.BytesPerRow} bytes at {view.Bounds.Width:0} pixels");
+            Assert.Equal((1025L, 17L), view.Selection);
+            view.FontSize = 13;
+            Assert.Equal(beforeZoom, view.BytesPerRow);
         }
         finally { view.SetReader(null); window.Close(); }
     }

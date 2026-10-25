@@ -17,7 +17,11 @@ namespace FileCat.App.Controls;
 /// </summary>
 public sealed class HexView : Control
 {
-    public const int BytesPerRow = 16;
+    private const int MinimumBytesPerRow = 4;
+    private const int MaximumBytesPerRow = 128;
+    private int _bytesPerRow = 16;
+    public int BytesPerRow => _bytesPerRow;
+    internal long TopByteOffset => _topRow * _bytesPerRow;
     private readonly ScrollBar _vbar, _hbar;
     private readonly WheelRowAccumulator _wheelRows = new();
     private double _horizontalOffset;
@@ -195,6 +199,7 @@ public sealed class HexView : Control
             _wheelRows.Reset();
             _fontSize = Math.Clamp(value, 8, 32);
             Measure();
+            ReflowRows();
             EnsureHorizontalVisible();
             UpdateScroll();
             RefreshSemanticState();
@@ -229,6 +234,7 @@ public sealed class HexView : Control
         _pendingNibble = -1;
         _horizontalOffset = 0;
         Measure();
+        ReflowRows();
         UpdateScroll();
         InvalidateVisual();
         RefreshSemanticState();
@@ -238,7 +244,7 @@ public sealed class HexView : Control
     {
         _anchor = -1; _pendingNibble = -1;
         _cursor = Math.Clamp(_cursor, 0, Math.Max(0, (_reader?.Length ?? 0) - 1));
-        UpdateScroll(); RefreshSemanticState(); InvalidateVisual();
+        ReflowRows(); UpdateScroll(); RefreshSemanticState(); InvalidateVisual();
     }
 
     public void ContentChanged() { RefreshSemanticState(); InvalidateVisual(); }
@@ -287,14 +293,38 @@ public sealed class HexView : Control
     private const double Gutter = 8;
 
     private double HexColumnX => Gutter + (OffsetDigits + 2) * _charWidth;
+    private static int HexColumn(int column) => column * 3 + column / 8;
+    private int TextColumnCharacters(int bytes) => bytes * 3 + (bytes - 1) / 8 + 1;
+    private double ContentWidth(int bytes) => HexColumnX + (TextColumnCharacters(bytes) + bytes) * _charWidth + Gutter;
+
+    /// <summary>Keep the first visible byte near the top while row boundaries change.</summary>
+    private bool ReflowRows()
+    {
+        double width = ContentViewport.Width;
+        if (width <= 0 || _charWidth <= 0) return false;
+        int bytes = MinimumBytesPerRow;
+        for (int candidate = MinimumBytesPerRow + 4; candidate <= MaximumBytesPerRow; candidate += 4)
+        {
+            if (ContentWidth(candidate) > width) break;
+            bytes = candidate;
+        }
+        if (bytes == _bytesPerRow) return false;
+        long firstByte = _topRow * _bytesPerRow;
+        _bytesPerRow = bytes;
+        _topRow = firstByte / bytes;
+        _wheelRows.Reset();
+        return true;
+    }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         _viewportSize = finalSize;
+        bool reflowed = ReflowRows();
         _vbar.Arrange(new Rect(Math.Max(0, finalSize.Width - VerticalBarWidth), 0, VerticalBarWidth, ContentViewport.Height));
         _hbar.Arrange(new Rect(0, ContentViewport.Height, ContentViewport.Width, HorizontalBarHeight));
         EnsureHorizontalVisible();
         UpdateScroll();
+        if (reflowed) { RefreshSemanticState(); InvalidateVisual(); }
         return finalSize;
     }
 
@@ -350,15 +380,15 @@ public sealed class HexView : Control
             fillState.Clear();
             for (int i = 0; i < BytesPerRow; i++)
             {
-                long pos = offset + i;
-                if (pos >= len)
+                if (i >= len - offset)
                 {
                     hex.Append("   ");
                     continue;
                 }
+                long pos = offset + i;
                 bool inSel = sel.Length > 0 && pos >= sel.Start && pos < sel.Start + sel.Length;
                 bool isHit = _highlight is { } h && pos >= h.Start && pos < h.Start + h.Length;
-                double bx = xHex + (i * 3 + (i >= 8 ? 1 : 0)) * _charWidth;
+                double bx = xHex + HexColumn(i) * _charWidth;
                 double tx = xText + i * _charWidth;
                 bool modified = IsModified?.Invoke(pos) == true;
                 fillState[i] = inSel ? (byte)1 : isHit ? (byte)2 : modified ? (byte)3 : (byte)0;
@@ -397,7 +427,7 @@ public sealed class HexView : Control
                     hex.Append("·· ");
                     text.Append('·');
                 }
-                if (i == 7) hex.Append(' ');
+                if (i % 8 == 7 && i + 1 < BytesPerRow) hex.Append(' ');
             }
             string hexLine = hex.ToString(), textLine = text.ToString();
             DrawText(dc, hexLine, xHex, y, ok ? _text : _muted);
@@ -414,7 +444,7 @@ public sealed class HexView : Control
                     _ => null,
                 };
                 if (foreground is null) continue;
-                int column = i * 3 + (i >= 8 ? 1 : 0);
+                int column = HexColumn(i);
                 DrawText(dc, hexLine.Substring(column, 2), xHex + column * _charWidth, y, foreground);
                 DrawText(dc, textLine.Substring(i, 1), xText + i * _charWidth, y, foreground);
             }
@@ -530,12 +560,12 @@ public sealed class HexView : Control
         e.Pointer.Capture(null);
     }
 
-    private double TextColumnX => HexColumnX + (BytesPerRow * 3 + 2) * _charWidth;
+    private double TextColumnX => HexColumnX + TextColumnCharacters(BytesPerRow) * _charWidth;
 
     internal Rect CursorBounds(bool textColumn)
     {
         int col = (int)(_cursor % BytesPerRow);
-        double x = textColumn ? TextColumnX + col * _charWidth : HexColumnX + (col * 3 + (col >= 8 ? 1 : 0)) * _charWidth - 1;
+        double x = textColumn ? TextColumnX + col * _charWidth : HexColumnX + HexColumn(col) * _charWidth - 1;
         return new Rect(x - _horizontalOffset, (_cursor / BytesPerRow - _topRow) * _rowHeight,
             textColumn ? _charWidth : _charWidth * 2 + 2, _rowHeight);
     }
@@ -561,8 +591,12 @@ public sealed class HexView : Control
         else
         {
             double rel = (p.X - xHex) / _charWidth;
-            if (rel > 24) rel -= 1;
-            col = (int)(rel / 3);
+            col = 0;
+            for (int next = 1; next < BytesPerRow; next++)
+            {
+                if (rel < HexColumn(next)) break;
+                col = next;
+            }
         }
         col = Math.Clamp(col, 0, BytesPerRow - 1);
         return Math.Clamp(row * BytesPerRow + col, 0, Math.Max(0, _reader.Length - 1));

@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Hex viewer resize (UXBUG-020):** `HexView` now fits groups
+of four bytes to the available content width, from 4 to a bounded 128 bytes
+per row. Resize and font-size changes rebuild row geometry while preserving
+the first visible byte, byte selection and search cursor. Hex and decoded
+text share the same grouped column calculation for drawing, hit testing,
+keyboard movement, accessibility text and scroll bounds. A >4 GiB source
+geometry test now checks every byte in the computed row; a new two-mode
+viewer/editor test covers narrowing, widening, selected search ranges,
+vertical scroll preservation and pointer hits. The focused App selection
+passed 100 tests with no failures or skips. Native resize checks remain in
+`UX_UI_REMAINING.md`.
+
 **25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**
 The signed Git-built Mac arm64 app ran three fresh, owned loopback journeys
 where a 1 MB Replace was rate limited until its exact `.fc-` stage held
