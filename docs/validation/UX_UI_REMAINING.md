@@ -28,7 +28,10 @@ increments to `main`.
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete. Rerun the complete
-   final-head gate after the last audit change.
+   final-head gate after the last audit change. Investigate the intermittent
+   Ubuntu metadata-demand extra read (CI `40223594897`) and macOS inline
+   Rename focus return to `..` (CI `40226086392`) if either recurs; both
+   exact tests passed 16 isolated reruns and the later full CI run passed.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
@@ -115,21 +118,11 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
-   UXBUG-020 still needs scaled Ubuntu and Windows physical pointer checks and
-   combined editor search, selection, scroll, zoom and pointer alignment while
-   resizing on the supported desktops. The Windows 150% thumb route alternated
-   between complete success and no ScrollBar value change despite a UIA thumb
-   hit; establish repeatable native pointer delivery before assigning a
-   product cause. Mac viewer and editor narrow/wide Hex row
-   reflow pass with exact fixture bytes. GNOME temporarily reported 200%
-   scaling and the Hex row reflow assertions passed, but its physical uinput
-   drag did not move the viewport; a 125% change left Xwayland's prior 192 DPI
-   in place, and a soft VM restart restored the original 100% mode. Establish
-   one stable scaled Ubuntu session with matching compositor, Xwayland and
-   physical pointer coordinates, then repeat the full native journey. The
-   original VM display setting is restored. Physical scrollbar and explicit
-   content-selection journeys pass on Windows, Mac and Ubuntu at their tested
-   scales.
+   UXBUG-020 still needs a stable scaled Ubuntu session with matching
+   compositor, Xwayland and physical uinput pointer coordinates, followed by
+   its full native scrollbar journey. Finish combined Hex editor search,
+   selection, scroll, zoom and pointer alignment while resizing on each
+   supported desktop, including the remaining scaled contexts.
 
 ## Evidence required to finish
 

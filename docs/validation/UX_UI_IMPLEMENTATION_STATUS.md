@@ -1,5 +1,49 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, restored Windows Hex acceptance (UXBUG-020):** The owner
+confirmed the isolated VMware guest's desktop selection once again follows
+the physical pointer after restoring `updated #38`. A powered-off policy
+checkpoint and a later suspended-session checkpoint preserve the guest
+without another Windows restart. The final pre-Hex snapshot is
+`FileCat built Hex baseline 2026-10-25`; it contains a clean Git clone of
+`f587a779`, private .NET SDK `10.0.101`, and a Release app whose DLL SHA-256 is
+`3f6e7cc99cb44680da350180bfaed208e3755ed91ed0c9b6ae9239d059ff7ee6`.
+The VM's Defender real-time, behavior, downloaded-file and on-access scans
+stayed off across reboot; `NoAutoUpdate=1` also persisted and `wuauserv` was
+stopped at the postboot check. Windows reset that service's startup type to
+Manual, so the policy, rather than the service startup mode, is the durable
+automatic-update control in this guest.
+
+The Git-built Hex viewer passed the native 100% journey and three consecutive
+150% journeys at measured 96/144 DPI. The revised 150% run reflowed from 8 to
+20 bytes per row, dragged the thumb to byte 1,460 and back to zero, and kept
+the four-byte explicit selection. The editor passed at both 100% and 150%; at
+150% its real window widened from 952 to 1,432 physical pixels, rows grew
+from 16 to 24 bytes, and the thumb moved to byte 1,440 and back. Every final
+receipt records unchanged source SHA-256, an empty target and exact fixture
+cleanup. The reports are `hex-scrollbar-policy-100-r1.json`,
+`hex-scrollbar-policy-150-r1.json`, `hex-scrollbar-policy-150-r2.json`,
+`hex-scrollbar-policy-150-revised-r3.json`, `hex-editor-policy-100-r1.json`
+and `hex-editor-policy-150-r2.json` in the guest validation folder. The
+earlier editor failure at 150% was a test-width error: Windows enforced its
+620-DIP minimum width, so the runner's old 640-to-940-pixel request left the
+actual window near the same width. The runner now measures the clamped narrow
+window and requests a DPI-aware increase with enough desktop room. The scale
+helper also closes the outer Settings frame via its supported WindowPattern;
+its final receipt confirms restoration to 100% and a closed Settings window.
+The scaled Ubuntu physical-pointer and combined interaction routes remain
+open in `UX_UI_REMAINING.md`.
+
+**25 October 2026, CI follow-up:** GitHub run `40226638787` completed all
+required lanes successfully on `f587a779`. The earlier `a6b550a0` Ubuntu Core
+run `40223594897` observed six rather than five reads in
+`MetadataDemandTests.Forgetting_the_files_a_check_read_asks_only_their_rows_again`;
+the later `1f478800` macOS App run `40226086392` found `..` instead of
+`sample.txt` after canceling inline Rename. Each exact test passed 16
+parallel isolated reruns on its respective desktop, and the next complete
+CI run passed. Their intermittent cause remains under review; the final
+post-change CI gate is still required.
+
 **25 October 2026, Windows scaled Hex pointer investigation (UXBUG-020):**
 The isolated VMware guest ran the Git-built `15a1a9c5` Hex viewer at 150%
 (measured window DPI 144), then was restored to its original 100%. The native

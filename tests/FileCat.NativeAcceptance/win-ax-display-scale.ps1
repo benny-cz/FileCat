@@ -57,10 +57,19 @@ function SelectedPercent($combo) {
 
 $result = [ordered]@{ Passed = $false; Requested = $Percent; Original = $null;
     Selected = $null; CallerDpiAtStart = [FileCatDisplayScale]::GetDpiForSystem();
-    Error = $null }
+    SettingsClosed = $false; SettingsCloseError = $null; Error = $null }
+$settingsWindow = $null
 try {
     Start-Process 'ms-settings:display'
     $combo = Await { ScaleCombo } 'Display scale control'
+    $settingsWindow = $combo
+    # The inner SystemSettings window has no WindowPattern on this Windows 11
+    # build; its ApplicationFrameHost parent does. Close the actual frame,
+    # instead of leaving Settings over the next native pointer journey.
+    while ($settingsWindow -and -not $settingsWindow.GetCurrentPropertyValue(
+        [System.Windows.Automation.AutomationElement]::IsWindowPatternAvailableProperty)) {
+        $settingsWindow = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($settingsWindow)
+    }
     $result.Original = SelectedPercent $combo
     if ($result.Original -ne $Percent) {
         $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
@@ -83,6 +92,13 @@ try {
 }
 catch { $result.Error = $_.Exception.Message }
 finally {
+    if ($settingsWindow) {
+        try {
+            $settingsWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+            $result.SettingsClosed = $true
+        }
+        catch { $result.SettingsCloseError = $_.Exception.Message }
+    }
     $result | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath $report -Encoding UTF8
 }

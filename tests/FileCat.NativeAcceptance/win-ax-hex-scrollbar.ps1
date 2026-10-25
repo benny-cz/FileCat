@@ -271,13 +271,34 @@ try {
         throw 'Cannot narrow the native viewer.'
     }
     Start-Sleep -Milliseconds 350
+    $narrowRect = [FileCatHexPointer+Rect]::new()
+    if (![FileCatHexPointer]::GetWindowRect($handle, [ref]$narrowRect)) {
+        throw 'Cannot read the narrowed Hex window bounds.'
+    }
+    $narrowWidth = $narrowRect.Right - $narrowRect.Left
+    $result.narrowWindowWidth = $narrowWidth
     $narrow = Status $viewer
     $narrowRow = [regex]::Match($narrow, 'row [0-9A-F]+: ([0-9A-F ]+)\.').Groups[1].Value
+    # The editor has a 620-DIP minimum width. At 150% a requested 640-pixel
+    # window is clamped near 930 pixels, so 940 pixels is not a real resize.
+    # Use the actual narrowed width and available desktop room instead.
+    $desktop = [System.Windows.Automation.AutomationElement]::RootElement.Current.BoundingRectangle
+    $wideRequest = [int][Math]::Min($desktop.Right - $rect.Left - 20,
+        [Math]::Max(940, $narrowWidth + [Math]::Ceiling(320 * $scale)))
+    if ($wideRequest - $narrowWidth -lt [Math]::Ceiling(100 * $scale)) {
+        throw "The test desktop cannot widen the Hex window enough: $narrowWidth to $wideRequest physical pixels."
+    }
+    $result.wideRequestedWidth = $wideRequest
     if (![FileCatHexPointer]::SetWindowPos($handle, [IntPtr]::Zero, $rect.Left, $rect.Top,
-        940, [Math]::Max(420, $rect.Bottom - $rect.Top), 0x0014)) {
+        $wideRequest, [Math]::Max(420, $rect.Bottom - $rect.Top), 0x0014)) {
         throw 'Cannot widen the native viewer.'
     }
     Start-Sleep -Milliseconds 350
+    $wideRect = [FileCatHexPointer+Rect]::new()
+    if (![FileCatHexPointer]::GetWindowRect($handle, [ref]$wideRect)) {
+        throw 'Cannot read the widened Hex window bounds.'
+    }
+    $result.wideWindowWidth = $wideRect.Right - $wideRect.Left
     $wide = Status $viewer
     $wideRow = [regex]::Match($wide, 'row [0-9A-F]+: ([0-9A-F ]+)\.').Groups[1].Value
     $narrowBytes = @($narrowRow -split ' ' | Where-Object { $_ }).Count
