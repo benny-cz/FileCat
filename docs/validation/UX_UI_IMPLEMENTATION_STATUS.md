@@ -23,7 +23,9 @@ passed 100 tests with no failures or skips. The complete Windows Release App
 suite passed 2,470 tests, skipped 63 platform-specific tests and failed none.
 CI exposed two older scroll tests that assumed 16 bytes per Hex row; they now
 derive both PageUp distance and next-page wheel distance from the fitted row
-width, and their focused 18-test selection passed. A signed, Git-built Mac arm64
+width, and their focused 18-test selection passed. CI run `40201034258` on
+`45b47f82` then passed the producer, Windows, Windows ARM64, macOS and Ubuntu
+lanes. A signed, Git-built Mac arm64
 bundle with DLL SHA-256
 `8081d370a10ff1011842e0531363e285f7786c317a1e9a5bab4ee0c421cbc0c4`
 passed the native Text/Hex/Info narrow/wide capture journey
@@ -41,7 +43,16 @@ evaluating the wider layout. It requires the editor in front before each
 approved capture. The passed captures show rows at 0x00/0x10 in the narrow
 720 × 500 frame and 0x00/0x20 in the wider 1154 × 681 frame, with aligned
 decoded text, byte-exact source preservation and no unsaved changes. Other
-desktop and combined interaction checks remain in `UX_UI_REMAINING.md`.
+desktop and combined interaction checks remain in `UX_UI_REMAINING.md`. The
+logged-in Ubuntu VMware guest built the Git head `f29e9a05` with .NET 10.0.402
+and 16 build workers, with zero warnings or errors. Its Git-built app
+(SHA-256 `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`)
+passed `linux-atspi-hex-resize.py` at 100% scale
+(`ubuntu-hex-resize-f29e9a05-final.json`). The native Hex viewer's exact
+first row grew from 12 bytes at 620 × 480 to 24 at 900 × 480; the native Hex
+editor grew from 16 bytes at 720 × 480 to 24 at 900 × 480. The test-owned
+8,192-byte source remained unchanged, and the passing runner removed its
+disposable fixture.
 
 **25 October 2026, repeated Mac FTPS warning speech (FCUX-001):** The
 Git-matched native runner passed an implicit-TLS FTPS Replace review and its
