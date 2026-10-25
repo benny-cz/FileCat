@@ -27,6 +27,20 @@ public sealed class HexEditorSemanticsTests
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [AvaloniaFact]
+    public void Shift_arrow_keys_select_exact_bytes_in_the_hex_editor()
+    {
+        using var f = new EditorFixture();
+        f.Hex.Focus();
+        for (int i = 0; i < 3; i++)
+            f.Window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
+
+        Assert.Equal((0L, 4L), f.Hex.Selection);
+        Assert.Equal(3, f.Hex.CursorOffset);
+        Assert.Contains("Selected bytes 0 through 3, 4 bytes", f.Peer.Value);
+        Assert.Equal(f.Original, f.ReadOriginal());
+    }
+
+    [AvaloniaFact]
     public async Task Actual_hex_editing_exposes_pending_nibble_column_and_unsaved_state_and_returns_from_toolbar_and_search()
     {
         using var f = new EditorFixture();

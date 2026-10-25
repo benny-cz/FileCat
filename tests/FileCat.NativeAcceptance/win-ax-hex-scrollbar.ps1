@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [ValidateSet('Viewer', 'Editor')][string]$WindowKind = 'Viewer'
 )
 
 # Run on the interactive Windows test desktop. Exercise the native scrollbar
@@ -27,17 +28,19 @@ public static class FileCatHexPointer {
         mouse_event(2, 0, 0, 0, 0); System.Threading.Thread.Sleep(60);
         mouse_event(4, 0, 0, 0, 0);
     }
-    public static void Drag(int x, int y, int targetY) {
+    public static void DragXY(int x, int y, int targetX, int targetY) {
         if (!SetCursorPos(x, y)) throw new InvalidOperationException("Cannot position test pointer.");
         System.Threading.Thread.Sleep(80);
         mouse_event(2, 0, 0, 0, 0);
+        System.Threading.Thread.Sleep(120);
         for (int step = 1; step <= 16; step++) {
-            SetCursorPos(x, y + (targetY - y) * step / 16);
+            SetCursorPos(x + (targetX - x) * step / 16, y + (targetY - y) * step / 16);
             System.Threading.Thread.Sleep(25);
         }
         mouse_event(4, 0, 0, 0, 0);
         System.Threading.Thread.Sleep(250);
     }
+    public static void Drag(int x, int y, int targetY) { DragXY(x, y, x, targetY); }
     public static uint ForegroundProcessId() {
         uint id;
         GetWindowThreadProcessId(GetForegroundWindow(), out id);
@@ -77,6 +80,7 @@ $originalHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
 $process = $null
 $result = [ordered]@{
     passed = $false
+    windowKind = $WindowKind
     fixture = $fixture
     appDllSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $app) 'FileCat.dll') -Algorithm SHA256).Hash
     originalSha256 = $originalHash
@@ -91,7 +95,7 @@ function One($elements, [string]$label) {
     if ($found.Count -ne 1) { throw "Expected one $label, found $($found.Count)." }
     return $found[0]
 }
-function WaitForViewer([int]$processId) {
+function WaitForViewer([int]$processId, [string]$suffix) {
     $observed = @()
     for ($i = 0; $i -lt 80; $i++) {
         $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
@@ -100,7 +104,7 @@ function WaitForViewer([int]$processId) {
         $matches = @($windows | Where-Object {
             $_.Current.ProcessId -eq $processId -and
             $_.Current.Name.StartsWith('hex-scrollbar.bin ', [StringComparison]::Ordinal) -and
-            $_.Current.Name.EndsWith('FileCat Viewer', [StringComparison]::Ordinal)
+            $_.Current.Name.EndsWith($suffix, [StringComparison]::Ordinal)
         })
         if ($matches.Count -eq 1) { return $matches[0] }
         if ($i % 10 -eq 0) {
@@ -109,7 +113,7 @@ function WaitForViewer([int]$processId) {
         }
         Start-Sleep -Milliseconds 200
     }
-    throw "The owned binary viewer did not open. Process windows: $($observed -join ' | ')"
+    throw "The owned $suffix window did not open. Process windows: $($observed -join ' | ')"
 }
 function Hex($viewer) {
     return One (All $viewer | Where-Object {
@@ -126,6 +130,15 @@ function Offset([string]$status, [string]$pattern) {
     $match = [regex]::Match($status, $pattern)
     if (!$match.Success) { throw "Hex status lacks $pattern`: $status" }
     return [long]($match.Groups[1].Value -replace '[^0-9]', '')
+}
+function FocusOwnedWindow($window) {
+    $handle = [IntPtr]$window.Current.NativeWindowHandle
+    [FileCatHexPointer]::ShowWindow($handle, 9) | Out-Null
+    [FileCatHexPointer]::SetForegroundWindow($handle) | Out-Null
+    Start-Sleep -Milliseconds 150
+    if ([FileCatHexPointer]::GetForegroundWindow() -ne $handle) {
+        throw "Native pointer target is not the foreground $($window.Current.Name) window."
+    }
 }
 function Thumb($viewer) {
     $bar = One (All $viewer | Where-Object {
@@ -190,14 +203,20 @@ try {
         throw "The owned FileCat main window did not receive keyboard focus (foreground $foreground $($foregroundProcess.ProcessName) session $($foregroundProcess.SessionId), owned $($process.Id) session $($process.SessionId), runner session $((Get-Process -Id $PID).SessionId))."
     }
     (New-Object -ComObject WScript.Shell).SendKeys('{F3}')
-    $viewer = WaitForViewer $process.Id
-    $hexButton = One (All $viewer | Where-Object {
-        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-        $_.Current.Name -eq 'Hex' -and !$_.Current.IsOffscreen
-    }) 'Hex mode button'
-    $hexBounds = $hexButton.Current.BoundingRectangle
-    [FileCatHexPointer]::Click([int]($hexBounds.X + $hexBounds.Width / 2),
-        [int]($hexBounds.Y + $hexBounds.Height / 2))
+    $viewer = WaitForViewer $process.Id 'FileCat Viewer'
+    if ($WindowKind -eq 'Viewer') {
+        $hexButton = One (All $viewer | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+            $_.Current.Name -eq 'Hex' -and !$_.Current.IsOffscreen
+        }) 'Hex mode button'
+        $hexBounds = $hexButton.Current.BoundingRectangle
+        [FileCatHexPointer]::Click([int]($hexBounds.X + $hexBounds.Width / 2),
+            [int]($hexBounds.Y + $hexBounds.Height / 2))
+    } else {
+        [FileCatHexPointer]::SetForegroundWindow([IntPtr]$viewer.Current.NativeWindowHandle) | Out-Null
+        (New-Object -ComObject WScript.Shell).SendKeys('{F6}')
+        $viewer = WaitForViewer $process.Id 'FileCat Hex Editor'
+    }
     Start-Sleep -Milliseconds 300
     $initial = Status $viewer
     $initialCursor = Offset $initial '^Offset ([0-9][0-9.,\p{Zs}]*) of'
@@ -232,21 +251,32 @@ try {
     $startX = [int]($scroll.Thumb.X + $scroll.Thumb.Width / 2)
     $startY = [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2)
     $travel = [int][Math]::Min(150, [Math]::Max(40, $scroll.Bar.Height / 3))
-    [FileCatHexPointer]::SetForegroundWindow($handle) | Out-Null
+    FocusOwnedWindow $viewer
     [FileCatHexPointer]::Drag($startX, $startY, $startY + $travel)
     $after = Status $viewer
     $viewport = Offset $after 'viewport begins at byte ([0-9][0-9.,\p{Zs}]*)'
+    $result.firstViewportByte = $viewport
     if ($viewport -le 0 -or $after -notmatch 'No byte selection' -or
         (Offset $after '^Offset ([0-9][0-9.,\p{Zs}]*) of') -ne $initialCursor) {
         throw "Scrollbar drag selected or moved the cursor, or did not scroll: $after"
     }
+    Start-Sleep -Milliseconds 350
     $scroll = Thumb $viewer
+    $result.reverseThumbBounds = "$($scroll.Thumb)"
+    $result.reverseBarBounds = "$($scroll.Bar)"
+    FocusOwnedWindow $viewer
     [FileCatHexPointer]::Drag([int]($scroll.Thumb.X + $scroll.Thumb.Width / 2),
         [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2),
         [int][Math]::Max($scroll.Bar.Y + 10,
             $scroll.Thumb.Y + $scroll.Thumb.Height / 2 - $travel))
-    $afterUp = Status $viewer
-    $upViewport = Offset $afterUp 'viewport begins at byte ([0-9][0-9.,\p{Zs}]*)'
+    $afterUp = $null
+    $upViewport = $viewport
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $afterUp = Status $viewer
+        $upViewport = Offset $afterUp 'viewport begins at byte ([0-9][0-9.,\p{Zs}]*)'
+        if ($upViewport -lt $viewport) { break }
+        Start-Sleep -Milliseconds 100
+    }
     if ($upViewport -ge $viewport -or $afterUp -notmatch 'No byte selection' -or
         (Offset $afterUp '^Offset ([0-9][0-9.,\p{Zs}]*) of') -ne $initialCursor) {
         throw "Reverse scrollbar drag changed selection/cursor or did not scroll up: $afterUp"
@@ -254,28 +284,25 @@ try {
 
     # A prior explicit selection must survive a second thumb drag.
     $hex = Hex $viewer
-    $hex.SetFocus()
-    $shell = New-Object -ComObject WScript.Shell
-    $shell.SendKeys('^{HOME}')
-    $shell.SendKeys('+{RIGHT}')
-    $shell.SendKeys('+{RIGHT}')
-    $shell.SendKeys('+{RIGHT}')
-    Start-Sleep -Milliseconds 150
+    $content = $hex.Current.BoundingRectangle
+    $startX = [int]($content.X + 20)
+    $endX = [int]($content.X + 160)
+    $rowY = [int]($content.Y + 12)
+    $result.explicitContentDrag = "$startX,$rowY to $endX,$rowY"
+    FocusOwnedWindow $viewer
+    [FileCatHexPointer]::DragXY($startX, $rowY, $endX, $rowY)
     $selected = Status $viewer
     if ($selected -notmatch 'Selected bytes 0 through 3, 4 bytes') {
         throw "Explicit keyboard selection did not appear: $selected"
     }
     $scroll = Thumb $viewer
+    FocusOwnedWindow $viewer
     [FileCatHexPointer]::Drag([int]($scroll.Thumb.X + $scroll.Thumb.Width / 2),
         [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2),
         [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2 + $travel))
     $afterSelected = Status $viewer
     if ($afterSelected -notmatch 'Selected bytes 0 through 3, 4 bytes') {
         throw "Scrollbar drag altered the existing explicit selection: $afterSelected"
-    }
-    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $originalHash -or
-        @(Get-ChildItem -LiteralPath $target -Force).Count) {
-        throw 'Native Hex journey modified the source or destination.'
     }
     $result.passed = $true
     $result.narrowBytesPerRow = $narrowBytes
@@ -284,8 +311,6 @@ try {
     $result.reverseScrollbarViewportByte = $upViewport
     $result.scrollbarPreservedNoSelection = $true
     $result.scrollbarPreservedExplicitSelection = $true
-    $result.sourceIntact = $true
-    $result.targetEmpty = $true
 } catch {
     $result.error = $_.Exception.Message
     $result.stack = $_.ScriptStackTrace
@@ -294,11 +319,13 @@ try {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         $process.WaitForExit(5000) | Out-Null
     }
+    $result.sourceIntact = (Test-Path -LiteralPath $file -PathType Leaf) -and
+        (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $originalHash
+    $result.targetEmpty = @(Get-ChildItem -LiteralPath $target -Force).Count -eq 0
+    if (!$result.sourceIntact -or !$result.targetEmpty) { $result.passed = $false }
     $owned = [IO.Path]::GetFullPath((Join-Path $root 'HexPointerFixture')) + [IO.Path]::DirectorySeparatorChar
     $safeCleanup = [IO.Path]::GetFullPath($fixture).StartsWith($owned, [StringComparison]::OrdinalIgnoreCase) -and
-        (Test-Path -LiteralPath $file) -and
-        (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $originalHash -and
-        @(Get-ChildItem -LiteralPath $target -Force).Count -eq 0
+        $result.sourceIntact -and $result.targetEmpty
     $result.safeCleanup = $safeCleanup
     if ($safeCleanup) {
         for ($attempt = 0; $attempt -lt 5 -and (Test-Path -LiteralPath $fixture); $attempt++) {

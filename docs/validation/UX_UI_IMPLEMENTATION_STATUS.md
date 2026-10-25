@@ -1,19 +1,34 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Windows Hex editor (UXBUG-020):** The same
+Git-built `15a1a9c5` Windows VM app passed the editor route of
+`win-ax-hex-scrollbar.ps1` twice with a native pointer dwell
+(`hex-scrollbar-editor-r11.json`, `hex-scrollbar-editor-r12.json`). Narrowing to 640
+pixels and widening to 940 grew the first Hex row from 16 to 24 bytes.
+Native thumb drags moved the viewport from 0 to byte 2,160 and back without
+creating a selection. A deliberate content drag then selected bytes 0
+through 3; another thumb drag preserved that exact selection. The editor's
+exclusive file lock was released before SHA-256 verification; the 8,192-byte
+source and empty target were unchanged, and the owned fixture was removed.
+A separate headless `HexEditorSemanticsTests` case sends real Shift+Right key
+events through the editor and verifies the same exact four-byte selection.
+The complete Windows Release App suite on the preceding code head passed
+2,472 tests, skipped 63 platform-only cases and failed none.
+
 **25 October 2026, native Windows Hex resize and scrollbar (UXBUG-020):**
 `win-ax-hex-scrollbar.ps1` opened an isolated Git-built `15a1a9c5` viewer in
 the Windows 11 VMware guest, narrowed it to 640 physical pixels and widened
 it to 940. The first Hex row grew from 16 to 24 bytes. Native mouse drags of
 the vertical thumb moved the viewport from byte 0 to byte 2,184 and back to
-0 without changing the cursor or starting a selection. After an explicit
-four-byte keyboard selection, another thumb drag preserved exactly bytes 0
-through 3. The 8,192-byte source SHA-256 remained unchanged, the target
+0 without changing the cursor or starting a selection. An explicit content
+drag selected bytes 0 through 3; another thumb drag preserved that exact
+selection. The 8,192-byte source SHA-256 remained unchanged, the target
 remained empty, and the final runner removed its own fixture
-(`hex-scrollbar-native-r12.json`). The ten earlier diagnostic fixtures were
+(`hex-scrollbar-viewer-r15.json`). The ten earlier diagnostic fixtures were
 removed only after their generated source hashes and empty targets were
-verified; `hex-fixture-clean.json` reports zero remaining. This closes the Windows
-viewer resize and thumb-drag acceptance for this finding; editor and other
-desktop combinations remain open.
+verified; `hex-fixture-clean.json` reports zero remaining. This closes the
+Windows viewer resize and thumb-drag acceptance for this finding; the editor
+route passed separately above.
 
 **25 October 2026, Hex scrollbar selection (UXBUG-020):** A routed pointer
 move from a scrollbar thumb reached `HexView`'s byte-drag handler and could
