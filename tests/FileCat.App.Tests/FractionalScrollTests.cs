@@ -84,10 +84,11 @@ public sealed class FractionalScrollTests
             Assert.Equal(3, bar.Value);
             window.Height = 20;
             window.CaptureRenderedFrame()?.Dispose();
-            view.GoTo(16 * 5);
+            int rowBytes = view.BytesPerRow;
+            view.GoTo(rowBytes * 5);
             view.Focus();
             window.KeyPress(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
-            Assert.Equal(16 * 4, view.CursorOffset);
+            Assert.Equal(rowBytes * 4, view.CursorOffset);
         }
         finally { view.SetReader(null); window.Close(); }
     }

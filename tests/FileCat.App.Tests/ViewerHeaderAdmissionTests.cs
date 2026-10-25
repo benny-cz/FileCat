@@ -74,7 +74,11 @@ public sealed class ViewerHeaderAdmissionTests(ITestOutputHelper output)
         var local = new Point(f.Hex.CursorBounds(textColumn: false).Center.X, f.Hex.CursorBounds(textColumn: false).Center.Y);
         var point = Assert.IsType<Point>(f.Hex.TranslatePoint(local, f.Window));
         // Real wheel and pointer input reveal and select a different page while the header is held.
-        f.Window.MouseWheel(point, new Vector(0, -1400));
+        // Each wheel unit scrolls three visual rows; the row width changes with
+        // the Hex viewport. Reach page one without relying on a fixed 16-byte row.
+        double wheelUnits = Math.Ceiling((PagedReader.PageSize + 2.0 * f.Hex.BytesPerRow)
+            / (3.0 * f.Hex.BytesPerRow));
+        f.Window.MouseWheel(point, new Vector(0, -wheelUnits));
         f.Window.MouseDown(point, MouseButton.Left);
         f.Window.MouseUp(point, MouseButton.Left);
         await f.Source.NextPageEntered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
