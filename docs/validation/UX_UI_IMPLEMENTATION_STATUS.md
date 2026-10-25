@@ -45,8 +45,12 @@ overlap, the same Git-built FileCat executable (SHA-256
 passed a fresh `win-ax-ftps-replace-c10bb076-r3.json` journey at 96 DPI:
 one-connection certificate consent, listing, complete replacement warning,
 Keep both clearing the warning, narrow per-item warning, Skip, and unchanged
-source/remote target hashes. Native 150%/200% and NVDA speech checks on this
-route remain open.
+source/remote target hashes. The same native runner passed fresh
+`win-ax-ftps-replace-c10bb076-150-r2.json` and
+`win-ax-ftps-replace-c10bb076-200-r1.json` journeys at measured 144 and
+192 DPI, with both warnings and actions inside the window and exact source
+and target preservation. Windows Display Settings then restored the guest to
+100%. NVDA speech on this route remains open.
 
 **25 October 2026, native Mac FTP/FTPS changed-destination cleanup
 (FCUX-001):** The signed Git-built arm64 app (DLL SHA-256

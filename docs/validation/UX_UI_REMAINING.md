@@ -8,9 +8,9 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Repeat the Win11 implicit-TLS FTPS replacement-review journey at 150% and
-  200% scale and with NVDA speech. The restored guest now has a Git build and
-  the native runner's isolated Python dependencies; its 96 DPI route passed.
+- Hear the Win11 implicit-TLS FTPS replacement and per-item warnings with
+  NVDA. The restored guest has passed the native visual/input route at 100%,
+  150% and 200% display scale.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
