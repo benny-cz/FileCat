@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, combined native Ubuntu Hex resize (UXBUG-020):** The
+Git-built Ubuntu viewer at 100% scale passed an extended
+`linux-atspi-hex-resize.py` journey (`ubuntu-hex-resize-combined-9081bd6e-r2.json`).
+AT-SPI opened Hex-byte Find and selected source offsets 1 through 3; the exact
+selection and cursor remained after narrowing to 620 × 480 and widening to
+900 × 480, while the first row grew from 12 to 24 bytes. A native Increase
+content size action reduced the fitted row from 24 to 20 bytes without losing
+the selection. Physical PageDown input moved the viewport to source byte 384;
+narrowing back to 620 × 480 retained that first visible byte. The same run
+rechecked editor reflow from 16 to 24 bytes per row and preserved the owned
+8,192-byte source byte-exactly. The first attempt's single-PageDown assertion
+was corrected to account for the first press landing on the last visible row.
+Scaled Ubuntu, Windows and pointer-alignment acceptance remain open.
+
 **25 October 2026, dependency notice CI repair:** The earlier Windows
 process-census fix introduced `System.Management` 10.0.0 and its transitive
 `System.CodeDom` 10.0.0 dependency. The retained notice snapshot now indexes

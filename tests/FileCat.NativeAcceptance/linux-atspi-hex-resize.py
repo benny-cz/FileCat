@@ -83,6 +83,13 @@ def row_bytes(value):
     return re.findall(r"\b[0-9A-F]{2}\b", match.group(1))
 
 
+def top_byte(value):
+    match = re.search(r"viewport begins at byte ([0-9,]+)", value)
+    if match is None:
+        raise AssertionError(f"The Hex viewport anchor is absent: {value!r}")
+    return int(match.group(1).replace(",", ""))
+
+
 def run(app_path):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
@@ -167,6 +174,69 @@ def run(app_path):
             if states["wide"]["rowBytes"] <= states["narrow"]["rowBytes"]:
                 raise AssertionError("The Hex row did not fit more bytes after widening")
             result["states"] = states
+
+            checked_action(find(viewer, "button", "Show or hide viewer Find bar"),
+                           "viewer Find toggle")
+            query = wait_for(lambda: find(viewer, "entry", "Find in file"), "Hex Find field")
+            hex_bytes = find(viewer, "check box", "Hex bytes")
+            if hex_bytes is None:
+                raise AssertionError("The Hex byte search option is unavailable")
+            if not hex_bytes.get_state_set().contains(Atspi.StateType.CHECKED):
+                checked_action(hex_bytes, "Hex byte search option")
+            if not query.get_editable_text().set_text_contents("01 02 03"):
+                raise AssertionError("The Hex Find field could not receive the owned query")
+            checked_action(find(viewer, "button", "Find next match"), "Hex Find Next")
+            selected = wait_for(lambda: value if "Selected bytes 1 through 3, 3 bytes" in
+                                (value := hex_value(viewer)) else None,
+                                "three exact searched bytes selected")
+            if "Offset 3 of 8,192" not in selected:
+                raise AssertionError(f"Hex Find selected the wrong source bytes: {selected!r}")
+            selection = {"query": "01 02 03", "sourceOffsets": [1, 3]}
+            for label, dimensions in (("narrow", (620, 480)), ("wide", (900, 480))):
+                resize(window_id, dimensions, scale)
+                value = wait_for(lambda: text if "Selected bytes 1 through 3, 3 bytes" in
+                                 (text := hex_value(viewer)) else None,
+                                 f"search selection after {label} resize")
+                selection[label] = {"rowBytes": len(row_bytes(value)),
+                                    "viewportFirstByte": top_byte(value)}
+            if selection["wide"]["rowBytes"] <= selection["narrow"]["rowBytes"]:
+                raise AssertionError("The searched Hex selection did not reflow on resize")
+            result["searchSelection"] = selection
+
+            before_zoom = len(row_bytes(hex_value(viewer)))
+            checked_action(find(viewer, "button", "Increase text and hex size"),
+                           "Hex content zoom")
+            zoomed = wait_for(lambda: value if len(row_bytes(value := hex_value(viewer))) <
+                              before_zoom else None, "Hex row to shrink after zoom")
+            if "Selected bytes 1 through 3, 3 bytes" not in zoomed:
+                raise AssertionError("Zoom discarded the exact Hex Find selection")
+            result["zoom"] = {"rowBytesBefore": before_zoom,
+                              "rowBytesAfter": len(row_bytes(zoomed))}
+            checked_action(find(viewer, "button", "Decrease text and hex size"),
+                           "restore Hex content size")
+
+            hex_control = find(viewer, "entry", "Hex view")
+            if hex_control is None or not hex_control.grab_focus():
+                raise AssertionError("The native Hex view could not receive keyboard focus")
+            command("/usr/bin/wmctrl", "-ia", window_id)
+            send_key(validation / "linux-uinput-key.py", "pagedown")
+            wait_for(lambda: value if "Offset 3 of 8,192" not in
+                     (value := hex_value(viewer)) else None,
+                     "native PageDown to move the Hex cursor")
+            # The first page ends on the bottom visible row. The next page must
+            # move the viewport, after which its byte anchor can be tested.
+            send_key(validation / "linux-uinput-key.py", "pagedown")
+            moved = wait_for(lambda: value if top_byte(value := hex_value(viewer)) > 0
+                             else None, "native PageDown to scroll the Hex viewport")
+            first = top_byte(moved)
+            resize(window_id, (620, 480), scale)
+            scrolled = wait_for(lambda: value if len(row_bytes(value := hex_value(viewer))) <
+                                before_zoom else None, "scrolled Hex row to reflow narrower")
+            after = top_byte(scrolled)
+            if not 0 <= first - after < len(row_bytes(scrolled)):
+                raise AssertionError(f"Resize lost the first visible Hex byte: {first} -> {after}")
+            result["scrollAnchor"] = {"beforeByte": first, "afterByte": after,
+                                      "rowBytesAfter": len(row_bytes(scrolled))}
 
             close_viewer(app, title, pid)
             viewer = None
