@@ -115,10 +115,10 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
-   UXBUG-020 still needs native resize checks for the Hex viewer on Windows
-   and Ubuntu and for the byte editor on each desktop. Include search
-   selection, scroll position, zoom and pointer alignment; the Mac viewer
-   already passed narrow/wide visual capture from the Git-built app.
+   UXBUG-020 still needs native resize checks for the Hex viewer and byte
+   editor on Windows and Ubuntu. On Mac, exercise search selection, scroll
+   position, zoom and pointer alignment while resizing; separate narrow/wide
+   viewer and editor captures plus a narrow editor Find journey have passed.
 
 ## Evidence required to finish
 

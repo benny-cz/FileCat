@@ -26,8 +26,13 @@ passed the native Text/Hex/Info narrow/wide capture journey
 (`mac-hex-resize-final-r7.json`). The Hex screenshots show consecutive row
 offsets 0x00/0x10 at 720 × 500 and 0x00/0x20 at 1220 × 700, with the
 decoded text column aligned and visible in both; the test-owned 9,040-byte
-source stayed unchanged. Other desktop and byte-editor native resize checks
-remain in `UX_UI_REMAINING.md`.
+source stayed unchanged. The same signed build passed the native Mac Hex
+editor's 720 × 500 Find journey with its source unchanged, then a separate
+test-owned 8,192-byte editor resize journey
+(`mac-hex-editor-resize-candidate-r2.json`). Its screenshots show rows at
+0x00/0x10 in the narrow 720 × 500 frame and 0x00/0x20 in the wide
+1154 × 681 frame, with aligned decoded text and no unsaved changes. Other
+desktop and combined interaction checks remain in `UX_UI_REMAINING.md`.
 
 **25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**
 The signed Git-built Mac arm64 app ran three fresh, owned loopback journeys
