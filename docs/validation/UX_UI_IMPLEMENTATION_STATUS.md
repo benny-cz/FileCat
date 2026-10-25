@@ -29,10 +29,14 @@ decoded text column aligned and visible in both; the test-owned 9,040-byte
 source stayed unchanged. The same signed build passed the native Mac Hex
 editor's 720 × 500 Find journey with its source unchanged, then a separate
 test-owned 8,192-byte editor resize journey
-(`mac-hex-editor-resize-front-r4.json`). The runner requires the editor in
-front before each approved capture. Its screenshots show rows at 0x00/0x10
-in the narrow 720 × 500 frame and 0x00/0x18 in the wider 990 × 613 frame,
-with aligned decoded text and no unsaved changes. Other
+(`mac-hex-editor-resize-final-head.json` was followed by a passed
+`mac-hex-editor-resize-retry.json` on the same Git-built binary). Cocoa can
+return an intermediate AX frame before finishing a requested expansion; the
+runner now waits for the native frame and retries the requested size before
+evaluating the wider layout. It requires the editor in front before each
+approved capture. The passed captures show rows at 0x00/0x10 in the narrow
+720 × 500 frame and 0x00/0x20 in the wider 1154 × 681 frame, with aligned
+decoded text, byte-exact source preservation and no unsaved changes. Other
 desktop and combined interaction checks remain in `UX_UI_REMAINING.md`.
 
 **25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**

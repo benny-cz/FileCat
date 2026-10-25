@@ -72,6 +72,17 @@ def run(source, helper):
         for label, dimensions in (("narrow", (720, 500)), ("wide", (1200, 700))):
             actual = editor["editor_size"](*dimensions)
             drags = []
+            if label == "wide":
+                # Cocoa and the window manager can acknowledge an AX size before
+                # the layout pass has applied it. Re-read the native frame, then
+                # retry the requested size only if it is still too small.
+                for _ in range(4):
+                    time.sleep(0.5)
+                    actual = editor["editor_frame"]()[2:]
+                    if (actual[0] >= states["narrow"]["size"][0] + 200
+                            and actual[1] >= states["narrow"]["size"][1] + 100):
+                        break
+                    actual = editor["editor_size"](*dimensions)
             if label == "narrow":
                 for _ in range(3):
                     if actual[0] <= dimensions[0] + 4 and actual[1] <= dimensions[1] + 4:
