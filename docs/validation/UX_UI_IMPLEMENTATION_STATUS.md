@@ -25,14 +25,17 @@ fault, a product fix. The guest's display-scale restoration receipt selected
 entry role, and physical Escape back to the same file row. The Git-built Ubuntu
 app (DLL SHA-256
 `010b58b4f3b1e1a491f636bf6ebb74a4bf92b43b29ee0efc1cbf28106e7468de`)
-passed all 46 speech checks: Orca said `Rename selected item`, `entry`, and
+passed all 48 speech checks: Orca said `Rename selected item`, `entry`, and
 `c.txt` on entry, then returned to the `c.txt` row on Escape. Physical F8
 announced `Delete dialog` and its Delete button; Escape returned to `c.txt`
-without changing any of the three source files or the empty target. The runner now
+without changing any of the three source files or the empty target. Physical
+F6 announced `Move dialog`, its Destination entry and the complete isolated
+target path; Escape returned to `c.txt` with the same exact fixture bytes. The runner now
 discovers the logged-in user's current Xwayland authority, since VMware guest
 launches do not inherit it after a VM restart. The receipt is
-`ubuntu-orca-delete-review-r1.json` in the Ubuntu validation folder; the
-earlier `ubuntu-orca-inline-rename-r2.json` has the 44-step result. Other
+`ubuntu-orca-move-cancel-r1.json` in the Ubuntu validation folder; the
+earlier `ubuntu-orca-inline-rename-r2.json` and
+`ubuntu-orca-delete-review-r1.json` have 44- and 46-step results. Other
 modal routes remain to be checked for actual Orca speech. The duplicate row
 details heard on Escape remain a separate FCUX-010 issue.
 

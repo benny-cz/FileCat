@@ -21,7 +21,7 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "shift+down-hold": (42, 108), "left": (105,),
         "shift+down-hold-controlled": (42, 108), "shift+left": (42, 105), "f2": (60,),
         "shift-hold-controlled": (42,), "ctrl-hold-controlled": (29,),
-        "f3": (61,), "shift+f3": (42, 61), "f5": (63,), "f7": (65,), "f8": (66,),
+        "f3": (61,), "shift+f3": (42, 61), "f5": (63,), "f6": (64,), "f7": (65,), "f8": (66,),
         "end": (107,), "pageup": (104,), "pagedown": (109,), "space": (57,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15),
         "ctrl+a": (29, 30), "ctrl+t": (29, 20),

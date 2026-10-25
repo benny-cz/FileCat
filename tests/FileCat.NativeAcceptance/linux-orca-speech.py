@@ -275,6 +275,8 @@ def main():
             key("backspace")()
         step("an empty destination is announced", empty_destination, says("Destination: Enter a destination folder."))
         step("Escape cancels Copy", key("escape"), says("c.txt"))
+        step("F6 opens Move", key("f6"), says("Move dialog"))
+        step("Escape cancels Move", key("escape"), says("c.txt"))
         # Keyboard panel resizing speaks the boundary and each new share.
         step("Ctrl+Shift+P opens command search", key("ctrl+shift+p"), says("Search commands"))
 
