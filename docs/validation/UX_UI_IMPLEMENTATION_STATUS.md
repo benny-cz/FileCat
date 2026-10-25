@@ -62,6 +62,31 @@ reported its path; VoiceOver spoke the partial-stage warning and path. The
 source and existing target hashes remained unchanged. The passing receipt is
 `mac-ftp-disconnect-speech-2f1f43c9.json` in the Mac validation folder.
 
+**26 October 2026, Mac SFTP destination race (FCUX-001):** The native
+test-owned, public-key-only SFTP server accepted a rate-limited staged upload.
+After 32,739 bytes, another client changed the destination's content while
+preserving its length and modification time. FileCat refused replacement,
+removed the unpublished stage, and showed the changed-content issue. The
+incoming source and newer destination hashes remained unchanged; the server
+contained only `target.txt`. The passing receipt is
+`mac-sftp-content-race-2f1f43c9-r2.json` in the Mac validation folder. The
+native runner now activates the exact source tab after SFTP host-key review
+and verifies the captured remote destination, independent of where macOS
+returns keyboard focus. A companion native run changed both metadata and
+content after the same 32,739 staged bytes; it also refused replacement,
+removed the stage, and preserved source and newer destination. Its passing
+receipt is `mac-sftp-metadata-race-2f1f43c9.json`.
+
+**26 October 2026, Mac SFTP interruption (FCUX-001):** The same isolated
+signed bundle staged 32,739 bytes on a test-owned loopback SFTP server. The
+native runner closed only the two established sshd sessions serving that
+fixture port, leaving other SSH sessions untouched. FileCat kept the exact
+unpublished `.fc-*` file, offered Skip, and reported the complete remote
+stage path in its finished issue. VoiceOver spoke the warning and full path.
+The incoming source and existing target hashes remained unchanged. The
+passing receipt is `mac-sftp-disconnect-speech-2f1f43c9.json` in the Mac
+validation folder.
+
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
 bytes. FileCat kept the exact unpublished stage and reported its path in the

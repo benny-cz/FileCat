@@ -46,8 +46,9 @@ increments to `main`.
    after the final destination content check. Finish Windows
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
-   changed-destination and dropped-connection staging behavior, and remaining
-   SFTP provider failures.
+   changed-destination and dropped-connection staging behavior, and SFTP
+   provider failures beyond the native destination-content, metadata and
+   dropped-connection staging checks.
    For FCUX-069/070, validate
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut

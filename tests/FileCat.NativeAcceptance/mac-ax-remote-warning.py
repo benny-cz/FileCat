@@ -10,7 +10,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import pwd
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -42,6 +44,32 @@ def wait_for(check, description, seconds=25):
 def sha256(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def drop_owned_sftp_connection(port, server):
+    """Close only sshd sessions serving the disposable loopback port."""
+    listing = subprocess.run(["/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:ESTABLISHED"],
+                             capture_output=True, text=True, timeout=5)
+    if listing.returncode:
+        raise AssertionError("The owned SFTP connection is not established")
+    endpoint = f"127.0.0.1:{port}->127.0.0.1:"
+    owner = pwd.getpwuid(os.getuid()).pw_name
+    sessions = set()
+    for line in listing.stdout.splitlines()[1:]:
+        fields = line.split()
+        if (len(fields) >= 10 and fields[0].startswith("sshd-sess") and fields[2] == owner and
+                any(field.startswith(endpoint) for field in fields) and "(ESTABLISHED)" in fields):
+            sessions.add(int(fields[1]))
+    if not sessions:
+        raise AssertionError("No session process owns the disposable SFTP server connection")
+    server.terminate()
+    server.wait(timeout=5)
+    for pid in sorted(sessions):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    return sorted(sessions)
 
 
 def app_pids():
@@ -174,8 +202,8 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
     trace_launch = os.environ.get("FILECAT_POINTER_TRACE", "")
     trace_mode = trace_launch in ("1", "open")
     disconnect_during_upload = disconnect_during_upload or speak_issue
-    if (change_during_upload or same_metadata_change or disconnect_during_upload) and protocol == "sftp":
-        raise ValueError("Upload failure acceptance requires an owned FTP/FTPS server")
+    # All protocols use a disposable server with a filesystem-backed target.
+    # SFTP drops only the exact established session on its test-owned port.
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
@@ -503,19 +531,9 @@ end tell''')
         wait_for(lambda: len([node for node in nodes() if node["role"] == "AXRow" and
                               node["name"] == "target.txt"]) >= 2,
                  "both exact source and remote target rows", seconds=45)
-        if protocol == "sftp" and not pointer_probe and not ax_route:
-            # After the host-key dialog, macOS may leave the right Location box
-            # editing the new address. Escape returns to that list; Tab then
-            # uses FileCat's own panel-switch command to reach the source.
-            osa('''tell application "System Events" to tell process "FileCat"
-    set frontmost to true
-    key code 53
-    key code 48
-end tell''')
-            wait_for(lambda: any(node["role"] == "AXWindow" and
-                                 node["name"].startswith("source — FileCat") for node in nodes()),
-                     "Mac keyboard return to the exact local source panel", seconds=8)
-            receipt["steps"].append("Esc then Tab returned focus from SFTP Location to the local source panel")
+        # The host-key sheet can return focus to either the remote list or its
+        # Location editor. open_remote_copy_review activates the exact source
+        # tab and verifies the captured remote destination before approval.
         open_remote_copy_review()
         if narrow:
             main = next((node for node in nodes() if node["role"] == "AXWindow" and
@@ -589,8 +607,11 @@ end tell''')
                 if not source.read_bytes().startswith(staged_prefix):
                     raise AssertionError("The owned remote stage does not contain the exact source prefix")
                 receipt["stageName"] = stage.name
-                server.terminate()
-                server.wait(timeout=5)
+                if protocol == "sftp":
+                    receipt["closedOwnedSftpSessions"] = drop_owned_sftp_connection(port, server)
+                else:
+                    server.terminate()
+                    server.wait(timeout=5)
                 decision = wait_for(lambda: next((node for node in nodes() if
                     node["role"] == "AXButton" and node["name"].startswith("Review decision") and
                     node["bounds"][2] > 8), None), "dropped-connection Review decision", seconds=30)
@@ -604,8 +625,9 @@ end tell''')
                 receipt["retainedStageIssue"] = wait_for(lambda: next((node["name"] for node in nodes() if
                     "partial copy is left on the server" in node["name"].lower()), None),
                     "visible retained-stage warning in operation details", seconds=10)
+                expected_stage_path = str(stage) if protocol == "sftp" else "/" + stage.name
                 if not receipt["retainedStageIssue"].startswith("Warning: A partial copy is left on the server") or (
-                        f"Path: /{stage.name}" not in receipt["retainedStageIssue"] or
+                        f"Path: {expected_stage_path}" not in receipt["retainedStageIssue"] or
                         "JobIssue {" in receipt["retainedStageIssue"]):
                     raise AssertionError("The operation issue must expose a concise warning and its complete stage path")
                 if speak_issue:
