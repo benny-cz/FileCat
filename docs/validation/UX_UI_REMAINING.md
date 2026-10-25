@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 25 October 2026. Maintain this file after every validated batch. The
+Updated: 26 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -36,8 +36,11 @@ increments to `main`.
    with process exit code 134 after zero reported test failures. The uploaded
    sequence and an isolated VM reproduction identified recursive window-peer
    creation from Linux row speech; the passive bridge-state fix passed the
-   exact focused tests. Require a complete Ubuntu App run and final-head CI
-   before closing this failure.
+   exact focused tests. The isolated Ubuntu VM then completed the full App
+   suite without an abort; its sole failed assertion assumed a filtered
+   temporary mount would appear among the Places buttons. That test now passes
+   on Ubuntu and Windows. Require a clean complete Ubuntu App run and
+   final-head CI before closing this failure.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows

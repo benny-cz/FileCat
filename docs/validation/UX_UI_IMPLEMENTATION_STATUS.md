@@ -45,6 +45,23 @@ attach and detach. Four focused Windows and six focused Ubuntu accessibility,
 mask and path tests passed; the Ubuntu exact test had previously aborted after
 60 seconds when run alone. The final green five-lane gate remains open.
 
+**26 October 2026, Ubuntu full-suite follow-up:** The isolated Ubuntu VM
+completed all 2,540 App cases without the former process abort: 2,413 passed,
+126 were platform skips, and one place-button assertion failed. That test
+assumed the fixture's current mount always appears in the Places bar. On this
+VM the fixture lies on a filtered temporary mount, so no listed drive should
+be marked current. The assertion now checks the exact current mount when it
+is listed and requires no unrelated highlighted drive otherwise; it also
+checks the selected drive's actual destination. The adjusted case passed on
+both Windows and the same Ubuntu VM. A full final-head suite is still required.
+
+**26 October 2026, Mac FTP interruption (FCUX-001):** On the signed
+`2f1f43c9` Mac bundle, a plain FTP connection dropped after 262,144 staged
+bytes. FileCat retained only an unpublished `.fc-*` stage, and the issue row
+reported its path; VoiceOver spoke the partial-stage warning and path. The
+source and existing target hashes remained unchanged. The passing receipt is
+`mac-ftp-disconnect-speech-2f1f43c9.json` in the Mac validation folder.
+
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
 bytes. FileCat kept the exact unpublished stage and reported its path in the

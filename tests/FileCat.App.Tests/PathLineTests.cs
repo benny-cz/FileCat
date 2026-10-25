@@ -189,8 +189,17 @@ public sealed class PathLineTests
             buttons = Buttons();
             var bookmark = Assert.Single(buttons, b => PlaceOf(b).BarLabel == "Project files");
             Assert.Contains("current", bookmark.Classes);
-            var drive = Assert.Single(buttons, b => PlaceOf(b).Drive is not null && b.Classes.Contains("current"));
-            Assert.True(root.StartsWith(PlaceOf(drive).Location!.Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) || PlaceOf(drive).Location!.Path == "/");
+            // A test fixture may live on a tmpfs mount that the Places bar
+            // intentionally omits. In that case no other drive is current.
+            var mountedRoot = MainViewModel.DriveRootOf(tab.Location);
+            var matchingDrive = buttons.SingleOrDefault(b => PlaceOf(b).Drive is not null &&
+                string.Equals(PlaceOf(b).Location!.Path.TrimEnd('\\', '/'),
+                    mountedRoot?.TrimEnd('\\', '/'), OperatingSystem.IsWindows()
+                        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            var currentDrives = buttons.Where(b => PlaceOf(b).Drive is not null && b.Classes.Contains("current")).ToArray();
+            if (matchingDrive is null) Assert.Empty(currentDrives);
+            else Assert.Same(matchingDrive, Assert.Single(currentDrives));
+            var drive = matchingDrive ?? buttons.First(b => PlaceOf(b).Drive is not null);
 
             // This PC with one click; its button is then the outlined one.
             var thisPc = buttons.First(b => PlaceOf(b).Location?.Scheme == Core.Resources.Schemes.Computer);
@@ -203,7 +212,8 @@ public sealed class PathLineTests
             // The drive the other panel is on opens at that panel's folder, as in the location menu.
             drive.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.FileSystem; i++) await Task.Delay(20, ct);
-            Assert.Equal(vm.Workspace.Panels[1].ActiveTab!.Location!.Path, tab.Location!.Path);
+            Assert.Equal(matchingDrive is null ? PlaceOf(drive).Location!.Path : vm.Workspace.Panels[1].ActiveTab!.Location!.Path,
+                tab.Location!.Path);
 
             // A button on the other panel makes that panel the source.
             vm.Workspace.Activate(panel);
