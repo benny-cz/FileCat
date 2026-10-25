@@ -295,6 +295,26 @@
       "PackageArchiveSHA256": "e32a449d31945c0b9d169eb5bc676e1e3f589aab69888e49d703fdc1c384c176"
     },
     {
+      "Path": "nuget/system.codedom/10.0.0/THIRD-PARTY-NOTICES.TXT",
+      "Bytes": 78041,
+      "SHA256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "Source": "NuGet archive member",
+      "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
+      "PackageID": "system.codedom",
+      "PackageVersion": "10.0.0",
+      "PackageArchiveSHA256": "7df3177b7e57544e3d19de9b6f3d904664e4083793b929c661f29367afccb52f"
+    },
+    {
+      "Path": "nuget/system.management/10.0.0/THIRD-PARTY-NOTICES.TXT",
+      "Bytes": 78041,
+      "SHA256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "Source": "NuGet archive member",
+      "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
+      "PackageID": "system.management",
+      "PackageVersion": "10.0.0",
+      "PackageArchiveSHA256": "361dca3a5b2fe80c4692b5a21e1bae4db46e222dada75dcdadb07081080ab928"
+    },
+    {
       "Path": "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.12/LICENSE.TXT",
       "Bytes": 1116,
       "SHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
@@ -448,6 +468,17 @@
       "SourcePath": "LICENSE.txt",
       "GitBlobSHA1": "94e2f5bc83ac404584fd92c25cfcc305ea2f8942",
       "SourceURL": "https://github.com/adamhathcock/sharpcompress/blob/c083c6efd843a844b0c8f7878787360e815be781/LICENSE.txt"
+    },
+    {
+      "Path": "upstream/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
+      "Bytes": 1115,
+      "SHA256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "dotnet/dotnet",
+      "Revision": "b0f34d51fccc69fd334253924abd8d6853fad7aa",
+      "SourcePath": "LICENSE.TXT",
+      "GitBlobSHA1": "a616ed188dfce68ee308f674350ad242d8588c2b",
+      "SourceURL": "https://github.com/dotnet/dotnet/blob/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT"
     },
     {
       "Path": "upstream/kekekeks/MicroCom/76785efcafd91b5902fd19dd11145f6dd655b7b4/LICENSE",
@@ -1450,6 +1481,58 @@
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
+    },
+    {
+      "ID": "System.CodeDom",
+      "Version": "10.0.0",
+      "NuGetContentHash": "QWERdKi/tQAx+MbrPxTGcpchqMANnVXNiv2r2tILBBB38E74buD+fABSUhozZ1G9kjbadFB0m+HPFMkhJPeFvA==",
+      "PackageArchiveSHA256": "7df3177b7e57544e3d19de9b6f3d904664e4083793b929c661f29367afccb52f",
+      "NuGetLicenseDeclaration": {
+        "Text": "MIT",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/dotnet/dotnet",
+          "commit": "b0f34d51fccc69fd334253924abd8d6853fad7aa"
+        }
+      },
+      "RetainedNoticePaths": [
+        "nuget/system.codedom/10.0.0/THIRD-PARTY-NOTICES.TXT",
+        "upstream/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT"
+      ],
+      "FullTextRetained": true,
+      "Coverage": "nuget-notice-and-declared-source-license-retained"
+    },
+    {
+      "ID": "System.Management",
+      "Version": "10.0.0",
+      "NuGetContentHash": "LE3rDZoPzulou78Tsq+3ALhUs4vatQ03v2QWbYVIenVPneUH/+LTUmHyyl098OxIFLQI6sNkZs8YHbUnT/sm3A==",
+      "PackageArchiveSHA256": "361dca3a5b2fe80c4692b5a21e1bae4db46e222dada75dcdadb07081080ab928",
+      "NuGetLicenseDeclaration": {
+        "Text": "MIT",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/dotnet/dotnet",
+          "commit": "b0f34d51fccc69fd334253924abd8d6853fad7aa"
+        }
+      },
+      "RetainedNoticePaths": [
+        "nuget/system.management/10.0.0/THIRD-PARTY-NOTICES.TXT",
+        "upstream/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT"
+      ],
+      "FullTextRetained": true,
+      "Coverage": "nuget-notice-and-declared-source-license-retained"
     },
     {
       "ID": "Tmds.DBus.Protocol",

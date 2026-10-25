@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, dependency notice CI repair:** The earlier Windows
+process-census fix introduced `System.Management` 10.0.0 and its transitive
+`System.CodeDom` 10.0.0 dependency. The retained notice snapshot now indexes
+both exact NuGet archive hashes and content hashes, their third-party notice
+bytes, and the MIT license bytes from the package-declared `dotnet/dotnet`
+revision. The release allowlist control passed all 63 cases (7 allowed, 56
+refused); a fresh win-x64 self-contained publish passed the production notice
+validator and copied all 53 verified snapshot files. The final five-lane CI
+gate remains open until the pushed head is green.
+
 **25 October 2026, Hex viewer resize (UXBUG-020):** `HexView` now fits groups
 of four bytes to the available content width, from 4 to a bounded 128 bytes
 per row. Resize and font-size changes rebuild row geometry while preserving
