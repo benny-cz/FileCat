@@ -12,6 +12,11 @@ namespace FileCat.App.Controls;
 /// </summary>
 public sealed class PanelAddressTextBox : TextBox
 {
+    // Reuse the TextBox theme template and the panel's TextBox.path/filter styles.
+    // Without a style key, this subclass still has a UIA value and layout bounds,
+    // but no TextPresenter, so the mask and path editor paint no text.
+    protected override Type StyleKeyOverride => typeof(TextBox);
+
     protected override AutomationPeer OnCreateAutomationPeer() => new PanelAddressTextBoxAutomationPeer(this);
 
     private sealed class PanelAddressTextBoxAutomationPeer(PanelAddressTextBox owner) : TextBoxAutomationPeer(owner)

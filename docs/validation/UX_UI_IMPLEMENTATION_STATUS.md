@@ -1,5 +1,34 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, panel mask regression:** The panel address field had been
+changed from `TextBox` to `PanelAddressTextBox` for Mac accessibility focus
+ownership without reusing the base TextBox style key. It consequently had a
+UIA value of `*.*` and normal bounds, but no `TextPresenter`; the default
+mask was invisible in native Windows, as was typed path text while editing.
+`PanelAddressTextBox` now uses the TextBox template and the existing
+path/filter styles. New regression tests require the filter's text presenter,
+visible opacity and mask value in two-panel resizes and a four-panel workspace,
+and require a path text presenter. Nine focused Windows App tests passed.
+The isolated Windows VM reproduced the missing mask on the earlier Git-built
+app: UIA reported `*.*` at both filter positions while the screenshot showed
+no text. Native verification of the corrected Git head is pending.
+
+**25 October 2026, Ubuntu CI diagnosis:** On `7a5492fe` and `8042cd54`, the
+portable Ubuntu App test process aborted with exit code 134 after 625 and 334
+passing cases respectively; the Core and Remote suites passed. The final
+App TRX records no failed assertions and points to a blame sequence XML that
+the workflow had not uploaded. CI now retains that bounded sequence trace so
+the next run can identify the in-flight test and its cause. The final green
+five-lane gate remains open.
+
+**25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
+`7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
+bytes. FileCat kept the exact unpublished stage and reported its path in the
+finished issue row; VoiceOver spoke the partial-stage warning and path. The
+source and existing destination hashes remained unchanged. The passing
+receipt is `mac-remote-warning-ftps-disconnect-speech-7a5492fe-r1.json` in
+the Mac validation folder. Other provider failure kinds remain open.
+
 **25 October 2026, Linux row speech (FCUX-010):** Avalonia.FreeDesktop.AtSpi
 12.1.1 exposes a row's HelpText as both Description and HelpText, so Orca
 previously spoke the same size, modified time, mark and position details
