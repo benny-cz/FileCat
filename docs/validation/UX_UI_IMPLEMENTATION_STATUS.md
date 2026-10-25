@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Windows Hex resize and scrollbar (UXBUG-020):**
+`win-ax-hex-scrollbar.ps1` opened an isolated Git-built `15a1a9c5` viewer in
+the Windows 11 VMware guest, narrowed it to 640 physical pixels and widened
+it to 940. The first Hex row grew from 16 to 24 bytes. Native mouse drags of
+the vertical thumb moved the viewport from byte 0 to byte 2,184 and back to
+0 without changing the cursor or starting a selection. After an explicit
+four-byte keyboard selection, another thumb drag preserved exactly bytes 0
+through 3. The 8,192-byte source SHA-256 remained unchanged, the target
+remained empty, and the final runner removed its own fixture
+(`hex-scrollbar-native-r12.json`). The ten earlier diagnostic fixtures were
+removed only after their generated source hashes and empty targets were
+verified; `hex-fixture-clean.json` reports zero remaining. This closes the Windows
+viewer resize and thumb-drag acceptance for this finding; editor and other
+desktop combinations remain open.
+
 **25 October 2026, Hex scrollbar selection (UXBUG-020):** A routed pointer
 move from a scrollbar thumb reached `HexView`'s byte-drag handler and could
 extend a byte selection while the user was only scrolling. The view now owns a
@@ -12,7 +27,8 @@ with no selection, preserves an existing exact selection through another
 scrollbar drag, and then confirms that a content drag still selects the
 intended bytes in both read-only viewer and editor modes. Both focused cases
 passed; 77 related viewer, editor and fractional-scroll cases passed with no
-failures or skips. Native desktop acceptance remains open.
+failures or skips. Native Windows viewer acceptance passed separately above;
+the other desktop and editor combinations remain open.
 
 **25 October 2026, combined native Ubuntu Hex resize (UXBUG-020):** The
 Git-built Ubuntu viewer at 100% scale passed an extended

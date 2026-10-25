@@ -112,14 +112,16 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
-   UXBUG-020 still needs native resize checks for the Hex viewer and byte
-   editor on Windows, scaled Ubuntu checks, and combined editor search,
+   UXBUG-020 still needs native resize checks for the Hex byte editor on
+   Windows, scaled Ubuntu checks, and combined editor search,
    selection, scroll, zoom and pointer alignment while resizing on the
    supported desktops. The Ubuntu 100% viewer already passed combined Find,
-   selection, scroll and zoom checks; use its recorded receipt in the status
-   document. Recheck the newly reported scrollbar-thumb drag on Windows,
-   Ubuntu and Mac: dragging or releasing the thumb must not create or alter a
-   byte selection, while a drag begun in the content must still select bytes.
+   selection, scroll and zoom checks. Windows viewer narrow/wide resize and
+   bidirectional scrollbar-thumb drag passed at 100% scale with an unchanged
+   explicit selection. Recheck the newly reported scrollbar-thumb drag in the
+   Windows editor and on Ubuntu and Mac: dragging or releasing the thumb must
+   not create or alter a byte selection, while a drag begun in the content
+   must still select bytes.
 
 ## Evidence required to finish
 
