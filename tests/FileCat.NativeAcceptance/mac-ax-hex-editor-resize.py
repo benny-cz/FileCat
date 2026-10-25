@@ -20,8 +20,8 @@ NAME = editor["FIXTURE_NAME"]
 CONTENT = bytes(range(256)) * 32
 
 
-def hex_row():
-    value = editor["osa"]('''
+def hex_semantic():
+    return editor["osa"]('''
 on hexValue(itemRef, depth)
     if depth > 25 then return ""
     tell application "System Events"
@@ -29,7 +29,7 @@ on hexValue(itemRef, depth)
         try
             set itemName to name of itemRef as text
         end try
-        if itemName contains "row 00000000:" then return itemName
+        if itemName contains "viewport begins at byte" then return itemName
         try
             repeat with childRef in (UI elements of itemRef)
                 set found to my hexValue(childRef, depth + 1)
@@ -50,6 +50,10 @@ tell application "System Events"
 end tell
 error "Owned Hex editor absent"
 ''')
+
+
+def hex_row():
+    value = hex_semantic()
     match = re.search(r"row 00000000: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
     if match is None:
         raise AssertionError(f"The Mac Hex row is not exposed: {value[:350]!r}")
@@ -57,6 +61,150 @@ error "Owned Hex editor absent"
     if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
         raise AssertionError(f"Mac Hex row bytes differ: {row!r}")
     return {"bytesPerRow": len(row), "firstRow": row}
+
+
+def scrollbar_geometry():
+    raw = editor["osa"]('''
+on barFrame(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        set itemName to ""
+        try
+            set itemName to name of itemRef as text
+        end try
+        if itemName is "Hex vertical position" then
+            set p to position of itemRef
+            set s to size of itemRef
+            return (item 1 of p as text) & "|" & (item 2 of p as text) & "|" & ¬
+                   (item 1 of s as text) & "|" & (item 2 of s as text)
+        end if
+        try
+            repeat with childRef in (UI elements of itemRef)
+                set found to my barFrame(childRef, depth + 1)
+                if found is not "" then return found
+            end repeat
+        end try
+    end tell
+    return ""
+end barFrame
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Hex Editor" then
+                return my barFrame(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+error "Owned Hex editor absent"
+''')
+    values = [int(value) for value in raw.split("|")]
+    if len(values) != 4 or values[2] < 8 or values[3] < 150:
+        raise AssertionError(f"Implausible Mac Hex vertical scrollbar: {raw!r}")
+    return values
+
+
+def document_geometry():
+    raw = editor["osa"]('''
+on documentFrame(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        set itemName to ""
+        try
+            set itemName to name of itemRef as text
+        end try
+        if itemName contains "viewport begins at byte" then
+            set p to position of itemRef
+            set s to size of itemRef
+            return (item 1 of p as text) & "|" & (item 2 of p as text) & "|" & ¬
+                   (item 1 of s as text) & "|" & (item 2 of s as text)
+        end if
+        try
+            repeat with childRef in (UI elements of itemRef)
+                set found to my documentFrame(childRef, depth + 1)
+                if found is not "" then return found
+            end repeat
+        end try
+    end tell
+    return ""
+end documentFrame
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Hex Editor" then
+                return my documentFrame(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+error "Owned Hex editor absent"
+''')
+    values = [int(value) for value in raw.split("|")]
+    if len(values) != 4:
+        raise AssertionError(f"Mac Hex document has no native frame: {raw!r}")
+    return values
+
+
+def viewport_byte(value):
+    match = re.search(r"viewport begins at byte ([0-9][0-9,\s\u00a0\u202f]*)", value)
+    if match is None:
+        raise AssertionError(f"Mac Hex viewport is absent: {value[:350]!r}")
+    return int(re.sub(r"\D", "", match.group(1)))
+
+
+def pointer_drag(start_x, start_y, end_x, end_y):
+    done = subprocess.run(["/opt/homebrew/bin/cliclick", "-r", "-e", "4", "-w", "100",
+                           f"dd:{start_x},{start_y}", f"dm:{end_x},{end_y}",
+                           f"du:{end_x},{end_y}"], capture_output=True,
+                          text=True, timeout=15)
+    if done.returncode:
+        raise AssertionError(done.stderr.strip() or "Native Mac Hex pointer drag failed")
+    time.sleep(0.3)
+
+
+def scrollbar_drag_check(frame):
+    x, y, width, height = frame
+    start_y = y + 30
+    end_y = min(start_y + 120, y + height - 30)
+    x += width // 2
+    before = hex_semantic()
+    if viewport_byte(before) != 0 or "No byte selection" not in before or not before.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac Hex editor did not start unselected at byte zero: {before!r}")
+    pointer_drag(x, start_y, x, end_y)
+    down = hex_semantic()
+    if viewport_byte(down) <= 0 or "No byte selection" not in down or not down.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac scrollbar drag failed to scroll without selecting: {frame!r}, {down!r}")
+    pointer_drag(x, end_y, x, start_y)
+    up = hex_semantic()
+    if viewport_byte(up) != 0 or "No byte selection" not in up or not up.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac reverse thumb drag changed selection/cursor: {frame!r}, {up!r}")
+    return {"thumbStart": [x, start_y], "thumbEnd": [x, end_y],
+            "downViewportByte": viewport_byte(down), "upViewportByte": viewport_byte(up),
+            "selectionUnchanged": True}
+
+
+def content_selection_check(document, scrollbar):
+    doc_x, doc_y, doc_width, doc_height = document
+    if doc_width < 600 or doc_height < 300:
+        raise AssertionError(f"Mac Hex document has implausible pointer bounds: {document!r}")
+    start_x, row_y = doc_x + 94, doc_y + 10
+    end_x = start_x + 84
+    if end_x >= scrollbar[0]:
+        raise AssertionError("Mac Hex content drag would intersect the scrollbar")
+    pointer_drag(start_x, row_y, end_x, row_y)
+    selected = hex_semantic()
+    if "Selected bytes 0 through 3, 4 bytes" not in selected:
+        raise AssertionError(f"Deliberate Mac Hex content drag did not select four bytes: {selected!r}")
+    bar_x, bar_y, bar_width, bar_height = scrollbar
+    thumb_x = bar_x + bar_width // 2
+    thumb_start = bar_y + 30
+    thumb_end = min(thumb_start + 120, bar_y + bar_height - 30)
+    pointer_drag(thumb_x, thumb_start, thumb_x, thumb_end)
+    preserved = hex_semantic()
+    if viewport_byte(preserved) <= 0 or "Selected bytes 0 through 3, 4 bytes" not in preserved:
+        raise AssertionError(f"Mac thumb drag changed an explicit byte selection: {preserved!r}")
+    return {"dragStart": [start_x, row_y], "dragEnd": [end_x, row_y],
+            "selectedBytes": [0, 3], "thumbPreservedViewportByte": viewport_byte(preserved)}
 
 
 def raise_editor():
@@ -139,8 +287,14 @@ def run(source, helper):
             time.sleep(0.5)
             states[label] = {"size": actual, "row": hex_row(), "nativeDrags": drags,
                              "capture": viewer["capture"](helper, validation)}
+            if label == "wide":
+                states[label]["scrollbar"] = scrollbar_geometry()
+                states[label]["document"] = document_geometry()
         if states["wide"]["row"]["bytesPerRow"] <= states["narrow"]["row"]["bytesPerRow"]:
             raise AssertionError(f"Hex editor did not fit more complete bytes after widening: {states!r}")
+        states["wide"]["thumbDrag"] = scrollbar_drag_check(states["wide"]["scrollbar"])
+        states["wide"]["contentSelection"] = content_selection_check(
+            states["wide"]["document"], states["wide"]["scrollbar"])
         if hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Hex editor resize changed its source bytes")
         return {"passed": True, "platform": "macOS", "mode": "Hex editor",

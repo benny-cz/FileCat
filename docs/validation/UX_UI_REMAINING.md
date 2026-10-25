@@ -117,8 +117,9 @@ increments to `main`.
    supported desktops. Mac viewer and editor narrow/wide Hex row reflow now
    pass with exact fixture bytes. The Ubuntu guest's `scaling-factor=2` setting
    left the tested native window at scale 1, so it did not close scaled
-   acceptance; the original automatic setting was restored. Recheck the
-   newly reported scrollbar-thumb drag on Ubuntu and Mac: dragging or releasing the thumb must
+   acceptance; the original automatic setting was restored. Mac and Windows
+   physical scrollbar and explicit content-selection journeys now pass.
+   Recheck the scrollbar-thumb drag on Ubuntu: dragging or releasing the thumb must
    not create or alter a byte selection, while a drag begun in the content
    must still select bytes.
 

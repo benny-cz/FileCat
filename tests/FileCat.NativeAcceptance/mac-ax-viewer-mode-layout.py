@@ -28,7 +28,18 @@ CONTENT = ("FileCat viewer layout sample with a long but readable line that shou
 
 
 def hex_row():
-    value = osa('''
+    value = hex_semantic()
+    match = re.search(r"row 00000000: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
+    if match is None:
+        raise AssertionError(f"The Mac viewer Hex row is not exposed: {value[:350]!r}")
+    row = re.findall(r"\b[0-9A-F]{2}\b", match.group(1))
+    if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
+        raise AssertionError(f"Mac viewer Hex row bytes differ: {row!r}")
+    return {"bytesPerRow": len(row), "firstRow": row}
+
+
+def hex_semantic():
+    return osa('''
 on hexValue(itemRef, depth)
     if depth > 25 then return ""
     tell application "System Events"
@@ -36,7 +47,7 @@ on hexValue(itemRef, depth)
         try
             set itemName to name of itemRef as text
         end try
-        if itemName contains "row 00000000:" then return itemName
+        if itemName contains "viewport begins at byte" then return itemName
         try
             repeat with childRef in (UI elements of itemRef)
                 set found to my hexValue(childRef, depth + 1)
@@ -57,13 +68,99 @@ tell application "System Events"
 end tell
 error "Owned viewer absent"
 ''')
-    match = re.search(r"row 00000000: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
+
+
+def hex_element_frame(needle):
+    raw = osa(f'''
+on elementFrame(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        set itemName to ""
+        try
+            set itemName to name of itemRef as text
+        end try
+        if itemName contains {json.dumps(needle)} then
+            set p to position of itemRef
+            set s to size of itemRef
+            return (item 1 of p as text) & "|" & (item 2 of p as text) & "|" & ¬
+                   (item 1 of s as text) & "|" & (item 2 of s as text)
+        end if
+        try
+            repeat with childRef in (UI elements of itemRef)
+                set found to my elementFrame(childRef, depth + 1)
+                if found is not "" then return found
+            end repeat
+        end try
+    end tell
+    return ""
+end elementFrame
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Viewer" then
+                return my elementFrame(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+error "Owned viewer absent"
+''')
+    frame = [int(value) for value in raw.split("|")]
+    if len(frame) != 4:
+        raise AssertionError(f"Mac viewer Hex element has no frame: {needle}: {raw!r}")
+    return frame
+
+
+def hex_viewport(value):
+    match = re.search(r"viewport begins at byte ([0-9][0-9,\s\u00a0\u202f]*)", value)
     if match is None:
-        raise AssertionError(f"The Mac viewer Hex row is not exposed: {value[:350]!r}")
-    row = re.findall(r"\b[0-9A-F]{2}\b", match.group(1))
-    if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
-        raise AssertionError(f"Mac viewer Hex row bytes differ: {row!r}")
-    return {"bytesPerRow": len(row), "firstRow": row}
+        raise AssertionError(f"Mac viewer Hex viewport is unavailable: {value[:350]!r}")
+    return int(re.sub(r"\D", "", match.group(1)))
+
+
+def hex_drag(start_x, start_y, end_x, end_y):
+    done = subprocess.run(["/opt/homebrew/bin/cliclick", "-r", "-e", "4", "-w", "100",
+                           f"dd:{start_x},{start_y}", f"dm:{end_x},{end_y}",
+                           f"du:{end_x},{end_y}"], capture_output=True,
+                          text=True, timeout=15)
+    if done.returncode:
+        raise AssertionError(done.stderr.strip() or "Native Mac viewer Hex drag failed")
+    time.sleep(0.3)
+
+
+def hex_pointer_check():
+    bar = hex_element_frame("Hex vertical position")
+    document = hex_element_frame("viewport begins at byte")
+    bx, by, bw, bh = bar
+    dx, dy, dw, dh = document
+    if bw < 8 or bh < 150 or dw < 600 or dh < 300:
+        raise AssertionError(f"Mac viewer Hex pointer bounds are unusable: {bar!r}, {document!r}")
+    tx, ty, end_y = bx + bw // 2, by + 30, min(by + 150, by + bh - 30)
+    before = hex_semantic()
+    if hex_viewport(before) != 0 or "No byte selection" not in before or not before.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac viewer Hex did not start at byte zero: {before!r}")
+    hex_drag(tx, ty, tx, end_y)
+    down = hex_semantic()
+    if hex_viewport(down) <= 0 or "No byte selection" not in down or not down.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac viewer thumb drag selected bytes or did not scroll: {down!r}")
+    hex_drag(tx, end_y, tx, ty)
+    up = hex_semantic()
+    if hex_viewport(up) != 0 or "No byte selection" not in up or not up.startswith("Offset 0 of"):
+        raise AssertionError(f"Mac viewer reverse thumb drag changed selection/cursor: {up!r}")
+    start_x, row_y, end_x = dx + 94, dy + 10, dx + 178
+    if end_x >= bx:
+        raise AssertionError("Mac viewer Hex content drag would intersect the scrollbar")
+    hex_drag(start_x, row_y, end_x, row_y)
+    selected = hex_semantic()
+    if "Selected bytes 0 through 3, 4 bytes" not in selected:
+        raise AssertionError(f"Deliberate Mac viewer Hex drag selected the wrong bytes: {selected!r}")
+    hex_drag(tx, ty, tx, end_y)
+    preserved = hex_semantic()
+    if hex_viewport(preserved) <= 0 or "Selected bytes 0 through 3, 4 bytes" not in preserved:
+        raise AssertionError(f"Mac viewer thumb drag changed the explicit selection: {preserved!r}")
+    return {"scrollbar": bar, "document": document,
+            "downViewportByte": hex_viewport(down), "upViewportByte": hex_viewport(up),
+            "selectedBytes": [0, 3], "selectionPreservedViewportByte": hex_viewport(preserved)}
 
 
 def viewer_title():
@@ -154,6 +251,8 @@ def run(source, helper):
                     states[label]["row"] = hex_row()
             if mode == "Hex" and states["wide"]["row"]["bytesPerRow"] <= states["narrow"]["row"]["bytesPerRow"]:
                 raise AssertionError(f"Viewer Hex row did not expand with the window: {states!r}")
+            if mode == "Hex":
+                states["wide"]["pointer"] = hex_pointer_check()
             result["modes"][mode] = states
         if hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Viewer layout checks changed their source bytes")

@@ -1447,7 +1447,10 @@ checks the exact viewer title and source bytes, and captures Text, Hex and
 Info at approximately 720 × 500 and 1,220 × 700 logical points. Inspect all
 six screenshots for wrapping, controls and scrollbars; the runner verifies
 the native sizes, the exact first Hex row bytes and a larger fitted Hex row
-after widening, then removes its fixture. It focuses the exact AX row and
+after widening. It physically drags the Hex scrollbar down and back without
+creating selection, deliberately selects bytes 0–3 in the document, and
+confirms a second thumb drag preserves them before it removes its fixture.
+It focuses the exact AX row and
 uses FileCat's View command, which avoids an external Open handler.
 
 `python3 mac-ax-viewer-media-layout.py SOURCE FileCatCapture.app REPORT.json`

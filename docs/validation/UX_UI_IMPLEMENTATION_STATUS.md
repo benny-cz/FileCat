@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Mac Hex scrollbar selection (UXBUG-020):** On the
+same isolated, Git-built and signed `38bc114c` app, physical `cliclick`
+thumb drags and accessible Hex semantics passed in both viewer and editor.
+The viewer moved its viewport from byte 0 to 1,824 and back; the editor
+moved from 0 to 2,160 and back. Neither route moved the byte cursor or
+created a selection. A deliberate drag across the first Hex row then
+selected exactly bytes 0 through 3, and another thumb drag preserved those
+four bytes in each route. The tests use the actual AX document and scrollbar
+frames, confirm exact first-row bytes and resize reflow, and parse macOS's
+nonbreaking-space thousands separator in semantic offsets. Source SHA-256
+remained unchanged and both owned fixtures were removed. Native receipts are
+`mac-viewer-hex-pointer-38bc114c-final.json` and
+`mac-hex-editor-pointer-38bc114c-final.json` under the Mac validation folder.
+The corresponding Windows native routes passed earlier; the Ubuntu physical
+thumb route and remaining scaled/combined Hex interactions remain open.
+
 **25 October 2026, native Mac Hex reflow (UXBUG-020):** A fresh, isolated
 Git checkout at `38bc114c` was published directly on the Mac as an ad-hoc
 signed validation app, without a ZIP archive (DLL SHA-256
@@ -15,7 +31,7 @@ FaceTime system prompt was dismissed with its identified **Later** action
 before the final captures. Reports are
 `mac-viewer-hex-row-reflow-38bc114c-r1.json` and
 `mac-hex-editor-row-reflow-38bc114c-r4.json` in the Mac validation folder.
-Mac scrollbar-thumb and combined editor interaction checks remain open.
+Mac combined editor search, scroll and zoom interactions remain open.
 
 **25 October 2026, native Windows Hex editor (UXBUG-020):** The same
 Git-built `15a1a9c5` Windows VM app passed the editor route of
