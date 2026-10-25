@@ -40,7 +40,17 @@ end tell
 def open_exact(name):
     click_named("AXButton", "Reread")
     time.sleep(0.5)
-    click_named("AXRow", name)
+    # Newly added rows can be present in AX before they have a usable on-screen
+    # hit target. Anchor the real list focus, then use FileCat's type-to-find.
+    click_named("AXRow", "a.txt")
+    osa(f'''
+tell application "System Events"
+    tell process "FileCat"
+        set frontmost to true
+        keystroke {json.dumps(name)}
+    end tell
+end tell
+''')
     # AXPress invokes Open, which can launch an external handler. View opens
     # FileCat's viewer for the exact focused item on every supported mode.
     click_named("AXButton", "View")
