@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow|--change-during-upload|--change-content-during-upload|--disconnect-during-upload]
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow|--change-during-upload|--change-content-during-upload|--disconnect-during-upload|--disconnect-and-speak]
 The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
@@ -170,9 +170,10 @@ end tell
 
 def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route,
         pointer_focus_race, change_during_upload=False, same_metadata_change=False,
-        disconnect_during_upload=False):
+        disconnect_during_upload=False, speak_issue=False):
     trace_launch = os.environ.get("FILECAT_POINTER_TRACE", "")
     trace_mode = trace_launch in ("1", "open")
+    disconnect_during_upload = disconnect_during_upload or speak_issue
     if (change_during_upload or same_metadata_change or disconnect_during_upload) and protocol == "sftp":
         raise ValueError("Upload failure acceptance requires an owned FTP/FTPS server")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
@@ -600,6 +601,19 @@ end tell''')
                         f"Path: /{stage.name}" not in receipt["retainedStageIssue"] or
                         "JobIssue {" in receipt["retainedStageIssue"]):
                     raise AssertionError("The operation issue must expose a concise warning and its complete stage path")
+                if speak_issue:
+                    candidates = [node for node in nodes() if node["name"] == receipt["retainedStageIssue"]]
+                    receipt["issueSpeechCandidates"] = [{"role": node["role"], "bounds": node["bounds"]}
+                                                        for node in candidates]
+                    issue_row = next((node for node in candidates if node["bounds"][2] > 8 and
+                                      node["bounds"][3] > 8), None)
+                    if issue_row is None:
+                        raise AssertionError("The visible operation issue row has no usable Mac accessibility bounds")
+                    click_node(issue_row)
+                    receipt["issueSpeech"] = wait_for(lambda: (phrase if stage.name in phrase and
+                        "partial copy is left on the server" in phrase.lower() else None)
+                        if (phrase := voiceover_last()) else None,
+                        "VoiceOver speech for the selected retained-stage issue", seconds=12)
                 receipt["expectedManifest"] = sorted([stage.name, target.name])
                 receipt["stageBytesAfterDrop"] = stage.stat().st_size
                 if not 0 < receipt["stageBytesAfterDrop"] < source.stat().st_size:
@@ -785,7 +799,7 @@ end tell
 
 if __name__ == "__main__":
     if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "ftps", "sftp") or (
-            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow", "--change-during-upload", "--change-content-during-upload", "--disconnect-during-upload")):
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow", "--change-during-upload", "--change-content-during-upload", "--disconnect-during-upload", "--disconnect-and-speak")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
                  sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--pointer-race-probe", "--ax-probe"),
@@ -795,5 +809,6 @@ if __name__ == "__main__":
                  len(sys.argv) == 6 and sys.argv[5] == "--pointer-race-probe",
                  len(sys.argv) == 6 and sys.argv[5] == "--change-during-upload",
                  len(sys.argv) == 6 and sys.argv[5] == "--change-content-during-upload",
-                 len(sys.argv) == 6 and sys.argv[5] == "--disconnect-during-upload")
+                 len(sys.argv) == 6 and sys.argv[5] == "--disconnect-during-upload",
+                 len(sys.argv) == 6 and sys.argv[5] == "--disconnect-and-speak")
     raise SystemExit(0 if result["passed"] else 1)

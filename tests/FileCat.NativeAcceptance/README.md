@@ -324,6 +324,9 @@ native operation decision, opens Details, and requires the retained-stage
 warning. The partial stage must remain an exact source prefix; the original
 source and remote target must keep their exact hashes. The report records the
 stage name, size and final two-item server manifest for deliberate cleanup.
+`--disconnect-and-speak` runs that same journey, selects the visible issue
+row, and requires VoiceOver's actual last phrase to include the retained-stage
+reason and its complete provider path while system output remains muted.
 Set `FILECAT_FORCE_KEYBOARD_SOURCE=1` in a disposable run to exercise the
 Mac Tab/End fallback when AX reports a zero-size frame for the visible source
 tab after a certificate decision.

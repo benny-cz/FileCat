@@ -35,9 +35,7 @@ increments to `main`.
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
    Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and remaining
-   SFTP provider failures. Hear the revised operation-issue row's concise
-   severity, reason and complete-path announcement with Mac VoiceOver; the
-   headless tests and native macOS accessibility name pass.
+   SFTP provider failures.
    Recheck Mac VoiceOver's automatic remote warning after repeated FTPS
    certificate prompts: one preliminary native run exposed the warning
    visually but VoiceOver kept reading Destination. For FCUX-069/070, validate

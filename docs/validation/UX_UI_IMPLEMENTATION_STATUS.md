@@ -22,7 +22,11 @@ was the concise `Warning: A partial copy is left on the server ... Path:
 /.fc-3e0f7c0a-1`, with no raw record fields; the new runner assertion requires
 that complete stage path. Its source/target preservation and partial-stage
 checks also passed (`mac-ftp-issue-accessibility-94f16034-r2.json`). Native
-VoiceOver speech of that row remains to be heard directly.
+VoiceOver then spoke the concise warning and exact provider path after the
+native AX row was selected: `Warning: A partial copy is left on the server
+... Path: /.fc-b6442177-1 table row`. The `--disconnect-and-speak` journey
+preserved both files and the exact partial stage
+(`mac-ftp-issue-speech-94f16034-r1.json`).
 
 **25 October 2026, CI and reverted Win11 VM:** On `c10bb076`, Ubuntu CI run
 `40186163627` built successfully and passed 4,472 Core tests with 110 skips,
