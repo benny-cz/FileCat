@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated: 24 October 2026. Maintain this file after every validated batch. The
+Updated: 25 October 2026. Maintain this file after every validated batch. The
 [audit](FileCat_UX_UI_Audit.md) defines the acceptance criteria; the
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) records code, tests and
 evidence by finding. Work directly from the Git checkout and push reviewed
@@ -35,8 +35,11 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
    scaled/spoken FTP/FTPS replacement reviews, including implicit TLS, plus
-   Windows and Mac FTP/FTPS failure cleanup and remaining SFTP provider
-   failures. For FCUX-069/070, validate
+   Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
+   changed-destination staging cleanup, and remaining SFTP provider failures.
+   Recheck Mac VoiceOver's automatic remote warning after repeated FTPS
+   certificate prompts: one preliminary native run exposed the warning
+   visually but VoiceOver kept reading Destination. For FCUX-069/070, validate
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if

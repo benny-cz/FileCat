@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect and hear an isolated Mac remote replacement review.
 
-Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow]
+Usage: mac-ax-remote-warning.py BUNDLE.app REPORT.json FTP_HELPER ftp|ftpes|ftps|sftp [--probe|--narrow|--pointer-probe|--pointer-narrow|--pointer-race-probe|--ax-probe|--ax-narrow|--change-during-upload|--change-content-during-upload]
 The probes end at the expanded Copy options; pointer and AX modes skip keyboard panel switching.
 Narrow tests both reviews at 640 × 480 points.
 """
@@ -169,9 +169,11 @@ end tell
 
 
 def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe, ax_route,
-        pointer_focus_race):
+        pointer_focus_race, change_during_upload=False, same_metadata_change=False):
     trace_launch = os.environ.get("FILECAT_POINTER_TRACE", "")
     trace_mode = trace_launch in ("1", "open")
+    if (change_during_upload or same_metadata_change) and protocol == "sftp":
+        raise ValueError("Changed-target upload acceptance requires an owned FTP/FTPS server")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     ftp_helper = ftp_helper.resolve(strict=True)
@@ -193,9 +195,12 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
     for folder in (source_dir, server_dir, data):
         folder.mkdir(parents=True)
     source, target = source_dir / "target.txt", server_dir / "target.txt"
-    source.write_bytes(b"owned incoming content\n")
+    source.write_bytes((b"owned incoming content\n" * 50_000)[:1_000_000]
+                       if change_during_upload or same_metadata_change else b"owned incoming content\n")
     target.write_bytes(b"owned existing remote content\n")
     receipt = {"passed": False, "probe": probe, "narrow": narrow,
+               "changeDuringUpload": change_during_upload or same_metadata_change,
+               "sameMetadataChange": same_metadata_change,
                "pointerTraceEnabled": trace_mode, "pointerTraceLaunch": trace_launch,
                "pointerProbe": pointer_probe and probe, "axRoute": ax_route,
                "pointerFocusRace": pointer_focus_race,
@@ -294,8 +299,31 @@ def run(bundle, report_path, ftp_helper, protocol, probe, narrow, pointer_probe,
                                    node["name"].startswith("source, ") and
                                    node["name"].endswith(", " + str(source_dir)) and
                                    node["bounds"][2] > 8), None)
-                if source_tab is None:
-                    raise AssertionError("The exact local source tab is unavailable")
+                if source_tab is None or os.environ.get("FILECAT_FORCE_KEYBOARD_SOURCE") == "1":
+                    # macOS AX sometimes retains the exact visible tab but reports a
+                    # zero-sized frame after an FTPS certificate sheet closes. Use
+                    # FileCat's native panel switch and End key in that case.
+                    source_tab_unframed = next((node for node in nodes() if
+                        node["role"] == "AXButton" and node["name"].startswith("source, ") and
+                        node["name"].endswith(", " + str(source_dir))), None)
+                    if source_tab_unframed is None:
+                        raise AssertionError("The exact local source tab is unavailable")
+                    osa('''tell application "System Events" to tell process "FileCat"
+    set frontmost to true
+    key code 48
+    key code 119
+end tell''')
+                    wait_for(lambda: any(node["role"] == "AXWindow" and
+                             node["name"].startswith("source — FileCat") for node in nodes()),
+                             "keyboard activation of the exact local source panel", seconds=8)
+                    click_ax("AXButton", "Copy…")
+                    destination = wait_for(lambda: next((node["value"] for node in nodes() if
+                        node["role"] == "AXTextField" and node["name"] == "Destination"), None),
+                        "keyboard-route Copy review destination", seconds=6)
+                    if destination.rstrip("/") != address.rstrip("/"):
+                        raise AssertionError("Keyboard-route Copy review changed the destination")
+                    receipt["steps"].append("Zero-frame AX tab bypassed with native Tab and End")
+                    return
                 if ax_route:
                     click_ax("AXButton", source_tab["name"])
                     wait_for(lambda: any(node["role"] == "AXWindow" and
@@ -529,6 +557,51 @@ end tell''')
                            ("AXStaticText", "AXTextField")), None), "complete remote Replace warning")
         receipt["warningBounds"] = warning["bounds"]
         receipt["steps"].append("Complete replacement warning visible")
+        if change_during_upload or same_metadata_change:
+            receipt["warningScreenshot"] = capture_screen(validation)
+            set_field("Speed limit (MB/s):", "0.0625")
+            copies = [node for node in nodes() if node["role"] == "AXButton" and
+                      node["name"] == "Copy" and node["bounds"][2] > 8]
+            if not copies:
+                raise AssertionError("The upload Copy approval is absent")
+            click_node(max(copies, key=lambda node: node["bounds"][0]))
+
+            def partial_stage():
+                stages = [path for path in server_dir.iterdir() if path.is_file() and
+                          path.name.startswith(".fc-") and 0 < path.stat().st_size < source.stat().st_size]
+                return stages[0] if len(stages) == 1 else None
+
+            stage = wait_for(partial_stage, "partial owned upload stage", seconds=20)
+            receipt["stagedBytesBeforeChange"] = stage.stat().st_size
+            if same_metadata_change:
+                prior = target.stat()
+                changed = b"N" * prior.st_size
+                if changed == target.read_bytes():
+                    raise AssertionError("The new content must differ from the approved destination")
+                target.write_bytes(changed)
+                os.utime(target, ns=(prior.st_atime_ns, prior.st_mtime_ns))
+                current = target.stat()
+                if current.st_size != prior.st_size or current.st_mtime_ns != prior.st_mtime_ns:
+                    raise AssertionError("The controlled content change did not retain size and timestamp")
+                receipt["mutationKind"] = "same size and timestamp, different content"
+            else:
+                target.write_bytes(b"newer contents from another client\n")
+                receipt["mutationKind"] = "changed metadata and content"
+            receipt["targetSha256"] = sha256(target)
+            receipt["steps"].append("Another client changed the exact target during the rate-limited upload")
+            wait_for(lambda: not any(path.name.startswith(".fc-") for path in server_dir.iterdir()),
+                     "failed upload stage cleanup", seconds=45)
+            if sha256(target) != receipt["targetSha256"] or sha256(source) != receipt["sourceSha256"]:
+                raise AssertionError("The rejected replacement changed the newer target or incoming source")
+            receipt["cleanupIssue"] = wait_for(lambda: next((node["name"] for node in nodes() if
+                "destination changed on the server" in node["name"] or
+                "destination content changed on the server" in node["name"]), None),
+                "visible changed-target refusal", seconds=12)
+            if same_metadata_change and "destination content changed on the server" not in receipt["cleanupIssue"]:
+                raise AssertionError("The refusal did not identify the changed destination content")
+            receipt["steps"].append("The changed target was retained; stage was removed and refusal was visible")
+            receipt["passed"] = True
+            return receipt
         receipt["warningSpeech"] = wait_for(lambda: (phrase if warning_text in phrase else None)
                                               if (phrase := voiceover_last()) else None,
                                               "complete automatically spoken VoiceOver replacement warning", seconds=10)
@@ -675,12 +748,14 @@ end tell
 
 if __name__ == "__main__":
     if len(sys.argv) not in (5, 6) or sys.argv[4] not in ("ftp", "ftpes", "ftps", "sftp") or (
-            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow")):
+            len(sys.argv) == 6 and sys.argv[5] not in ("--probe", "--narrow", "--pointer-probe", "--pointer-narrow", "--pointer-race-probe", "--ax-probe", "--ax-narrow", "--change-during-upload", "--change-content-during-upload")):
         raise SystemExit(__doc__)
     result = run(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
                  sys.argv[4], len(sys.argv) == 6 and sys.argv[5] in ("--probe", "--pointer-probe", "--pointer-race-probe", "--ax-probe"),
                  len(sys.argv) == 6 and sys.argv[5] in ("--narrow", "--pointer-narrow", "--ax-narrow"),
                  len(sys.argv) == 6 and sys.argv[5] in ("--pointer-probe", "--pointer-narrow", "--pointer-race-probe"),
                  len(sys.argv) == 6 and sys.argv[5] in ("--ax-probe", "--ax-narrow"),
-                 len(sys.argv) == 6 and sys.argv[5] == "--pointer-race-probe")
+                 len(sys.argv) == 6 and sys.argv[5] == "--pointer-race-probe",
+                 len(sys.argv) == 6 and sys.argv[5] == "--change-during-upload",
+                 len(sys.argv) == 6 and sys.argv[5] == "--change-content-during-upload")
     raise SystemExit(0 if result["passed"] else 1)

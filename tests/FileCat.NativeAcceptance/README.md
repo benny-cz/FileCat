@@ -308,6 +308,19 @@ by pointer and open the Copy review; it makes no transfer. `--pointer-narrow`
 uses the same pointer route and completes both 640 × 480 warning reviews.
 `--ax-probe` and `--ax-narrow` activate the same exact source tab through
 macOS accessibility, independently of physical pointer focus.
+`--change-during-upload` uses FTP or either FTPS mode to start a rate-limited
+Replace of a 1 MB local source. Only after the exact owned stage has partial
+bytes does another client change the test-owned destination. The runner
+requires a visible changed-destination refusal, removal of the owned stage,
+an unchanged local source, and the newer destination as the only server item.
+This focused failure-path route checks the visible replacement warning;
+the default route separately checks its automatic VoiceOver speech.
+`--change-content-during-upload` keeps the destination's size and exact
+modification timestamp while changing its bytes, then requires the more
+specific changed-content refusal with the same preservation and cleanup.
+Set `FILECAT_FORCE_KEYBOARD_SOURCE=1` in a disposable run to exercise the
+Mac Tab/End fallback when AX reports a zero-size frame for the visible source
+tab after a certificate decision.
 `mac-sftp-owned-selftest.py REPORT.json` independently verifies that the
 disposable SFTP service lists only the expected fixture file and stops its
 server process afterward. The same script's `prepare` mode supplies the

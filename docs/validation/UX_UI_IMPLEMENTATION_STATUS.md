@@ -1,5 +1,36 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Mac FTP/FTPS changed-destination cleanup
+(FCUX-001):** The signed Git-built arm64 app (DLL SHA-256
+`671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)
+ran a 1 MB rate-limited Replace from the Mac UI against fresh, owned
+loopback FTP, explicit-TLS FTPS and implicit-TLS FTPS servers. Only after an
+exact `.fc-` stage held 262,144 incoming bytes did another client change
+the destination. All three protocols showed a changed-destination refusal,
+removed the stage, preserved the source and newer destination byte-exactly,
+and left only `target.txt` on the server
+(`mac-remote-change-during-upload-ftp-20261024-r1.json`,
+`mac-remote-change-during-upload-ftpes-20261024-r3.json`,
+`mac-remote-change-during-upload-ftps-20261024-r1.json`). A separate
+implicit-TLS run changed the destination's bytes while restoring its exact
+size and modification timestamp. FileCat emitted the more specific
+changed-content refusal and made the same cleanup and preservation checks
+(`mac-remote-change-content-ftps-20261025-r1.json`). The acceptance runner
+now isolates these failure paths from the existing spoken-warning journey
+and records the visible warning, exact stage prefix, refusal and final
+manifest. One preliminary explicit-TLS run stopped because VoiceOver kept
+reading the Destination field despite the visible warning; a second had a
+zero-size AX frame for the visible source tab after certificate approval.
+The runner gained a native Tab/End fallback for that intermittent AX frame;
+the subsequent explicit-TLS and implicit-TLS runs passed. A forced fallback
+implicit-TLS run also reached the exact source and destination, refused the
+changed target, removed its stage and preserved both files
+(`mac-remote-keyboard-fallback-ftps-20261025-r1.json`). The dedicated
+warning-speech journeys passed earlier, but announcement reliability after
+repeated certificate prompts remains to be rechecked. CI run
+`40122291509` passed producer, Windows, Ubuntu, macOS and Windows ARM64 on
+the preceding `4cf147cd` main head.
+
 **24 October 2026, Ubuntu decision focus and inline Rename accessibility
 (FCUX-004):** On uninstrumented Git-built `6825ecb2` (app DLL SHA-256
 `a025ecf6e8863580bf78551ace41e68d2c7b961251d02d51fc079d760e42262d`),
