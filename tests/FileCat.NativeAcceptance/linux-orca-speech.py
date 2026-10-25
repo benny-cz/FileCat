@@ -202,6 +202,8 @@ def main():
         step("tab back to the source panel", key("tab"), says("c.txt"))
         step("F7 opens Create folder", key("f7"), lambda phrase: "folder" in phrase.casefold())
         step("Escape returns to the list", key("escape"), says("c.txt"))
+        step("F8 opens Delete review", key("f8"), lambda phrase: "delete" in phrase.casefold())
+        step("Escape cancels Delete review", key("escape"), says("c.txt"))
         # The first notice after startup, then the same notice again, must each be announced.
         step("Ctrl+C announces the copy notice", key("ctrl+c"), says("Copied 1 item"))
         step("a repeated copy is announced again", key("ctrl+c"), says("Copied 1 item"))
