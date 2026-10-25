@@ -26,16 +26,6 @@ NAME = "native-viewer-mode-layout.txt"
 CONTENT = ("FileCat viewer layout sample with a long but readable line that should remain usable in narrow and wide windows.\n" * 80).encode()
 
 
-def focused_name():
-    return osa('''
-tell application "System Events" to tell process "FileCat"
-    set frontmost to true
-    set e to value of attribute "AXFocusedUIElement"
-    return name of e as text
-end tell
-''')
-
-
 def viewer_title():
     return osa('''
 tell application "System Events" to tell process "FileCat"
@@ -50,28 +40,7 @@ end tell
 def open_exact(name):
     click_named("AXButton", "Reread")
     time.sleep(0.5)
-    focused = osa(f'''
-tell application "System Events" to tell process "FileCat"
-    set frontmost to true
-    set targetRow to missing value
-    set rowNames to {{}}
-    set allElements to entire contents of window 1
-    repeat with e in allElements
-        try
-            if (role of e as text) is "AXRow" then
-                set end of rowNames to (name of e as text)
-                if (name of e as text) is {json.dumps(name)} then set targetRow to e
-            end if
-        end try
-    end repeat
-    if targetRow is missing value then return "missing: " & (name of window 1 as text) & " rows=" & (rowNames as text)
-    set focused of targetRow to true
-    if not (focused of targetRow) then error "Row did not receive focus"
-    return "focused"
-end tell
-''')
-    if focused != "focused" or focused_name() != name:
-        raise AssertionError(f"Could not focus {name}: {focused}; actual={focused_name()}")
+    click_named("AXRow", name)
     # AXPress invokes Open, which can launch an external handler. View opens
     # FileCat's viewer for the exact focused item on every supported mode.
     click_named("AXButton", "View")
