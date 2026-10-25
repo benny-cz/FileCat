@@ -7,6 +7,7 @@ Usage: python3 mac-ax-hex-editor-resize.py SOURCE FileCatCapture.app REPORT.json
 import hashlib
 import json
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -17,6 +18,45 @@ editor = runpy.run_path(str(directory / "mac-ax-hex-editor-backward.py"))
 viewer = runpy.run_path(str(directory / "mac-ax-viewer-mode-layout.py"))
 NAME = editor["FIXTURE_NAME"]
 CONTENT = bytes(range(256)) * 32
+
+
+def hex_row():
+    value = editor["osa"]('''
+on hexValue(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        set itemName to ""
+        try
+            set itemName to name of itemRef as text
+        end try
+        if itemName contains "row 00000000:" then return itemName
+        try
+            repeat with childRef in (UI elements of itemRef)
+                set found to my hexValue(childRef, depth + 1)
+                if found is not "" then return found
+            end repeat
+        end try
+    end tell
+    return ""
+end hexValue
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Hex Editor" then
+                return my hexValue(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+error "Owned Hex editor absent"
+''')
+    match = re.search(r"row 00000000: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
+    if match is None:
+        raise AssertionError(f"The Mac Hex row is not exposed: {value[:350]!r}")
+    row = re.findall(r"\b[0-9A-F]{2}\b", match.group(1))
+    if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
+        raise AssertionError(f"Mac Hex row bytes differ: {row!r}")
+    return {"bytesPerRow": len(row), "firstRow": row}
 
 
 def raise_editor():
@@ -97,8 +137,10 @@ def run(source, helper):
                 raise AssertionError(f"Hex editor did not expand from its narrow frame: {actual}")
             raise_editor()
             time.sleep(0.5)
-            states[label] = {"size": actual, "nativeDrags": drags,
+            states[label] = {"size": actual, "row": hex_row(), "nativeDrags": drags,
                              "capture": viewer["capture"](helper, validation)}
+        if states["wide"]["row"]["bytesPerRow"] <= states["narrow"]["row"]["bytesPerRow"]:
+            raise AssertionError(f"Hex editor did not fit more complete bytes after widening: {states!r}")
         if hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Hex editor resize changed its source bytes")
         return {"passed": True, "platform": "macOS", "mode": "Hex editor",

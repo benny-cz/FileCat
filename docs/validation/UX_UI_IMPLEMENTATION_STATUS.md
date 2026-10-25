@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Mac Hex reflow (UXBUG-020):** A fresh, isolated
+Git checkout at `38bc114c` was published directly on the Mac as an ad-hoc
+signed validation app, without a ZIP archive (DLL SHA-256
+`7451b60b539c14ada1e1e66d7d642f2ce9657f4fe14c04f0e21dc5b350b7082f`).
+The strengthened `mac-ax-viewer-mode-layout.py` asserted the actual first
+Hex row against fixture bytes: a 720 × 500 logical-point viewer fitted 16
+bytes and a 1,220 × 700 viewer fitted 32. Its Text and Info narrow/wide
+journeys also passed. `mac-ax-hex-editor-resize.py` asserted the same source
+mapping in a pointer-shrunk 720 × 500 editor (16 bytes) and a widened
+1,013 × 602 editor (24 bytes). Both native reports passed, retained exact
+source SHA-256, and removed only their own fixture. The Mac's unrelated
+FaceTime system prompt was dismissed with its identified **Later** action
+before the final captures. Reports are
+`mac-viewer-hex-row-reflow-38bc114c-r1.json` and
+`mac-hex-editor-row-reflow-38bc114c-r4.json` in the Mac validation folder.
+Mac scrollbar-thumb and combined editor interaction checks remain open.
+
 **25 October 2026, native Windows Hex editor (UXBUG-020):** The same
 Git-built `15a1a9c5` Windows VM app passed the editor route of
 `win-ax-hex-scrollbar.ps1` twice with a native pointer dwell

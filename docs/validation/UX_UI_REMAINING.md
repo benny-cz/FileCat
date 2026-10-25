@@ -114,8 +114,11 @@ increments to `main`.
    upstream if the owner agrees.
    UXBUG-020 still needs scaled Ubuntu checks and combined editor search,
    selection, scroll, zoom and pointer alignment while resizing on the
-   supported desktops. Recheck the newly reported scrollbar-thumb drag on
-   Ubuntu and Mac: dragging or releasing the thumb must
+   supported desktops. Mac viewer and editor narrow/wide Hex row reflow now
+   pass with exact fixture bytes. The Ubuntu guest's `scaling-factor=2` setting
+   left the tested native window at scale 1, so it did not close scaled
+   acceptance; the original automatic setting was restored. Recheck the
+   newly reported scrollbar-thumb drag on Ubuntu and Mac: dragging or releasing the thumb must
    not create or alter a byte selection, while a drag begun in the content
    must still select bytes.
 

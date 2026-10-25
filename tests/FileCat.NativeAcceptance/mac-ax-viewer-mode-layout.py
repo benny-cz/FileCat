@@ -9,6 +9,7 @@ runner's temporary file is created and removed.
 import hashlib
 import json
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -24,6 +25,45 @@ capture = base["capture"]
 osa = base["osa"]
 NAME = "native-viewer-mode-layout.txt"
 CONTENT = ("FileCat viewer layout sample with a long but readable line that should remain usable in narrow and wide windows.\n" * 80).encode()
+
+
+def hex_row():
+    value = osa('''
+on hexValue(itemRef, depth)
+    if depth > 25 then return ""
+    tell application "System Events"
+        set itemName to ""
+        try
+            set itemName to name of itemRef as text
+        end try
+        if itemName contains "row 00000000:" then return itemName
+        try
+            repeat with childRef in (UI elements of itemRef)
+                set found to my hexValue(childRef, depth + 1)
+                if found is not "" then return found
+            end repeat
+        end try
+    end tell
+    return ""
+end hexValue
+tell application "System Events"
+    tell process "FileCat"
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Viewer" then
+                return my hexValue(w, 0)
+            end if
+        end repeat
+    end tell
+end tell
+error "Owned viewer absent"
+''')
+    match = re.search(r"row 00000000: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
+    if match is None:
+        raise AssertionError(f"The Mac viewer Hex row is not exposed: {value[:350]!r}")
+    row = re.findall(r"\b[0-9A-F]{2}\b", match.group(1))
+    if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
+        raise AssertionError(f"Mac viewer Hex row bytes differ: {row!r}")
+    return {"bytesPerRow": len(row), "firstRow": row}
 
 
 def viewer_title():
@@ -110,6 +150,10 @@ def run(source, helper):
                     raise AssertionError(f"{mode} {label}: {last_error}; capture={capture(helper, validation)}") from last_error
                 time.sleep(0.6)
                 states[label] = {"size": actual_size, "capture": capture(helper, validation)}
+                if mode == "Hex":
+                    states[label]["row"] = hex_row()
+            if mode == "Hex" and states["wide"]["row"]["bytesPerRow"] <= states["narrow"]["row"]["bytesPerRow"]:
+                raise AssertionError(f"Viewer Hex row did not expand with the window: {states!r}")
             result["modes"][mode] = states
         if hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Viewer layout checks changed their source bytes")

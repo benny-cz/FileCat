@@ -1415,6 +1415,12 @@ codesign --force --sign - "$capture_root/FileCatCapture.app"
 open -a "$capture_root/FileCatCapture.app"
 ```
 
+For a fresh FileCat test app, use `mac-publish-git-validation.sh CHECKOUT
+EXPECTED_FULL_REVISION` on the Mac. It requires a clean tracked Git checkout
+inside `~/FileCatValidation`, builds that exact revision with the isolated
+.NET SDK, creates a new ad-hoc signed validation `.app` and prints the DLL
+hash. It refuses to replace an existing bundle and creates no ZIP archive.
+
 Grant Screen & System Audio Recording to `FileCatCapture` in macOS System
 Settings when it appears. Launch again with `open -a`; each successful run
 creates a new `native-screen-*.png` in the isolated validation folder. Launch
@@ -1440,7 +1446,8 @@ isolated `FileCatValidation/source` panel. It opens only its own text fixture,
 checks the exact viewer title and source bytes, and captures Text, Hex and
 Info at approximately 720 × 500 and 1,220 × 700 logical points. Inspect all
 six screenshots for wrapping, controls and scrollbars; the runner verifies
-the native sizes and removes its fixture. It focuses the exact AX row and
+the native sizes, the exact first Hex row bytes and a larger fitted Hex row
+after widening, then removes its fixture. It focuses the exact AX row and
 uses FileCat's View command, which avoids an external Open handler.
 
 `python3 mac-ax-viewer-media-layout.py SOURCE FileCatCapture.app REPORT.json`
