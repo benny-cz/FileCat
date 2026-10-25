@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Windows scaled Hex pointer investigation (UXBUG-020):**
+The isolated VMware guest ran the Git-built `15a1a9c5` Hex viewer at 150%
+(measured window DPI 144), then was restored to its original 100%. The native
+runner now measures DPI for content-drag coordinates, uses `SendInput` for
+button events, verifies the thumb under the pointer, records the scrollbar's
+RangeValue and final cursor coordinates, and leaves the viewer foreground
+between consecutive drags. Its 100% control run passed: 16 to 24 bytes per
+row, byte 2,184 down and byte 0 back, exact four-byte explicit selection
+preserved, source SHA-256 unchanged and target empty. At 150%,
+`hex-scrollbar-viewer-150-value-r1.json` passed all those checks (8 to 16
+bytes per row, byte 1,456 down and byte 0 back), but an immediate repeat
+`hex-scrollbar-viewer-150-value-r2.json` left the scrollbar RangeValue and
+viewport at zero after its first physical drag despite a UIA hit on the thumb.
+Earlier 150% attempts sometimes moved down but not back. Each attempt
+verified exact source bytes, an empty target and removal of its owned fixture.
+This is inconsistent native input evidence; the scaled Windows thumb route
+remains open pending a repeatable pointer delivery check and, if the app is at
+fault, a product fix. The guest's display-scale restoration receipt selected
+100% after the final run.
+
 **25 October 2026, Ubuntu spoken inline Rename (FCUX-004):** The native Orca
 50.2 journey now checks physical F2, the focused inline field's spoken name and
 entry role, and physical Escape back to the same file row. The Git-built Ubuntu

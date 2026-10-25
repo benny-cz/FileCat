@@ -14,33 +14,59 @@ using System;
 using System.Runtime.InteropServices;
 public static class FileCatHexPointer {
     [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] public struct Point { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] public struct MouseInput {
+        public int X, Y;
+        public uint MouseData, Flags, Time;
+        public IntPtr ExtraInfo;
+    }
+    [StructLayout(LayoutKind.Sequential)] public struct Input {
+        public uint Type;
+        public MouseInput Mouse;
+    }
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr handle);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr handle, int command);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point point);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out Rect rect);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr handle);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr handle, IntPtr after,
         int x, int y, int width, int height, uint flags);
-    [DllImport("user32.dll")] public static extern void mouse_event(int flags, int dx, int dy, int data, int extra);
+    [DllImport("user32.dll", SetLastError = true)] private static extern uint SendInput(
+        uint count, Input[] inputs, int size);
+    private static void Button(uint flag) {
+        var input = new Input { Type = 0, Mouse = new MouseInput { Flags = flag } };
+        if (SendInput(1, new[] { input }, Marshal.SizeOf<Input>()) != 1)
+            throw new InvalidOperationException("Native pointer button input was rejected.");
+    }
     public static void Click(int x, int y) {
         SetCursorPos(x, y); System.Threading.Thread.Sleep(60);
-        mouse_event(2, 0, 0, 0, 0); System.Threading.Thread.Sleep(60);
-        mouse_event(4, 0, 0, 0, 0);
+        Button(2); System.Threading.Thread.Sleep(60);
+        Button(4);
     }
     public static void DragXY(int x, int y, int targetX, int targetY) {
         if (!SetCursorPos(x, y)) throw new InvalidOperationException("Cannot position test pointer.");
         System.Threading.Thread.Sleep(80);
-        mouse_event(2, 0, 0, 0, 0);
-        System.Threading.Thread.Sleep(120);
-        for (int step = 1; step <= 16; step++) {
-            SetCursorPos(x + (targetX - x) * step / 16, y + (targetY - y) * step / 16);
-            System.Threading.Thread.Sleep(25);
+        Button(2);
+        try {
+            System.Threading.Thread.Sleep(120);
+            for (int step = 1; step <= 16; step++) {
+                if (!SetCursorPos(x + (targetX - x) * step / 16, y + (targetY - y) * step / 16))
+                    throw new InvalidOperationException("Cannot move test pointer during drag.");
+                System.Threading.Thread.Sleep(25);
+            }
         }
-        mouse_event(4, 0, 0, 0, 0);
+        finally { Button(4); }
         System.Threading.Thread.Sleep(250);
     }
     public static void Drag(int x, int y, int targetY) { DragXY(x, y, x, targetY); }
+    public static string CursorPosition() {
+        Point point;
+        if (!GetCursorPos(out point)) throw new InvalidOperationException("Cannot read test pointer position.");
+        return point.X + "," + point.Y;
+    }
     public static uint ForegroundProcessId() {
         uint id;
         GetWindowThreadProcessId(GetForegroundWindow(), out id);
@@ -150,7 +176,16 @@ function Thumb($viewer) {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Thumb -and
             !$_.Current.IsOffscreen
         }) 'Hex scrollbar thumb'
-    return @{ Bar = $bar.Current.BoundingRectangle; Thumb = $thumb.Current.BoundingRectangle }
+    $range = [System.Windows.Automation.RangeValuePattern]$bar.GetCurrentPattern(
+        [System.Windows.Automation.RangeValuePattern]::Pattern)
+    return @{ Bar = $bar.Current.BoundingRectangle; Thumb = $thumb.Current.BoundingRectangle;
+        Value = $range.Current.Value }
+}
+function Hit([int]$x, [int]$y) {
+    $element = [System.Windows.Automation.AutomationElement]::FromPoint(
+        [System.Windows.Point]::new($x, $y))
+    if (!$element) { return 'none' }
+    return "$($element.Current.ControlType.ProgrammaticName) / $($element.Current.Name) / $($element.Current.ClassName)"
 }
 
 try {
@@ -225,6 +260,10 @@ try {
     # Resize the real top-level window and verify that the row layout changes.
     $handle = [IntPtr]$viewer.Current.NativeWindowHandle
     [FileCatHexPointer]::ShowWindow($handle, 9) | Out-Null
+    $windowDpi = [FileCatHexPointer]::GetDpiForWindow($handle)
+    if ($windowDpi -lt 96 -or $windowDpi -gt 384) { throw "Invalid native Hex window DPI: $windowDpi" }
+    $scale = $windowDpi / 96.0
+    $result.windowDpi = $windowDpi
     $rect = [FileCatHexPointer+Rect]::new()
     if (![FileCatHexPointer]::GetWindowRect($handle, [ref]$rect)) { throw 'Cannot read viewer bounds.' }
     if (![FileCatHexPointer]::SetWindowPos($handle, [IntPtr]::Zero, $rect.Left, $rect.Top,
@@ -252,7 +291,11 @@ try {
     $startY = [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2)
     $travel = [int][Math]::Min(150, [Math]::Max(40, $scroll.Bar.Height / 3))
     FocusOwnedWindow $viewer
+    $result.firstThumbBounds = "$($scroll.Thumb)"
+    $result.firstThumbHit = Hit $startX $startY
     [FileCatHexPointer]::Drag($startX, $startY, $startY + $travel)
+    $result.firstCursorAfter = [FileCatHexPointer]::CursorPosition()
+    $result.firstBarValue = (Thumb $viewer).Value
     $after = Status $viewer
     $viewport = Offset $after 'viewport begins at byte ([0-9][0-9.,\p{Zs}]*)'
     $result.firstViewportByte = $viewport
@@ -260,15 +303,21 @@ try {
         (Offset $after '^Offset ([0-9][0-9.,\p{Zs}]*) of') -ne $initialCursor) {
         throw "Scrollbar drag selected or moved the cursor, or did not scroll: $after"
     }
-    Start-Sleep -Milliseconds 350
+    Start-Sleep -Milliseconds 1000
     $scroll = Thumb $viewer
     $result.reverseThumbBounds = "$($scroll.Thumb)"
     $result.reverseBarBounds = "$($scroll.Bar)"
-    FocusOwnedWindow $viewer
+    if ([FileCatHexPointer]::GetForegroundWindow() -ne $handle) {
+        throw 'Hex viewer lost foreground before the reverse thumb drag.'
+    }
+    $result.reverseThumbHit = Hit ([int]($scroll.Thumb.X + $scroll.Thumb.Width / 2)) `
+        ([int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2))
     [FileCatHexPointer]::Drag([int]($scroll.Thumb.X + $scroll.Thumb.Width / 2),
         [int]($scroll.Thumb.Y + $scroll.Thumb.Height / 2),
         [int][Math]::Max($scroll.Bar.Y + 10,
             $scroll.Thumb.Y + $scroll.Thumb.Height / 2 - $travel))
+    $result.reverseCursorAfter = [FileCatHexPointer]::CursorPosition()
+    $result.reverseBarValue = (Thumb $viewer).Value
     $afterUp = $null
     $upViewport = $viewport
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
@@ -285,11 +334,14 @@ try {
     # A prior explicit selection must survive a second thumb drag.
     $hex = Hex $viewer
     $content = $hex.Current.BoundingRectangle
-    $startX = [int]($content.X + 20)
-    $endX = [int]($content.X + 160)
-    $rowY = [int]($content.Y + 12)
+    # UIA and SetCursorPos use physical pixels; the original offsets are
+    # layout units. Scale them with the actual viewer window DPI.
+    $startX = [int]($content.X + 20 * $scale)
+    $endX = [int]($content.X + 160 * $scale)
+    $rowY = [int]($content.Y + 12 * $scale)
     $result.explicitContentDrag = "$startX,$rowY to $endX,$rowY"
     FocusOwnedWindow $viewer
+    $result.contentHit = Hit $startX $rowY
     [FileCatHexPointer]::DragXY($startX, $rowY, $endX, $rowY)
     $selected = Status $viewer
     if ($selected -notmatch 'Selected bytes 0 through 3, 4 bytes') {

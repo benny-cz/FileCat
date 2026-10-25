@@ -115,9 +115,12 @@ increments to `main`.
    non-Windows scaled visuals and actual screen-reader speech on each desktop.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
-   UXBUG-020 still needs scaled Ubuntu physical pointer checks and combined
-   editor search, selection, scroll, zoom and pointer alignment while resizing
-   on the supported desktops. Mac viewer and editor narrow/wide Hex row
+   UXBUG-020 still needs scaled Ubuntu and Windows physical pointer checks and
+   combined editor search, selection, scroll, zoom and pointer alignment while
+   resizing on the supported desktops. The Windows 150% thumb route alternated
+   between complete success and no ScrollBar value change despite a UIA thumb
+   hit; establish repeatable native pointer delivery before assigning a
+   product cause. Mac viewer and editor narrow/wide Hex row
    reflow pass with exact fixture bytes. GNOME temporarily reported 200%
    scaling and the Hex row reflow assertions passed, but its physical uinput
    drag did not move the viewport; a 125% change left Xwayland's prior 192 DPI
