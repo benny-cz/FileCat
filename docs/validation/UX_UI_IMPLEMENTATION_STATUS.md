@@ -188,6 +188,15 @@ while persistent unknowns still refuse recovery. The focused App recovery
 tests and Windows identity tests pass. The updated native UI scan and
 off-source recovery on `G:` remain to be checked.
 
+**25 October 2026, Mac FTPS replacement speech retry (FCUX-001):** A second
+native implicit-TLS certificate and replacement review showed the full amber
+warning, but VoiceOver stayed on Destination and did not announce it. The
+first implicit-TLS run and two explicit-TLS runs had spoken it. Because this
+warning concerns possible loss of a newer remote file, both the transfer
+form and per-item conflict review now use assertive live announcements. The
+nine focused transfer and conflict warning tests pass; repeated native
+VoiceOver acceptance of the new build remains open.
+
 **24 October 2026, native Mac implicit-FTPS large listing (FCUX-010):** The
 same signed Git-built arm64 candidate (app DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`)

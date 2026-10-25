@@ -68,6 +68,7 @@ public sealed class TransferDestinationValidationTests
             await Until(() => warning.IsVisible);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
+            Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(warning));
             Assert.Equal(warning.Text, AutomationProperties.GetHelpText(conflicts));
             await Until(() => spokenWarnings.Count == 1);
             Assert.Equal([OperationDialogs.RemoteReplacementWarning], spokenWarnings);

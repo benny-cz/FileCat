@@ -150,7 +150,7 @@ public static class OperationDialogs
             Classes = { "warning" }, IsVisible = false,
         };
         AutomationProperties.SetAutomationId(remoteReplacementWarning, "Remote replacement concurrency warning");
-        AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Assertive);
         var optionsPanel = new StackPanel { Spacing = 4 };
         // Keep the consequential warning beside the choice. Placing it after
         // the full options form left it below the viewport in a narrow window.
@@ -481,7 +481,7 @@ public static class OperationDialogs
         {
             remoteReplacementWarning = new TextBlock { Text = RemoteReplacementWarning, TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
             AutomationProperties.SetAutomationId(remoteReplacementWarning, "Remote replacement concurrency warning");
-            AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Polite);
+            AutomationProperties.SetLiveSetting(remoteReplacementWarning, AutomationLiveSetting.Assertive);
             body.Children.Add(remoteReplacementWarning);
         }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });

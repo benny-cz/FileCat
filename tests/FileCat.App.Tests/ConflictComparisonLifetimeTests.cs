@@ -71,6 +71,7 @@ public sealed class ConflictComparisonLifetimeTests
                 Dispatcher.UIThread.RunJobs();
                 Assert.True(warning.IsVisible);
                 Assert.Equal(OperationDialogs.RemoteReplacementWarning, warning.Text);
+                Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(warning));
                 for (int i = 0; i < 100 && spokenWarnings.Count == 0; i++)
                     await Task.Delay(20, TestContext.Current.CancellationToken);
                 Assert.Equal([OperationDialogs.RemoteReplacementWarning], spokenWarnings);
