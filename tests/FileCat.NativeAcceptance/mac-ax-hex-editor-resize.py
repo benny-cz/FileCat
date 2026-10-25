@@ -19,6 +19,29 @@ NAME = editor["FIXTURE_NAME"]
 CONTENT = bytes(range(256)) * 32
 
 
+def raise_editor():
+    for _ in range(5):
+        first = editor["osa"]('''
+tell application "System Events"
+    tell process "FileCat"
+        set frontmost to true
+        repeat with w in windows
+            if (name of w as text) contains "FileCat Hex Editor" then
+                perform action "AXRaise" of w
+                delay 0.2
+                return name of window 1 as text
+            end if
+        end repeat
+        error "Owned Hex editor absent"
+    end tell
+end tell
+''')
+        if "FileCat Hex Editor" in first:
+            return
+        time.sleep(0.2)
+    raise AssertionError(f"Hex editor did not come to the foreground: {first}")
+
+
 def run(source, helper):
     source = source.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -61,6 +84,7 @@ def run(source, helper):
             if label == "wide" and (actual[0] < states["narrow"]["size"][0] + 200
                                     or actual[1] < states["narrow"]["size"][1] + 100):
                 raise AssertionError(f"Hex editor did not expand from its narrow frame: {actual}")
+            raise_editor()
             time.sleep(0.5)
             states[label] = {"size": actual, "nativeDrags": drags,
                              "capture": viewer["capture"](helper, validation)}
