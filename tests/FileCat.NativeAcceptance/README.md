@@ -1280,6 +1280,15 @@ pass and Orca's `SPEECH OUTPUT` records contain one, two, then one distinct
 match for the changed query. The JSON summary retains paths to the private
 Orca log and native report, and the wrapper closes only its owned processes.
 
+`linux-atspi-hex-resize.py APP REPORT.json` checks native Hex row reflow,
+search selection, zoom and viewport anchor in both viewer and editor. It also
+uses `linux-uinput-pointer.py` for a physical thumb drag down and back,
+asserts no implicit byte selection, selects exact bytes 0–3 through a drag
+started in content, and checks another thumb drag preserves them. Supply
+`FILECAT_NATIVE_SUDO_PASSWORD` only to this runner; it removes the value from
+the environment before launching its exact Git-built FileCat process. The
+uinput mouse is destroyed at the end of each viewer/editor check.
+
 ## macOS logged-in desktop
 
 `python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json` follows the macOS

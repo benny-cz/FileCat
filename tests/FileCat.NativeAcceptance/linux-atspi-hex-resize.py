@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import runpy
+import select
 import shutil
 import subprocess
 import sys
@@ -30,7 +31,6 @@ wait_for = common["wait_for"]
 checked_action = common["checked_action"]
 close_viewer = common["close_viewer"]
 viewer_window_id = common["exact_viewer_window_id"]
-send_key = common["send_key"]
 
 NAME = "hex-resize.bin"
 CONTENT = bytes(range(256)) * 32
@@ -90,7 +90,153 @@ def top_byte(value):
     return int(match.group(1).replace(",", ""))
 
 
+def send_native_key(helper, chord, sudo_password):
+    sent = subprocess.run(["sudo", "-S", sys.executable, str(helper), chord],
+                          input=sudo_password + "\n", text=True,
+                          capture_output=True, timeout=15)
+    if sent.returncode:
+        raise AssertionError(f"Native {chord} key failed: {sent.stderr[-300:]}")
+
+
+class PhysicalMouse:
+    def __init__(self, helper, sudo_password):
+        self.process = subprocess.Popen(["sudo", "-k", "-S", sys.executable, str(helper)],
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, text=True, bufsize=1)
+        self.pressed = False
+        self.process.stdin.write(sudo_password + "\n")
+        self.process.stdin.flush()
+        if not select.select([self.process.stdout], [], [], 5)[0] or self.process.stdout.readline().strip() != "READY":
+            self.close()
+            raise AssertionError("The isolated physical mouse did not become ready")
+        self.send("MOVE 1 1")  # Take over the Wayland cursor before measuring it.
+
+    def send(self, instruction):
+        self.process.stdin.write(instruction + "\n")
+        self.process.stdin.flush()
+        if not select.select([self.process.stdout], [], [], 5)[0] or self.process.stdout.readline().strip() != "OK":
+            raise AssertionError(f"Physical mouse did not acknowledge {instruction.split()[0]}")
+        if instruction == "DOWN":
+            self.pressed = True
+        elif instruction == "UP":
+            self.pressed = False
+
+    def position(self):
+        raw = command("/usr/bin/xdotool", "getmouselocation", "--shell")
+        found = dict(re.findall(r"^(X|Y)=([0-9]+)$", raw, re.MULTILINE))
+        if len(found) != 2:
+            raise AssertionError(f"Cannot locate physical VM cursor: {raw!r}")
+        return int(found["X"]), int(found["Y"])
+
+    def align(self, target_x, target_y):
+        for _ in range(16):
+            current_x, current_y = self.position()
+            delta_x, delta_y = target_x - current_x, target_y - current_y
+            if abs(delta_x) <= 2 and abs(delta_y) <= 2:
+                return current_x, current_y
+            step_x = max(-500, min(500, round(delta_x * 0.6)))
+            step_y = max(-500, min(500, round(delta_y * 0.6)))
+            self.send(f"MOVE {step_x} {step_y}")
+        raise AssertionError(f"Physical mouse missed {target_x, target_y}: {self.position()}")
+
+    def drag(self, start_x, start_y, delta_x, delta_y):
+        self.align(start_x, start_y)
+        self.send("DOWN")
+        try:
+            time.sleep(0.12)
+            for step in range(10):
+                x = round(delta_x * (step + 1) / 10) - round(delta_x * step / 10)
+                y = round(delta_y * (step + 1) / 10) - round(delta_y * step / 10)
+                self.send(f"MOVE {x} {y}")
+            time.sleep(0.12)
+        finally:
+            self.send("UP")
+        return self.position()
+
+    def close(self):
+        if self.process.poll() is None:
+            try:
+                if self.pressed:
+                    self.send("UP")
+                self.send("QUIT")
+            except (AssertionError, BrokenPipeError):
+                pass
+            self.process.stdin.close()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=5)
+        self.process.stdout.close()
+        self.process.stderr.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _kind, _value, _traceback):
+        self.close()
+
+
+def scrollbar_drag_check(window, window_id, scale, validation, sudo_password):
+    command("/usr/bin/wmctrl", "-ia", window_id)
+    bar = find(window, "scroll bar", "Hex vertical position")
+    if bar is None:
+        raise AssertionError("The Hex scrollbar is absent")
+    area = bar.get_component().get_extents(Atspi.CoordType.SCREEN)
+    if area.width < 10 * scale or area.height < 150 * scale:
+        raise AssertionError(f"The Hex scrollbar has implausible bounds: {area}")
+    x = round(area.x + area.width / 2)
+    start_y = round(area.y + 26 * scale)
+    end_y = min(round(area.y + area.height - 26 * scale), start_y + round(100 * scale))
+    before = hex_value(window)
+    if top_byte(before) != 0 or "No byte selection" not in before or not before.startswith("Offset 0 of"):
+        raise AssertionError(f"The Hex thumb test did not start at byte zero: {before!r}")
+    helper = validation / "linux-uinput-pointer.py"
+    if not helper.is_file():
+        raise AssertionError("The isolated physical pointer helper is absent")
+    with PhysicalMouse(helper, sudo_password) as mouse:
+        down_pointer = mouse.drag(x, start_y, 0, end_y - start_y)
+        down = hex_value(window)
+        if top_byte(down) <= 0 or "No byte selection" not in down or not down.startswith("Offset 0 of"):
+            raise AssertionError(f"The Hex thumb drag did not scroll without selection: "
+                                 f"{[area.x, area.y, area.width, area.height]!r}, "
+                                 f"pointer={down_pointer!r}, {down!r}")
+        up_pointer = mouse.drag(*down_pointer, 0, start_y - down_pointer[1] - 30)
+        up = hex_value(window)
+        if top_byte(up) != 0 or "No byte selection" not in up or not up.startswith("Offset 0 of"):
+            raise AssertionError(f"The Hex reverse thumb drag changed selection or cursor: "
+                                 f"pointer={up_pointer!r}, {up!r}")
+        content = find(window, "entry", "Hex view")
+        if content is None:
+            raise AssertionError("The Hex document is absent during explicit selection")
+        document = content.get_component().get_extents(Atspi.CoordType.SCREEN)
+        first_x = round(document.x + 94 * scale)
+        row_y = round(document.y + 12 * scale)
+        distance = round(84 * scale)
+        if first_x + distance >= area.x or document.width < 400 * scale:
+            raise AssertionError(f"Hex document bounds do not permit a content drag: {document}")
+        mouse.drag(first_x, row_y, distance, 0)
+        selected = hex_value(window)
+        selection = re.search(r"Selected bytes ([0-9,]+) through ([0-9,]+), ([0-9,]+) bytes", selected)
+        if selection is None:
+            raise AssertionError(f"Deliberate Hex content drag did not select bytes: {selected!r}")
+        start, end, count = (int(group.replace(",", "")) for group in selection.groups())
+        if start != 0 or end < 2 or count != end + 1:
+            raise AssertionError(f"Deliberate Hex content drag selected the wrong bytes: {selected!r}")
+        mouse.drag(x, start_y, 0, end_y - start_y)
+        preserved = hex_value(window)
+        if top_byte(preserved) <= 0 or selection.group(0) not in preserved:
+            raise AssertionError(f"Hex thumb drag changed the explicit selection: {preserved!r}")
+    return {"input": "short-lived physical uinput mouse", "scrollBar": [area.x, area.y,
+            area.width, area.height], "downViewportByte": top_byte(down),
+            "upViewportByte": top_byte(up), "selectedBytes": [start, end],
+            "selectionPreservedViewportByte": top_byte(preserved)}
+
+
 def run(app_path):
+    sudo_password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
+    if not sudo_password:
+        raise AssertionError("The native Ubuntu journey needs one-time sudo authentication")
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
@@ -174,6 +320,15 @@ def run(app_path):
             if states["wide"]["rowBytes"] <= states["narrow"]["rowBytes"]:
                 raise AssertionError("The Hex row did not fit more bytes after widening")
             result["states"] = states
+            result["viewerThumbDrag"] = scrollbar_drag_check(viewer, window_id, scale,
+                                                               validation, sudo_password)
+            hex_control = find(viewer, "entry", "Hex view")
+            if hex_control is None or not hex_control.grab_focus():
+                raise AssertionError("The Hex document could not regain focus after the thumb test")
+            send_native_key(validation / "linux-uinput-key.py", "ctrl+home", sudo_password)
+            wait_for(lambda: value if top_byte(value := hex_value(viewer)) == 0 and
+                     "No byte selection" in value and value.startswith("Offset 0 of") else None,
+                     "reset Hex selection before the Find journey")
 
             checked_action(find(viewer, "button", "Show or hide viewer Find bar"),
                            "viewer Find toggle")
@@ -219,13 +374,13 @@ def run(app_path):
             if hex_control is None or not hex_control.grab_focus():
                 raise AssertionError("The native Hex view could not receive keyboard focus")
             command("/usr/bin/wmctrl", "-ia", window_id)
-            send_key(validation / "linux-uinput-key.py", "pagedown")
+            send_native_key(validation / "linux-uinput-key.py", "pagedown", sudo_password)
             wait_for(lambda: value if "Offset 3 of 8,192" not in
                      (value := hex_value(viewer)) else None,
                      "native PageDown to move the Hex cursor")
             # The first page ends on the bottom visible row. The next page must
             # move the viewport, after which its byte anchor can be tested.
-            send_key(validation / "linux-uinput-key.py", "pagedown")
+            send_native_key(validation / "linux-uinput-key.py", "pagedown", sudo_password)
             moved = wait_for(lambda: value if top_byte(value := hex_value(viewer)) > 0
                              else None, "native PageDown to scroll the Hex viewport")
             first = top_byte(moved)
@@ -259,7 +414,7 @@ def run(app_path):
             native_key = validation / "linux-uinput-key.py"
             if not native_key.is_file():
                 raise AssertionError("The Ubuntu validation native key helper is unavailable")
-            send_key(native_key, "enter")
+            send_native_key(native_key, "enter", sudo_password)
             editor_title = f"{NAME} — FileCat Hex Editor"
             try:
                 editor = wait_for(lambda: find(app, "frame", editor_title), "owned Hex editor")
@@ -289,6 +444,8 @@ def run(app_path):
             if editor_states["wide"]["rowBytes"] <= editor_states["narrow"]["rowBytes"]:
                 raise AssertionError("The Hex editor row did not fit more bytes after widening")
             result["editorStates"] = editor_states
+            result["editorThumbDrag"] = scrollbar_drag_check(editor, editor_id,
+                                                               editor_scale, validation, sudo_password)
             result["passed"] = True
         finally:
             try:
@@ -310,7 +467,10 @@ def run(app_path):
                         process.wait(timeout=5)
     if hashlib.sha256(owned.read_bytes()).hexdigest() != original_hash:
         raise AssertionError("Native Hex resize changed the exact source bytes")
+    if any(target.iterdir()):
+        raise AssertionError("Native Hex inspection wrote to the empty target")
     result["sourceBytesUnchanged"] = True
+    result["targetEmpty"] = True
     if root.parent.resolve(strict=True) != (validation / "HexResize").resolve(strict=True):
         raise AssertionError("Refusing to clean a fixture outside the validation root")
     shutil.rmtree(root)

@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, native Ubuntu Hex scrollbar selection (UXBUG-020):**
+The 100% Ubuntu VM ran the Git-built `38bc114c` viewer/editor journey three times
+with a short-lived physical uinput mouse. A feedback loop moved the Wayland
+cursor onto each actual AT-SPI scrollbar frame before pressing, avoiding
+XTest's ignored drag and pointer acceleration. A repeated run moved the
+viewer viewport from byte 0 to 2,424 and back; the editor moved from 0 to
+2,568 and back. Neither thumb drag created a byte selection. An explicit
+content drag in each mode selected exactly bytes 0 through 3; another thumb
+drag preserved all four bytes while scrolling to those same respective
+offsets. The runner then reset the viewer before the independent Hex Find
+journey, which passed its search, zoom, scroll-anchor and editor reflow
+checks. The one-time native-input password is removed from the environment
+before FileCat launches. The final run separately asserted exact source
+bytes, an empty target and owned-fixture cleanup. Receipts are
+`ubuntu-hex-thumb-physical-38bc114c-r5.json` and
+`ubuntu-hex-thumb-physical-38bc114c-final.json` in the Ubuntu validation
+folder. All three desktop platforms now pass the physical Hex
+thumb/content distinction; scaled Ubuntu and combined interaction gates
+remain open. Thirteen abandoned diagnostic fixture directories were removed
+only after matching their generated source hashes, companion files and empty
+targets and checking for active owners; the final guest inventory is empty
+(`hex-clean-applied.json`, `hex-clean-final.json`).
+
 **25 October 2026, native Mac Hex scrollbar selection (UXBUG-020):** On the
 same isolated, Git-built and signed `38bc114c` app, physical `cliclick`
 thumb drags and accessible Hex semantics passed in both viewer and editor.
@@ -13,8 +36,8 @@ nonbreaking-space thousands separator in semantic offsets. Source SHA-256
 remained unchanged and both owned fixtures were removed. Native receipts are
 `mac-viewer-hex-pointer-38bc114c-final.json` and
 `mac-hex-editor-pointer-38bc114c-final.json` under the Mac validation folder.
-The corresponding Windows native routes passed earlier; the Ubuntu physical
-thumb route and remaining scaled/combined Hex interactions remain open.
+The corresponding Windows native routes passed earlier; scaled and combined
+Hex interactions remain open.
 
 **25 October 2026, native Mac Hex reflow (UXBUG-020):** A fresh, isolated
 Git checkout at `38bc114c` was published directly on the Mac as an ad-hoc

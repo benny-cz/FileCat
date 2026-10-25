@@ -118,10 +118,9 @@ increments to `main`.
    pass with exact fixture bytes. The Ubuntu guest's `scaling-factor=2` setting
    left the tested native window at scale 1, so it did not close scaled
    acceptance; the original automatic setting was restored. Mac and Windows
-   physical scrollbar and explicit content-selection journeys now pass.
-   Recheck the scrollbar-thumb drag on Ubuntu: dragging or releasing the thumb must
-   not create or alter a byte selection, while a drag begun in the content
-   must still select bytes.
+   physical scrollbar and explicit content-selection journeys now pass on
+   Windows, Mac and Ubuntu at their tested scales. Finish scaled Ubuntu and
+   combined search, scroll, zoom, resize and pointer-alignment journeys.
 
 ## Evidence required to finish
 
