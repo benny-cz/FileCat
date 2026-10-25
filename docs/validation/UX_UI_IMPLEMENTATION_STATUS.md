@@ -366,8 +366,25 @@ also admitted the real `G:` volume (`Refusal:null`) with its state files on
 `E:`; the check did not open or write the recovery source. Whole-census
 retries now absorb a process that exits between enumeration and inspection,
 while persistent unknowns still refuse recovery. The focused App recovery
-tests and Windows identity tests pass. The updated native UI scan and
-off-source recovery on `G:` remain to be checked.
+tests and Windows identity tests pass. At that point, the updated native UI
+scan and off-source recovery on `G:` remained to be checked.
+
+**25 October 2026, elevated Windows VM recovery UI (UXBUG-019):** A fresh
+Git-built `15a1a9c5` FileCat ran elevated in the isolated Win11 VM against a
+512 MiB NTFS VHD mounted as `G:` (`FCTEST`). The VHD had a separately verified
+deleted 81,920-byte fixture; its original SHA-256 was
+`28776239DA5D6C1F7CF44C12106F7D6E67C8F5674E94B8966067592EBD4038E9`.
+The exact production disk-safety probe admitted the volume with no refusal.
+Native UI Automation then verified that `G: FCTEST` was selected, the review
+named `Source: drive G: (FCTEST)`, and the visible Scan button opened a recovery
+tab without the reported other-process refusal. The scan showed zero deleted
+entries on this newly formatted VHD, however, so this fixture did **not**
+establish recoverability or an off-source copy. The source path remained absent
+and the off-source target on `C:` stayed empty. The task-owned FileCat process
+and scheduled tasks were stopped, and the VHD was detached and removed after
+checking its exact disk identity. The owner's existing `G:` has still not had
+this updated native UI journey; an off-source recovery with retained content
+traces remains open.
 
 **25 October 2026, Mac FTPS replacement speech retry (FCUX-001):** A second
 native implicit-TLS certificate and replacement review showed the full amber
