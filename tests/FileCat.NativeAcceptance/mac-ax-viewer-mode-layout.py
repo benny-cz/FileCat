@@ -47,7 +47,7 @@ def open_exact(name):
 tell application "System Events"
     tell process "FileCat"
         set frontmost to true
-        keystroke {json.dumps(name)}
+        keystroke "nativev"
     end tell
 end tell
 ''')
@@ -127,6 +127,7 @@ def run(source, helper):
         if fixture.exists() and hashlib.sha256(fixture.read_bytes()).digest() == digest:
             fixture.unlink()
             try:
+                osa('tell application "System Events" to tell process "FileCat" to key code 53')
                 click_named("AXButton", "Reread")
             except AssertionError:
                 pass

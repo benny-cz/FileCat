@@ -19,8 +19,15 @@ keyboard movement, accessibility text and scroll bounds. A >4 GiB source
 geometry test now checks every byte in the computed row; a new two-mode
 viewer/editor test covers narrowing, widening, selected search ranges,
 vertical scroll preservation and pointer hits. The focused App selection
-passed 100 tests with no failures or skips. Native resize checks remain in
-`UX_UI_REMAINING.md`.
+passed 100 tests with no failures or skips. A signed, Git-built Mac arm64
+bundle with DLL SHA-256
+`8081d370a10ff1011842e0531363e285f7786c317a1e9a5bab4ee0c421cbc0c4`
+passed the native Text/Hex/Info narrow/wide capture journey
+(`mac-hex-resize-final-r7.json`). The Hex screenshots show consecutive row
+offsets 0x00/0x10 at 720 × 500 and 0x00/0x20 at 1220 × 700, with the
+decoded text column aligned and visible in both; the test-owned 9,040-byte
+source stayed unchanged. Other desktop and byte-editor native resize checks
+remain in `UX_UI_REMAINING.md`.
 
 **25 October 2026, dropped FTP/FTPS connection and issue speech (FCUX-001):**
 The signed Git-built Mac arm64 app ran three fresh, owned loopback journeys
