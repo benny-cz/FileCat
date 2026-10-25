@@ -149,6 +149,7 @@
                              FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
                              ComfortableRows="{Binding $parent[Window].((vm:MainViewModel)DataContext).ComfortableDensity, FallbackValue=False}"
                              AutomationProperties.Name="File list" />
+        <Canvas x:Name="RenameOverlay" ZIndex="2" IsVisible="False" />
       </Panel>
     </DockPanel>
   </Border>

@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+**25 October 2026, Ubuntu inline Rename editor accessibility (FCUX-004):**
+The strict physical-F2/AT-SPI journey reproduced the missing editor on the
+Git-built `38bc114c` app: its TextBox was visible and focused but absent from
+the assistive-technology tree. Avalonia 12.1.1's AT-SPI bridge collects only
+selection-item descendants of a selection provider; FileCat's file list is
+such a provider, so its nested TextBox was dropped. On Linux, the same inline
+editor and its validation error now live in a sibling Canvas overlay at the
+list row's existing coordinates. The list retains its selection provider and
+bounded row peers. A headless test checks the sibling peer, editor focus and
+bounds, inline validation, Escape return, and clicking elsewhere to cancel;
+all 47 related FileList, geometry and dialog-focus cases passed. On a patched
+Git checkout in the Ubuntu VM (app DLL SHA-256
+`010b58b4f3b1e1a491f636bf6ebb74a4bf92b43b29ee0efc1cbf28106e7468de`),
+the native journey found the named AT-SPI entry, then passed physical Escape
+from Rename, Create folder and Delete with `c.txt` focused and exact source
+bytes intact. A second journey edited that entry through AT-SPI at its
+98 × 307 × 140 × 24 pixel screen bounds, pressed physical Enter, and verified
+`renamed.txt`, its exact source bytes, focus return and an empty target. The
+receipts are `ubuntu-rename-overlay-candidate-r1.json` and
+`ubuntu-rename-overlay-commit-r1.json` in the Ubuntu validation folder. Actual
+Orca speech for the inline field and other modal routes remain open.
+
 **25 October 2026, Ubuntu scaled Hex input investigation (UXBUG-020):**
 Mutter's DisplayConfig accepted a temporary 1920 × 1200 virtual monitor at
 200% and reported that scale in its active configuration. The Git-built

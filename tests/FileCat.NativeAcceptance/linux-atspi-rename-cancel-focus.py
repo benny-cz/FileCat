@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check native Ubuntu focus return from Create, Delete and inline Rename.
 
-Usage: linux-atspi-rename-cancel-focus.py APP_PATH REPORT.json UINPUT_KEY_HELPER [--dialog-only]
+Usage: linux-atspi-rename-cancel-focus.py APP_PATH REPORT.json UINPUT_KEY_HELPER [--dialog-only|--commit-rename]
 Run in the logged-in Ubuntu VM on an isolated Git-built FileCat app. Supply
 FILECAT_NATIVE_SUDO_PASSWORD only to this runner for physical keyboard input.
 """
@@ -34,7 +34,7 @@ named = dialog["named"]
 wait_for = dialog["wait_for"]
 
 
-def run(app_path, report_path, helper, dialog_only=False):
+def run(app_path, report_path, helper, dialog_only=False, commit_rename=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, helper = app_path.resolve(strict=True), helper.resolve(strict=True)
     report_path = report_path.resolve()
@@ -54,7 +54,8 @@ def run(app_path, report_path, helper, dialog_only=False):
     for name, contents in expected.items():
         (source / name).write_bytes(contents)
     hashes = {name: hashlib.sha256(contents).hexdigest() for name, contents in expected.items()}
-    result = {"passed": False, "dialogOnly": dialog_only, "appDllSha256": hashlib.sha256(
+    result = {"passed": False, "dialogOnly": dialog_only, "commitRename": commit_rename,
+              "appDllSha256": hashlib.sha256(
         app_path.with_name("FileCat.dll").read_bytes()).hexdigest(), "steps": []}
     process = None
     try:
@@ -104,6 +105,26 @@ def run(app_path, report_path, helper, dialog_only=False):
             press(helper, password, "escape", process.pid)
             wait_for(lambda: not opened(), f"{label} cancellation")
             returned(f"Escape from {label}")
+        if commit_rename:
+            press(helper, password, "f2", process.pid)
+            editor = wait_for(lambda: next(iter(named(app, "entry", "Rename selected item")), None),
+                              "accessible inline Rename editor")
+            bounds = editor.get_component().get_extents(Atspi.CoordType.SCREEN)
+            if bounds.width < 80 or bounds.height < 18:
+                raise AssertionError(f"Inline Rename editor has unusable screen bounds: {bounds}")
+            editable = editor.get_editable_text()
+            if editable is None or not editable.set_text_contents("renamed.txt"):
+                raise AssertionError("Inline Rename editor refused its accessible text edit")
+            press(helper, password, "enter", process.pid)
+            wait_for(lambda: (source / "renamed.txt").is_file() and
+                     not (source / "c.txt").exists(), "committed inline Rename")
+            wait_for(lambda: focus_name() == ["renamed.txt"],
+                     "Rename commit to focus the renamed row")
+            expected["renamed.txt"] = expected.pop("c.txt")
+            hashes["renamed.txt"] = hashes.pop("c.txt")
+            result["steps"].append({"step": "AT-SPI edited inline Rename and physical Enter committed",
+                                    "bounds": [bounds.x, bounds.y, bounds.width, bounds.height],
+                                    "focused": focus_name(), "passed": True})
         actual = {path.name: path.read_bytes() for path in source.iterdir()}
         if actual != expected or any(target.iterdir()) or any(
                 hashlib.sha256(contents).hexdigest() != hashes[name]
@@ -124,6 +145,8 @@ def run(app_path, report_path, helper, dialog_only=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--dialog-only":
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] not in ("--dialog-only", "--commit-rename"):
         raise SystemExit(__doc__)
-    raise SystemExit(run(*(Path(value) for value in sys.argv[1:4]), len(sys.argv) == 5))
+    raise SystemExit(run(*(Path(value) for value in sys.argv[1:4]),
+                         dialog_only=len(sys.argv) == 5 and sys.argv[4] == "--dialog-only",
+                         commit_rename=len(sys.argv) == 5 and sys.argv[4] == "--commit-rename"))

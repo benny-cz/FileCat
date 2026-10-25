@@ -134,6 +134,7 @@ public sealed class FileListControl : Control
     private int _gitStatusGeneration;
 
     private readonly TextBox _renameEditor;
+    private Canvas? _renameOverlay;
     private readonly Border _renameErrorBox;
     private readonly TextBlock _renameErrorText;
     private TaskCompletionSource<string?>? _renameCompletion;
@@ -224,6 +225,23 @@ public sealed class FileListControl : Control
         UpdateTypefaces();
     }
 
+    /// <summary>
+    /// Keep the editor visually inline while placing it outside the list's
+    /// selection-provider subtree for Linux AT-SPI accessibility.
+    /// </summary>
+    internal void PlaceRenameEditorIn(Canvas overlay)
+    {
+        if (IsRenaming || _renameOverlay is not null)
+            throw new InvalidOperationException("The rename editor host cannot change during a rename.");
+        VisualChildren.Remove(_renameEditor);
+        LogicalChildren.Remove(_renameEditor);
+        VisualChildren.Remove(_renameErrorBox);
+        LogicalChildren.Remove(_renameErrorBox);
+        overlay.Children.Add(_renameEditor);
+        overlay.Children.Add(_renameErrorBox);
+        _renameOverlay = overlay;
+    }
+
     public TabViewModel? Tab
     {
         get => GetValue(TabProperty);
@@ -292,6 +310,7 @@ public sealed class FileListControl : Control
         _renameStoreIndex = _listing.FocusedStoreIndex;
         _renameEditor.Text = options.Text;
         _renameCompletion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (_renameOverlay is not null) _renameOverlay.IsVisible = true;
         _renameEditor.IsVisible = true;
         ClearRenameError();
         InvalidateMeasure();
@@ -369,6 +388,7 @@ public sealed class FileListControl : Control
         _renameStoreIndex = -1;
         _renameEditor.IsVisible = false;
         ClearRenameError();
+        if (_renameOverlay is not null) _renameOverlay.IsVisible = false;
         InvalidateMeasure();
         InvalidateArrange();
         if (restoreFocus)
@@ -395,12 +415,30 @@ public sealed class FileListControl : Control
         double x = _columnX[nameColumn] - _horizontalOffset + MarkGutter + IconSize + 4;
         double available = Math.Max(80, finalSize.Width - scrollWidth - x - Padding);
         double width = Math.Min(available, Math.Max(140, _columnW[nameColumn] - (x - _columnX[nameColumn]) - Padding));
-        _renameEditor.Arrange(new Rect(x, y + 1, width, Math.Max(18, _rowHeight - 2)));
+        double editorHeight = Math.Max(18, _rowHeight - 2);
+        if (_renameOverlay is null)
+            _renameEditor.Arrange(new Rect(x, y + 1, width, editorHeight));
+        else
+        {
+            Canvas.SetLeft(_renameEditor, x);
+            Canvas.SetTop(_renameEditor, y + 1);
+            _renameEditor.Width = width;
+            _renameEditor.Height = editorHeight;
+        }
         if (_renameErrorBox.IsVisible)
         {
             double errorY = y + _rowHeight + 2;
             if (errorY + 40 > finalSize.Height) errorY = Math.Max(_headerHeight, y - 42);
-            _renameErrorBox.Arrange(new Rect(x, errorY, Math.Min(Math.Max(240, width), available), 40));
+            double errorWidth = Math.Min(Math.Max(240, width), available);
+            if (_renameOverlay is null)
+                _renameErrorBox.Arrange(new Rect(x, errorY, errorWidth, 40));
+            else
+            {
+                Canvas.SetLeft(_renameErrorBox, x);
+                Canvas.SetTop(_renameErrorBox, errorY);
+                _renameErrorBox.Width = errorWidth;
+                _renameErrorBox.Height = 40;
+            }
         }
     }
 
@@ -850,8 +888,8 @@ public sealed class FileListControl : Control
         _vbar.Measure(availableSize);
         _hbar.Measure(availableSize);
         _automationOwners.Measure(availableSize);
-        if (IsRenaming) _renameEditor.Measure(availableSize);
-        if (_renameErrorBox.IsVisible) _renameErrorBox.Measure(availableSize);
+        if (_renameOverlay is null && IsRenaming) _renameEditor.Measure(availableSize);
+        if (_renameOverlay is null && _renameErrorBox.IsVisible) _renameErrorBox.Measure(availableSize);
         double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
         double h = double.IsInfinity(availableSize.Height) ? 300 : availableSize.Height;
         return new Size(w, h);

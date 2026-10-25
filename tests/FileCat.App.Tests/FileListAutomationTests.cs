@@ -24,6 +24,60 @@ namespace FileCat.App.Tests;
 public sealed class FileListAutomationTests
 {
     [AvaloniaFact]
+    public async Task Inline_rename_editor_in_sibling_overlay_stays_accessible_and_returns_to_its_row()
+    {
+        using var f = new FileListFixture("a.txt", "b.txt");
+        await f.Load();
+        var layout = Assert.IsType<DockPanel>(f.Window.Content);
+        layout.Children.Remove(f.List);
+        var host = new Panel();
+        var overlay = new Canvas { IsVisible = false };
+        host.Children.Add(f.List);
+        host.Children.Add(overlay);
+        layout.Children.Add(host);
+        f.List.PlaceRenameEditorIn(overlay);
+        Assert.True(f.Tab.Listing.FocusName("b.txt"));
+        f.List.Focus();
+
+        var pending = f.List.BeginRename(new FileCat.App.ViewModels.PromptOptions("Rename", "New name")
+        {
+            Text = "b.txt",
+            Validate = name => name == "bad.txt" ? "That name is unavailable." : null,
+        });
+        Assert.NotNull(pending);
+        await Task.Delay(20, TestContext.Current.CancellationToken);
+        var editor = Assert.Single(overlay.Children.OfType<TextBox>());
+        var editorPeer = ControlAutomationPeer.CreatePeerForElement(editor);
+        Assert.True(overlay.IsVisible);
+        Assert.True(editor.IsFocused);
+        Assert.Contains(editorPeer, ControlAutomationPeer.CreatePeerForElement(overlay).GetChildren());
+        Assert.DoesNotContain(editorPeer, ControlAutomationPeer.CreatePeerForElement(f.List).GetChildren());
+        Assert.Same(overlay, editor.GetVisualParent());
+        Assert.True(Canvas.GetLeft(editor) >= 0);
+        Assert.True(Canvas.GetTop(editor) >= f.List.GetRowBounds(1).Top);
+
+        editor.Text = "bad.txt";
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Assert.False(pending.IsCompleted);
+        Assert.True(overlay.Children.OfType<Border>().Single().IsVisible);
+        f.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        Assert.Null(await pending);
+        Assert.False(overlay.IsVisible);
+        Assert.True(f.Tab.Listing.TryGetFocused(out var focused));
+        Assert.Equal("b.txt", focused.Name);
+
+        var clickedAway = f.List.BeginRename(new FileCat.App.ViewModels.PromptOptions("Rename", "New name")
+        {
+            Text = "b.txt",
+        });
+        Assert.NotNull(clickedAway);
+        await Task.Delay(20, TestContext.Current.CancellationToken);
+        f.Click(0);
+        Assert.Null(await clickedAway.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.False(overlay.IsVisible);
+    }
+
+    [AvaloniaFact]
     public async Task Native_selection_provider_does_not_make_voiceover_navigation_mark_files()
     {
         using var f = new FileListFixture("a", "b");

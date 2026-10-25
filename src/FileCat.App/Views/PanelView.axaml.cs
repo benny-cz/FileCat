@@ -26,6 +26,9 @@ public partial class PanelView : UserControl
     public PanelView()
     {
         InitializeComponent();
+        // Avalonia's Linux AT-SPI bridge exposes only selection-item descendants
+        // of a list, so the inline TextBox must live beside the list in that tree.
+        if (OperatingSystem.IsLinux()) List.PlaceRenameEditorIn(RenameOverlay);
         LiveRegions.Watch(FilterAnnouncement);
         AddressRow.SizeChanged += (_, _) => UpdateAddressDensity();
         StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
