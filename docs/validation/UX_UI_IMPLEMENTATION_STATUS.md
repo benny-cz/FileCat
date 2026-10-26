@@ -15,6 +15,24 @@ later unflushed fixture failure do not supersede the 26 October `663b6fdd`
 fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
 reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-sftp-search-spoken-20261026"></a>
+**26 October 2026, native spoken remote search completion (FCUX-007):** On the
+same Git-built `705d4f0d` Ubuntu Wayland/OpenSSH SFTP app, a distinct
+test-owned 2 GiB sparse file supported one held Text search that was stopped.
+Orca's actual `SPEECH OUTPUT` said “Search canceled.” A second held Text
+search then encountered deliberate truncation of *that test-owned file* to
+zero bytes. The visible status and Orca both said “Search could not finish:
+Search did not finish because some content could not be read: The remote file
+ended before its reported size.” No `0 matches` claim appeared. The receipt
+is `/home/benny/FileCatValidation/ac-s1-007-remote-spoken-705d4f0d.json` in
+the isolated guest; the same
+[`native route`](../../tests/FileCat.NativeAcceptance/linux-atspi-viewer-remote-stop.py)
+runs with `--orca-error`. The prior visible Stop route was reconfirmed only
+as setup for the uncovered spoken/provider-error boundary, per the ledger's
+bounded repeat authorization. Together with the accepted local and
+deterministic nonlocal scopes, this closes AC-S1-007. Final-head CI remains
+an audit-wide gate.
+
 <a id="evidence-sftp-search-stop-20261026"></a>
 **26 October 2026, native remote viewer Stop (FCUX-007):** The Ubuntu Wayland
 VM ran the Git-built `705d4f0d` app (DLL SHA-256 `57e412db…`) against a new

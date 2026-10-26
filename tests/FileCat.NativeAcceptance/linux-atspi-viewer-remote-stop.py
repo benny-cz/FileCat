@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Exercise native Find ownership and Stop over a test-owned loopback SFTP file.
 
-Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER
+Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error]
 Run as the logged-in Ubuntu user with FILECAT_NATIVE_SUDO_PASSWORD and
 FILECAT_NATIVE_SFTP_PASSWORD set for this isolated VM. No server files outside
-the new FileCatValidation fixture are changed.
+the new FileCatValidation fixture are changed. --orca-error requires actual
+speech of Stop and a provider error after intentionally truncating that fixture.
 """
 
 import hashlib
@@ -14,6 +15,7 @@ from pathlib import Path
 import runpy
 import subprocess
 import sys
+import time
 from uuid import uuid4
 
 import gi
@@ -76,7 +78,20 @@ def expect_stop(viewer, description):
         raise AssertionError(f"{error}; viewer labels={labels[-18:]!r}") from error
 
 
-def run(app_path, key_helper, sudo_password, sftp_password):
+def hear(speech, orca, fragment, description):
+    heard = []
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if orca.poll() is not None:
+            raise AssertionError("The owned Orca exited during " + description)
+        heard.extend(speech.take())
+        if any(fragment in phrase.casefold() for phrase in heard):
+            return heard
+        time.sleep(0.15)
+    raise AssertionError(f"Orca did not speak {description}: {heard[:25]!r}; log={speech.path}")
+
+
+def run(app_path, key_helper, sudo_password, sftp_password, orca_error):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -100,10 +115,25 @@ def run(app_path, key_helper, sudo_password, sftp_password):
     env.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     env.pop("FILECAT_NATIVE_SFTP_PASSWORD", None)
     process = None
+    orca = None
+    speech = None
     viewer = None
     app = None
     observed = []
     try:
+        if orca_error:
+            prior = subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", "orca"],
+                                   capture_output=True, timeout=5)
+            if prior.returncode == 0:
+                raise AssertionError("An unrelated Orca instance is already running")
+            speech_source = runpy.run_path(str(HERE / "linux-orca-speech.py"))
+            speech = speech_source["SpeechLog"](root / "orca-debug.log")
+            orca_env = {**env, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
+            with (root / "orca.err").open("wb") as error_log:
+                orca = subprocess.Popen(["/usr/bin/python3", "-c", speech_source["ORCA_WRAPPER"],
+                                         str(speech.path)], env=orca_env,
+                                        stdout=subprocess.DEVNULL, stderr=error_log)
+            hear(speech, orca, "screen reader on", "Orca startup")
         with (root / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(local), "--right", str(local)],
@@ -154,6 +184,44 @@ def run(app_path, key_helper, sudo_password, sftp_password):
         action(visible(viewer, "button", "Show or hide viewer Find bar"), "Find bar")
         query = wait_for(lambda: visible(viewer, "entry", "Find in file"), "Find query")
 
+        if orca_error:
+            if not query.get_editable_text().set_text_contents("REMOTE_STOP_ABSENT"):
+                raise AssertionError("Could not set the owned Stop query")
+            action(visible(viewer, "button", "Find next match"), "Find next")
+            stop = expect_stop(viewer, "spoken remote Stop")
+            speech.take()
+            action(stop, "Stop search")
+            wait_for(lambda: visible(viewer, "label", "Search canceled."),
+                     "visible spoken-Stop outcome")
+            spoken_stop = hear(speech, orca, "search canceled", "Stop")
+            if not intact(source):
+                raise AssertionError("Stop changed the test-owned remote source")
+            if not query.get_editable_text().set_text_contents("REMOTE_ERROR_ABSENT"):
+                raise AssertionError("Could not set the owned error query")
+            action(visible(viewer, "button", "Find next match"), "Find next")
+            expect_stop(viewer, "held remote read before failure")
+            speech.take()
+            with source.open("r+b") as changing:
+                changing.truncate(0)
+            error = wait_for(lambda: next((node.get_name() for node in descendants(viewer)
+                             if node.get_role_name() == "label" and
+                             (node.get_name() or "").startswith("Search could not finish:")), None),
+                             "live provider-error status", seconds=30)
+            spoken_error = hear(speech, orca, "search could not finish",
+                                "remote provider error")
+            labels = [node.get_name() or "" for node in descendants(viewer)
+                      if node.get_role_name() == "label"]
+            if any("0 matches" in label for label in labels):
+                raise AssertionError("Failed remote search claimed a complete negative count")
+            if source.stat().st_size != 0 or sorted(path.name for path in server.iterdir()) != [NAME]:
+                raise AssertionError("Provider-error fixture did not retain its deliberate truncation")
+            return {"passed": True, "build": hashlib.sha256((app_path.parent / "FileCat.dll").read_bytes()).hexdigest(),
+                    "source": str(source), "sourceLengthBeforeFailure": LENGTH,
+                    "sourceLengthAfterFailure": 0, "address": address,
+                    "spokenStop": spoken_stop, "visibleProviderError": error,
+                    "spokenProviderError": spoken_error, "falseZeroCount": False,
+                    "nativeBackend": "Ubuntu Wayland AT-SPI plus Orca over loopback OpenSSH SFTP"}
+
         for first, replacement, transition in (("REMOTE_OLD_ABSENT", "REMOTE_NEW_ABSENT", "query"),
                                                ("REMOTE_NEW_ABSENT", "REMOTE_HEX_ABSENT", "mode")):
             if not query.get_editable_text().set_text_contents(first):
@@ -196,13 +264,21 @@ def run(app_path, key_helper, sudo_password, sftp_password):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        if orca is not None and orca.poll() is None:
+            orca.terminate()
+            try:
+                orca.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                orca.kill()
+                orca.wait(timeout=5)
         if source.exists():
             source.unlink()
 
 
 def main():
-    if len(sys.argv) != 4:
-        raise SystemExit("Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER")
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--orca-error":
+        raise SystemExit("Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error]")
+    orca_error = len(sys.argv) == 5
     report = Path(sys.argv[2])
     if report.parent.resolve() != (Path.home() / "FileCatValidation").resolve(strict=True):
         raise SystemExit("Write the report directly below FileCatValidation")
@@ -211,7 +287,8 @@ def main():
     if not sudo_password or not sftp_password:
         raise SystemExit("The isolated input and SFTP fixture credentials are required")
     try:
-        result = run(Path(sys.argv[1]), Path(sys.argv[3]), sudo_password, sftp_password)
+        result = run(Path(sys.argv[1]), Path(sys.argv[3]), sudo_password, sftp_password,
+                     orca_error)
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
