@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, macOS Tab focus and CI diagnostics:** A repeated native
+`mac-ax-focus-speech.py` run found that one Tab command can switch to the
+target file row, after which macOS focuses Location or Filter in the old
+panel and reactivates it. A headless test reproduced the managed transition,
+but signed Mac candidates with 120 ms and 350 ms delayed focus restoration
+still allowed another native traversal. Those candidates were not shipped;
+the native issue remains in the remaining-work file. The same journey also
+occasionally returned inline Rename cancellation to `a.txt` rather than the
+original `c.txt` row. CI for `915ec37d` failed its macOS owned-FTPS stage
+fixture while the isolated Mac passed 20 consecutive repetitions. The Python
+fixture now reports captured child stdout/stderr and server exit status on
+failure so the next runner failure can be diagnosed without guessing; its
+network and content assertions are unchanged.
+
 **26 October 2026, macOS checksum generation CI (FCUX-004/008):** The
 `64fdac75` macOS App lane had one failure among 2,547 cases: the
 `ChecksumDialogGenerationTests` worker did not post its held continuation

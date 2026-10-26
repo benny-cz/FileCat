@@ -12,8 +12,12 @@ increments to `main`.
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
-  clipboard journeys. Recheck the Mac AX Tab transition that briefly focused
-  the target parent row then settled on Filter in the 26 October focus run.
+  clipboard journeys. Fix the intermittent Mac AX Tab transition: native runs
+  briefly focused the target parent row, then settled in the old panel's
+  Location or Filter and reactivated that panel. A 120–350 ms delayed focus
+  retry still allowed macOS to traverse again, so no timed workaround was
+  retained. Recheck the separate Mac inline Rename cancel route, which
+  occasionally settles on `a.txt` instead of the renamed `c.txt` row.
   Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
@@ -31,7 +35,9 @@ increments to `main`.
    final-head gate after the last audit change. If it recurs, investigate
    the intermittent Ubuntu metadata-demand extra read; earlier runs are
    recorded in the implementation status. Recheck the revised macOS checksum
-   generation case under the full CI load,
+   generation case under the full CI load, and investigate any recurring
+   macOS owned-FTPS stage fixture failure with its newly captured child
+   stdout/stderr and server exit status.
    inline Rename and Windows SFTP edit-baseline tests in the final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races

@@ -114,7 +114,13 @@ def test_server(mode: str) -> None:
                        str(port), stage, str(source), str(receipt)]
             if mode != "serve":
                 command += ["ftpes" if mode == "serve-tls" else "ftps", str(certificate)]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            inspection = subprocess.run(command, capture_output=True, text=True)
+            if inspection.returncode:
+                raise AssertionError(
+                    f"Owned {mode} stage inspection exited {inspection.returncode}: "
+                    f"server_exit={process.poll()}, stdout={inspection.stdout[-1200:]!r}, "
+                    f"stderr={inspection.stderr[-2400:]!r}"
+                )
             assert not (root / stage).exists()
             assert receipt.is_file()
             assert not list(root.iterdir())
