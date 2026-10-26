@@ -277,6 +277,12 @@ def main():
                 key(name)()
         # The outcome only, not the searching and counting states before it.
         step("a viewer search speaks its match count", search_char, lambda phrase: phrase.strip(" .") == "1 match")
+        def search_absent():
+            key("ctrl+a")()
+            for name in ("a", "a", "a", "enter"):
+                key(name)()
+        step("a completed viewer miss speaks its outcome", search_absent,
+             says("was not found after this position"))
         step("Escape returns from the search to the text", key("escape"), says("No selection"))
         step("Escape closes the viewer", key("escape"), says("c.txt"))
         # A rejected transfer destination is spoken while the form stays open.

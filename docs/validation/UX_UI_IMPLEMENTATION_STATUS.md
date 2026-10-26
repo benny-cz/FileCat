@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, native Ubuntu spoken viewer miss (FCUX-007):** The
+tracked `linux-orca-speech.py` journey now replaces a successful Find query
+with an absent term and requires Orca's actual `SPEECH OUTPUT` to contain
+`"aaa" was not found after this position.` On the isolated Ubuntu VM, Orca
+50.2 passed all 49 native keyboard, dialog, review and speech steps with
+the Git-built app DLL SHA-256
+`73307647c4b3511af942958d1d13bf7d7e575c1127dfff4961d454de3c7de0c9`.
+The build had zero warnings or errors; the report's source hashes and empty
+target remained exact (`.local-ubuntu-orca-search-outcome-r1.json`). Native
+Stop/error speech on Ubuntu and the remaining Mac outcomes remain open.
+
 **26 October 2026, native Windows spoken search Stop (FCUX-007):** The
 tracked `win-nvda-hex-search.ps1` journey now runs the native viewer Stop
 case after its Hex editor Find route. On the isolated Windows VM, signed
