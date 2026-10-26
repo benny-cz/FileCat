@@ -113,8 +113,8 @@ increments to `main`.
    physical uinput. Recheck the full native scrollbar journey after a stable
    scaled login; VMware guest auto-sizing currently restores 100% on reboot.
    Finish combined Hex editor search, selection, scroll, zoom and pointer
-   alignment while resizing on Linux and in the remaining scaled Windows
-   contexts. Native Windows at 100% and Mac at 1× and Retina passed.
+   alignment while resizing in scaled Ubuntu and Windows contexts. Native
+   Ubuntu and Windows at 100%, and Mac at 1× and Retina, passed.
 
 ## Evidence required to finish
 

@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, combined native Ubuntu Hex editor (UXBUG-020):** The
+tracked `linux-atspi-hex-resize.py` now carries a test-owned `NEEDLE` at
+offsets 3,000 and 6,000 through its existing Git-built viewer and editor
+journey. On the restored 100% Wayland desktop, the `df449513` app (binary
+SHA-256 `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`)
+passed the complete physical uinput run. The editor thumb moved the viewport
+to byte 2,568 and back without implicit selection; an explicit four-byte
+selection survived a further thumb drag. Find then selected exactly bytes
+3,000–3,005 in the same editor. The selected range survived 16-to-24-byte
+window reflow and a zoom from 24 to 20 bytes per row, then a return to 24.
+The existing viewer Find, zoom, PageDown anchor and thumb checks passed in the
+same process. The source hash was unchanged, the target stayed empty, and
+the owned fixture was removed. The guest receipt is
+`ubuntu-hex-editor-combined-20261026-r1.json`. Scaled Ubuntu physical-pointer
+acceptance remains open.
+
 **26 October 2026, combined native Windows Hex editor (UXBUG-020):** The
 isolated Win11 VM ran the Git-built `2f1f43c9` app (DLL SHA-256
 `af5e45be2ad6669546ca50b7575eef2eb5f043dd59b6323d34dcc81aa24490aa`)

@@ -33,7 +33,10 @@ close_viewer = common["close_viewer"]
 viewer_window_id = common["exact_viewer_window_id"]
 
 NAME = "hex-resize.bin"
-CONTENT = bytes(range(256)) * 32
+_content = bytearray(bytes(range(256)) * 32)
+_content[3000:3006] = b"NEEDLE"
+_content[6000:6006] = b"NEEDLE"
+CONTENT = bytes(_content)
 
 
 def command(*args):
@@ -90,6 +93,17 @@ def top_byte(value):
     if match is None:
         raise AssertionError(f"The Hex viewport anchor is absent: {value!r}")
     return int(match.group(1).replace(",", ""))
+
+
+def selected_needle(value):
+    match = re.search(r"Selected bytes ([0-9,\u00a0\u202f ]+) through "
+                      r"([0-9,\u00a0\u202f ]+), 6 bytes", value)
+    if match is None:
+        return False
+    start, end = (int(re.sub(r"[^0-9]", "", part)) for part in match.groups())
+    if (start, end) != (3000, 3005):
+        raise AssertionError(f"Hex Find selected the wrong source bytes: {value!r}")
+    return True
 
 
 def send_native_key(helper, chord, sudo_password):
@@ -468,6 +482,56 @@ def run(app_path):
             result["editorStates"] = editor_states
             result["editorThumbDrag"] = scrollbar_drag_check(editor, editor_id,
                                                                editor_scale, validation, sudo_password)
+            checked_action(find(editor, "button", "Show or hide hex editor Find bar"),
+                           "editor Find toggle")
+            editor_query = wait_for(lambda: find(editor, "entry", "Find in file"),
+                                    "visible Hex editor Find field")
+            editor_hex_bytes = find(editor, "check box", "Hex bytes")
+            if editor_hex_bytes is None:
+                raise AssertionError("The Hex editor search mode is unavailable")
+            if editor_hex_bytes.get_state_set().contains(Atspi.StateType.CHECKED):
+                checked_action(editor_hex_bytes, "text search mode")
+            if not editor_query.get_editable_text().set_text_contents("NEEDLE"):
+                raise AssertionError("The Hex editor Find field refused the owned query")
+            checked_action(find(editor, "button", "Find next match"), "editor Find Next")
+            first_hit = wait_for(lambda: value if selected_needle(value := hex_value(editor))
+                                 else None, "exact six-byte Hex editor Find result")
+            editor_search = {"query": "NEEDLE", "sourceOffsets": [3000, 3005],
+                             "firstViewportByte": top_byte(first_hit)}
+            for label, dimensions in (("narrow", (720, 480)),
+                                      ("wide", (wide_width, 480))):
+                resize(editor_id, dimensions, editor_scale)
+                selected = wait_for(lambda: value if selected_needle(value := hex_value(editor))
+                                    else None, f"editor Find selection after {label} resize")
+                editor_search[label] = {"rowBytes": len(row_bytes(selected)),
+                                        "viewportFirstByte": top_byte(selected)}
+            if editor_search["wide"]["rowBytes"] <= editor_search["narrow"]["rowBytes"]:
+                raise AssertionError("The searched Hex editor row did not reflow on resize")
+            before_zoom = editor_search["wide"]["rowBytes"]
+            zoom_steps = 0
+            try:
+                while zoom_steps < 3:
+                    checked_action(find(editor, "button", "Increase editor content size"),
+                                   "increase Hex editor content size")
+                    zoom_steps += 1
+                    zoomed = wait_for(lambda: value if selected_needle(value := hex_value(editor))
+                                      else None, "Hex editor Find selection after zoom")
+                    if len(row_bytes(zoomed)) < before_zoom:
+                        break
+                if len(row_bytes(zoomed)) >= before_zoom:
+                    raise AssertionError("Hex editor zoom did not reduce its fitted row")
+            finally:
+                for _ in range(zoom_steps):
+                    checked_action(find(editor, "button", "Decrease editor content size"),
+                                   "restore Hex editor content size")
+            restored = wait_for(lambda: value if selected_needle(value := hex_value(editor))
+                                else None, "Hex editor Find selection after zoom restore")
+            if len(row_bytes(restored)) != before_zoom:
+                raise AssertionError("Hex editor zoom restore changed the fitted row")
+            editor_search["zoom"] = {"steps": zoom_steps, "rowBytesBefore": before_zoom,
+                                     "rowBytesAfter": len(row_bytes(zoomed)),
+                                     "rowBytesRestored": len(row_bytes(restored))}
+            result["editorCombinedSearchResizeZoom"] = editor_search
             result["passed"] = True
         finally:
             try:
