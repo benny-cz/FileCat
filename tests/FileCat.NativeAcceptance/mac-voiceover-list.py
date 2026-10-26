@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--filter|--filter-visual|--review|--review-pages|--viewer-find]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--move-action|--delete-action|--filter|--filter-visual|--review|--review-pages|--viewer-find]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -51,7 +51,9 @@ def screenshot():
     return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
 
 
-def run(bundle, report_path, actions=False, copy_action=False, filter_field=False, filter_visual=False, review=False, review_pages=False, viewer_find=False):
+def run(bundle, report_path, actions=False, copy_action=False, move_action=False,
+        delete_action=False, filter_field=False, filter_visual=False, review=False,
+        review_pages=False, viewer_find=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -87,7 +89,7 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
         raise AssertionError("AX focus probe build failed: " + compiled.stderr[-1200:])
     dialog_probe = fixture / "ax-dialog-label"
     dialog_report = fixture / "dialog-label.json"
-    if copy_action:
+    if copy_action or move_action or delete_action:
         dialog_source = Path(__file__).with_name("mac-ax-dialog-label.swift")
         built = subprocess.run(["/usr/bin/swiftc", "-sdk", str(sdk), "-o", str(dialog_probe), str(dialog_source)],
                                capture_output=True, text=True, timeout=120)
@@ -324,21 +326,24 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
                 raise AssertionError("Closing the viewer did not restore the unmarked source-row focus")
             if not any("b.txt" in phrase for phrase in heard_return):
                 raise AssertionError("VoiceOver did not speak the restored source-row focus")
-        if copy_action:
-            osa('tell application "System Events" to key code 96')  # F5, Copy focused b.txt.
-            def open_copy_review():
+        if copy_action or move_action or delete_action:
+            operation = "Copy" if copy_action else "Move" if move_action else "Delete"
+            approval = operation.lower() + "Approval"
+            key_code = {"Copy": 96, "Move": 97, "Delete": 100}[operation]
+            osa(f'tell application "System Events" to key code {key_code}')
+            def open_operation_review():
                 found = copy_review()
-                if (found.get("copyApproval") and found.get("destinationField") and
+                if (found.get(approval) and found.get("destinationField") == (operation != "Delete") and
                         len(found.get("matches", [])) == 1):
                     return found
                 return None
-            state = wait_for(open_copy_review, seconds=10)
+            state = wait_for(open_operation_review, seconds=10)
             heard_open = []
             for _ in range(16):
                 phrase = last_phrase()
                 if phrase not in heard_open:
                     heard_open.append(phrase)
-                if "Copy" in phrase or "Destination" in phrase:
+                if operation in phrase or "Destination" in phrase:
                     break
                 time.sleep(.25)
             opened_focus = focused()
@@ -353,7 +358,7 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
                     break
                 time.sleep(.25)
             after_tab = focused()
-            osa('tell application "System Events" to key code 53')  # Escape cancels Copy.
+            osa('tell application "System Events" to key code 53')  # Escape cancels the review.
             wait_for(lambda: not copy_review().get("matches"), seconds=10)
             heard_return = []
             for _ in range(16):
@@ -364,20 +369,21 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
                     break
                 time.sleep(.25)
             returned = focused()
-            receipt["copyAction"] = {"review": {"copyApproval": state["copyApproval"],
+            action_key = operation.lower() + "Action"
+            receipt[action_key] = {"review": {approval: state[approval],
                                                 "destinationField": state["destinationField"],
                                                 "close": state["matches"][0]},
                                      "openSpeech": heard_open, "openFocus": opened_focus,
                                      "voiceOverCursorAtOpen": voiceover_cursor,
                                      "tabSpeech": heard_tab, "tabFocus": after_tab,
                                      "returnSpeech": heard_return, "returnedFocus": returned}
-            if not any("Copy" in phrase or "Destination" in phrase for phrase in heard_open):
-                raise AssertionError("VoiceOver did not speak the opened Copy review")
+            if not any(operation in phrase or "Destination" in phrase for phrase in heard_open):
+                raise AssertionError(f"VoiceOver did not speak the opened {operation} review")
             if returned.get("title") != "b.txt" or ", not marked," not in returned.get("help", ""):
-                raise AssertionError("Cancel did not restore the unmarked b.txt source-row focus")
-            receipt["copyAction"]["returnedRowSpoken"] = any("b.txt" in phrase for phrase in heard_return)
-            if not receipt["copyAction"]["returnedRowSpoken"]:
-                raise AssertionError("VoiceOver did not speak the restored b.txt source row after Copy cancellation")
+                raise AssertionError(f"Cancel did not restore the unmarked b.txt source-row focus after {operation}")
+            receipt[action_key]["returnedRowSpoken"] = any("b.txt" in phrase for phrase in heard_return)
+            if not receipt[action_key]["returnedRowSpoken"]:
+                raise AssertionError(f"VoiceOver did not speak the restored b.txt source row after {operation} cancellation")
         if review:
             osa('tell application "System Events" to key code 49')
             time.sleep(.4)
@@ -548,11 +554,12 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--filter", "--filter-visual", "--review", "--review-pages", "--viewer-find")):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--move-action", "--delete-action", "--filter", "--filter-visual", "--review", "--review-pages", "--viewer-find")):
         raise SystemExit(__doc__)
     mode = sys.argv[3] if len(sys.argv) == 4 else ""
     run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions",
-        copy_action=mode == "--copy-action", filter_field=mode == "--filter",
+        copy_action=mode == "--copy-action", move_action=mode == "--move-action",
+        delete_action=mode == "--delete-action", filter_field=mode == "--filter",
         filter_visual=mode == "--filter-visual",
         review=mode == "--review", review_pages=mode == "--review-pages",
         viewer_find=mode == "--viewer-find")

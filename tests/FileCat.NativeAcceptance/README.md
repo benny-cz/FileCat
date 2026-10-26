@@ -1466,9 +1466,11 @@ the native AXUIElement children expose the control tree directly. This route
 checks the accessible label and pointer behavior; actual VoiceOver speech and
 other display scales need separate acceptance.
 `mac-voiceover-list.py BUNDLE.app REPORT.json --copy-action` checks actual
-muted VoiceOver speech when F5 opens a Copy review for the focused file. It
-requires the spoken Copy title, native AX Destination field and enabled Copy
-action, then cancels and checks restored unmarked row focus and unchanged
+muted VoiceOver speech when F5 opens a Copy review for the focused file.
+`--move-action` and `--delete-action` exercise the corresponding F6 and F8
+reviews. Each route requires its spoken title and enabled decision; Copy and
+Move also require the native AX Destination field, while Delete must not have
+one. It then cancels and checks restored unmarked row focus and unchanged
 bytes. The report separately records whether VoiceOver speaks that restored
 row automatically. The dialog probe uses the same selected Xcode SDK as the
 focus observer, avoiding a Command Line Tools/compiler version mismatch.

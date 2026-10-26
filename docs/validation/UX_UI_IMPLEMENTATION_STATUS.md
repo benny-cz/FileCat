@@ -1655,6 +1655,37 @@ owned FileCat process was closed, and a disk-number/identity-checked cleanup
 detached and removed only that VHD. Exact original-byte recovery on a
 retaining medium remains open.
 
+**26 October 2026, current-head Mac native dialogs and speech (FCUX-004,
+007, 010):** The Mac Git checkout fast-forwarded to `be7b2a30` and published a
+directly signed validation app from that revision, without an archive. Its
+`FileCat.dll` SHA-256 was
+`FE87CD90DA225880974FF6164A2E1CE07270BE47467C2E70C7E502360B96581A`.
+The native Copy, Move and Delete review guard passed at both the normal window
+and 760 × 600 Retina window: each review exposed one Cancel control and the
+correct source/destination summary, blocked six background operation commands,
+and canceled without changing the source or target. Approved-helper captures
+were inspected for all three narrow reviews and normal Copy; full paths,
+buttons and disclosure controls remained visible. A first cold-start attempt
+timed out waiting for Copy, but a direct accessibility inspection found the
+review and a fresh complete run passed; repeat the cold-start route if the
+timing recurs. With Mac audio muted, VoiceOver spoke “Search canceled.” for
+both Hex and Text Stop on separate 2 GiB sparse files; each test preserved
+source, target and clipboard. A native F5 Copy review was also announced,
+exposed the Destination field and Close dialog button, and Escape returned to
+the unchanged `b.txt` row, which VoiceOver spoke. The extended native runner
+also passed F6 Move and F8 Delete: VoiceOver spoke each title, AX exposed one
+enabled decision and the expected Destination-field presence, and Escape
+restored spoken `b.txt` with source bytes and target unchanged. Other item
+actions and provider types remain open.
+
+The `be7b2a30` macOS 26 CI Remote suite reported 2,595 tests passed with no
+assertion failures, then its testhost exited 134; that lane is red. A full
+Mac 27 rerun from the same Git revision with the pinned 10.0.101 SDK passed
+2,604/30 skipped/0 failed after adding the SDK to the test subprocess PATH.
+The first local attempt's two failures were fixture-launch failures because
+`dotnet` was absent from that SSH shell's PATH; they did not reproduce the CI
+abort. A green replacement macOS 26 CI lane is still required.
+
 **25 October 2026, Mac FTPS replacement speech retry (FCUX-001):** A second
 native implicit-TLS certificate and replacement review showed the full amber
 warning, but VoiceOver stayed on Destination and did not announce it. The

@@ -8,6 +8,11 @@ increments to `main`.
 
 ## Open prerequisites
 
+- Resolve the macOS 26 CI `FileCat.Remote.Tests` testhost exit 134 seen on
+  `be7b2a30` after its result file reported 2,595 passed and no test failures.
+  A Mac 27 native rerun with the same pinned SDK passed 2,604/30 skipped;
+  require a green replacement macOS 26 lane and capture the crash sequence if
+  it recurs.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the desktop session. Direct macOS AX now reads
@@ -82,8 +87,8 @@ increments to `main`.
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken
    automation on the supported desktops. For FCUX-010, verify VoiceOver's
-   other item actions and bounded native listings on other supported provider
-   types.
+   remaining item actions beyond F3, Copy, Move and Delete, and bounded native
+   listings on other supported provider types.
    Finish the other provider, scale and spoken action routes recorded in the
    status table.
 4. **Work through S2 native acceptance in audit order.** The remaining groups
