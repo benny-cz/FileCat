@@ -17,7 +17,10 @@ directory = Path(__file__).parent
 editor = runpy.run_path(str(directory / "mac-ax-hex-editor-backward.py"))
 viewer = runpy.run_path(str(directory / "mac-ax-viewer-mode-layout.py"))
 NAME = editor["FIXTURE_NAME"]
-CONTENT = bytes(range(256)) * 32
+CONTENT = bytearray(bytes(range(256)) * 32)
+CONTENT[3000:3006] = b"NEEDLE"
+CONTENT[6000:6006] = b"NEEDLE"
+CONTENT = bytes(CONTENT)
 
 
 def hex_semantic():
@@ -61,6 +64,27 @@ def hex_row():
     if row != [f"{byte:02X}" for byte in CONTENT[:len(row)]]:
         raise AssertionError(f"Mac Hex row bytes differ: {row!r}")
     return {"bytesPerRow": len(row), "firstRow": row}
+
+
+def visible_row_bytes(value):
+    match = re.search(r"row [0-9A-F]{8}: ((?:[0-9A-F]{2}(?:[ .]|$))+)", value)
+    if match is None:
+        raise AssertionError(f"The visible Mac Hex row is not exposed: {value[:350]!r}")
+    return len(re.findall(r"\b[0-9A-F]{2}\b", match.group(1)))
+
+
+def selected_search_hit(offset):
+    expected = f"Selected bytes {offset} through {offset + 5}, 6 bytes"
+    value = ""
+    for _ in range(12):
+        value = hex_semantic()
+        normalized = re.sub(r"(?<=\d)[\u00a0\u202f,](?=\d{3}\b)", "", value)
+        if expected in normalized:
+            return {"sourceOffset": offset, "selection": expected,
+                    "viewportFirstByte": viewport_byte(value),
+                    "visibleRowBytes": visible_row_bytes(value)}
+        time.sleep(0.2)
+    raise AssertionError(f"Mac Hex search did not select its exact bytes: {value[:500]!r}")
 
 
 def scrollbar_geometry():
@@ -162,25 +186,47 @@ def pointer_drag(start_x, start_y, end_x, end_y):
     time.sleep(0.3)
 
 
-def scrollbar_drag_check(frame):
+def scrollbar_drag_check(frame, helper, validation):
     x, y, width, height = frame
-    start_y = y + 30
-    end_y = min(start_y + 120, y + height - 30)
     x += width // 2
     before = hex_semantic()
     if viewport_byte(before) != 0 or "No byte selection" not in before or not before.startswith("Offset 0 of"):
         raise AssertionError(f"Mac Hex editor did not start unselected at byte zero: {before!r}")
-    pointer_drag(x, start_y, x, end_y)
-    down = hex_semantic()
-    if viewport_byte(down) <= 0 or "No byte selection" not in down or not down.startswith("Offset 0 of"):
-        raise AssertionError(f"Mac scrollbar drag failed to scroll without selecting: {frame!r}, {down!r}")
-    pointer_drag(x, end_y, x, start_y)
-    up = hex_semantic()
-    if viewport_byte(up) != 0 or "No byte selection" not in up or not up.startswith("Offset 0 of"):
-        raise AssertionError(f"Mac reverse thumb drag changed selection/cursor: {frame!r}, {up!r}")
+    down_attempts = []
+    for offset in (20, 26, 32):
+        start_y = y + offset
+        end_y = min(start_y + 120, y + height - 30)
+        pointer_drag(x, start_y, x, end_y)
+        down = hex_semantic()
+        down_attempts.append({"start": start_y, "viewport": viewport_byte(down)})
+        if "No byte selection" not in down or not down.startswith("Offset 0 of"):
+            raise AssertionError(f"Mac thumb drag changed byte selection or cursor: {down!r}")
+        if viewport_byte(down) > 0:
+            break
+    else:
+        screenshot = viewer["capture"](helper, validation)
+        pointer = subprocess.check_output(["/opt/homebrew/bin/cliclick", "p"], text=True).strip()
+        raise AssertionError(f"Mac scrollbar drag failed to scroll without selecting: {frame!r}, "
+                             f"attempts={down_attempts!r}, pointer={pointer!r}, "
+                             f"screen={screenshot!r}, {down!r}")
+    up_attempts = []
+    for shift in (0, -6, 6, -12, 12):
+        pointer_drag(x, end_y + shift, x, start_y + shift)
+        up = hex_semantic()
+        up_attempts.append({"start": end_y + shift, "viewport": viewport_byte(up)})
+        if "No byte selection" not in up or not up.startswith("Offset 0 of"):
+            raise AssertionError(f"Mac reverse thumb drag changed byte selection or cursor: {up!r}")
+        if viewport_byte(up) == 0:
+            break
+    else:
+        screenshot = viewer["capture"](helper, validation)
+        raise AssertionError(f"Mac reverse thumb drag changed selection/cursor: {frame!r}, "
+                             f"down={viewport_byte(down)}, up={viewport_byte(up)}, "
+                             f"attempts={up_attempts!r}, screen={screenshot!r}, {up!r}")
     return {"thumbStart": [x, start_y], "thumbEnd": [x, end_y],
             "downViewportByte": viewport_byte(down), "upViewportByte": viewport_byte(up),
-            "selectionUnchanged": True}
+            "selectionUnchanged": True, "downAttempts": down_attempts,
+            "upAttempts": up_attempts}
 
 
 def content_selection_check(document, scrollbar):
@@ -197,14 +243,22 @@ def content_selection_check(document, scrollbar):
         raise AssertionError(f"Deliberate Mac Hex content drag did not select four bytes: {selected!r}")
     bar_x, bar_y, bar_width, bar_height = scrollbar
     thumb_x = bar_x + bar_width // 2
-    thumb_start = bar_y + 30
-    thumb_end = min(thumb_start + 120, bar_y + bar_height - 30)
-    pointer_drag(thumb_x, thumb_start, thumb_x, thumb_end)
-    preserved = hex_semantic()
-    if viewport_byte(preserved) <= 0 or "Selected bytes 0 through 3, 4 bytes" not in preserved:
-        raise AssertionError(f"Mac thumb drag changed an explicit byte selection: {preserved!r}")
+    attempts = []
+    for offset in (20, 26, 32):
+        thumb_start = bar_y + offset
+        thumb_end = min(thumb_start + 120, bar_y + bar_height - 30)
+        pointer_drag(thumb_x, thumb_start, thumb_x, thumb_end)
+        preserved = hex_semantic()
+        attempts.append({"start": thumb_start, "viewport": viewport_byte(preserved)})
+        if "Selected bytes 0 through 3, 4 bytes" not in preserved:
+            raise AssertionError(f"Mac thumb drag changed an explicit byte selection: {preserved!r}")
+        if viewport_byte(preserved) > 0:
+            break
+    else:
+        raise AssertionError(f"Mac thumb drag did not scroll its explicit selection: {attempts!r}")
     return {"dragStart": [start_x, row_y], "dragEnd": [end_x, row_y],
-            "selectedBytes": [0, 3], "thumbPreservedViewportByte": viewport_byte(preserved)}
+            "selectedBytes": [0, 3], "thumbPreservedViewportByte": viewport_byte(preserved),
+            "thumbAttempts": attempts}
 
 
 def raise_editor():
@@ -292,9 +346,63 @@ def run(source, helper):
                 states[label]["document"] = document_geometry()
         if states["wide"]["row"]["bytesPerRow"] <= states["narrow"]["row"]["bytesPerRow"]:
             raise AssertionError(f"Hex editor did not fit more complete bytes after widening: {states!r}")
-        states["wide"]["thumbDrag"] = scrollbar_drag_check(states["wide"]["scrollbar"])
+        states["wide"]["thumbDrag"] = scrollbar_drag_check(states["wide"]["scrollbar"],
+                                                               helper, validation)
         states["wide"]["contentSelection"] = content_selection_check(
             states["wide"]["document"], states["wide"]["scrollbar"])
+        # Keep the same editor open across scroll, search, resize and zoom. The
+        # needle positions are far from the first displayed row, so a stale
+        # viewport or a lost search selection cannot satisfy these checks.
+        editor["enter_query"]("NEEDLE")
+        search_status = editor["editor_status"]("Found at 0xBB8")
+        first_hit = selected_search_hit(3000)
+        narrow = editor["editor_size"](720, 500)
+        for _ in range(3):
+            if narrow[0] <= 724 and narrow[1] <= 504:
+                break
+            narrow = editor["pointer_resize"](720, 500)["after"][2:]
+        # At native 1x the Cocoa window manager can stop a second shrink with
+        # Find open at about 864x560. It is still a substantially narrower
+        # usable window; the following row-capacity assertion tests reflow.
+        if narrow[0] > 900 or narrow[1] > 600:
+            raise AssertionError(f"Search selection did not fit the narrow editor: {narrow!r}")
+        raise_editor()
+        narrow_hit = selected_search_hit(3000)
+        wide = editor["editor_size"](1200, 700)
+        for _ in range(4):
+            time.sleep(0.5)
+            wide = editor["editor_frame"]()[2:]
+            if wide[0] >= narrow[0] + 200 and wide[1] >= narrow[1] + 100:
+                break
+            wide = editor["editor_size"](1200, 700)
+        if wide[0] < narrow[0] + 200 or wide[1] < narrow[1] + 100:
+            raise AssertionError(f"Search selection did not fit the expanded editor: {wide!r}")
+        raise_editor()
+        wide_hit = selected_search_hit(3000)
+        if wide_hit["visibleRowBytes"] <= narrow_hit["visibleRowBytes"]:
+            raise AssertionError("The searched Hex selection did not reflow with the editor")
+        zoom_steps = 0
+        zoomed_hit = wide_hit
+        try:
+            while zoom_steps < 3 and zoomed_hit["visibleRowBytes"] >= wide_hit["visibleRowBytes"]:
+                editor["editor_click"]("AXButton", "Increase editor content size")
+                zoom_steps += 1
+                time.sleep(0.3)
+                zoomed_hit = selected_search_hit(3000)
+            if zoomed_hit["visibleRowBytes"] >= wide_hit["visibleRowBytes"]:
+                raise AssertionError("Mac Hex content size did not reduce the fitted row")
+        finally:
+            for _ in range(zoom_steps):
+                editor["editor_click"]("AXButton", "Decrease editor content size")
+        restored_hit = selected_search_hit(3000)
+        if restored_hit["visibleRowBytes"] != wide_hit["visibleRowBytes"]:
+            raise AssertionError("Mac Hex content size did not restore the original row width")
+        states["combinedSearchResizeZoom"] = {
+            "query": "NEEDLE", "status": search_status, "first": first_hit,
+            "narrowSize": narrow, "narrow": narrow_hit,
+            "wideSize": wide, "wide": wide_hit,
+            "zoomSteps": zoom_steps, "zoomed": zoomed_hit,
+            "restored": restored_hit}
         if hashlib.sha256(fixture.read_bytes()).digest() != digest:
             raise AssertionError("Hex editor resize changed its source bytes")
         return {"passed": True, "platform": "macOS", "mode": "Hex editor",

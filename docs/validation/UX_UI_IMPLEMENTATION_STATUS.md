@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, combined native Mac Hex editor (UXBUG-020):** The tracked
+`mac-ax-hex-editor-resize.py` now keeps one signed, Git-built editor open for
+physical thumb scrolling and explicit byte selection, Find, window reflow,
+content zoom and restoration. Its owned 8,192-byte fixture contains two exact
+`NEEDLE` ranges away from the first row. Find reached offset 3,000 and
+selected exactly bytes 3,000–3,005; the selection survived narrow and wide
+frames and zoom. The revised runner tolerates macOS thousands separators in
+accessible byte offsets and bounds physical thumb hit-test retries, requiring
+real viewport movement with no accidental selection. At Retina, the final
+run fitted 16 bytes at 721 × 501, 28 after expansion, then 24 on zoom, and
+restored 28; its first thumb attempt missed and the second reached byte 1,760.
+At native 1×, the full run fitted 16 bytes at 720 × 500, 28 after expansion,
+then 24 on zoom, and restored 28. Both runs preserved exact source SHA-256;
+the display helper restored the original Retina mode after the 1× run.
+Receipts are `mac-hex-editor-combined-1x-20261026-r6.json` and
+`mac-hex-editor-combined-retina-20261026-r3.json` in the isolated Mac
+validation folder. The pushed `e1b7d048` head passed all five CI lanes; the
+later audit increment still needs its own final-head check.
+
 **26 October 2026, panel-mask screenshot and Ubuntu Hex follow-up:** The
 owner's four-panel purple screenshot file was captured at 22:12 on 25 October;
 the missing-text fix was committed at 23:28 that day (`2f1f43c9`). The exact
@@ -20,6 +39,9 @@ position reach the thumb while the physical drag still left the viewport at
 byte zero. This is inconclusive for scaled product behavior. Restarting only
 Xwayland also broke the 100% pointer route; a clean VM reboot restored it.
 Stable scaled-session physical-pointer acceptance remains open.
+An attempted persistent 150% GNOME mode was reset to 1280 × 800 at 100% by
+VMware's guest display auto-sizing during a clean reboot; the guest remains in
+its original display mode.
 
 **26 October 2026, macOS CI follow-up:** Runs `40250366099` and `40250993156`
 each passed producer, Windows, Ubuntu and ARM64, but the Mac lane exposed two

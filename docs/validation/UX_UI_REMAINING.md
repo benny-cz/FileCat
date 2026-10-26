@@ -111,9 +111,10 @@ increments to `main`.
    compositor, Xwayland and physical uinput pointer coordinates; the
    temporary 150% GNOME mode leaves Xwayland's reported cursor detached from
    physical uinput. Recheck the full native scrollbar journey after a stable
-   scaled login. Finish combined Hex editor search,
-   selection, scroll, zoom and pointer alignment while resizing on each
-   supported desktop, including the remaining scaled contexts.
+   scaled login; VMware guest auto-sizing currently restores 100% on reboot.
+   Finish combined Hex editor search, selection, scroll, zoom and pointer
+   alignment while resizing on Windows and Linux, including the remaining
+   scaled contexts. The native Mac 1× and Retina combined routes passed.
 
 ## Evidence required to finish
 
