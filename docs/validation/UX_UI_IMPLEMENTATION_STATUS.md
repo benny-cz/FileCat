@@ -491,8 +491,18 @@ viewer beside Next; pressing it showed `Search canceled.`, hid Stop, left the
 clipboard and exact small/sample large source bytes unchanged, and exited
 the isolated app gracefully. The guest then restored 100% and closed
 Settings. Receipts: `search-stop-text-scale200-20261026-r4.json` and
-`search-stop-text-scale-restore100-current.json`. Hex at 200%, other
-providers and spoken Stop outcomes remain open.
+`search-stop-text-scale-restore100-current.json`. Other providers and spoken
+Stop outcomes remain open.
+
+**26 October 2026, Windows Hex Stop at 200% (FCUX-007):** The same isolated
+Git-built `65725e40` app passed `search-stop-native` at the selected 200%
+Windows scale. A physical Stop click beside Next canceled a search over a
+test-owned sparse 2 GiB file, showed `Search canceled.`, hid Stop, preserved
+the clipboard and the exact small/sample large source bytes, and closed the
+isolated app. The guest restored 100% and closed Settings. Receipts:
+`search-stop-scale200-20261026-r4.json` and
+`search-stop-hex-scale-restore100-current.json`. Other provider and spoken
+Stop/error routes remain open.
 
 **26 October 2026, visible long-search Stop (FCUX-007):** The viewer keeps
 Stop search immediately beside Next while a long search runs, so a long match
