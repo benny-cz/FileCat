@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using System.Diagnostics;
 using FileCat.App.Views;
 using FileCat.Core.Operations;
 using FileCat.Core.Resources;
@@ -13,6 +14,50 @@ namespace FileCat.App.Tests;
 
 public sealed class BulkRenameReviewTests
 {
+    [AvaloniaFact]
+    public void Maximum_accepted_batch_keeps_every_mapping_and_a_bounded_visual_list()
+    {
+        const int count = 50_000;
+        string root = Path.Combine(Path.GetTempPath(), "rename-maximum-review");
+        var rows = Enumerable.Range(0, count).Select(index =>
+        {
+            string oldName = $"item{index:00000}.txt";
+            return new RenamePreview(
+                ItemRef.ForFileSystemPath(Path.Combine(root, oldName), EntryKind.File),
+                oldName, $"reviewed{index:00000}.txt",
+                index == count - 1 ? "Destination already exists." : null);
+        }).ToArray();
+        var review = new BulkRenameReview();
+        var window = new Window { Width = 800, Height = 500, Content = review };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var stopwatch = Stopwatch.StartNew();
+            review.SetRows(rows);
+            window.UpdateLayout();
+            stopwatch.Stop();
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+                $"Publishing {count:N0} already planned rows blocked the UI for {stopwatch.Elapsed}.");
+            Assert.Equal(count, review.AllRows.Count);
+            Assert.Equal(count, review.ShownRows.Count);
+            var list = review.GetVisualDescendants().OfType<ListBox>().Single();
+            Assert.Equal(count, list.ItemCount);
+            Assert.InRange(list.GetVisualDescendants().OfType<ListBoxItem>().Count(), 1, 100);
+
+            var problems = review.GetVisualDescendants().OfType<Button>().Single(button =>
+                Equals(button.Content, "Problems (1)"));
+            problems.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(count - 1, Assert.Single(review.ShownRows).Index);
+            var detail = review.GetVisualDescendants().OfType<TextBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Full old and new paths of selected rename");
+            Assert.Contains(Path.Combine(root, "item49999.txt"), detail.Text);
+            Assert.Contains(Path.Combine(root, "reviewed49999.txt"), detail.Text);
+            Assert.Contains("Destination already exists.", detail.Text);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public void Ordinary_long_full_paths_grow_the_detail_instead_of_hiding_the_destination()
     {

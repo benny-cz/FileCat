@@ -71,7 +71,9 @@ increments to `main`.
    (015–017, 019–021, 042, 043, 068), notification lifetime (029: clipboard,
    scaled layout and native Windows timed administrator notice), Settings
    and command consistency (035–037, 046, 057), bulk rename (038–040), Find
-   and preview behavior (044, 045, 052, 053, 055). The status table identifies
+   and preview behavior (044, 045, 052, 053, 055). A native 50,000-file
+   end-to-end bulk-rename review remains beyond the bounded headless UI test.
+   The status table identifies
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
