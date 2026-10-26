@@ -1755,9 +1755,11 @@ try
             }
             var viewer = Viewer(opened) ?? throw new InvalidOperationException("The native file viewer did not open.");
             NativeWindow.Rect narrowWindow = default;
+            uint narrowDpi = 0;
             if (narrow)
             {
-                narrowWindow = NativeWindow.ResizeIsolatedViewer("a.txt", 600, 420);
+                (narrowWindow, narrowDpi) = NativeWindow.ResizeIsolatedViewer("a.txt", 600, 420,
+                    SelectionTestAppPath());
                 opened = ParseSource(await ReadSourceAsync(client, sessionId));
                 viewer = Viewer(opened)
                     ?? throw new InvalidOperationException("The resized checksum viewer is unavailable.");
@@ -1886,14 +1888,16 @@ try
             }
             bool unchangedFiles = await File.ReadAllTextAsync(sourceFile) == sourceContent
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
-            bool narrowApplied = !narrow || narrowWindow.Width is >= 570 and <= 630
-                && narrowWindow.Height is >= 390 and <= 450;
+            double narrowScale = narrowDpi / 96.0;
+            bool narrowApplied = !narrow || narrowDpi >= 96
+                && Math.Abs(narrowWindow.Width / narrowScale - 600) <= 30
+                && Math.Abs(narrowWindow.Height / narrowScale - 420) <= 30;
             bool passed = oneByteSelected && selectedScope && (!wholeFile || wholeScopeChosen) && exactResult
                 && clipboardPreserved && explicitCopy && unchangedFiles && resultVisible && narrowApplied;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, oneByteSelected, selectedScope, wholeFile, wholeScopeChosen,
-                changedSource, narrow, narrowApplied, narrowWindow, resultVisible,
+                changedSource, narrow, narrowApplied, narrowWindow, narrowDpi, resultVisible,
                 exactResult, clipboardPreserved,
                 explicitCopy, copyEnabled, clipboardBefore, clipboardAfter,
                 copiedText, unchangedFiles, resultText
@@ -5677,6 +5681,9 @@ internal static partial class NativeWindow
     [LibraryImport("user32.dll")]
     private static partial int GetAwarenessFromDpiAwarenessContext(nint value);
 
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint window);
+
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint FindWindow(string? className, string? title);
 
@@ -6213,19 +6220,25 @@ internal static partial class NativeWindow
         return resized;
     }
 
-    internal static Rect ResizeIsolatedViewer(string fileName, int width, int height)
+    internal static (Rect Bounds, uint Dpi) ResizeIsolatedViewer(string fileName,
+        int logicalWidth, int logicalHeight,
+        string? configuredExecutable)
     {
         var window = FindWindow(null, fileName + " — FileCat Viewer");
         if (window == 0 || !GetWindowRect(window, out var before))
             throw new InvalidOperationException("The isolated viewer window is unavailable.");
         GetWindowThreadProcessId(window, out var processId);
         using var process = Process.GetProcessById((int)processId);
-        var expectedExecutable = Path.Combine(Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData), "FileCatValidation",
-            "ReviewHighlights", "FileCat.exe");
+        var expectedExecutable = configuredExecutable ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FileCatValidation", "ReviewHighlights", "FileCat.exe");
         if (!string.Equals(process.MainModule?.FileName, expectedExecutable,
                 StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Viewer does not belong to the isolated VM build.");
+        uint dpi = GetDpiForWindow(window);
+        if (dpi < 96) throw new InvalidOperationException("The viewer DPI is unavailable.");
+        int width = checked((int)Math.Round(logicalWidth * dpi / 96.0));
+        int height = checked((int)Math.Round(logicalHeight * dpi / 96.0));
         ShowWindow(window, 9); // SW_RESTORE before applying physical pixel bounds.
         const uint noZOrder = 0x0004;
         const uint noActivate = 0x0010;
@@ -6235,7 +6248,7 @@ internal static partial class NativeWindow
         Thread.Sleep(150);
         if (!GetWindowRect(window, out var resized))
             throw new InvalidOperationException("Cannot read the resized viewer window.");
-        return resized;
+        return (resized, dpi);
     }
 
     internal static Rect ReadViewerRect()

@@ -931,7 +931,9 @@ clipboard unchanged and explicit Copy publishes the complete visible result.
 The runner closes the viewer and verifies the fixture files are unchanged;
 `selection-stop` then closes the isolated app.
 On another fresh fixture, `checksum-narrow-native <report.json>` repeats the
-one-byte result and explicit Copy after measuring a 600 × 420 viewer window.
+one-byte result and explicit Copy after measuring a 600 × 420 logical-pixel
+viewer window at its actual per-monitor DPI. The runner requests the matching
+physical bounds and records both measured bounds and DPI.
 The complete result and Copy control must remain visible and the source bytes
 and destination must remain unchanged. Finish with `selection-stop`.
 On a new fixture, `checksum-whole-native <report.json>` begins with the same
