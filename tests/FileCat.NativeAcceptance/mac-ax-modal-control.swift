@@ -1,5 +1,5 @@
 // Bounded direct Accessibility actions for an isolated FileCat modal test.
-// Usage: mac-ax-modal-control FILECAT_EXE PID snapshot|focus-row|press-button [NAME] [top|bottom]
+// Usage: mac-ax-modal-control FILECAT_EXE PID snapshot|focus-row|press-button|resize-window [ARGS]
 import ApplicationServices
 import Foundation
 
@@ -22,15 +22,16 @@ func ordinate(_ element: AXUIElement) -> Double? {
 
 guard CommandLine.arguments.count >= 4,
       let pid = Int32(CommandLine.arguments[2]),
-      ["snapshot", "focus-row", "press-button"].contains(CommandLine.arguments[3]) else {
-    fputs("usage: mac-ax-modal-control FILECAT_EXE PID snapshot|focus-row|press-button [NAME] [top|bottom]\n", stderr)
+      ["snapshot", "focus-row", "press-button", "resize-window"].contains(CommandLine.arguments[3]) else {
+    fputs("usage: mac-ax-modal-control FILECAT_EXE PID snapshot|focus-row|press-button|resize-window [ARGS]\n", stderr)
     exit(2)
 }
 let mode = CommandLine.arguments[3]
 guard (mode == "snapshot" && CommandLine.arguments.count == 4) ||
       (mode == "focus-row" && CommandLine.arguments.count == 5) ||
       (mode == "press-button" && CommandLine.arguments.count == 6 &&
-       ["top", "bottom"].contains(CommandLine.arguments[5])) else {
+       ["top", "bottom"].contains(CommandLine.arguments[5])) ||
+      (mode == "resize-window" && CommandLine.arguments.count == 6) else {
     fputs("Invalid native modal action arguments.\n", stderr)
     exit(2)
 }
@@ -61,6 +62,35 @@ guard process.terminationStatus == 0,
 
 let app = AXUIElementCreateApplication(pid)
 let windows = attribute(app, kAXWindowsAttribute as CFString) as? [AXUIElement] ?? []
+if mode == "resize-window" {
+    let main = windows.filter {
+        string(attribute($0, kAXTitleAttribute as CFString)).contains(" — FileCat — ")
+    }
+    guard main.count == 1,
+          let width = Double(CommandLine.arguments[4]),
+          let height = Double(CommandLine.arguments[5]),
+          (640...1400).contains(width), (420...1000).contains(height) else {
+        let titles = windows.map { string(attribute($0, kAXTitleAttribute as CFString)) }
+        fputs("The owned Mac main window or bounded requested size is unavailable: titles=\(titles) size=\(CommandLine.arguments[4]),\(CommandLine.arguments[5]).\n", stderr)
+        exit(3)
+    }
+    var requested = CGSize(width: width, height: height)
+    guard let value = AXValueCreate(.cgSize, &requested),
+          AXUIElementSetAttributeValue(main[0], kAXSizeAttribute as CFString, value) == .success,
+          let actualValue = attribute(main[0], kAXSizeAttribute as CFString),
+          CFGetTypeID(actualValue) == AXValueGetTypeID() else {
+        fputs("The isolated Mac window did not accept a native resize.\n", stderr)
+        exit(4)
+    }
+    var actual = CGSize.zero
+    guard AXValueGetValue(actualValue as! AXValue, .cgSize, &actual),
+          abs(actual.width - width) <= 2, abs(actual.height - height) <= 2 else {
+        fputs("The isolated Mac window did not settle at the requested size.\n", stderr)
+        exit(4)
+    }
+    print("{\"width\":\(actual.width),\"height\":\(actual.height)}")
+    exit(0)
+}
 var visited = 0
 var nodes: [[String: Any]] = []
 var matches: [(element: AXUIElement, y: Double)] = []

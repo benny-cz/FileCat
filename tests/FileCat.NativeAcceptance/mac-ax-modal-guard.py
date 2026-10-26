@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Keep Copy, Move and Delete reviews modal under native macOS AX actions.
 
-Usage: python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app]
+Usage: python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app] [--narrow]
 Run on the unlocked test Mac with direct Accessibility API permission.
 """
 
@@ -40,12 +40,12 @@ def ax(helper, executable, pid, mode, *args):
                           capture_output=True, text=True, timeout=15)
     if done.returncode:
         raise AssertionError(done.stderr.strip() or "Direct macOS AX action failed")
-    return json.loads(done.stdout) if mode == "snapshot" else done.stdout.strip()
+    return json.loads(done.stdout) if mode in ("snapshot", "resize-window") else done.stdout.strip()
 
 
 def review_state(helper, executable, pid, verb):
     tree = ax(helper, executable, pid, "snapshot")
-    if tree["visited"] >= 5000 or tree["windows"] != 1:
+    if tree["visited"] >= 5000 or tree["windows"] < 1:
         raise AssertionError("The isolated Mac modal tree is absent or unbounded")
     nodes = tree["nodes"]
     count = lambda role, predicate: sum(node["role"] == role and predicate(node["name"])
@@ -76,7 +76,7 @@ def capture_review(helper, validation):
     return str(wait_for(new_capture, "approved FileCatCapture image", seconds=15))
 
 
-def run(bundle, report, capture_helper=None):
+def run(bundle, report, capture_helper=None, narrow=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents/MacOS/FileCat"
@@ -114,6 +114,7 @@ def run(bundle, report, capture_helper=None):
     receipt = {"passed": False, "bundle": str(bundle),
                "appDllSha256": sha256(executable.with_name("FileCat.dll")),
                "fixture": str(fixture), "sourceSha256": original_hash,
+               "narrow": narrow,
                "journeys": [], "captures": []}
     pid = None
     try:
@@ -128,6 +129,11 @@ def run(bundle, report, capture_helper=None):
                                  capture_output=True, text=True, check=True, timeout=5).stdout.strip()
         if not command.startswith(str(executable) + " --new-instance --data " + str(data)):
             raise AssertionError("An unexpected FileCat process owns the Mac desktop")
+        if narrow:
+            wait_for(lambda: ax(ax_helper, executable, pid, "snapshot")["windows"] >= 1,
+                     "the isolated Mac main window")
+            receipt["windowSize"] = ax(ax_helper, executable, pid,
+                                       "resize-window", "760", "600")
         for verb in ("Copy", "Move", "Delete"):
             wait_for(lambda: ax(ax_helper, executable, pid, "focus-row", "a.txt"),
                      "the exact a.txt source row")
@@ -170,12 +176,15 @@ def run(bundle, report, capture_helper=None):
 
 
 def main():
-    if len(sys.argv) not in (3, 4):
-        raise SystemExit("Usage: mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app]")
+    if len(sys.argv) < 3 or len(sys.argv) > 5 or any(
+            arg not in ("--narrow",) and not arg.endswith("FileCatCapture.app")
+            for arg in sys.argv[3:]):
+        raise SystemExit("Usage: mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app] [--narrow]")
     report = Path(sys.argv[2])
     try:
         result = run(Path(sys.argv[1]), report,
-                     Path(sys.argv[3]) if len(sys.argv) == 4 else None)
+                     next((Path(arg) for arg in sys.argv[3:] if arg.endswith("FileCatCapture.app")), None),
+                     "--narrow" in sys.argv[3:])
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

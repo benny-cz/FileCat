@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, narrow Mac transfer reviews (FCUX-004, UXBUG-010):**
+The direct AX modal guard resized the exact signed FileCat main window to
+760 × 600 logical points on the Retina Mac, then passed Copy, Move and Delete
+with all six background-command attempts per review, unchanged exact source
+hash, empty target and safe Cancel. The owner-approved capture helper recorded
+all three reviews. Visual inspection found each dialog within the narrowed
+host, its full selected destination path where applicable, effect summary,
+options and Cancel/Queue/approval buttons readable and reachable; Delete kept
+its Recycle Bin wording and close X. The direct helper identifies the exact
+titled main window when AX also reports a transient second window. Other
+scaled and longer-path Mac dialog visuals remain open.
+
 **26 October 2026, Mac modal visual capture (FCUX-004, UXBUG-010):**
 The owner-approved `FileCatCapture.app` recorded Copy, Move and Delete reviews
 inside the same direct AX modal guard. An unrelated FaceTime prompt initially

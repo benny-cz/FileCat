@@ -12,8 +12,8 @@ increments to `main`.
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the desktop session. Direct macOS AX now reads
   FileCat's window and source row, and the Copy/Move/Delete modal-command
-  guard passed repeatedly through it. Normal Retina Copy/Move/Delete captures
-  were inspected; their narrow and scaled layouts remain. System Events still
+  guard passed repeatedly through it. Normal and 760 × 600 Retina
+  Copy/Move/Delete captures were inspected; their other scaled layouts remain. System Events still
   exposes no children over SSH. Keep Mac audio muted. Finish the remaining
   Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
