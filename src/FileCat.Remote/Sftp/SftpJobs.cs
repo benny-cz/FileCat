@@ -849,9 +849,15 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         Changed(folder);
         if (current is { IsLink: true })
         {
-            // A link is replaced itself, never through to its target.
-            current.Delete();
-            Channel.Rename(temp, dst);
+            // A link is replaced itself, never through to its target. Some SFTP
+            // servers rename the target of a link instead; only a channel
+            // known to rename the link may keep it as a recovery backup.
+            if (!Channel.RenamesLinksThemselves)
+                throw new RefusedOperationException("Not written: this server may rename a link's target. The link and incoming copy were kept; remove or rename the link explicitly after reviewing it.");
+            var refreshed = FreshEntry(folder, name);
+            if (refreshed is null || TargetSnapshot.Of(refreshed) != TargetSnapshot.Of(current))
+                throw new RefusedOperationException("Not written: the destination link changed before replacement. Review the server before trying again.");
+            PublishWithRecoveryBackup(folder, dst, temp, refreshed, null, publication);
             return;
         }
         if (current is null)
@@ -877,6 +883,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 (Job.Request.ExpectedTarget is null ? "the incoming copy was not published." : "your edit is kept."));
         if (current is null)
             throw new RefusedOperationException("Not written: the destination disappeared before non-atomic replacement. Review the server before trying again.");
+        PublishWithRecoveryBackup(folder, dst, temp, current, expectedSha256, publication);
+    }
+
+    private void PublishWithRecoveryBackup(string folder, string dst, string temp, IRemoteEntry current,
+        string? expectedSha256, PublicationState publication)
+    {
         // Keep the approved old version under this journal's hidden prefix
         // until the new stage has taken the public name. Deleting it first
         // would lose both versions if the second server rename failed.

@@ -393,6 +393,58 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         }
     }
 
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, true)]
+    [InlineData(RemoteProtocols.Sftp, false)]
+    [InlineData(RemoteProtocols.Ftp, true)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, true)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, true)]
+    public async Task Link_replacement_keeps_the_link_or_refuses_a_server_that_renames_its_target(string protocol, bool renamesLinksThemselves)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        rig.Server.Dir("/owned");
+        rig.Server.File("/owned/target.txt", "target contents");
+        rig.Server.Link(Target, "/owned/target.txt");
+        rig.Server.RenamesLinksThemselves = renamesLinksThemselves;
+        if (renamesLinksThemselves)
+            rig.BeforeRename = (_, target) =>
+            {
+                if (target == Target) throw new IOException("publication failed after moving link aside");
+            };
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal("target contents", rig.Server.Read("/owned/target.txt"));
+        Assert.True(File.Exists(rig.SourcePath));
+        if (renamesLinksThemselves)
+        {
+            var interrupted = Assert.Single(JournalRecovery.Scan(Path.Join(rig.Root, "journal")));
+            var backup = Assert.Single(interrupted.OpenIntents, i => i.Operation == "remote-replace-backup");
+            Assert.Null(rig.Server.Lookup(Target, false));
+            Assert.Equal("/owned/target.txt", rig.Server.Lookup(backup.Target!, false)!.LinkTarget);
+            Assert.NotNull(rig.Server.Lookup(backup.Staged!, false));
+        }
+        else
+        {
+            Assert.Equal("/owned/target.txt", rig.Server.Lookup(Target, false)!.LinkTarget);
+            Assert.Empty(JournalRecovery.Scan(Path.Join(rig.Root, "journal")));
+            Assert.DoesNotContain(rig.Server.Dir("/owned").Children.Keys,
+                name => name.StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
+        }
+    }
+
     private const string Target = "/owned/notes.txt";
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private sealed record Snapshot(string Kind, long Length, long ModifiedTicks, string? SHA256, string? Link);
@@ -457,6 +509,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         Action<string, string> beforeRename, Action<string, string> beforeMove, Action<string> beforeDelete) : ISftpChannel
     {
         public bool IsConnected => inner.IsConnected;
+        public bool RenamesLinksThemselves => inner.RenamesLinksThemselves;
         public string HomeDirectory => inner.HomeDirectory;
         public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct)
         {

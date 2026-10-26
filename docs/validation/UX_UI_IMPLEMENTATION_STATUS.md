@@ -33,13 +33,15 @@ but reports that the incoming file was published. The recovery prompt now
 distinguishes the previous destination version from incoming upload debris
 and warns against deleting either before reconciliation. Controlled tests
 cover SFTP, FTP and both FTPS modes, target changes with unchanged size/time,
-and failures before or after each server transition: all 90
-`RemoteEditTargetPublicationTests` and four recovery report tests pass on
+and failures before or after each server transition. A remote link uses the
+same recovery backup only when that server renames the link itself; servers
+known to rename the link's target refuse replacement without changing either
+item. All 95 `RemoteEditTargetPublicationTests`, the existing link-replacement
+test, and four recovery report tests pass on
 Windows with 16 MSBuild workers. The real FTP/FTPS `FtpJobTests` suite passed
 96 cases. A server without compare-and-swap can still change the target
-between FileCat's final check and rename, and the remote-link branch has its
-own delete/rename failure path; native late-race and failure acceptance remain
-open.
+between FileCat's final check and rename; native late-race and failure
+acceptance remain open.
 
 **26 October 2026, macOS inline Rename focus (FCUX-010):** A clean signed
 Git build reproduced Escape briefly restoring `c.txt` before native AX
