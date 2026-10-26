@@ -241,10 +241,21 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            if (offset >= stat.Size || buffer.IsEmpty) return 0;
             try
             {
                 _stream!.Position = offset;
-                return _stream.Read(buffer);
+                int requested = (int)Math.Min(buffer.Length, stat.Size - offset);
+                int read = 0;
+                while (read < requested)
+                {
+                    int next = _stream.Read(buffer.Slice(read, requested - read));
+                    if (next <= 0)
+                        throw new EndOfStreamException("The remote file ended before its reported size.");
+                    read += next;
+                }
+                return read;
             }
             catch (RemoteDisconnectedException)
             {
