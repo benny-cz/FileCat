@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Ubuntu viewer Stop at original display scale (FCUX-007):**
+The same isolated Git-built app passed a second native long-search Stop route
+at measured 1280 × 800, GNOME 100%. Hex and Text each used a test-owned 2 GiB
+sparse local source; Text switched via its accessible toggle. Both searches
+showed `Search canceled.`, retired Stop, preserved the clipboard and sampled
+source bytes, and left the empty target untouched. The runner now removes the
+transient sudo credential from the FileCat child environment and restricts its
+report to the validation root. Its earlier 200% Text journey used physical F4;
+the 100% route establishes the native toggle action. Ubuntu 150%, other
+providers and spoken cancellation remain open.
+
 **26 October 2026, direct Mac modal-command guard (FCUX-004):**
 The `mac-ax-modal-guard.py` runner now uses a bounded direct Accessibility
 helper instead of `System Events`. On the signed isolated app whose DLL SHA-256

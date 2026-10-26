@@ -22,7 +22,6 @@ descendants = common["descendants"]
 wait_for = common["wait_for"]
 checked_action = common["checked_action"]
 close_viewer = common["close_viewer"]
-send_key = common["send_key"]
 
 SENTINEL = "FileCat long-search Stop clipboard sentinel"
 LENGTH = 2 * 1024 * 1024 * 1024
@@ -80,9 +79,11 @@ def run(app_path, text_mode):
     try:
         set_clipboard(SENTINEL)
         with (root / "app.log").open("wb") as log:
+            child_env = os.environ.copy()
+            child_env.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(source), "--right", str(target)],
-                                       cwd=root, env=os.environ.copy(), stdout=log,
+                                       cwd=root, env=child_env, stdout=log,
                                        stderr=subprocess.STDOUT)
             command = Path(f"/proc/{process.pid}/cmdline").read_bytes()
             if os.fsencode(str(app_path)) not in command or os.fsencode(str(source)) not in command:
@@ -107,10 +108,7 @@ def run(app_path, text_mode):
             checked_action(find(app, "button", "View"), "View command")
             viewer = wait_for(lambda: find(app, "frame", title), "long-search viewer")
             if text_mode:
-                helper = (validation / "linux-uinput-key.py").resolve(strict=True)
-                if helper.parent != validation:
-                    raise AssertionError("The native Text-mode key helper is outside the validation folder")
-                send_key(helper, "f4")
+                checked_action(find(viewer, "toggle button", "Text"), "Text mode toggle")
                 wait_for(lambda: find(viewer, "label", "Mode: Text"), "Text mode status")
             else:
                 wait_for(lambda: find(viewer, "label", "Mode: Hex"), "Hex mode status")
@@ -137,6 +135,7 @@ def run(app_path, text_mode):
             return {"passed": True, "platform": "Ubuntu", "mode": "Text" if text_mode else "Hex",
                     "app": str(app_path), "appSha256": app_hash, "fixture": str(root),
                     "sourceLength": LENGTH, "displayScale": display_scale,
+                    "modeActivation": "AT-SPI Text toggle" if text_mode else "default Hex mode",
                     "visibleStopActivated": True,
                     "canceledStatusVisible": True, "stopRetired": True,
                     "clipboardPreserved": True, "sourceAndTargetUnchanged": True}
@@ -162,6 +161,8 @@ def main():
     if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--text":
         raise SystemExit("Usage: linux-atspi-viewer-stop.py APP REPORT.json [--text]")
     report = Path(sys.argv[2])
+    if report.parent.resolve() != (Path.home() / "FileCatValidation").resolve(strict=True):
+        raise SystemExit("Write the native report directly below FileCatValidation")
     try:
         result = run(Path(sys.argv[1]), text_mode=len(sys.argv) == 4)
     except Exception as error:

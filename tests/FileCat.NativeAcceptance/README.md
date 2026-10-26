@@ -1278,9 +1278,9 @@ source and empty destination, opens Hex (or Text with `--text`), starts an
 absent-query search and activates the visible Stop button through AT-SPI.
 It requires the canceled status, retired Stop control, unchanged clipboard,
 unchanged sampled source bytes and empty destination. The JSON report records
-the executable SHA-256 and measured GNOME display scale. Text mode sends F4
-through the test-owned `linux-uinput-key.py` helper; grant that helper the
-same native input access used by the Find tests. The runner terminates only
+the executable SHA-256 and measured GNOME display scale. Text mode activates
+the native Text toggle through AT-SPI; the separate 200% run also passed with
+physical F4 from `linux-uinput-key.py`. The runner terminates only
 its own app, closes its viewer, restores the clipboard and removes its own
 large sparse source in cleanup.
 

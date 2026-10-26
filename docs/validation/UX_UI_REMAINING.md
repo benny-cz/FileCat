@@ -63,8 +63,8 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
    input and the remaining assistive-technology routes. Visible Stop passed
-   Windows Hex/Text at 100%, 150% and 200% and Ubuntu Hex/Text at 200%; test
-   other modes, providers and Ubuntu scales,
+   Windows Hex/Text at 100%, 150% and 200% and Ubuntu Hex/Text at 100% and
+   200%; test other modes, providers and Ubuntu 150%,
    changed-query ownership on other routes, cancellation over live remote
    connections, native spoken provider-error
    outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
