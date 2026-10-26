@@ -2890,6 +2890,7 @@ that row remained unmarked. Every source hash and the empty destination stayed
 exact. Other item actions, marked-item review and large-listing latency remain
 open.
 
+<a id="evidence-undo-spoken-20261023"></a>
 **23 October 2026, spoken retained-report navigation (FCUX-018):**
 `ReportWindow` now offers Previous/Next report line controls and a visible
 polite live readout with the line position. A single readout segment is bounded
@@ -3200,6 +3201,7 @@ the source and target bytes remained unchanged. The native pointer timing
 after this transition remains open; this is not counted as a completed pointer
 acceptance route at 1×.
 
+<a id="evidence-undo-narrow-20261023"></a>
 **23 October 2026, narrow native Undo review and report (FCUX-018):**
 `linux-atspi-undo-narrow.py` passed a real Move and approved Undo in the
 logged-in Ubuntu VM on the isolated Git-built `8a8769fd` app (DLL SHA-256
@@ -5923,9 +5925,17 @@ describe the contracts and their precise limits.
 
 ## Test results
 
-The [current execution report](UX_UI_BATCH2_TEST_RESULTS.md) and [machine-readable results](UX_UI_BATCH2_TEST_RESULTS.json) distinguish original-source and first-batch baselines, focused tests, complete regression runs, native skips, diagnostic failures and their corrections. The [first-batch report](UX_UI_TEST_RESULTS.md) remains unchanged as historical execution evidence. The source builds use the repository's pinned .NET SDK **10.0.101**, with locked package restore. No dependency versions or lock files were upgraded.
+The [17 October 2026 execution report](UX_UI_BATCH2_TEST_RESULTS.md) and
+[machine-readable results](UX_UI_BATCH2_TEST_RESULTS.json) record the
+`e3403237d048177c82ec2ff5337abda63ab67890` build. They distinguish
+original-source and first-batch baselines, focused tests, complete regression
+runs, native skips, diagnostic failures and their corrections. The
+[first-batch report](UX_UI_TEST_RESULTS.md) remains unchanged as historical
+execution evidence. That checkpoint used the pinned .NET SDK **10.0.101**
+with locked package restore; no dependency versions or lock files were upgraded.
 
-The four final complete suites contain **9,616 cases: 8,960 passed, zero failed
+The four complete suites in that 17 October checkpoint contain **9,616 cases:
+8,960 passed, zero failed
 and 656 explicitly skipped**. All bind to the same successful solution build,
 with unchanged source/runtime inventories before and after execution and actual
 zero exits. All 531 Core/App cases added since the original sources passed;
