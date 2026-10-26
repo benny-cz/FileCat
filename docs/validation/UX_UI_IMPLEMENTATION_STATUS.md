@@ -1626,6 +1626,35 @@ checking its exact disk identity. The owner's existing `G:` has still not had
 this updated native UI journey; an off-source recovery with retained content
 traces remains open.
 
+**26 October 2026, deleted NTFS valid-data and native VHD follow-up
+(UXBUG-019):** A fresh 512 MiB NTFS VHD on the isolated Windows VM retained one
+deleted 81,920-byte MFT record long enough for a direct scan. Windows had
+cleared the record's valid-data length to zero while leaving its runlist and
+file size. Previously FileCat classified that physical run as zeros and the
+file as fully recoverable. It now reads the former clusters as physical bytes,
+marks the result **Uncertain**, and gives the specific valid-data warning to
+the recovered content. A synthetic NTFS regression confirms the original
+10,000-byte payload remains readable when a deleted record's valid-data length
+is cleared; sparse runs and live files retain their existing treatment.
+The complete Core Release suite passed 4,443/151 skipped/0 failed and the
+complete App Release suite passed 2,493/63 skipped/0 failed with up to 16
+workers. The opt-in Windows VHD test verified the selected volume GUID as well
+as `G:`, the exact backing disk, and an off-source `C:` copy. Both raw clusters
+and the copied file hashed to
+`FA569E2360C540E6280E34A4627516770F1A5F34D81D35689334A99CC1013357`
+(zeros), rather than the pre-delete reference
+`C0CBD0D83B394C5A2E6E81A8080EEE63516735ABC7BBF61AB489AD69E0708D1C`.
+The test requires the Uncertain evidence in this case; it does not claim the
+original bytes were restored. After a delay, the mounted VHD's deleted record
+itself disappeared from both direct and native scans. Recreating that one
+disposable file and immediately refreshing the elevated Git-built FileCat
+listed `recover-me.bin` in the native recovery panel (one file), with the
+source still absent and the target unchanged. The native State column showed
+**Uncertain** and the Evidence column began with the new NTFS warning. The
+owned FileCat process was closed, and a disk-number/identity-checked cleanup
+detached and removed only that VHD. Exact original-byte recovery on a
+retaining medium remains open.
+
 **25 October 2026, Mac FTPS replacement speech retry (FCUX-001):** A second
 native implicit-TLS certificate and replacement review showed the full amber
 warning, but VoiceOver stayed on Destination and did not announce it. The

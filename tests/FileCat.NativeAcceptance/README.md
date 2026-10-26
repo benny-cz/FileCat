@@ -1026,6 +1026,23 @@ isolated app with `selection-stop`, then run the provisioning script with
 report and detaches/deletes only its own VHD. Verify R: and the VHD are absent.
 Use fresh fixture folders for each run. The validation report and VHD live
 only in the guest; do not use a host share as the transfer destination.
+
+For a disposable direct deleted-file scan on Windows, run
+`win-vhd-recovery-fixture.ps1 -ReportPath` with a new JSON path directly under
+the guest's `AppData\Local\FileCatValidation`. It requires an elevated VMware
+guest and refuses an existing `G:`. The report identifies the exact mounted
+VHD, disk number and source SHA-256. Immediately set
+`FILECAT_RECOVERY_VM_VHD`, `FILECAT_RECOVERY_VM_DISK` and
+`FILECAT_RECOVERY_VM_SHA256` from that report, then run the opt-in
+`VmVhdRecoveryTests` test in the guest. The test reads the selected volume GUID
+and drive letter, and writes its recovered output under the guest's `C:`
+validation folder. A mounted volume can reuse a deleted record quickly, so a
+later missing record is not evidence that the initial scan failed. Dynamic
+VMware VHDs have returned zeroed raw clusters after deletion; the test checks
+that such content is marked Uncertain and does not claim original-byte
+recovery. Close the exact test FileCat process, then run
+`win-vhd-recovery-cleanup.ps1 -ManifestPath` with the original JSON path. The
+cleanup verifies the exact mounted disk and removes only its own VHD folder.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`
 to mark and Cut both files. Then run the same Explorer navigation, Copy and
 native-manifest checks for `a.txt`, followed by

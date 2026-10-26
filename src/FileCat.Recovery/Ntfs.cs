@@ -188,6 +188,13 @@ internal sealed class NtfsScanner
             return;
         }
         if (!stream.RunsComplete) file.Evidence.Add("Its record no longer lists all of its pieces; the missing part comes back as zeros.");
+        // Windows may clear a deleted record's valid-data length while leaving its
+        // runlist and file size. The bytes in those runs may still be the old
+        // content, or the device may already have discarded them (for example,
+        // through TRIM). Treat the raw bytes as uncertain instead of asserting
+        // that the original file contained zeros.
+        bool deletedValidDataUncertain = !item.InUse && stream.InitializedSize < stream.Size
+            && stream.Runs.Any(run => run.Lcn >= 0);
         var extents = new List<Extent>();
         long remaining = stream.Size;
         long vcn = 0;
@@ -206,7 +213,7 @@ internal sealed class NtfsScanner
             {
                 long bytes = Math.Min(remaining, _clusterSize);
                 long offsetInFile = stream.Size - remaining;
-                var state = lcn < 0 || offsetInFile >= stream.InitializedSize ? ExtentState.Zero // sparse, or never written
+                var state = lcn < 0 || item.InUse && offsetInFile >= stream.InitializedSize ? ExtentState.Zero // sparse, or an existing file's unwritten tail
                     : lcn + c >= _totalClusters ? ExtentState.Unreadable
                     : Allocated(lcn + c) ? item.InUse ? ExtentState.Owned : ExtentState.InUse : ExtentState.Free;
                 Add(extents, lcn < 0 ? 0 : (lcn + c) * _clusterSize, bytes, state, ref remaining);
@@ -218,6 +225,11 @@ internal sealed class NtfsScanner
         if (extents.Count(e => e.State is ExtentState.Free or ExtentState.InUse) > 1 && stream.Runs.Count > 1)
             file.Evidence.Add($"Its record lists its {stream.Runs.Count} pieces.");
         file.Classify(_clusterSize);
+        if (deletedValidDataUncertain)
+        {
+            file.Evidence.Insert(0, RecoveryItem.NtfsDeletedValidData);
+            if (file.State == RecoveryState.Recoverable) file.State = RecoveryState.Uncertain;
+        }
     }
 
     /// <summary>

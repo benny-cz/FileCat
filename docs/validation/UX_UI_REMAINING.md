@@ -101,10 +101,12 @@ increments to `main`.
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
-   paths. For UXBUG-019, verify actual off-source recovery with a retained,
-   recoverable deleted fixture on the Windows VM; then exercise the owner's
-   disposable `G:` UI route if safe to do so without using the workstation
-   desktop.
+   paths. For UXBUG-019, verify that a retained deleted file's original bytes
+   are recovered to another physical disk on the Windows VM. Its dynamic VHD
+   exposes the deleted name and uncertainty warning, but returns discarded
+   clusters as zeros; use a medium or fixture that retains the original
+   clusters. Then exercise the owner's disposable `G:` UI route if safe to do
+   so without using the workstation desktop.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and

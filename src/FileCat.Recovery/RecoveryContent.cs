@@ -27,7 +27,10 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         _item = item;
         DisplayName = item.Name;
         Length = item.Size;
-        Caveat = item.State == RecoveryState.Uncertain ? RecoveryItem.UncertainStart : null;
+        Caveat = item.State == RecoveryState.Uncertain
+            ? item.Evidence.Contains(RecoveryItem.NtfsDeletedValidData)
+                ? RecoveryItem.NtfsDeletedValidData : RecoveryItem.UncertainStart
+            : null;
         _revision = new(item.Size, item.ModifiedUtc?.Ticks ?? 0, item.RecordNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (item.Resident is null)
         {

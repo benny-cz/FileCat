@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -273,6 +274,54 @@ public sealed class RecoveryEngineTests
         }
 
         public void Dispose() => inner.Dispose();
+    }
+
+    [Fact]
+    public void A_deleted_ntfs_record_with_cleared_valid_data_length_offers_raw_bytes_with_an_uncertainty_warning()
+    {
+        string image = RecoveryFixtures.Image("ntfs");
+        byte[] bytes = File.ReadAllBytes(image);
+        byte[] name = Encoding.Unicode.GetBytes("report.txt");
+        sbyte perRecord = unchecked((sbyte)bytes[64]);
+        int recordSize = perRecord > 0
+            ? perRecord * BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(11)) * bytes[13]
+            : 1 << -perRecord;
+        long initializedAt = -1;
+        for (int recordAt = 0; recordAt + recordSize <= bytes.Length; recordAt += recordSize)
+        {
+            var record = bytes.AsSpan(recordAt, recordSize);
+            if (!record[..4].SequenceEqual("FILE"u8) || record.IndexOf(name) < 0) continue;
+            int attrAt = BinaryPrimitives.ReadUInt16LittleEndian(record[20..]);
+            while (attrAt + 64 <= record.Length)
+            {
+                uint type = BinaryPrimitives.ReadUInt32LittleEndian(record[attrAt..]);
+                if (type == uint.MaxValue) break;
+                int length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record[(attrAt + 4)..]);
+                if (length < 64 || attrAt + length > record.Length) break;
+                var attr = record.Slice(attrAt, length);
+                if (type == 0x80 && attr[8] == 1 && attr[9] == 0
+                    && BinaryPrimitives.ReadInt64LittleEndian(attr[48..]) == 10_000)
+                {
+                    Assert.True(BinaryPrimitives.ReadInt64LittleEndian(attr[56..]) > 0);
+                    initializedAt = recordAt + attrAt + 56;
+                    break;
+                }
+                attrAt += length;
+            }
+            if (initializedAt >= 0) break;
+        }
+        Assert.True(initializedAt >= 0, "The NTFS fixture's deleted report record was not found.");
+        var patches = Enumerable.Range(0, 8).ToDictionary(i => initializedAt + i, _ => (byte)0);
+        using var source = new PatchedSource(new ImageFileSource(image), patches);
+        var volume = Assert.Single(RecoveryScanner.Scan(source, TestContext.Current.CancellationToken));
+        var report = RecoveryFixtures.Find(volume.Root, "docs/report.txt");
+        Assert.NotNull(report);
+        Assert.Equal(RecoveryState.Uncertain, report.State);
+        Assert.Contains(report.Evidence, reason => reason.Contains("valid data", StringComparison.Ordinal));
+        Assert.DoesNotContain(report.Extents, extent => extent.State == ExtentState.Zero);
+        using var content = new RecoveryContent(new WindowSource(source, volume.Offset, volume.Length, "volume"), report);
+        Assert.Equal(report.Evidence[0], content.Caveat);
+        Assert.Equal(RecoveryFixtures.Content("report.txt", 10_000), Recover(source, volume, report));
     }
 
     [Fact]

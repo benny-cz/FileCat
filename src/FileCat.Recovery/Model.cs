@@ -152,6 +152,7 @@ public sealed class RecoveryItem
     }
 
     internal const string UncertainStart = "Where it starts is FileCat's best guess, so this may not be its data: check the file after recovering it.";
+    internal const string NtfsDeletedValidData = "NTFS no longer records how much of this deleted file held valid data. Its former clusters may contain the file, zeros, or unrelated bytes: inspect the recovered content before using it.";
 
     internal const string ClearedEntry = "Its entry keeps no size and no start: the file was empty, or the system that deleted it cleared both (Linux may), and then nothing in the file system says where its content was.";
 
