@@ -1461,7 +1461,10 @@ public sealed class ViewerWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
             if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
-                _status.Text = "Search could not finish: " + ex.Message;
+                // A provider can fail an in-flight read after Stop; the cancel request owns this search's result.
+                _status.Text = ct.IsCancellationRequested
+                    ? "Search canceled."
+                    : "Search could not finish: " + ex.Message;
         }
         finally
         {

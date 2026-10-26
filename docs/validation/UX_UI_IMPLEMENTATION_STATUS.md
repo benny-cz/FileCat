@@ -1,5 +1,15 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, viewer Stop versus provider read failure (FCUX-007):**
+`ViewerWindow.FindAsync` now treats a read, access or decode exception as a
+canceled search when the current search token was canceled. A genuine source
+error without Stop still appears as `Search could not finish:` with its
+diagnostic. The held-source App test covers both outcomes in Text and Hex,
+checks the visible Stop beside Next during the blocked read, and requires Stop
+to hide afterward. All six cases passed in the isolated Windows VM
+(`search-stop-headless-20261026-r5.json`). Native remote-provider timing and
+spoken cancellation feedback remain open.
+
 **26 October 2026, Ubuntu scaled Hex acceptance (UXBUG-020):** The combined
 native `linux-atspi-hex-resize.py` runner now performs its physical thumb
 drags in measured narrow viewer/editor windows, away from the display edge.

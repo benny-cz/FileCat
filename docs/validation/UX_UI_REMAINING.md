@@ -54,8 +54,9 @@ increments to `main`.
    input and the remaining assistive-technology routes. Visible Stop passed
    Windows Hex at 100% and Hex/Text at 150%; test it in other modes, scales
    and providers, changed-query ownership on other routes, provider
-   cancellation, and spoken Find results. Assistive-technology routes still
-   need native checks.
+   cancellation over live remote connections, and spoken Find results. A held
+   provider read now distinguishes Stop from a genuine read error in Text and
+   Hex; assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
    the other narrow-layout states. For FCUX-009, the Ubuntu

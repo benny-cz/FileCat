@@ -236,14 +236,19 @@ public sealed class ViewerSearchScopeTests
     }
 
     [AvaloniaTheory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Long_search_keeps_a_visible_stop_beside_next_and_cancels_the_read(bool hex)
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
+    public async Task Held_search_keeps_stop_visible_and_reports_cancellation_or_provider_failure(
+        bool hex, bool readFailsAfterRelease, bool requestStop)
     {
         string root = Path.Join(Path.GetTempPath(), "filecat-search-stop-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
-        using var source = new HeldSearchSource();
+        using var source = new HeldSearchSource(readFailsAfterRelease);
         var viewer = new ViewerWindow(services, source, "held-search.bin", hex);
         try
         {
@@ -263,10 +268,12 @@ public sealed class ViewerSearchScopeTests
             Assert.True(stop.IsEffectivelyVisible && stop.Bounds.Width > 0);
             Assert.Equal(bar.Children.IndexOf(next) + 1, bar.Children.IndexOf(stop));
             Assert.Contains("Searching forward", Field<TextBlock>(viewer, "_status").Text);
-            stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if (requestStop) stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             source.Release.Set();
             await find.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            Assert.Equal("Search canceled.", Field<TextBlock>(viewer, "_status").Text);
+            string? outcome = Field<TextBlock>(viewer, "_status").Text;
+            if (requestStop) Assert.Equal("Search canceled.", outcome);
+            else Assert.Contains("Controlled provider read failed after release.", outcome);
             Assert.False(stop.IsVisible);
         }
         finally
@@ -382,7 +389,7 @@ public sealed class ViewerSearchScopeTests
         }
     }
 
-    private sealed class HeldSearchSource : IContentSource
+    private sealed class HeldSearchSource(bool failAfterRelease) : IContentSource
     {
         private int _hold;
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -399,6 +406,7 @@ public sealed class ViewerSearchScopeTests
             {
                 Entered.TrySetResult();
                 if (!Release.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Search read was not released.");
+                if (failAfterRelease) throw new IOException("Controlled provider read failed after release.");
             }
             if (offset >= Length) return 0;
             int count = (int)Math.Min(buffer.Length, Length - offset);
