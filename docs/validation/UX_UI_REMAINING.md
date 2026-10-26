@@ -10,11 +10,6 @@ accepted equivalent routes stay in
 
 ## Highest priority — S1
 
-- [AC-S1-069B](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-069b) and
-  [AC-S1-070](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-070): external clipboard Move
-  authority and delayed Paste destination.
-- [AC-S1-004](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-004): remaining hazardous
-  modal decision and spoken focus route.
 - [AC-S1-007](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-007) and
   [AC-S1-008](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-008): remote search Stop/error
   and changed/incomplete remote checksum.
@@ -29,8 +24,12 @@ accepted equivalent routes stay in
   operation evidence, Undo/sync, navigation, workspace/listing, panels,
   Settings/rename, Find, scrolling, provider context and viewer refresh.
   Each table row specifies one bounded consequential route.
-- [DEF-019A](UX_UI_ACCEPTANCE_LEDGER.md#def-019a): owner's disposable G:
-  reconfirmation if an isolated input route is available.
+- [AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019) and
+  [AC-S2-020](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020): separate finished-history
+  and interrupted-recovery choices.
+- [AC-S2-036](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-036) and
+  [AC-S2-037](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-037): separate editable Settings
+  round trip and command-availability parity.
 
 ## S3 and final gate
 

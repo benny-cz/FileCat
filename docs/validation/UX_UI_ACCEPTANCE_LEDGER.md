@@ -1,9 +1,10 @@
 # UX/UI acceptance ledger
 
-Updated 26 October 2026. This is the **one authoritative ledger of required
-acceptance still open** for the [76-finding audit](FileCat_UX_UI_Audit.md) and
-the separate queued bugs. A row is a finite consequential scenario, not a
-Cartesian product of every platform, scale, theme and provider. The
+Updated 26 October 2026. This is the **one authoritative ledger** for required
+acceptance still open and scoped cases already accepted from the
+[76-finding audit](FileCat_UX_UI_Audit.md) and separate queued bugs. A row is
+a finite consequential scenario, not a Cartesian product of every platform,
+scale, theme and provider. The
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md) preserves dated,
 build-specific passing and failing evidence. The
 [session workflow](UX_UI_SESSION_WORKFLOW.md) governs closure and justified
@@ -22,25 +23,46 @@ not invalidate it. The audit-wide CI gate is separate below.
 
 | Stable scenario | Finding | Status | Tested build and environment | Evidence | Exact remaining requirement |
 | --- | --- | --- | --- | --- | --- |
-| <a id="ac-s1-069b"></a>AC-S1-069B | FCUX-069 | Open | Finder/GNOME external Move effect unrun | [clipboard history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Exchange one file with Finder and Files as Move if supported, or expose an explicit refusal; verify source/target manifests and no silent Cut reuse. |
-| <a id="ac-s1-070"></a>AC-S1-070 | FCUX-070 | Open | Controlled delayed-task tests passed; native backend timing unrun | [clipboard history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Hold a native clipboard read, change the active tab and target, then release it on Windows, Ubuntu and macOS; Paste must use its captured destination or explain refusal. |
-| <a id="ac-s1-004"></a>AC-S1-004 | FCUX-004 | Open | Copy/Move/Delete entry and return passed on all three desktops | [modal history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | At narrow size, exercise one Replace conflict and one Mirror/recovery approval: leave and return focus, Cancel by pointer/keyboard, and hear the consequential choice and full target with NVDA, Orca and muted VoiceOver. |
 | <a id="ac-s1-007"></a>AC-S1-007 | FCUX-007 | Open | Local Text/Hex Stop passed on Windows and Ubuntu at 100/150/200%; Mac Retina passed | [Stop history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | On a held remote Text read and a Hex/provider error, change query/mode, invoke Stop and verify prompt cancellation, truthful incomplete count, no stale result and spoken Stop/error feedback. Do not rerun the completed local Text/Hex Stop matrix. |
 | <a id="ac-s1-008"></a>AC-S1-008 | FCUX-008 | Open | Local narrow and mid-read cases passed; remote revision case unrun | [checksum history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Hash a delayed remote file while bytes/revision change; publish no mixed digest. Repeat once without strong revision evidence and show its visible qualification in one narrow state not already covered. |
 | <a id="ac-s1-009"></a>AC-S1-009 | FCUX-009 | Open | Windows long-line and Ubuntu keyboard route passed; pointer/font fallback unrun | [comparison history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | On Ubuntu with enlarged nondefault font and a 2,000-character changed line, pointer-select/Copy the suffix, navigate Next difference and hear the correct changed-line identity. |
 | <a id="ac-s1-010"></a>AC-S1-010 | FCUX-010 | Open | Local NVDA/Orca/VoiceOver routes passed; provider route unrun | [list history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Inspect bounded virtual rows in one Windows archive and one Ubuntu delayed SFTP/result listing; verify focus versus marks, original location and one real action through native accessibility. Mac's spoken Previous/Next full-path navigator is an accepted equivalent for missing preview-row children. |
 
-FCUX-001, 002, 003, 005, 006 and 018 have no new native row: their consequential
-subcases are accepted in the dated status history. The final CI gate still
-applies to the audit.
+The accepted-case table below keeps completed subcases traceable. The final
+CI gate still applies to the audit.
 
 <!-- ACCEPTED-FINDINGS-BEGIN -->
 Fully accepted original findings with no required scenario left:
-FCUX-001, FCUX-002, FCUX-003, FCUX-005, FCUX-006, FCUX-018, FCUX-028,
-FCUX-034 and FCUX-035. Their build-specific evidence is in the status
-history; this inventory only prevents an old pending note from reopening
-them.
+FCUX-001, FCUX-002, FCUX-003, FCUX-004, FCUX-005, FCUX-006, FCUX-018,
+FCUX-028, FCUX-034, FCUX-035, FCUX-069 and FCUX-070. The dated status and
+accepted-case records below preserve their passing scope; this inventory
+prevents an old pending note from reopening them.
 <!-- ACCEPTED-FINDINGS-END -->
+
+## Accepted cases with durable scope
+
+These IDs remain stable after closure. Each result is limited to its named
+build, environment and route; an open sibling row is unaffected. “None” means
+no required work remains for that **case**, not for a parent finding or final
+CI. Receipts named in the linked dated entries live in the isolated validation
+environment unless a repository path is linked directly.
+
+| Stable case | Status | Exact accepted scope | Tested build / environment | Direct evidence | Remaining requirement |
+| --- | --- | --- | --- | --- | --- |
+| **<a id="ac-s1-001a"></a>AC-S1-001A** | Accepted, equivalent route | Non-atomic SFTP final-check and ambiguous backup/publish/cleanup states; exact public, stage, backup, source and journal | `7d1cd84b`, Ubuntu OpenSSH with `TryReplace=false` adapter, 4/4; separate native live-SFTP recovery | [26 Oct OpenSSH receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-openssh-nonatomic-20261026), [closure](UX_UI_IMPLEMENTATION_STATUS.md#evidence-recovery-closure-20261026) | None; a different server lacking the extension is optional interoperability work. |
+| **<a id="ac-s1-001b"></a>AC-S1-001B** | Accepted, pairwise | FTP, explicit FTPS and implicit FTPS ambiguous backup/publish/cleanup replies plus separately reviewed native interruption | `7d1cd84b`, Windows real pyftpdlib 9/9 and native Win11 FTP/FTPS reviews | [26 Oct matrix](UX_UI_IMPLEMENTATION_STATUS.md#evidence-ftp-ambiguity-20261026), [native receipts](UX_UI_IMPLEMENTATION_STATUS.md#evidence-ftp-native-recovery-20261026) | None. |
+| **<a id="ac-s1-004"></a>AC-S1-004** | Accepted | Queued Enter, safe Replace/metadata-loss/read-only defaults, modal ownership and spoken consequential choice | `2f1f43c9` Win11 remote warnings; signed `be7b2a30` Mac modal guard; Ubuntu Orca native route and production-window regressions | [26 Oct decision closure](UX_UI_IMPLEMENTATION_STATUS.md#evidence-decision-closure-20261026) | None; long-path shared-dialog layout remains AC-S2-011/019/020. |
+| **<a id="ac-s1-069a"></a>AC-S1-069A** | Accepted | Explorer Copy replaces FileCat Cut A or A+B; Explorer Cut imports as truthful Copy with shell Copy feedback and no source deletion | `4c9ad412`, Win11 Explorer / native `CF_HDROP` and OLE | [26 Oct Windows clipboard closure](UX_UI_IMPLEMENTATION_STATUS.md#evidence-clipboard-windows-20261026) | None; external Cut never grants Move authority. |
+| **<a id="ac-s1-069b"></a>AC-S1-069B** | Accepted, safe fallback | Finder Copy and GNOME Files Copy/Cut replace FileCat Cut; same-path payload imports visibly as Copy, preserving originals | 20 Oct signed Mac Finder and Git-built Ubuntu GNOME native journeys; exact app revisions were not retained in those historical receipts (`23fc880b` / `0d053afe` record commits) | [Mac Finder receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-original-desktop-clipboard-20261020), [Ubuntu Files receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-ubuntu-clipboard-20261020) | None; authenticated external Move effect is unimplemented optional protocol work. |
+| **<a id="ac-s1-070"></a>AC-S1-070** | Accepted, pairwise | Held Copy/Cut reads preserve invoked destination or refuse after closure/replacement; text navigation cannot overtake newer intent | `663b6fdd` five-lane App CI, production-command held-read tests; ordinary native Paste on Win11/Ubuntu/Mac | [26 Oct delayed Paste closure](UX_UI_IMPLEMENTATION_STATUS.md#evidence-clipboard-desktops-20261026), [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844) | None; a second native held-owner matrix is optional absent a backend-specific regression. |
+| **<a id="ac-s1-007-local"></a>AC-S1-007-LOCAL** | Accepted subcase | Local Text/Hex Stop, truthful canceled state and spoken feedback at measured scales | Windows/Ubuntu 100/150/200%; signed Mac Retina, builds in dated entry | [26 Oct local Stop evidence](UX_UI_IMPLEMENTATION_STATUS.md#evidence-local-stop-20261026) | None for local Stop; remote/provider boundary remains AC-S1-007. |
+| **<a id="ac-s2-028-mac1x"></a>AC-S2-028-MAC1X** | Accepted subcase | Inline Filter error, return focus and unchanged fixture at 760×600, native 1× with muted VoiceOver | 24 Oct signed Mac arm64, DLL `671e2f99…`, receipts `mac-filter-return-1x-visual-r16.json` / `mac-filter-return-1x-r15.json` | [26 Oct reconciliation of 24 Oct receipts](UX_UI_IMPLEMENTATION_STATUS.md#evidence-passed-routes-20261026) | None; FCUX-028 is accepted. |
+| **<a id="ac-s2-md-native"></a>AC-S2-MD-NATIVE** | Accepted subcase | Page Find/Previous/Next plus prose/table resize and truthful match status on the tested native routes | Windows WebView2 `684a9e7e`; Ubuntu WebKitGTK `a97e1a37`; Mac WKWebView `a968d412` capture plus later signed Page-key build | [Windows native receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-windows-markdown-20261026), [Mac/Ubuntu receipts](UX_UI_IMPLEMENTATION_STATUS.md#evidence-unix-markdown-20261026) | None for these routes; one distinct scale/AT boundary remains AC-S2-MD. |
+| **<a id="ac-s2-036-protected"></a>AC-S2-036-PROTECTED** | Accepted subcase | Protected profile is inspectable and read-only with reason; Close preserves bytes | `663b6fdd` App CI on Windows/Unix; newer/oversized/Unix nonregular fixtures | [protected-profile regression](../../tests/FileCat.App.Tests/SettingsPreservationTests.cs#L650), [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844) | None; editable user profile is a separate AC-S2-036 route. |
+| **<a id="ac-s2-036-draft"></a>AC-S2-036-DRAFT** | Accepted subcase | Failed raw-filter import keeps the invalid draft and error in the open Settings session; Cancel then reopen restores the original saved filter configuration | `663b6fdd` App CI, production Settings dialog | [failed-import/Cancel regression](../../tests/FileCat.App.Tests/SettingsPreservationTests.cs#L184), [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844) | None for draft transaction; enlarged native structured-editor route remains AC-S2-036. |
+| **<a id="ac-s2-undo-report"></a>AC-S2-UNDO-REPORT** | Accepted subcase | Retained Undo report exposes complete inverse paths and mixed outcomes through Copy all and spoken line navigation | `8c833c35` signed Mac; native Windows NVDA / Ubuntu Orca on dated builds | [Undo report evidence](UX_UI_IMPLEMENTATION_STATUS.md#evidence-undo-report-20261026) | None; Clear finished history and interrupted recovery are separate AC-S2-019/020. |
+| **<a id="def-016a"></a>DEF-016A** | Accepted diagnostic | Mac 640×480 Copy X/backdrop cancel; first click was occluded by unrelated alerts | Signed `be7b2a30`, Mac Retina, retry `mac-dialog-pointer-copy-narrow-be7-retry-20261026.json` | [26 Oct occlusion/retry](UX_UI_IMPLEMENTATION_STATUS.md#evidence-mac-pointer-20261026) | None; no broad pointer rerun. |
+| **<a id="def-019a"></a>DEF-019A** | Accepted via equivalent VM; owner-host reconfirmation optional | Elevated G: safety admission, deleted-file scan and exact off-source recovery with no source write | `663b6fdd`, isolated Win11 fixed NTFS `G: FCTEST` VHD, strict 1/1 plus native SHA-256 match | [26 Oct fixed-VHD native result](UX_UI_IMPLEMENTATION_STATUS.md#evidence-fixed-vhd-recovery-20261026) | None for required closure; owner's existing G: awaits a separate isolated session if desired. |
 
 ## S2 — shared desktop boundaries
 
@@ -51,7 +73,8 @@ them.
 | <a id="ac-s2-013"></a>AC-S2-013 | FCUX-013/014/049/050/051 | Open | Palette/component contrast checks passed; full native composition unrun | [theme map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | In one high-contrast and one expressive palette inspect selected/search/danger/hidden-name glyph contrast, transparent picture content and one complete animation cycle. Toggle reduced motion while active on Windows, GNOME and macOS; verify content stays fixed and the preference is announced. |
 | <a id="ac-s2-071"></a>AC-S2-071 | FCUX-071/075 | Open | Provider/model refusal tests passed; external native drop unrun | [drag map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Drag a complete local/ZIP selection to an OS file manager and a mixed/disconnected selection to a refused target; verify effect/cursor, exact manifest, no partial publication and unchanged source. Use clipboard as an equivalent if a backend has no supported drag effect. |
 | <a id="ac-s2-015"></a>AC-S2-015 | FCUX-015/016/017, UXBUG-009/014 | Open | Headless issue/history tests passed; combined native route unrun | [operation map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | With eight finished jobs and a ninth running, Details selects/focuses the running row; append an issue and hear it. Complete a real transfer and inspect average speed in both finished info and copied report at narrow size. |
-| <a id="ac-s2-019"></a>AC-S2-019 | FCUX-019/020 | Open | Windows long-path Undo and interruption passed; narrow spoken decision unrun | [Undo map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | In one narrow interrupted-operation review, choose Keep history/Cancel by keyboard and screen reader, inspect every complete inverse path in the retained report, and prove source/journal/prior report survive. |
+| <a id="ac-s2-019"></a>AC-S2-019 | FCUX-019 | Open | Windows long-path Clear finished history reflow and Keep history passed on the 20 Oct `d359f621` checkpoint; narrow/scaled spoken review unrun | [20 Oct history review](UX_UI_IMPLEMENTATION_STATUS.md#evidence-clear-history-20261020) | At narrow/enlarged size, open **Clear finished history…** with a finished undoable Move and a report: hear loss of unused Undo/report eligibility, choose **Keep history** by keyboard/AT, then verify both remain. Separately retain an already running inverse if the reviewed history is cleared. Do not substitute an interrupted-recovery control. |
+| <a id="ac-s2-020"></a>AC-S2-020 | FCUX-020 | Open | Component hide/review/report tests and native process interruption passed; narrow spoken recovery choice unrun | [recovery map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | At narrow size use **Hide for now** on an interrupted operation, restart and verify its journal/reminder returns; then open **Mark reviewed…**, inspect/copy the complete retained effects report, and Cancel once before deliberate closure. Confirm no file mutation and a durable report after review. Do not use Clear finished history or Undo report for this case. |
 | <a id="ac-s2-021"></a>AC-S2-021 | FCUX-021 | Open | Sync group tests passed; native interruption unrun | [sync map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Start a reviewed sync with one copy and one removal, interrupt after one child effect, Stop the group and inspect exact child states/report; no unapproved later mutation. |
 | <a id="ac-s2-022"></a>AC-S2-022 | FCUX-022/023 | Open | Held connector/capacity tests passed; native disconnect unrun | [navigation map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | On a delayed/disconnected mount, navigate twice before the first reply and query free space; only the current location/volume owns the panel, stale capacity cannot overwrite it, and the error is announced. |
 | <a id="ac-s2-024"></a>AC-S2-024 | FCUX-024/025 | Open | Workspace race and 40-tab component tests passed; native process race unrun | [workspace map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Race Save as on the same name in two isolated processes; require explicit replacement and no overwrite after Cancel. Restore 40 tabs/four panels at narrow scale and verify targets/focus by keyboard/AT. |
@@ -59,7 +82,8 @@ them.
 | <a id="ac-s2-029"></a>AC-S2-029 | FCUX-029 | Open | Orca/NVDA/Mac first and repeated notices passed; scaled clipboard/admin timing unrun | [notification map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Publish a clipboard warning and elevated-administrator notice in a narrow scaled window; verify copy/history/action accessibility and timed disappearance of the admin toast without losing history. |
 | <a id="ac-s2-030"></a>AC-S2-030 | FCUX-030/031 | Open | Windows basic splitter passed; nested scaled route unrun | [panel map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | At 150%/200%, resize a nested four-panel split by keyboard and pointer, retain visible list capacity and announced share, then cancel/restore exact geometry. One Windows and one Unix arrangement cover the pairwise risk. |
 | <a id="ac-s2-032"></a>AC-S2-032 | FCUX-032/033 | Open | Windows filesystem ancestor menu passed; nonfilesystem spoken route unrun | [breadcrumb map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | From archive/remote tab at narrow scale, open ancestor menu by keyboard, hear full target, use Open here/new tab/Copy path, return focus to the original list and preserve newer tab intent. |
-| <a id="ac-s2-036"></a>AC-S2-036 | FCUX-036/037 | Open | Windows picker/Cancel/Browse keyboard passed; protected-profile route unrun | [Settings map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | In enlarged Settings, edit a protected tool profile with spaced executable path and failed import; Cancel/reopen proves byte-exact draft preservation, then inspect toolbar availability/tooltip and spoken reason. |
+| <a id="ac-s2-036"></a>AC-S2-036 | FCUX-036 | Open | `684a9e7e` Win11 picker/Browse/spaced-path preview and Cancel/reopen passed; protected and raw-draft component routes accepted separately | [Windows picker receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-settings-picker-20261026), [accepted subcases](#accepted-cases-with-durable-scope) | In enlarged native Settings edit a **user** tool profile with a spaced executable path, argument tokens, filter exclusions and overlapping association priority; inspect its nonexecuting first-match preview and keyboard labels. A protected profile remains inspectable **read-only**. A failed raw import keeps its invalid draft/error only while Settings stays open; **Cancel then reopen restores the original saved configuration**, not that draft. Stop after one native structured/raw round trip; do not repeat the passed protected-profile safety fixture. |
+| <a id="ac-s2-037"></a>AC-S2-037 | FCUX-037 | Open | Shared availability component checks passed; native toolbar/AT parity unrun | [command map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | In one changed panel/provider context, compare Copy/Move/Delete and Back availability across toolbar, menu, key bar and palette. Reach the disabled reason by keyboard/AT; an action disabled after presentation still refuses at execution without synchronous remote probing. This is independent of Settings draft transaction. |
 | <a id="ac-s2-038"></a>AC-S2-038 | FCUX-038/039/040 | Open | Mac 3,001-row review and bounded 50,000-row headless run passed; slow-provider change unrun | [rename map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Hold device-scheduled validation while changing rename rule/tab/editor result; only newest 3,001-row mapping can be approved, last collision stays reachable, counter error is spoken and Cancel/shutdown stay responsive. Native 50,000-row repetition is optional. |
 | <a id="ac-s2-041"></a>AC-S2-041 | FCUX-041, UXBUG-015 | Open | Windows/Ubuntu/Mac inline destination error passed; live race unrun | [transfer map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | On slow network target change/remove the destination during validation and correct an invalid localized speed in the same Copy form; submit only current mapping, with visible/spoken errors and no stale job. |
 | <a id="ac-s2-042"></a>AC-S2-042 | FCUX-042/043 | Open | Recovery state/component tests passed; native delayed-device drawer unrun | [operation map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Pause journal preparation on slow device, resize drawer and Stop before approval; show phase/retained journal, keep active recovery row visible and hear status at 150% narrow size. |
@@ -105,8 +129,7 @@ modifier state also passed; only its distinct popup/Find visual row remains.
 
 | Stable scenario | Finding | Status | Tested build and environment | Evidence | Exact remaining requirement |
 | --- | --- | --- | --- | --- | --- |
-| <a id="def-019a"></a>DEF-019A | UXBUG-019 | Open | VM `663b6fdd` strict plus native exact-byte recovery passed; owner's G: unrun | [26 Oct VHD history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | If isolated non-workstation input is available, repeat owner's original elevated G: admission and off-source recovery; verify no false “other FileCat processes” refusal, exact bytes and no G: write. VM acceptance stays valid without this reconfirmation. |
-| <a id="gate-ci-final"></a>GATE-CI-FINAL | Audit-wide | Open | `663b6fdd` five lanes green; `49041bd3` and docs-only `d2c14636` running on 26 Oct | [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844) | After last implementation change require producer, Windows, Windows ARM64, Ubuntu and macOS CI green on that exact code head. Documentation-only commits do not invalidate passed native scenarios. |
+| <a id="gate-ci-final"></a>GATE-CI-FINAL | Audit-wide | Open | `663b6fdd` five lanes green; `49041bd3`, `d2c14636` and docs-only `d2e347b3` were running at the 26 Oct checkpoint; later status unverified | [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844), [26 Oct docs CI checkpoint](https://github.com/benny-cz/FileCat/actions/runs/40399918374) | After the last implementation change require producer, Windows, Windows ARM64, Ubuntu and macOS CI green on that exact code head. Documentation-only commits do not invalidate passed native scenarios. |
 
 ## Deliberately outside required closure
 
@@ -125,6 +148,22 @@ modifier state also passed; only its distinct popup/Find visual row remains.
   live SFTP interruption/recovery review passed separately. A different
   server implementation is a useful interoperability refinement, not another
   FCUX-001 completion gate absent a failure with the accepted branch.
+- A second native all-platform delayed-clipboard owner matrix after the
+  production Paste command passed deterministic held-read Copy/Cut,
+  destination navigation, closure, pending-provider and replacement tests,
+  paired with ordinary native clipboard interoperability. Reopen only on
+  backend evidence that violates those captured-intent invariants.
+- Importing another application's unverified Cut as a destructive Move.
+  Explorer and GNOME Files Cut were safely imported as Copy with exact
+  source/target checks; Finder's copied file URL was also Copy. A future
+  backend-specific Move protocol needs separate authority, outcome feedback
+  and native validation before it can supersede this safe fallback.
+- `DEF-019A` on the owner's existing disposable G: is an **optional host
+  reconfirmation**, not required audit closure: elevated Win11 `663b6fdd`
+  already admitted a test-owned G: VHD, scanned a deleted item and recovered
+  exact original bytes to C: without writing the source. The host path would
+  need a separately available isolated session because the owner is using
+  that workstation; its absence cannot leave the equivalent VM result Open.
 
 ## Repeat authorization record
 

@@ -9,7 +9,13 @@ named build, not a second current backlog. The
 [remaining-work index](UX_UI_REMAINING.md) links only open ledger scenarios.
 The audit's pairwise and equivalent-route stopping rules apply: an unrelated
 commit or open parent finding does not invalidate a passing native result.
+Earlier “still open” notes below are preserved as dated/build-specific
+checkpoints. In particular, the 25 October `15a1a9c5` empty-VHD scan and the
+later unflushed fixture failure do not supersede the 26 October `663b6fdd`
+fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
+reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-ftp-ambiguity-20261026"></a>
 **26 October 2026, FTP/FTPS ambiguous-result reconciliation (FCUX-001/020):**
 `AC-S1-001B` was stale. The real pyftpdlib fixture already performed backup
 rename, stage publication or backup deletion and returned an ambiguous FTP
@@ -23,6 +29,7 @@ pairwise acceptance of ambiguous server replies and native recovery review;
 repeating all nine ambiguity cases through the UI would add no distinct
 consequential boundary. The separate SFTP route is reconciled below.
 
+<a id="evidence-recovery-closure-20261026"></a>
 **26 October 2026, SFTP and Explorer Cut acceptance reconciliation:** The
 FCUX-001 audit outcome is accepted. A real OpenSSH connection with the
 `TryReplace=false` test adapter exercised the same non-atomic FileCat branch
@@ -33,15 +40,60 @@ proved the recovery UI route. The still-unrun *different server without the
 atomic extension* is an interoperability refinement, not another original
 audit gate without evidence that the accepted branch differs. `AC-S1-001A`
 closed under the audit's equivalent-route and pairwise stopping rule.
+
+<a id="evidence-clipboard-windows-20261026"></a>
 `AC-S1-069A` was also stale: Windows Explorer replaced FileCat Cut A and
 Cut A+B with Copy of A; actual `CF_HDROP` manifests and destination/source
 bytes proved Paste was Copy, while a fresh Explorer Cut carried native
 `Preferred DropEffect=2` and FileCat reported performed Copy after importing
 it. Canceled conflict reported no performed effect. Deterministic tests
 cover clipboard replacement timing and actual submitted job kind. This
-closes the Windows Explorer subscenario; supported Finder/GNOME external
-Move semantics remain a separate `AC-S1-069B` decision.
+closes the Windows Explorer subscenario; Finder/GNOME external intent is
+reconciled below.
 
+<a id="evidence-clipboard-desktops-20261026"></a>
+**26 October 2026, external desktop clipboard and delayed Paste closure
+(FCUX-069/070):** The remaining native interoperation evidence is already
+present. Finder Copy replaced a FileCat Cut, including the *same file URL*
+with a newer pasteboard generation; the import ran Copy and left the original.
+GNOME Files replaced FileCat one- and two-file Cuts with both Copy and Cut of
+the same path; all four native variants passed twice, imported as Copy,
+preserved source bytes and wrote the exact selected destination bytes. The
+Windows Explorer Cut and Copy results are reconciled above. This is the
+supported safe fallback for external Move intent that FileCat cannot
+authenticate; the actual operation is visibly a Copy, and no external source
+is silently removed. A future platform-specific external Move protocol is
+optional and would need separate authority and effect feedback.
+`ClipboardIntentTests` exercises the *production* Paste command with held
+reads for Copy and Cut, same-tab navigation, panel/tab movement, closure,
+destination disappearance, clipboard replacement, pending provider
+navigation and relative text; assertions cover submitted kind, captured
+destination, source survival, exact manifests and user-visible refusal.
+Ordinary native Paste interoperation passed on all three desktops. Those
+deterministic timing boundaries plus native backend exchange satisfy the
+audit's pairwise/equivalent-route rule; a three-platform artificially held
+native owner matrix adds no uncovered consequential boundary. FCUX-069 and
+FCUX-070 are accepted, with the native protocol limitations stated here.
+
+<a id="evidence-decision-closure-20261026"></a>
+**26 October 2026, background-decision focus acceptance (FCUX-004):** The
+remaining `AC-S1-004` row conflated the original S1 decision hazard with
+Mirror/recovery dialog layout, which is tracked under S2. The production
+window `BackgroundDecisionTests` places a queued Enter into an unfinished
+prompt while a background Replace conflict waits: the prompt keeps its
+draft/focus, the job stays AwaitingDecision, and explicit review focuses
+Skip. The same tests prove no duplicate review and safe initial Enter for
+metadata-loss, read-only Delete and decryption warnings. Focus ownership,
+nested/superseded callbacks and deliberate focus movement have separate
+regressions. Native Copy/Move/Delete modal-command guards passed on Windows,
+Ubuntu and Mac. The narrow native FTP/FTPS/SFTP replacement reviews exposed
+their full target/risk and safe choices with NVDA, Orca and muted VoiceOver,
+while Cancel/Skip preserved exact source and destination bytes. Together
+these cover the S1 queued-input/default/action and spoken decision outcome;
+repeating Mirror or recovery dialogs does not reopen FCUX-004. Their distinct
+long-path, resizing and hierarchy boundaries stay in `AC-S2-011/019`.
+
+<a id="evidence-passed-routes-20261026"></a>
 The stale Mac 1× Filter item is **accepted**: the 24 October signed arm64
 candidate with DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`
@@ -49,7 +101,10 @@ passed the 760 × 600 native screenshot, complete inline error, muted
 VoiceOver field/error/return speech and unchanged fixture
 (`mac-filter-return-1x-visual-r16.json`, `mac-filter-return-1x-r15.json`).
 Windows 150%/200% and Ubuntu 200% Filter routes also passed as recorded below;
-FCUX-028 is not held open for another Mac 1× run. Local Text/Hex visible Stop
+FCUX-028 is not held open for another Mac 1× run.
+
+<a id="evidence-local-stop-20261026"></a>
+Local Text/Hex visible Stop
 is **accepted** on Windows and Ubuntu at 100%, 150% and 200%, plus Mac
 Retina with actual muted VoiceOver `Search canceled.` speech. The remaining
 FCUX-007 scenario is remote cancellation/query ownership/provider error,
@@ -60,6 +115,7 @@ untested scale/accessibility boundary, not a rerun of those same routes.
 Truthful directional Page match lower bounds are accepted on Windows/Mac;
 an engine-dependent exact total is optional.
 
+<a id="evidence-mac-pointer-20261026"></a>
 **26 October 2026, Mac narrow Copy X-click diagnostic (UXBUG-016):**
 The signed `be7b2a30` app passed the normal native Copy/Move/Delete modal
 guard again on an unlocked Retina Mac. A subsequent Git-tracked pointer
@@ -180,6 +236,7 @@ on `ae781ad0` passed. That run's producer, Windows, Ubuntu, macOS and Windows
 ARM64 lanes all completed successfully. The final-head gate remains open while
 the audit continues.
 
+<a id="evidence-openssh-nonatomic-20261026"></a>
 **26 October 2026, real OpenSSH non-atomic recovery transport (FCUX-001):**
 The isolated Ubuntu VM checked out committed `7d1cd84b` from a Git bundle
 and ran the new `OpenSshNonAtomicRecoveryTests` through a user-mode OpenSSH
@@ -1105,6 +1162,7 @@ source/target hashes. Guest receipts are `ftp-warning-nvda-150-2f1f43c9.json`,
 `ftpes-warning-nvda-200-2f1f43c9.json`. The VM was restored to 100%.
 Other failure and provider routes remain open.
 
+<a id="evidence-ftp-native-recovery-20261026"></a>
 **26 October 2026, Win11 interrupted FTP Copy and Move (FCUX-001):** The
 restored VM built the Git crash harness and interrupted separate owned FTP
 Copy and Move workers after each had written 786,432 bytes to an unpublished
@@ -1731,6 +1789,7 @@ owned FileCat process was closed, and a disk-number/identity-checked cleanup
 detached and removed only that VHD. The later flushed fixed-VHD fixture below
 established exact original-byte recovery.
 
+<a id="evidence-fixed-vhd-recovery-20261026"></a>
 **26 October 2026, retained deleted NTFS bytes (UXBUG-019):** The Windows VM
 first showed that both a dynamic and a fixed NTFS VHD returned zeros after the
 test script wrote and immediately deleted an 81,920-byte file. A separate
@@ -1765,9 +1824,10 @@ it. Approving the reviewed Copy produced the exact original SHA-256
 in `native-target`, while the `G:` source stayed absent. The native operation
 bar reported Completed. The exact FileCat PID was stopped, then the mounted
 VHD was detached and its fixture removed after disk-number and unique-ID
-checks; the cleanup receipt passed. The remaining acceptance for this finding
-is the owner's disposable `G:` route on the workstation if it can be run
-without taking over that desktop.
+checks; the cleanup receipt passed. At this checkpoint, the owner's
+disposable `G:` route on the workstation was still listed for reconfirmation.
+The acceptance ledger now classifies that host-specific repeat as optional
+after this equivalent VM closure.
 
 **26 October 2026, current-head Mac native dialogs and speech (FCUX-004,
 007, 010):** The Mac Git checkout fast-forwarded to `be7b2a30` and published a
@@ -4576,6 +4636,7 @@ old two-match status. The repeatable test removes its own fixture
 after closing the viewer and refreshes the panel. Other source modes, changed
 queries outside Text, cancellation and Ubuntu input remain open.
 
+<a id="evidence-unix-markdown-20261026"></a>
 The Mac now has a dedicated, locally signed `FileCatCapture` helper launched
 through the logged-in desktop. After the owner explicitly approved its separate
 direct-capture prompt, it produced a 2880 × 1800 screenshot of the FileCat
@@ -4898,6 +4959,7 @@ dialog-focus correction passed 28 focused App cases twice and the complete
 2,346-pass App rerun; seven focused viewer-refresh cases passed after waiting
 for the replacement page's visible rows. Native provider, scaling,
 non-Windows clipboard and assistive-technology acceptance remains open.
+<a id="evidence-windows-markdown-20261026"></a>
 Page-mode Find now shows WebKitGTK's rendered-page total when complete, or a
 labelled lower bound beyond 1,024 matches. Windows WebView2 and macOS WKWebView
 continue to show a truthful directional lower bound with the pinned browser
@@ -4934,6 +4996,7 @@ desktop. The [`684a9e7e` CI run](https://github.com/benny-cz/FileCat/actions/run
 passed producer checks and all four platform lanes. Native scaling and
 assistive-technology checks remain open.
 
+<a id="evidence-settings-picker-20261026"></a>
 The guest also passed native FCUX-036 editor checks. Windows' **Choose editor
 program** picker opened from the Tools tab, and Cancel returned to the same
 draft. Selecting `C:\Program Files\dotnet\dotnet.exe` displayed that spaced
@@ -5289,6 +5352,7 @@ over multiple lines. Cancel preserved the reviewed new name and bytes;
 approval restored the exact original name and content while leaving the other
 source file and destination unchanged. This closes the simple Windows rename
 inverse case; multi-item partial outcomes and interruption remain open.
+<a id="evidence-undo-report-20261026"></a>
 The Undo action row now uses the same themed selectable review text as other
 long safety decisions. Complete quoted absolute paths receive the link color;
 directory segments remain emphasized alongside the final name. The wrapped
@@ -5311,6 +5375,7 @@ and approval removed it. Both unrelated source files retained their exact
 bytes. The native runner first caught an active-panel mistake in its own F7
 gesture; focusing the destination list corrected it before the successful
 rerun.
+<a id="evidence-clear-history-20261020"></a>
 A separate completed Move fixture checked the other resizable long-path
 review: Clear finished history. The native history row reflowed from 662 × 60
 px to 936 × 42 px when widened, Keep history remained reachable, and Cancel
@@ -5344,6 +5409,7 @@ incomplete set is refused. A second fresh VM fixture Cut both `a.txt` and
 originals. Linux native clipboard exchange and Windows preferred/performed
 effects remain open.
 
+<a id="evidence-original-desktop-clipboard-20261020"></a>
 The macOS guest completed a second FCUX-069 handoff with actual Finder and
 the native pasteboard. A clean FileCat profile focused only `b.txt` with no
 marks, then Cut published exactly that file URL. Finder selected and copied
@@ -5518,6 +5584,7 @@ Mac build then completed the same conflict and replay journey without a
 process exit. The complete Release App rerun passed 2,382 cases with 63
 platform skips and zero failures using 16 workers.
 
+<a id="evidence-ubuntu-clipboard-20261020"></a>
 The Ubuntu VMware guest also passed a repeatable native owned-Move test.
 `linux-atspi-clipboard-owned-move.py` focused only `b.txt` through AT-SPI,
 sent physical Enter events from a short-lived guest virtual keyboard, and
