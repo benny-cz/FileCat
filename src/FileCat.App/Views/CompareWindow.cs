@@ -205,6 +205,7 @@ public sealed class CompareWindow : Window
         _findStatus.Text = "Find searches the shown comparison rows.";
         _findPrevious.IsEnabled = _findNext.IsEnabled = false;
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_textActionStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_textActionStatus, "Comparison navigation and action status");
         ToolTip.SetTip(_copySelection, "Copy selected source characters without line numbers. Lines are joined with LF; no final newline is added.");
         ToolTip.SetTip(_copyLine, "Copy the complete current source line from the chosen side, without its line number or terminator.");
         ToolTip.SetTip(_copyDifference, "Copy the current aligned row with Left and Right labels and explicit gaps.");
@@ -699,6 +700,10 @@ public sealed class CompareWindow : Window
             // The current row may already be selected. Navigation still re-reveals its decisive text.
             _textView.RevealSelected();
             _lineDetails.RevealCurrentDifference();
+            var description = _descriptions[index];
+            int separator = description.IndexOf(": ", StringComparison.Ordinal);
+            _textActionStatus.Text = $"Difference {index + 1:N0} of {_differenceRows.Count:N0}: " +
+                (separator < 0 ? description : description[(separator + 2)..]) + ".";
         }
         else ShowDifference(index);
     }

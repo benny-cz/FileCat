@@ -102,6 +102,29 @@ public sealed class CompareTextInteractionTests
     }
 
     [AvaloniaFact]
+    public async Task Difference_navigation_announces_the_current_changed_line()
+    {
+        var window = CompareWindow.Open("left.txt", new MemoryContentSource("left.txt",
+                "first LEFT\nequal middle\nthird LEFT\n"u8.ToArray()),
+            "right.txt", new MemoryContentSource("right.txt",
+                "first RIGHT\nequal middle\nthird RIGHT\n"u8.ToArray()));
+        try
+        {
+            await Until(() => !window.IsComparing && window.Rows.OfType<CompareRow>().Count() == 3);
+            var status = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
+                AutomationProperties.GetAutomationId(c) == "Comparison navigation and action status");
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
+            window.GoTo(1);
+            Assert.StartsWith("Difference 2 of 2:", status.Text);
+            Assert.Contains("line 3", status.Text);
+            window.GoTo(0);
+            Assert.StartsWith("Difference 1 of 2:", status.Text);
+            Assert.Contains("line 1", status.Text);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Source_selection_joins_only_real_lines_with_lf_and_retires_on_reset()
     {
         var rows = new ListBox();
