@@ -122,6 +122,20 @@ and destination fixtures stayed unchanged. The guest receipt is
 `checksum-minimum-scale100-20261026-min2.json`. Other native scales and
 provider failure routes remain open.
 
+**26 October 2026, scaled Windows minimum checksum viewer (FCUX-008):**
+The same isolated Git-built `65725e40` app passed the minimum-size native
+journey at Windows 150% (144 DPI, measured 742 × 506 outer pixels) and 200%
+(192 DPI, measured 986 × 671 outer pixels). At both scales the scope,
+Compute, Copy, Close and result controls stayed inside the actual viewer
+frame. The one-byte hashes, exact read count, clipboard preservation until
+explicit Copy, copied full result, untouched fixture and graceful isolated
+app exit all passed. Windows Display Settings confirmed each selected scale
+and was closed after use; the guest was restored to its original 100% scale.
+Receipts: `checksum-minimum-scale150-20261026-min1.json`,
+`checksum-minimum-scale200-20261026-min1.json` and
+`checksum-minimum-scale-restore100.json`. Ubuntu stable 150% and other
+provider failure routes remain open.
+
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
 The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the
 Git-built `cff83525` app (SHA-256

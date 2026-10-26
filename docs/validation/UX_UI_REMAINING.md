@@ -12,7 +12,9 @@ increments to `main`.
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
-  clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
+  clipboard journeys. Rerun the Mac Copy/Move/Delete modal-command guard when
+  the display exposes its accessibility children again. Finish the remaining
+  Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the remaining spoken criteria of other
@@ -71,9 +73,9 @@ increments to `main`.
    Text views.
    For FCUX-008, test native incomplete reads on local and remote providers,
    mid-read changes on the remaining desktop and provider routes, minimum-size
-   layouts beyond the validated Ubuntu and Windows 100% checksum runs, and a
-   stable Ubuntu 150% scale run after VMware's automatic resolution reset is
-   controlled. For FCUX-009, the Ubuntu
+   layouts beyond the validated Ubuntu 100% and Windows 100%/150%/200%
+   checksum runs, and a stable Ubuntu 150% scale run after VMware's automatic
+   resolution reset is controlled. For FCUX-009, the Ubuntu
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken
    automation on the supported desktops. For FCUX-010, verify VoiceOver's
