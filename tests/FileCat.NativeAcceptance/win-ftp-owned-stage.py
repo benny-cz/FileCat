@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import ftplib
+from contextlib import closing
 import datetime
 import hashlib
 import ipaddress
@@ -14,6 +15,7 @@ import re
 import socket
 import ssl
 import sys
+import time
 
 
 def serve(root: pathlib.Path, ready: pathlib.Path, tls: bool = False, implicit_tls: bool = False) -> None:
@@ -101,13 +103,25 @@ def inspect_delete(port: int, stage: str, source: pathlib.Path, receipt: pathlib
     context = ssl.create_default_context(cafile=str(cert_path)) if cert_path else None
     client = (ftplib.FTP if protocol == "ftp" else
               ftplib.FTP_TLS if protocol == "ftpes" else ImplicitFTP)
-    with client(timeout=10, **({"context": context} if context else {})) as ftp:
-        ftp.connect("127.0.0.1", port)
-        if protocol == "ftpes":
-            ftp.auth()
-        ftp.login("tester", "secret-pass")
-        if protocol != "ftp":
-            ftp.prot_p()
+
+    def connect():
+        ftp = client(timeout=10, **({"context": context} if context else {}))
+        try:
+            ftp.connect("127.0.0.1", port)
+            if protocol == "ftpes":
+                ftp.auth()
+            ftp.login("tester", "secret-pass")
+            if protocol != "ftp":
+                ftp.prot_p()
+            return ftp
+        except BaseException:
+            ftp.close()
+            raise
+
+    def tls_shutdown_race(error: ssl.SSLError) -> bool:
+        return protocol != "ftp" and getattr(error, "reason", None) == "SHUTDOWN_WHILE_IN_INIT"
+
+    with closing(connect()) as ftp:
         before = ftp.nlst()
         if before != [stage]:
             raise ValueError(f"The remote fixture has an unexpected manifest: {before!r}")
@@ -116,9 +130,27 @@ def inspect_delete(port: int, stage: str, source: pathlib.Path, receipt: pathlib
         if not 0 < len(stage_bytes) < len(source_bytes) or not source_bytes.startswith(stage_bytes):
             raise ValueError("The staged data is not a partial prefix of the exact source")
         ftp.delete(stage)
-        after = ftp.nlst()
-        if after:
-            raise ValueError(f"The inspected stage was not the only removed object: {after!r}")
+        try:
+            after = ftp.nlst()
+        except ssl.SSLError as error:
+            if not tls_shutdown_race(error):
+                raise
+            # Some FTPS servers close a completed data connection while the
+            # client is unwrapping TLS. That invalidates this control session's
+            # reply sequence, so verify the deletion on a fresh pinned session.
+            after = None
+    if after is None:
+        for attempt in range(5):
+            with closing(connect()) as verification:
+                try:
+                    after = verification.nlst()
+                    break
+                except ssl.SSLError as error:
+                    if not tls_shutdown_race(error) or attempt == 4:
+                        raise
+            time.sleep(0.05 * (attempt + 1))
+    if after:
+        raise ValueError(f"The inspected stage was not the only removed object: {after!r}")
     receipt.write_text(
         json.dumps(
             {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ftplib
+import importlib.util
 from pathlib import Path
 import re
 import socket
@@ -54,7 +55,7 @@ def test_delayed_ready_file() -> None:
         assert read_port(ready) == 43210
 
 
-def test_server(mode: str) -> None:
+def test_server(mode: str, inject_shutdown: bool = False) -> None:
     workspace = Path(__file__).resolve().parent / "obj"
     workspace.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ftp-owned-stage-", dir=workspace) as folder:
@@ -114,13 +115,44 @@ def test_server(mode: str) -> None:
                        str(port), stage, str(source), str(receipt)]
             if mode != "serve":
                 command += ["ftpes" if mode == "serve-tls" else "ftps", str(certificate)]
-            inspection = subprocess.run(command, capture_output=True, text=True)
-            if inspection.returncode:
-                raise AssertionError(
-                    f"Owned {mode} stage inspection exited {inspection.returncode}: "
-                    f"server_exit={process.poll()}, stdout={inspection.stdout[-1200:]!r}, "
-                    f"stderr={inspection.stderr[-2400:]!r}"
-                )
+            if inject_shutdown:
+                script = Path(__file__).with_name("win-ftp-owned-stage.py")
+                spec = importlib.util.spec_from_file_location("owned_ftp_stage", script)
+                assert spec is not None and spec.loader is not None
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                original = module.ImplicitFTP if mode == "serve-implicit-tls" else ftplib.FTP_TLS
+
+                class OneShutdown(original):
+                    injected = False
+
+                    def delete(self, filename: str) -> str:
+                        result = super().delete(filename)
+                        self._deleted_stage = True
+                        return result
+
+                    def nlst(self, *args):
+                        if getattr(self, "_deleted_stage", False) and not type(self).injected:
+                            type(self).injected = True
+                            error = ssl.SSLError(1, "SHUTDOWN_WHILE_IN_INIT")
+                            error.reason = "SHUTDOWN_WHILE_IN_INIT"
+                            raise error
+                        return super().nlst(*args)
+
+                owner = module if mode == "serve-implicit-tls" else module.ftplib
+                name = "ImplicitFTP" if mode == "serve-implicit-tls" else "FTP_TLS"
+                with patch.object(owner, name, OneShutdown):
+                    module.inspect_delete(port, stage, source, receipt,
+                                          "ftps" if mode == "serve-implicit-tls" else "ftpes", certificate)
+                assert OneShutdown.injected
+            else:
+                inspection = subprocess.run(command, capture_output=True, text=True)
+                if inspection.returncode:
+                    raise AssertionError(
+                        f"Owned {mode} stage inspection exited {inspection.returncode}: "
+                        f"server_exit={process.poll()}, stdout={inspection.stdout[-1200:]!r}, "
+                        f"stderr={inspection.stderr[-2400:]!r}"
+                    )
             assert not (root / stage).exists()
             assert receipt.is_file()
             assert not list(root.iterdir())
@@ -138,4 +170,6 @@ if __name__ == "__main__":
     test_delayed_ready_file()
     for server_mode in ("serve", "serve-tls", "serve-implicit-tls"):
         test_server(server_mode)
+    for server_mode in ("serve-tls", "serve-implicit-tls"):
+        test_server(server_mode, inject_shutdown=True)
     print("Owned FTP, explicit-TLS and implicit-TLS FTPS fixtures passed")

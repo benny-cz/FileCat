@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, owned FTPS CI fixture (FCUX-001 validation):** The macOS
+`915ec37d` CI lane failed after deleting an owned FTPS staging object because
+Python's `ftplib` raised `SHUTDOWN_WHILE_IN_INIT` while unwrapping the final
+TLS listing data channel. The Mac reproduced this under 16-worker load (3 of
+64 fixture runs failed); the server stayed alive, and the error was in the
+client's data-channel shutdown after `DELETE`. The inspector now closes the
+out-of-sync control session and checks the final remote manifest on a fresh
+certificate-pinned FTPS session. Only this precise TLS shutdown error is
+retried, at most five times with short backoff; other TLS, certificate and
+manifest failures still fail. The deterministic explicit and implicit FTPS
+tests inject that shutdown after a real remote deletion, and the original
+FTP/FTPS fixture plus both injected cases pass. The isolated Mac then passed
+128 complete fixture runs with 16 workers. Full five-lane CI on the pushed
+repair remains pending.
+
 **26 October 2026, macOS Tab focus and CI diagnostics:** A repeated native
 `mac-ax-focus-speech.py` run found that one Tab command can switch to the
 target file row, after which macOS focuses Location or Filter in the old
@@ -11,8 +26,7 @@ occasionally returned inline Rename cancellation to `a.txt` rather than the
 original `c.txt` row. CI for `915ec37d` failed its macOS owned-FTPS stage
 fixture while the isolated Mac passed 20 consecutive repetitions. The Python
 fixture now reports captured child stdout/stderr and server exit status on
-failure so the next runner failure can be diagnosed without guessing; its
-network and content assertions are unchanged.
+failure, which exposed the TLS teardown error reproduced and addressed above.
 
 **26 October 2026, macOS checksum generation CI (FCUX-004/008):** The
 `64fdac75` macOS App lane had one failure among 2,547 cases: the

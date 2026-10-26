@@ -35,9 +35,7 @@ increments to `main`.
    final-head gate after the last audit change. If it recurs, investigate
    the intermittent Ubuntu metadata-demand extra read; earlier runs are
    recorded in the implementation status. Recheck the revised macOS checksum
-   generation case under the full CI load, and investigate any recurring
-   macOS owned-FTPS stage fixture failure with its newly captured child
-   stdout/stderr and server exit status.
+   generation case and revised owned-FTPS stage fixture under the full CI load.
    inline Rename and Windows SFTP edit-baseline tests in the final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
