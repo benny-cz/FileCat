@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, native Windows spoken search Stop (FCUX-007):** The
+tracked `win-nvda-hex-search.ps1` journey now runs the native viewer Stop
+case after its Hex editor Find route. On the isolated Windows VM, signed
+portable NVDA 2026.2 spoke `Search canceled.` after the physical Stop click
+in a 2 GiB viewer search. The native runner independently required the Stop
+button to hide, the clipboard and source bytes to remain unchanged, and the
+target to remain empty. The report
+`.local-win-NvdaHexViewerStop-r2.json` passed the three editor match-count
+utterances, the new Stop utterance, both native routes and cleanup, with
+the Git-built App DLL SHA-256
+`D74B8708FFC089672545451C5801F59B83E28A0101EE4670AD82A4E43299C092`.
+The first run's native and NVDA logs showed the same outcome, but its VM-only
+interactive launcher stopped waiting before the wrapper wrote a report; the
+launcher deadline was extended for the complete second run. Native provider
+error speech and Stop outcomes on the other desktops remain open.
+
 **26 October 2026, spoken viewer Find outcomes and Ubuntu CI timing
 (FCUX-007):** The viewer now makes completed misses, Stop outcomes, provider
 read failures and invalid Hex patterns polite live status changes. In-progress

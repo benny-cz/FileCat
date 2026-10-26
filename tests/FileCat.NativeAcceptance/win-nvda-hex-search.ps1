@@ -6,8 +6,9 @@ param(
 )
 
 # Run in the interactive Windows VM session. The native Hex journey owns the
-# fixture and checks offsets, keyboard navigation and unchanged source bytes;
-# this wrapper requires NVDA to speak each resulting match-count transition.
+# fixture and checks offsets, keyboard navigation and unchanged source bytes.
+# The viewer Stop journey then checks a real 2 GiB search cancellation; this
+# wrapper requires NVDA to speak the match counts and the canceled outcome.
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation'))
 $prefix = $root + [IO.Path]::DirectorySeparatorChar
@@ -45,6 +46,7 @@ $config = Join-Path $fixture 'nvda-config'
 New-Item -ItemType Directory -Force -Path $config | Out-Null
 $seedReport = Join-Path $fixture 'selection-fixture.json'
 $hexReport = Join-Path $fixture 'hex-search.json'
+$viewerStopReport = Join-Path $fixture 'viewer-stop.json'
 $stopReport = Join-Path $fixture 'selection-stop.json'
 $log = Join-Path $fixture 'nvda.log'
 [IO.File]::WriteAllText((Join-Path $config 'nvda.ini'), @"
@@ -62,8 +64,10 @@ $result = [ordered]@{
     appDllSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $app) 'FileCat.dll') -Algorithm SHA256).Hash
     nvdaVersion = (Get-Item -LiteralPath $nvda).VersionInfo.ProductVersion
     nativeReport = $hexReport
+    viewerStopReport = $viewerStopReport
     speechLog = $log
-    expectedSpeech = @('1 distinct match visited', '2 distinct matches visited', '1 distinct match visited')
+    expectedSpeech = @('1 distinct match visited', '2 distinct matches visited',
+        '1 distinct match visited', 'Search canceled.')
 }
 $nvdaProcess = $null
 $appProcess = $null
@@ -97,6 +101,17 @@ try {
     $result.nativeFirstPointerFocused = $native.firstPointerFocused
     $result.nativeSourceIntact = $native.sourceIntact
     if (!$result.nativePassed) { throw "The native Hex journey failed (exit $nativeExit)." }
+
+    & $runner search-stop-native $viewerStopReport | Out-Null
+    $viewerStopExit = $LASTEXITCODE
+    if (!(Test-Path -LiteralPath $viewerStopReport -PathType Leaf)) {
+        throw "The native viewer Stop runner did not write its report (exit $viewerStopExit)."
+    }
+    $viewerStop = Get-Content -LiteralPath $viewerStopReport -Raw | ConvertFrom-Json
+    $result.viewerStopPassed = $viewerStop.passed -and $viewerStopExit -eq 0 -and
+        $viewerStop.canceled -and $viewerStop.stopHidden -and $viewerStop.sourceIntact -and
+        $viewerStop.clipboardPreserved
+    if (!$result.viewerStopPassed) { throw "The native viewer Stop journey failed (exit $viewerStopExit)." }
 
     # NVDA logs the actual phrases passed to its speech synthesizer. Search
     # only those records, in order, so UIA names or FileCat log messages alone

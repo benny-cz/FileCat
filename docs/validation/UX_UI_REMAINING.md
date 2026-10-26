@@ -55,8 +55,9 @@ increments to `main`.
    input and the remaining assistive-technology routes. Visible Stop passed
    Windows Hex at 100% and Hex/Text at 150%; test it in other modes, scales
    and providers, changed-query ownership on other routes, provider
-   cancellation over live remote connections, and native spoken Stop/error
-   outcomes on supported desktops. Complete the other assistive-technology
+   cancellation over live remote connections, native spoken provider-error
+   outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
+   Complete the other assistive-technology
    routes for search results and count completeness.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
