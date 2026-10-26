@@ -10,8 +10,6 @@ accepted equivalent routes stay in
 
 ## Highest priority — S1
 
-- [AC-S1-008](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-008): native narrow
-  qualification when checksum revision evidence is only file length.
 - [AC-S1-009](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-009) and
   [AC-S1-010](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010): compare pointer/font
   fallback and nonlocal virtual-list accessibility.

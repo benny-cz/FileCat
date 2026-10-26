@@ -1332,6 +1332,18 @@ viewer frame (720 × 500 app units), then verify scope, Compute, Copy results,
 Close checksums and the result entry remain within the frame before and after
 both computations. The report retains the measured AT-SPI rectangles.
 
+`linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_HELPER` uses a
+test-owned sparse file over loopback OpenSSH SFTP to verify held search query
+and mode retirement and visible Stop. `--orca-error` separately requires
+actual Orca speech of Stop and a deliberate test-fixture provider error;
+`--checksum-revision` changes a same-length 256 MiB source after visible hash
+progress and requires no digest or enabled Copy. All three routes verify the
+host key and write their reports under `~/FileCatValidation`.
+`linux-atspi-checksum-weak-revision.py APP REPORT.json UINPUT_HELPER` opens a
+test-owned ZIP member (a content provider, not a code delivery archive),
+restores the viewer to 480 × 300, and checks the visible length-only revision
+qualification, complete result, in-frame controls and unchanged archive.
+
 `linux-atspi-markdown-find.py SOURCE REPORT.json` uses the same logged-in
 desktop and the helper script above. It creates one short, exact Markdown
 fixture in the source folder, refreshes the panel, opens Page view and enters

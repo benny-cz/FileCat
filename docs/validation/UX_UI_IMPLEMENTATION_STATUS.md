@@ -15,6 +15,24 @@ later unflushed fixture failure do not supersede the 26 October `663b6fdd`
 fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
 reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-checksum-weak-native-20261026"></a>
+**26 October 2026, native narrow checksum with weak revision (FCUX-008):**
+The Ubuntu Wayland Git build `2941dc54` (app DLL SHA-256 `c40d9494…`)
+opened a five-byte member from a test-owned ZIP content fixture. This content
+provider supplies only member length as its revision. The native viewer
+restored a measured **480 × 300** frame; Checksum scope, Compute, Copy results,
+Close checksums and the result field all remained inside it. The selectable
+result showed `5 of 5 bytes read`, the exact SHA-256 and CRC-32, and
+“Modification time unavailable: only file length was compared; source
+consistency could not be verified.” The archive's SHA-256 and empty target
+were unchanged. The receipt is
+`/home/benny/FileCatValidation/ac-s1-008-native-weak-revision-2941dc54.json`
+in the isolated guest; the tracked
+[`linux-atspi-checksum-weak-revision.py`](../../tests/FileCat.NativeAcceptance/linux-atspi-checksum-weak-revision.py)
+reproduces it. The ZIP served only as a provider fixture; the app and script
+came from Git. Together with the distinct SFTP revision-change result and
+earlier local checksum scopes, this closes AC-S1-008.
+
 <a id="evidence-checksum-length-only-20261026"></a>
 **26 October 2026, checksum length-only evidence (FCUX-008):** Git head
 `d1a989d3` qualifies a computed checksum when its content source supplies
