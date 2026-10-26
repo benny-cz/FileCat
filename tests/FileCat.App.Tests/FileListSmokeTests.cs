@@ -10,6 +10,7 @@ using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Listing;
+using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
 using FileCat.Core.State;
 
@@ -177,6 +178,17 @@ public sealed class FileListSmokeTests
                 Assert.Null(await canceled);
                 Assert.True(tab.Listing.TryGetFocused(out var restored));
                 Assert.Equal("sample.txt", restored.Name);
+                if (OperatingSystem.IsMacOS())
+                {
+                    // The native bridge may replay the editor's old AX row
+                    // immediately after Esc; a later deliberate row focus works.
+                    list.FocusAutomationItem(0);
+                    Assert.Equal("sample.txt", tab.Listing.GetVisible(tab.Listing.FocusedIndex).Name);
+                    await Task.Delay(150, TestContext.Current.CancellationToken);
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    list.FocusAutomationItem(0);
+                    Assert.Equal(EntryKind.Parent, tab.Listing.GetVisible(tab.Listing.FocusedIndex).Kind);
+                }
             }
             finally
             {

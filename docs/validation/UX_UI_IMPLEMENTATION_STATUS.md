@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, macOS inline Rename focus (FCUX-010):** A clean signed
+Git build reproduced Escape briefly restoring `c.txt` before native AX
+focused an older `a.txt`, `b.txt` or parent row. Instrumentation showed an
+`AX` focus request for row zero 26 ms after the editor closed, while the
+listing model still held `c.txt`. `FileListControl` now ignores a mismatched
+native focus request for at most 100 ms after returning to the exact renamed
+item; the guard is tied to the same store identity, leaves Invoke untouched
+and expires so intentional VoiceOver row navigation works. The Mac headless
+regression checks both immediate stale focus and later explicit navigation.
+Ten consecutive native `--decision-returns` journeys passed on the isolated
+Mac with signed candidate DLL SHA-256
+`4B00FD9D7F917DF09682A952DA9B299D1419AA460A133D75450C390CA88485B3`;
+each canceled Create folder, Delete and Rename without changing fixture
+bytes. Full CI on the pushed head remains pending.
+
 **26 October 2026, owned FTPS CI fixture (FCUX-001 validation):** The macOS
 `915ec37d` CI lane failed after deleting an owned FTPS staging object because
 Python's `ftplib` raised `SHUTDOWN_WHILE_IN_INIT` while unwrapping the final
@@ -24,9 +39,9 @@ still allowed another native traversal. Moving the command after Tab key-up
 passed five native forward checks but later failed the reverse Tab route.
 Those candidates were not shipped. The tracked Mac AX runner now offers
 `--tab-only` to require both directions and unchanged fixture content;
-the native issue remains in the remaining-work file. The same journey also
-occasionally returned inline Rename cancellation to `a.txt` rather than the
-original `c.txt` row. CI for `915ec37d` failed its macOS owned-FTPS stage
+the native Tab issue remains in the remaining-work file. The separate inline
+Rename cancellation failure is addressed in the entry above. CI for
+`915ec37d` failed its macOS owned-FTPS stage
 fixture while the isolated Mac passed 20 consecutive repetitions. The Python
 fixture now reports captured child stdout/stderr and server exit status on
 failure, which exposed the TLS teardown error reproduced and addressed above.

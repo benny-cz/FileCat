@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Avalonia;
@@ -141,6 +142,10 @@ public sealed class FileListControl : Control
     private PromptOptions? _renameOptions;
     private EntryStore? _renameStore;
     private int _renameStoreIndex = -1;
+    private EntryStore? _renameRestoredStore;
+    private int _renameRestoredStoreIndex = -1;
+    private long _renameRestoredAt;
+    private int _renameFocusGuardVersion;
 
     public bool IsRenaming => _renameCompletion is not null;
 
@@ -302,6 +307,8 @@ public sealed class FileListControl : Control
     {
         if (_listing is null || !_listing.TryGetFocused(out var entry) || entry.Kind == EntryKind.Parent)
             return null;
+        _renameRestoredStore = null;
+        _renameFocusGuardVersion++;
         FinishRename(null, restoreFocus: false);
         EnsureFocusVisible();
         ScrollToHorizontalOffset(0);
@@ -380,6 +387,8 @@ public sealed class FileListControl : Control
     {
         var completion = _renameCompletion;
         if (completion is null) return;
+        _renameRestoredStore = null;
+        _renameFocusGuardVersion++;
         var store = _renameStore;
         int storeIndex = _renameStoreIndex;
         _renameCompletion = null;
@@ -399,7 +408,23 @@ public sealed class FileListControl : Control
             // renamed, only if it still belongs to this visible listing.
             if (_listing is { } listing && ReferenceEquals(listing.Store, store) &&
                 listing.GetVisibleIndex(storeIndex) is int row and >= 0)
+            {
                 listing.SetFocus(row);
+                if (OperatingSystem.IsMacOS())
+                {
+                    // AX can replay a focus request for the editor's old row just
+                    // after Esc returns to this one. Ignore only that short stale
+                    // callback; later explicit VoiceOver navigation still works.
+                    _renameRestoredStore = store;
+                    _renameRestoredStoreIndex = storeIndex;
+                    _renameRestoredAt = Stopwatch.GetTimestamp();
+                    int version = ++_renameFocusGuardVersion;
+                    DispatcherTimer.RunOnce(() =>
+                    {
+                        if (version == _renameFocusGuardVersion) _renameRestoredStore = null;
+                    }, TimeSpan.FromMilliseconds(100));
+                }
+            }
         }
         completion.TrySetResult(name);
     }
@@ -1676,6 +1701,10 @@ public sealed class FileListControl : Control
             throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
         var store = listing.Store;
         int item = listing.GetStoreIndex(row);
+        if (!invoke && ReferenceEquals(store, _renameRestoredStore) &&
+            item != _renameRestoredStoreIndex && listing.FocusedStoreIndex == _renameRestoredStoreIndex &&
+            Stopwatch.GetElapsedTime(_renameRestoredAt) < TimeSpan.FromMilliseconds(100))
+            return;
         var tab = Tab;
         void CheckOwner()
         {

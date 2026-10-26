@@ -17,9 +17,7 @@ increments to `main`.
   Location or Filter and reactivated that panel. A 120–350 ms delayed focus
   retry and a post-key-up command delay still allowed macOS to traverse
   again, so no timed workaround was retained. The tracked Mac AX runner has
-  `--tab-only` to check both directions and fixture integrity. Recheck the
-  separate Mac inline Rename cancel route, which
-  occasionally settles on `a.txt` instead of the renamed `c.txt` row.
+  `--tab-only` to check both directions and fixture integrity.
   Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
