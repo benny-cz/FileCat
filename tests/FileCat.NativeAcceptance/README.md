@@ -791,6 +791,15 @@ authentication. The runner owns and removes two long-line files, uses
 physical Ctrl+I and F8, verifies both complete copied lines, checks Wrap in
 a narrow 640 × 600 native window, preserves source bytes and restores the
 previous clipboard text.
+For the uncovered enlarged-font pointer and spoken boundary, use
+`linux-atspi-compare-pointer-font.py APP REPORT.json` in that same isolated
+Ubuntu session. It uses a short-lived physical uinput mouse to select and
+copy the changed suffix after four font increases, then starts a test-owned
+Orca and requires Next difference to speak the second changed line. A fresh
+report path under `~/FileCatValidation` and the one-time native sudo credential
+are required. The test restores the clipboard and checks unchanged source
+bytes; a recurring GNOME Remote Desktop request is explicitly dismissed
+before input rather than being counted as a FileCat failure.
 For FCUX-003, start from a fresh `seed-clipboard` fixture and launch the
 Git-built app with the reported paths. `rename-native <report.json>` marks
 both files, filters `a.txt` out, verifies the default one-file preview, and
