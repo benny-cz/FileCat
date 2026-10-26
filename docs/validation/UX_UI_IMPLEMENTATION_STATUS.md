@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, direct Mac modal-command guard (FCUX-004):**
+The `mac-ax-modal-guard.py` runner now uses a bounded direct Accessibility
+helper instead of `System Events`. On the signed isolated app whose DLL SHA-256
+is `65c05d26f0cfff585e903768fd3acbf70941b181e0dd8e5831a1acec6ca0e4d6`,
+two full native runs passed Copy, Move and Delete. Each review kept exactly
+one Cancel control and its expected destination/summary while direct AX Press
+tried all six background Copy/Move/Delete toolbar and key-bar actions. All
+18 attempts per run left the same single review, exact source hash and empty
+target; Cancel retired each review without changing the fixture. The Delete
+review correctly names its Recycle Bin effect. Other Mac modal focus and
+decision routes remain open.
+
 **26 October 2026, Ubuntu native viewer Stop (FCUX-007):**
 A new `linux-atspi-viewer-stop.py` native runner opened an isolated Git-built
 FileCat over a test-owned 2 GiB sparse local file. At measured GNOME 200%
@@ -13,13 +25,12 @@ The Ubuntu VM returned to its original 1280 × 800, 100% display state.
 Other provider, scale and spoken Stop outcomes remain open.
 
 **26 October 2026, Mac accessibility transport diagnostic:**
-The unlocked Mac still returned zero child elements through `System Events`
+The Mac still returned zero child elements through `System Events`
 for both Finder and FileCat over SSH. A bounded direct Accessibility API
 helper on the same isolated FileCat process read one window, traversed 496
 elements and found the exact `a.txt` source row. This isolates the failure
-to the AppleScript route, not the product's accessibility tree. The remaining
-Mac modal-command guard should use direct AX actions; no guard result was
-claimed from this diagnostic.
+to the AppleScript route, not the product's accessibility tree. This was a
+diagnostic; the direct AX modal-command guard results are recorded above.
 
 **26 October 2026, macOS inline Rename CI timing (FCUX-010):**
 The macOS App lane on the earlier `98eb47dd` head failed one headless smoke

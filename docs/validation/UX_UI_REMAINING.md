@@ -11,9 +11,9 @@ increments to `main`.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the desktop session. Direct macOS AX now reads
-  FileCat's window and source row, while System Events still exposes no
-  children over SSH; move the Mac Copy/Move/Delete modal-command guard to the
-  working direct AX route. Keep Mac audio muted. Finish the remaining
+  FileCat's window and source row, and the Copy/Move/Delete modal-command
+  guard passed twice through it; System Events still exposes no children over
+  SSH. Keep Mac audio muted. Finish the remaining
   Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
@@ -54,8 +54,8 @@ increments to `main`.
    safely offered. On Mac, the preview list has no AX row children; decide
    whether direct row navigation adds value beyond the tested, spoken
    Previous/Next full-path navigator. For FCUX-004, exercise modal focus and
-   decision routes beyond the Windows/Ubuntu Copy/Move/Delete reviews' background-command
-   guard and the spoken Copy/Move/Delete entry and return paths. Capture actual
+   decision routes beyond the Windows/Ubuntu/Mac Copy/Move/Delete reviews'
+   background-command guard and the spoken Copy/Move/Delete entry and return paths. Capture actual
    Orca speech for the remaining decision routes where required.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
