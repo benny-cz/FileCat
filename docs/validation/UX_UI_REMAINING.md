@@ -108,8 +108,10 @@ increments to `main`.
    Report Avalonia's synthetic macOS modifier and scaled-bitmap behavior
    upstream if the owner agrees.
    UXBUG-020 still needs a stable scaled Ubuntu session with matching
-   compositor, Xwayland and physical uinput pointer coordinates, followed by
-   its full native scrollbar journey. Finish combined Hex editor search,
+   compositor, Xwayland and physical uinput pointer coordinates; the
+   temporary 150% GNOME mode leaves Xwayland's reported cursor detached from
+   physical uinput. Recheck the full native scrollbar journey after a stable
+   scaled login. Finish combined Hex editor search,
    selection, scroll, zoom and pointer alignment while resizing on each
    supported desktop, including the remaining scaled contexts.
 

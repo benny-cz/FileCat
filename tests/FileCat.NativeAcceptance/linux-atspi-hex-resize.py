@@ -49,8 +49,10 @@ def size_of(window_id):
 def resize(window_id, dimensions, scale):
     requested = [round(value * scale) for value in dimensions]
     command("/usr/bin/wmctrl", "-ir", window_id, "-b", "remove,maximized_vert,maximized_horz")
+    # Xwayland can round a 150% GNOME session to a 2x app scale. Keep the
+    # whole test window, including its scrollbar, inside the physical display.
     command("/usr/bin/wmctrl", "-ir", window_id, "-e",
-            f"0,80,60,{requested[0]},{requested[1]}")
+            f"0,8,8,{requested[0]},{requested[1]}")
 
     def settled():
         actual = size_of(window_id)
@@ -129,15 +131,18 @@ class PhysicalMouse:
         return int(found["X"]), int(found["Y"])
 
     def align(self, target_x, target_y):
+        visited = []
         for _ in range(16):
             current_x, current_y = self.position()
+            visited.append((current_x, current_y))
             delta_x, delta_y = target_x - current_x, target_y - current_y
             if abs(delta_x) <= 2 and abs(delta_y) <= 2:
                 return current_x, current_y
             step_x = max(-500, min(500, round(delta_x * 0.6)))
             step_y = max(-500, min(500, round(delta_y * 0.6)))
             self.send(f"MOVE {step_x} {step_y}")
-        raise AssertionError(f"Physical mouse missed {target_x, target_y}: {self.position()}")
+        raise AssertionError(f"Physical mouse missed {target_x, target_y}: "
+                             f"{self.position()}; trail={visited!r}")
 
     def drag(self, start_x, start_y, delta_x, delta_y):
         self.align(start_x, start_y)
@@ -285,10 +290,26 @@ def run(app_path):
             pid = app.get_process_id()
             if pid != process.pid or os.fsencode(str(source)) not in Path(f"/proc/{pid}/cmdline").read_bytes():
                 raise AssertionError("The AT-SPI app is not the exact owned process")
+            main_window = next((parts[0] for line in command("/usr/bin/wmctrl", "-lp").splitlines()
+                                if (parts := line.split(maxsplit=4)) and len(parts) >= 5
+                                and parts[2].isdigit() and int(parts[2]) == pid
+                                and "FileCat" in parts[4]), None)
+            if main_window is None:
+                raise AssertionError("The exact owned FileCat main window is unavailable")
+            command("/usr/bin/wmctrl", "-ia", main_window)
             listing = find(app, "list", f"Panel 1, source, {source}")
-            row = find(listing, "list item", NAME)
-            if row is None or not row.grab_focus():
-                raise AssertionError("Could not focus the exact Hex resize fixture")
+            try:
+                row = wait_for(lambda: next((node for node in descendants(listing)
+                                             if node.get_role_name() == "list item"
+                                             and (node.get_name() or "").startswith(NAME + ", file,")), None),
+                               "load the exact Hex resize fixture")
+            except AssertionError as error:
+                visible = [(node.get_role_name(), node.get_name())
+                           for node in descendants(listing) if node.get_role_name() == "list item"]
+                raise AssertionError(f"{error}; visible rows={visible[:16]!r}; "
+                                     f"source files={sorted(item.name for item in source.iterdir())!r}") from error
+            wait_for(lambda: row if row.grab_focus() else None,
+                     "focus the exact Hex resize fixture", seconds=3)
             checked_action(find(app, "button", "View"), "View command")
             viewer = wait_for(lambda: find(app, "frame", title), "owned viewer")
             hex_button = next((node for node in descendants(viewer)
@@ -305,8 +326,9 @@ def run(app_path):
             if not 0.5 <= scale <= 4:
                 raise AssertionError(f"Implausible native UI scale: {scale}")
             result["nativeScale"] = scale
+            wide_width = 900 if scale < 1.25 else 840
             states = {}
-            for label, dimensions in (("narrow", (620, 480)), ("wide", (900, 480))):
+            for label, dimensions in (("narrow", (620, 480)), ("wide", (wide_width, 480))):
                 actual = resize(window_id, dimensions, scale)
                 value = wait_for(lambda: text if (text := hex_value(viewer)) and
                                  "row 00000000:" in text else None,
@@ -347,7 +369,7 @@ def run(app_path):
             if "Offset 3 of 8,192" not in selected:
                 raise AssertionError(f"Hex Find selected the wrong source bytes: {selected!r}")
             selection = {"query": "01 02 03", "sourceOffsets": [1, 3]}
-            for label, dimensions in (("narrow", (620, 480)), ("wide", (900, 480))):
+            for label, dimensions in (("narrow", (620, 480)), ("wide", (wide_width, 480))):
                 resize(window_id, dimensions, scale)
                 value = wait_for(lambda: text if "Selected bytes 1 through 3, 3 bytes" in
                                  (text := hex_value(viewer)) else None,
@@ -432,7 +454,7 @@ def run(app_path):
             if abs(editor_scale - scale) > 0.02:
                 raise AssertionError("The viewer and editor disagree about the native UI scale")
             editor_states = {}
-            for label, dimensions in (("narrow", (720, 480)), ("wide", (900, 480))):
+            for label, dimensions in (("narrow", (720, 480)), ("wide", (wide_width, 480))):
                 actual = resize(editor_id, dimensions, editor_scale)
                 value = wait_for(lambda: text if (text := hex_value(editor)) and
                                  "row 00000000:" in text else None,

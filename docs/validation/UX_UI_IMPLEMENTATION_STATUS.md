@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, panel-mask screenshot and Ubuntu Hex follow-up:** The
+owner's four-panel purple screenshot file was captured at 22:12 on 25 October;
+the missing-text fix was committed at 23:28 that day (`2f1f43c9`). The exact
+Git-built Windows VM app has since displayed `*.*` in all four panels under
+Psychedelic, and the four-panel theme regression remains in the App suite.
+The Ubuntu Hex native runner now activates the exact process window, waits for
+its asynchronous file row using the full accessible item name, and keeps the
+scaled viewer/editor widths and scrollbar inside the guest display. After a
+clean Ubuntu VM reboot, its full 100% Wayland journey passed against the
+Git-built `df449513` app: the viewer and editor reflowed, physical thumb drags
+scrolled down and back without selecting bytes, explicit content selection
+survived further thumb drags, Find/zoom remained correct, source bytes were
+unchanged and the target stayed empty. The guest receipt is
+`ubuntu-hex-resize-scale100-final.json`. A temporary 150% GNOME mode was also
+tried: the runner reached the Hex viewer, but Xwayland reported a cursor that
+did not follow physical uinput movement; an XTest warp made its reported
+position reach the thumb while the physical drag still left the viewport at
+byte zero. This is inconclusive for scaled product behavior. Restarting only
+Xwayland also broke the 100% pointer route; a clean VM reboot restored it.
+Stable scaled-session physical-pointer acceptance remains open.
+
 **26 October 2026, macOS CI follow-up:** Runs `40250366099` and `40250993156`
 each passed producer, Windows, Ubuntu and ARM64, but the Mac lane exposed two
 different timing-sensitive test assumptions. The Core SMB failure classifier
