@@ -1331,7 +1331,15 @@ asserts no implicit byte selection, selects exact bytes 0–3 through a drag
 started in content, and checks another thumb drag preserves them. Supply
 `FILECAT_NATIVE_SUDO_PASSWORD` only to this runner; it removes the value from
 the environment before launching its exact Git-built FileCat process. The
-uinput mouse is destroyed at the end of each viewer/editor check.
+uinput mouse is destroyed at the end of each viewer/editor check. At scaled
+Wayland sizes the test drags in the narrow state, away from the physical
+display edge, and uses bounded feedback from the Xwayland cursor position to
+align the physical pointer despite compositor acceleration. The wide state
+still verifies row reflow. Up to four reversible font-size steps may be needed
+before a byte-group row shrinks; the runner checks that the exact Find
+selection survives and that the original group count returns. The complete
+viewer/editor journey passed in the Ubuntu VMware guest at 100%, temporary
+150% and temporary 200%, with the original display restored afterward.
 
 ## macOS logged-in desktop
 

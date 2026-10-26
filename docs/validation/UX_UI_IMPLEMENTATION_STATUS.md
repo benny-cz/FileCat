@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Ubuntu scaled Hex acceptance (UXBUG-020):** The combined
+native `linux-atspi-hex-resize.py` runner now performs its physical thumb
+drags in measured narrow viewer/editor windows, away from the display edge.
+Its bounded pointer feedback compensates for the accelerated relative uinput
+motion in a scaled Wayland/Xwayland session. The runner also permits up to
+four reversible content-size steps before requiring the discrete Hex row to
+shrink, then verifies the original row and exact Find selection return. On a
+fresh Ubuntu VM login, the complete physical viewer/editor journey passed at
+temporary GNOME 200% (`ubuntu-hex-narrow-thumb-scale200-r4.json`) and, after
+another fresh login, at temporary 150%
+(`ubuntu-hex-narrow-thumb-scale150-r1.json`; Xwayland used native 2× app
+scale). At 200%, the viewer thumb moved to byte 5,220 and back to zero; the
+editor moved to byte 5,664 and back. Both retained a deliberate selection
+through a further thumb drag. The same search, resize, zoom and viewport
+checks passed at 150%; exact source hashes and empty targets were required.
+VMware returned the desktop to its original 1280 × 800, 100% mode after the
+150% run. A final graceful restart and 100% rerun passed the full journey
+(`ubuntu-hex-narrow-thumb-scale100-r4.json`). Earlier scaled attempts stopped
+at VM pointer alignment or a one-step zoom assertion before completing the
+FileCat journey. Windows 100%/150%/200% and Mac 1×/Retina journeys are
+recorded below; this closes the queued Hex resize/scroll bug's native desktop
+acceptance across those tested environments.
+
 **26 October 2026, scaled Windows mask and Text search follow-up:** The
 isolated Windows VM changed from 100% to 150% and ran the tracked four-panel
 Psychedelic mask journey on the revised Git-built app. Native UI Automation

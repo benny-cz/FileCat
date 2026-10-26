@@ -115,11 +115,16 @@ def send_native_key(helper, chord, sudo_password):
 
 
 class PhysicalMouse:
-    def __init__(self, helper, sudo_password):
+    def __init__(self, helper, sudo_password, scale):
         self.process = subprocess.Popen(["sudo", "-k", "-S", sys.executable, str(helper)],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE, text=True, bufsize=1)
         self.pressed = False
+        # Mutter's scaled Wayland session can accelerate a physical relative
+        # motion by several Xwayland pixels. Use smaller feedback steps there;
+        # the next native position sample closes the remaining error.
+        self.alignment_gain = 0.15 if scale >= 1.5 else 0.6
+        self.alignment_cap = 80 if scale >= 1.5 else 500
         self.process.stdin.write(sudo_password + "\n")
         self.process.stdin.flush()
         if not select.select([self.process.stdout], [], [], 5)[0] or self.process.stdout.readline().strip() != "READY":
@@ -146,14 +151,18 @@ class PhysicalMouse:
 
     def align(self, target_x, target_y):
         visited = []
-        for _ in range(16):
+        for _ in range(32):
             current_x, current_y = self.position()
             visited.append((current_x, current_y))
             delta_x, delta_y = target_x - current_x, target_y - current_y
             if abs(delta_x) <= 2 and abs(delta_y) <= 2:
                 return current_x, current_y
-            step_x = max(-500, min(500, round(delta_x * 0.6)))
-            step_y = max(-500, min(500, round(delta_y * 0.6)))
+            step_x = max(-self.alignment_cap, min(self.alignment_cap,
+                                                 round(delta_x * self.alignment_gain)))
+            step_y = max(-self.alignment_cap, min(self.alignment_cap,
+                                                 round(delta_y * self.alignment_gain)))
+            if step_x == 0 and delta_x: step_x = 1 if delta_x > 0 else -1
+            if step_y == 0 and delta_y: step_y = 1 if delta_y > 0 else -1
             self.send(f"MOVE {step_x} {step_y}")
         raise AssertionError(f"Physical mouse missed {target_x, target_y}: "
                              f"{self.position()}; trail={visited!r}")
@@ -213,7 +222,7 @@ def scrollbar_drag_check(window, window_id, scale, validation, sudo_password):
     helper = validation / "linux-uinput-pointer.py"
     if not helper.is_file():
         raise AssertionError("The isolated physical pointer helper is absent")
-    with PhysicalMouse(helper, sudo_password) as mouse:
+    with PhysicalMouse(helper, sudo_password, scale) as mouse:
         down_pointer = mouse.drag(x, start_y, 0, end_y - start_y)
         down = hex_value(window)
         if top_byte(down) <= 0 or "No byte selection" not in down or not down.startswith("Offset 0 of"):
@@ -356,6 +365,11 @@ def run(app_path):
                 raise AssertionError("The native viewer did not widen enough to test reflow")
             if states["wide"]["rowBytes"] <= states["narrow"]["rowBytes"]:
                 raise AssertionError("The Hex row did not fit more bytes after widening")
+            # Drag inside the narrower window, away from the compositor's
+            # physical right edge at 200% scale. The wide state above still
+            # proves reflow; this keeps pointer acceptance in the safe center
+            # of the guest display where Xwayland reports active-window input.
+            result["viewerThumbWindowDip"] = resize(window_id, (620, 480), scale)
             result["states"] = states
             result["viewerThumbDrag"] = scrollbar_drag_check(viewer, window_id, scale,
                                                                validation, sudo_password)
@@ -396,16 +410,33 @@ def run(app_path):
             result["searchSelection"] = selection
 
             before_zoom = len(row_bytes(hex_value(viewer)))
-            checked_action(find(viewer, "button", "Increase text and hex size"),
-                           "Hex content zoom")
-            zoomed = wait_for(lambda: value if len(row_bytes(value := hex_value(viewer))) <
-                              before_zoom else None, "Hex row to shrink after zoom")
-            if "Selected bytes 1 through 3, 3 bytes" not in zoomed:
-                raise AssertionError("Zoom discarded the exact Hex Find selection")
-            result["zoom"] = {"rowBytesBefore": before_zoom,
-                              "rowBytesAfter": len(row_bytes(zoomed))}
-            checked_action(find(viewer, "button", "Decrease text and hex size"),
-                           "restore Hex content size")
+            zoom_steps = 0
+            try:
+                # Hex rows fit in byte groups, so one font-size increment can
+                # leave the same group count at a scaled window width.
+                while zoom_steps < 4:
+                    checked_action(find(viewer, "button", "Increase text and hex size"),
+                                   "Hex content zoom")
+                    zoom_steps += 1
+                    zoomed = wait_for(lambda: value if "Selected bytes 1 through 3, 3 bytes" in
+                                      (value := hex_value(viewer)) else None,
+                                      "Hex Find selection after zoom")
+                    if len(row_bytes(zoomed)) < before_zoom:
+                        break
+                if len(row_bytes(zoomed)) >= before_zoom:
+                    raise AssertionError("Hex viewer zoom did not reduce its fitted row")
+            finally:
+                for _ in range(zoom_steps):
+                    checked_action(find(viewer, "button", "Decrease text and hex size"),
+                                   "restore Hex content size")
+            restored = wait_for(lambda: value if "Selected bytes 1 through 3, 3 bytes" in
+                                (value := hex_value(viewer)) else None,
+                                "Hex Find selection after zoom restore")
+            if len(row_bytes(restored)) != before_zoom:
+                raise AssertionError("Hex viewer zoom restore changed its fitted row")
+            result["zoom"] = {"steps": zoom_steps, "rowBytesBefore": before_zoom,
+                              "rowBytesAfter": len(row_bytes(zoomed)),
+                              "rowBytesRestored": len(row_bytes(restored))}
 
             hex_control = find(viewer, "entry", "Hex view")
             if hex_control is None or not hex_control.grab_focus():
@@ -480,6 +511,7 @@ def run(app_path):
                 editor_states[label] = {"sizeDip": actual, "rowBytes": len(row), "firstRow": row}
             if editor_states["wide"]["rowBytes"] <= editor_states["narrow"]["rowBytes"]:
                 raise AssertionError("The Hex editor row did not fit more bytes after widening")
+            result["editorThumbWindowDip"] = resize(editor_id, (720, 480), editor_scale)
             result["editorStates"] = editor_states
             result["editorThumbDrag"] = scrollbar_drag_check(editor, editor_id,
                                                                editor_scale, validation, sudo_password)
