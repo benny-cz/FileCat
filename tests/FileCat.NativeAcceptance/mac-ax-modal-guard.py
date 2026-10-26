@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Keep Copy, Move and Delete reviews modal under native macOS AX actions.
 
-Usage: python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json
+Usage: python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app]
 Run on the unlocked test Mac with direct Accessibility API permission.
 """
 
@@ -63,13 +63,31 @@ def sha256(path):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def run(bundle, report):
+def capture_review(helper, validation):
+    before = set(validation.glob("native-screen-*.png"))
+    opened = subprocess.run(["/usr/bin/open", "-a", str(helper)], capture_output=True,
+                            text=True, timeout=15)
+    if opened.returncode:
+        raise AssertionError(opened.stderr.strip() or "The approved capture helper did not open")
+    def new_capture():
+        added = sorted(set(validation.glob("native-screen-*.png")) - before,
+                       key=lambda path: path.stat().st_mtime_ns)
+        return added[-1] if added and added[-1].stat().st_size > 100_000 else None
+    return str(wait_for(new_capture, "approved FileCatCapture image", seconds=15))
+
+
+def run(bundle, report, capture_helper=None):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents/MacOS/FileCat"
     if (bundle.parent != validation or bundle.suffix != ".app" or
             not executable.is_file() or report.parent.resolve() != validation):
         raise AssertionError("Use an isolated Mac app and report below FileCatValidation")
+    if capture_helper is not None:
+        capture_helper = capture_helper.resolve(strict=True)
+        if (capture_helper.parent != validation or capture_helper.name != "FileCatCapture.app" or
+                not (capture_helper / "Contents/MacOS/FileCatCapture").is_file()):
+            raise AssertionError("Use only the owner-approved FileCatCapture helper")
     if app_pids():
         raise AssertionError("An existing FileCat process makes modal ownership ambiguous")
     fixture = validation / "MacModalGuard" / uuid4().hex
@@ -96,7 +114,7 @@ def run(bundle, report):
     receipt = {"passed": False, "bundle": str(bundle),
                "appDllSha256": sha256(executable.with_name("FileCat.dll")),
                "fixture": str(fixture), "sourceSha256": original_hash,
-               "journeys": []}
+               "journeys": [], "captures": []}
     pid = None
     try:
         opened = subprocess.run(["/usr/bin/open", "-n", str(bundle), "--args",
@@ -124,6 +142,9 @@ def run(bundle, report):
                          if node["role"] == "AXStaticText"]
                 relevant = [name for name in names if verb in name or "a.txt" in name]
                 raise AssertionError(f"The {verb} review lacks its destination or file summary: {initial}; labels: {relevant[:20]}")
+            if capture_helper is not None:
+                receipt["captures"].append({"review": verb,
+                                            "image": capture_review(capture_helper, validation)})
             attempts = []
             for name in ("Copy…", "Move / rename…", "Delete…", "Copy", "Move", "Delete"):
                 ax(ax_helper, executable, pid, "press-button", name,
@@ -149,11 +170,12 @@ def run(bundle, report):
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: mac-ax-modal-guard.py BUNDLE.app REPORT.json")
+    if len(sys.argv) not in (3, 4):
+        raise SystemExit("Usage: mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app]")
     report = Path(sys.argv[2])
     try:
-        result = run(Path(sys.argv[1]), report)
+        result = run(Path(sys.argv[1]), report,
+                     Path(sys.argv[3]) if len(sys.argv) == 4 else None)
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

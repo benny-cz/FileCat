@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Mac modal visual capture (FCUX-004, UXBUG-010):**
+The owner-approved `FileCatCapture.app` recorded Copy, Move and Delete reviews
+inside the same direct AX modal guard. An unrelated FaceTime prompt initially
+covered their center; it was dismissed through its visible Later button, then
+the guard passed again and fresh Retina captures were inspected. Copy and Move
+show a readable title, exact selected destination pathname, effect text,
+options and separate Cancel/Queue/approval controls. Delete shows the Recycle
+Bin effect with Cancel and Delete. The close X is visible and centered in all
+three headers. The remaining Mac narrow, scaled and other-dialog visuals stay
+in the backlog.
+
 **26 October 2026, Ubuntu viewer Stop at original display scale (FCUX-007):**
 The same isolated Git-built app passed a second native long-search Stop route
 at measured 1280 × 800, GNOME 100%. Hex and Text each used a test-owned 2 GiB

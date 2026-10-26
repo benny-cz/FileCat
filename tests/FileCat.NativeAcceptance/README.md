@@ -1681,7 +1681,7 @@ Copy, and requires exact `a.txt` bytes at the target while both sources stay
 unchanged and `b.txt` is excluded. A passing JSON receipt is written only after
 all UI and byte checks succeed. Run it on an isolated user-local fixture.
 
-`python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json` runs an isolated Mac
+`python3 mac-ax-modal-guard.py BUNDLE.app REPORT.json [FileCatCapture.app]` runs an isolated Mac
 Copy, Move and Delete review journey. It builds the bounded
 `mac-ax-modal-control.swift` helper with the matching Xcode SDK and uses
 direct Accessibility actions, which work even when `System Events` over SSH
@@ -1689,7 +1689,9 @@ exposes no window children. Each review checks its summary and destination,
 tries six background toolbar/key-bar commands by AX Press, and requires one
 unchanged modal, byte-exact source, empty target and safe Cancel. Use a signed
 bundle and fresh report path directly under `~/FileCatValidation`; the helper
-validates the executable/PID and stays inside the isolated fixture.
+validates the executable/PID and stays inside the isolated fixture. With the
+owner-approved capture helper, it records one fresh PNG per modal for visual
+inspection while preserving the same no-mutation and Cancel assertions.
 
 `osascript mac-ax-viewer-find.applescript SOURCE REPORT.json` checks the Text
 viewer on that fixture's `a.txt`. It opens the viewer from the focused source
