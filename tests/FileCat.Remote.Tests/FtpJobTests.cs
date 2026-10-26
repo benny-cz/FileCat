@@ -98,6 +98,66 @@ public sealed class FtpJobTests : IDisposable
     [InlineData(RemoteProtocols.Ftp)]
     [InlineData(RemoteProtocols.FtpExplicitTls)]
     [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task A_real_FTP_server_change_during_backup_rename_prevents_publication(string protocol)
+    {
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat late replacement test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls,
+            mutateOnRename: "late.bin");
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "late-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "late-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var journal = Path.Combine(_dir, "late-journal");
+        var jobs = new JobManager(new PortableFileOperations(), providers, journal);
+        var source = Path.Combine(_dir, "late.bin");
+        File.WriteAllText(source, "mine edited bytes");
+        File.WriteAllText(Path.Combine(server.Root, "late.bin"), "base");
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(source));
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        var recoveries = JournalRecovery.Scan(journal);
+        Assert.True(recoveries.Count == 1,
+            $"State={job.State}; Issues={string.Join("; ", job.Issues.Select(i => i.Message))}; " +
+            $"Remote={string.Join(", ", Directory.GetFiles(server.Root).Select(Path.GetFileName))}; " +
+            $"SourceExists={File.Exists(source)}; OpenJournals={recoveries.Count}");
+        var interrupted = recoveries[0];
+        var intent = Assert.Single(interrupted.OpenIntents, i => i.Operation == "remote-replace-backup");
+        string backup = Path.Combine(server.Root, intent.Target!.Split('/')[^1]);
+        string stage = Path.Combine(server.Root, intent.Staged!.Split('/')[^1]);
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.False(File.Exists(Path.Combine(server.Root, "late.bin")));
+        Assert.Equal("evil", File.ReadAllText(backup));
+        Assert.Equal("mine edited bytes", File.ReadAllText(stage));
+        Assert.Equal(sourceHash, SHA256.HashData(File.ReadAllBytes(source)));
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(backup, StringComparison.Ordinal) ||
+            issue.Message.Contains(intent.Target!, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
     public async Task Canceling_a_partial_FTP_upload_removes_its_unpublished_stage_and_preserves_the_source(string protocol)
     {
         bool encrypted = protocol != RemoteProtocols.Ftp;

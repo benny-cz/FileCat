@@ -51,6 +51,22 @@ internal sealed class TestFtpServer : IDisposable
             Handler.tls_data_required = True
         else:
             from pyftpdlib.handlers import FTPHandler as Handler
+        late_name = os.environ.get("FILECAT_FTP_MUTATE_RNFR")
+        if late_name:
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                mutated = False
+                def ftp_RNFR(self, path):
+                    # Change exactly the owned destination after the client's
+                    # final content check but before the server moves it aside.
+                    if (not Handler.mutated and os.path.basename(path) == late_name
+                            and self.fs.validpath(path)):
+                        original = os.stat(path)
+                        with open(path, "wb") as item:
+                            item.write(b"evil")
+                        os.utime(path, ns=(original.st_atime_ns, original.st_mtime_ns))
+                        Handler.mutated = True
+                    return super().ftp_RNFR(path)
         Handler.authorizer = auth
         Handler.use_gmt_times = True
         # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
@@ -83,9 +99,12 @@ internal sealed class TestFtpServer : IDisposable
 
     /// <param name="certificatePem">A PEM certificate with its key: explicit TLS (AUTH TLS) is then required.</param>
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
-    public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false)
+    public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
+        string? mutateOnRename = null)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
+        if (mutateOnRename is not null && mutateOnRename != "late.bin")
+            throw new ArgumentException("Only the owned late.bin fixture may be changed during rename.", nameof(mutateOnRename));
         if (Python() is not { } python) return null;
         var dir = Path.Combine(Path.GetTempPath(), "filecat-ftp-tests", Guid.NewGuid().ToString("N")[..8]);
         var root = Directory.CreateDirectory(Path.Combine(dir, "root")).FullName;
@@ -105,6 +124,7 @@ internal sealed class TestFtpServer : IDisposable
             start.Environment["FILECAT_FTP_ADVERTISE"] = advertise;
             start.Environment["FILECAT_FTP_NO_EPSV"] = "1";
         }
+        if (mutateOnRename is not null) start.Environment["FILECAT_FTP_MUTATE_RNFR"] = mutateOnRename;
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);

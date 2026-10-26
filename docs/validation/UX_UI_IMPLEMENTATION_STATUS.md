@@ -14,9 +14,15 @@ content replacement, metadata changes and a new public item across SFTP,
 FTP, explicit FTPS and implicit FTPS; the focused non-atomic matrix passed
 27/27 on Windows. The complete Windows Remote suite then passed 2,454 tests
 with 164 platform skips (2,618 total) using 16 MSBuild workers. A server
-without compare-and-swap can still change the
-public name after this final check, so real-server late-race acceptance and
-recovery review remain open.
+without compare-and-swap can still change the public name after this final
+check. The loopback pyftpdlib server now also mutates the exact old destination
+to different bytes of the same length and timestamp during its `RNFR` backup
+command. Real FTP, explicit FTPS and implicit FTPS jobs all refused
+publication, retained the changed backup and incoming stage, preserved the
+local Move source, and left an open recovery journal (3/3 focused tests).
+The complete real `FtpJobTests` group then passed 99/99 on Windows.
+Later server races, ambiguous rename/cleanup results and native recovery
+review remain open.
 
 **26 October 2026, exact-head Ubuntu checksum scopes (FCUX-008):**
 The isolated Ubuntu guest ran the updated `linux-atspi-viewer-checksum.py`
