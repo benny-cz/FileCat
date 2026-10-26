@@ -25,25 +25,14 @@ increments to `main`.
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete. Rerun the complete
-   final-head gate after the last audit change. Investigate the intermittent
-   Ubuntu metadata-demand extra read (CI `40223594897`) and macOS inline
-   Rename focus return to `..` (CI `40226086392` and `40244855290`) if either
-   recurs on the final head; both exact tests passed 16 isolated reruns, and
-   a later full CI run passed after the new macOS failure.
-   Ubuntu App runs `40236905515`, `40238344602` and `40240407805` aborted
-   with process exit code 134 after zero reported test failures. The uploaded
-   sequence and an isolated VM reproduction identified recursive window-peer
-   creation from Linux row speech; the passive bridge-state fix passed the
-   exact focused tests. The isolated Ubuntu VM then completed the full App
-   suite without an abort; its sole failed assertion assumed a filtered
-   temporary mount would appear among the Places buttons. That test now passes
-   on Ubuntu and Windows, and the complete Ubuntu VM App rerun passed all
-   2,540 cases (2,414 passed, 126 platform skips). Require final-head CI
-   before closing this failure.
+   final-head gate after the last audit change. If they recur, investigate
+   the intermittent Ubuntu metadata-demand extra read and macOS inline Rename
+   focus return to `..`; earlier runs and isolated reruns are recorded in the
+   implementation status.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
-   after the final destination content check. Finish Windows
-   Windows FTP/FTPS failure kinds beyond native interrupted Copy and Move
+   after the final destination content check. Finish Windows FTP/FTPS failure
+   kinds beyond native interrupted Copy and Move
    cleanup across all three FTP modes, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
    provider failures beyond the native destination-content, metadata and
@@ -52,11 +41,8 @@ increments to `main`.
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
-   safely offered. On Mac, investigate the scrolling form body's zero AX bounds
-   and preview list with no AX children. The native `Bulk rename content`
-   scroll area has a valid frame, while its first content child and visible
-   fields report `[0, 900, 0, 0]`; a scroll-peer refresh and removal of the
-   width wrapper did not correct it. For FCUX-004, exercise the other modal
+   safely offered. On Mac, fix the scrolling form body's zero AX bounds and
+   preview list with no AX children. For FCUX-004, exercise the other modal
    focus and decision routes on each desktop, including actual Orca speech
    where required.
    Preserve captured scope and mapping throughout each test.
@@ -90,13 +76,10 @@ increments to `main`.
    each group's exact provider, input, scaling and assistive-technology gate.
    FCUX-031 still needs nested and scaled layouts. FCUX-032
    still needs scaled layouts, spoken feedback and non-filesystem breadcrumb
-   paths. For UXBUG-019, the elevated production census and disk-safety
-   preflight admit the owner's disposable `G:` (`FCTEST`) with unrelated
-   build and desktop apps running. The updated elevated Windows VM UI also
-   admits a disposable `G:` VHD and opens its recovery tab, but that fresh
-   VHD yielded no deleted entries. Verify actual off-source recovery with a
-   retained, recoverable deleted fixture; then exercise the owner's `G:` UI
-   route if safe to do so without using the workstation desktop.
+   paths. For UXBUG-019, verify actual off-source recovery with a retained,
+   recoverable deleted fixture on the Windows VM; then exercise the owner's
+   disposable `G:` UI route if safe to do so without using the workstation
+   desktop.
 5. **Finish S3 refinements on real desktops.** FCUX-058, 074 and 059–068 need
    the outstanding pointer, keyboard, multi-panel, window-manager,
    multi-monitor/DPI, clipboard, remote/archive naming, screen-reader and
