@@ -64,9 +64,9 @@ passed native journeys.
 
 ## Current priority
 
-The ledger is ordered S1, S2, S3, then queued defects and CI. Resolve its
-failed DEF-016A Mac narrow Copy X-click diagnostic within the recorded
-two-attempt bound before broad dialog testing. Continue with the highest
-priority open S1 case and use a different case only while an external
+The ledger is ordered S1, S2, S3, then queued defects and CI. The 26 October
+DEF-016A Mac narrow Copy X-click diagnostic closed after the occluding macOS
+alert was cleared and its bounded same-build retry passed. Continue with the
+highest-priority open S1 case and use a different case only while an external
 prerequisite is genuinely unavailable. Keep Mac audio muted and perform
 desktop input on the isolated VMs/Mac, not the owner's workstation.

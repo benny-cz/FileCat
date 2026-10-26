@@ -22,9 +22,6 @@ not invalidate it. The audit-wide CI gate is separate below.
 
 | Stable scenario | Finding | Status | Tested build and environment | Evidence | Exact remaining requirement |
 | --- | --- | --- | --- | --- | --- |
-| <a id="ac-s1-001a"></a>AC-S1-001A | FCUX-001 | Open | Unrun on a server without atomic rename | [recovery history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Interrupt SFTP after the reviewed backup preflight, change the target before final admission, then prove refusal or new review, unchanged external bytes and an exact retained manifest. |
-| <a id="ac-s1-001b"></a>AC-S1-001B | FCUX-001/020 | Open | FTP/FTPS partial-stage runs passed; ambiguous final reply unrun | [recovery history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | On one FTP, one explicit FTPS and one implicit FTPS endpoint, force an ambiguous rename/cleanup reply after interruption; verify exact source, target, stage and journal state. Stop after one consequential failure kind per mode. |
-| <a id="ac-s1-069a"></a>AC-S1-069A | FCUX-069 | Open | Explorer Cut exchange unrun | [clipboard history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Import Explorer Cut, replace the clipboard publication before Paste, and verify the submitted job cannot reuse old Move authority; check supported Explorer delete-on-paste effects. |
 | <a id="ac-s1-069b"></a>AC-S1-069B | FCUX-069 | Open | Finder/GNOME external Move effect unrun | [clipboard history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Exchange one file with Finder and Files as Move if supported, or expose an explicit refusal; verify source/target manifests and no silent Cut reuse. |
 | <a id="ac-s1-070"></a>AC-S1-070 | FCUX-070 | Open | Controlled delayed-task tests passed; native backend timing unrun | [clipboard history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Hold a native clipboard read, change the active tab and target, then release it on Windows, Ubuntu and macOS; Paste must use its captured destination or explain refusal. |
 | <a id="ac-s1-004"></a>AC-S1-004 | FCUX-004 | Open | Copy/Move/Delete entry and return passed on all three desktops | [modal history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | At narrow size, exercise one Replace conflict and one Mirror/recovery approval: leave and return focus, Cancel by pointer/keyboard, and hear the consequential choice and full target with NVDA, Orca and muted VoiceOver. |
@@ -33,13 +30,13 @@ not invalidate it. The audit-wide CI gate is separate below.
 | <a id="ac-s1-009"></a>AC-S1-009 | FCUX-009 | Open | Windows long-line and Ubuntu keyboard route passed; pointer/font fallback unrun | [comparison history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | On Ubuntu with enlarged nondefault font and a 2,000-character changed line, pointer-select/Copy the suffix, navigate Next difference and hear the correct changed-line identity. |
 | <a id="ac-s1-010"></a>AC-S1-010 | FCUX-010 | Open | Local NVDA/Orca/VoiceOver routes passed; provider route unrun | [list history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | Inspect bounded virtual rows in one Windows archive and one Ubuntu delayed SFTP/result listing; verify focus versus marks, original location and one real action through native accessibility. Mac's spoken Previous/Next full-path navigator is an accepted equivalent for missing preview-row children. |
 
-FCUX-002, 003, 005, 006 and 018 have no new native row: their consequential
+FCUX-001, 002, 003, 005, 006 and 018 have no new native row: their consequential
 subcases are accepted in the dated status history. The final CI gate still
 applies to the audit.
 
 <!-- ACCEPTED-FINDINGS-BEGIN -->
 Fully accepted original findings with no required scenario left:
-FCUX-002, FCUX-003, FCUX-005, FCUX-006, FCUX-018, FCUX-028,
+FCUX-001, FCUX-002, FCUX-003, FCUX-005, FCUX-006, FCUX-018, FCUX-028,
 FCUX-034 and FCUX-035. Their build-specific evidence is in the status
 history; this inventory only prevents an old pending note from reopening
 them.
@@ -49,7 +46,7 @@ them.
 
 | Stable scenario | Finding | Status | Tested build and environment | Evidence | Exact remaining requirement |
 | --- | --- | --- | --- | --- | --- |
-| <a id="ac-s2-011"></a>AC-S2-011 | FCUX-011, UXBUG-010/011/016 | Open | Earlier signed Mac narrow Copy passed; `be7b2a30` Mac 640×480 X failed on 26 Oct | [dialog history](UX_UI_IMPLEMENTATION_STATUS.md#uxbug-016--pointer-dismissal-for-overlay-dialogs) | Resolve DEF-016A, then use one long-path Undo/recovery review and one Registry/Find form at minimum/enlarged text: full paths wrap and are emphasized, actions remain reachable, X and backdrop cancel without mutation. Pairwise desktop coverage suffices. |
+| <a id="ac-s2-011"></a>AC-S2-011 | FCUX-011, UXBUG-010/011/016 | Open | Signed `be7b2a30` Mac Retina 640×480 Copy X/backdrop passed on 26 Oct after clearing an occluding macOS alert | [dialog history](UX_UI_IMPLEMENTATION_STATUS.md#uxbug-016--pointer-dismissal-for-overlay-dialogs) | Use one long-path Undo/recovery review and one Registry/Find form at minimum/enlarged text: full paths wrap and are emphasized, actions remain reachable, X and backdrop cancel without mutation. Pairwise desktop coverage suffices. |
 | <a id="ac-s2-012"></a>AC-S2-012 | FCUX-012/073/076 | Open | Mapping/reflow tests passed; native Copy round trip unrun | [viewer map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Select multibyte Text and Hex ranges, resize/enlarge font, then Copy; verify exact source text/bytes, viewport reveal and read-only value/selection announcements on Windows and one Unix backend. |
 | <a id="ac-s2-013"></a>AC-S2-013 | FCUX-013/014/049/050/051 | Open | Palette/component contrast checks passed; full native composition unrun | [theme map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | In one high-contrast and one expressive palette inspect selected/search/danger/hidden-name glyph contrast, transparent picture content and one complete animation cycle. Toggle reduced motion while active on Windows, GNOME and macOS; verify content stays fixed and the preference is announced. |
 | <a id="ac-s2-071"></a>AC-S2-071 | FCUX-071/075 | Open | Provider/model refusal tests passed; external native drop unrun | [drag map](UX_UI_IMPLEMENTATION_STATUS.md#s2-continuation) | Drag a complete local/ZIP selection to an OS file manager and a mixed/disconnected selection to a refused target; verify effect/cursor, exact manifest, no partial publication and unchanged source. Use clipboard as an equivalent if a backend has no supported drag effect. |
@@ -108,9 +105,8 @@ modifier state also passed; only its distinct popup/Find visual row remains.
 
 | Stable scenario | Finding | Status | Tested build and environment | Evidence | Exact remaining requirement |
 | --- | --- | --- | --- | --- | --- |
-| <a id="def-016a"></a>DEF-016A | UXBUG-016 | Failed — triage | Signed `be7b2a30`, macOS Retina, 640×480 Copy: AX X 30×30 present, native click did not dismiss on 26 Oct | `mac-dialog-pointer-copy-narrow-be7-resume-20261026.json` on Mac; [earlier pass](UX_UI_IMPLEMENTATION_STATUS.md#uxbug-016--pointer-dismissal-for-overlay-dialogs) | Determine displaced display/session input versus FileCat regression. At most two controlled AX-bounds and before/after capture attempts; then classify/fix. Do not infer Move/Delete failure without running them. |
 | <a id="def-019a"></a>DEF-019A | UXBUG-019 | Open | VM `663b6fdd` strict plus native exact-byte recovery passed; owner's G: unrun | [26 Oct VHD history](UX_UI_IMPLEMENTATION_STATUS.md#changes-and-verification-map) | If isolated non-workstation input is available, repeat owner's original elevated G: admission and off-source recovery; verify no false “other FileCat processes” refusal, exact bytes and no G: write. VM acceptance stays valid without this reconfirmation. |
-| <a id="gate-ci-final"></a>GATE-CI-FINAL | Audit-wide | Open | `f0ac54c2` five lanes green; `49041bd3` running on 26 Oct | [current CI](https://github.com/benny-cz/FileCat/actions/runs/40395624544) | After last implementation change require producer, Windows, Windows ARM64, Ubuntu and macOS CI green on that exact code head. Documentation-only commits do not invalidate passed native scenarios. |
+| <a id="gate-ci-final"></a>GATE-CI-FINAL | Audit-wide | Open | `663b6fdd` five lanes green; `49041bd3` and docs-only `d2c14636` running on 26 Oct | [green CI](https://github.com/benny-cz/FileCat/actions/runs/40390006844) | After last implementation change require producer, Windows, Windows ARM64, Ubuntu and macOS CI green on that exact code head. Documentation-only commits do not invalidate passed native scenarios. |
 
 ## Deliberately outside required closure
 
@@ -123,6 +119,12 @@ modifier state also passed; only its distinct popup/Find visual row remains.
 - A Cartesian product of platforms, palettes, scales, providers and inputs.
   The audit calls for pairwise coverage and focused risk combinations and
   accepts an equivalent route with the same consequential outcome.
+- A separate SFTP server that does not advertise atomic rename. The current
+  `TryReplace=false` adapter exercised the same non-atomic product branch over
+  real OpenSSH file operations and four consequential server-response faults;
+  live SFTP interruption/recovery review passed separately. A different
+  server implementation is a useful interoperability refinement, not another
+  FCUX-001 completion gate absent a failure with the accepted branch.
 
 ## Repeat authorization record
 
@@ -134,4 +136,4 @@ commit is insufficient.
 
 | Date | Scenario | Reason and stop |
 | --- | --- | --- |
-| 26 Oct 2026 | DEF-016A | New failed Mac narrow Copy pointer result conflicts with earlier X/backdrop pass. At most two controlled AX-bounds plus before/after captures; classify product defect versus invalid input evidence. |
+| 26 Oct 2026 | DEF-016A | First new Mac narrow Copy X click was intercepted by an unrelated iCloud/FaceTime alert, making that result invalid. After clearing the alert, one controlled retry on the same signed build passed X and backdrop cancellation with unchanged fixture (`mac-dialog-pointer-copy-narrow-be7-retry-20261026.json`). Investigation closed; no broad pointer rerun authorized by that invalid result. |

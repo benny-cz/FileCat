@@ -10,6 +10,38 @@ named build, not a second current backlog. The
 The audit's pairwise and equivalent-route stopping rules apply: an unrelated
 commit or open parent finding does not invalidate a passing native result.
 
+**26 October 2026, FTP/FTPS ambiguous-result reconciliation (FCUX-001/020):**
+`AC-S1-001B` was stale. The real pyftpdlib fixture already performed backup
+rename, stage publication or backup deletion and returned an ambiguous FTP
+451 afterward. All nine combinations across FTP, explicit FTPS and implicit
+FTPS passed on Windows (focused 9/9, full `FtpJobTests` 108/108): each checked
+the exact public destination, retained backup/stage, local Move source and
+open journal. Separate native Windows crash-recovery journeys had already
+shown Copy and Move stage identity, conservative cleanup review and report
+for each of the same three transports. Those results form a risk-based
+pairwise acceptance of ambiguous server replies and native recovery review;
+repeating all nine ambiguity cases through the UI would add no distinct
+consequential boundary. The separate SFTP route is reconciled below.
+
+**26 October 2026, SFTP and Explorer Cut acceptance reconciliation:** The
+FCUX-001 audit outcome is accepted. A real OpenSSH connection with the
+`TryReplace=false` test adapter exercised the same non-atomic FileCat branch
+for a late same-size/time target change and ambiguous backup, publish and
+cleanup responses (4/4); exact public, backup, stage, Move-source and journal
+states passed. Separate native live-SFTP interruption and reviewed cleanup
+proved the recovery UI route. The still-unrun *different server without the
+atomic extension* is an interoperability refinement, not another original
+audit gate without evidence that the accepted branch differs. `AC-S1-001A`
+closed under the audit's equivalent-route and pairwise stopping rule.
+`AC-S1-069A` was also stale: Windows Explorer replaced FileCat Cut A and
+Cut A+B with Copy of A; actual `CF_HDROP` manifests and destination/source
+bytes proved Paste was Copy, while a fresh Explorer Cut carried native
+`Preferred DropEffect=2` and FileCat reported performed Copy after importing
+it. Canceled conflict reported no performed effect. Deterministic tests
+cover clipboard replacement timing and actual submitted job kind. This
+closes the Windows Explorer subscenario; supported Finder/GNOME external
+Move semantics remain a separate `AC-S1-069B` decision.
+
 The stale Mac 1× Filter item is **accepted**: the 24 October signed arm64
 candidate with DLL SHA-256
 `671e2f99319f55f4b4f4403c239889b7ef48e1030c1b66f3ce477445aa4b24dd`
@@ -30,17 +62,19 @@ an engine-dependent exact total is optional.
 
 **26 October 2026, Mac narrow Copy X-click diagnostic (UXBUG-016):**
 The signed `be7b2a30` app passed the normal native Copy/Move/Delete modal
-guard again on an unlocked Retina Mac. The owner-approved
-`FileCatCapture.app` launched through the desktop session and produced a
-valid image. A subsequent Git-tracked pointer runner at a 640 × 480 main
-window found a 30 × 30 enabled AX button named `Close dialog` in Copy but
-timed out after a native click; its diagnostic capture and
-`mac-dialog-pointer-copy-narrow-be7-resume-20261026.json` remain in the
-Mac validation folder. The runner stopped its exact owned FileCat process.
-This is an unresolved result, not proof that the product X is broken: the
-earlier narrow pointer route passed and the new image/input coordinates
-need a bounded two-attempt diagnosis under ledger `DEF-016A`. Move and
-Delete were not run in this attempted batch.
+guard again on an unlocked Retina Mac. A subsequent Git-tracked pointer
+runner at a 640 × 480 main window found a 30 × 30 enabled AX button named
+`Close dialog` in Copy but timed out after a native click. The owner-approved
+`FileCatCapture.app` diagnostic image showed an unrelated macOS iCloud alert
+covering the X; a FaceTime alert followed its dismissal. Both were cleared
+through their visible Later buttons. The single bounded retry on the *same*
+signed build passed native X and backdrop clicks, retained its accessible
+in-window approval button and left source and destination unchanged
+(`mac-dialog-pointer-copy-narrow-be7-retry-20261026.json`). The first report
+(`mac-dialog-pointer-copy-narrow-be7-resume-20261026.json`) remains as
+historical invalid/occluded evidence. This closes `DEF-016A`; it did not
+demonstrate a FileCat regression or justify repeating the previously passed
+Move/Delete pointer routes.
 
 **26 October 2026, VoiceOver speaks viewer Stop (FCUX-007):**
 The signed isolated Mac app with DLL SHA-256

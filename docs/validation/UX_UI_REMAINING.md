@@ -10,9 +10,7 @@ accepted equivalent routes stay in
 
 ## Highest priority — S1
 
-- [AC-S1-001A/B](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-001a): SFTP
-  non-atomic-rename final-check race and FTP/FTPS ambiguous interruption.
-- [AC-S1-069A/B](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-069a) and
+- [AC-S1-069B](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-069b) and
   [AC-S1-070](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-070): external clipboard Move
   authority and delayed Paste destination.
 - [AC-S1-004](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-004): remaining hazardous
@@ -31,8 +29,6 @@ accepted equivalent routes stay in
   operation evidence, Undo/sync, navigation, workspace/listing, panels,
   Settings/rename, Find, scrolling, provider context and viewer refresh.
   Each table row specifies one bounded consequential route.
-- [DEF-016A](UX_UI_ACCEPTANCE_LEDGER.md#def-016a): diagnose the new Mac narrow
-  Copy X-click failure before general dialog testing.
 - [DEF-019A](UX_UI_ACCEPTANCE_LEDGER.md#def-019a): owner's disposable G:
   reconfirmation if an isolated input route is available.
 
