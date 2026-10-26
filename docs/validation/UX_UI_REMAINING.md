@@ -52,15 +52,13 @@ increments to `main`.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
    input and the remaining assistive-technology routes. Test visible Stop,
    changed-query ownership on other viewer routes, provider cancellation,
-   and spoken Find
-   results. Assistive-technology routes still need native checks.
+   and spoken Find results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
    other scaled displays and narrow-layout states. For FCUX-009, finish
    long-line and wrap-alignment Linux acceptance,
    font fallback, pointer navigation and spoken automation on the
    supported desktops. For FCUX-010, verify VoiceOver's other item actions
-   and bounded native listings on other supported provider types; Windows
-   still needs the implicit-TLS FTPS listing.
+   and bounded native listings on other supported provider types.
    Finish the other provider, scale and spoken action routes recorded in the
    status table.
 4. **Work through S2 native acceptance in audit order.** The remaining groups

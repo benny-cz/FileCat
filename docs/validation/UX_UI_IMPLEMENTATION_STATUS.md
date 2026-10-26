@@ -175,6 +175,16 @@ remained unchanged and the test server finished empty. Guest receipts are
 `ftps-crash-copy-2f1f43c9.json` and `ftps-crash-move-2f1f43c9.json`.
 The updated shared fixture also passed a native plain FTP Copy rerun.
 
+**26 October 2026, Win11 implicit-TLS FTPS large listing (FCUX-010):** The
+Git-built `2f1f43c9` app listed 2,001 files from a test-owned loopback
+implicit-TLS server after an explicit once-only certificate decision. Native
+UI Automation exposed 25 rows and 242 nodes initially, then 24 rows and 241
+nodes after physical End focused `target.txt`; each snapshot took under one
+second and the End navigation took 1.134 seconds. Source and server bytes
+remained unchanged. The guest receipt is `ftps-implicit-large-2f1f43c9.json`.
+The updated native runner also passed plain FTP and explicit-TLS 2,001-file
+regression journeys, including plaintext consent and certificate review.
+
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
 bytes. FileCat kept the exact unpublished stage and reported its path in the
@@ -673,7 +683,7 @@ desktop's Xwayland authorization. The runner now selects exactly one
 same-user Xwayland display and a bounded, regular auth file under that
 user's runtime directory before launching FileCat; a failed startup also
 reports a bounded app-log tail. The updated runner passed on the restarted
-guest. Windows implicit-FTPS native listing remains open.
+guest. The later Windows implicit-FTPS native listing is recorded above.
 
 **24 October 2026, elevated Windows recovery admission (UXBUG-019):** The
 owner's disposable `G:` scan was refused despite no second FileCat window.

@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('ftp', 'ftpes', 'sftp')][string]$Protocol = 'ftp',
+    [ValidateSet('ftp', 'ftpes', 'ftps', 'sftp')][string]$Protocol = 'ftp',
     [string]$SftpFixtureId,
     [string]$ExpectedHostFingerprints,
     [string]$SftpPassword
@@ -194,7 +194,7 @@ try {
     if ($Protocol -eq 'sftp') {
         $address = "sftp://benny@192.168.58.129/home/benny/FileCatValidation/WindowsLargeSftpListing/$SftpFixtureId/"
     } else {
-        $mode = if ($Protocol -eq 'ftpes') { 'serve-tls' } else { 'serve' }
+        $mode = switch ($Protocol) { 'ftpes' { 'serve-tls' } 'ftps' { 'serve-implicit-tls' } default { 'serve' } }
         $server = Start-Process -FilePath $python -ArgumentList @($helper, $mode, $serverRoot, $ready) -PassThru `
             -WindowStyle Hidden -RedirectStandardError $serverError
         $port = Await {
@@ -255,7 +255,7 @@ try {
         $result.HostKeyMatched = $match[0]
         $trust.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     }
-    if ($Protocol -eq 'ftpes') {
+    if ($Protocol -in @('ftpes', 'ftps')) {
         $trust = Await { Button $window 'Connect once' } 'fresh FTPS certificate decision'
         $trust.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
         $result.CertificateAcceptedOnce = $true
