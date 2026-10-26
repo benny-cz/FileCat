@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, exact-head Ubuntu checksum scopes (FCUX-008):**
+The isolated Ubuntu guest ran the updated `linux-atspi-viewer-checksum.py`
+against the Git-built `cff83525` app (SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`,
+DLL SHA-256 `bc286bd5324c47890d539173ca996cb48ee98837d8dd8264c9c23395a69b7b6d`).
+The runner now focuses the exact source-panel row through its current full
+AT-SPI description and starts the app with the pinned .NET root. Native Hex
+viewer checks passed both one-byte selected range and whole-file SHA-256 and
+CRC-32, complete bytes-read reporting, explicit Copy matching the visible
+result, unchanged source bytes and restored clipboard. A separate run changed
+the selected source while its review was open: Compute refused the stale
+scope, showed no hash, disabled Copy and preserved the clipboard. Reports:
+`checksum-cff83525.json` and `checksum-stale-cff83525.json` in the guest
+validation folder. Other provider, incomplete-read and scaled-layout routes
+remain open.
+
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
 The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the
 Git-built `cff83525` app (SHA-256

@@ -134,6 +134,8 @@ def run(app_path, helper, stale_scope=False, narrow=False):
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     os.environ.setdefault("DISPLAY", ":0")
+    if (validation / "dotnet-sdk" / "dotnet").is_file():
+        os.environ.setdefault("DOTNET_ROOT", str(validation / "dotnet-sdk"))
     env = os.environ.copy()
     env.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     process = None
@@ -150,9 +152,14 @@ def run(app_path, helper, stale_scope=False, narrow=False):
                            if node.get_name() == "FileCat" and
                            find(node, "list", f"Panel 1, source, {source}")), None),
                            "test-owned FileCat instance")
-            row = find(app, "list item", fixture.name)
-            assert row is not None and row.grab_focus(), "Could not focus the checksum fixture"
-            wait_for(lambda: row.get_state_set().contains(Atspi.StateType.FOCUSED), "source-row focus")
+            source_list = find(app, "list", f"Panel 1, source, {source}")
+            row = wait_for(lambda: next((item for item in descendants(source_list)
+                           if item.get_role_name() == "list item" and
+                           (item.get_name() or "").startswith(f"{fixture.name}, file,")), None),
+                           "the exact checksum source row")
+            wait_for(lambda: row.grab_focus() and
+                     row.get_state_set().contains(Atspi.StateType.FOCUSED),
+                     "source-row focus")
             checked_action(find(app, "button", "View"), "View command")
             viewer = wait_for(lambda: find(app, "frame", title), "binary viewer")
             # Hex mode is selected automatically for the leading zero byte.
