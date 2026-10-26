@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
+The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the
+Git-built `cff83525` app (SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`).
+The runner now waits for the source panel's complete `a.txt, file, ...` row
+description and passes its pinned .NET root to the app host. Native AT-SPI
+opened the Text viewer, found `alpha`, showed `1 match`, exercised visible
+Previous and Next, then physical F3 and Shift+F3 with the correct directional
+boundary messages. The viewer closed and both source files retained their
+exact bytes. Guest report: `text-viewer-find-cff83525.json`. The full Windows
+Remote suite on this head passed 2,442 tests with 164 platform skips; the
+five-lane CI run was green. Other provider, scale and spoken Stop/error routes
+remain open.
+
 **26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**
 The isolated GNOME guest ran `linux-orca-speech.py` against the Git-built
 `cff83525` app (app SHA-256

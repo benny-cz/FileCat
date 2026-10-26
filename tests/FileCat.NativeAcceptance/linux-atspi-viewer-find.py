@@ -101,10 +101,12 @@ def run(source, helper=None):
         raise AssertionError("The viewer owner was not launched on this fixture")
 
     source_list = find(app, "list", f"Panel 1, source, {source}")
-    row = find(source_list, "list item", "a.txt")
-    if row is None or not row.grab_focus():
-        raise AssertionError("Could not focus the exact a.txt row")
-    wait_for(lambda: row.get_state_set().contains(Atspi.StateType.FOCUSED),
+    row = wait_for(lambda: next((item for item in descendants(source_list)
+                   if item.get_role_name() == "list item" and
+                   (item.get_name() or "").startswith("a.txt, file,")), None),
+                   "the exact a.txt source row")
+    wait_for(lambda: row.grab_focus() and
+             row.get_state_set().contains(Atspi.StateType.FOCUSED),
              "a.txt to own keyboard focus")
     checked_action(find(app, "button", "View"), "View command")
     viewer = wait_for(lambda: find(app, "frame", title), "Text viewer")
@@ -163,6 +165,8 @@ def launch_and_run(app_path, helper):
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     os.environ.setdefault("DISPLAY", ":0")
+    if (validation / "dotnet-sdk" / "dotnet").is_file():
+        os.environ.setdefault("DOTNET_ROOT", str(validation / "dotnet-sdk"))
     with (root / "app.log").open("wb") as log:
         process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                     "--left", str(source), "--right", str(target)],
