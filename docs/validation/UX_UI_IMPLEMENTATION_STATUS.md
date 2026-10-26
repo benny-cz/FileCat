@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Windows CI SFTP edit baseline save:** CI run
+`40261499720` passed producer, Ubuntu, macOS and Windows ARM64, but its
+Windows App suite saw a completed SFTP upload followed by a transient
+`UnauthorizedAccessException` while replacing the local `session.json`
+baseline. The remote bytes were already committed, so the session correctly
+remained Modified rather than falsely acknowledging its new baseline.
+`EditSessionStore.Save` now writes each attempt to a unique, same-folder
+temporary record and gives short-lived Windows access denials a bounded six
+attempts before preserving and reporting the prior record. Refused attempts
+remove their temporary metadata. New Core tests force both transient
+`IOException` and `UnauthorizedAccessException` and a persistent denial;
+all three pass. The 34 related Core tests, two Remote edit tests and 42 App
+edit/SFTP tests pass with 16 workers. The previously failing App test also
+passed eight further local reruns. The pushed-head five-lane CI gate is
+pending.
+
 **26 October 2026, Ubuntu long-line comparison (FCUX-009):** The new tracked
 `linux-atspi-compare-long-lines.py` uses two isolated source files whose first
 and second differences follow 2,000 shared characters. On the native 100%

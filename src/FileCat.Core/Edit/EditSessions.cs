@@ -372,9 +372,39 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     public void Save(EditSessionRecord record)
     {
         string dir = Path.Combine(Root, record.Id);
-        string temp = Path.Combine(dir, RecordFile + ".tmp");
-        File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(record, Json));
-        File.Move(temp, Path.Combine(dir, RecordFile), overwrite: true);
+        string destination = Path.Combine(dir, RecordFile);
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(record, Json);
+        // Readers share deletion so a record can be replaced atomically. On
+        // Windows, another process can still hold the destination briefly
+        // (for example while scanning a newly written session). Give that
+        // transient lock a bounded chance to clear, without ever reporting a
+        // committed baseline before its record is safely published.
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            string temp = Path.Combine(dir, RecordFile + "." + Guid.NewGuid().ToString("N") + ".tmp");
+            bool created = false;
+            try
+            {
+                using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    created = true;
+                    stream.Write(bytes);
+                }
+                fs.Move(temp, destination, replaceExisting: true);
+                return;
+            }
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < 5)
+            {
+                Thread.Sleep(50 * (attempt + 1));
+            }
+            finally
+            {
+                // A refused replacement must not leave session metadata in
+                // disposable sibling files. A cleanup denial is itself a
+                // failure, rather than permission to create more copies.
+                if (created && File.Exists(temp)) File.Delete(temp);
+            }
+        }
     }
 
     public EditState StateOf(EditSessionRecord record) => StateOf(record, new LocalFileSystemProvider());
