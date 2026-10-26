@@ -893,6 +893,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         // until the new stage has taken the public name. Deleting it first
         // would lose both versions if the second server rename failed.
         string backup = TempName(folder);
+        // Keep the observed version, not a live entry wrapper: a test server or
+        // another client can change the entry while the rename is in flight.
+        TargetSnapshot approvedVersion = TargetSnapshot.Of(current);
         if (FreshEntry(folder, RemotePath.Name(backup)) is not null)
             throw new RefusedOperationException("Not written: the recovery backup name already exists on the server. Review its temporary files before replacing this destination.");
         int backupStep = Journal.Intent("remote-replace-backup", dst, backup, temp);
@@ -910,6 +913,32 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             throw new RefusedOperationException($"Not written: the server could not move the old destination aside ({ErrorText.Describe(ex)}). " +
                 $"Inspect {dst}, backup {backup}, and incoming stage {temp}; FileCat kept recovery tracking open.");
         }
+        IRemoteEntry VerifySavedVersion()
+        {
+            var saved = FreshEntry(folder, RemotePath.Name(backup));
+            if (saved is null)
+                throw new RefusedOperationException("The saved destination version disappeared.");
+            if (TargetSnapshot.Of(saved) != approvedVersion ||
+                expectedSha256 is not null && !string.Equals(HashRemoteTarget(backup, saved.Size), expectedSha256, StringComparison.OrdinalIgnoreCase))
+                throw new RefusedOperationException("The saved destination version differs from the approved version.");
+            return saved;
+        }
+        try
+        {
+            // The final check and the server rename are not atomic. Verify the
+            // actual item that was moved aside before exposing the incoming
+            // upload, and refuse to overwrite a new public entry.
+            VerifySavedVersion();
+            if (FreshEntry(folder, RemotePath.Name(dst)) is not null)
+                throw new RefusedOperationException("Another item appeared at the destination while the old version was moved aside.");
+        }
+        catch (Exception ex)
+        {
+            RequireReview("could not verify the saved old version before publication");
+            if (ex is OperationCanceledException) throw;
+            throw new RefusedOperationException($"Not written: the saved destination could not be verified ({ErrorText.Describe(ex)}). " +
+                $"Inspect {dst}, backup {backup}, and incoming stage {temp}; FileCat kept recovery tracking open.");
+        }
         try { Channel.Rename(temp, dst); }
         catch (Exception ex)
         {
@@ -920,12 +949,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         try
         {
-            var saved = FreshEntry(folder, RemotePath.Name(backup));
-            if (saved is null)
-                throw new RefusedOperationException("The saved destination version disappeared before backup cleanup.");
-            if (TargetSnapshot.Of(saved) != TargetSnapshot.Of(current) ||
-                expectedSha256 is not null && !string.Equals(HashRemoteTarget(backup, saved.Size), expectedSha256, StringComparison.OrdinalIgnoreCase))
-                throw new RefusedOperationException("The saved destination version changed before backup cleanup.");
+            var saved = VerifySavedVersion();
             saved.Delete();
             Journal.Done(backupStep, StepOutcome.Committed);
         }

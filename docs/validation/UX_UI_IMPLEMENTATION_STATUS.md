@@ -1,5 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, late non-atomic remote replacement race (FCUX-001):**
+After a server moves the approved old destination to its journaled recovery
+backup, FileCat now rereads that backup and checks the approved metadata and
+content hash **before** publishing the incoming stage. It also checks that no
+other client created a new entry at the public destination name. A mismatch,
+read failure or new public entry leaves the incoming stage and saved old
+version intact, retains the local Move source and open recovery journal, and
+shows all three paths for reconciliation. The immutable metadata snapshot is
+captured before the rename so a live provider entry cannot silently change
+the comparison baseline. Controlled late-mutation tests cover same-size/time
+content replacement, metadata changes and a new public item across SFTP,
+FTP, explicit FTPS and implicit FTPS; the focused non-atomic matrix passed
+27/27 on Windows. The complete Windows Remote suite then passed 2,454 tests
+with 164 platform skips (2,618 total) using 16 MSBuild workers. A server
+without compare-and-swap can still change the
+public name after this final check, so real-server late-race acceptance and
+recovery review remain open.
+
 **26 October 2026, exact-head Ubuntu checksum scopes (FCUX-008):**
 The isolated Ubuntu guest ran the updated `linux-atspi-viewer-checksum.py`
 against the Git-built `cff83525` app (SHA-256

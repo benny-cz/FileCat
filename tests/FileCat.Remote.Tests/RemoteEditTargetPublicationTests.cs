@@ -269,6 +269,101 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
     }
 
     [Theory]
+    [InlineData(RemoteProtocols.Sftp, "content", false)]
+    [InlineData(RemoteProtocols.Ftp, "content", false)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "content", false)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "content", false)]
+    [InlineData(RemoteProtocols.Sftp, "metadata", false)]
+    [InlineData(RemoteProtocols.Ftp, "metadata", false)]
+    [InlineData(RemoteProtocols.Sftp, "content", true)]
+    [InlineData(RemoteProtocols.Ftp, "metadata", true)]
+    public async Task Non_atomic_replacement_refuses_a_target_changed_during_backup_rename(string protocol, string change, bool edit)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File(Target, "base");
+        var expected = new ContentRevision(4, server.Lookup(Target, false)!.Modified.Ticks);
+        string sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        rig.BeforeMove = (source, backup) =>
+        {
+            if (source != Target || !backup.StartsWith("/owned/.fc-", StringComparison.Ordinal)) return;
+            var target = server.Lookup(Target, false)!;
+            if (change == "content") target.Data = "evil"u8.ToArray();
+            else target.Modified = target.Modified.AddSeconds(3);
+        };
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            ExpectedTarget = edit ? expected : null,
+            ExpectedTargetSha256 = edit ? Hash("base"u8.ToArray()) : null,
+            Options = new TransferOptions { Conflicts = edit ? ConflictPolicy.Skip : ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Join(rig.Root, "journal")));
+        var intent = Assert.Single(interrupted.OpenIntents, i => i.Operation == "remote-replace-backup");
+        Assert.Null(server.Lookup(Target, false));
+        Assert.Equal(change == "content" ? "evil" : "base", server.Read(intent.Target!));
+        Assert.NotNull(server.Lookup(intent.Staged!, false));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+        Assert.DoesNotContain(rig.Calls, call => call.Operation == "Rename" && call.Path == Target);
+        Assert.DoesNotContain(rig.Calls, call => call.Operation == "Delete" && call.Path == intent.Target);
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(intent.Target!, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp)]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Non_atomic_replacement_refuses_a_new_public_item_after_backup_rename(string protocol)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File(Target, "base");
+        string sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        rig.AfterMove = (source, backup) =>
+        {
+            if (source == Target && backup.StartsWith("/owned/.fc-", StringComparison.Ordinal))
+                server.File(Target, "intruder");
+        };
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Join(rig.Root, "journal")));
+        var intent = Assert.Single(interrupted.OpenIntents, i => i.Operation == "remote-replace-backup");
+        Assert.Equal("intruder", server.Read(Target));
+        Assert.Equal("base", server.Read(intent.Target!));
+        Assert.NotNull(server.Lookup(intent.Staged!, false));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+        Assert.DoesNotContain(rig.Calls, call => call.Operation == "Rename" && call.Path == Target);
+        Assert.DoesNotContain(rig.Calls, call => call.Operation == "Delete" && call.Path == intent.Target);
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(intent.Target!, StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(RemoteProtocols.Sftp, "backup-move")]
     [InlineData(RemoteProtocols.Ftp, "backup-move")]
     [InlineData(RemoteProtocols.Sftp, "backup-move-uncertain")]
@@ -460,6 +555,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public Action? BeforeTryReplace;
         public Action<string, string>? BeforeRename;
         public Action<string, string>? BeforeMove;
+        public Action<string, string>? AfterMove;
         public Action<string>? BeforeDelete;
         public int Decisions;
         private readonly SftpConnections connections;
@@ -474,6 +570,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
                 new Connector(Server, Calls, () => BeforeTryReplace?.Invoke(),
                     (source, target) => BeforeRename?.Invoke(source, target),
                     (source, target) => BeforeMove?.Invoke(source, target),
+                    (source, target) => AfterMove?.Invoke(source, target),
                     path => BeforeDelete?.Invoke(path)),
                 new HostKeyTrust(Path.Join(Root, "known_hosts"), []), new SessionSecretStore(), interaction);
             var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider());
@@ -499,14 +596,16 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         }
     }
     private sealed class Connector(FakeSftpServer server, ConcurrentQueue<Call> calls, Action beforeTryReplace,
-        Action<string, string> beforeRename, Action<string, string> beforeMove, Action<string> beforeDelete) : ISftpConnector
+        Action<string, string> beforeRename, Action<string, string> beforeMove,
+        Action<string, string> afterMove, Action<string> beforeDelete) : ISftpConnector
     {
         public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct)
             => new Channel(new FakeConnector(server).Connect(profile, context, ct), calls, beforeTryReplace,
-                beforeRename, beforeMove, beforeDelete);
+                beforeRename, beforeMove, afterMove, beforeDelete);
     }
     private sealed class Channel(ISftpChannel inner, ConcurrentQueue<Call> calls, Action beforeTryReplace,
-        Action<string, string> beforeRename, Action<string, string> beforeMove, Action<string> beforeDelete) : ISftpChannel
+        Action<string, string> beforeRename, Action<string, string> beforeMove,
+        Action<string, string> afterMove, Action<string> beforeDelete) : ISftpChannel
     {
         public bool IsConnected => inner.IsConnected;
         public bool RenamesLinksThemselves => inner.RenamesLinksThemselves;
@@ -514,7 +613,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct)
         {
             calls.Enqueue(new("List", path));
-            return inner.List(path, ct).Select(e => (IRemoteEntry)new Entry(e, calls, beforeMove, beforeDelete)).ToArray();
+            return inner.List(path, ct).Select(e => (IRemoteEntry)new Entry(e, calls, beforeMove, afterMove, beforeDelete)).ToArray();
         }
         public RemoteStat? Stat(string path) { calls.Enqueue(new("Stat", path)); return inner.Stat(path); }
         public Stream OpenRead(string path) { calls.Enqueue(new("OpenRead", path)); return inner.OpenRead(path); }
@@ -537,7 +636,8 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public void Dispose() => inner.Dispose();
     }
     private sealed class Entry(IRemoteEntry inner, ConcurrentQueue<Call> calls,
-        Action<string, string> beforeMove, Action<string> beforeDelete) : IRemoteEntry
+        Action<string, string> beforeMove, Action<string, string> afterMove,
+        Action<string> beforeDelete) : IRemoteEntry
     {
         public string Name => inner.Name;
         public string FullPath => inner.FullPath;
@@ -546,6 +646,13 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public long Size => inner.Size;
         public DateTime ModifiedUtc => inner.ModifiedUtc;
         public void Delete() { calls.Enqueue(new("Delete", FullPath)); beforeDelete(FullPath); inner.Delete(); }
-        public void MoveTo(string path) { calls.Enqueue(new("MoveTo", path, FullPath)); beforeMove(FullPath, path); inner.MoveTo(path); }
+        public void MoveTo(string path)
+        {
+            string source = FullPath;
+            calls.Enqueue(new("MoveTo", path, source));
+            beforeMove(source, path);
+            inner.MoveTo(path);
+            afterMove(source, path);
+        }
     }
 }
