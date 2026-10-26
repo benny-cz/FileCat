@@ -948,6 +948,13 @@ viewer window at its actual per-monitor DPI. The runner requests the matching
 physical bounds and records both measured bounds and DPI.
 The complete result and Copy control must remain visible and the source bytes
 and destination must remain unchanged. Finish with `selection-stop`.
+On a separate fresh fixture, `checksum-minimum-native <report.json>` requests
+the viewer's 480 × 300 logical-pixel minimum. Windows can add a small
+non-client frame to that requested size. The runner checks the resulting
+bounded outer window, measures the checksum scope, Compute, Copy results,
+Close checksums, and result field inside its frame, then verifies the exact
+one-byte hashes, explicit Copy, untouched source and empty destination.
+Finish with `selection-stop`.
 On a new fixture, `checksum-whole-native <report.json>` begins with the same
 one-byte selection, explicitly switches the scope to Whole file, and checks
 the full 23-byte SHA-256, CRC-32, byte count, revision evidence, unchanged

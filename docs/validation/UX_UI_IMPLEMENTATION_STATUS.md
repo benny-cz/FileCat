@@ -110,7 +110,16 @@ hashes, exact read counts, explicit clipboard Copy, every checksum control
 inside the measured frame and unchanged source bytes. Guest receipt:
 `checksum-minimum-100-fixed.json`. The Windows Release App suite before this
 minimum-size refinement passed 2,490 tests with 63 platform skips; the
-refined four-case layout test passed afterward. Other native scales and
+refined four-case layout test passed afterward. A fresh Windows VM Git build
+at `65725e40` (app SHA-256
+`580B26F00C742E190C4AEED2AC18CF53F25194AA8FE99B6BFB2AF554DF6F32B7`)
+then passed the tracked `checksum-minimum-native` journey at 100% scale. Its
+480 × 300 logical-pixel request produced a bounded 496 × 339 Windows outer
+frame; measured scope, Compute, Copy, Close and results stayed inside the
+viewer. The one-byte SHA-256/CRC-32 and byte count were exact, Copy published
+the full visible result, Compute left the clipboard untouched, and the source
+and destination fixtures stayed unchanged. The guest receipt is
+`checksum-minimum-scale100-20261026-min2.json`. Other native scales and
 provider failure routes remain open.
 
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**

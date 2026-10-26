@@ -14,7 +14,7 @@ using FileCat.Core.Selection;
 using FileCat.Core.State;
 
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-midread-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "search-stop-native" or "search-stop-text-native" or "hex-editor-search-native" or "hex-editor-search-narrow-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-midread-native" or "checksum-changed-native" or "checksum-narrow-native" or "checksum-minimum-native" or "search-native" or "search-utf16-native" or "search-stop-native" or "search-stop-text-native" or "hex-editor-search-native" or "hex-editor-search-narrow-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -1857,11 +1857,15 @@ try
                 if (File.Exists(sourceFile)) File.Delete(sourceFile);
             }
         }
-        else if (mode is "checksum-native" or "checksum-whole-native" or "checksum-changed-native" or "checksum-narrow-native")
+        else if (mode is "checksum-native" or "checksum-whole-native" or "checksum-changed-native" or "checksum-narrow-native" or "checksum-minimum-native")
         {
             bool wholeFile = mode == "checksum-whole-native";
             bool changedSource = mode == "checksum-changed-native";
             bool narrow = mode == "checksum-narrow-native";
+            bool minimum = mode == "checksum-minimum-native";
+            bool sized = narrow || minimum;
+            int targetWidth = minimum ? 480 : 600;
+            int targetHeight = minimum ? 300 : 420;
             var fixture = await ReadSelectionFixtureAsync(reportPath);
             var sourceFile = Path.Combine(fixture.Source, "a.txt");
             const string sourceContent = "selection fixture a.txt";
@@ -1893,9 +1897,9 @@ try
             var viewer = Viewer(opened) ?? throw new InvalidOperationException("The native file viewer did not open.");
             NativeWindow.Rect narrowWindow = default;
             uint narrowDpi = 0;
-            if (narrow)
+            if (sized)
             {
-                (narrowWindow, narrowDpi) = NativeWindow.ResizeIsolatedViewer("a.txt", 600, 420,
+                (narrowWindow, narrowDpi) = NativeWindow.ResizeIsolatedViewer("a.txt", targetWidth, targetHeight,
                     SelectionTestAppPath());
                 opened = ParseSource(await ReadSourceAsync(client, sessionId));
                 viewer = Viewer(opened)
@@ -1995,6 +1999,10 @@ try
             bool clipboardPreserved = NativeWindow.ClipboardSequence() == clipboardBefore;
             var completedViewer = Viewer(completed)
                 ?? throw new InvalidOperationException("The completed checksum viewer is unavailable.");
+            var completedFrame = ReadNativeRect(completedViewer);
+            bool controlsInside = !sized || new[] { "Checksum scope", "Compute", "Copy results", "Close checksums", "Checksum results" }
+                .All(name => completedViewer.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == name && ReadNativeRect(element).IsInside(completedFrame)));
             bool resultVisible = completedViewer.Descendants().Any(element =>
                 (string?)element.Attribute("Name") == "Checksum results"
                 && (string?)element.Attribute("IsOffscreen") == "False");
@@ -2026,15 +2034,22 @@ try
             bool unchangedFiles = await File.ReadAllTextAsync(sourceFile) == sourceContent
                 && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
             double narrowScale = narrowDpi / 96.0;
-            bool narrowApplied = !narrow || narrowDpi >= 96
-                && Math.Abs(narrowWindow.Width / narrowScale - 600) <= 30
-                && Math.Abs(narrowWindow.Height / narrowScale - 420) <= 30;
+            // Windows can add a non-client minimum to the requested 480 × 300
+            // viewer, so verify a bounded minimum instead of exact outer pixels.
+            bool narrowApplied = !sized || narrowDpi >= 96 && (minimum
+                ? narrowWindow.Width / narrowScale >= targetWidth
+                    && narrowWindow.Width / narrowScale <= targetWidth + 60
+                    && narrowWindow.Height / narrowScale >= targetHeight
+                    && narrowWindow.Height / narrowScale <= targetHeight + 60
+                : Math.Abs(narrowWindow.Width / narrowScale - targetWidth) <= 30
+                    && Math.Abs(narrowWindow.Height / narrowScale - targetHeight) <= 30);
             bool passed = oneByteSelected && selectedScope && (!wholeFile || wholeScopeChosen) && exactResult
-                && clipboardPreserved && explicitCopy && unchangedFiles && resultVisible && narrowApplied;
+                && clipboardPreserved && explicitCopy && unchangedFiles && resultVisible && narrowApplied && controlsInside;
             await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
             {
                 passed, oneByteSelected, selectedScope, wholeFile, wholeScopeChosen,
-                changedSource, narrow, narrowApplied, narrowWindow, narrowDpi, resultVisible,
+                changedSource, narrow, minimum, targetWidth, targetHeight, narrowApplied, narrowWindow, narrowDpi,
+                controlsInside, completedFrame, resultVisible,
                 exactResult, clipboardPreserved,
                 explicitCopy, copyEnabled, clipboardBefore, clipboardAfter,
                 copiedText, unchangedFiles, resultText
