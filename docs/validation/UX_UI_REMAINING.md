@@ -55,11 +55,12 @@ increments to `main`.
    changed-query ownership on other viewer routes, provider cancellation,
    and spoken Find results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and changes during a read,
-   other scaled displays and narrow-layout states. For FCUX-009, finish
-   long-line and wrap-alignment Linux acceptance,
-   font fallback, pointer navigation and spoken automation on the
-   supported desktops. For FCUX-010, verify VoiceOver's other item actions
-   and bounded native listings on other supported provider types.
+   other scaled displays and narrow-layout states. For FCUX-009, the Ubuntu
+   long-line Copy, physical Next difference and narrow Wrap route passed;
+   finish Linux pixel alignment, font fallback, pointer selection and spoken
+   automation on the supported desktops. For FCUX-010, verify VoiceOver's
+   other item actions and bounded native listings on other supported provider
+   types.
    Finish the other provider, scale and spoken action routes recorded in the
    status table.
 4. **Work through S2 native acceptance in audit order.** The remaining groups

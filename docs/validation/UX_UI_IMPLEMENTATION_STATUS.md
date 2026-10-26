@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Ubuntu long-line comparison (FCUX-009):** The new tracked
+`linux-atspi-compare-long-lines.py` uses two isolated source files whose first
+and second differences follow 2,000 shared characters. On the native 100%
+Wayland VM, it opened Compare with a physical Ctrl+I, copied the entire
+2,010-character first left line, used physical F8, and copied the entire
+2,008-character second left line. In a requested 640 × 600 window, the
+accessible Wrap control became checked and Copy line still returned the exact
+second source line. The prior clipboard was restored, the test-owned fixture
+was removed, and both source byte streams were unchanged. The passed guest
+receipt is `ubuntu-compare-long-20261026-r3.json` (Git-built app SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`).
+The guest checkout had advanced to `38bc114c` without rebuilding this app;
+the binary hash matches the previously tested `df449513` build. Native Linux
+pixel alignment, pointer selection, font fallback and spoken feedback remain
+open.
+
 **26 October 2026, Ubuntu scaled Hex pointer follow-up (UXBUG-020):** A
 temporary GNOME 200% mode let the tracked combined runner reach its exact
 test-owned file after accepting either native accessible row-name form (bare

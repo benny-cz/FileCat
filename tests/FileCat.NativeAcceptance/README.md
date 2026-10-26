@@ -772,6 +772,13 @@ window; the toolbar reflows while both changed suffixes remain visible.
 Use `--narrow-wrap` to switch on Wrap long lines in that same 640 × 600
 window. F8 must reveal the second suffix in both aligned source panes, and
 Copy line must still return the complete source line.
+On the logged-in Ubuntu validation VM, run
+`linux-atspi-compare-long-lines.py APP REPORT.json` with the exact Git-built
+app under `~/FileCatValidation` and one-time native keyboard sudo
+authentication. The runner owns and removes two long-line files, uses
+physical Ctrl+I and F8, verifies both complete copied lines, checks Wrap in
+a narrow 640 × 600 native window, preserves source bytes and restores the
+previous clipboard text.
 For FCUX-003, start from a fresh `seed-clipboard` fixture and launch the
 Git-built app with the reported paths. `rename-native <report.json>` marks
 both files, filters `a.txt` out, verifies the default one-file preview, and
