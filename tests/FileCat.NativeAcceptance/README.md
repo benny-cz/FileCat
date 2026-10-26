@@ -1272,7 +1272,7 @@ changed-query and physical-key journey in a 480 × 300 logical-pixel viewer.
 Both modes derive physical bounds from the active GNOME display scale and
 require the requested frame and all four controls inside it.
 
-`linux-atspi-viewer-stop.py APP REPORT.json [--text]` launches an isolated
+`linux-atspi-viewer-stop.py APP REPORT.json [--text] [--orca]` launches an isolated
 Git-built app under `~/FileCatValidation`, creates its own 2 GiB sparse local
 source and empty destination, opens Hex (or Text with `--text`), starts an
 absent-query search and activates the visible Stop button through AT-SPI.
@@ -1283,6 +1283,10 @@ the native Text toggle through AT-SPI; the separate 200% run also passed with
 physical F4 from `linux-uinput-key.py`. The runner terminates only
 its own app, closes its viewer, restores the clipboard and removes its own
 large sparse source in cleanup.
+`--orca` starts one test-owned Orca instance with an isolated speech log and
+requires its actual speech output to include `Search canceled.` after Stop.
+It refuses to run if another Orca instance is active and passes no transient
+test credential to Orca or FileCat.
 
 `linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER` launches a
 Git-built app on an isolated five-byte binary, selects byte zero with a

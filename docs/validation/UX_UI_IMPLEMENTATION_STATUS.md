@@ -1,5 +1,16 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Orca speaks viewer Stop (FCUX-007):**
+The Ubuntu 100% native Hex and Text long-search Stop journeys now also start
+one isolated Orca instance and inspect its actual speech output. Orca spoke
+`Search canceled.` after the visible Stop action in both modes; the visible
+status, retired Stop, clipboard sentinel, sampled 2 GiB source bytes and
+empty target passed in the same runs. The runner rejects an existing Orca,
+keeps its debug log in the test-owned fixture and excludes the transient sudo
+credential from Orca and FileCat. The VM was restored to 1280 × 800, 100%
+after VMware reset its display. Remote/provider errors and Mac spoken Stop
+remain open.
+
 **26 October 2026, narrow Mac transfer reviews (FCUX-004, UXBUG-010):**
 The direct AX modal guard resized the exact signed FileCat main window to
 760 × 600 logical points on the Retina Mac, then passed Copy, Move and Delete

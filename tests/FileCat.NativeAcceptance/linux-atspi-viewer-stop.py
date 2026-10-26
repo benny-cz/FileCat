@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cancel a native Ubuntu Hex or Text viewer search over an owned sparse file.
 
-Usage: linux-atspi-viewer-stop.py APP REPORT.json [--text]
+Usage: linux-atspi-viewer-stop.py APP REPORT.json [--text] [--orca]
 Run in the logged-in desktop with AT-SPI, wmctrl and xclip available.
 """
 
@@ -13,6 +13,7 @@ import re
 import runpy
 import subprocess
 import sys
+import time
 from uuid import uuid4
 
 
@@ -50,7 +51,7 @@ def sampled_source_intact(path):
     return True
 
 
-def run(app_path, text_mode):
+def run(app_path, text_mode, orca_mode):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
@@ -73,14 +74,33 @@ def run(app_path, text_mode):
         os.environ.setdefault("DOTNET_ROOT", str(validation / "dotnet-sdk"))
     original_clipboard = clipboard_text()
     process = None
+    orca = None
+    speech = None
     viewer = None
     app = None
     title = "search-stop.bin — FileCat Viewer"
     try:
         set_clipboard(SENTINEL)
+        child_env = os.environ.copy()
+        child_env.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
+        if orca_mode:
+            prior = subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", "orca"],
+                                   capture_output=True, timeout=5)
+            if prior.returncode == 0:
+                raise AssertionError("An unrelated Orca instance is already running")
+            speech_source = runpy.run_path(str(Path(__file__).with_name("linux-orca-speech.py")))
+            speech = speech_source["SpeechLog"](root / "orca-debug.log")
+            orca_env = {**child_env, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
+            with (root / "orca.err").open("wb") as error_log:
+                orca = subprocess.Popen(["/usr/bin/python3", "-c", speech_source["ORCA_WRAPPER"],
+                                         str(speech.path)], env=orca_env,
+                                        stdout=subprocess.DEVNULL, stderr=error_log)
+            deadline = time.monotonic() + 20
+            while not any("Screen reader on" in phrase for phrase in speech.take()):
+                if time.monotonic() >= deadline or orca.poll() is not None:
+                    raise AssertionError("The test-owned Orca did not start")
+                time.sleep(0.2)
         with (root / "app.log").open("wb") as log:
-            child_env = os.environ.copy()
-            child_env.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(source), "--right", str(target)],
                                        cwd=root, env=child_env, stdout=log,
@@ -124,10 +144,24 @@ def run(app_path, text_mode):
                 raise AssertionError("Opening Find changed the clipboard")
             checked_action(find(viewer, "button", "Find next match"), "Find Next")
             stop = wait_for(lambda: find(viewer, "button", "Stop search"), "visible Stop control")
+            if speech is not None:
+                speech.take()
             checked_action(stop, "Stop search")
             wait_for(lambda: find(viewer, "label", "Search canceled."), "canceled search status")
             wait_for(lambda: find(viewer, "button", "Stop search") is None,
                      "Stop control to retire")
+            heard = []
+            if speech is not None:
+                deadline = time.monotonic() + 8
+                while time.monotonic() < deadline:
+                    if orca.poll() is not None:
+                        raise AssertionError("The test-owned Orca exited during Stop")
+                    heard.extend(speech.take())
+                    if any("search canceled" in phrase.casefold() for phrase in heard):
+                        break
+                    time.sleep(0.15)
+                else:
+                    raise AssertionError(f"Orca did not speak Stop: {heard[:25]!r}; log={speech.path}")
             if clipboard_text() != SENTINEL:
                 raise AssertionError("Stopping search changed the clipboard")
             if not sampled_source_intact(test_file) or list(target.iterdir()):
@@ -138,6 +172,9 @@ def run(app_path, text_mode):
                     "modeActivation": "AT-SPI Text toggle" if text_mode else "default Hex mode",
                     "visibleStopActivated": True,
                     "canceledStatusVisible": True, "stopRetired": True,
+                    "orcaSpokeCancellation": (any("search canceled" in phrase.casefold()
+                                                   for phrase in heard) if speech is not None else None),
+                    "orcaSpeech": heard if speech is not None else None,
                     "clipboardPreserved": True, "sourceAndTargetUnchanged": True}
     finally:
         if viewer is not None and app is not None and process is not None:
@@ -152,19 +189,29 @@ def run(app_path, text_mode):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        if orca is not None and orca.poll() is None:
+            orca.terminate()
+            try:
+                orca.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                orca.kill()
+                orca.wait(timeout=5)
         set_clipboard(original_clipboard)
         if test_file.exists():
             test_file.unlink()
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--text":
-        raise SystemExit("Usage: linux-atspi-viewer-stop.py APP REPORT.json [--text]")
+    options = sys.argv[3:]
+    if (len(sys.argv) < 3 or len(sys.argv) > 5 or len(options) != len(set(options)) or
+            any(option not in ("--text", "--orca") for option in options)):
+        raise SystemExit("Usage: linux-atspi-viewer-stop.py APP REPORT.json [--text] [--orca]")
     report = Path(sys.argv[2])
     if report.parent.resolve() != (Path.home() / "FileCatValidation").resolve(strict=True):
         raise SystemExit("Write the native report directly below FileCatValidation")
     try:
-        result = run(Path(sys.argv[1]), text_mode=len(sys.argv) == 4)
+        result = run(Path(sys.argv[1]), text_mode="--text" in options,
+                     orca_mode="--orca" in options)
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
