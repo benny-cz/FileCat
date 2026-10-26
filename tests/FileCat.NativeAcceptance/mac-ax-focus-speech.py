@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Follow FileCat's macOS accessibility focus while keys move between files and into a dialog.
 
-Usage: python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json [--decision-returns]
+Usage: python3 mac-ax-focus-speech.py BUNDLE.app REPORT.json [--decision-returns|--tab-only]
 Run in the unlocked desktop session against a signed, isolated FileCat bundle under ~/FileCatValidation, with
 mac-ax-focus-observer.swift beside this runner. VoiceOver speaks the element named by each
 AXFocusedUIElementChanged notification and by the application's AXFocusedUIElement after an activation; this
@@ -58,7 +58,7 @@ def spoken(record):
     return " ".join(record.get(key, "") for key in ("title", "description", "value", "help"))
 
 
-def run(bundle, report_path, decision_returns=False):
+def run(bundle, report_path, decision_returns=False, tab_only=False):
     root = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     executable = bundle / "Contents" / "MacOS" / "FileCat"
@@ -196,6 +196,14 @@ def run(bundle, report_path, decision_returns=False):
         if not decision_returns:
             step("tab to the target panel", "tab", "Go to parent location")
             step("tab back to the source panel", "tab", "c.txt")
+        if tab_only:
+            names = sorted(path.name for path in source.iterdir())
+            if names != sorted(expected) or any(target.iterdir()) or any(
+                    hashlib.sha256((source / name).read_bytes()).hexdigest() != digest
+                    for name, digest in hashes.items()):
+                raise AssertionError("Tab changed the owned fixture")
+            result["passed"] = True
+            return
         step("F7 opens Create folder", "f7", "folder")
         step("Escape returns to the list", "escape", "c.txt")
         step("F8 opens Delete", "f8", "Delete")
@@ -273,6 +281,7 @@ def run(bundle, report_path, decision_returns=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] != "--decision-returns":
+    if len(sys.argv) not in (3, 4) or len(sys.argv) == 4 and sys.argv[3] not in ("--decision-returns", "--tab-only"):
         raise SystemExit(__doc__)
-    run(Path(sys.argv[1]), Path(sys.argv[2]).resolve(), len(sys.argv) == 4)
+    mode = sys.argv[3] if len(sys.argv) == 4 else ""
+    run(Path(sys.argv[1]), Path(sys.argv[2]).resolve(), mode == "--decision-returns", mode == "--tab-only")

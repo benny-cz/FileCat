@@ -20,7 +20,10 @@ repair remains pending.
 target file row, after which macOS focuses Location or Filter in the old
 panel and reactivates it. A headless test reproduced the managed transition,
 but signed Mac candidates with 120 ms and 350 ms delayed focus restoration
-still allowed another native traversal. Those candidates were not shipped;
+still allowed another native traversal. Moving the command after Tab key-up
+passed five native forward checks but later failed the reverse Tab route.
+Those candidates were not shipped. The tracked Mac AX runner now offers
+`--tab-only` to require both directions and unchanged fixture content;
 the native issue remains in the remaining-work file. The same journey also
 occasionally returned inline Rename cancellation to `a.txt` rather than the
 original `c.txt` row. CI for `915ec37d` failed its macOS owned-FTPS stage
