@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, macOS CI follow-up:** Runs `40250366099` and `40250993156`
+each passed producer, Windows, Ubuntu and ARM64, but the Mac lane exposed two
+different timing-sensitive test assumptions. The Core SMB failure classifier
+processed an 84,013-character repeated-prefix input in 583 ms on a busy
+runner, exceeding a 500 ms assertion. Its test now allows three seconds for
+that bounded input, still rejecting the former quadratic walk; the separate
+allocation test keeps its 8 MiB bound. The App headless inline Rename test
+injected a model focus change that macOS sometimes turned into a real editor
+blur before its synthetic Escape. It now drains the queued editor-focus job,
+tests Escape while the editor actually owns keyboard focus, and leaves the
+displaced-row scenario to the signed native Mac AX/VoiceOver journey. The
+revised App test passed 32 isolated Mac reruns and the revised Core test
+passed on Mac and Windows; both focused Windows tests passed with 16 build
+workers. A final-head five-lane CI pass is still required.
+
 **26 October 2026, Mac bulk-rename accessibility geometry:** The signed
 Git-built `2f1f43c9` app (DLL SHA-256
 `1dad0b6faa53748d8ac9867c56e8576b88b7aeeb6e826c090a24d8a2fa953f2e`)

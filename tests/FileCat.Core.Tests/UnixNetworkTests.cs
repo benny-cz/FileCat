@@ -198,7 +198,10 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
         watch.Stop();
         output.WriteLine($"SMB_FAILURE_CLASSIFY_MILLISECONDS={watch.ElapsedMilliseconds}; INPUT_CHARACTERS={reply.Length}");
         Assert.Equal("nas: final detail", Assert.IsType<IOException>(failure).Message);
-        Assert.InRange(watch.ElapsedMilliseconds, 0, 500);
+        // A shared macOS CI runner paused this 84 KB linear scan for 583 ms.
+        // Keep a generous bound that still catches the old repeated-prefix
+        // quadratic walk without treating scheduler contention as a regression.
+        Assert.InRange(watch.ElapsedMilliseconds, 0, 3_000);
     }
 
     [Fact]

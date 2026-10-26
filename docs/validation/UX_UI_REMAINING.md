@@ -25,10 +25,10 @@ increments to `main`.
 1. **Close the final validation gate.** Require green producer, Windows,
    Ubuntu, macOS and Windows ARM64 CI lanes on the final `main` head. Fix any
    failing lane before declaring the audit complete. Rerun the complete
-   final-head gate after the last audit change. If they recur, investigate
-   the intermittent Ubuntu metadata-demand extra read and macOS inline Rename
-   focus return to `..`; earlier runs and isolated reruns are recorded in the
-   implementation status.
+   final-head gate after the last audit change. If it recurs, investigate
+   the intermittent Ubuntu metadata-demand extra read; earlier runs are
+   recorded in the implementation status. Recheck the revised macOS timing
+   and inline Rename tests in the final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows FTP/FTPS failure

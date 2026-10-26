@@ -166,9 +166,13 @@ public sealed class FileListSmokeTests
                 var canceled = list.BeginRename(new PromptOptions("Rename", "New name") { Text = "sample.txt" });
                 Assert.NotNull(canceled);
                 await Task.Delay(20, TestContext.Current.CancellationToken);
-                // A native editor can move the list's semantic focus while it
-                // relinquishes keyboard focus. Cancel must restore this row.
-                tab.Listing.SetFocus(0);
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                Assert.True(editor.IsFocused);
+                // In a Mac headless window, changing the model's focus can
+                // synthesize an actual editor blur before the synthetic Esc
+                // reaches it. That is the separate blur-cancel route, while
+                // the signed native Mac journey checks displaced-row Escape.
+                if (!OperatingSystem.IsMacOS()) tab.Listing.SetFocus(0);
                 window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
                 Assert.Null(await canceled);
                 Assert.True(tab.Listing.TryGetFocused(out var restored));
