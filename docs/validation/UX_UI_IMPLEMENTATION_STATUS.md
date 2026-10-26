@@ -1671,12 +1671,27 @@ that fixture exposed the deleted `recover-me.bin` record. Direct and selected
 volume-GUID scans read raw clusters and copied the file to the VM's `C:`
 validation folder; all three SHA-256 values matched the original
 `C0CBD0D83B394C5A2E6E81A8080EEE63516735ABC7BBF61AB489AD69E0708D1C`.
-The deleted source remained absent, the result still honestly warned that its
-NTFS valid-data evidence was lost, and the original NTFS delete-notify value
-`0` was restored. The focused Windows Platform build passed, and its full
-suite passed 442/47 skipped/0 failed with 16 workers. The strict new
-`FILECAT_RECOVERY_VM_EXPECT_RETAINED=1` mode and the native FileCat approval
-path still need runs on this exact fixture before the mounted VHD is cleaned.
+The deleted source remained absent, and the original NTFS delete-notify value
+`0` was restored. This flushed record still supplied valid-data evidence, so
+FileCat classified it **Recoverable** without the lost-valid-data warning;
+the earlier zero-valid-data case separately exercises **Uncertain**. The
+focused Windows Platform build passed, and its full suite passed 442/47
+skipped/0 failed with 16 workers. At exact Git head `663b6fdd`, the new
+`FILECAT_RECOVERY_VM_EXPECT_RETAINED=1` mode passed 1/1 against the mounted
+VHD and required the off-source result's SHA-256 to equal the original. The
+native elevated FileCat on that same head selected `G: (FCTEST)`, scanned its
+deleted items, showed `recover-me.bin` as **Recoverable**, and opened Copy
+with the separate `C:` validation folder as destination. The first native
+scan found no row after the deleted MFT record aged; recreating only that
+disposable file with flushed bytes and pressing Reread immediately exposed
+it. Approving the reviewed Copy produced the exact original SHA-256
+`C0CBD0D83B394C5A2E6E81A8080EEE63516735ABC7BBF61AB489AD69E0708D1C`
+in `native-target`, while the `G:` source stayed absent. The native operation
+bar reported Completed. The exact FileCat PID was stopped, then the mounted
+VHD was detached and its fixture removed after disk-number and unique-ID
+checks; the cleanup receipt passed. The remaining acceptance for this finding
+is the owner's disposable `G:` route on the workstation if it can be run
+without taking over that desktop.
 
 **26 October 2026, current-head Mac native dialogs and speech (FCUX-004,
 007, 010):** The Mac Git checkout fast-forwarded to `be7b2a30` and published a
