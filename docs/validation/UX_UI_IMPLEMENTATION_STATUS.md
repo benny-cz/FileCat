@@ -15,6 +15,22 @@ later unflushed fixture failure do not supersede the 26 October `663b6fdd`
 fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
 reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-search-nonlocal-20261026"></a>
+**26 October 2026, held nonlocal viewer search (FCUX-007):** On Git head
+`8d54ffe3`, the Windows Release build completed with zero warnings or errors.
+`ContentSearch` now requires the entire requested byte range in both search
+directions: a damaged provider page reports its checksum/read error instead
+of claiming the term is absent. The Core `ContentAndToolTests` class passed
+20/20, including both new damaged-range directions. The App
+`ViewerSearchScopeTests` class passed 35/35, including two new held,
+`LocalPath=null` Text cases where a changed query or mode retires the old
+request and clears its stale “Searching…” status. The six existing held-source
+Stop and late-read-failure cases also passed: Stop stayed visible while the
+read was held, then the live outcome announced cancellation or the provider
+error as appropriate. These are deterministic component results, not a real
+FTP/SFTP desktop journey. Native real-provider Stop/error and spoken feedback
+remain AC-S1-007; CI on `8d54ffe3` was in progress when checked.
+
 <a id="evidence-ftp-ambiguity-20261026"></a>
 **26 October 2026, FTP/FTPS ambiguous-result reconciliation (FCUX-001/020):**
 `AC-S1-001B` was stale. The real pyftpdlib fixture already performed backup
