@@ -15,9 +15,10 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class FileCatPanelMaskInput {
+    [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] private static extern void mouse_event(
         uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
     public static void Click(int x, int y) {
@@ -35,6 +36,9 @@ $harness = [IO.Path]::GetFullPath($HarnessPath)
 $report = [IO.Path]::GetFullPath($ReportPath)
 $screenshot = [IO.Path]::ChangeExtension($report, '.png')
 $run = Join-Path (Split-Path -Parent $report) ([IO.Path]::GetFileNameWithoutExtension($report) + '-fixture')
+$validationRoot = [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath(
+    [Environment+SpecialFolder]::LocalApplicationData)) 'FileCatValidation'))
+$validationPrefix = $validationRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
 $result = [ordered]@{ Passed = $false; Theme = 'Psychedelic'; AppDllSha256 = $null;
     Filters = @(); Screenshot = $screenshot; FixtureIntact = $false; Error = $null }
 $process = $null
@@ -61,19 +65,28 @@ function Click-Element($element) {
 
 function Capture-Screen {
     if (Test-Path -LiteralPath $screenshot) { return }
-    $width = [FileCatPanelMaskInput]::GetSystemMetrics(0)
-    $height = [FileCatPanelMaskInput]::GetSystemMetrics(1)
+    $rect = [FileCatPanelMaskInput+Rect]::new()
+    if (!$process -or !$process.MainWindowHandle -or
+        ![FileCatPanelMaskInput]::GetWindowRect($process.MainWindowHandle, [ref]$rect)) {
+        throw 'The isolated app window cannot be captured.'
+    }
+    $width = $rect.Right - $rect.Left
+    $height = $rect.Bottom - $rect.Top
+    if ($width -le 0 -or $height -le 0) { throw 'The isolated app window has no capture bounds.' }
     $bitmap = [System.Drawing.Bitmap]::new($width, $height)
     try {
         $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-        try { $graphics.CopyFromScreen(0, 0, 0, 0, [System.Drawing.Size]::new($width, $height)) }
+        try { $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, [System.Drawing.Size]::new($width, $height)) }
         finally { $graphics.Dispose() }
         $bitmap.Save($screenshot, [System.Drawing.Imaging.ImageFormat]::Png)
     } finally { $bitmap.Dispose() }
 }
 
 try {
-    if (!(Test-Path -LiteralPath $app -PathType Leaf) -or
+    if (!$app.StartsWith($validationPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        !$harness.StartsWith($validationPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        !$report.StartsWith($validationPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        !(Test-Path -LiteralPath $app -PathType Leaf) -or
         !(Test-Path -LiteralPath $harness -PathType Leaf) -or
         (Test-Path -LiteralPath $report) -or (Test-Path -LiteralPath $screenshot) -or
         (Test-Path -LiteralPath $run)) { throw 'The isolated app, harness, or fresh report path is unavailable.' }

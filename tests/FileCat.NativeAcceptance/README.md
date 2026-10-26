@@ -11,7 +11,9 @@ test desktop; this specific script does not need WinAppDriver. It seeds a
 private source, destination and data profile, selects the Psychedelic theme,
 then adds a panel below each original panel by activating the destination tab
 through its accessibility identity. All four Filter fields must expose `*.*`
-with visible bounds. It saves a same-stem PNG for visual confirmation that
+with visible bounds. It accepts only paths under the guest user's
+`FileCatValidation` folder and saves a same-stem PNG of the app window for
+confirmation that
 the masks are painted, verifies that fixture files and destination are intact,
 and closes only its exact test app. Use a fresh report path for each run.
 `linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow|--rule-change]`
