@@ -185,6 +185,18 @@ and the target stayed absent. The Git-built `cff83525` app SHA-256 was
 guest receipt `modal-guard-current.json`. Other modal decisions and actual
 Orca speech still need native acceptance.
 
+**26 October 2026, Windows Copy/Move/Delete modal ownership (FCUX-004):**
+The expanded `win-ax-modal-guard.ps1` ran on the isolated unlocked Windows VM
+against its Git-built `2f1f43c9` app (EXE SHA-256
+`90EBAA1835475477AD8FE1D3611E6AE94652A3E121D2887399F46020014A4519`).
+Each review kept exactly one source summary or Recycle Bin prompt after UI
+Automation invoked all six obscured toolbar/key-bar Copy, Move and Delete
+commands: 18 background attempts total. Cancel closed each review, the exact
+source SHA-256 stayed
+`713E5C5A199714F532FA8992EE58EB3DDE1FD2C2A351F8DD53BC37D1E576C395`,
+and no target appeared. The guest receipt is `modal-guard-expanded-current.json`.
+Final-head native replay and other decision routes remain open.
+
 **26 October 2026, Mac panel Tab and restored splitter focus (FCUX-010/031):**
 The native AX journey exposed a panel switch that briefly focused the target
 row, then let a late accessibility request move focus to the old panel's Filter

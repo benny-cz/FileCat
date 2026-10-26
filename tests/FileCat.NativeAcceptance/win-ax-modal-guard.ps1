@@ -76,6 +76,14 @@ try {
                 $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
                 $_.Current.Name -like 'Copy "a.txt"*'
             }).Count
+            MoveReviewCount = @($all | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $_.Current.Name -like 'Move "a.txt"*'
+            }).Count
+            DeleteReviewCount = @($all | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $_.Current.Name -like '*a.txt*Recycle Bin*'
+            }).Count
             DestinationCount = @($all | Where-Object { $_.Current.Name -eq 'Destination' }).Count
         }
     }
@@ -100,46 +108,62 @@ try {
     try { $fileRow.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
     catch { ClickElement $fileRow }
     Start-Sleep -Milliseconds 250
-    (Button 'Copy' $true).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $before = Snapshot
-    for ($attempt = 0; $attempt -lt 20 -and
-        ($before.CancelCount -ne 1 -or $before.CopyReviewCount -ne 1 -or $before.DestinationCount -ne 1);
-        $attempt++) {
-        Start-Sleep -Milliseconds 250
+    $journeys = @()
+    foreach ($verb in @('Copy', 'Move', 'Delete')) {
+        (Button $verb $true).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
         $before = Snapshot
-    }
-    if ($before.CancelCount -ne 1 -or $before.CopyReviewCount -ne 1 -or $before.DestinationCount -ne 1) {
-        throw "Exactly one Copy review must be visible before background commands (Cancel=$($before.CancelCount), Copy=$($before.CopyReviewCount), Destination=$($before.DestinationCount))."
-    }
-
-    $attempts = @()
-    foreach ($choice in @(@('Copy', $true), @('Delete', $true), @('Copy', $false), @('Delete', $false))) {
-        $control = Button $choice[0] $choice[1]
-        # Invoke bypasses the pointer shield. The main command gate must keep this modal's decision ownership.
-        $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-        Start-Sleep -Milliseconds 300
-        $after = Snapshot
-        if ($after.CancelCount -ne 1 -or $after.CopyReviewCount -ne 1 -or $after.DestinationCount -ne 1) {
-            throw "$($choice[0]) changed the open Copy review."
+        $expectedDestination = if ($verb -eq 'Delete') { 0 } else { 1 }
+        $reviewProperty = "${verb}ReviewCount"
+        for ($attempt = 0; $attempt -lt 20 -and
+            ($before.CancelCount -ne 1 -or $before.$reviewProperty -ne 1 -or
+             $before.DestinationCount -ne $expectedDestination);
+            $attempt++) {
+            Start-Sleep -Milliseconds 250
+            $before = Snapshot
         }
-        if (Test-Path -LiteralPath $targetFile) { throw "$($choice[0]) published a target behind the review." }
-        $attempts += [pscustomobject]@{ Command = $choice[0]; Toolbar = $choice[1]; ModalStillSingle = $true }
+        if ($before.CancelCount -ne 1 -or $before.$reviewProperty -ne 1 -or
+            $before.DestinationCount -ne $expectedDestination) {
+            throw "Exactly one $verb review must be visible (Cancel=$($before.CancelCount), Review=$($before.$reviewProperty), Destination=$($before.DestinationCount))."
+        }
+
+        $attempts = @()
+        foreach ($choice in @(@('Copy', $true), @('Move', $true), @('Delete', $true),
+                             @('Copy', $false), @('Move', $false), @('Delete', $false))) {
+            $control = Button $choice[0] $choice[1]
+            # Invoke bypasses the pointer shield. The main command gate must keep this modal's decision ownership.
+            $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Milliseconds 300
+            $after = Snapshot
+            if ($after.CancelCount -ne 1 -or $after.$reviewProperty -ne 1 -or
+                $after.DestinationCount -ne $expectedDestination) {
+                throw "$($choice[0]) changed the open $verb review."
+            }
+            if (Test-Path -LiteralPath $targetFile) { throw "$($choice[0]) published a target behind the review." }
+            if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $originalHash) {
+                throw "$($choice[0]) changed the source behind the review."
+            }
+            $attempts += [pscustomobject]@{ Command = $choice[0]; Toolbar = $choice[1]; ModalStillSingle = $true }
+        }
+        $cancel = @((Snapshot).Buttons | Where-Object { $_.Current.Name -eq 'Cancel' })[0]
+        ClickElement $cancel
+        Start-Sleep -Milliseconds 350
+        $closed = Snapshot
+        if ($closed.CancelCount -ne 0 -or $closed.$reviewProperty -ne 0) { throw "Cancel did not close the $verb review." }
+        if (Test-Path -LiteralPath $targetFile) { throw "A target appeared after $verb Cancel." }
+        if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $originalHash) { throw "Source bytes changed after $verb Cancel." }
+        $journeys += [pscustomobject]@{
+            Review = $verb
+            Before = @{ Cancel = $before.CancelCount; Review = $before.$reviewProperty; Destination = $before.DestinationCount }
+            Attempts = $attempts
+            AfterCancel = @{ Cancel = $closed.CancelCount; Review = $closed.$reviewProperty }
+        }
     }
-    $cancel = @((Snapshot).Buttons | Where-Object { $_.Current.Name -eq 'Cancel' })[0]
-    ClickElement $cancel
-    Start-Sleep -Milliseconds 350
-    $closed = Snapshot
-    if ($closed.CancelCount -ne 0 -or $closed.CopyReviewCount -ne 0) { throw 'Cancel did not close the review.' }
-    if (Test-Path -LiteralPath $targetFile) { throw 'A target appeared after Cancel.' }
-    if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne $originalHash) { throw 'Source bytes changed.' }
     [pscustomobject]@{
         Passed = $true
         App = $resolvedApp
         AppSha256 = (Get-FileHash -LiteralPath $resolvedApp -Algorithm SHA256).Hash
         Fixture = $fixture
-        Before = @{ Cancel = $before.CancelCount; CopyReview = $before.CopyReviewCount; Destination = $before.DestinationCount }
-        Attempts = $attempts
-        AfterCancel = @{ Cancel = $closed.CancelCount; CopyReview = $closed.CopyReviewCount }
+        Journeys = $journeys
         SourceSha256 = $originalHash
         TargetAbsent = $true
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ReportPath -Encoding UTF8

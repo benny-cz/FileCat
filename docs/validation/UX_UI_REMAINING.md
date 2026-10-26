@@ -52,7 +52,7 @@ increments to `main`.
    safely offered. On Mac, the preview list has no AX row children; decide
    whether direct row navigation adds value beyond the tested, spoken
    Previous/Next full-path navigator. For FCUX-004, exercise modal focus and
-   decision routes beyond the Ubuntu Copy/Move/Delete reviews' background-command
+   decision routes beyond the Windows/Ubuntu Copy/Move/Delete reviews' background-command
    guard and the spoken Copy/Move/Delete entry and return paths. Capture actual
    Orca speech for the remaining decision routes where required.
    Preserve captured scope and mapping throughout each test.
