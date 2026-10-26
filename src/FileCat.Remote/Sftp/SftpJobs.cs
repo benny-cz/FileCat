@@ -857,6 +857,23 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return;
         }
         if (Channel.TryReplace(temp, dst)) return;
+        // A failed atomic replacement is another round trip. A different client may
+        // have changed the target since the checks above, so do not delete the
+        // formerly approved entry on the non-atomic fallback path.
+        current = FreshEntry(folder, name);
+        if (Job.Request.ExpectedTarget is { } fallbackExpected &&
+            (current is null || current.IsLink || current.IsDirectory || current.Size != fallbackExpected.Length ||
+             current.ModifiedUtc.Ticks != fallbackExpected.ModifiedTicks))
+            throw new RefusedOperationException("Not written: the file changed on the server before non-atomic replacement; your edit is kept.");
+        if (approvedTarget is { } fallbackApproved &&
+            (current is null || TargetSnapshot.Of(current) != fallbackApproved))
+            throw new RefusedOperationException("Not written: the destination changed on the server before non-atomic replacement. Review its current version before replacing it.");
+        if (expectedSha256 is not null && current is { IsDirectory: false, IsLink: false } &&
+            !string.Equals(HashRemoteTarget(dst, current.Size), expectedSha256, StringComparison.OrdinalIgnoreCase))
+            throw new RefusedOperationException("Not written: the destination content changed on the server before non-atomic replacement. Review its current version before replacing it; " +
+                (Job.Request.ExpectedTarget is null ? "the incoming copy was not published." : "your edit is kept."));
+        if (current is null)
+            throw new RefusedOperationException("Not written: the destination disappeared before non-atomic replacement. Review the server before trying again.");
         current.Delete();
         Channel.Rename(temp, dst);
         if (!_notedNonAtomic)

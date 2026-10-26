@@ -213,6 +213,61 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         }
     }
 
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, "same-size-time", false)]
+    [InlineData(RemoteProtocols.Ftp, "same-size-time", false)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "metadata", false)]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "gone", false)]
+    [InlineData(RemoteProtocols.Sftp, "same-size-time", true)]
+    [InlineData(RemoteProtocols.Ftp, "gone", true)]
+    public async Task Non_atomic_fallback_does_not_delete_a_target_changed_after_final_check(string protocol, string change, bool edit)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File(Target, "base");
+        var expected = new ContentRevision(4, server.Lookup(Target, false)!.Modified.Ticks);
+        string sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        Snapshot? changed = null;
+        rig.BeforeTryReplace = () =>
+        {
+            var target = server.Lookup(Target, false)!;
+            switch (change)
+            {
+                case "same-size-time": target.Data = "evil"u8.ToArray(); break;
+                case "metadata": target.Modified = target.Modified.AddSeconds(3); break;
+                case "gone": server.Dir("/owned").Children.Remove("notes.txt"); break;
+            }
+            changed = rig.Snapshot();
+        };
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            ExpectedTarget = edit ? expected : null,
+            ExpectedTargetSha256 = edit ? Hash("base"u8.ToArray()) : null,
+            Options = new TransferOptions { Conflicts = edit ? ConflictPolicy.Skip : ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.NotNull(changed);
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(changed, rig.Snapshot());
+        Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+        Assert.Equal(0, job.BytesDone);
+        Assert.DoesNotContain(server.Dir("/owned").Children.Keys,
+            name => name.StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
+        Assert.Contains(rig.Calls, call => call.Operation == "TryReplace" && call.Path == Target);
+        Assert.DoesNotContain(rig.Calls, call => call.Operation == "Delete" && call.Path == Target);
+        Assert.Contains(job.Issues, issue => issue.Message.Contains("Not written:", StringComparison.Ordinal));
+    }
+
     private const string Target = "/owned/notes.txt";
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private sealed record Snapshot(string Kind, long Length, long ModifiedTicks, string? SHA256, string? Link);
@@ -225,6 +280,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public RemoteProfile Profile { get; }
         public JobManager Jobs { get; }
         public ConcurrentQueue<Call> Calls { get; } = new();
+        public Action? BeforeTryReplace;
         public int Decisions;
         private readonly SftpConnections connections;
         public Rig(string protocol, bool atomic)
@@ -234,7 +290,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Profile = new() { Host = "owned.invalid", User = "user", Protocol = protocol, PlainTextAccepted = true };
             var interaction = new ScriptedInteraction { HostKeyAnswer = HostKeyDecision.AcceptOnce };
             for (int i = 0; i < 10; i++) interaction.Secrets.Enqueue("secret");
-            connections = new SftpConnections(id => id == Profile.Id ? Profile : null, new Connector(Server, Calls),
+            connections = new SftpConnections(id => id == Profile.Id ? Profile : null, new Connector(Server, Calls, () => BeforeTryReplace?.Invoke()),
                 new HostKeyTrust(Path.Join(Root, "known_hosts"), []), new SessionSecretStore(), interaction);
             var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider());
             providers.Register(new SftpProvider(connections, () => [Profile], p => p)); SftpJobs.Register();
@@ -258,12 +314,12 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Directory.Delete(Root, recursive: true); Assert.False(Directory.Exists(Root));
         }
     }
-    private sealed class Connector(FakeSftpServer server, ConcurrentQueue<Call> calls) : ISftpConnector
+    private sealed class Connector(FakeSftpServer server, ConcurrentQueue<Call> calls, Action beforeTryReplace) : ISftpConnector
     {
         public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct)
-            => new Channel(new FakeConnector(server).Connect(profile, context, ct), calls);
+            => new Channel(new FakeConnector(server).Connect(profile, context, ct), calls, beforeTryReplace);
     }
-    private sealed class Channel(ISftpChannel inner, ConcurrentQueue<Call> calls) : ISftpChannel
+    private sealed class Channel(ISftpChannel inner, ConcurrentQueue<Call> calls, Action beforeTryReplace) : ISftpChannel
     {
         public bool IsConnected => inner.IsConnected;
         public string HomeDirectory => inner.HomeDirectory;
@@ -278,7 +334,12 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public Stream OpenWriteAt(string path, long offset) { calls.Enqueue(new("OpenWriteAt", path)); return inner.OpenWriteAt(path, offset); }
         public void CreateDirectory(string path) => inner.CreateDirectory(path);
         public void Rename(string source, string target) { calls.Enqueue(new("Rename", target, source)); inner.Rename(source, target); }
-        public bool TryReplace(string source, string target) { calls.Enqueue(new("TryReplace", target, source)); return inner.TryReplace(source, target); }
+        public bool TryReplace(string source, string target)
+        {
+            calls.Enqueue(new("TryReplace", target, source));
+            beforeTryReplace();
+            return inner.TryReplace(source, target);
+        }
         public void SetModified(string path, DateTime utc) => inner.SetModified(path, utc);
         public void Dispose() => inner.Dispose();
     }

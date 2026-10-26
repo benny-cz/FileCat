@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, remote non-atomic Replace race (FCUX-001):** After an
+upload's final destination metadata and content check, a remote server may
+report that atomic replacement is unavailable. The fallback now rereads the
+target and its approved content before deleting the old version; it refuses
+to publish if another client changed or removed it during that round trip.
+The unpublished stage is discarded, and a Move retains its source. Six new
+controlled-channel tests cover ordinary Replace and edit commits across SFTP,
+FTP, explicit FTPS and implicit FTPS, including same-size/same-time content
+changes, metadata changes and disappearance. All 81
+`RemoteEditTargetPublicationTests` pass on Windows with 16 MSBuild workers.
+Remote protocols without a server-side compare-and-swap still have a possible
+change between this last check and the delete, so native provider failure and
+late-race acceptance remain open.
+
 **26 October 2026, macOS inline Rename focus (FCUX-010):** A clean signed
 Git build reproduced Escape briefly restoring `c.txt` before native AX
 focused an older `a.txt`, `b.txt` or parent row. Instrumentation showed an
