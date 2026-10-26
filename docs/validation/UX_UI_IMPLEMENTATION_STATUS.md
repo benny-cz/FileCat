@@ -482,6 +482,18 @@ both Hex (`search-stop-scale150-20261026-r2.json`) and Text
 unchanged clipboard, exact small fixtures and sampled large-file bytes, and
 graceful app close. The VM display returned to 100% with a passed receipt.
 
+**26 October 2026, Windows Text Stop at 200% (FCUX-007):** A fresh isolated
+Git-built `65725e40` app (EXE SHA-256
+`580B26F00C742E190C4AEED2AC18CF53F25194AA8FE99B6BFB2AF554DF6F32B7`)
+passed `search-stop-text-native` after Windows Settings selected 200%.
+On a test-owned sparse 2 GiB file, the physical Stop target fit inside the
+viewer beside Next; pressing it showed `Search canceled.`, hid Stop, left the
+clipboard and exact small/sample large source bytes unchanged, and exited
+the isolated app gracefully. The guest then restored 100% and closed
+Settings. Receipts: `search-stop-text-scale200-20261026-r4.json` and
+`search-stop-text-scale-restore100-current.json`. Hex at 200%, other
+providers and spoken Stop outcomes remain open.
+
 **26 October 2026, visible long-search Stop (FCUX-007):** The viewer keeps
 Stop search immediately beside Next while a long search runs, so a long match
 count cannot displace its cancellation control. A blocked-read App test holds
