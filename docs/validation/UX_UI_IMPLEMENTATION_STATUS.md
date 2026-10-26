@@ -36,8 +36,12 @@ including its complete old/new paths and blocking reason; the dialog's Rename
 button was disabled. VoiceOver spoke that entire mapping with Mac output
 muted. Cancel preserved every source file's hash, the blocking folder and
 the empty target. The AX snapshot held 636 nodes, not thousands of row
-controls. Two final native runs passed; the spoken run's receipt is
-`mac-rename-last-problem-r8-2f1f43c9.json` in the Mac validation folder.
+controls. Two final native runs passed at Retina 2×; the spoken run's receipt
+is `mac-rename-last-problem-r8-2f1f43c9.json` in the Mac validation folder.
+The same full journey passed at the supported 1920 × 1200 logical/pixel 1×
+mode in 0.311 seconds (`mac-rename-last-problem-1x-2f1f43c9.json`); the
+display helper verified restoration to 1440 × 900 logical/2880 × 1800 pixel
+Retina mode afterward.
 
 **25 October 2026, panel mask regression:** The panel address field had been
 changed from `TextBox` to `PanelAddressTextBox` for Mac accessibility focus
