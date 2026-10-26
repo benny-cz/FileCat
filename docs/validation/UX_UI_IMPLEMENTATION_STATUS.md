@@ -31,8 +31,12 @@ result, unchanged source bytes and restored clipboard. A separate run changed
 the selected source while its review was open: Compute refused the stale
 scope, showed no hash, disabled Copy and preserved the clipboard. Reports:
 `checksum-cff83525.json` and `checksum-stale-cff83525.json` in the guest
-validation folder. Other provider, incomplete-read and scaled-layout routes
-remain open.
+validation folder. A third native run at 200% display scale and a measured
+1,440 × 1,000 physical-pixel viewer passed the selected-range and whole-file
+scopes; scope, Compute, Copy, Close and selectable results all stayed within
+the viewer frame. Its report is `checksum-narrow-cff83525.json`; the guest
+display was restored to 100% afterward. Other provider, incomplete-read and
+narrow-layout routes remain open.
 
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
 The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the

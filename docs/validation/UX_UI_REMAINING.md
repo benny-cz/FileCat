@@ -67,8 +67,8 @@ increments to `main`.
    results and count completeness, including remote-backed and narrow viewer
    searches.
    For FCUX-008, test native incomplete reads on local and remote providers,
-   mid-read changes on the remaining desktop and provider routes, scaled
-   Ubuntu layout and the other narrow-layout states. For FCUX-009, the Ubuntu
+   mid-read changes on the remaining desktop and provider routes, and other
+   narrow-layout states. For FCUX-009, the Ubuntu
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken
    automation on the supported desktops. For FCUX-010, verify VoiceOver's
