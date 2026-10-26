@@ -444,6 +444,8 @@ public sealed class CompareWindow : Window
         _contentSize.Text = $"{size:0} size";
         _smallerText.IsEnabled = size > ReadabilityPolicy.MinimumContentSize;
         _largerText.IsEnabled = size < ReadabilityPolicy.MaximumContentSize;
+        // A newly shaped long line has different glyph positions; keep the chosen change visible.
+        if (_shown == Shown.Text && _rows.SelectedIndex >= 0) _textView.RevealSelected();
     }
 
     private void OnNavigationKey(object? sender, KeyEventArgs e)

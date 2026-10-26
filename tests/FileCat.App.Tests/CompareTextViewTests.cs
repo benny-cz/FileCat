@@ -78,6 +78,32 @@ public sealed class CompareTextViewTests
     }
 
     [AvaloniaFact]
+    public async Task Enlarging_the_comparison_font_keeps_the_changed_suffix_in_the_primary_view()
+    {
+        string prefix = new('x', 2000);
+        var window = await Open("first " + prefix + "X\nequal middle\nsecond " + prefix + "L",
+            "first " + prefix + "Y\nequal middle\nsecond " + prefix + "R", 1200);
+        try
+        {
+            var view = View(window);
+            AssertVisible(window, view, "X", "Y");
+            for (int i = 0; i < 4; i++)
+                Click(window, Button(window, "Increase comparison content size"));
+            Layout(window);
+            await Wait(() =>
+            {
+                Layout(window);
+                return view.RealizedRow(window.CurrentRow)?.LeftCell?.SourceLayout is not null;
+            });
+            AssertVisible(window, view, "X", "Y");
+            window.KeyPress(Key.F8, RawInputModifiers.None, PhysicalKey.F8, null);
+            Layout(window);
+            AssertVisible(window, view, "L", "R");
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Shared_horizontal_position_has_a_keyboard_route_and_never_moves_line_numbers()
     {
         string prefix = new('x', 2000);
