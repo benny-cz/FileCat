@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Windows scaled Hex editor and viewer (UXBUG-020):** The
+isolated Win11 VM selected 150% (144 DPI) and 200% (192 DPI) through the
+native Display Settings control. At each scale, the tracked
+`win-ax-hex-scrollbar.ps1` passed its full physical-pointer editor journey
+on the Git-built `2f1f43c9` app: the thumb scrolled down and back without
+creating a selection, a later drag preserved an explicit selection, Find
+selected bytes 3,000–3,005, and the same selection survived window reflow,
+zoom and zoom restoration. At 150%, the editor row changed 16→24→20→24
+bytes; at 200%, 16→20→16→20. The viewer route separately passed both
+physical thumb drags and 8→20-byte row reflow at each scale. All four runs
+verified the unchanged source SHA-256, empty target and removal of the
+test-owned fixture. Receipts are
+`hex-editor-combined-scale150-20261026-r1.json`,
+`hex-viewer-combined-scale150-20261026-r1.json`,
+`hex-editor-combined-scale200-20261026-r1.json` and
+`hex-viewer-combined-scale200-20261026-r1.json` in the guest validation
+folder. The display selector reported restoration to its original 100% after
+each scale. Stable scaled Ubuntu physical-pointer acceptance remains open.
+
 **26 October 2026, combined native Ubuntu Hex editor (UXBUG-020):** The
 tracked `linux-atspi-hex-resize.py` now carries a test-owned `NEEDLE` at
 offsets 3,000 and 6,000 through its existing Git-built viewer and editor
