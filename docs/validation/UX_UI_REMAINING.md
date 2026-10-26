@@ -8,10 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Win11 scaled implicit-TLS FTPS and the remaining FTP/FTPS spoken
-  routes with NVDA. The restored guest passed native visual/input and both
-  warning-speech checks for implicit TLS at 100%; its other FTP/FTPS visual
-  reviews passed at 100%, 150% and 200%.
+- Finish Win11 scaled implicit-TLS FTPS and scaled FTP/FTPS spoken routes with
+  NVDA. The restored guest passed native visual/input and both warning-speech
+  checks for FTP, explicit TLS and implicit TLS at 100%; its other FTP/FTPS
+  visual reviews passed at 100%, 150% and 200%.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked

@@ -115,6 +115,18 @@ target hashes remained unchanged. The passing receipt is
 `ftps-implicit-warning-nvda-2f1f43c9.json` in the guest validation folder.
 Other scales and spoken routes remain open.
 
+**26 October 2026, Win11 FTP and explicit-TLS FTPS review speech
+(FCUX-001):** The restored VM ran the same native, interactive replacement
+journey against separate test-owned loopback FTP and explicit-TLS FTPS servers
+with NVDA 2026.2 at 96 DPI. The explicit-TLS route accepted its certificate
+for this session. Both routes displayed and spoke the full replacement risk
+and safer Keep both choice, cleared the warning for Keep both, then displayed
+and spoke the per-item conflict warning before Skip. The existing remote
+target and local source hashes remained unchanged. Passing guest receipts are
+`ftp-warning-nvda-2f1f43c9.json` and
+`ftpes-warning-nvda-2f1f43c9.json`. Scaled spoken routes and failure cleanup
+remain open.
+
 **26 October 2026, Win11 interrupted FTP Copy and Move (FCUX-001):** The
 restored VM built the Git crash harness and interrupted separate owned FTP
 Copy and Move workers after each had written 786,432 bytes to an unpublished
