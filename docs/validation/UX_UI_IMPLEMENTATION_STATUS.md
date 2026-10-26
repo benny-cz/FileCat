@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, real OpenSSH non-atomic recovery transport (FCUX-001):**
+The isolated Ubuntu VM checked out committed `7d1cd84b` from a Git bundle
+and ran the new `OpenSshNonAtomicRecoveryTests` through a user-mode OpenSSH
+server with fresh host/client keys. A test adapter reported the atomic-rename
+extension as unavailable while preserving the real SFTP connection and file
+operations. Four controlled faults changed same-size/time target content just
+before backup rename or reported failure after the server completed backup
+rename, incoming-stage publication or backup cleanup. All 4/4 cases passed:
+the public path, backup, stage, local Move source and open journal matched each
+phase, and no unapproved version was silently published. Windows compiled the
+test and correctly skipped the four Unix-only cases. The guest log is
+`sftp-recovery-test.log` under `~/FileCatValidation`; an actual server without
+the extension and native recovery-prompt review remain open.
+
 **26 October 2026, late non-atomic remote replacement race (FCUX-001):**
 After a server moves the approved old destination to its journaled recovery
 backup, FileCat now rereads that backup and checks the approved metadata and

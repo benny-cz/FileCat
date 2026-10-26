@@ -36,8 +36,9 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including native
    target changes after the journaled backup preflight on servers without
    compare-and-swap. Verify
-   recovery prompts and exact server manifests after ambiguous rename/cleanup
-   results on real SFTP and desktop FTP/FTPS routes. Finish Windows FTP/FTPS failure
+   recovery prompts and exact server manifests on an actual SFTP server
+   without atomic rename and on desktop FTP/FTPS routes after ambiguous
+   rename/cleanup results. Finish Windows FTP/FTPS failure
    kinds beyond native interrupted Copy and Move
    cleanup across all three FTP modes, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
