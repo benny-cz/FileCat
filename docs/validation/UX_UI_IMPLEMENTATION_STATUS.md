@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Mac panel Tab and restored splitter focus (FCUX-010/031):**
+The native AX journey exposed a panel switch that briefly focused the target
+row, then let a late accessibility request move focus to the old panel's Filter
+field. FileCat now consumes the Tab/Shift+Tab panel command and keeps the
+chosen panel's short-lived keyboard ownership through duplicate routed Tab
+events. The existing panel editor automation peer rejects only stale focus
+requests for the old panel, while a new physical key or pointer press permits
+intentional navigation. Ten consecutive native `--tab-only` journeys passed
+both directions with unchanged fixtures on a signed Mac candidate. The full
+journey then exposed the same 60 ms focus reversal after Escape restored a
+panel splitter; its automation peer now rejects a stale request for that
+retired splitter while allowing a fresh user navigation. Both subsequent full
+muted Mac focus and VoiceOver journeys passed on candidate DLL SHA-256
+`A4762CEFABAC473B52CD03B99D57091FBDBE22A0D0780C00C56342915460ACF7`.
+Headless regressions cover Tab consumption, stale and deliberate panel-editor
+AX focus, stale and deliberate splitter AX focus, and the existing pointer
+focus guard. The remaining native scale and nested-boundary checks are in the
+remaining-work file.
+
 **26 October 2026, remote non-atomic Replace race (FCUX-001):** After an
 upload's final destination metadata and content check, a remote server may
 report that atomic replacement is unavailable. The fallback now rereads the
@@ -54,8 +73,8 @@ but signed Mac candidates with 120 ms and 350 ms delayed focus restoration
 still allowed another native traversal. Moving the command after Tab key-up
 passed five native forward checks but later failed the reverse Tab route.
 Those candidates were not shipped. The tracked Mac AX runner now offers
-`--tab-only` to require both directions and unchanged fixture content;
-the native Tab issue remains in the remaining-work file. The separate inline
+`--tab-only` to require both directions and unchanged fixture content; the
+later keyboard ownership repair is recorded above. The separate inline
 Rename cancellation failure is addressed in the entry above. CI for
 `915ec37d` failed its macOS owned-FTPS stage
 fixture while the isolated Mac passed 20 consecutive repetitions. The Python

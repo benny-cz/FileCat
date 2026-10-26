@@ -32,6 +32,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
     private PanelView? _pointerFocusOwner;
     private long _pointerFocusAt;
+    private PanelView? _panelSwitchFocusOwner;
+    private long _panelSwitchFocusAt;
+    private PanelSplitter? _retiredResizeFocus;
+    private long _retiredResizeFocusAt;
     private readonly OverlayDialogService _dialogs;
     private readonly DispatcherTimer _notificationTimer;
     /// <summary>
@@ -72,7 +76,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         AddHandler(KeyDownEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, RecordPointerFocusIntent, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(KeyDownEvent, (_, _) => ClearPointerFocusIntent(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            // Avalonia can deliver the same Tab press again to the newly
+            // focused list. Keep its ownership until a different user key.
+            if (e.Key != Key.Tab) ClearTransientPanelFocusIntent();
+            if (e.Key != Key.Escape) _retiredResizeFocus = null;
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _notificationTimer.Tick += (_, _) => TryExpireNotification();
         vm.PropertyChanged += OnViewModelPropertyChanged;
@@ -517,6 +527,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     private void RecordPointerFocusIntent(object? sender, PointerPressedEventArgs e)
     {
+        _panelSwitchFocusOwner = null;
+        _retiredResizeFocus = null;
         // A physical panel press outranks a late accessibility focus request for
         // an editor in the previously active panel. A fresh press or key starts
         // a new user intent; the short guard never changes ordinary navigation.
@@ -526,19 +538,29 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _pointerFocusAt = Stopwatch.GetTimestamp();
     }
 
-    private void ClearPointerFocusIntent()
+    private void ClearTransientPanelFocusIntent()
     {
         _pointerFocusOwner = null;
+        _panelSwitchFocusOwner = null;
     }
 
     internal bool ShouldRejectStalePanelAccessibilityFocus(Visual editor)
     {
-        if (_dialogs.IsOpen || _pointerFocusOwner is not { } owner || !owner.IsEffectivelyVisible ||
-            Stopwatch.GetElapsedTime(_pointerFocusAt) > TimeSpan.FromMilliseconds(250) ||
-            editor.FindAncestorOfType<PanelView>(includeSelf: true) is not { } requested ||
-            ReferenceEquals(requested, owner)) return false;
-        return true;
+        if (_dialogs.IsOpen || editor.FindAncestorOfType<PanelView>(includeSelf: true) is not { } requested)
+            return false;
+        // The same late AX SetFocus that follows a pointer press can follow a
+        // keyboard panel switch. Neither may undo the newer panel choice.
+        var owner = _panelSwitchFocusOwner is { } switched &&
+                    Stopwatch.GetElapsedTime(_panelSwitchFocusAt) <= TimeSpan.FromMilliseconds(250)
+            ? switched : _pointerFocusOwner is { } pressed &&
+                         Stopwatch.GetElapsedTime(_pointerFocusAt) <= TimeSpan.FromMilliseconds(250)
+                ? pressed : null;
+        return owner is not null && owner.IsEffectivelyVisible && !ReferenceEquals(requested, owner);
     }
+
+    internal bool ShouldRejectRetiredResizeAccessibilityFocus(PanelSplitter splitter) =>
+        _panelResize is null && ReferenceEquals(_retiredResizeFocus, splitter) &&
+        Stopwatch.GetElapsedTime(_retiredResizeFocusAt) <= TimeSpan.FromMilliseconds(250);
 
     /// <summary>The active panel's file list (scripted input in the TV-01 benchmark).</summary>
     internal Controls.FileListControl? ActiveList => ActivePanelView()?.List;
@@ -734,7 +756,16 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         // With Alt held, after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
         AltChords.Handle(this, e);
         _suppressTextInput = TypedText(e);
+        // The panel switch owns Tab. If the key remains unhandled, macOS can
+        // continue its native focus traversal after we focus the target list,
+        // returning to a text field in the old panel.
+        if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack) e.Handled = true;
         _vm.Execute(id);
+        if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack)
+        {
+            _panelSwitchFocusOwner = ActivePanelView();
+            _panelSwitchFocusAt = Stopwatch.GetTimestamp();
+        }
     }
 
     private bool HandleQuickSearchKey(TabViewModel tab, KeyChord chord, KeyEventArgs e)

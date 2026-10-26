@@ -12,13 +12,7 @@ increments to `main`.
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
-  clipboard journeys. Fix the intermittent Mac AX Tab transition: native runs
-  briefly focused the target parent row, then settled in the old panel's
-  Location or Filter and reactivated that panel. A 120–350 ms delayed focus
-  retry and a post-key-up command delay still allowed macOS to traverse
-  again, so no timed workaround was retained. The tracked Mac AX runner has
-  `--tab-only` to check both directions and fixture integrity.
-  Finish the remaining Ubuntu Linux input, clipboard,
+  clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the remaining spoken criteria of other

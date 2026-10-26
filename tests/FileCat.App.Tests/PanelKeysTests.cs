@@ -13,6 +13,37 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class PanelKeysTests
 {
+    [AvaloniaFact]
+    public void Panel_switch_consumes_tab_before_native_focus_traversal()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panels = vm.Workspace.Panels;
+            Assert.Equal(2, panels.Count);
+            vm.Workspace.Activate(panels[0]);
+            vm.View.FocusActivePanel();
+            bool tabHandled = false, backHandled = false;
+            window.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                if (e.Key != Key.Tab) return;
+                if (e.KeyModifiers == KeyModifiers.None) tabHandled = e.Handled;
+                if (e.KeyModifiers == KeyModifiers.Shift) backHandled = e.Handled;
+            }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+
+            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.True(tabHandled);
+            Assert.Same(panels[1], vm.Workspace.ActivePanel);
+            window.KeyRelease(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+
+            window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+            Assert.True(backHandled);
+            Assert.Same(panels[0], vm.Workspace.ActivePanel);
+            window.KeyRelease(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static int Index(Core.Listing.ListingModel listing, string name)
     {
         for (int i = 0; i < listing.VisibleCount; i++)

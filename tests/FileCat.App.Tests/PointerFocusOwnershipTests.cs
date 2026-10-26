@@ -7,11 +7,57 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
+using FileCat.App.Services;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Tests;
 
 public sealed class PointerFocusOwnershipTests
 {
+    [AvaloniaFact]
+    public void A_panel_tab_switch_rejects_a_late_accessibility_request_for_the_old_filter()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var first = vm.Workspace.Panels[0];
+            var second = vm.Workspace.Panels[1];
+            var firstView = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(view => ReferenceEquals(view.DataContext, first));
+            var oldFilter = firstView.FindControl<TextBox>("FilterBox")!;
+            var oldPath = firstView.FindControl<TextBox>("PathBox")!;
+            window.CaptureRenderedFrame();
+            vm.Workspace.Activate(first);
+            vm.View.FocusActivePanel();
+            Assert.True(window.ActiveList!.IsFocused);
+            Assert.Equal(CommandIds.SwitchPanel, services.Keymap.Resolve(
+                KeyMapper.ToChord(Key.Tab, KeyModifiers.None)!.Value, CommandContext.Panel));
+            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.Same(second, vm.Workspace.ActivePanel);
+            Assert.NotNull(window.ActiveList);
+            Assert.True(window.ShouldRejectStalePanelAccessibilityFocus(oldFilter));
+            window.KeyRelease(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.Same(second, vm.Workspace.ActivePanel);
+            Assert.True(window.ShouldRejectStalePanelAccessibilityFocus(oldFilter));
+
+            ControlAutomationPeer.CreatePeerForElement(oldFilter).SetFocus();
+            ControlAutomationPeer.CreatePeerForElement(oldPath).SetFocus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(second, vm.Workspace.ActivePanel);
+            Assert.False(oldFilter.IsFocused);
+            Assert.False(oldPath.IsFocused);
+
+            // A fresh physical key clears the guard so explicit AX navigation
+            // can immediately choose the other panel again.
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            ControlAutomationPeer.CreatePeerForElement(oldFilter).SetFocus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(first, vm.Workspace.ActivePanel);
+            Assert.True(oldFilter.IsFocused);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public void A_panel_click_rejects_a_late_accessibility_request_for_the_previous_filter()
     {

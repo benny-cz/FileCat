@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -340,7 +341,12 @@ public partial class MainWindow
             }
             UpdateSplitterNames(session.Boundary.Node);
         }
-        if (returnFocus) FocusActivePanel();
+        if (returnFocus)
+        {
+            FocusActivePanel();
+            _retiredResizeFocus = session.Boundary.Splitter as PanelSplitter;
+            _retiredResizeFocusAt = Stopwatch.GetTimestamp();
+        }
     }
 
     private static double BoundaryExtent(PanelSplitterBinding boundary, int child) => boundary.Node.Stacked

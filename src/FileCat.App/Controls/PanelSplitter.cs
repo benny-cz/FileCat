@@ -2,6 +2,7 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using FileCat.App.Views;
 
 namespace FileCat.App.Controls;
 
@@ -36,6 +37,13 @@ internal sealed class PanelSplitter : GridSplitter
 /// <summary>Arrow keys move the boundary; assistive technology reads the share but does not set it.</summary>
 internal sealed class PanelSplitterAutomationPeer(PanelSplitter owner) : ControlAutomationPeer(owner), IRangeValueProvider
 {
+    protected override void SetFocusCore()
+    {
+        if (TopLevel.GetTopLevel(owner) is MainWindow window &&
+            window.ShouldRejectRetiredResizeAccessibilityFocus(owner)) return;
+        base.SetFocusCore();
+    }
+
     protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Slider;
 
     protected override string GetClassNameCore() => "PanelSplitter";

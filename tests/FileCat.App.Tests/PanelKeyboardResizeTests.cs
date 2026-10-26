@@ -55,6 +55,13 @@ public sealed class PanelKeyboardResizeTests
             Assert.Equal(original, tree.Children[0].Size);
             Assert.DoesNotContain("resizeActive", splitter.Classes);
             Assert.False(resizeStrip.IsVisible);
+            Assert.True(window.ActiveList!.IsFocused);
+            peer.SetFocus(); // late native AX callback from the retired slider
+            Assert.True(window.ActiveList.IsFocused);
+            window.KeyPress(Key.Home, RawInputModifiers.None, PhysicalKey.Home, null);
+            peer.SetFocus(); // a later deliberate accessibility navigation is allowed
+            Assert.True(splitter.IsFocused);
+            vm.View.FocusActivePanel();
 
             await vm.ExecuteAsync(CommandIds.ResizePanel);
             window.KeyPress(Key.Right, RawInputModifiers.Shift, PhysicalKey.ArrowRight, null);
