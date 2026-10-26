@@ -504,6 +504,16 @@ isolated app. The guest restored 100% and closed Settings. Receipts:
 `search-stop-hex-scale-restore100-current.json`. Other provider and spoken
 Stop/error routes remain open.
 
+**26 October 2026, Windows Text Stop at 100% (FCUX-007):** The same Git-built
+`65725e40` app completed the remaining Windows local Text Stop scale route
+at the restored 100% display setting. On another isolated sparse 2 GiB file,
+the physical Stop target was inside the viewer; cancellation appeared,
+Stop hid, the clipboard and small/sample large source bytes stayed exact,
+and the owned app closed. Receipt:
+`search-stop-text-scale100-20261026-r4.json`. Windows Hex and Text now have
+native long-search Stop coverage at 100%, 150% and 200%; remote providers,
+other modes and spoken Stop/error outcomes remain open.
+
 **26 October 2026, visible long-search Stop (FCUX-007):** The viewer keeps
 Stop search immediately beside Next while a long search runs, so a long match
 count cannot displace its cancellation control. A blocked-read App test holds
