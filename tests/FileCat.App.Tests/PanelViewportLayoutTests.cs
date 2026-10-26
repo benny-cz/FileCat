@@ -5,6 +5,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.State;
@@ -127,33 +128,43 @@ public sealed class PanelViewportLayoutTests
     public void Four_panel_workspace_keeps_a_readable_default_mask_next_to_free_space_and_target()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 2048, height: 870);
+        var previousTheme = ThemeManager.RequestedName;
         try
         {
             vm.Workspace.AddPanel(side: DockSide.Bottom);
             vm.Workspace.AddPanel(side: DockSide.Bottom);
-            window.CaptureRenderedFrame()?.Dispose();
             Assert.Equal(4, vm.Workspace.Panels.Count);
             var views = window.GetVisualDescendants().OfType<PanelView>().ToArray();
             Assert.Equal(4, views.Length);
-            foreach (var view in views)
+            foreach (var theme in new[] { "Classic", "Cyberpunk" })
             {
-                var address = view.FindControl<Grid>("AddressRow")!;
-                var path = view.FindControl<TextBox>("PathBox")!;
-                var filter = view.FindControl<TextBox>("FilterBox")!;
-                path.ApplyTemplate();
-                filter.ApplyTemplate();
-                var origin = filter.TransformToVisual(address)!.Value.Transform(new Point());
-                Assert.Single(path.GetVisualDescendants().OfType<TextPresenter>());
-                Assert.Equal(PanelView.AllItemsMask, filter.Text);
-                Assert.DoesNotContain("linked", filter.Classes);
-                Assert.True(Assert.Single(filter.GetVisualDescendants().OfType<TextPresenter>()).Opacity > 0.5);
-                Assert.True(filter.IsEffectivelyVisible && filter.Bounds.Width >= 72 &&
-                    origin.X >= -1 && origin.X + filter.Bounds.Width <= address.Bounds.Width + 1,
-                    $"Panel {(view.DataContext as FileCat.App.ViewModels.PanelViewModel)?.Number}: filter bounds {origin.X:0.0}..{origin.X + filter.Bounds.Width:0.0} " +
-                    $"inside address width {address.Bounds.Width:0.0}.");
+                ThemeManager.Apply(theme);
+                window.CaptureRenderedFrame()?.Dispose();
+                foreach (var view in views)
+                {
+                    var address = view.FindControl<Grid>("AddressRow")!;
+                    var path = view.FindControl<TextBox>("PathBox")!;
+                    var filter = view.FindControl<TextBox>("FilterBox")!;
+                    path.ApplyTemplate();
+                    filter.ApplyTemplate();
+                    var origin = filter.TransformToVisual(address)!.Value.Transform(new Point());
+                    Assert.Single(path.GetVisualDescendants().OfType<TextPresenter>());
+                    Assert.Equal(PanelView.AllItemsMask, filter.Text);
+                    Assert.DoesNotContain("linked", filter.Classes);
+                    Assert.True(Assert.Single(filter.GetVisualDescendants().OfType<TextPresenter>()).Opacity > 0.5);
+                    Assert.True(filter.IsEffectivelyVisible && filter.Bounds.Width >= 72 &&
+                        origin.X >= -1 && origin.X + filter.Bounds.Width <= address.Bounds.Width + 1,
+                        $"{theme} panel {(view.DataContext as FileCat.App.ViewModels.PanelViewModel)?.Number}: " +
+                        $"filter bounds {origin.X:0.0}..{origin.X + filter.Bounds.Width:0.0} " +
+                        $"inside address width {address.Bounds.Width:0.0}.");
+                }
             }
         }
-        finally { AccessibilityTests.Close(services, window, root); }
+        finally
+        {
+            ThemeManager.Apply(previousTheme);
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     [AvaloniaFact]

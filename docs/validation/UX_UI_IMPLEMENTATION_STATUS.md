@@ -25,6 +25,10 @@ CI remains open. A signed Mac ARM64 build of the same Git head (DLL SHA-256
 passed the SFTP first-click and stale AX focus-race probe with the restored
 TextBox template; source and target hashes remained unchanged. Its receipt is
 `mac-panel-mask-pointer-race-2f1f43c9.json` in the Mac validation folder.
+The later four-panel screenshot uses a dark palette. The four-panel regression
+now switches between Classic and Cyberpunk, requiring a painted filter text
+presenter, visible `*.*` value and in-row bounds in all four panels for each
+theme. All six focused `PanelViewportLayoutTests` passed on Windows Release.
 
 **25 October 2026, Ubuntu CI diagnosis:** On `7a5492fe` and `8042cd54`, the
 portable Ubuntu App test process aborted with exit code 134 after 625 and 334
