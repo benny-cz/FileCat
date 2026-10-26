@@ -1899,3 +1899,12 @@ unchanged Markdown bytes and a live FileCat process. The test closes the
 viewer, removes only its own unchanged fixture and refreshes the listing. A
 `--cleanup` fourth argument removes an exact test-owned fixture left by a
 native process crash; it refuses any other file content.
+
+`win-ax-archive-selection.ps1 -AppPath FILECAT.exe -ReportPath REPORT.json`
+uses a Git-built app under the Windows guest's `FileCatValidation` folder.
+It creates a disposable 2,000-member archive as listing content, verifies a
+bounded native UI Automation tree, the complete marked selection while focus
+moves offscreen, the marked item's original archive path in Review marked
+items, and a real View action on the final member. It records app and archive
+hashes and removes only its own fixture. The archive is test content; app
+builds and test transfer use Git.

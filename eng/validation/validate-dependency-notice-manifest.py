@@ -14,6 +14,8 @@ def capture(command,folder,timeout):
         return subprocess.run(command,cwd=repo,stdout=so,stderr=se,timeout=timeout,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0).returncode
 fixtureRoot=repo/'eng/validation/fixtures/dependency-notices';fixtureIndex=json.loads((fixtureRoot/'index.json').read_text())
 assert fixtureIndex['SchemaVersion']==1 and len(fixtureIndex['Manifests'])==7
+appLock=json.loads((repo/'src/FileCat.App/packages.lock.json').read_text())
+avaloniaVersion=appLock['dependencies']['net10.0']['Avalonia']['resolved']
 inputs=[repo/'eng/DependencyNotices/Program.cs',repo/'eng/DependencyNotices/DependencyNotices.csproj',repo/'eng/DependencyNotices/packages.lock.json',repo/'src/FileCat.App/packages.lock.json',repo/'Directory.Build.props',repo/'Directory.Build.targets',repo/'Directory.Packages.props',repo/'global.json',fixtureRoot/'index.json']
 inputs += sorted(p for p in (repo/'licenses/dependencies').rglob('*') if p.is_file())
 inputs += [fixtureRoot/v['Path'] for v in fixtureIndex['Manifests']]
@@ -30,7 +32,23 @@ cases=[]
 behaviors=['unchanged','unknown-package','wrong-package-version','wrong-package-hash','missing-package-hash','case-duplicate-package','missing-package-library','unknown-runtime-target','changed-package-kind']
 for fixture in fixtureIndex['Manifests']:
     original=fixtureRoot/fixture['Path'];assert sha(original)==fixture['SHA256']
-    data=json.loads(original.read_text());key='Avalonia/12.1.1';assert data['libraries'][key]['type']=='package'
+    data=json.loads(original.read_text())
+    # The retained publish manifests are historical 12.1.1 fixtures. Adapt only
+    # their Avalonia package identities in memory to test the current frozen
+    # notice snapshot; the original fixture bytes and SHA pins remain intact.
+    if avaloniaVersion!='12.1.1':
+        def currentAvalonia(value):
+            if isinstance(value,dict):
+                return {(name.replace('/12.1.1','/'+avaloniaVersion) if name.startswith('Avalonia') else name):currentAvalonia(item)
+                        for name,item in value.items()}
+            if isinstance(value,list):return [currentAvalonia(item) for item in value]
+            return avaloniaVersion if value=='12.1.1' else value
+        data=currentAvalonia(data)
+        for package,entry in appLock['dependencies']['net10.0'].items():
+            key=package+'/'+avaloniaVersion
+            if package.startswith('Avalonia') and key in data['libraries']:
+                data['libraries'][key]['sha512']='sha512-'+entry['contentHash']
+    key='Avalonia/'+avaloniaVersion;assert data['libraries'][key]['type']=='package'
     for behavior in behaviors:
         d=json.loads(json.dumps(data));libs=d['libraries'];target=d['targets'][d['runtimeTarget']['name']]
         if behavior=='unknown-package':libs['Owned.Unknown.Package/0.0.1']=dict(type='package',sha512='sha512-owned invalid hash');target['Owned.Unknown.Package/0.0.1']={}
@@ -38,7 +56,7 @@ for fixture in fixtureIndex['Manifests']:
         elif behavior=='wrong-package-hash':libs[key]['sha512']='sha512-owned invalid hash'
         elif behavior=='missing-package-hash':del libs[key]['sha512']
         elif behavior=='changed-package-kind':libs[key]['type']='reference'
-        elif behavior=='case-duplicate-package':libs['avalonia/12.1.1']=libs[key];target['avalonia/12.1.1']=target[key]
+        elif behavior=='case-duplicate-package':libs['avalonia/'+avaloniaVersion]=libs[key];target['avalonia/'+avaloniaVersion]=target[key]
         elif behavior=='missing-package-library':del libs[key]
         elif behavior=='unknown-runtime-target':d['runtimeTarget']['name']='owned nonexistent runtime target'
         name=fixture['Name']+'-'+behavior;folder=root/'cases'/name;folder.mkdir(parents=True);payload=folder/'payload';payload.mkdir();manifest=payload/'FileCat.deps.json'

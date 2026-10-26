@@ -606,11 +606,15 @@ public sealed class DialogViewportTests
             // A later focus owner wins over already queued reveal callbacks.
             close.Focus();
             Body(card).Offset = default;
+            Assert.Equal(0, Body(card).Offset.Y);
             editor.Focus(NavigationMethod.Pointer);
             close.Focus();
+            // Avalonia can reveal the editor synchronously as it takes focus.
+            // Once Close owns focus, no pending caret reveal may scroll again.
+            double offsetAtClose = Body(card).Offset.Y;
             Layout(window);
             Assert.True(close.IsFocused);
-            Assert.Equal(0, Body(card).Offset.Y);
+            Assert.Equal(offsetAtClose, Body(card).Offset.Y);
             dialogs.CancelAll();
             Assert.Equal("close", await pending);
         }

@@ -309,7 +309,13 @@ internal sealed class CompareLineDetails : Grid, IDisposable
         if (field.GetVisualDescendants().OfType<TextPresenter>().FirstOrDefault() is { } presenter)
         {
             var bounds = presenter.TextLayout.HitTestTextPosition(at);
-            presenter.BringIntoView(bounds.Inflate(8));
+            // A wrapped or enlarged-font field can have less than 16 pixels of spare height.
+            // Padding larger than the viewport makes the requested rectangle impossible to
+            // reveal and can leave the changed glyph itself clipped at the bottom.
+            var viewport = field.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
+            double verticalPadding = viewport is null ? 0 :
+                Math.Min(8, Math.Max(0, (viewport.Bounds.Height - bounds.Height) / 2 - 0.5));
+            presenter.BringIntoView(bounds.Inflate(new Thickness(8, verticalPadding)));
         }
     }
 

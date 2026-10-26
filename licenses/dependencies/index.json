@@ -426,6 +426,28 @@
       "SourceURL": "https://github.com/AvaloniaUI/Avalonia.BuildServices/blob/777f975b0a0cecf0311273711d56697212c558c0/LICENSE"
     },
     {
+      "Path": "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+      "Bytes": 16954,
+      "SHA256": "dd6f80852d16320c865a2e403ffd1a8b07a0e34c5b37122c0bc2343639ff68e6",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "AvaloniaUI/Avalonia",
+      "Revision": "2d79ba55fae1b1e71c69f93a668080c9029e6a31",
+      "SourcePath": "NOTICE.md",
+      "GitBlobSHA1": "365f5223feb580838ab6521996c4c6ce92d9f7c5",
+      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md"
+    },
+    {
+      "Path": "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md",
+      "Bytes": 1096,
+      "SHA256": "213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "AvaloniaUI/Avalonia",
+      "Revision": "2d79ba55fae1b1e71c69f93a668080c9029e6a31",
+      "SourcePath": "licence.md",
+      "GitBlobSHA1": "41951805ac6a5cdb91373db7725fbaa9c004d912",
+      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
+    },
+    {
       "Path": "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
       "Bytes": 16954,
       "SHA256": "dd6f80852d16320c865a2e403ffd1a8b07a0e34c5b37122c0bc2343639ff68e6",
@@ -528,9 +550,9 @@
   "Packages": [
     {
       "ID": "Avalonia",
-      "Version": "12.1.1",
-      "NuGetContentHash": "o8pZ1oE9AQ6gklpGM0lnOBp/JlVH0J/0mYszBf0GsSAcEnzHNCLM9NnrPZwKu4j2q9oNbVHYzzEPkszQeuqaKw==",
-      "PackageArchiveSHA256": "193bf6ae8b90293acb72bca8a1d62e8e46b460a48527f5f1f18f629073d9d77d",
+      "Version": "12.1.4",
+      "NuGetContentHash": "Vlz+ebY0PBVsTFXAPIpM+7ySgezMtyJ3GMMGmccHwxXXjgLF2x5+NMwO4AqrdM/lrUPZremnYNO6MSg1r1vuxw==",
+      "PackageArchiveSHA256": "90cf963a0e5fed7fc0e5cd9cefe3c159b78de086272c3ddde94c75cb83f9c4ac",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -542,12 +564,12 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
@@ -604,9 +626,9 @@
     },
     {
       "ID": "Avalonia.Desktop",
-      "Version": "12.1.1",
-      "NuGetContentHash": "qZIw0njeXs1ziGJBz2WNduPI38zm9UqOksNrl2lALO2JkuzzMElYGQ3+4+Nl7VEnZSvmcbAZnOdvNYfnXGlOSw==",
-      "PackageArchiveSHA256": "6fbcae9f07d3efe8413f35b7861f8f5fab3cb18a557c8a6e9bb4313e250d4000",
+      "Version": "12.1.4",
+      "NuGetContentHash": "2vrr0Ao77r3BoZSZ5BTg6rEb8N0987hw5H6lxtZkR8tpagiOTaL9a31Pi02jJha8es7Y+jJR8Qwis7PMQRjytg==",
+      "PackageArchiveSHA256": "5da57df4f56d32f3894475da869d3555a968085f5d93b73b3f5ae89f70a5cd58",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -618,21 +640,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.FreeDesktop",
-      "Version": "12.1.1",
-      "NuGetContentHash": "dMMW6vJGsaUD+3e5lA3dGYyNu+Tv/yl0sSrUQLlOQ2RVhmNLkybWdgebHx94lznV3RF9cRGUd9Q+J5XpJ7xfJw==",
-      "PackageArchiveSHA256": "c3ad45d5f03f459753db9c6d25645eb36484612d62c5cefdedc50e7d1bb8b663",
+      "Version": "12.1.4",
+      "NuGetContentHash": "EDM2mqO+eU7/0gLrIyObkt/q6DiBRbGSbzZ72J87K2JHTYEXtOT/quOpWv6bOKsDQGBPBkjI+s0OwFUxPmCP2A==",
+      "PackageArchiveSHA256": "e689791338533943a246d3522055edb44229aa19eb7a8233801f0d89fb63da72",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -644,21 +666,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.FreeDesktop.AtSpi",
-      "Version": "12.1.1",
-      "NuGetContentHash": "BJ2oGBM6pSayLvjhliMPph4LYhPmzDCRjyXQ4jdttrK7cetTViyniW0gMVpNAPNjr4sn6rbN4EHiWknPQq2pLg==",
-      "PackageArchiveSHA256": "73e076795e6ffe0660059aa3e19d507896c78323c911e9f2142bad890054c115",
+      "Version": "12.1.4",
+      "NuGetContentHash": "ulmTyv+D8euk4n4qFXTP9vyScNbRz+/SuMrdDeoGFLQW00Me1MGA1vBbaiDcdp8VgyfoeRDlq7tQGtwWOf8ZJg==",
+      "PackageArchiveSHA256": "d8d29680c17ae46e887775e6840f96c37e68016f9edacbbb7b62d453e5685649",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -670,21 +692,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.HarfBuzz",
-      "Version": "12.1.1",
-      "NuGetContentHash": "vgd/Fl4bIXgv3QtYk6WCd6iGAag4i3OOAozo6/DW3xPr5dWjpi1MmJaeE9MYoZBEDJ4egD0gfHz6nYhkDADz9g==",
-      "PackageArchiveSHA256": "ee50a1a9c8a6b042d62e5c772755611c9ab75740286798921ecb59ad3ec8b410",
+      "Version": "12.1.4",
+      "NuGetContentHash": "PxaJL9P/Zn6w89kLokuLcWDnj+w4erpfp57SiDN4JhX4NI2qPLJEmxgogTwyXjCUE8vq7Jg7kjH/z5D2jeGAhA==",
+      "PackageArchiveSHA256": "f52e5c1b6a00886ef46816ed2fc9a2c28844289b1af30bd7ea247e220d20c0cb",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -696,21 +718,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.Native",
-      "Version": "12.1.1",
-      "NuGetContentHash": "jbgCUIhgQGD7d9mLN1oe4J8EpzDa0aY9PS77PZuRUDcNyr/V+vFNdyYXSJs3imrm0NOzTsCcFtK2NSXGDmJ1dw==",
-      "PackageArchiveSHA256": "d557d6177bc589f8018ae3352d5eafeace836e1d2e510f821cbdcfc66b569552",
+      "Version": "12.1.4",
+      "NuGetContentHash": "to73yCbFWzRNs3gyuBG2QkRsrpjnGrEVwkhtAsJLbPAKFjP/M0YDeb4MPMN3wGlpwCFdz9L8R8iAivyNet5+5g==",
+      "PackageArchiveSHA256": "418dbf45252748c5295a948436d646ed90d54a5872e8352467d181587bc1b51d",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -722,21 +744,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.Remote.Protocol",
-      "Version": "12.1.1",
-      "NuGetContentHash": "0u77tnOwJnHtVLu+WBY7T56fN9W8n7++Uq9kHW6J+bfv5y13WZUMVS+PBzoBe32taYvz/oSomDGO1V41AHaFcQ==",
-      "PackageArchiveSHA256": "130c7dc7b5ec56b9afdd9d9392a5734c04b19684a28cb7edae4601f582b93011",
+      "Version": "12.1.4",
+      "NuGetContentHash": "9ajC+Ff+U9S21JJKGbJgnwp9fY+zwJG+bSEC//o/vJU2M6IEMRGp+D1+AUoqTR79FAA/iDYgf4f4EF4PZKhZsg==",
+      "PackageArchiveSHA256": "e115f5143ef0fc745cf171bb926ad1083ed4c833ca977a0eb11bdb0c41605f5c",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -748,21 +770,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.Skia",
-      "Version": "12.1.1",
-      "NuGetContentHash": "Q0jRMXb212RYIZNV7p6L/zWx8lyPck9dFFW+l86moeN4dNxHjPBdJS3nLdLvAd20Eno7JC4gwRa5Fewg52td8g==",
-      "PackageArchiveSHA256": "f683dbe5f5dcdfde62cb8bee0cc75e3b9bec95d9f924796ca3627bda8bfa4f25",
+      "Version": "12.1.4",
+      "NuGetContentHash": "BA6B1Up9AcX4JmnskD6FyxF+ZEowXDhGvzw1lG+Xx6sQO0VyOE2yDoAmD/S2EsYZUukPfRUJmIyjeM//WdZAxA==",
+      "PackageArchiveSHA256": "f42e12d06df92ae116e5baaac5e0319cec090d990a303edc1afd0e7c202a6e69",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -774,21 +796,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.Themes.Fluent",
-      "Version": "12.1.1",
-      "NuGetContentHash": "7vdtZsM9o8I8LpU9dyiB/Ah7WB8a5V3JHLsExe4T433ynn5x57F+DBskctZuNOxml8hbe1GmtNUNkBDsqSVKVg==",
-      "PackageArchiveSHA256": "627455e679f6efa8983fb3df6d7faef4adf1a43dd15f88cdf342b7aef1c46db4",
+      "Version": "12.1.4",
+      "NuGetContentHash": "vx7P4as07WLQqA2mhMy4iBsqhkWEGwZI7g9Rd2DlJgz3uKS2tSvY6nZqHq3sWMFDBYBT65jkTsetPrgV8oprsQ==",
+      "PackageArchiveSHA256": "0b2c317ee4dbc9b12c9cb564d4f99b10872b655a450c91a66ac063d9056a3c38",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -800,21 +822,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.Win32",
-      "Version": "12.1.1",
-      "NuGetContentHash": "W7FKmHqoyI09dlCnrt0T9QSLk92qVJwXEHPwMI4zIM09Q6H5NzKfvwoadwxIc8S5gydvFypop3DfKX8x9SILug==",
-      "PackageArchiveSHA256": "e23ceb93fe69dff585ebf672688d3b4cbe0ee0733c3678da1e4ef51fb1fa194c",
+      "Version": "12.1.4",
+      "NuGetContentHash": "N/Ra73KLQBoQOcnpROWdCA49vCFij8MSyU7MFv8JWMxcQvkG98K19/hmdcyiqB/B1sBahyZuHgIsoO8ryajC0g==",
+      "PackageArchiveSHA256": "743abeae210f287b846a42d292b2d8cc85b345bef8df13a01e481d252090b81b",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -826,21 +848,21 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "Avalonia.X11",
-      "Version": "12.1.1",
-      "NuGetContentHash": "s7eRJO+QHTmuyGZ7ZClljdgOVTT2OhfEc+Hk5hTgsjI7y84uM5skTvnm+M+Qzlmr1Ru6MLeFUQaTlFA4Aea35Q==",
-      "PackageArchiveSHA256": "fc3dbe2c6ddf88e78aa6b155f3610cccda0a7f14977e1de90ef6fe333365e0a8",
+      "Version": "12.1.4",
+      "NuGetContentHash": "LMlL3GGN7l7VfdowNf4hz/zyZQeMvYe/HFphoobbq4o1C1thZRSC3dxfRlQxe2M259f18dXveEWduyZLycXCJg==",
+      "PackageArchiveSHA256": "c10179d2da3d0d7dfa75ba698a80674a3bed9b51a4d3a44ec829832c68e6d696",
       "NuGetLicenseDeclaration": {
         "Text": "MIT",
         "Attributes": {
@@ -852,12 +874,12 @@
         "Attributes": {
           "type": "git",
           "url": "https://github.com/AvaloniaUI/Avalonia/",
-          "commit": "e33eaed9c106846b200680751022385d9cc5dc6f"
+          "commit": "2d79ba55fae1b1e71c69f93a668080c9029e6a31"
         }
       },
       "RetainedNoticePaths": [
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
-        "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
+        "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
