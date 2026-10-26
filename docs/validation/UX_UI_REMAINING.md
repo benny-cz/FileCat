@@ -51,9 +51,10 @@ increments to `main`.
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
-   input and the remaining assistive-technology routes. Test visible Stop,
-   changed-query ownership on other viewer routes, provider cancellation,
-   and spoken Find results. Assistive-technology routes still need native checks.
+   input and the remaining assistive-technology routes. Visible Stop passed
+   Windows Hex at 100%; test it in other viewer modes, scales and providers,
+   changed-query ownership on other routes, provider cancellation, and spoken
+   Find results. Assistive-technology routes still need native checks.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
    the other narrow-layout states. For FCUX-009, the Ubuntu

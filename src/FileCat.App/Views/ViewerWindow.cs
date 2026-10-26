@@ -308,6 +308,9 @@ public sealed class ViewerWindow : Window
         _nextMatch.Click += async (_, _) => await FindAsync(forward: true);
         _findBar.Children.Add(_previousMatch);
         _findBar.Children.Add(_nextMatch);
+        // Keep Stop beside the navigation it interrupts. A long count label
+        // must not push the only cancellation control onto another row.
+        _findBar.Children.Add(_stopSearch);
         _findBar.Children.Add(_matchCount);
         ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
         _stopCount.Click += (_, _) => _countCts?.Cancel();
@@ -321,7 +324,6 @@ public sealed class ViewerWindow : Window
         UpdateMatchControls();
         ToolTip.SetTip(_stopSearch, "Stop the current search (Esc). Other navigation remains available.");
         _stopSearch.Click += (_, _) => _searchCts?.Cancel();
-        _findBar.Children.Add(_stopSearch);
         _copySource.Click += async (_, _) => await CopyContentAsync(displayed: false, explicitVisible: true);
         _copyDisplayed.Click += async (_, _) => await CopyContentAsync(displayed: true, explicitVisible: true);
         ToolTip.SetTip(_copySource, "Copy the selected source characters, or the captured visible lines. Original tabs and logical line endings are preserved. Ctrl+C; bounded to 1 MiB of source bytes.");

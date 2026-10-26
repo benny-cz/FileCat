@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, visible long-search Stop (FCUX-007):** The viewer keeps
+Stop search immediately beside Next while a long search runs, so a long match
+count cannot displace its cancellation control. A blocked-read App test holds
+the content source during an active Find, confirms Stop is laid out and
+visible next to Next, clicks it, releases the read, and requires the canceled
+status and hidden Stop. It passed in the isolated Windows VM. The same VM
+built the revised app and native harness, opened a test-owned 2 GiB local
+file in Hex view and physically clicked Next then Stop before the automation
+snapshot could finish the search. The `search-stop-scale100-20261026-r2.json`
+receipt reports `Search canceled.`, hidden Stop, unchanged clipboard, intact
+source samples and four small fixture files, empty destination, and graceful
+viewer/app close; the large file was removed. The first attempt took a full
+automation snapshot before clicking Stop, let the search finish, and was
+corrected in the native runner. Native scaled, provider, other mode and spoken
+Find routes remain open. The workstation `vstest` process did not connect to
+`testhost` before its 90- and 180-second limits; the VM test ran and passed.
+
 **26 October 2026, four-panel workstation mask follow-up:** A new screenshot
 from the running elevated workstation app shows the default masks blank in all
 four address rows. This matches the native Windows VM reproduction from before
@@ -15,8 +32,9 @@ regression also covers this theme.
 A fresh local Release build from `a34092cf` is available at
 `src/FileCat.App/bin/Release/publish-main-a34092cf/FileCat.exe` (app DLL
 SHA-256 `a4a9100a760b135f717844f01709c88e6944101f54194545a8d9b37c7f199834`).
-The elevated workstation process was left untouched; its executable identity
-and result after relaunch remain to be checked.
+The elevated workstation process was left untouched; the latest screenshot
+still shows blank masks, and its executable identity and result after a
+verified fresh-build relaunch remain to be checked.
 
 **26 October 2026, Windows checksum source changed during a read (FCUX-008):**
 The isolated Win11 VM used the Git-built `2f1f43c9` app to open a test-owned

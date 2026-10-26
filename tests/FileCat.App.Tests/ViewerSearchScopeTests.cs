@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
@@ -233,6 +235,46 @@ public sealed class ViewerSearchScopeTests
         Assert.Equal("1 match", peer.GetName());
     }
 
+    [AvaloniaFact]
+    public async Task Long_search_keeps_a_visible_stop_beside_next_and_cancels_the_read()
+    {
+        string root = Path.Join(Path.GetTempPath(), "filecat-search-stop-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
+        using var source = new HeldSearchSource();
+        var viewer = new ViewerWindow(services, source, "held-search.bin", hex: true);
+        try
+        {
+            viewer.Show();
+            await Until(() => Field<DispatcherTimer>(viewer, "_changeTimer").IsEnabled);
+            Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
+            var search = Field<TextBox>(viewer, "_search");
+            search.Text = "ABSENT_SEARCH_STOP";
+            Invoke(viewer, "SetFindOpen", true, false);
+            source.HoldNextRead();
+            var find = (Task)Invoke(viewer, "FindAsync", true)!;
+            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            viewer.CaptureRenderedFrame()?.Dispose();
+            var stop = Field<Button>(viewer, "_stopSearch");
+            var next = Field<Button>(viewer, "_nextMatch");
+            var bar = Field<WrapPanel>(viewer, "_findBar");
+            Assert.True(stop.IsEffectivelyVisible && stop.Bounds.Width > 0);
+            Assert.Equal(bar.Children.IndexOf(next) + 1, bar.Children.IndexOf(stop));
+            Assert.Contains("Searching forward", Field<TextBlock>(viewer, "_status").Text);
+            stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            source.Release.Set();
+            await find.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Equal("Search canceled.", Field<TextBlock>(viewer, "_status").Text);
+            Assert.False(stop.IsVisible);
+        }
+        finally
+        {
+            source.Release.Set();
+            viewer.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static object? Invoke(object owner, string name, params object?[] args) => owner.GetType().GetMethod(name, Fields)!.Invoke(owner, args);
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
     private static async Task Until(Func<bool> condition)
@@ -336,5 +378,31 @@ public sealed class ViewerSearchScopeTests
             Release.Set();
             Disposed.TrySetResult();
         }
+    }
+
+    private sealed class HeldSearchSource : IContentSource
+    {
+        private int _hold;
+        public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly ManualResetEventSlim Release = new();
+        public string DisplayName => "held-search.bin";
+        public long Length => 32L * 1024 * 1024;
+        public bool CanSeek => true;
+        public string? LocalPath => null;
+        public ContentRevision? GetRevision() => new(Length, 0);
+        public void HoldNextRead() => Volatile.Write(ref _hold, 1);
+        public int Read(long offset, Span<byte> buffer)
+        {
+            if (Interlocked.Exchange(ref _hold, 0) == 1)
+            {
+                Entered.TrySetResult();
+                if (!Release.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Search read was not released.");
+            }
+            if (offset >= Length) return 0;
+            int count = (int)Math.Min(buffer.Length, Length - offset);
+            buffer[..count].Fill((byte)'x');
+            return count;
+        }
+        public void Dispose() => Release.Set();
     }
 }
