@@ -1272,6 +1272,18 @@ changed-query and physical-key journey in a 480 × 300 logical-pixel viewer.
 Both modes derive physical bounds from the active GNOME display scale and
 require the requested frame and all four controls inside it.
 
+`linux-atspi-viewer-stop.py APP REPORT.json [--text]` launches an isolated
+Git-built app under `~/FileCatValidation`, creates its own 2 GiB sparse local
+source and empty destination, opens Hex (or Text with `--text`), starts an
+absent-query search and activates the visible Stop button through AT-SPI.
+It requires the canceled status, retired Stop control, unchanged clipboard,
+unchanged sampled source bytes and empty destination. The JSON report records
+the executable SHA-256 and measured GNOME display scale. Text mode sends F4
+through the test-owned `linux-uinput-key.py` helper; grant that helper the
+same native input access used by the Find tests. The runner terminates only
+its own app, closes its viewer, restores the clipboard and removes its own
+large sparse source in cleanup.
+
 `linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER` launches a
 Git-built app on an isolated five-byte binary, selects byte zero with a
 physical Shift+Left, then checks selected-byte and whole-file hashes. It

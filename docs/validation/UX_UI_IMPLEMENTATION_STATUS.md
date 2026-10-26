@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Ubuntu native viewer Stop (FCUX-007):**
+A new `linux-atspi-viewer-stop.py` native runner opened an isolated Git-built
+FileCat over a test-owned 2 GiB sparse local file. At measured GNOME 200%
+scale, both Hex and Text started an absent-query search and activated the
+visible Stop through AT-SPI. Both runs showed `Search canceled.`, retired the
+Stop button, preserved clipboard content and sampled source bytes, and left
+the empty destination untouched. Text mode switched through a physical F4
+from the bounded uinput helper. The executable SHA-256 in both receipts was
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`.
+The Ubuntu VM returned to its original 1280 × 800, 100% display state.
+Other provider, scale and spoken Stop outcomes remain open.
+
+**26 October 2026, Mac accessibility transport diagnostic:**
+The unlocked Mac still returned zero child elements through `System Events`
+for both Finder and FileCat over SSH. A bounded direct Accessibility API
+helper on the same isolated FileCat process read one window, traversed 496
+elements and found the exact `a.txt` source row. This isolates the failure
+to the AppleScript route, not the product's accessibility tree. The remaining
+Mac modal-command guard should use direct AX actions; no guard result was
+claimed from this diagnostic.
+
 **26 October 2026, macOS inline Rename CI timing (FCUX-010):**
 The macOS App lane on the earlier `98eb47dd` head failed one headless smoke
 assertion: Escape correctly restored `sample.txt`, but a synthetic AX focus

@@ -10,10 +10,10 @@ increments to `main`.
 
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
-  `FileCatCapture` helper in the unlocked
-  desktop session. Keep the Mac display awake while finishing Mac input and
-  clipboard journeys. Rerun the Mac Copy/Move/Delete modal-command guard when
-  the display exposes its accessibility children again. Finish the remaining
+  `FileCatCapture` helper in the desktop session. Direct macOS AX now reads
+  FileCat's window and source row, while System Events still exposes no
+  children over SSH; move the Mac Copy/Move/Delete modal-command guard to the
+  working direct AX route. Keep Mac audio muted. Finish the remaining
   Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
@@ -63,7 +63,8 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
    input and the remaining assistive-technology routes. Visible Stop passed
-   Windows Hex/Text at 100%, 150% and 200%; test other modes and providers,
+   Windows Hex/Text at 100%, 150% and 200% and Ubuntu Hex/Text at 200%; test
+   other modes, providers and Ubuntu scales,
    changed-query ownership on other routes, cancellation over live remote
    connections, native spoken provider-error
    outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
