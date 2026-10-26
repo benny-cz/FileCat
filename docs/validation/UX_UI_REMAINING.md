@@ -17,7 +17,8 @@ increments to `main`.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the remaining spoken criteria of other
   findings (viewer Stop and provider-error outcomes, UXBUG-015 and
-  FCUX-040/041 form errors, tabs).
+  FCUX-040/041 form errors and tab routes beyond the now-spoken Ubuntu
+  two-panel switch).
   Assert VoiceOver's actual spoken phrases for the other Mac routes. Keep Mac
   audio muted.
 
@@ -49,8 +50,9 @@ increments to `main`.
    safely offered. On Mac, the preview list has no AX row children; decide
    whether direct row navigation adds value beyond the tested, spoken
    Previous/Next full-path navigator. For FCUX-004, exercise modal focus and
-   decision routes beyond the Ubuntu Copy review's background-command guard,
-   including actual Orca speech where required.
+   decision routes beyond the Ubuntu Copy review's background-command guard
+   and the spoken Copy/Move/Delete entry and return paths. Capture actual
+   Orca speech for the remaining decision routes where required.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its

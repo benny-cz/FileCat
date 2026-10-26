@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**
+The isolated GNOME guest ran `linux-orca-speech.py` against the Git-built
+`cff83525` app (app SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`,
+DLL SHA-256 `bc286bd5324c47890d539173ca996cb48ee98837d8dd8264c9c23395a69b7b6d`).
+The runner now passes its pinned `dotnet-sdk` root to the framework-dependent
+app host in VMware sessions. All 49 physical-key and actual Orca speech steps
+passed: both panel Tab directions, file focus and marked state, Copy/Move and
+Delete review entry/return, rejected Copy destination, inline and Quick filter
+errors, viewer find count and miss, boundary resize, and complete two-item
+rename mapping paths. The unchanged source hashes and empty target were
+checked. The guest report is `orca-speech-cff83525-r2.json`; provider errors,
+viewer Stop and other decision routes still need spoken acceptance.
+
 **26 October 2026, exact-head Ubuntu modal command ownership (FCUX-004):**
 The fresh Ubuntu VM Git build of `cff83525` (app SHA-256
 `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`)

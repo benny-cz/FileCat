@@ -88,6 +88,8 @@ def main():
     record_all = "--record-all" in modes
     scaled_filter = "--scaled-filter" in modes
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
+    if (validation / "dotnet-sdk" / "dotnet").is_file():
+        os.environ.setdefault("DOTNET_ROOT", str(validation / "dotnet-sdk"))
     app_path, key_helper = (Path(value).resolve(strict=True) for value in (sys.argv[1], sys.argv[3]))
     report_path = Path(sys.argv[2]).resolve()
     filter_ready = report_path.with_suffix(".filter.ready")
