@@ -1,5 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, scaled Windows mask and Text search follow-up:** The
+isolated Windows VM changed from 100% to 150% and ran the tracked four-panel
+Psychedelic mask journey on the revised Git-built app. Native UI Automation
+read `*.*` in all four visible filters with physical bounds of about
+143–144 × 37–38 pixels, and the app-only capture visibly painted every mask.
+The fixture stayed intact. The owner then closed the earlier elevated process
+and launched `publish-main-a34092cf/FileCat.exe`; all four masks showed on
+the workstation. The earlier screenshot came from that executable path, but
+the process's loaded DLL identity at capture time was unavailable, so its
+blank fields have no proven cause beyond the observed pre-relaunch state.
+The Windows VM App suite for `a62ac3b8` passed 2,487 cases with 54
+platform skips. A two-case held-read test then passed in Hex and Text modes.
+At 150%, physical pointer Stop journeys on separate 2 GiB files passed in
+both Hex (`search-stop-scale150-20261026-r2.json`) and Text
+(`search-stop-text-scale150-20261026-r3.json`): canceled status, hidden Stop,
+unchanged clipboard, exact small fixtures and sampled large-file bytes, and
+graceful app close. The VM display returned to 100% with a passed receipt.
+
 **26 October 2026, visible long-search Stop (FCUX-007):** The viewer keeps
 Stop search immediately beside Next while a long search runs, so a long match
 count cannot displace its cancellation control. A blocked-read App test holds
@@ -32,9 +50,8 @@ regression also covers this theme.
 A fresh local Release build from `a34092cf` is available at
 `src/FileCat.App/bin/Release/publish-main-a34092cf/FileCat.exe` (app DLL
 SHA-256 `a4a9100a760b135f717844f01709c88e6944101f54194545a8d9b37c7f199834`).
-The elevated workstation process was left untouched; the latest screenshot
-still shows blank masks, and its executable identity and result after a
-verified fresh-build relaunch remain to be checked.
+The elevated workstation process was left untouched during VM testing; the
+owner later completed the fresh-build relaunch as recorded above.
 
 **26 October 2026, Windows checksum source changed during a read (FCUX-008):**
 The isolated Win11 VM used the Git-built `2f1f43c9` app to open a test-owned

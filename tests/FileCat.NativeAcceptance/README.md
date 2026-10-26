@@ -992,6 +992,10 @@ It closes the viewer and removes only that test-owned file; finish with
 `selection-stop`. The companion blocked-read App test holds an actual content
 read while checking that Stop is visibly laid out next to Next and that a
 click cancels the search.
+Run `search-stop-text-native <report.json>` on another fresh fixture to
+switch the same large source to Text mode with F4 before starting the search.
+It requires the Text mode label and the same native pointer cancellation,
+clipboard and source/destination checks. Finish with `selection-stop`.
 For native UTF-16LE Previous search, use a separate fresh `seed-selection`
 fixture and run `search-utf16-native <report.json>`. It builds the same 13 MiB
 two-hit file with a UTF-16LE BOM and encoded markers, then checks both distant

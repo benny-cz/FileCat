@@ -235,14 +235,16 @@ public sealed class ViewerSearchScopeTests
         Assert.Equal("1 match", peer.GetName());
     }
 
-    [AvaloniaFact]
-    public async Task Long_search_keeps_a_visible_stop_beside_next_and_cancels_the_read()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Long_search_keeps_a_visible_stop_beside_next_and_cancels_the_read(bool hex)
     {
         string root = Path.Join(Path.GetTempPath(), "filecat-search-stop-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
         using var source = new HeldSearchSource();
-        var viewer = new ViewerWindow(services, source, "held-search.bin", hex: true);
+        var viewer = new ViewerWindow(services, source, "held-search.bin", hex);
         try
         {
             viewer.Show();

@@ -52,9 +52,10 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
    input and the remaining assistive-technology routes. Visible Stop passed
-   Windows Hex at 100%; test it in other viewer modes, scales and providers,
-   changed-query ownership on other routes, provider cancellation, and spoken
-   Find results. Assistive-technology routes still need native checks.
+   Windows Hex at 100% and Hex/Text at 150%; test it in other modes, scales
+   and providers, changed-query ownership on other routes, provider
+   cancellation, and spoken Find results. Assistive-technology routes still
+   need native checks.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
    the other narrow-layout states. For FCUX-009, the Ubuntu
@@ -102,13 +103,6 @@ increments to `main`.
 7. **Close newly reported minor issues.** UXBUG-013 still needs native
    pinned-place interaction, scaled layouts and spoken acceptance.
    UXBUG-014 still needs native display-scale and spoken acceptance.
-   The 26 October screenshot of the running elevated workstation app still
-   shows blank default masks in four panels. The Git-built Windows VM passed
-   the fix on all four panels, including the same purple theme; confirm the
-   workstation after closing that
-   process and launching the fresh `a34092cf` Release build. If the mask
-   remains blank there, capture that executable's identity and reopen the
-   rendering investigation.
    UXBUG-015 needs localized speed entry, keyboard error navigation and
    actual screen-reader announcements on supported desktops. Report
    Avalonia 12.1's incorrect AT-SPI role mapping upstream if the owner agrees.
