@@ -101,6 +101,8 @@ New-Item -ItemType Directory -Force -Path $source, $target, $data | Out-Null
 $file = Join-Path $source 'hex-scrollbar.bin'
 $bytes = New-Object byte[] 8192
 for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [byte]($i % 256) }
+[Text.Encoding]::ASCII.GetBytes('NEEDLE').CopyTo($bytes, 3000)
+[Text.Encoding]::ASCII.GetBytes('NEEDLE').CopyTo($bytes, 6000)
 [IO.File]::WriteAllBytes($file, $bytes)
 $originalHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
 $process = $null
@@ -187,6 +189,37 @@ function Hit([int]$x, [int]$y) {
     if (!$element) { return 'none' }
     return "$($element.Current.ControlType.ProgrammaticName) / $($element.Current.Name) / $($element.Current.ClassName)"
 }
+function RowBytes([string]$status) {
+    $row = [regex]::Match($status, 'row [0-9A-F]+: ([0-9A-F ]+)\.').Groups[1].Value
+    if (!$row) { throw "The visible Hex row is absent: $status" }
+    return @($row -split ' ' | Where-Object { $_ }).Count
+}
+function WaitSearchHit($window) {
+    $value = $null
+    for ($attempt = 0; $attempt -lt 50; $attempt++) {
+        $value = Status $window
+        if ($value -match 'Selected bytes ([0-9][0-9.,\p{Zs}]*) through ([0-9][0-9.,\p{Zs}]*), 6 bytes') {
+            $start = [long]($Matches[1] -replace '[^0-9]', '')
+            $end = [long]($Matches[2] -replace '[^0-9]', '')
+            if ($start -ne 3000 -or $end -ne 3005) {
+                throw "Find selected the wrong source byte range: $value"
+            }
+            return @{ Start = $start; End = $end; RowBytes = (RowBytes $value);
+                ViewportByte = (Offset $value 'viewport begins at byte ([0-9][0-9.,\p{Zs}]*)') }
+        }
+        Start-Sleep -Milliseconds 150
+    }
+    throw "Find never selected the owned bytes 3000-3005: $value"
+}
+function InvokeNamedButton($window, [string]$name) {
+    $button = One (All $window | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+        $_.Current.Name -eq $name -and !$_.Current.IsOffscreen
+    }) $name
+    $invoke = [System.Windows.Automation.InvokePattern]$button.GetCurrentPattern(
+        [System.Windows.Automation.InvokePattern]::Pattern)
+    $invoke.Invoke()
+}
 
 try {
     $process = Start-Process -FilePath $app -WorkingDirectory (Split-Path $app) -PassThru `
@@ -239,16 +272,15 @@ try {
     }
     (New-Object -ComObject WScript.Shell).SendKeys('{F3}')
     $viewer = WaitForViewer $process.Id 'FileCat Viewer'
-    if ($WindowKind -eq 'Viewer') {
-        $hexButton = One (All $viewer | Where-Object {
-            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-            $_.Current.Name -eq 'Hex' -and !$_.Current.IsOffscreen
-        }) 'Hex mode button'
-        $hexBounds = $hexButton.Current.BoundingRectangle
-        [FileCatHexPointer]::Click([int]($hexBounds.X + $hexBounds.Width / 2),
-            [int]($hexBounds.Y + $hexBounds.Height / 2))
-    } else {
-        [FileCatHexPointer]::SetForegroundWindow([IntPtr]$viewer.Current.NativeWindowHandle) | Out-Null
+    $hexButton = One (All $viewer | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+        $_.Current.Name -eq 'Hex' -and !$_.Current.IsOffscreen
+    }) 'Hex mode button'
+    $hexBounds = $hexButton.Current.BoundingRectangle
+    [FileCatHexPointer]::Click([int]($hexBounds.X + $hexBounds.Width / 2),
+        [int]($hexBounds.Y + $hexBounds.Height / 2))
+    if ($WindowKind -eq 'Editor') {
+        FocusOwnedWindow $viewer
         (New-Object -ComObject WScript.Shell).SendKeys('{F6}')
         $viewer = WaitForViewer $process.Id 'FileCat Hex Editor'
     }
@@ -377,13 +409,73 @@ try {
     if ($afterSelected -notmatch 'Selected bytes 0 through 3, 4 bytes') {
         throw "Scrollbar drag altered the existing explicit selection: $afterSelected"
     }
-    $result.passed = $true
     $result.narrowBytesPerRow = $narrowBytes
     $result.wideBytesPerRow = $wideBytes
     $result.scrollbarViewportByte = $viewport
     $result.reverseScrollbarViewportByte = $upViewport
     $result.scrollbarPreservedNoSelection = $true
     $result.scrollbarPreservedExplicitSelection = $true
+    if ($WindowKind -eq 'Editor') {
+        InvokeNamedButton $viewer 'Show or hide hex editor Find bar'
+        $query = One (All $viewer | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and
+            $_.Current.Name -eq 'Find in file' -and !$_.Current.IsOffscreen
+        }) 'visible Hex editor Find field'
+        $value = [System.Windows.Automation.ValuePattern]$query.GetCurrentPattern(
+            [System.Windows.Automation.ValuePattern]::Pattern)
+        $value.SetValue('NEEDLE')
+        InvokeNamedButton $viewer 'Find next match'
+        $found = WaitSearchHit $viewer
+        $searchNarrowRect = [FileCatHexPointer+Rect]::new()
+        if (![FileCatHexPointer]::SetWindowPos($handle, [IntPtr]::Zero, $rect.Left, $rect.Top,
+            640, [Math]::Max(420, $rect.Bottom - $rect.Top), 0x0014)) {
+            throw 'Cannot narrow the searched Hex editor.'
+        }
+        Start-Sleep -Milliseconds 350
+        if (![FileCatHexPointer]::GetWindowRect($handle, [ref]$searchNarrowRect)) {
+            throw 'Cannot measure the searched Hex editor after narrowing.'
+        }
+        $searchNarrowWidth = $searchNarrowRect.Right - $searchNarrowRect.Left
+        $narrowHit = WaitSearchHit $viewer
+        $searchWideRequest = [int][Math]::Min($desktop.Right - $rect.Left - 20,
+            [Math]::Max($wideRequest, $searchNarrowWidth + [Math]::Ceiling(320 * $scale)))
+        if ($searchWideRequest - $searchNarrowWidth -lt [Math]::Ceiling(100 * $scale) -or
+            ![FileCatHexPointer]::SetWindowPos($handle, [IntPtr]::Zero, $rect.Left, $rect.Top,
+                $searchWideRequest, [Math]::Max(420, $rect.Bottom - $rect.Top), 0x0014)) {
+            throw 'Cannot widen the searched Hex editor enough to prove row reflow.'
+        }
+        Start-Sleep -Milliseconds 350
+        $wideHit = WaitSearchHit $viewer
+        if ($wideHit.RowBytes -le $narrowHit.RowBytes) {
+            throw "Search selection did not reflow with the editor: $($narrowHit.RowBytes) to $($wideHit.RowBytes)."
+        }
+        $zoomSteps = 0
+        try {
+            do {
+                InvokeNamedButton $viewer 'Increase editor content size'
+                $zoomSteps++
+                Start-Sleep -Milliseconds 200
+                $zoomHit = WaitSearchHit $viewer
+            } while ($zoomHit.RowBytes -ge $wideHit.RowBytes -and $zoomSteps -lt 3)
+            if ($zoomHit.RowBytes -ge $wideHit.RowBytes) {
+                throw 'Increasing Hex editor content size did not reduce the fitted row.'
+            }
+        } finally {
+            for ($i = 0; $i -lt $zoomSteps; $i++) {
+                InvokeNamedButton $viewer 'Decrease editor content size'
+            }
+        }
+        $restoredHit = WaitSearchHit $viewer
+        if ($restoredHit.RowBytes -ne $wideHit.RowBytes) {
+            throw 'Hex editor content size did not restore the row after zoom.'
+        }
+        $result.combinedSearchResizeZoom = @{
+            Query = 'NEEDLE'; Found = $found; NarrowWindowWidth = $searchNarrowWidth;
+            Narrow = $narrowHit; Wide = $wideHit; ZoomSteps = $zoomSteps;
+            Zoomed = $zoomHit; Restored = $restoredHit
+        }
+    }
+    $result.passed = $true
 } catch {
     $result.error = $_.Exception.Message
     $result.stack = $_.ScriptStackTrace

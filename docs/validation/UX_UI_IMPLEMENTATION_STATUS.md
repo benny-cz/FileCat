@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, combined native Windows Hex editor (UXBUG-020):** The
+isolated Win11 VM ran the Git-built `2f1f43c9` app (DLL SHA-256
+`af5e45be2ad6669546ca50b7575eef2eb5f043dd59b6323d34dcc81aa24490aa`)
+from its logged-in desktop session. The tracked `win-ax-hex-scrollbar.ps1`
+now enters Hex mode before opening the editor, then keeps that same editor
+open across physical thumb drags, explicit byte selection, Find, resize and
+content zoom. Its test-owned 8,192-byte fixture contains `NEEDLE` at offsets
+3,000 and 6,000. Find selected exactly bytes 3,000–3,005; narrowing and
+widening changed the row from 16 to 24 bytes while preserving that selection;
+two zoom steps fitted 20 bytes, and restoring size refitted 24. The thumb
+visited byte 2,160 and returned to zero without implicit selection, and a
+later thumb drag preserved an explicit four-byte selection. The revised
+viewer route also passed, with 16-to-24-byte reflow and a 2,184-byte thumb
+viewport. Both reports verify source SHA-256, an empty target and safe fixture
+cleanup: `hex-editor-combined-20261026-r3.json` and
+`hex-viewer-current-20261026-r1.json` in the VM validation folder. The
+temporary interactive task uses the logged-in token and stores no password;
+VMware's direct guest-process launch ran in session 0 and could not send
+pointer input. The pushed `e48ef5d9` head passed all five CI lanes; the later
+heads still need their own final gates.
+
 **26 October 2026, combined native Mac Hex editor (UXBUG-020):** The tracked
 `mac-ax-hex-editor-resize.py` now keeps one signed, Git-built editor open for
 physical thumb scrolling and explicit byte selection, Find, window reflow,
