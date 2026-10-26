@@ -193,8 +193,7 @@ try {
     ([System.Windows.Automation.ValuePattern]$search.GetCurrentPattern(
         [System.Windows.Automation.ValuePattern]::Pattern)).SetValue('Review marked items')
     [Windows.Forms.SendKeys]::SendWait('{ENTER}')
-    $details = Wait-For { Find-Node $window ([System.Windows.Automation.ControlType]::Edit)
-        'Full details of the reviewed item' } 'marked item full details'
+    $details = Wait-For { Find-Node $window ([System.Windows.Automation.ControlType]::Edit) 'Full details of the reviewed item' } 'marked item full details'
     $value = ([System.Windows.Automation.ValuePattern]$details.GetCurrentPattern(
         [System.Windows.Automation.ValuePattern]::Pattern)).Current.Value
     if ($value -notlike "*$firstName*" -or $value -notlike '*archive.zip*') {

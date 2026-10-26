@@ -1,6 +1,6 @@
 # Selection ownership and file-list accessibility
 
-This note covers audit findings **FCUX-002** and **FCUX-010** against the supplied FileCat sources and pinned Avalonia **12.1.1**. It records the implemented behavior, test locations, and the native acceptance work that remains necessary.
+This note covers audit findings **FCUX-002** and **FCUX-010**. The original implementation used Avalonia **12.1.1**; the current Git build pins **12.1.4** to repair the Windows native selected-array bridge. It records the implemented behavior, test locations, and the native acceptance work that remains necessary. The [authoritative ledger](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010) names the one remaining delayed Ubuntu provider route; the Windows archive is [accepted with an exact receipt](UX_UI_IMPLEMENTATION_STATUS.md#evidence-archive-uia-20261027).
 
 ## FCUX-002: range selection contract
 
@@ -61,7 +61,12 @@ The final coordinated Release gate against the pinned SDK and Avalonia 12.1.1 co
 
 The focused Core run passed **6 of 6 tests**, with **zero skipped**: 5 mark-paging cases and 1 cache-only metadata case. Its recorded result file was `selection-accessibility-core.trx`; the same six Core cases also passed in the complete Core run. These headless results do not constitute native screen-reader acceptance.
 
-## Native acceptance gate: still open
+## Historical native acceptance checklist
+
+This original broad checklist is preserved for context. The
+[acceptance ledger](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010) records the finite
+current requirement and the exact accepted native subcases; its scope and
+stopping rules govern further testing.
 
 Headless tests and compiling against the pinned assembly do **not** establish screen-reader compatibility. The custom renderer remains the physical keyboard-focus owner. Virtual rows expose the logical cursor through peer getters and state changes, and the container supplies the current-item Value; the pinned toolkit does not offer a public arbitrary-peer focus-event raiser. The exact native event/announcement behavior and accessibility root's focused-element routing must therefore be checked before FCUX-010 can be declared fully resolved.
 
@@ -77,4 +82,4 @@ Use at least one supported Windows screen reader (NVDA or Narrator), VoiceOver o
 8. Use the existing synthetic benchmark facility for a million-item listing (`docs/validation/TV-01.md`). With an accessibility client attached, query children, change focus, scroll, mark all, and open the review. Measure UI responsiveness, managed/native memory, peer retention, and announcement rate. A passing ordinary rendering benchmark alone does not satisfy this gate.
 9. Repeat the core journey at enlarged fonts and supported scaling, including 125%, 150%, and 200%, a small supported client area, high contrast, and keyboard-only operation. Verify that partial row bounds and the review's navigation/footer remain useful.
 
-Record failures as remaining work; do not rename this gate to complete solely because headless tests pass. Full native selected-array support above the documented bridge bound, genuine virtual-item focus events, and any platform-specific discovery deficiencies remain possible follow-up work.
+Record new native failures against the ledger with their exact tested scope; headless tests alone do not close an untested native route. Selected arrays above the documented bridge bound, genuine virtual-item focus events, and platform-specific discovery deficiencies remain possible follow-up work only if a required scenario or new regression demonstrates them.

@@ -1,5 +1,46 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-archive-uia-20261027"></a>
+**27 October 2026, Windows archive accessibility (FCUX-010):** The isolated
+Win11 VMware guest built Git head `d2829324` with Avalonia 12.1.4 (app DLL
+SHA-256 `1F8C41A6AF4BACA33911187C76B61877360D08477F9319EC39CA402A7AC550B0`).
+The tracked `win-ax-archive-selection.ps1` opened a disposable 2,000-member
+archive. Native UI Automation exposed 240 nodes and 24 visible member rows.
+Marking the first member returned **one** selected peer through the list's
+standard Selection pattern; End then focused the last, unmarked member while
+the original marked peer remained in that selected array. Review marked
+items showed the first member and its complete `archive.zip` path. F3 opened
+the last member and exposed the expected text. The archive SHA-256 was
+unchanged, the target stayed empty, and the owned process and fixture were
+removed. Exact receipt: `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s1-010-win-archive-d2829324-r3.json`
+in the guest, with an ignored host copy at
+`E:\FileCat\.local-ac-s1-010-win-archive-d2829324-r3.json`. This closes only
+[AC-S1-010-WIN-ARCHIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010-win-archive);
+the delayed Ubuntu SFTP/result-list sibling remains open.
+
+<a id="evidence-avalonia-uia-20261027"></a>
+**27 October 2026, Windows selection bridge and CI:** Against Git build
+`5841f176` on the same Win11 VM, a marked archive member reported
+`IsSelected=true`, while the containing UIA Selection query returned zero
+elements after a bounded wait. A temporary app trace showed FileCat's
+`GetSelection()` returning one peer on every query. Avalonia 12.1.1's Win32
+safe-array marshaller was the failing boundary; upstream change
+[`0082fc6b`](https://github.com/AvaloniaUI/Avalonia/commit/0082fc6b2a9542b3651c3f56eca267f69ec9f208)
+corrected it, and pinned 12.1.4 includes that fix. `d2829324` updated all
+seven affected project locks, the package/license snapshot and notice
+controls. The Windows Release app and 21 focused file-list tests passed,
+all 28 locked restore graphs verified, and all 63 notice controls passed.
+The full Windows App run on the first 12.1.4 build found 2,495 passed,
+63 platform skips and three failed viewport assertions. The two dialog
+assertions assumed the older Avalonia deferred scroll timing; the test now
+requires no *later* scroll after Close receives focus. The comparison
+assertion found eight pixels of requested glyph padding larger than the
+available viewport; the product now caps vertical padding to the spare
+height. The affected 54 tests passed after these corrections. Earlier
+`b76e39ae` and `5841f176` CI runs failed the same comparison assertion on
+multiple platforms; `cc2134bc` had passed. Exact-head `d2829324` CI is
+[running](https://github.com/benny-cz/FileCat/actions/runs/40421686731).
+
 **26 October 2026, acceptance-ledger reconciliation:** The authoritative
 [remaining-scenario ledger](UX_UI_ACCEPTANCE_LEDGER.md) now distinguishes
 individual native/provider acceptance from the audit-wide final CI gate.

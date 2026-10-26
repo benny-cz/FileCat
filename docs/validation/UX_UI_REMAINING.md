@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated 26 October 2026. [The acceptance ledger](UX_UI_ACCEPTANCE_LEDGER.md)
+Updated 27 October 2026. [The acceptance ledger](UX_UI_ACCEPTANCE_LEDGER.md)
 is the sole authoritative list of required scenarios, their status, tested
 build/environment, evidence and exact closure condition. This file is a
 severity-ordered index of **remaining work only**. Dated passing results and
@@ -10,8 +10,8 @@ accepted equivalent routes stay in
 
 ## Highest priority — S1
 
-- [AC-S1-010](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010): nonlocal virtual-list
-  accessibility in a Windows archive and an Ubuntu delayed SFTP/result list.
+- [AC-S1-010](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010): delayed Ubuntu
+  SFTP/result-list accessibility.
 
 ## S2 and queued defects
 
