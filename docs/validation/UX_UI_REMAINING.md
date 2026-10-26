@@ -48,9 +48,9 @@ increments to `main`.
    presentation and supported external Move/delete-on-paste handling, if
    safely offered. On Mac, the preview list has no AX row children; decide
    whether direct row navigation adds value beyond the tested, spoken
-   Previous/Next full-path navigator. For FCUX-004, exercise the other modal
-   focus and decision routes on each desktop, including actual Orca speech
-   where required.
+   Previous/Next full-path navigator. For FCUX-004, exercise modal focus and
+   decision routes beyond the Ubuntu Copy review's background-command guard,
+   including actual Orca speech where required.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For
    FCUX-006, verify the lossless Settings round-trip in the final CI gate; its

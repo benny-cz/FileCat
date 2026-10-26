@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, exact-head Ubuntu modal command ownership (FCUX-004):**
+The fresh Ubuntu VM Git build of `cff83525` (app SHA-256
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`)
+passed the native AT-SPI Copy-review guard. Its runner now waits for the
+source row and identifies it within the source panel by the complete
+accessible description (`a.txt, file, ...`) rather than the older exact
+name. Background toolbar and key-bar Copy/Delete accessibility actions all
+left one review and its Destination field intact; Cancel closed it, the
+source SHA-256 stayed
+`713e5c5a199714f532fa8992ee58eb3dde1fd2c2a351f8dd53bc37d1e576c395`,
+and the target stayed absent. The guest report is
+`modal-guard-cff83525-r5.json`; no test FileCat process was left running.
+Other modal decisions and actual Orca speech remain open.
+
 **26 October 2026, Mac panel Tab and restored splitter focus (FCUX-010/031):**
 The native AX journey exposed a panel switch that briefly focused the target
 row, then let a late accessibility request move focus to the old panel's Filter

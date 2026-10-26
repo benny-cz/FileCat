@@ -90,10 +90,15 @@ def main():
                              if candidate.get_name() == "FileCat"
                              and matching(candidate, "list", f"Panel 1, source, {source}")), None)
             app = wait_for(get_app, "the isolated FileCat window")
-            row = matching(app, "list item", "a.txt")
-            if len(row) != 1 or not row[0].grab_focus():
-                raise AssertionError("Could not focus the exact source file")
-            wait_for(lambda: row[0].get_state_set().contains(Atspi.StateType.FOCUSED), "source focus")
+            def source_rows():
+                panels = matching(app, "list", f"Panel 1, source, {source}")
+                return [node for node in descendants(panels[0]) if node.get_role_name() == "list item"
+                        and (node.get_name() or "").startswith("a.txt, file,")] if len(panels) == 1 else []
+            row = wait_for(source_rows, "the exact source file")
+            if len(row) != 1:
+                raise AssertionError(f"Expected one exact source row, found {len(row)}")
+            wait_for(lambda: row[0].grab_focus() and
+                     row[0].get_state_set().contains(Atspi.StateType.FOCUSED), "source focus")
             action(matching(app, "button", "Copy…")[0], "Copy command")
             summary = f'Copy "a.txt" ({len(source_file.read_bytes())} bytes)'
             def review_count():
