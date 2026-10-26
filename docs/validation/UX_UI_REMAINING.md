@@ -8,10 +8,10 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Finish Win11 scaled implicit-TLS FTPS and scaled FTP/FTPS spoken routes with
-  NVDA. The restored guest passed native visual/input and both warning-speech
-  checks for FTP, explicit TLS and implicit TLS at 100%; its other FTP/FTPS
-  visual reviews passed at 100%, 150% and 200%.
+- Finish Win11 scaled FTP and explicit-TLS FTPS spoken routes with NVDA. The
+  restored guest passed both warning-speech checks for FTP and explicit TLS
+  at 100%, and for implicit TLS at 100%, 150% and 200%. Its FTP and
+  explicit-TLS FTPS visual reviews passed at 100%, 150% and 200%.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
@@ -46,8 +46,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
-   scaled/spoken FTP/FTPS replacement reviews, including scaled implicit TLS,
-   plus Windows FTPS failure cleanup and FTP failure kinds beyond the native
+   scaled/spoken FTP and explicit-TLS FTPS replacement reviews, plus Windows
+   FTPS failure cleanup and FTP failure kinds beyond the native
    interrupted Copy and Move cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
    provider failures beyond the native destination-content, metadata and

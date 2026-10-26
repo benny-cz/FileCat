@@ -117,7 +117,12 @@ Its speech log contains the complete replacement risk, safer Keep both choice
 and per-item conflict warning; both speech assertions passed. Source and
 target hashes remained unchanged. The passing receipt is
 `ftps-implicit-warning-nvda-2f1f43c9.json` in the guest validation folder.
-Other scales and spoken routes remain open.
+The same native journey passed at 150% (144 DPI) and 200% (192 DPI): both
+warnings were visible and spoken, Keep both cleared the replacement risk,
+Skip preserved the source and destination, and the VM was restored to 100%.
+The guest receipts are `ftps-implicit-warning-nvda-150-2f1f43c9.json` and
+`ftps-implicit-warning-nvda-200-2f1f43c9.json`. Other provider and failure
+routes remain open.
 
 **26 October 2026, Win11 FTP and explicit-TLS FTPS review speech
 (FCUX-001):** The restored VM ran the same native, interactive replacement
