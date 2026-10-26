@@ -1,5 +1,7 @@
 """Owned loopback FTP/FTPS fixture smoke test; no external service is used."""
 
+from __future__ import annotations
+
 import ftplib
 from pathlib import Path
 import re
@@ -77,20 +79,45 @@ def test_server(mode: str) -> None:
                 time.sleep(0.05)
             if mode in ("serve-tls", "serve-implicit-tls"):
                 client = ImplicitFTP if mode == "serve-implicit-tls" else ftplib.FTP_TLS
-                with client(context=ssl._create_unverified_context(), timeout=5) as ftp:
+                certificate = fixture / "owned-ftps-cert.pem"
+                try:
+                    with client(context=ssl.create_default_context(), timeout=5) as untrusted:
+                        untrusted.connect("127.0.0.1", port)
+                        if mode == "serve-tls":
+                            untrusted.auth()
+                except ssl.SSLCertVerificationError:
+                    pass
+                else:
+                    raise AssertionError("An unpinned loopback FTPS certificate was accepted")
+                with client(context=ssl.create_default_context(cafile=str(certificate)), timeout=5) as ftp:
                     ftp.connect("127.0.0.1", port)
                     if mode == "serve-tls":
                         ftp.auth()
                     ftp.login("tester", "secret-pass")
                     ftp.prot_p()
                     assert ftp.nlst() == ["target.txt"]
-                assert (fixture / "owned-ftps-cert.pem").is_file()
+                assert certificate.is_file()
             else:
                 with ftplib.FTP(timeout=5) as ftp:
                     ftp.connect("127.0.0.1", port)
                     ftp.login("tester", "secret-pass")
                     assert ftp.nlst() == ["target.txt"]
             assert (root / "target.txt").read_bytes() == b"owned existing remote content\n"
+            (root / "target.txt").unlink()
+            stage = ".fc-12345678-owned-upload.bin"
+            source = fixture / "source.bin"
+            source.write_bytes(b"owned partial source and more")
+            (root / stage).write_bytes(b"owned partial")
+            receipt = fixture / "inspection.json"
+            command = [sys.executable, str(Path(__file__).with_name("win-ftp-owned-stage.py")),
+                       "inspect-delete" if mode == "serve" else "inspect-delete-tls",
+                       str(port), stage, str(source), str(receipt)]
+            if mode != "serve":
+                command += ["ftpes" if mode == "serve-tls" else "ftps", str(certificate)]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            assert not (root / stage).exists()
+            assert receipt.is_file()
+            assert not list(root.iterdir())
         finally:
             process.terminate()
             try:

@@ -27,8 +27,9 @@ increments to `main`.
    failing lane before declaring the audit complete. Rerun the complete
    final-head gate after the last audit change. Investigate the intermittent
    Ubuntu metadata-demand extra read (CI `40223594897`) and macOS inline
-   Rename focus return to `..` (CI `40226086392`) if either recurs; both
-   exact tests passed 16 isolated reruns and the later full CI run passed.
+   Rename focus return to `..` (CI `40226086392` and `40244855290`) if either
+   recurs on the final head; both exact tests passed 16 isolated reruns, and
+   a later full CI run passed after the new macOS failure.
    Ubuntu App runs `40236905515`, `40238344602` and `40240407805` aborted
    with process exit code 134 after zero reported test failures. The uploaded
    sequence and an isolated VM reproduction identified recursive window-peer
@@ -42,8 +43,8 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
-   Windows FTPS failure cleanup and FTP failure kinds beyond the native
-   interrupted Copy and Move cleanup, Mac FTP/FTPS failure kinds beyond
+   Windows FTP/FTPS failure kinds beyond native interrupted Copy and Move
+   cleanup across all three FTP modes, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
    provider failures beyond the native destination-content, metadata and
    dropped-connection staging checks.

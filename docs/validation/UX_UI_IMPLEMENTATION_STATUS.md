@@ -153,6 +153,23 @@ journal reviewed; the journal closed and the original source hash remained
 unchanged. Both server directories finished empty. Passing guest receipts are
 `ftp-crash-copy-2f1f43c9.json` and `ftp-crash-move-2f1f43c9.json`.
 
+**26 October 2026, Win11 interrupted FTPS Copy and Move (FCUX-001):** The
+test-owned crash fixture now supports explicit and implicit TLS. Its generated
+certificate has a loopback IP subject alternative name; the upload worker
+accepts it for this connection only when its SHA-256 matches the exact fixture
+certificate. The cleanup client verifies that same certificate before
+inspecting and deleting the exact unpublished stage. The loopback fixture
+rejects the untrusted certificate without its pin; its tests passed on Windows
+Python 3.13 and the VM's Python 3.9, and the harness
+built with zero warnings on the host and guest. Native Copy and Move runs for
+both TLS modes each interrupted after 786,432 staged bytes. The recovery row,
+dialog and report named that stage; FileCat left it untouched until explicit
+inspection and deletion, then closed the reviewed journal. The source hash
+remained unchanged and the test server finished empty. Guest receipts are
+`ftpes-crash-copy-2f1f43c9.json`, `ftpes-crash-move-2f1f43c9.json`,
+`ftps-crash-copy-2f1f43c9.json` and `ftps-crash-move-2f1f43c9.json`.
+The updated shared fixture also passed a native plain FTP Copy rerun.
+
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
 bytes. FileCat kept the exact unpublished stage and reported its path in the

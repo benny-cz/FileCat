@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][string]$HarnessPath,
     [Parameter(Mandatory)][string]$PythonHelperPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Copy', 'Move')][string]$Kind = 'Copy'
+    [ValidateSet('Copy', 'Move')][string]$Kind = 'Copy',
+    [ValidateSet('ftp', 'ftpes', 'ftps')][string]$Protocol = 'ftp'
 )
 
 # Interactive Windows VM only. The test owns one loopback FTP server, one
@@ -38,7 +39,9 @@ $data = Join-Path $root 'data'
 $journalDir = Join-Path $data 'local\journal'
 $sourceDir = Join-Path $root 'source'
 $source = Join-Path $sourceDir 'owned-upload.bin'
+$workerError = Join-Path $root 'worker.stderr.txt'
 $ready = Join-Path $root 'server.ready'
+$certificate = Join-Path $root 'owned-ftps-cert.pem'
 $inspectReceipt = Join-Path $root 'stage-inspection.json'
 New-Item -ItemType Directory -Force -Path $serverRoot, $journalDir, $sourceDir | Out-Null
 $bytes = [byte[]]::new(8 * 1024 * 1024)
@@ -50,7 +53,7 @@ $worker = $null
 $appProcess = $null
 $result = [ordered]@{ Passed = $false; Fixture = $root; AppSha256 =
     (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
-    Kind = $Kind; SourceSha256 = $sourceHash; Journal = $null; Stage = $null; StageBytes = 0;
+    Kind = $Kind; Protocol = $Protocol; SourceSha256 = $sourceHash; Journal = $null; Stage = $null; StageBytes = 0;
     StageObservations = @();
     RowHint = $false; DialogHint = $false; ReportHint = $false;
     NoAutomaticRemoteDeletion = $false; ExplicitStageDeletion = $false;
@@ -95,7 +98,8 @@ function JournalOpen([string]$path) {
 }
 
 try {
-    $server = Start-Process -FilePath $python -ArgumentList @($helper, 'serve', $serverRoot, $ready) -PassThru -WindowStyle Hidden
+    $serveMode = switch ($Protocol) { 'ftp' { 'serve' } 'ftpes' { 'serve-tls' } 'ftps' { 'serve-implicit-tls' } }
+    $server = Start-Process -FilePath $python -ArgumentList @($helper, $serveMode, $serverRoot, $ready) -PassThru -WindowStyle Hidden
     $port = Await {
         if ($server.HasExited) { throw 'Owned FTP server exited before readiness.' }
         if (Test-Path -LiteralPath $ready -PathType Leaf) {
@@ -103,9 +107,21 @@ try {
             if ($value -match '^\d+$') { [int]$value }
         }
     } 'loopback FTP readiness'
-    $worker = Start-Process -FilePath $DotnetPath -ArgumentList @($harness, $port, $source, $journalDir, $Kind.ToLowerInvariant()) -PassThru -WindowStyle Hidden
+    $workerArgs = @($harness, $port, $source, $journalDir, $Kind.ToLowerInvariant())
+    if ($Protocol -ne 'ftp') {
+        if (!(Test-Path -LiteralPath $certificate -PathType Leaf)) { throw 'The owned FTPS certificate is missing.' }
+        $fingerprint = (& $python $helper fingerprint $certificate).Trim()
+        if ($LASTEXITCODE -ne 0 -or $fingerprint -notmatch '^[0-9A-F]{64}$') {
+            throw 'The owned FTPS certificate fingerprint is unavailable.'
+        }
+        $workerArgs += @($Protocol, $fingerprint)
+    }
+    $worker = Start-Process -FilePath $DotnetPath -ArgumentList $workerArgs -PassThru -WindowStyle Hidden -RedirectStandardError $workerError
     $stage = Await {
-        if ($worker.HasExited) { throw 'Upload worker exited before a partial remote stage.' }
+        if ($worker.HasExited) {
+            $reason = if (Test-Path -LiteralPath $workerError) { (Get-Content -LiteralPath $workerError -Raw).Trim() } else { '' }
+            throw "Upload worker exited before a partial remote stage: $reason"
+        }
         $seen = @(Get-ChildItem -LiteralPath $serverRoot -File -Force | Where-Object {
             $_.Name.StartsWith('.fc-', [StringComparison]::Ordinal)
         })
@@ -179,13 +195,19 @@ try {
         throw 'Native recovery review omitted the stage identity or changed the remote object.'
     }
 
-    & $python $helper inspect-delete $port $stage.Name $source $inspectReceipt
+    if ($Protocol -eq 'ftp') {
+        & $python $helper inspect-delete $port $stage.Name $source $inspectReceipt
+    } else {
+        & $python $helper inspect-delete-tls $port $stage.Name $source $inspectReceipt $Protocol $certificate
+    }
     if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $inspectReceipt -PathType Leaf)) {
         throw 'The exact remote stage could not be inspected and deleted through FTP.'
     }
     $inspection = Get-Content -LiteralPath $inspectReceipt -Raw | ConvertFrom-Json
     $result.ExplicitStageDeletion = $inspection.stage -eq $stage.Name -and
         $inspection.stage_bytes -eq $result.StageBytes -and
+        $inspection.protocol -eq $Protocol -and
+        ($Protocol -eq 'ftp' -or $inspection.certificate_sha256 -eq $fingerprint) -and
         @($inspection.manifest_after | Where-Object { $_ }).Count -eq 0 -and
         !(Test-Path -LiteralPath $stage.FullName)
     if (!$result.ExplicitStageDeletion) { throw 'Manual FTP cleanup did not remove only the inspected stage.' }
