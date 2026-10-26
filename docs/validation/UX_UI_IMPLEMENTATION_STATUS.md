@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Ubuntu scaled Hex pointer follow-up (UXBUG-020):** A
+temporary GNOME 200% mode let the tracked combined runner reach its exact
+test-owned file after accepting either native accessible row-name form (bare
+filename or filename with metadata). Physical uinput movement then left
+Xwayland's reported cursor jumping between positions and stuck near the
+screen edge; the runner stopped before the scrollbar drag. This reproduces
+the VM input-coordinate limitation seen at temporary 150%, not a product
+scrollbar result. The diagnostic receipt is
+`ubuntu-hex-editor-combined-scale200-20261026-r2.json`. The VM display was
+restored to 100% and cleanly restarted. The same revised runner then passed
+the full viewer/editor physical thumb, explicit selection, Find, resize and
+zoom journey on the Git-built `df449513` app. The viewer thumb reached byte
+2,424 and returned to zero; the editor reached byte 2,544 and returned to
+zero, without accidental selection. Source bytes and empty target were
+verified; receipt `ubuntu-hex-editor-combined-after-reboot-20261026-r1.json`.
+Stable scaled-session physical-pointer acceptance remains open.
+
 **26 October 2026, Windows scaled Hex editor and viewer (UXBUG-020):** The
 isolated Win11 VM selected 150% (144 DPI) and 200% (192 DPI) through the
 native Display Settings control. At each scale, the tracked

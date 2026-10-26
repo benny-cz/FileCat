@@ -315,7 +315,8 @@ def run(app_path):
             try:
                 row = wait_for(lambda: next((node for node in descendants(listing)
                                              if node.get_role_name() == "list item"
-                                             and (node.get_name() or "").startswith(NAME + ", file,")), None),
+                                             and ((node.get_name() or "") == NAME or
+                                                  (node.get_name() or "").startswith(NAME + ", file,"))), None),
                                "load the exact Hex resize fixture")
             except AssertionError as error:
                 visible = [(node.get_role_name(), node.get_name())

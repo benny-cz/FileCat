@@ -109,9 +109,10 @@ increments to `main`.
    upstream if the owner agrees.
    UXBUG-020 still needs a stable scaled Ubuntu session with matching
    compositor, Xwayland and physical uinput pointer coordinates; the
-   temporary 150% GNOME mode leaves Xwayland's reported cursor detached from
-   physical uinput. Recheck the full native scrollbar journey after a stable
-   scaled login; VMware guest auto-sizing currently restores 100% on reboot.
+   temporary 150% and 200% GNOME modes leave Xwayland's reported cursor
+   detached from physical uinput. Recheck the full native scrollbar journey
+   after a stable scaled login; VMware guest auto-sizing currently restores
+   100% on reboot.
    Finish combined Hex editor search, selection, scroll, zoom and pointer
    alignment while resizing in a stable scaled Ubuntu context. Native
    Ubuntu at 100%, Windows at 100%, 150% and 200%, and Mac at 1× and Retina
