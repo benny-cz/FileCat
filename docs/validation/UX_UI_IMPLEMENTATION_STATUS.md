@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, macOS checksum generation CI (FCUX-004/008):** The
+`64fdac75` macOS App lane had one failure among 2,547 cases: the
+`ChecksumDialogGenerationTests` worker did not post its held continuation
+within 20 seconds for the Replace/SHA-512 case. The test had used a
+`FileShare.None` handle to force a read error on every desktop, while FileCat's
+Unix checksum reader uses a native regular-file open with different sharing
+semantics. The generation test now keeps the real file-error route on Windows
+and a real successful worker completion on Unix; both must be ignored after
+replacement or closure, and the separate read-failure suite still tests
+errors. The 20-second guard remains. All six revised cases passed on the
+isolated Mac (`mac-checksum-generation-8508db4b.log`) and Windows VM
+(`.local-win-checksum-generation-r1.json`). The four separate Mac
+`ChecksumDialogReadFailureTests` also passed
+(`mac-checksum-read-failure-8508db4b.log`). Full five-lane CI on the revised
+head is pending.
+
 **26 October 2026, actual muted Mac VoiceOver viewer Find (FCUX-007):**
 The tracked `mac-voiceover-list.py` now has a `--viewer-find` journey. The
 isolated Mac published a directly signed ARM64 app from exact Git revision

@@ -20,7 +20,7 @@ public sealed class ChecksumDialogGenerationTests
     [InlineData("close", 4)]
     [InlineData("complete", 1)]
     [InlineData("complete", 4)]
-    public async Task Checksum_file_error_completion_belongs_to_its_current_dialog(string action, int algorithmIndex)
+    public async Task Checksum_worker_completion_belongs_to_its_current_dialog(string action, int algorithmIndex)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         Task? dialog = null;
@@ -42,7 +42,13 @@ public sealed class ChecksumDialogGenerationTests
             await Until(() => !progress.IsVisible && save.IsEnabled, TimeSpan.FromSeconds(5));
             string sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
             Assert.Equal($"{sha256}  owned-generation.bin", output.Text);
-            if (action != "complete") exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            // Windows rejects the worker's read immediately, exercising a stale file error.
+            // Unix sharing and the native regular-file reader have different semantics;
+            // this handle is not a portable way to force a bounded read failure. The
+            // successful Unix worker still exercises generation ownership, while read
+            // errors have their own deterministic fixture.
+            if (action != "complete" && OperatingSystem.IsWindows())
+                exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             var context = Assert.IsAssignableFrom<SynchronizationContext>(SynchronizationContext.Current);
             held = new HoldingContext(context);
             SynchronizationContext.SetSynchronizationContext(held);
@@ -74,7 +80,7 @@ public sealed class ChecksumDialogGenerationTests
                 AsyncClickStarted = held.Started, AsyncClickCompleted = held.Completed, HeldWorkerContinuationsReleased = held.Released,
                 OwnedContentUnchanged = unchanged, OwnedBytes = bytes.Length,
                 ExpectedSHA256 = sha256, ExpectedSelectedHash = Convert.ToHexStringLower(algorithmIndex == 1 ? SHA512.HashData(bytes) : MD5.HashData(bytes)),
-                ActualCompleteDialogAndFileShareNoneWorkerError = action != "complete",
+                ActualCompleteDialogAndFileShareNoneWorkerError = action != "complete" && OperatingSystem.IsWindows(),
                 OnlyActualUIContinuationHeldRealWorkerNotReplaced = true, HeadlessComponentOnly = true
             }));
             Assert.True(unchanged);
