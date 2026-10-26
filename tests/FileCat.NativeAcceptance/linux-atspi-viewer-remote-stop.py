@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise native Find ownership and Stop over a test-owned loopback SFTP file.
 
-Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error]
+Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error|--checksum-revision]
 Run as the logged-in Ubuntu user with FILECAT_NATIVE_SUDO_PASSWORD and
 FILECAT_NATIVE_SFTP_PASSWORD set for this isolated VM. No server files outside
 the new FileCatValidation fixture are changed. --orca-error requires actual
@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -40,11 +41,11 @@ LENGTH = 2 * 1024 * 1024 * 1024
 NAME = "remote-search.bin"
 
 
-def intact(path):
-    if path.stat().st_size != LENGTH:
+def intact(path, length=LENGTH):
+    if path.stat().st_size != length:
         return False
     with path.open("rb") as source:
-        for offset in (0, LENGTH // 2, LENGTH - 32):
+        for offset in (0, length // 2, length - 32):
             source.seek(offset)
             if source.read(32) != bytes(32):
                 return False
@@ -63,10 +64,14 @@ def search_retired(viewer, retired_query):
 
 
 def send_enter(key_helper, password):
-    sent = subprocess.run(["sudo", "-S", "/usr/bin/python3", str(key_helper), "enter"],
+    send_key(key_helper, password, "enter")
+
+
+def send_key(key_helper, password, chord):
+    sent = subprocess.run(["sudo", "-S", "/usr/bin/python3", str(key_helper), chord],
                           input=password + "\n", capture_output=True, text=True, timeout=15)
     if sent.returncode:
-        raise AssertionError(f"The isolated native Enter input failed: {sent.stderr[-300:]}")
+        raise AssertionError(f"The isolated native {chord} input failed: {sent.stderr[-300:]}")
 
 
 def expect_stop(viewer, description):
@@ -91,7 +96,8 @@ def hear(speech, orca, fragment, description):
     raise AssertionError(f"Orca did not speak {description}: {heard[:25]!r}; log={speech.path}")
 
 
-def run(app_path, key_helper, sudo_password, sftp_password, orca_error):
+def run(app_path, key_helper, sudo_password, sftp_password, orca_error,
+        checksum_revision):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -99,13 +105,14 @@ def run(app_path, key_helper, sudo_password, sftp_password, orca_error):
             key_helper != HERE / "linux-uinput-key.py":
         raise AssertionError("Use the Git-built app and tracked key helper in the isolated VM")
     root = validation / "SearchStopRemote" / uuid4().hex
+    length = 256 * 1024 * 1024 if checksum_revision else LENGTH
     server, local, data = (root / name for name in ("server", "local", "data"))
     for folder in (server, local, data):
         folder.mkdir(parents=True)
     source = server / NAME
     with source.open("xb") as output:
-        output.truncate(LENGTH)
-    if not intact(source):
+        output.truncate(length)
+    if not intact(source, length):
         raise AssertionError("The owned sparse SFTP fixture is invalid")
     address = f"sftp://benny@127.0.0.1{server}/"
     title = f"{NAME} — FileCat Viewer"
@@ -178,6 +185,49 @@ def run(app_path, key_helper, sudo_password, sftp_password, orca_error):
         action(wait_for(lambda: next(iter(matching(app, "button", "View")), None),
                         "View command"), "View command")
         viewer = wait_for(lambda: find(app, "frame", title), "native SFTP viewer", seconds=40)
+        if checksum_revision:
+            checksum_helpers = runpy.run_path(str(HERE / "linux-atspi-viewer-checksum.py"))
+            result_text = checksum_helpers["result_text"]
+            send_key(key_helper, sudo_password, "ctrl+k")
+            action(wait_for(lambda: visible(viewer, "button", "Compute"),
+                            "checksum Compute"), "checksum Compute")
+            def positive_progress():
+                current = result_text(viewer)
+                match = re.search(r"Computing whole file, ([\d,]+) of ([\d,]+) bytes read", current)
+                return int(match.group(1).replace(",", "")) if match and int(
+                    match.group(1).replace(",", "")) > 0 else None
+            progress = wait_for(positive_progress, "checksum read progress", seconds=30)
+            original = source.stat()
+            with source.open("r+b") as changing:
+                changing.write(b"R")
+                changing.seek(length - 1)
+                changing.write(b"Z")
+            os.utime(source, ns=(original.st_atime_ns, original.st_mtime_ns + 5_000_000_000))
+            try:
+                refused = wait_for(lambda: value if (
+                                   "source changed while computing" in (value := result_text(viewer)).casefold()
+                                   or "The file changed. Open Checksum again" in value) else None,
+                                   "changed-revision checksum refusal", seconds=60)
+            except AssertionError as error:
+                raise AssertionError(f"{error}; last checksum result={result_text(viewer)!r}") from error
+            wait_for(lambda: visible(viewer, "button", "Stop checksum") is None,
+                     "changed checksum request to retire", seconds=30)
+            if "SHA-256:" in refused or "CRC-32:" in refused:
+                raise AssertionError("A checksum of mixed remote content was published")
+            copy = visible(viewer, "button", "Copy results")
+            if copy is None or copy.get_state_set().contains(Atspi.StateType.ENABLED):
+                raise AssertionError("A changed source left Copy results enabled")
+            with source.open("rb") as changed:
+                if changed.read(1) != b"R" or changed.seek(length - 1) != length - 1 or \
+                        changed.read(1) != b"Z":
+                    raise AssertionError("The test-owned remote fixture did not retain the exact change")
+            if sorted(path.name for path in server.iterdir()) != [NAME]:
+                raise AssertionError("Checksum route published a new remote file")
+            return {"passed": True, "build": hashlib.sha256((app_path.parent / "FileCat.dll").read_bytes()).hexdigest(),
+                    "source": str(source), "sourceLength": length, "address": address,
+                    "positiveReadProgress": progress, "changedRevisionRefusal": refused,
+                    "mixedDigestPublished": False, "copyEnabled": False,
+                    "nativeBackend": "Ubuntu Wayland AT-SPI over loopback OpenSSH SFTP"}
         action(wait_for(lambda: visible(viewer, "toggle button", "Text"), "Text mode"),
                "Text mode")
         wait_for(lambda: visible(viewer, "label", "Mode: Text"), "Text mode status")
@@ -276,9 +326,12 @@ def run(app_path, key_helper, sudo_password, sftp_password, orca_error):
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] != "--orca-error":
-        raise SystemExit("Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error]")
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] not in (
+            "--orca-error", "--checksum-revision"):
+        raise SystemExit("Usage: linux-atspi-viewer-remote-stop.py APP REPORT.json UINPUT_KEY_HELPER [--orca-error|--checksum-revision]")
     orca_error = len(sys.argv) == 5
+    checksum_revision = orca_error and sys.argv[4] == "--checksum-revision"
+    orca_error = orca_error and sys.argv[4] == "--orca-error"
     report = Path(sys.argv[2])
     if report.parent.resolve() != (Path.home() / "FileCatValidation").resolve(strict=True):
         raise SystemExit("Write the report directly below FileCatValidation")
@@ -288,7 +341,7 @@ def main():
         raise SystemExit("The isolated input and SFTP fixture credentials are required")
     try:
         result = run(Path(sys.argv[1]), Path(sys.argv[3]), sudo_password, sftp_password,
-                     orca_error)
+                     orca_error, checksum_revision)
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

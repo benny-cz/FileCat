@@ -15,6 +15,36 @@ later unflushed fixture failure do not supersede the 26 October `663b6fdd`
 fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
 reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-checksum-length-only-20261026"></a>
+**26 October 2026, checksum length-only evidence (FCUX-008):** Git head
+`d1a989d3` qualifies a computed checksum when its content source supplies
+only length and no modification time: the selectable result now says that
+only file length was compared and source consistency could not be verified.
+This avoids presenting a zero-time content revision as evidence of unchanged
+bytes. The focused `ViewerChecksumScopeTests` passed 18/18 in the Windows
+Release headless UI at up to 16 workers, including a new 480 × 300 result
+with complete SHA-256, unchanged clipboard and the precise qualification.
+The native narrow weak-revision display remains AC-S1-008.
+
+<a id="evidence-sftp-checksum-change-20261026"></a>
+**26 October 2026, real SFTP checksum revision change (FCUX-008):** On Git
+build `705d4f0d`, the Ubuntu Wayland AT-SPI route opened a test-owned
+256 MiB sparse file through loopback OpenSSH SFTP. After the visible whole-file
+checksum showed 25 MiB read, the fixture changed its first and final bytes
+without changing length and advanced its modification time by five seconds.
+The live change monitor showed “The file changed. Open Checksum again to
+review the current scope before computing.” The request retired, neither
+SHA-256 nor CRC-32 was published, and Copy results stayed disabled. The two
+changed bytes remained exact and no new remote file appeared. This is a
+justified equivalent refusal to the checksum worker's own “source changed
+while computing” result; both prevent a mixed digest. The passing receipt is
+`/home/benny/FileCatValidation/ac-s1-008-sftp-revision-refusal-705d4f0d.json`
+in the isolated guest; the tracked
+[`--checksum-revision` native route](../../tests/FileCat.NativeAcceptance/linux-atspi-viewer-remote-stop.py)
+reproduces it. Two earlier larger/overstrict diagnostic attempts timed out;
+they are not passing evidence. The no-strong-revision narrow result remains
+AC-S1-008.
+
 <a id="evidence-sftp-search-spoken-20261026"></a>
 **26 October 2026, native spoken remote search completion (FCUX-007):** On the
 same Git-built `705d4f0d` Ubuntu Wayland/OpenSSH SFTP app, a distinct
