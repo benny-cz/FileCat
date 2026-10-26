@@ -8,11 +8,9 @@ increments to `main`.
 
 ## Open prerequisites
 
-- Resolve the macOS 26 CI `FileCat.Remote.Tests` testhost exit 134 seen on
-  `be7b2a30` after its result file reported 2,595 passed and no test failures.
-  A Mac 27 native rerun with the same pinned SDK passed 2,604/30 skipped;
-  require a green replacement macOS 26 lane and capture the crash sequence if
-  it recurs.
+- Require the complete macOS 26 CI lane and all other platform lanes on the
+  final Git head. Its Remote step passed on `9a500635`; if the earlier
+  FTPES dropped-connection hang recurs, investigate that specific case.
 - Finish Mac visual layout checks for other dialogs and their unverified
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the desktop session. Direct macOS AX now reads
@@ -69,8 +67,8 @@ increments to `main`.
    structured editor extension is tracked with FCUX-036.
    For FCUX-007, finish other scaled layouts with real pointer and keyboard
    input and the remaining assistive-technology routes. Visible Stop passed
-   Windows Hex/Text at 100%, 150% and 200% and Ubuntu Hex/Text at 100% and
-   200%; test other modes, providers and Ubuntu 150%,
+   Windows Hex/Text at 100%, 150% and 200% and Ubuntu Hex/Text at 100%,
+   150% and 200%; test other modes and providers,
    changed-query ownership on other routes, cancellation over live remote
    connections, native spoken provider-error
    outcomes on Windows and spoken provider errors on Ubuntu and Mac. Ubuntu
@@ -81,9 +79,8 @@ increments to `main`.
    Text views at 100%/200%.
    For FCUX-008, test native incomplete reads on local and remote providers,
    mid-read changes on the remaining desktop and provider routes, minimum-size
-   layouts beyond the validated Ubuntu 100%/200% and Windows 100%/150%/200%
-   checksum runs, and a stable Ubuntu 150% scale run after VMware's automatic
-   resolution reset is controlled. For FCUX-009, the Ubuntu
+   layouts beyond the validated Ubuntu 100%/150%/200% and Windows
+   100%/150%/200% checksum runs. For FCUX-009, the Ubuntu
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken
    automation on the supported desktops. For FCUX-010, verify VoiceOver's
