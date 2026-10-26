@@ -70,15 +70,25 @@ public sealed class ViewerChecksumScopeTests
         Assert.Equal(result, await f.ClipboardText());
     }
 
-    [AvaloniaFact]
-    public async Task Narrow_checksum_result_stays_inside_viewer_and_grows_when_window_expands()
+    [AvaloniaTheory]
+    [InlineData(720, 300)]
+    [InlineData(720, 500)]
+    [InlineData(480, 300)]
+    [InlineData(480, 500)]
+    public async Task Narrow_checksum_result_stays_inside_viewer_and_grows_when_window_expands(int width, int height)
     {
-        using var f = await Fixture.Create([0, 1, 2, 3, 4], width: 720, height: 500);
+        using var f = await Fixture.Create([0, 1, 2, 3, 4], width: width, height: height);
         f.Show();
         await f.Compute();
         var result = Field<TextBox>(f.Viewer, "_checksumResult");
-        var close = Field<Button>(f.Viewer, "_copyChecksum");
+        var copyButton = Field<Button>(f.Viewer, "_copyChecksum");
         Assert.Contains("SHA-256:", f.Result);
+        Assert.Contains("content.bin", AutomationProperties.GetHelpText(f.Scope));
+        if (width == 480 && height == 300)
+        {
+            Assert.False(Field<TextBlock>(f.Viewer, "_checksumHeading").IsVisible);
+            Assert.False(Field<TextBlock>(f.Viewer, "_checksumSourceName").IsVisible);
+        }
 
         void InsideViewer(Control control)
         {
@@ -91,13 +101,13 @@ public sealed class ViewerChecksumScopeTests
         }
 
         InsideViewer(result);
-        InsideViewer(close);
+        InsideViewer(copyButton);
         double narrowMaxHeight = result.MaxHeight;
         f.Viewer.Height = 850;
         InsideViewer(result);
         Assert.True(result.MaxHeight > narrowMaxHeight,
             $"Result max height stayed {result.MaxHeight} after viewer grew to {f.Viewer.Bounds.Height}");
-        f.Viewer.Height = 500;
+        f.Viewer.Height = height;
         InsideViewer(result);
         Assert.Equal(narrowMaxHeight, result.MaxHeight);
         result.SelectAll();

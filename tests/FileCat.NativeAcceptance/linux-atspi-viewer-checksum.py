@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a Git-built Ubuntu Hex viewer's checksum scope and clipboard.
 
-Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER [--stale-scope|--narrow]
+Usage: linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER [--stale-scope|--narrow|--minimum]
 Run in the logged-in desktop session with AT-SPI and a guest-only uinput key helper.
 """
 
@@ -117,7 +117,7 @@ def checksum(viewer, helper, scope, content, measure=False):
     return {"scope": scope, "result": result, "copiedExactly": True, "layout": layout}
 
 
-def run(app_path, helper, stale_scope=False, narrow=False):
+def run(app_path, helper, stale_scope=False, narrow=False, minimum=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     helper = helper.resolve(strict=True)
@@ -165,14 +165,15 @@ def run(app_path, helper, stale_scope=False, narrow=False):
             # Hex mode is selected automatically for the leading zero byte.
             wait_for(lambda: find(viewer, "label", "Mode: Hex"), "Hex mode")
             geometry = None
-            if narrow:
+            if narrow or minimum:
                 scale_info = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
                                             text=True, check=True, timeout=5).stdout
                 match = re.search(r"\bScale: ([0-9.]+)", scale_info)
                 scale = float(match.group(1)) if match else None
                 assert scale in (1.0, 1.5, 2.0), f"Expected the test VM's 100%, 150% or 200% scale, got {scale}"
                 window_id = viewer_window_id(title, process.pid)
-                physical_size = [round(720 * scale), round(500 * scale)]
+                logical_size = (480, 300) if minimum else (720, 500)
+                physical_size = [round(logical_size[0] * scale), round(logical_size[1] * scale)]
                 subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
                                 f"0,150,100,{physical_size[0]},{physical_size[1]}"], check=True, timeout=5)
                 subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
@@ -196,7 +197,7 @@ def run(app_path, helper, stale_scope=False, narrow=False):
             choices = [node.get_name() for node in descendants(viewer)
                        if "Selected range" in (node.get_name() or "")]
             assert choices, "The one-byte selection is absent from checksum scope"
-            if narrow:
+            if narrow or minimum:
                 geometry["selectedScope"] = visible_controls(viewer)
             if stale_scope:
                 before = fixture.stat()
@@ -221,9 +222,9 @@ def run(app_path, helper, stale_scope=False, narrow=False):
                         "staleScope": {"refusal": refused, "copyDisabled": True,
                                        "clipboardUnchanged": True, "sourceBytesRestored": True}}
             action(viewer, "Close checksums")
-            selected = checksum(viewer, helper, "selected range 0x0–0x0", CONTENT[:1], measure=narrow)
+            selected = checksum(viewer, helper, "selected range 0x0–0x0", CONTENT[:1], measure=narrow or minimum)
             send_key(helper, "right")
-            whole = checksum(viewer, helper, "whole file", CONTENT, measure=narrow)
+            whole = checksum(viewer, helper, "whole file", CONTENT, measure=narrow or minimum)
             assert fixture.read_bytes() == CONTENT and not list(target.iterdir()), "Checksum changed fixture bytes"
             with app_path.open("rb") as binary:
                 app_hash = hashlib.file_digest(binary, "sha256").hexdigest()
@@ -252,13 +253,13 @@ def run(app_path, helper, stale_scope=False, narrow=False):
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] not in ("--stale-scope", "--narrow")):
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] not in ("--stale-scope", "--narrow", "--minimum")):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
     try:
         mode = sys.argv[4] if len(sys.argv) == 5 else ""
         result = run(Path(sys.argv[1]), Path(sys.argv[3]), stale_scope=mode == "--stale-scope",
-                     narrow=mode == "--narrow")
+                     narrow=mode == "--narrow", minimum=mode == "--minimum")
     except Exception as error:
         result = {"passed": False, "error": f"{type(error).__name__}: {error}"}
     report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

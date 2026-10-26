@@ -95,6 +95,24 @@ source bytes and in-frame bounds for all checksum controls. Guest receipt:
 1280 × 800 at 100%. Stable 150% native validation and other provider failure
 routes remain open.
 
+**26 October 2026, minimum-size checksum follow-up (FCUX-008):** A new
+300-pixel-height headless case exposed that the checksum result still crossed
+the bottom edge; at 480 × 300, the wrapped action row pushed it completely
+out of view. The result now contracts to a scrollable 40-pixel minimum. At
+minimum width and height, the duplicate heading and source caption collapse;
+the viewer title and complete selectable result retain source identity, and
+the scope control exposes the source as accessible help text. Four headless
+width/height combinations (480/720 × 300/500) pass, including expansion and
+restoration. A fresh Ubuntu Git build with DLL SHA-256
+`98a89f32e5a83ea5f5eacd3f03947bd5f5167849bf5c91d1dd24be5df6b22561`
+then passed the native 480 × 300 viewer at 100%: one-byte and whole-file
+hashes, exact read counts, explicit clipboard Copy, every checksum control
+inside the measured frame and unchanged source bytes. Guest receipt:
+`checksum-minimum-100-fixed.json`. The Windows Release App suite before this
+minimum-size refinement passed 2,490 tests with 63 platform skips; the
+refined four-case layout test passed afterward. Other native scales and
+provider failure routes remain open.
+
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
 The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the
 Git-built `cff83525` app (SHA-256
@@ -118,7 +136,11 @@ passed at stable 100% scale: `alpha` showed `1 match`, Previous/Next and
 physical F3/Shift+F3 returned the correct directional boundary messages, the
 count stayed visible, both source files retained their exact bytes, and the
 viewer closed. The measured native frame was 720 × 500, with every search
-control inside it. Guest receipt: `text-find-narrow-100-current.json`.
+control inside it. A repeat then changed the query to `beta`: the old
+`1 match` count retired, a fresh Find reported `0 matches` and the correct
+no-later-match message, and the fixture stayed byte-exact. Guest receipts:
+`text-find-narrow-100-current.json` and
+`text-find-narrow-query-100-current.json`.
 Remote-backed, other scale and spoken provider-error/Stop routes remain open.
 
 **26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**

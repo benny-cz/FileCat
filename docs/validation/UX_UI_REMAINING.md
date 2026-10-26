@@ -69,8 +69,8 @@ increments to `main`.
    results and count completeness, including remote-backed searches and narrow
    viewer searches beyond the tested Ubuntu 720 × 500 Text view.
    For FCUX-008, test native incomplete reads on local and remote providers,
-   mid-read changes on the remaining desktop and provider routes, and other
-   narrow-layout states, including a stable Ubuntu 150% scale run after
+   mid-read changes on the remaining desktop and provider routes, other
+   minimum-size desktop layouts, and a stable Ubuntu 150% scale run after
    VMware's automatic resolution reset is controlled. For FCUX-009, the Ubuntu
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken

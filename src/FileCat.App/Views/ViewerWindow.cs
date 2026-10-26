@@ -116,7 +116,10 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _checksumCts;
     private readonly Border _checksumPanel = new() { IsVisible = false, Padding = new Thickness(10), Classes = { "banner" } };
     private readonly ComboBox _checksumScope = new() { MinWidth = 230 };
-    private readonly TextBox _checksumResult = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, MaxHeight = 190 };
+    private readonly TextBox _checksumResult = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 40, MaxHeight = 190 };
+    private readonly TextBlock _checksumHeading = new() { Text = "Checksums", FontWeight = FontWeight.SemiBold };
+    private readonly TextBlock _checksumSourceName = new() { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2 };
+    private readonly StackPanel _checksumBody = new() { Spacing = 6 };
     private readonly Button _computeChecksum = new() { Content = "Compute" };
     private readonly Button _copyChecksum = new() { Content = "Copy results", IsEnabled = false };
     private readonly Button _stopChecksum = new() { Content = "Stop checksum", IsVisible = false };
@@ -226,7 +229,15 @@ public sealed class ViewerWindow : Window
             // The docked checksum result must leave room for the toolbar,
             // source/scope controls and status at narrow viewer heights.
             // Its TextBox remains scrollable and grows again with the window.
-            _checksumResult.MaxHeight = Math.Clamp(args.NewSize.Height * 0.24, 80, 190);
+            _checksumResult.MaxHeight = Math.Clamp((args.NewSize.Height - 300) * 0.4 + 40, 40, 190);
+            // At the minimum viewer size, the file is already named in the
+            // window title and in the result. Reclaim its duplicate heading
+            // so two wrapped rows of actions and the result all stay usable.
+            bool compactChecksum = args.NewSize.Width <= 520 && args.NewSize.Height <= 360;
+            _checksumHeading.IsVisible = !compactChecksum;
+            _checksumSourceName.IsVisible = !compactChecksum;
+            _checksumBody.Spacing = compactChecksum ? 2 : 6;
+            _checksumPanel.Padding = compactChecksum ? new Thickness(4) : new Thickness(10);
             if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
                 !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
             _normalSizePending = true;
@@ -1965,19 +1976,14 @@ public sealed class ViewerWindow : Window
             _checksumResult.Text = "Choose the scope, then Compute. Results stay here until you change the scope or close this panel.";
         };
         var controls = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { _checksumScope, _computeChecksum, _stopChecksum, _copyChecksum, close } };
-        var sourceName = new TextBlock { Text = Formatters.SafeName(_displayName), TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2 };
-        ToolTip.SetTip(sourceName, Formatters.SafeName(_displayName));
-        _checksumPanel.Child = new StackPanel
-        {
-            Spacing = 6,
-            Children =
-            {
-                new TextBlock { Text = "Checksums", FontWeight = FontWeight.SemiBold },
-                sourceName,
-                controls,
-                _checksumResult,
-            },
-        };
+        _checksumSourceName.Text = Formatters.SafeName(_displayName);
+        ToolTip.SetTip(_checksumSourceName, Formatters.SafeName(_displayName));
+        Avalonia.Automation.AutomationProperties.SetHelpText(_checksumScope, $"Source: {Formatters.SafeName(_displayName)}");
+        _checksumBody.Children.Add(_checksumHeading);
+        _checksumBody.Children.Add(_checksumSourceName);
+        _checksumBody.Children.Add(controls);
+        _checksumBody.Children.Add(_checksumResult);
+        _checksumPanel.Child = _checksumBody;
     }
 
     /// <summary>The panel captures the selected range and exposes whole file as an explicit alternative.</summary>

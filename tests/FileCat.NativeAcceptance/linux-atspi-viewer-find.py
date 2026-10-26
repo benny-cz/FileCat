@@ -172,6 +172,15 @@ def run(source, helper=None, narrow=False):
                      "the physical Shift+F3 no-earlier-match result")
             if find(viewer, "label", "1 match") is None:
                 raise AssertionError("The exact count vanished after physical-key search")
+        if not entry.set_text_contents("beta"):
+            raise AssertionError("AT-SPI could not replace the Find query")
+        wait_for(lambda: find(viewer, "label", "1 match") is None,
+                 "the old query count to retire")
+        checked_action(find(viewer, "button", "Find next match"), "Find Next for changed query")
+        wait_for(lambda: find(viewer, "label", '"beta" was not found after this position.'),
+                 "the new query's no-match result")
+        wait_for(lambda: find(viewer, "label", "0 matches"),
+                 "the new query's exact zero count")
     finally:
         close_viewer(app, title, expected_pid)
 
@@ -181,6 +190,7 @@ def run(source, helper=None, narrow=False):
             "query": "alpha", "visibleMatchStatus": "1 match",
             "previousReportedNoEarlierMatch": True, "sourceBytesUnchanged": True,
             "viewerClosed": True, "physicalF3AndShiftF3Verified": helper is not None,
+            "changedQueryRetiredOldCount": True, "changedQueryVisibleMatchStatus": "0 matches",
             "geometry": geometry}
 
 
