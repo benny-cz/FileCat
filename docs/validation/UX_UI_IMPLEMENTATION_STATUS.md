@@ -133,8 +133,14 @@ and safer Keep both choice, cleared the warning for Keep both, then displayed
 and spoke the per-item conflict warning before Skip. The existing remote
 target and local source hashes remained unchanged. Passing guest receipts are
 `ftp-warning-nvda-2f1f43c9.json` and
-`ftpes-warning-nvda-2f1f43c9.json`. Scaled spoken routes and failure cleanup
-remain open.
+`ftpes-warning-nvda-2f1f43c9.json`. The same two journeys passed at 150%
+(144 DPI) and 200% (192 DPI), including both NVDA speech assertions,
+certificate review for explicit TLS, Keep both, per-item Skip and unchanged
+source/target hashes. Guest receipts are `ftp-warning-nvda-150-2f1f43c9.json`,
+`ftp-warning-nvda-200-2f1f43c9.json`,
+`ftpes-warning-nvda-150-2f1f43c9.json` and
+`ftpes-warning-nvda-200-2f1f43c9.json`. The VM was restored to 100%.
+Other failure and provider routes remain open.
 
 **26 October 2026, Win11 interrupted FTP Copy and Move (FCUX-001):** The
 restored VM built the Git crash harness and interrupted separate owned FTP
