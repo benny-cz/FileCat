@@ -136,7 +136,7 @@ public sealed class PanelViewportLayoutTests
             Assert.Equal(4, vm.Workspace.Panels.Count);
             var views = window.GetVisualDescendants().OfType<PanelView>().ToArray();
             Assert.Equal(4, views.Length);
-            foreach (var theme in new[] { "Classic", "Cyberpunk" })
+            foreach (var theme in new[] { "Classic", "Cyberpunk", "Psychedelic" })
             {
                 ThemeManager.Apply(theme);
                 window.CaptureRenderedFrame()?.Dispose();
