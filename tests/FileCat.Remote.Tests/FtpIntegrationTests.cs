@@ -52,10 +52,14 @@ internal sealed class TestFtpServer : IDisposable
         else:
             from pyftpdlib.handlers import FTPHandler as Handler
         late_name = os.environ.get("FILECAT_FTP_MUTATE_RNFR")
-        if late_name:
+        fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_BACKUP_RNTO")
+        publish_fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_STAGE_RNTO")
+        cleanup_fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_BACKUP_DELE")
+        if late_name or fail_name or publish_fail_name or cleanup_fail_name:
             BaseHandler = Handler
             class Handler(BaseHandler):
                 mutated = False
+                failed = False
                 def ftp_RNFR(self, path):
                     # Change exactly the owned destination after the client's
                     # final content check but before the server moves it aside.
@@ -67,6 +71,37 @@ internal sealed class TestFtpServer : IDisposable
                         os.utime(path, ns=(original.st_atime_ns, original.st_mtime_ns))
                         Handler.mutated = True
                     return super().ftp_RNFR(path)
+                def ftp_RNTO(self, path):
+                    source = self._rnfr
+                    if (fail_name and not Handler.failed and source and
+                            os.path.basename(source) == fail_name and
+                            os.path.basename(path).startswith(".fc-") and
+                            self.fs.validpath(source) and self.fs.validpath(path)):
+                        self._rnfr = None
+                        self.run_as_current_user(self.fs.rename, source, path)
+                        Handler.failed = True
+                        self.respond("451 Rename result cannot be confirmed.")
+                        return (source, path)
+                    if (publish_fail_name and not Handler.failed and source and
+                            os.path.basename(source).startswith(".fc-") and
+                            os.path.basename(path) == publish_fail_name and
+                            self.fs.validpath(source) and self.fs.validpath(path)):
+                        self._rnfr = None
+                        self.run_as_current_user(self.fs.rename, source, path)
+                        Handler.failed = True
+                        self.respond("451 Publication result cannot be confirmed.")
+                        return (source, path)
+                    return super().ftp_RNTO(path)
+                def ftp_DELE(self, path):
+                    if (cleanup_fail_name and not Handler.failed and
+                            os.path.basename(path).startswith(".fc-") and
+                            os.path.isfile(os.path.join(root, cleanup_fail_name)) and
+                            self.fs.validpath(path)):
+                        self.run_as_current_user(self.fs.remove, path)
+                        Handler.failed = True
+                        self.respond("451 Backup cleanup result cannot be confirmed.")
+                        return path
+                    return super().ftp_DELE(path)
         Handler.authorizer = auth
         Handler.use_gmt_times = True
         # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
@@ -100,11 +135,18 @@ internal sealed class TestFtpServer : IDisposable
     /// <param name="certificatePem">A PEM certificate with its key: explicit TLS (AUTH TLS) is then required.</param>
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
-        string? mutateOnRename = null)
+        string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
+        string? failAfterBackupCleanup = null)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
             throw new ArgumentException("Only the owned late.bin fixture may be changed during rename.", nameof(mutateOnRename));
+        if (failAfterBackupRename is not null && failAfterBackupRename != "ambiguous.bin")
+            throw new ArgumentException("Only the owned ambiguous.bin fixture may receive an ambiguous backup rename result.", nameof(failAfterBackupRename));
+        if (failAfterStagePublish is not null && failAfterStagePublish != "ambiguous.bin")
+            throw new ArgumentException("Only the owned ambiguous.bin fixture may receive an ambiguous publication result.", nameof(failAfterStagePublish));
+        if (failAfterBackupCleanup is not null && failAfterBackupCleanup != "ambiguous.bin")
+            throw new ArgumentException("Only the owned ambiguous.bin fixture may receive an ambiguous cleanup result.", nameof(failAfterBackupCleanup));
         if (Python() is not { } python) return null;
         var dir = Path.Combine(Path.GetTempPath(), "filecat-ftp-tests", Guid.NewGuid().ToString("N")[..8]);
         var root = Directory.CreateDirectory(Path.Combine(dir, "root")).FullName;
@@ -125,6 +167,9 @@ internal sealed class TestFtpServer : IDisposable
             start.Environment["FILECAT_FTP_NO_EPSV"] = "1";
         }
         if (mutateOnRename is not null) start.Environment["FILECAT_FTP_MUTATE_RNFR"] = mutateOnRename;
+        if (failAfterBackupRename is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_BACKUP_RNTO"] = failAfterBackupRename;
+        if (failAfterStagePublish is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_STAGE_RNTO"] = failAfterStagePublish;
+        if (failAfterBackupCleanup is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_BACKUP_DELE"] = failAfterBackupCleanup;
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);

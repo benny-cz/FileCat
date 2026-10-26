@@ -155,6 +155,87 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    [InlineData(RemoteProtocols.Ftp, "backup")]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "backup")]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "backup")]
+    [InlineData(RemoteProtocols.Ftp, "publish")]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "publish")]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "publish")]
+    [InlineData(RemoteProtocols.Ftp, "cleanup")]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "cleanup")]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "cleanup")]
+    public async Task A_real_FTP_server_that_fails_after_a_transition_keeps_recovery_tracking(string protocol, string phase)
+    {
+        Assert.Contains(phase, new[] { "backup", "publish", "cleanup" });
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat uncertain rename test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls,
+            failAfterBackupRename: phase == "backup" ? "ambiguous.bin" : null,
+            failAfterStagePublish: phase == "publish" ? "ambiguous.bin" : null,
+            failAfterBackupCleanup: phase == "cleanup" ? "ambiguous.bin" : null);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "uncertain-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "uncertain-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var journal = Path.Combine(_dir, "uncertain-journal");
+        var jobs = new JobManager(new PortableFileOperations(), providers, journal);
+        var source = Path.Combine(_dir, "ambiguous.bin");
+        File.WriteAllText(source, "mine edited bytes");
+        File.WriteAllText(Path.Combine(server.Root, "ambiguous.bin"), "base");
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(source));
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30),
+                $"State={job.State}; Issues={string.Join("; ", job.Issues.Select(i => i.Message))}");
+            if (job.Decision is { Task.IsCompleted: false } decision)
+                decision.Resolve(new Decision(DecisionAction.Skip));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        var recoveries = JournalRecovery.Scan(journal);
+        Assert.True(recoveries.Count == 1,
+            $"State={job.State}; Issues={string.Join("; ", job.Issues.Select(i => i.Message))}; " +
+            $"Remote={string.Join(", ", Directory.GetFiles(server.Root).Select(Path.GetFileName))}");
+        var intent = Assert.Single(recoveries[0].OpenIntents, i => i.Operation == "remote-replace-backup");
+        string backup = Path.Combine(server.Root, intent.Target!.Split('/')[^1]);
+        string stage = Path.Combine(server.Root, intent.Staged!.Split('/')[^1]);
+        Assert.Equal(phase == "cleanup" ? JobState.CompletedWithIssues : JobState.Failed, job.State);
+        if (phase == "cleanup")
+            Assert.False(File.Exists(backup));
+        else
+            Assert.Equal("base", File.ReadAllText(backup));
+        if (phase != "backup")
+        {
+            Assert.Equal("mine edited bytes", File.ReadAllText(Path.Combine(server.Root, "ambiguous.bin")));
+            Assert.False(File.Exists(stage));
+        }
+        else
+        {
+            Assert.False(File.Exists(Path.Combine(server.Root, "ambiguous.bin")));
+            Assert.Equal("mine edited bytes", File.ReadAllText(stage));
+        }
+        if (phase == "cleanup") Assert.False(File.Exists(source));
+        else Assert.Equal(sourceHash, SHA256.HashData(File.ReadAllBytes(source)));
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(intent.Target!, StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(RemoteProtocols.Ftp)]
     [InlineData(RemoteProtocols.FtpExplicitTls)]
     [InlineData(RemoteProtocols.FtpImplicitTls)]

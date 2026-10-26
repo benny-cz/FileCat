@@ -21,8 +21,13 @@ command. Real FTP, explicit FTPS and implicit FTPS jobs all refused
 publication, retained the changed backup and incoming stage, preserved the
 local Move source, and left an open recovery journal (3/3 focused tests).
 The complete real `FtpJobTests` group then passed 99/99 on Windows.
-Later server races, ambiguous rename/cleanup results and native recovery
-review remain open.
+The same server fixture can now perform backup rename, stage publication or
+backup deletion and then return FTP 451 instead of success. Nine real FTP,
+explicit FTPS and implicit FTPS jobs preserved the correct public, backup,
+stage and local Move source for each resulting state and left an open journal
+for reconciliation; the focused matrix passed 9/9. Later races, native
+recovery review and SFTP provider uncertainty remain open. The full real
+`FtpJobTests` group passed 108/108 on Windows after this fixture extension.
 
 **26 October 2026, exact-head Ubuntu checksum scopes (FCUX-008):**
 The isolated Ubuntu guest ran the updated `linux-atspi-viewer-checksum.py`
