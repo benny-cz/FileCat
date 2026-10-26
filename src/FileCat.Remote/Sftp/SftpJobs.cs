@@ -253,6 +253,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     private const int BufferSize = 256 * 1024;
     private int _temp;
     private bool _notedNonAtomic;
+    private sealed class PublicationState { public bool RetainStageForReview; }
 
     private bool Moving => Job.Request.Kind == JobKind.Move;
     private TransferOptions Options => Job.Request.Options;
@@ -623,6 +624,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         var freshTime = TimeSpan.Zero;
         var freshClock = new Stopwatch();
         bool ok;
+        var publication = new PublicationState();
         try
         {
             ok = Remote(dst, "copy the file to the server", () =>
@@ -720,7 +722,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during verification, so the copy was not published.");
-                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256);
+                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256, publication);
                 temp = null;
             });
         }
@@ -728,7 +730,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             // Cancelled part way: the partial copy goes as well (release issue I33: it stayed on the server under its
             // hidden temporary name); nothing was published under the file's name.
-            DiscardTemp(destFolder, temp);
+            if (!publication.RetainStageForReview) DiscardTemp(destFolder, temp);
             Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
             throw;
@@ -737,14 +739,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             // Unexpected provider/read/disposal failures still release our staged copy before the job records the
             // original failure. They are not converted into a successful partial upload or silently retried.
-            DiscardTemp(destFolder, temp);
+            if (!publication.RetainStageForReview) DiscardTemp(destFolder, temp);
             Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.Failed);
             throw;
         }
         if (!ok || differs)
         {
-            DiscardTemp(destFolder, temp);
+            if (!publication.RetainStageForReview) DiscardTemp(destFolder, temp);
             Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.Failed);
             Job.ItemFailed();
@@ -816,7 +818,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         finally { Job.SetCurrent(previousItem); }
     }
 
-    private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget, string? approvedSha256)
+    private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget,
+        string? approvedSha256, PublicationState publication)
     {
         string dst = RemotePath.Combine(folder, name);
         if (!replace)
@@ -874,12 +877,58 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 (Job.Request.ExpectedTarget is null ? "the incoming copy was not published." : "your edit is kept."));
         if (current is null)
             throw new RefusedOperationException("Not written: the destination disappeared before non-atomic replacement. Review the server before trying again.");
-        current.Delete();
-        Channel.Rename(temp, dst);
+        // Keep the approved old version under this journal's hidden prefix
+        // until the new stage has taken the public name. Deleting it first
+        // would lose both versions if the second server rename failed.
+        string backup = TempName(folder);
+        if (FreshEntry(folder, RemotePath.Name(backup)) is not null)
+            throw new RefusedOperationException("Not written: the recovery backup name already exists on the server. Review its temporary files before replacing this destination.");
+        int backupStep = Journal.Intent("remote-replace-backup", dst, backup, temp);
+        void RequireReview(string phase)
+        {
+            publication.RetainStageForReview = true;
+            Journal.RequireRecovery();
+            Journal.Note($"Remote replacement {phase}: inspect {dst}, backup {backup}, and incoming stage {temp} before resolving this journal.");
+        }
+        try { current.MoveTo(backup); }
+        catch (Exception ex)
+        {
+            RequireReview("could not move the old version aside");
+            if (ex is OperationCanceledException) throw;
+            throw new RefusedOperationException($"Not written: the server could not move the old destination aside ({ErrorText.Describe(ex)}). " +
+                $"Inspect {dst}, backup {backup}, and incoming stage {temp}; FileCat kept recovery tracking open.");
+        }
+        try { Channel.Rename(temp, dst); }
+        catch (Exception ex)
+        {
+            RequireReview("could not publish the new version");
+            if (ex is OperationCanceledException) throw;
+            throw new RefusedOperationException($"Not written: the server could not publish the incoming copy ({ErrorText.Describe(ex)}). " +
+                $"Inspect {dst}, backup {backup}, and incoming stage {temp}; FileCat kept recovery tracking open.");
+        }
+        try
+        {
+            var saved = FreshEntry(folder, RemotePath.Name(backup));
+            if (saved is null)
+                throw new RefusedOperationException("The saved destination version disappeared before backup cleanup.");
+            if (TargetSnapshot.Of(saved) != TargetSnapshot.Of(current) ||
+                expectedSha256 is not null && !string.Equals(HashRemoteTarget(backup, saved.Size), expectedSha256, StringComparison.OrdinalIgnoreCase))
+                throw new RefusedOperationException("The saved destination version changed before backup cleanup.");
+            saved.Delete();
+            Journal.Done(backupStep, StepOutcome.Committed);
+        }
+        catch (Exception ex)
+        {
+            Journal.RequireRecovery();
+            Journal.Note($"Published {dst}, but backup {backup} requires review: {ErrorText.Describe(ex)}");
+            Issue(IssueSeverity.Warning, backup,
+                $"The new copy was published, but the old destination backup could not be safely removed. Review {backup} before closing recovery tracking: {ErrorText.Describe(ex)}",
+                StepOutcome.PartiallyApplied);
+        }
         if (!_notedNonAtomic)
         {
             _notedNonAtomic = true;
-            Issue(IssueSeverity.Info, dst, "This server cannot replace a file in one step, so each old file was deleted just before its new copy took the name.", StepOutcome.Committed);
+            Issue(IssueSeverity.Info, dst, "This server cannot replace a file in one step. FileCat kept the old version under a hidden recovery name until the new copy took its name.", StepOutcome.Committed);
         }
     }
 

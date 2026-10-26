@@ -35,7 +35,8 @@ public sealed class JobJournal : IDisposable
     public string Path { get; }
     /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
     public bool NeedsRecovery { get; private set; }
-    internal void RequireRecovery() => NeedsRecovery = true;
+    /// <summary>Keep this journal open when an operation left a temporary item that must be reviewed after restart.</summary>
+    public void RequireRecovery() => NeedsRecovery = true;
 
     /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
     internal const int HeaderSampleSize = 64;

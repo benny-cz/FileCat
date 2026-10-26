@@ -34,7 +34,11 @@ increments to `main`.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including native
    late target changes on servers without compare-and-swap after FileCat's
-   second non-atomic fallback check. Finish Windows FTP/FTPS failure
+   second non-atomic fallback check and its journaled backup rename. The
+   remote-link replacement path still deletes the link before publishing;
+   make its failure recovery equally conservative. Verify the retained old
+   backup, incoming stage and recovery prompt on real servers after
+   ambiguous rename/cleanup results. Finish Windows FTP/FTPS failure
    kinds beyond native interrupted Copy and Move
    cleanup across all three FTP modes, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP

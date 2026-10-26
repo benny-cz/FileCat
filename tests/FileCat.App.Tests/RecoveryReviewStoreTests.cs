@@ -22,6 +22,23 @@ public sealed class RecoveryReviewStoreTests
     }
 
     [Fact]
+    public void Remote_replacement_review_distinguishes_the_old_backup_from_the_incoming_stage()
+    {
+        var job = new InterruptedJob("/state/job-20261021123456-deadbeef.fcj", "Move", "Replace", DateTime.UtcNow,
+            ["/source"], "sftp:test:/owned", [new PendingIntent(2, "remote-replace-backup", "/owned/file",
+                "/owned/.fc-deadbeef-2", "/owned/.fc-deadbeef-1")], [], 1, 1);
+
+        Assert.True(InterruptedRecoveryReport.HasUnreviewedRemoteUpload(job));
+        Assert.Equal(["/owned/file"], InterruptedRecoveryReport.RemoteUploadTargets(job));
+        string warning = InterruptedRecoveryReport.RemoteUploadReviewWarning(job);
+        Assert.Contains("previous destination version", warning);
+        Assert.Contains("do not delete either", warning);
+        string report = InterruptedRecoveryReport.Format(job, "Inspect", [], [], new CopyReview([], [], false), false);
+        Assert.Contains("/owned/.fc-deadbeef-2", report);
+        Assert.Contains("/owned/.fc-deadbeef-1", report);
+    }
+
+    [Fact]
     public void Full_retained_report_preserves_paths_effects_and_unknown_remainder()
     {
         string source = "C:\\root\\name\twith-control";

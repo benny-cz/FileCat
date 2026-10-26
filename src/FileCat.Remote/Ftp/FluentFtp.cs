@@ -18,7 +18,7 @@ namespace FileCat.Remote.Ftp;
 /// <item>Unencrypted FTP is only ever an explicit choice (ADR-17 addendum).</item>
 /// <item>Transfers are binary, so content is never converted.</item>
 /// <item>Names with line breaks are refused, since FTP commands end at a line break.</item>
-/// <item>FTP has no atomic replace, so publishing deletes the old file just before the new one takes its name.</item>
+/// <item>FTP has no atomic replace, so publishing keeps the old file under a journaled recovery name until the new one takes its name.</item>
 /// </list>
 /// </summary>
 public sealed class FluentFtpConnector : ISftpConnector

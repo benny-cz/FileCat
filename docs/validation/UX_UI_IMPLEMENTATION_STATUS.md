@@ -19,19 +19,27 @@ AX focus, stale and deliberate splitter AX focus, and the existing pointer
 focus guard. The remaining native scale and nested-boundary checks are in the
 remaining-work file.
 
-**26 October 2026, remote non-atomic Replace race (FCUX-001):** After an
-upload's final destination metadata and content check, a remote server may
-report that atomic replacement is unavailable. The fallback now rereads the
-target and its approved content before deleting the old version; it refuses
-to publish if another client changed or removed it during that round trip.
-The unpublished stage is discarded, and a Move retains its source. Six new
-controlled-channel tests cover ordinary Replace and edit commits across SFTP,
-FTP, explicit FTPS and implicit FTPS, including same-size/same-time content
-changes, metadata changes and disappearance. All 81
-`RemoteEditTargetPublicationTests` pass on Windows with 16 MSBuild workers.
-Remote protocols without a server-side compare-and-swap still have a possible
-change between this last check and the delete, so native provider failure and
-late-race acceptance remain open.
+**26 October 2026, remote non-atomic Replace recovery (FCUX-001):** After an
+upload's final destination metadata and content check, a server may report
+that atomic replacement is unavailable. The fallback rereads the target and
+its approved content and refuses an observed intervening change or removal.
+It then durably journals a unique hidden backup name, moves the approved old
+version there, publishes the incoming stage, and removes the backup only
+after checking that it still represents the old version. A failure or
+uncertain server result at either rename retains the incoming stage, keeps
+the local Move source, and leaves an open recovery journal with the public,
+backup and stage paths. A backup cleanup failure also retains the journal
+but reports that the incoming file was published. The recovery prompt now
+distinguishes the previous destination version from incoming upload debris
+and warns against deleting either before reconciliation. Controlled tests
+cover SFTP, FTP and both FTPS modes, target changes with unchanged size/time,
+and failures before or after each server transition: all 90
+`RemoteEditTargetPublicationTests` and four recovery report tests pass on
+Windows with 16 MSBuild workers. The real FTP/FTPS `FtpJobTests` suite passed
+96 cases. A server without compare-and-swap can still change the target
+between FileCat's final check and rename, and the remote-link branch has its
+own delete/rename failure path; native late-race and failure acceptance remain
+open.
 
 **26 October 2026, macOS inline Rename focus (FCUX-010):** A clean signed
 Git build reproduced Escape briefly restoring `c.txt` before native AX

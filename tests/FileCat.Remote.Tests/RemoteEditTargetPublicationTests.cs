@@ -268,6 +268,131 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         Assert.Contains(job.Issues, issue => issue.Message.Contains("Not written:", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, "backup-move")]
+    [InlineData(RemoteProtocols.Ftp, "backup-move")]
+    [InlineData(RemoteProtocols.Sftp, "backup-move-uncertain")]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "publish")]
+    [InlineData(RemoteProtocols.FtpImplicitTls, "publish")]
+    [InlineData(RemoteProtocols.FtpExplicitTls, "publish-uncertain")]
+    [InlineData(RemoteProtocols.Sftp, "backup-cleanup")]
+    [InlineData(RemoteProtocols.Ftp, "backup-cleanup")]
+    [InlineData(RemoteProtocols.Ftp, "backup-cleanup-uncertain")]
+    public async Task Non_atomic_replacement_keeps_both_versions_and_an_open_review_on_server_failure(string protocol, string failure)
+    {
+        using var rig = new Rig(protocol, atomic: false);
+        var server = rig.Server;
+        server.Dir("/owned");
+        server.File(Target, "base");
+        string sourceHash = Hash(File.ReadAllBytes(rig.SourcePath));
+        rig.BeforeMove = (source, target) =>
+        {
+            if (failure.StartsWith("backup-move", StringComparison.Ordinal) && source == Target && target.StartsWith("/owned/.fc-", StringComparison.Ordinal))
+            {
+                if (failure.EndsWith("uncertain", StringComparison.Ordinal)) RenameOnServer(server, source, target);
+                throw new IOException("owned backup rename failure");
+            }
+        };
+        rig.BeforeRename = (source, target) =>
+        {
+            if (failure.StartsWith("publish", StringComparison.Ordinal) && target == Target && source.StartsWith("/owned/.fc-", StringComparison.Ordinal))
+            {
+                if (failure.EndsWith("uncertain", StringComparison.Ordinal)) RenameOnServer(server, source, target);
+                throw new IOException("owned stage publication failure");
+            }
+        };
+        rig.BeforeDelete = path =>
+        {
+            if (failure.StartsWith("backup-cleanup", StringComparison.Ordinal) && path.StartsWith("/owned/.fc-", StringComparison.Ordinal))
+            {
+                if (failure.EndsWith("uncertain", StringComparison.Ordinal)) RemoveOnServer(server, path);
+                throw new IOException("owned backup cleanup failure");
+            }
+        };
+        var job = rig.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(rig.SourcePath, EntryKind.File)],
+            Destination = SftpProvider.At(rig.Profile, "/owned"), NewName = "notes.txt",
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        rig.Jobs.MaxConcurrent = 4; rig.Jobs.Schedule();
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || rig.Jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Join(rig.Root, "journal")));
+        var backup = Assert.Single(interrupted.OpenIntents, intent => intent.Operation == "remote-replace-backup");
+        Assert.Equal(Target, backup.Path);
+        Assert.StartsWith("/owned/.fc-", backup.Target);
+        Assert.StartsWith("/owned/.fc-", backup.Staged);
+        if (failure == "backup-move")
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal("base", server.Read(Target));
+            Assert.Null(server.Lookup(backup.Target!, false));
+            Assert.True(File.Exists(rig.SourcePath));
+        }
+        else if (failure == "backup-move-uncertain")
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Null(server.Lookup(Target, false));
+            Assert.Equal("base", server.Read(backup.Target!));
+            Assert.True(File.Exists(rig.SourcePath));
+        }
+        else if (failure == "publish")
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal("base", server.Read(backup.Target!));
+            Assert.Null(server.Lookup(Target, false));
+            Assert.Equal(sourceHash, Hash(File.ReadAllBytes(rig.SourcePath)));
+        }
+        else if (failure == "publish-uncertain")
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Equal("base", server.Read(backup.Target!));
+            Assert.Equal(sourceHash, rig.Snapshot().SHA256);
+            Assert.True(File.Exists(rig.SourcePath));
+        }
+        else
+        {
+            Assert.Equal(JobState.CompletedWithIssues, job.State);
+            if (failure == "backup-cleanup-uncertain") Assert.Null(server.Lookup(backup.Target!, false));
+            else Assert.Equal("base", server.Read(backup.Target!));
+            Assert.Equal(sourceHash, rig.Snapshot().SHA256);
+            Assert.False(File.Exists(rig.SourcePath));
+        }
+        if (failure is not ("backup-move" or "backup-cleanup-uncertain"))
+            Assert.Contains(server.Dir("/owned").Children.Keys, name => name == RemotePath.Name(backup.Target!));
+        if (failure is "backup-move" or "backup-move-uncertain" or "publish")
+            Assert.Contains(server.Dir("/owned").Children.Keys, name => name == RemotePath.Name(backup.Staged!));
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(backup.Target!, StringComparison.Ordinal));
+    }
+
+    private static void RenameOnServer(FakeSftpServer server, string source, string target)
+    {
+        lock (server.Lock)
+        {
+            var (from, fromName) = server.ParentOf(source);
+            var (to, toName) = server.ParentOf(target);
+            var entry = from.Children[fromName];
+            from.Children.Remove(fromName);
+            entry.Name = toName;
+            to.Children.Add(toName, entry);
+        }
+    }
+
+    private static void RemoveOnServer(FakeSftpServer server, string path)
+    {
+        lock (server.Lock)
+        {
+            var (parent, name) = server.ParentOf(path);
+            parent.Children.Remove(name);
+        }
+    }
+
     private const string Target = "/owned/notes.txt";
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private sealed record Snapshot(string Kind, long Length, long ModifiedTicks, string? SHA256, string? Link);
@@ -281,6 +406,9 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public JobManager Jobs { get; }
         public ConcurrentQueue<Call> Calls { get; } = new();
         public Action? BeforeTryReplace;
+        public Action<string, string>? BeforeRename;
+        public Action<string, string>? BeforeMove;
+        public Action<string>? BeforeDelete;
         public int Decisions;
         private readonly SftpConnections connections;
         public Rig(string protocol, bool atomic)
@@ -290,7 +418,11 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Profile = new() { Host = "owned.invalid", User = "user", Protocol = protocol, PlainTextAccepted = true };
             var interaction = new ScriptedInteraction { HostKeyAnswer = HostKeyDecision.AcceptOnce };
             for (int i = 0; i < 10; i++) interaction.Secrets.Enqueue("secret");
-            connections = new SftpConnections(id => id == Profile.Id ? Profile : null, new Connector(Server, Calls, () => BeforeTryReplace?.Invoke()),
+            connections = new SftpConnections(id => id == Profile.Id ? Profile : null,
+                new Connector(Server, Calls, () => BeforeTryReplace?.Invoke(),
+                    (source, target) => BeforeRename?.Invoke(source, target),
+                    (source, target) => BeforeMove?.Invoke(source, target),
+                    path => BeforeDelete?.Invoke(path)),
                 new HostKeyTrust(Path.Join(Root, "known_hosts"), []), new SessionSecretStore(), interaction);
             var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider());
             providers.Register(new SftpProvider(connections, () => [Profile], p => p)); SftpJobs.Register();
@@ -314,26 +446,34 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
             Directory.Delete(Root, recursive: true); Assert.False(Directory.Exists(Root));
         }
     }
-    private sealed class Connector(FakeSftpServer server, ConcurrentQueue<Call> calls, Action beforeTryReplace) : ISftpConnector
+    private sealed class Connector(FakeSftpServer server, ConcurrentQueue<Call> calls, Action beforeTryReplace,
+        Action<string, string> beforeRename, Action<string, string> beforeMove, Action<string> beforeDelete) : ISftpConnector
     {
         public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct)
-            => new Channel(new FakeConnector(server).Connect(profile, context, ct), calls, beforeTryReplace);
+            => new Channel(new FakeConnector(server).Connect(profile, context, ct), calls, beforeTryReplace,
+                beforeRename, beforeMove, beforeDelete);
     }
-    private sealed class Channel(ISftpChannel inner, ConcurrentQueue<Call> calls, Action beforeTryReplace) : ISftpChannel
+    private sealed class Channel(ISftpChannel inner, ConcurrentQueue<Call> calls, Action beforeTryReplace,
+        Action<string, string> beforeRename, Action<string, string> beforeMove, Action<string> beforeDelete) : ISftpChannel
     {
         public bool IsConnected => inner.IsConnected;
         public string HomeDirectory => inner.HomeDirectory;
         public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct)
         {
             calls.Enqueue(new("List", path));
-            return inner.List(path, ct).Select(e => (IRemoteEntry)new Entry(e, calls)).ToArray();
+            return inner.List(path, ct).Select(e => (IRemoteEntry)new Entry(e, calls, beforeMove, beforeDelete)).ToArray();
         }
         public RemoteStat? Stat(string path) { calls.Enqueue(new("Stat", path)); return inner.Stat(path); }
         public Stream OpenRead(string path) { calls.Enqueue(new("OpenRead", path)); return inner.OpenRead(path); }
         public Stream CreateNew(string path) { calls.Enqueue(new("CreateNew", path)); return inner.CreateNew(path); }
         public Stream OpenWriteAt(string path, long offset) { calls.Enqueue(new("OpenWriteAt", path)); return inner.OpenWriteAt(path, offset); }
         public void CreateDirectory(string path) => inner.CreateDirectory(path);
-        public void Rename(string source, string target) { calls.Enqueue(new("Rename", target, source)); inner.Rename(source, target); }
+        public void Rename(string source, string target)
+        {
+            calls.Enqueue(new("Rename", target, source));
+            beforeRename(source, target);
+            inner.Rename(source, target);
+        }
         public bool TryReplace(string source, string target)
         {
             calls.Enqueue(new("TryReplace", target, source));
@@ -343,7 +483,8 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public void SetModified(string path, DateTime utc) => inner.SetModified(path, utc);
         public void Dispose() => inner.Dispose();
     }
-    private sealed class Entry(IRemoteEntry inner, ConcurrentQueue<Call> calls) : IRemoteEntry
+    private sealed class Entry(IRemoteEntry inner, ConcurrentQueue<Call> calls,
+        Action<string, string> beforeMove, Action<string> beforeDelete) : IRemoteEntry
     {
         public string Name => inner.Name;
         public string FullPath => inner.FullPath;
@@ -351,7 +492,7 @@ public sealed class RemoteEditTargetPublicationTests(ITestOutputHelper output)
         public bool IsLink => inner.IsLink;
         public long Size => inner.Size;
         public DateTime ModifiedUtc => inner.ModifiedUtc;
-        public void Delete() { calls.Enqueue(new("Delete", FullPath)); inner.Delete(); }
-        public void MoveTo(string path) { calls.Enqueue(new("MoveTo", path, FullPath)); inner.MoveTo(path); }
+        public void Delete() { calls.Enqueue(new("Delete", FullPath)); beforeDelete(FullPath); inner.Delete(); }
+        public void MoveTo(string path) { calls.Enqueue(new("MoveTo", path, FullPath)); beforeMove(FullPath, path); inner.MoveTo(path); }
     }
 }

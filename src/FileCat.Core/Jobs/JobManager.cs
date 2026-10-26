@@ -436,7 +436,7 @@ public sealed class JobManager
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));
         try
         {
-            if (journal is { NeedsRecovery: true }) journal.Note("Temporary rename items remain unresolved; the journal is retained for recovery.");
+            if (journal is { NeedsRecovery: true }) journal.Note("Temporary items remain unresolved; the journal is retained for recovery.");
             else journal?.Finish(final, job.Summary);
         }
         catch (IOException ex) { AppLog.Warn("Journal finish failed", ex); }

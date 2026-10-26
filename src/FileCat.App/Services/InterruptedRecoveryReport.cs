@@ -13,7 +13,7 @@ internal static class InterruptedRecoveryReport
 
     internal static bool HasUnreviewedRemoteUpload(InterruptedJob job)
     {
-        if (job.OpenIntents.Any(intent => intent.Operation is "upload" or "upload-move")) return true;
+        if (job.OpenIntents.Any(intent => intent.Operation is "upload" or "upload-move" or "remote-replace-backup")) return true;
         if (job.Kind is not (nameof(JobKind.Copy) or nameof(JobKind.Move))) return false;
         var destination = Location.Deserialize(job.Destination);
         // An upload intent can be lost in an interrupted batched journal even
@@ -40,14 +40,18 @@ internal static class InterruptedRecoveryReport
     }
 
     internal static string RemoteUploadReviewWarning(InterruptedJob job) =>
-        RemoteUploadWarning + (ExpectedRemoteStagePrefix(job) is { } prefix
+        RemoteUploadWarning + (job.OpenIntents.Any(i => i.Operation == "remote-replace-backup")
+            ? " A hidden name may hold the previous destination version, while another may hold the incoming copy. " +
+              "Inspect the recorded backup and stage paths; do not delete either until their contents and the public destination are reconciled."
+            : string.Empty) + (ExpectedRemoteStagePrefix(job) is { } prefix
             ? " Candidate temporary names begin " + prefix + "; verify the server item before changing it."
             : string.Empty);
 
     internal static IReadOnlyList<string> RemoteUploadTargets(InterruptedJob job)
     {
-        var targets = job.OpenIntents.Where(i => i.Operation is "upload" or "upload-move")
-            .Select(i => i.Target).Where(path => !string.IsNullOrWhiteSpace(path))
+        var targets = job.OpenIntents.Where(i => i.Operation is "upload" or "upload-move" or "remote-replace-backup")
+            .Select(i => i.Operation == "remote-replace-backup" ? i.Path : i.Target)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
             .Select(path => path!).Distinct(StringComparer.Ordinal).Take(4).ToArray();
         if (targets.Length > 0) return targets;
         return Location.Deserialize(job.Destination) is { } recorded ? [recorded.Path] : [];
