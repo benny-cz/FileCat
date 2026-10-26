@@ -41,8 +41,9 @@ increments to `main`.
    supported cross-app Move effects and delayed Paste destination on each
    desktop. Windows still needs Explorer Cut
    presentation and supported external Move/delete-on-paste handling, if
-   safely offered. On Mac, fix the scrolling form body's zero AX bounds and
-   preview list with no AX children. For FCUX-004, exercise the other modal
+   safely offered. On Mac, the preview list has no AX row children; decide
+   whether direct row navigation adds value beyond the tested, spoken
+   Previous/Next full-path navigator. For FCUX-004, exercise the other modal
    focus and decision routes on each desktop, including actual Orca speech
    where required.
    Preserve captured scope and mapping throughout each test.

@@ -261,6 +261,23 @@ def run(bundle, report_path, narrow):
             return None
 
         preview = wait_for(proposed, "both reviewed rename mappings")
+        # The native bridge once returned zero frames for the scrolling form even
+        # though it was painted. Check the actual geometry as well as the named
+        # controls before relying on pointer or VoiceOver navigation.
+        body = item(preview, "AXScrollArea", "Bulk rename content")
+        geometry = {}
+        for role, name in (("AXTextField", "Name mask"),
+                           ("AXTextField", "Extension mask"),
+                           ("AXTextField", "Search rename preview"),
+                           ("AXList", "Preview of new names")):
+            node = item(preview, role, name)
+            x, y, width, height = node["bounds"]
+            bx, by, bw, bh = body["bounds"]
+            if (width < 8 or height < 8 or x + width <= bx or x >= bx + bw or
+                    y + height <= by or y >= by + bh):
+                raise AssertionError(f"The {name} native frame is missing or outside the form: {node['bounds']}")
+            geometry[name] = node["bounds"]
+        geometry["Bulk rename content"] = body["bounds"]
         # Preserve the exact AX tree while the review is open; later probes
         # replace last-snapshot.json after the modal has closed.
         (fixture / "preview-ax-snapshot.json").write_bytes((fixture / "last-snapshot.json").read_bytes())
@@ -359,6 +376,7 @@ def run(bundle, report_path, narrow):
                 "mappingNavigation": [first_status, second_status, first_status],
                 "voiceOverMappingPhrases": [first_speech, second_speech, previous_speech],
                 "keyboardMappingNavigation": [second_status, first_status],
+                "axGeometry": geometry,
                 "editedNames": ["editor_b.txt", "editor_a.txt"],
                 "editorActionCapture": visual, "privateListRemoved": True,
                 "fixture": str(fixture)}
