@@ -109,6 +109,18 @@ Remote suite on this head passed 2,442 tests with 164 platform skips; the
 five-lane CI run was green. Other provider, scale and spoken Stop/error routes
 remain open.
 
+**26 October 2026, narrow Ubuntu Text Find (FCUX-007):** The tracked native
+runner now measures the Find field, Previous/Next buttons and exact count
+inside a 720 × 500 physical-pixel viewer. A Git-built Ubuntu app from
+`f6230a2d` plus the checksum layout fix (DLL SHA-256
+`31f5c59037098ef67d32ecba6b561ee2bd3c5a35c101cc0ce8d0a821299efc16`)
+passed at stable 100% scale: `alpha` showed `1 match`, Previous/Next and
+physical F3/Shift+F3 returned the correct directional boundary messages, the
+count stayed visible, both source files retained their exact bytes, and the
+viewer closed. The measured native frame was 720 × 500, with every search
+control inside it. Guest receipt: `text-find-narrow-100-current.json`.
+Remote-backed, other scale and spoken provider-error/Stop routes remain open.
+
 **26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**
 The isolated GNOME guest ran `linux-orca-speech.py` against the Git-built
 `cff83525` app (app SHA-256

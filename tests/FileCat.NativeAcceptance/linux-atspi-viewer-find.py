@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Check a native Ubuntu FileCat Text viewer through its AT-SPI UI.
 
-Usage: linux-atspi-viewer-find.py SOURCE REPORT.json
+Usage: linux-atspi-viewer-find.py SOURCE REPORT.json [UINPUT_HELPER]
+   or: linux-atspi-viewer-find.py --launch APP REPORT.json UINPUT_HELPER [--narrow]
 Run in the logged-in desktop session with its DBUS_SESSION_BUS_ADDRESS. The
 isolated SOURCE contains a.txt = b"alpha\n" and b.txt = b"beta\n". Requires
 gi.repository.Atspi 2.0 and wmctrl for graceful viewer-window closure.
@@ -77,7 +78,21 @@ def send_key(helper, chord):
         raise AssertionError(f"Native {chord} input failed with exit {result.returncode}")
 
 
-def run(source, helper=None):
+def rect(node):
+    bounds = node.get_component().get_extents(Atspi.CoordType.SCREEN)
+    return [bounds.x, bounds.y, bounds.width, bounds.height]
+
+
+def inside(frame, control, name):
+    area = rect(control)
+    if (area[2] <= 0 or area[3] <= 0 or area[0] < frame[0] or area[1] < frame[1] or
+            area[0] + area[2] > frame[0] + frame[2] or
+            area[1] + area[3] > frame[1] + frame[3]):
+        raise AssertionError(f"{name} escapes the viewer frame: {area} outside {frame}")
+    return area
+
+
+def run(source, helper=None, narrow=False):
     source = source.resolve(strict=True)
     a_path = source / "a.txt"
     b_path = source / "b.txt"
@@ -112,6 +127,14 @@ def run(source, helper=None):
     viewer = wait_for(lambda: find(app, "frame", title), "Text viewer")
     try:
         wait_for(lambda: find(viewer, "label", "Mode: Text"), "Text mode")
+        geometry = None
+        if narrow:
+            window_id = exact_viewer_window_id(title, expected_pid)
+            subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
+                            "0,150,100,720,500"], check=True, timeout=5)
+            subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
+            time.sleep(.4)
+            geometry = {"requestedPhysicalSize": [720, 500]}
         checked_action(find(viewer, "button", "Show or hide viewer Find bar"),
                        "viewer Find toggle")
         entry = wait_for(lambda: find(viewer, "entry", "Find in file"), "Find field")
@@ -119,6 +142,17 @@ def run(source, helper=None):
             raise AssertionError("AT-SPI could not set the Find query")
         checked_action(find(viewer, "button", "Find next match"), "Find Next")
         wait_for(lambda: find(viewer, "label", "1 match"), "visible exact match count")
+        if narrow:
+            frame = rect(viewer)
+            geometry["frame"] = frame
+            geometry["controls"] = {
+                name: inside(frame, find(viewer, role, accessible), name)
+                for name, role, accessible in (
+                    ("Find", "entry", "Find in file"),
+                    ("Previous", "button", "Find previous match"),
+                    ("Next", "button", "Find next match"),
+                    ("Count", "label", "1 match"))
+            }
         if find(viewer, "button", "Find previous match") is None:
             raise AssertionError("The accessible Previous button is missing")
         checked_action(find(viewer, "button", "Find previous match"), "Find Previous")
@@ -146,10 +180,11 @@ def run(source, helper=None):
     return {"passed": True, "platform": "Ubuntu", "mode": "Text",
             "query": "alpha", "visibleMatchStatus": "1 match",
             "previousReportedNoEarlierMatch": True, "sourceBytesUnchanged": True,
-            "viewerClosed": True, "physicalF3AndShiftF3Verified": helper is not None}
+            "viewerClosed": True, "physicalF3AndShiftF3Verified": helper is not None,
+            "geometry": geometry}
 
 
-def launch_and_run(app_path, helper):
+def launch_and_run(app_path, helper, narrow=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
@@ -179,7 +214,7 @@ def launch_and_run(app_path, helper):
                      if app.get_name() == "FileCat"
                      and find(app, "list", f"Panel 1, source, {source}")), None),
                      "isolated Text viewer fixture")
-            result = run(source, helper)
+            result = run(source, helper, narrow=narrow)
             result.update({"app": str(app_path), "appSha256": app_hash,
                            "fixture": str(root)})
             return result
@@ -194,9 +229,11 @@ def launch_and_run(app_path, helper):
 
 
 def main():
-    if len(sys.argv) == 5 and sys.argv[1] == "--launch":
+    if len(sys.argv) in (5, 6) and sys.argv[1] == "--launch" and \
+            (len(sys.argv) == 5 or sys.argv[5] == "--narrow"):
         report = Path(sys.argv[3])
-        check = lambda: launch_and_run(Path(sys.argv[2]), Path(sys.argv[4]))
+        check = lambda: launch_and_run(Path(sys.argv[2]), Path(sys.argv[4]),
+                                       narrow=len(sys.argv) == 6)
     elif len(sys.argv) in (3, 4):
         report = Path(sys.argv[2])
         check = lambda: run(Path(sys.argv[1]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)

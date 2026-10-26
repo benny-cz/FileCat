@@ -66,8 +66,8 @@ increments to `main`.
    cancellation over live remote connections, native spoken provider-error
    outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
    Complete the other provider/scale assistive-technology routes for search
-   results and count completeness, including remote-backed and narrow viewer
-   searches.
+   results and count completeness, including remote-backed searches and narrow
+   viewer searches beyond the tested Ubuntu 720 × 500 Text view.
    For FCUX-008, test native incomplete reads on local and remote providers,
    mid-read changes on the remaining desktop and provider routes, and other
    narrow-layout states, including a stable Ubuntu 150% scale run after
