@@ -15,6 +15,26 @@ later unflushed fixture failure do not supersede the 26 October `663b6fdd`
 fixed-VHD exact-byte recovery. `DEF-019A` now names only optional
 reconfirmation on the owner's existing G:, outside required closure.
 
+<a id="evidence-sftp-search-stop-20261026"></a>
+**26 October 2026, native remote viewer Stop (FCUX-007):** The Ubuntu Wayland
+VM ran the Git-built `705d4f0d` app (DLL SHA-256 `57e412db…`) against a new
+test-owned 2 GiB sparse file served by loopback OpenSSH SFTP. The native
+AT-SPI route verified the server key against its public key, opened the real
+remote file, and started a held Text search. Changing the query retired its
+result and status; a second held Text search retired on switching to Hex.
+A held Hex search exposed Stop, and activating it showed “Search canceled.”
+without a false `0 matches` count. The three sampled source ranges and remote
+listing remained exact. The receipt is
+`/home/benny/FileCatValidation/ac-s1-007-remote-705d4f0d.json` in the isolated
+guest; the reproducible route is
+[`linux-atspi-viewer-remote-stop.py`](../../tests/FileCat.NativeAcceptance/linux-atspi-viewer-remote-stop.py).
+This run exposed and then verified a real fragmented SFTP read: the provider
+now fills its advertised range or reports early EOF. The focused
+`SftpContentReadTests` passed 3/3 on Windows Release at 16 workers. Native
+spoken Stop and a live provider-error result remain AC-S1-007; this receipt
+accepts only the visible real-SFTP subcase. CI for `705d4f0d` was still in
+progress when checked.
+
 <a id="evidence-search-nonlocal-20261026"></a>
 **26 October 2026, held nonlocal viewer search (FCUX-007):** On Git head
 `8d54ffe3`, the Windows Release build completed with zero warnings or errors.
