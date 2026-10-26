@@ -250,6 +250,20 @@ public sealed class ViewerChecksumScopeTests
     }
 
     [AvaloniaFact]
+    public async Task A_length_only_revision_is_qualified_in_the_selectable_result()
+    {
+        byte[] bytes = [1, 2, 3];
+        using var f = await Fixture.Create(bytes, new TestSource(bytes) { Revision = 0 },
+            width: 480, height: 300);
+        f.Show();
+        await f.Compute();
+        Assert.Contains("SHA-256: " + Hash(bytes), f.Result);
+        Assert.Contains("only file length was compared; source consistency could not be verified", f.Result);
+        Assert.DoesNotContain("Revision evidence unchanged during read", f.Result);
+        Assert.Equal(ClipboardSentinel, await f.ClipboardText());
+    }
+
+    [AvaloniaFact]
     public async Task A_failed_explicit_copy_keeps_the_selectable_result_and_explains_the_failure()
     {
         using var f = await Fixture.Create([1, 2, 3]);

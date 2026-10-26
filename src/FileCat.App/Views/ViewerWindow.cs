@@ -2109,11 +2109,13 @@ public sealed class ViewerWindow : Window
                 message = "INCOMPLETE: content ended early; these checksums cover only the bytes read.\n" + message;
             if (_reader.ReadError is { } error)
                 message = "READ ERROR: " + error + "\n" + message;
-            message += "\n" + (result.Revision is { } revision
+            message += "\n" + (result.Revision is { ModifiedTicks: > 0 } revision
                 ? $"Revision evidence unchanged during read: {revision.Length:N0} bytes"
-                    + (revision.ModifiedTicks > 0 && revision.ModifiedTicks <= DateTime.MaxValue.Ticks
+                    + (revision.ModifiedTicks <= DateTime.MaxValue.Ticks
                         ? $", modified {new DateTime(revision.ModifiedTicks, DateTimeKind.Utc):u}." : " (no modification time supplied).")
-                : "Revision unavailable: source consistency could not be verified.");
+                : result.Revision is not null
+                    ? "Modification time unavailable: only file length was compared; source consistency could not be verified."
+                    : "Revision unavailable: source consistency could not be verified.");
             _checksumResult.Text = message;
             _copyChecksum.IsEnabled = true;
             _status.Text = result.Read < length || _reader.ReadError is not null
