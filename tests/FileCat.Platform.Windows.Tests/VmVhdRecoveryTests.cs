@@ -14,7 +14,7 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed class VmVhdRecoveryTests
 {
     [Fact]
-    public void A_deleted_vhd_file_is_read_off_source_with_truthful_uncertainty_when_clusters_are_discarded()
+    public void A_deleted_vhd_file_is_read_off_source_with_truthful_uncertainty_or_retained_bytes()
     {
         string? vhd = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_VM_VHD");
         if (string.IsNullOrWhiteSpace(vhd))
@@ -39,6 +39,7 @@ public sealed class VmVhdRecoveryTests
         Assert.False(File.Exists(@"G:\recover-me.bin"), "The fixture file must be deleted before scanning.");
         string expected = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_VM_SHA256") ?? string.Empty;
         Assert.Matches("^[A-Fa-f0-9]{64}$", expected);
+        bool requireRetainedBytes = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_VM_EXPECT_RETAINED") == "1";
         Assert.True(int.TryParse(Environment.GetEnvironmentVariable("FILECAT_RECOVERY_VM_DISK"), out int diskNumber));
 
         string output = Path.Combine(validation, "VmVhdRecovery-" + Guid.NewGuid().ToString("N"));
@@ -108,7 +109,13 @@ public sealed class VmVhdRecoveryTests
         TestContext.Current.TestOutputHelper?.WriteLine(
             "Extents: " + string.Join(" | ", fixture.Extents.Select(e => $"{e.State}@{e.Offset}+{e.Length}")));
         TestContext.Current.TestOutputHelper?.WriteLine("Evidence: " + string.Join(" | ", fixture.Evidence));
-        if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
+        if (requireRetainedBytes)
+        {
+            Assert.Equal(expected, actual, ignoreCase: true);
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                "The deleted clusters retained the exact original bytes on this disposable VHD.");
+        }
+        else if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
         {
             Assert.Equal(RecoveryState.Uncertain, fixture.State);
             Assert.Contains("valid data", fixture.Evidence[0], StringComparison.Ordinal);

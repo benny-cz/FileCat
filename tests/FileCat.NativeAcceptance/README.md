@@ -1040,7 +1040,16 @@ validation folder. A mounted volume can reuse a deleted record quickly, so a
 later missing record is not evidence that the initial scan failed. Dynamic
 VMware VHDs have returned zeroed raw clusters after deletion; the test checks
 that such content is marked Uncertain and does not claim original-byte
-recovery. Close the exact test FileCat process, then run
+recovery. For an isolated retained-cluster check, add
+`-RetainDeletedClusters` to the fixture command. The script verifies the
+current NTFS delete-notify value, temporarily disables TRIM only in the VMware
+guest, creates a fixed VHD, flushes the source bytes to the volume before
+deleting that file, then restores and verifies the original TRIM value before
+reporting success. Set
+`FILECAT_RECOVERY_VM_EXPECT_RETAINED=1` for the opt-in test: a hash mismatch
+then fails instead of accepting Uncertain evidence. Check the fixture report's
+`NtfsDeleteNotifyRestored` field before running the test. Close the exact test
+FileCat process, then run
 `win-vhd-recovery-cleanup.ps1 -ManifestPath` with the original JSON path. The
 cleanup verifies the exact mounted disk and removes only its own VHD folder.
 For the subset case, use a fresh seed and run `clipboard-cut-two <source.xml>`

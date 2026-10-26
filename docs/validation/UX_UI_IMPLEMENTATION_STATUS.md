@@ -1652,8 +1652,31 @@ listed `recover-me.bin` in the native recovery panel (one file), with the
 source still absent and the target unchanged. The native State column showed
 **Uncertain** and the Evidence column began with the new NTFS warning. The
 owned FileCat process was closed, and a disk-number/identity-checked cleanup
-detached and removed only that VHD. Exact original-byte recovery on a
-retaining medium remains open.
+detached and removed only that VHD. The later flushed fixed-VHD fixture below
+established exact original-byte recovery.
+
+**26 October 2026, retained deleted NTFS bytes (UXBUG-019):** The Windows VM
+first showed that both a dynamic and a fixed NTFS VHD returned zeros after the
+test script wrote and immediately deleted an 81,920-byte file. A separate
+live allocation probe mapped its 20 clusters to LCN `0x68e`; a direct raw
+volume read at byte `6,873,088` matched its source SHA-256. Deleting that
+probe after its data had reached disk retained the exact raw SHA-256 before
+and after a volume flush and after NTFS TRIM returned to its original value.
+This isolated the fixture fault: its previous file write was not flushed to
+the physical volume before deletion. The opt-in fixture now uses a fixed VHD,
+temporarily suppresses NTFS TRIM, explicitly flushes the file and volume,
+deletes only its owned file, and verifies restoration of the original TRIM
+policy before reporting success. A new 512 MiB fixed `G:`/`FCTEST` VHD with
+that fixture exposed the deleted `recover-me.bin` record. Direct and selected
+volume-GUID scans read raw clusters and copied the file to the VM's `C:`
+validation folder; all three SHA-256 values matched the original
+`C0CBD0D83B394C5A2E6E81A8080EEE63516735ABC7BBF61AB489AD69E0708D1C`.
+The deleted source remained absent, the result still honestly warned that its
+NTFS valid-data evidence was lost, and the original NTFS delete-notify value
+`0` was restored. The focused Windows Platform build passed, and its full
+suite passed 442/47 skipped/0 failed with 16 workers. The strict new
+`FILECAT_RECOVERY_VM_EXPECT_RETAINED=1` mode and the native FileCat approval
+path still need runs on this exact fixture before the mounted VHD is cleaned.
 
 **26 October 2026, current-head Mac native dialogs and speech (FCUX-004,
 007, 010):** The Mac Git checkout fast-forwarded to `be7b2a30` and published a

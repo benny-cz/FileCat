@@ -1,4 +1,7 @@
-param([Parameter(Mandatory)][string]$ReportPath)
+param(
+    [Parameter(Mandatory)][string]$ReportPath,
+    [switch]$RetainDeletedClusters
+)
 
 # Run elevated only inside the logged-in Windows validation VM. The script owns
 # a new VHD and refuses to touch a pre-existing G: or any other drive.
@@ -21,10 +24,37 @@ $diskpartScript = Join-Path $fixture 'create.txt'
 $result = [ordered]@{ Passed = $false; Fixture = $fixture; Vhd = $vhd; DiskNumber = $null;
     DiskUniqueId = $null; Volume = 'G:'; Label = $null; Source = 'G:\recover-me.bin';
     Expected = Join-Path $fixture 'source-expected.bin'; SourceSha256 = $null;
-    Bytes = 81920; Deleted = $false; Error = $null }
+    Bytes = 81920; Deleted = $false; RetainDeletedClusters = [bool]$RetainDeletedClusters;
+    OriginalNtfsDisableDeleteNotify = $null; NtfsDeleteNotifyRestored = !$RetainDeletedClusters;
+    Error = $null }
+$originalNtfsDeleteNotify = $null
+$ntfsDeleteNotifyChanged = $false
 try {
+    if ($RetainDeletedClusters) {
+        $query = @(& fsutil.exe behavior query DisableDeleteNotify)
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot read the original NTFS TRIM setting.' }
+        $ntfsLines = @($query | Where-Object { $_ -match '^NTFS DisableDeleteNotify\s*=\s*[01]\b' })
+        if ($ntfsLines.Count -ne 1) {
+            throw 'The original NTFS TRIM setting is not an unambiguous 0 or 1.'
+        }
+        $setting = [regex]::Match($ntfsLines[0], '^NTFS DisableDeleteNotify\s*=\s*([01])\b')
+        if (!$setting.Success) { throw 'The NTFS TRIM setting could not be parsed.' }
+        $originalNtfsDeleteNotify = [int]$setting.Groups[1].Value
+        $result.OriginalNtfsDisableDeleteNotify = $originalNtfsDeleteNotify
+        if ($originalNtfsDeleteNotify -eq 0) {
+            $ntfsDeleteNotifyChanged = $true
+            & fsutil.exe behavior set DisableDeleteNotify NTFS 1 | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot disable NTFS TRIM for the isolated fixture.' }
+        }
+        $now = @(& fsutil.exe behavior query DisableDeleteNotify)
+        if ($LASTEXITCODE -ne 0 -or
+            !($now | Where-Object { $_ -match '^NTFS DisableDeleteNotify\s*=\s*1\b' })) {
+            throw 'NTFS TRIM is still active; refusing to claim retained clusters.'
+        }
+    }
+    $vhdType = if ($RetainDeletedClusters) { 'fixed' } else { 'expandable' }
     @(
-        "create vdisk file=`"$vhd`" maximum=512 type=expandable",
+        "create vdisk file=`"$vhd`" maximum=512 type=$vhdType",
         "select vdisk file=`"$vhd`"",
         'attach vdisk',
         'create partition primary',
@@ -51,7 +81,13 @@ try {
     $bytes = [byte[]]::new($result.Bytes)
     [Random]::new(314159).NextBytes($bytes)
     [IO.File]::WriteAllBytes($result.Expected, $bytes)
-    [IO.File]::WriteAllBytes($result.Source, $bytes)
+    $sourceStream = [IO.FileStream]::new($result.Source, [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try {
+        $sourceStream.Write($bytes, 0, $bytes.Length)
+        $sourceStream.Flush($true)
+    } finally { $sourceStream.Dispose() }
+    Write-VolumeCache -Path $volume.Path
     $result.SourceSha256 = (Get-FileHash -LiteralPath $result.Source -Algorithm SHA256).Hash
     if ((Get-FileHash -LiteralPath $result.Expected -Algorithm SHA256).Hash -ne $result.SourceSha256) {
         throw 'The source differs from its off-source reference before deletion.'
@@ -64,6 +100,26 @@ try {
 } catch {
     $result.Error = $_.Exception.Message
 } finally {
+    if ($RetainDeletedClusters) {
+        try {
+            if ($ntfsDeleteNotifyChanged) {
+                & fsutil.exe behavior set DisableDeleteNotify NTFS $originalNtfsDeleteNotify | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw 'Could not restore the original NTFS TRIM setting.' }
+            }
+            if ($null -ne $originalNtfsDeleteNotify) {
+                $restored = @(& fsutil.exe behavior query DisableDeleteNotify)
+                if ($LASTEXITCODE -ne 0 -or
+                    !($restored | Where-Object {
+                        $_ -match ('^NTFS DisableDeleteNotify\s*=\s*' + $originalNtfsDeleteNotify + '\b')
+                    })) { throw 'The original NTFS TRIM setting did not verify after restoration.' }
+                $result.NtfsDeleteNotifyRestored = $true
+            }
+        } catch {
+            $result.Passed = $false
+            $result.NtfsDeleteNotifyRestored = $false
+            $result.Error = (($result.Error, $_.Exception.Message) | Where-Object { $_ }) -join '; '
+        }
+    }
     $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $report -Encoding UTF8
 }
 if (!$result.Passed) { throw "The owned VHD fixture needs inspection: $($result.Error)" }
