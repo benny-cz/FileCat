@@ -19,11 +19,13 @@ public sealed class FreedesktopIconsTests
         string pidFile = Path.Combine(root, "pid");
         try
         {
-            File.WriteAllText(helper, "#!/bin/sh\nprintf '%s\\n' \"$$\" > '" + pidFile + "'\nexec /bin/sleep 5\n");
+            // Leave a wide gap between the stalled helper and the assertion deadline. CI can
+            // suspend this test process for seconds after the 500 ms kill has already worked.
+            File.WriteAllText(helper, "#!/bin/sh\nprintf '%s\\n' \"$$\" > '" + pidFile + "'\nexec /bin/sleep 15\n");
             File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             var clock = Stopwatch.StartNew();
             Assert.Null(FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
-            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), $"Theme detection waited {clock.Elapsed} for a stalled helper.");
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"Theme detection waited {clock.Elapsed} for a stalled helper.");
             Assert.True(File.Exists(pidFile), "The owned helper did not reach its sleep control.");
             int pid = int.Parse(File.ReadAllText(pidFile));
             Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid));

@@ -235,6 +235,28 @@ public sealed class ViewerSearchScopeTests
         Assert.Equal("1 match", peer.GetName());
     }
 
+    [AvaloniaFact]
+    public async Task A_completed_miss_is_spoken_without_announcing_search_progress_or_navigation()
+    {
+        using var f = await Fixture.Create(Encoding.UTF8.GetBytes("charlie\n"), editor: false);
+        var status = Field<TextBlock>(f.Window, "_status");
+        var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(status);
+        var spoken = new List<string?>();
+        peer.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Avalonia.Automation.AutomationElementIdentifiers.NameProperty &&
+                peer.GetLiveSetting() == Avalonia.Automation.AutomationLiveSetting.Polite)
+                spoken.Add(peer.GetName());
+        };
+        f.Search.Text = "absent";
+        await f.Find(true);
+        Assert.Equal(["\"absent\" was not found after this position."], spoken);
+        Assert.Equal(spoken[0], peer.GetName());
+        Invoke(f.Window, "UpdateStatus");
+        Assert.Equal(Avalonia.Automation.AutomationLiveSetting.Off, peer.GetLiveSetting());
+        Assert.Single(spoken);
+    }
+
     [AvaloniaTheory]
     [InlineData(true, false, true)]
     [InlineData(false, false, true)]
@@ -255,6 +277,15 @@ public sealed class ViewerSearchScopeTests
             viewer.Show();
             await Until(() => Field<DispatcherTimer>(viewer, "_changeTimer").IsEnabled);
             Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
+            var statusPeer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(
+                Field<TextBlock>(viewer, "_status"));
+            var spoken = new List<string?>();
+            statusPeer.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Avalonia.Automation.AutomationElementIdentifiers.NameProperty &&
+                    statusPeer.GetLiveSetting() == Avalonia.Automation.AutomationLiveSetting.Polite)
+                    spoken.Add(statusPeer.GetName());
+            };
             var search = Field<TextBox>(viewer, "_search");
             search.Text = "ABSENT_SEARCH_STOP";
             Invoke(viewer, "SetFindOpen", true, false);
@@ -268,12 +299,14 @@ public sealed class ViewerSearchScopeTests
             Assert.True(stop.IsEffectivelyVisible && stop.Bounds.Width > 0);
             Assert.Equal(bar.Children.IndexOf(next) + 1, bar.Children.IndexOf(stop));
             Assert.Contains("Searching forward", Field<TextBlock>(viewer, "_status").Text);
+            Assert.Empty(spoken);
             if (requestStop) stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             source.Release.Set();
             await find.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             string? outcome = Field<TextBlock>(viewer, "_status").Text;
             if (requestStop) Assert.Equal("Search canceled.", outcome);
             else Assert.Contains("Controlled provider read failed after release.", outcome);
+            Assert.Equal([outcome], spoken);
             Assert.False(stop.IsVisible);
         }
         finally

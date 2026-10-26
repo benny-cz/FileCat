@@ -980,6 +980,9 @@ public sealed class ViewerWindow : Window
 
     private void UpdateStatus()
     {
+        // Position, size and loading feedback change frequently. Only completed Find outcomes
+        // are live; moving through the content must not make a screen reader recite this bar.
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         UpdateRefreshFeedback();
         if (_isPicture)
         {
@@ -1403,7 +1406,7 @@ public sealed class ViewerWindow : Window
         byte[]? bytes = hexMode ? ContentSearch.ParseHex(pattern) : null;
         if (hexMode && bytes is null)
         {
-            _status.Text = "Hex search expects bytes such as \"4D 5A 90\".";
+            ShowSearchOutcome("Hex search expects bytes such as \"4D 5A 90\".");
             return;
         }
         var enc = info ? new UTF8Encoding(false) : _text.Encoding;
@@ -1416,6 +1419,7 @@ public sealed class ViewerWindow : Window
         var ct = cts.Token;
         _stopSearch.IsVisible = true;
         UpdateMatchControls();
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = $"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)";
         long found;
         try
@@ -1431,7 +1435,7 @@ public sealed class ViewerWindow : Window
             ct.ThrowIfCancellationRequested();
             if (found < 0)
             {
-                _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.";
+                ShowSearchOutcome($"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.");
                 EnsureMatchCount(identity, reader, bytes, enc, matchCase);
                 return;
             }
@@ -1456,15 +1460,15 @@ public sealed class ViewerWindow : Window
         catch (OperationCanceledException)
         {
             if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
-                _status.Text = "Search canceled.";
+                ShowSearchOutcome("Search canceled.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
             if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
                 // A provider can fail an in-flight read after Stop; the cancel request owns this search's result.
-                _status.Text = ct.IsCancellationRequested
+                ShowSearchOutcome(ct.IsCancellationRequested
                     ? "Search canceled."
-                    : "Search could not finish: " + ex.Message;
+                    : "Search could not finish: " + ex.Message);
         }
         finally
         {
@@ -1475,6 +1479,14 @@ public sealed class ViewerWindow : Window
                 UpdateMatchControls();
             }
         }
+    }
+
+    private void ShowSearchOutcome(string message)
+    {
+        // The visible status text is also its accessible name. A fixed AutomationProperties.Name
+        // would suppress the name-change event used by screen readers for live announcements.
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Polite);
+        _status.Text = message;
     }
 
     private async Task FindPageAsync(string pattern, bool forward)
@@ -1535,6 +1547,7 @@ public sealed class ViewerWindow : Window
 
     private void InvalidateSearch(bool keepCount = false)
     {
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         if (_isPage) _pageView.ClearFind();
         _searchCts?.Cancel();
         _searchCts = null;

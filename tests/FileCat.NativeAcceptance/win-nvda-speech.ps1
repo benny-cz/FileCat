@@ -319,6 +319,7 @@ try {
     Step 'F3 opens the viewer' 'F3' 'FileCat Viewer'
     Step 'F7 opens the viewer search' 'F7' 'Find in file'
     Step 'a viewer search speaks its match count' 'C,H,A,R,Enter' "'1 match'"
+    Step 'a completed viewer miss speaks its outcome' 'CtrlA,A,A,A,Enter' 'was not found after this position'
     Step 'Escape returns from the search to the text' 'Escape' 'No selection'
     Step 'Escape closes the viewer' 'Escape' 'c.txt'
     # A rejected transfer destination is spoken while the form stays open.

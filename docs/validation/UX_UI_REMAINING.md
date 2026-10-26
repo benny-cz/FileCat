@@ -15,8 +15,9 @@ increments to `main`.
   clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
-  `mac-ax-focus-speech.py` journeys for the spoken criteria of other
-  findings (Find results, UXBUG-015 and FCUX-040/041 form errors, tabs).
+  `mac-ax-focus-speech.py` journeys for the remaining spoken criteria of other
+  findings (viewer Stop and provider-error outcomes, UXBUG-015 and
+  FCUX-040/041 form errors, tabs).
   Assert VoiceOver's actual spoken phrases for the other Mac routes. Keep Mac
   audio muted.
 
@@ -54,9 +55,9 @@ increments to `main`.
    input and the remaining assistive-technology routes. Visible Stop passed
    Windows Hex at 100% and Hex/Text at 150%; test it in other modes, scales
    and providers, changed-query ownership on other routes, provider
-   cancellation over live remote connections, and spoken Find results. A held
-   provider read now distinguishes Stop from a genuine read error in Text and
-   Hex; assistive-technology routes still need native checks.
+   cancellation over live remote connections, and native spoken Stop/error
+   outcomes on supported desktops. Complete the other assistive-technology
+   routes for search results and count completeness.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
    the other narrow-layout states. For FCUX-009, the Ubuntu

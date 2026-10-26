@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, spoken viewer Find outcomes and Ubuntu CI timing
+(FCUX-007):** The viewer now makes completed misses, Stop outcomes, provider
+read failures and invalid Hex patterns polite live status changes. In-progress
+search and ordinary position updates remain silent. The visible status text
+supplies its changing accessible name, so the screen reader hears the actual
+outcome. Seven focused App cases passed in the isolated Windows VM: a complete
+miss and all six Text/Hex held-read Stop/failure combinations
+(`.local-win-search-outcome-r1.json`). The complete search-scope, Find-control
+and live-region naming classes then passed all 37 cases in the same VM
+(`.local-win-search-outcome-r2.json`). A native Windows journey using signed
+portable NVDA 2026.2 then heard the completed `"aaa" was not found after this
+position.` phrase from its speech log and passed the rest of its keyboard,
+filter, dialog and review checks (`.local-win-SearchOutcomeNvda-r1.json`).
+Native Stop/error speech and the other desktop routes remain open.
+
+An earlier Ubuntu CI lane for `3ae11467` failed only the existing stalled
+theme-helper timing assertion: 3.68 seconds elapsed against a 3-second
+deadline on the loaded runner, even though the 500 ms process timeout had
+returned null. The regression now stalls its helper for 15 seconds and allows
+10 seconds of test wall time, retaining a clear failure margin for a genuine
+blocking wait and checking the helper process is gone. The focused Ubuntu VM
+test passed in 687 ms (`.local-ubuntu-theme-deadline-r1.log`). The final-head
+five-lane CI gate is pending.
+
 **26 October 2026, viewer Stop versus provider read failure (FCUX-007):**
 `ViewerWindow.FindAsync` now treats a read, access or decode exception as a
 canceled search when the current search token was canceled. A genuine source
