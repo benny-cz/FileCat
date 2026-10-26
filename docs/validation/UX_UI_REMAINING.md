@@ -12,7 +12,9 @@ increments to `main`.
   1× and scaled states using the owner-approved
   `FileCatCapture` helper in the unlocked
   desktop session. Keep the Mac display awake while finishing Mac input and
-  clipboard journeys. Finish the remaining Ubuntu Linux input, clipboard,
+  clipboard journeys. Recheck the Mac AX Tab transition that briefly focused
+  the target parent row then settled on Filter in the 26 October focus run.
+  Finish the remaining Ubuntu Linux input, clipboard,
   viewer and assistive-technology checks.
 - Extend the `linux-orca-speech.py`, `win-nvda-speech.ps1`, and
   `mac-ax-focus-speech.py` journeys for the remaining spoken criteria of other
@@ -57,8 +59,8 @@ increments to `main`.
    and providers, changed-query ownership on other routes, provider
    cancellation over live remote connections, native spoken provider-error
    outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
-   Complete Mac spoken completed-miss and the other provider/scale
-   assistive-technology routes for search results and count completeness.
+   Complete the other provider/scale assistive-technology routes for search
+   results and count completeness.
    For FCUX-008, test native incomplete sources and mid-read changes on the
    remaining supported provider and desktop routes, scaled Ubuntu layout and
    the other narrow-layout states. For FCUX-009, the Ubuntu

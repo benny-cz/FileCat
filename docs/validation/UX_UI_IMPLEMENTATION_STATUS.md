@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, actual muted Mac VoiceOver viewer Find (FCUX-007):**
+The tracked `mac-voiceover-list.py` now has a `--viewer-find` journey. The
+isolated Mac published a directly signed ARM64 app from exact Git revision
+`8508db4b338a65a5ce08fffdc493bffa58d5b6f5`, with DLL SHA-256
+`8622f77cd3c8bb567df604cd19d4487bd70e56caa8cbddddd7d7fa0bbeb9104c`.
+With the output muted, VoiceOver's actual last-phrase interface spoke
+`1 match`, then `"aaa" was not found after this position.` after a changed
+query in the Text viewer. The native route closed the viewer and preserved
+all three source hashes and the empty destination
+(`.local-mac-voiceover-viewer-find-8508db4b.json`). A separate AX focus
+journey on the same app stopped before its Find step because a Tab briefly
+focused the target parent row then settled on Filter. That focus transition
+remains an independent native acceptance issue; it does not qualify the
+passed VoiceOver Find result.
+
 **26 October 2026, native Ubuntu spoken viewer miss (FCUX-007):** The
 tracked `linux-orca-speech.py` journey now replaces a successful Find query
 with an absent term and requires Orca's actual `SPEECH OUTPUT` to contain

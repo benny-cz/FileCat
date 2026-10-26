@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert actual muted VoiceOver speech for an isolated FileCat file-list journey.
 
-Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--filter|--filter-visual|--review|--review-pages]
+Usage: python3 mac-voiceover-list.py BUNDLE.app REPORT.json [--actions|--copy-action|--filter|--filter-visual|--review|--review-pages|--viewer-find]
 Run in the unlocked Mac desktop after the owner-approved VoiceOver controls.
 This runner does not attach a long-lived AX observer while querying VoiceOver.
 """
@@ -51,7 +51,7 @@ def screenshot():
     return str(wait_for(lambda: next(iter(set(root.glob("native-screen-*.png")) - before), None)))
 
 
-def run(bundle, report_path, actions=False, copy_action=False, filter_field=False, filter_visual=False, review=False, review_pages=False):
+def run(bundle, report_path, actions=False, copy_action=False, filter_field=False, filter_visual=False, review=False, review_pages=False, viewer_find=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle = bundle.resolve(strict=True)
     report_path = report_path.resolve()
@@ -182,6 +182,46 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
         receipt["explicitMark"]["unmarked"] = unmarked
         if unmarked.get("title") != "b.txt" or ", not marked," not in unmarked.get("help", ""):
             raise AssertionError("Explicit Space did not clear the b.txt mark")
+        if viewer_find:
+            receipt["viewerFind"] = {}
+            osa('tell application "System Events" to key code 99')  # F3 opens b.txt.
+            def viewer_window():
+                return "b.txt — FileCat Viewer" in osa('tell application "System Events" to tell process "FileCat" to get name of every window')
+            wait_for(viewer_window)
+            osa('tell application "System Events" to key code 98')  # F7 focuses Find.
+            wait_for(lambda: focused().get("title") == "Find in file", seconds=6)
+            for key_code in (11, 14, 17, 0, 36):  # beta, Return
+                osa(f'tell application "System Events" to key code {key_code}')
+            counts = []
+            deadline = time.monotonic() + 6
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in counts:
+                    counts.append(phrase)
+                if "1 match" in phrase:
+                    break
+                time.sleep(.15)
+            receipt["viewerFind"]["countSpeech"] = counts
+            if not any("1 match" in phrase for phrase in counts):
+                raise AssertionError(f"VoiceOver did not speak the viewer Find count: {counts!r}")
+            osa('tell application "System Events" to key code 0 using {command down}')  # Replace the query.
+            for key_code in (0, 0, 0, 36):  # aaa, Return
+                osa(f'tell application "System Events" to key code {key_code}')
+            misses = []
+            deadline = time.monotonic() + 6
+            while time.monotonic() < deadline:
+                phrase = last_phrase()
+                if phrase not in misses:
+                    misses.append(phrase)
+                if '"aaa" was not found after this position.' in phrase:
+                    break
+                time.sleep(.15)
+            receipt["viewerFind"]["missSpeech"] = misses
+            if not any('"aaa" was not found after this position.' in phrase for phrase in misses):
+                raise AssertionError(f"VoiceOver did not speak the completed viewer miss: {misses!r}")
+            osa('tell application "System Events" to key code 53')
+            osa('tell application "System Events" to key code 53')
+            wait_for(lambda: not viewer_window(), seconds=8)
         if filter_field or filter_visual:
             receipt["inlineFilter"] = {}
             if filter_visual:
@@ -508,10 +548,11 @@ def run(bundle, report_path, actions=False, copy_action=False, filter_field=Fals
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--filter", "--filter-visual", "--review", "--review-pages")):
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("--actions", "--copy-action", "--filter", "--filter-visual", "--review", "--review-pages", "--viewer-find")):
         raise SystemExit(__doc__)
     mode = sys.argv[3] if len(sys.argv) == 4 else ""
     run(Path(sys.argv[1]), Path(sys.argv[2]), actions=mode == "--actions",
         copy_action=mode == "--copy-action", filter_field=mode == "--filter",
         filter_visual=mode == "--filter-visual",
-        review=mode == "--review", review_pages=mode == "--review-pages")
+        review=mode == "--review", review_pages=mode == "--review-pages",
+        viewer_find=mode == "--viewer-find")
