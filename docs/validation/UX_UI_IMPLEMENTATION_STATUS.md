@@ -4,8 +4,13 @@
 from the running elevated workstation app shows the default masks blank in all
 four address rows. This matches the native Windows VM reproduction from before
 the `PanelAddressTextBox` template fix. The fixed Git build painted `*.*` in
-all four VM panels, and the current headless regression covers the screenshot's
-purple theme. A fresh Release build from `a34092cf` is available at
+all four VM panels. The new tracked
+`win-ax-panel-mask-theme.ps1` repeated the four-panel journey with physical
+pointer input and the screenshot's Psychedelic theme on the `2f1f43c9` VM
+build. Its `panel-mask-theme-tracked-20261026-r8.json` receipt records four
+visible `*.*` fields and untouched fixture files; the paired native PNG
+visibly paints each mask. The headless regression also covers this theme.
+A fresh local Release build from `a34092cf` is available at
 `src/FileCat.App/bin/Release/publish-main-a34092cf/FileCat.exe` (app DLL
 SHA-256 `a4a9100a760b135f717844f01709c88e6944101f54194545a8d9b37c7f199834`).
 The elevated workstation process was left untouched; its executable identity

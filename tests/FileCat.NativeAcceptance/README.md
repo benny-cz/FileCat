@@ -4,6 +4,16 @@ This runner exercises actual Win32 pointer input against a running FileCat
 window. It requires a logged-in Windows desktop, FileCat, and the locally
 installed Windows Application Driver listening on `127.0.0.1:4723`. It does
 not connect the driver to a network interface.
+`win-ax-panel-mask-theme.ps1 -AppPath <Git-built FileCat.exe> -HarnessPath
+<FileCat.NativeAcceptance.exe> -ReportPath <fresh guest JSON>` runs directly
+through Windows UI Automation and physical pointer input in the logged-in
+test desktop; this specific script does not need WinAppDriver. It seeds a
+private source, destination and data profile, selects the Psychedelic theme,
+then adds a panel below each original panel by activating the destination tab
+through its accessibility identity. All four Filter fields must expose `*.*`
+with visible bounds. It saves a same-stem PNG for visual confirmation that
+the masks are painted, verifies that fixture files and destination are intact,
+and closes only its exact test app. Use a fresh report path for each run.
 `linux-atspi-rename-editor.py APP_PATH REPORT.json KEY_HELPER [--narrow|--rule-change]`
 checks a native Ubuntu bulk-rename editor round trip. Use the logged-in
 desktop, a Git-built executable below `~/FileCatValidation`, and a copy of

@@ -103,7 +103,8 @@ increments to `main`.
    UXBUG-014 still needs native display-scale and spoken acceptance.
    The 26 October screenshot of the running elevated workstation app still
    shows blank default masks in four panels. The Git-built Windows VM passed
-   the fix on all four panels; confirm the workstation after closing that
+   the fix on all four panels, including the same purple theme; confirm the
+   workstation after closing that
    process and launching the fresh `a34092cf` Release build. If the mask
    remains blank there, capture that executable's identity and reopen the
    rendering investigation.
