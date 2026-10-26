@@ -1700,6 +1700,14 @@ inspection while preserving the same no-mutation and Cancel assertions.
 the three reviews; the direct helper targets only the exact titled FileCat
 window even when macOS exposes another transient window.
 
+`python3 mac-voiceover-viewer-stop.py BUNDLE.app REPORT.json [--text]` runs
+the signed Mac app on its own 2 GiB sparse source, starts a Hex or Text viewer
+search and presses the visible Stop through bounded direct AX. It requires
+muted output and checks VoiceOver's actual last phrase for `Search canceled.`,
+the unchanged sampled source, empty target and unchanged text clipboard. The
+helper waits for the app's first AX window, verifies its executable/PID and
+terminates only its own app; it removes the large sparse source afterward.
+
 `osascript mac-ax-viewer-find.applescript SOURCE REPORT.json` checks the Text
 viewer on that fixture's `a.txt`. It opens the viewer from the focused source
 row, reveals Find, replaces any existing query with real keyboard input, and

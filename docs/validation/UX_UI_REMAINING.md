@@ -68,8 +68,8 @@ increments to `main`.
    200%; test other modes, providers and Ubuntu 150%,
    changed-query ownership on other routes, cancellation over live remote
    connections, native spoken provider-error
-   outcomes on Windows, spoken provider errors on Ubuntu, and spoken Stop/error
-   outcomes on Mac. Ubuntu Orca already spoke Hex/Text local Stop at 100%.
+   outcomes on Windows and spoken provider errors on Ubuntu and Mac. Ubuntu
+   Orca and muted Mac VoiceOver already spoke Hex/Text local Stop.
    Complete the other provider/scale assistive-technology routes for search
    results and count completeness, including remote-backed searches and narrow
    viewer searches beyond the tested Ubuntu 720 × 500 and minimum 480 × 300

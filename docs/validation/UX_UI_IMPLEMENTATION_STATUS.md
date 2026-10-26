@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, VoiceOver speaks viewer Stop (FCUX-007):**
+The signed isolated Mac app with DLL SHA-256
+`65c05d26f0cfff585e903768fd3acbf70941b181e0dd8e5831a1acec6ca0e4d6`
+passed native Hex and Text searches over separate test-owned 2 GiB sparse
+files. The bounded direct AX helper activated visible Stop, and muted
+VoiceOver's actual last phrase became `Search canceled.` in both modes. Two
+consecutive runs of each mode passed after the runner waited for FileCat's
+first AX window. Each retained its source length and sampled zero bytes,
+empty target and original text clipboard; the exact app process exited and
+the large source was removed. Remote provider and spoken error routes remain
+open.
+
 **26 October 2026, Orca speaks viewer Stop (FCUX-007):**
 The Ubuntu 100% native Hex and Text long-search Stop journeys now also start
 one isolated Orca instance and inspect its actual speech output. Orca spoke
