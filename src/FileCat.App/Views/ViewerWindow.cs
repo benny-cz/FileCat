@@ -476,9 +476,20 @@ public sealed class ViewerWindow : Window
             if (e.Property != TextBox.TextProperty) return;
             if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
             InvalidateSearch();
+            UpdateStatus();
         };
-        _matchCase.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
-        _hexSearch.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) InvalidateSearch(); };
+        _matchCase.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != ToggleButton.IsCheckedProperty) return;
+            InvalidateSearch();
+            UpdateStatus();
+        };
+        _hexSearch.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != ToggleButton.IsCheckedProperty) return;
+            InvalidateSearch();
+            UpdateStatus();
+        };
         _text.PositionChanged += () => SearchPositionChanged(_text);
         _info.PositionChanged += () => SearchPositionChanged(_info);
         _hex.CursorMoved += () => SearchPositionChanged(_hex);

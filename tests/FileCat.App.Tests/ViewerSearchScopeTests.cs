@@ -317,6 +317,49 @@ public sealed class ViewerSearchScopeTests
         }
     }
 
+    [AvaloniaTheory]
+    [InlineData("query")]
+    [InlineData("mode")]
+    public async Task A_changed_query_or_mode_retires_a_held_remote_text_search(string change)
+    {
+        string root = Path.Join(Path.GetTempPath(), "filecat-search-replace-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
+        using var source = new HeldSearchSource(failAfterRelease: false);
+        var viewer = new ViewerWindow(services, source, "remote.txt", hex: false);
+        try
+        {
+            viewer.Show();
+            await Until(() => Field<DispatcherTimer>(viewer, "_changeTimer").IsEnabled);
+            Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
+            Field<TextBox>(viewer, "_search").Text = "OLD_ABSENT_QUERY";
+            source.HoldNextRead();
+            var oldSearch = (Task)Invoke(viewer, "FindAsync", true)!;
+            await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Contains("Searching forward", Field<TextBlock>(viewer, "_status").Text);
+
+            if (change == "query") Field<TextBox>(viewer, "_search").Text = "NEW_QUERY";
+            else Invoke(viewer, "SetMode", true);
+            source.Release.Set();
+            await oldSearch.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+            string status = Field<TextBlock>(viewer, "_status").Text ?? "";
+            Assert.DoesNotContain("Searching", status, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("OLD_ABSENT_QUERY", status, StringComparison.Ordinal);
+            Assert.Null(typeof(ViewerWindow).GetField("_searchCts", Fields)!.GetValue(viewer));
+            Assert.False(Field<Button>(viewer, "_stopSearch").IsVisible);
+            Assert.Equal(-1, Field<long>(viewer, "_lastHit"));
+            Assert.DoesNotContain("match", Field<TextBlock>(viewer, "_matchCount").Text ?? "",
+                StringComparison.OrdinalIgnoreCase); // no completed count is claimed for the retired request
+        }
+        finally
+        {
+            source.Release.Set();
+            viewer.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static object? Invoke(object owner, string name, params object?[] args) => owner.GetType().GetMethod(name, Fields)!.Invoke(owner, args);
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
     private static async Task Until(Func<bool> condition)

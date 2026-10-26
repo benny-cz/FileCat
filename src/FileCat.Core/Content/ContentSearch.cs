@@ -98,7 +98,9 @@ public static class ContentSearch
         while (pos < len)
         {
             ct.ThrowIfCancellationRequested();
-            int n = reader.Read(pos, buffer.AsSpan(0, (int)Math.Min(buffer.Length, len - pos)), ct);
+            int requested = (int)Math.Min(buffer.Length, len - pos);
+            int n = reader.Read(pos, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, n, requested);
             if (n < p.Length) return -1;
             int idx = buffer.AsSpan(0, n).IndexOf(p);
             if (idx >= 0) return pos + idx;
@@ -119,7 +121,9 @@ public static class ContentSearch
         {
             ct.ThrowIfCancellationRequested();
             long from = Math.Max(0, end - buffer.Length);
-            int n = reader.Read(from, buffer.AsSpan(0, (int)(end - from)), ct);
+            int requested = (int)(end - from);
+            int n = reader.Read(from, buffer.AsSpan(0, requested), ct);
+            RequireCompleteRead(reader, n, requested);
             int idx = buffer.AsSpan(0, n).LastIndexOf(p);
             if (idx >= 0 && from + idx < before) return from + idx;
             if (from == 0) return -1;

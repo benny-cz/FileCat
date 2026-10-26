@@ -110,6 +110,22 @@ public class ContentAndToolTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Byte_search_reports_a_damaged_provider_range_instead_of_a_false_miss(bool backward)
+    {
+        using var reader = new PagedReader(new DamagedSecondPage(new byte[3 * PagedReader.PageSize]));
+        byte[] needle = "unreadable"u8.ToArray();
+
+        var error = Assert.Throws<EndOfStreamException>(() => backward
+            ? ContentSearch.FindBytesBackward(reader, reader.Length, needle, CancellationToken.None)
+            : ContentSearch.FindBytes(reader, 0, needle, CancellationToken.None));
+
+        Assert.Contains("checksum does not match", error.Message);
+        Assert.Contains("checksum does not match", reader.ReadError);
+    }
+
     [Fact]
     public async Task Paged_reader_shows_content_ending_at_a_damaged_page_and_says_why()
     {
