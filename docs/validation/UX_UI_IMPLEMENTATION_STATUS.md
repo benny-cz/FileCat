@@ -152,6 +152,17 @@ no-later-match message, and the fixture stayed byte-exact. Guest receipts:
 `text-find-narrow-query-100-current.json`.
 Remote-backed, other scale and spoken provider-error/Stop routes remain open.
 
+**26 October 2026, minimum-size Ubuntu Text Find (FCUX-007):** The native
+AT-SPI runner now accepts `--minimum` and requires a bounded viewer frame
+after requesting 480 × 300 physical pixels. On the isolated Git-built Ubuntu
+app, the measured frame was exactly 480 × 300 at stable 100%; Find, Previous,
+Next and the `1 match` status all remained inside it. Physical F3 and
+Shift+F3 produced the directional boundary messages. Replacing `alpha` with
+`beta` retired the old count and showed `0 matches`; both source files stayed
+byte-exact and the viewer closed. The guest receipt is
+`text-find-minimum-100-verified.json`. Other scales, remote-backed searches
+and spoken provider-error/Stop routes remain open.
+
 **26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**
 The isolated GNOME guest ran `linux-orca-speech.py` against the Git-built
 `cff83525` app (app SHA-256

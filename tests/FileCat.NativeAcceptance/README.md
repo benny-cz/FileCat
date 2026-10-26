@@ -1266,6 +1266,10 @@ helper, verify both directional no-match messages and the retained exact
 count, then close its viewer and app. Grant the helper native input access as
 for the Hex editor check. The JSON report records the executable hash and
 fixture path.
+Add `--narrow` to measure Find, Previous, Next and the count inside a
+720 × 500 viewer. Add `--minimum` for the same source, changed-query and
+physical-key journey in a measured 480 × 300 viewer; its report requires
+the minimum-sized frame and all four controls inside it.
 
 `linux-atspi-viewer-checksum.py APP REPORT.json UINPUT_HELPER` launches a
 Git-built app on an isolated five-byte binary, selects byte zero with a

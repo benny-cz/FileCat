@@ -2,7 +2,7 @@
 """Check a native Ubuntu FileCat Text viewer through its AT-SPI UI.
 
 Usage: linux-atspi-viewer-find.py SOURCE REPORT.json [UINPUT_HELPER]
-   or: linux-atspi-viewer-find.py --launch APP REPORT.json UINPUT_HELPER [--narrow]
+   or: linux-atspi-viewer-find.py --launch APP REPORT.json UINPUT_HELPER [--narrow|--minimum]
 Run in the logged-in desktop session with its DBUS_SESSION_BUS_ADDRESS. The
 isolated SOURCE contains a.txt = b"alpha\n" and b.txt = b"beta\n". Requires
 gi.repository.Atspi 2.0 and wmctrl for graceful viewer-window closure.
@@ -92,7 +92,7 @@ def inside(frame, control, name):
     return area
 
 
-def run(source, helper=None, narrow=False):
+def run(source, helper=None, narrow=False, minimum=False):
     source = source.resolve(strict=True)
     a_path = source / "a.txt"
     b_path = source / "b.txt"
@@ -128,13 +128,14 @@ def run(source, helper=None, narrow=False):
     try:
         wait_for(lambda: find(viewer, "label", "Mode: Text"), "Text mode")
         geometry = None
-        if narrow:
+        if narrow or minimum:
+            width, height = (480, 300) if minimum else (720, 500)
             window_id = exact_viewer_window_id(title, expected_pid)
             subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
-                            "0,150,100,720,500"], check=True, timeout=5)
+                            f"0,150,100,{width},{height}"], check=True, timeout=5)
             subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
             time.sleep(.4)
-            geometry = {"requestedPhysicalSize": [720, 500]}
+            geometry = {"requestedPhysicalSize": [width, height]}
         checked_action(find(viewer, "button", "Show or hide viewer Find bar"),
                        "viewer Find toggle")
         entry = wait_for(lambda: find(viewer, "entry", "Find in file"), "Find field")
@@ -142,8 +143,10 @@ def run(source, helper=None, narrow=False):
             raise AssertionError("AT-SPI could not set the Find query")
         checked_action(find(viewer, "button", "Find next match"), "Find Next")
         wait_for(lambda: find(viewer, "label", "1 match"), "visible exact match count")
-        if narrow:
+        if narrow or minimum:
             frame = rect(viewer)
+            if minimum and not (480 <= frame[2] <= 520 and 300 <= frame[3] <= 340):
+                raise AssertionError(f"The minimum viewer size was not applied: {frame}")
             geometry["frame"] = frame
             geometry["controls"] = {
                 name: inside(frame, find(viewer, role, accessible), name)
@@ -194,7 +197,7 @@ def run(source, helper=None, narrow=False):
             "geometry": geometry}
 
 
-def launch_and_run(app_path, helper, narrow=False):
+def launch_and_run(app_path, helper, narrow=False, minimum=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     if app_path.name != "FileCat" or validation not in app_path.parents:
@@ -224,7 +227,7 @@ def launch_and_run(app_path, helper, narrow=False):
                      if app.get_name() == "FileCat"
                      and find(app, "list", f"Panel 1, source, {source}")), None),
                      "isolated Text viewer fixture")
-            result = run(source, helper, narrow=narrow)
+            result = run(source, helper, narrow=narrow, minimum=minimum)
             result.update({"app": str(app_path), "appSha256": app_hash,
                            "fixture": str(root)})
             return result
@@ -240,15 +243,16 @@ def launch_and_run(app_path, helper, narrow=False):
 
 def main():
     if len(sys.argv) in (5, 6) and sys.argv[1] == "--launch" and \
-            (len(sys.argv) == 5 or sys.argv[5] == "--narrow"):
+            (len(sys.argv) == 5 or sys.argv[5] in ("--narrow", "--minimum")):
         report = Path(sys.argv[3])
         check = lambda: launch_and_run(Path(sys.argv[2]), Path(sys.argv[4]),
-                                       narrow=len(sys.argv) == 6)
+                                       narrow=len(sys.argv) == 6 and sys.argv[5] == "--narrow",
+                                       minimum=len(sys.argv) == 6 and sys.argv[5] == "--minimum")
     elif len(sys.argv) in (3, 4):
         report = Path(sys.argv[2])
         check = lambda: run(Path(sys.argv[1]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)
     else:
-        raise SystemExit("Usage: linux-atspi-viewer-find.py SOURCE REPORT.json [UINPUT_HELPER] | --launch APP REPORT.json UINPUT_HELPER")
+        raise SystemExit("Usage: linux-atspi-viewer-find.py SOURCE REPORT.json [UINPUT_HELPER] | --launch APP REPORT.json UINPUT_HELPER [--narrow|--minimum]")
     try:
         result = check()
     except Exception as exc:

@@ -67,7 +67,8 @@ increments to `main`.
    outcomes on Windows, and spoken Stop/error outcomes on Ubuntu and Mac.
    Complete the other provider/scale assistive-technology routes for search
    results and count completeness, including remote-backed searches and narrow
-   viewer searches beyond the tested Ubuntu 720 × 500 Text view.
+   viewer searches beyond the tested Ubuntu 720 × 500 and minimum 480 × 300
+   Text views.
    For FCUX-008, test native incomplete reads on local and remote providers,
    mid-read changes on the remaining desktop and provider routes, minimum-size
    layouts beyond the validated Ubuntu and Windows 100% checksum runs, and a
