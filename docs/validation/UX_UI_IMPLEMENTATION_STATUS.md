@@ -136,6 +136,19 @@ Receipts: `checksum-minimum-scale150-20261026-min1.json`,
 `checksum-minimum-scale-restore100.json`. Ubuntu stable 150% and other
 provider failure routes remain open.
 
+**26 October 2026, Ubuntu 200% minimum checksum viewer (FCUX-008):**
+The isolated Git-built Ubuntu app DLL SHA-256
+`98a89f32e5a83ea5f5eacd3f03947bd5f5167849bf5c91d1dd24be5df6b22561`
+passed the native `--minimum` journey at a measured GNOME 200% display scale.
+Its 480 × 300 logical request produced a 960 × 600 physical viewer frame.
+Scope, Compute, Copy, Close and selectable results stayed inside that frame
+for both one-byte and whole-file SHA-256/CRC-32 runs; byte counts, explicit
+Copy, unchanged source and empty destination passed. Guest receipt:
+`checksum-minimum-200-current.json`. A later display-state read recorded the
+guest back at 1280 × 800 and 100%; VMware can still reassert a prior scale
+when a new interactive program starts. Stable 150% and other provider
+failure routes remain open.
+
 **26 October 2026, exact-head Ubuntu Text viewer Find (FCUX-007):**
 The isolated Ubuntu GNOME guest ran `linux-atspi-viewer-find.py` against the
 Git-built `cff83525` app (SHA-256
@@ -176,6 +189,20 @@ Shift+F3 produced the directional boundary messages. Replacing `alpha` with
 byte-exact and the viewer closed. The guest receipt is
 `text-find-minimum-100-verified.json`. Other scales, remote-backed searches
 and spoken provider-error/Stop routes remain open.
+
+**26 October 2026, scaled Ubuntu minimum Text Find (FCUX-007):** The native
+runner now derives physical window size from `gdctl` and requires a measured
+frame near the 480 × 300 logical request before checking its controls. At
+measured GNOME 200% it passed with a 960 × 600 frame: Find, Previous, Next
+and the exact count stayed inside it; physical F3/Shift+F3 returned the
+correct directional boundaries; replacing `alpha` with `beta` retired the
+old count and showed `0 matches`; source bytes remained unchanged. Guest
+receipt: `text-find-minimum-scale200-current.json`. During an attempted
+post-200% repeat, VMware changed the display back to 200% as the interactive
+app started; that repeat was measured as another 200% run and is not used as
+100% evidence. The earlier `text-find-minimum-100-verified.json` remains the
+measured 100% receipt. Stable 150%, remote-backed and spoken Stop/error
+routes remain open.
 
 **26 October 2026, current Ubuntu Orca speech (FCUX-004/007/010/031/040):**
 The isolated GNOME guest ran `linux-orca-speech.py` against the Git-built

@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
@@ -129,13 +130,20 @@ def run(source, helper=None, narrow=False, minimum=False):
         wait_for(lambda: find(viewer, "label", "Mode: Text"), "Text mode")
         geometry = None
         if narrow or minimum:
-            width, height = (480, 300) if minimum else (720, 500)
+            scale_info = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
+                                        text=True, check=True, timeout=5).stdout
+            match = re.search(r"\bScale: ([0-9.]+)", scale_info)
+            scale = float(match.group(1)) if match else None
+            if scale not in (1.0, 1.5, 2.0):
+                raise AssertionError(f"The Ubuntu display scale is unavailable: {scale}")
+            logical_width, logical_height = (480, 300) if minimum else (720, 500)
+            width, height = round(logical_width * scale), round(logical_height * scale)
             window_id = exact_viewer_window_id(title, expected_pid)
             subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
                             f"0,150,100,{width},{height}"], check=True, timeout=5)
             subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
             time.sleep(.4)
-            geometry = {"requestedPhysicalSize": [width, height]}
+            geometry = {"displayScale": scale, "requestedPhysicalSize": [width, height]}
         checked_action(find(viewer, "button", "Show or hide viewer Find bar"),
                        "viewer Find toggle")
         entry = wait_for(lambda: find(viewer, "entry", "Find in file"), "Find field")
@@ -145,8 +153,11 @@ def run(source, helper=None, narrow=False, minimum=False):
         wait_for(lambda: find(viewer, "label", "1 match"), "visible exact match count")
         if narrow or minimum:
             frame = rect(viewer)
-            if minimum and not (480 <= frame[2] <= 520 and 300 <= frame[3] <= 340):
-                raise AssertionError(f"The minimum viewer size was not applied: {frame}")
+            requested_width, requested_height = geometry["requestedPhysicalSize"]
+            tolerance = round(40 * geometry["displayScale"])
+            if not (requested_width <= frame[2] <= requested_width + tolerance and
+                    requested_height <= frame[3] <= requested_height + tolerance):
+                raise AssertionError(f"The requested viewer size was not applied: {frame}")
             geometry["frame"] = frame
             geometry["controls"] = {
                 name: inside(frame, find(viewer, role, accessible), name)
