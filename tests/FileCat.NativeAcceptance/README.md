@@ -953,6 +953,14 @@ The viewer may notice the changed revision before or when Compute starts; in
 either case it must refuse the stale scope visibly, publish no hash, disable
 Copy and preserve the clipboard. The runner restores the original source bytes
 and timestamp after closing the viewer; finish with `selection-stop`.
+On a separate fresh fixture, `checksum-midread-native <report.json>` creates a
+test-owned 128 MiB source and reviews its Whole file scope. After Compute has
+consumed at least 250 ms of CPU in the exact isolated FileCat process, the
+runner changes its first byte and revision while the read is underway. The
+viewer must refuse the changed source visibly, publish neither SHA-256 nor
+CRC-32, disable Copy and leave the clipboard and four small fixture files
+untouched. The destination stays empty. The runner closes the viewer and
+removes its large test file; finish with `selection-stop`.
 For FCUX-007, use another fresh `seed-selection` fixture and run
 `search-native <report.json>` on its launched isolated app. The interactive
 runner creates a 13 MiB guest-local text file with `NEEDLE` near 1 MiB and

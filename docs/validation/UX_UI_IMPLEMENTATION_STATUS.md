@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, Windows checksum source changed during a read (FCUX-008):**
+The isolated Win11 VM used the Git-built `2f1f43c9` app to open a test-owned
+128 MiB local source and review its Whole file checksum scope. The native
+runner waited until the exact FileCat process had spent 281 ms computing,
+then changed byte zero and the source revision 401 ms after Compute began.
+FileCat refused the changed file with an explicit instruction to reopen
+Checksum, displayed no SHA-256 or CRC-32, disabled Copy, preserved the
+clipboard, and left the small fixture files and destination untouched.
+The viewer and isolated app closed and the 128 MiB file was removed. The
+guest receipt is `checksum-midread-scale100-20261026-r6.json`, with an ignored
+host copy. The tracked `checksum-midread-native` runner checked all four
+small fixture files. Native incomplete sources and mid-read changes
+on other supported providers and desktops remain open.
+
 **26 October 2026, Windows checksum layout across display scales (FCUX-008):**
 The isolated Win11 VM rebuilt the native acceptance harness and restored the
 Microsoft-signed WinAppDriver 1.2.1 to a guest-local validation folder, serving
@@ -18,8 +32,8 @@ its own app, and left the source and destination unchanged. Receipts are
 `checksum-narrow-scale150-20261026-r2.json` and
 `checksum-narrow-scale200-20261026-r1.json` under the guest validation folder,
 with ignored host copies. The VM display returned to its original 100%.
-Incomplete sources and mid-read mutation, plus scaled Ubuntu native layout,
-remain open. The full local Windows Release solution suite at 16 workers
+Incomplete sources, other provider and desktop mid-read mutation, and scaled
+Ubuntu native layout remain open. The full local Windows Release solution suite at 16 workers
 passed with zero failures: Core 4,442 passed/151 platform skips, Remote 2,422/164,
 App 2,478/63, and Windows platform 442/46. Final-head five-lane CI remains
 required.

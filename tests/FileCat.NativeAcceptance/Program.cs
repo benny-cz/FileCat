@@ -14,7 +14,7 @@ using FileCat.Core.Selection;
 using FileCat.Core.State;
 
 
- if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "hex-editor-search-narrow-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
+ if (args.Length != 2 || args[0] is not ("snapshot" or "accessibility-list" or "breadcrumb-native" or "panel-resize-native" or "places-native" or "operation-open-details" or "operation-average-native" or "operation-save-native" or "compare-native" or "rename-native" or "rename-hidden-native" or "rename-narrow-native" or "rename-hidden-narrow-native" or "rename-hidden-compact-native" or "rename-editor-native" or "rename-keyboard-native" or "rename-undo-native" or "selection-native" or "selection-narrow-native" or "selection-filter-native" or "selection-filter-narrow-native" or "selection-tab-native" or "selection-tab-narrow-native" or "selection-refresh-native" or "selection-refresh-narrow-native" or "selection-create-native" or "selection-ctrl-native" or "selection-ctrl-narrow-native" or "selection-keyboard-native" or "selection-keyboard-narrow-native" or "selection-deactivation-native" or "selection-deactivation-narrow-native" or "checksum-native" or "checksum-whole-native" or "checksum-stop-native" or "checksum-midread-native" or "checksum-changed-native" or "checksum-narrow-native" or "search-native" or "search-utf16-native" or "hex-editor-search-native" or "hex-editor-search-narrow-native" or "find" or "advanced" or "tools-menu" or "settings" or "settings-tools" or "editor-browse" or "editor-picker-cancel" or "editor-program-preview" or "editor-keyboard" or "editor-value" or "editor-draft-cancel" or "markdown-search" or "markdown-resize" or "markdown-narrow" or "seed-recovery" or "seed-legacy" or "seed-remote-source" or "seed-remote-destination" or "remote-recovery-native" or "sftp-live-interrupt" or "sftp-live-recovery-native" or "sftp-live-cleanup-native" or "sftp-upload-cleanup-native" or "sftp-upload-mark-native" or "sftp-live-verify" or "legacy-stop" or "seed-desktop" or "seed-cross-volume" or "seed-clipboard" or "seed-clipboard-conflict" or "seed-rename-editor" or "rename-editor-write" or "seed-compare" or "seed-selection" or "compare-stop" or "rename-stop" or "selection-stop" or "clipboard-native" or "clipboard-cut-native" or "clipboard-ole-effect-native" or "clipboard-stop" or "interrupt-live" or "inspect-live" or "inspect-desktop" or "focus-desktop" or "desktop-select" or "desktop-copy-form" or "desktop-options" or "desktop-prepare" or "desktop-interrupt" or "desktop-review" or "desktop-continue" or "cross-prepare" or "cross-interrupt" or "cross-continue" or "clipboard-cut" or "clipboard-cut-two" or "clipboard-copy" or "explorer-navigate" or "explorer-copy" or "explorer-cut" or "clipboard-open-review" or "clipboard-cancel-native" or "clipboard-paste" or "clipboard-paste-subset" or "clipboard-paste-explorer-cut" or "clipboard-paste-review" or "clipboard-move" or "undo-native" or "undo-review-native" or "folder-undo-native" or "file-undo-native" or "file-undo-kept-native" or "hardlink-undo-native" or "hardlink-undo-changed-native" or "symlink-undo-native" or "symlink-undo-changed-native" or "junction-undo-native" or "junction-undo-changed-native" or "recycle-review" or "recycle-native" or "history-wrap-native" or "focus-recovery" or "recovery-review" or "live-review" or "legacy-review" or "legacy-start-review" or "legacy-highlight" or "legacy-resize" or "legacy-cancel" or "legacy-new-copy" or "recovery-cancel" or "recovery-continue" or "live-continue" or "find-resize" or "advanced-resize"))
 {
     Console.Error.WriteLine("Usage: FileCat.NativeAcceptance <mode> <report-path>; see README.md for supported modes.");
     return 2;
@@ -1719,6 +1719,143 @@ try
                 sourceIntact, stopX, stopY, resultText
             }, new JsonSerializerOptions { WriteIndented = true }));
             return passed ? 0 : 1;
+        }
+        else if (mode == "checksum-midread-native")
+        {
+            var fixture = await ReadSelectionFixtureAsync(reportPath);
+            const string fileName = "checksum-midread.bin";
+            const long fileLength = 128L * 1024 * 1024;
+            var sourceFile = Path.Combine(fixture.Source, fileName);
+            if (File.Exists(sourceFile) || Directory.EnumerateFileSystemEntries(fixture.Destination).Any())
+                throw new InvalidOperationException("The isolated checksum mutation fixture is not pristine.");
+            using (var stream = new FileStream(sourceFile, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 4096, FileOptions.RandomAccess)) stream.SetLength(fileLength);
+            bool viewerOpened = false;
+            try
+            {
+                NativeWindow.FocusRecovery("selection-source", SelectionTestAppPath());
+                await SendSessionKeysAsync(client, sessionId, "\uE009r\uE000"); // Refresh the owned folder.
+                XDocument listing = ParseSource(await ReadSourceAsync(client, sessionId));
+                XElement? Row(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "list item"
+                    && (string?)element.Attribute("Name") == fileName
+                    && element.Ancestors().Any(parent =>
+                        (string?)parent.Attribute("ClassName") == "FileList"
+                        && ((string?)parent.Attribute("Name"))?.Contains(
+                            "selection-source", StringComparison.OrdinalIgnoreCase) == true));
+                for (int attempt = 0; attempt < 30 && Row(listing) is null; attempt++)
+                {
+                    await Task.Delay(150);
+                    listing = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                var row = Row(listing)
+                    ?? throw new InvalidOperationException("The large checksum mutation file is not listed.");
+                NativeWindow.ClickAt(CenterX(row), CenterY(row));
+                await SendSessionKeysAsync(client, sessionId, "\uE033"); // F3 opens the viewer.
+                XElement? Viewer(XDocument document) => document.Descendants().FirstOrDefault(element =>
+                    (string?)element.Attribute("LocalizedControlType") == "window"
+                    && ((string?)element.Attribute("Name"))?.Contains(fileName, StringComparison.Ordinal) == true
+                    && ((string?)element.Attribute("Name"))?.Contains("FileCat Viewer", StringComparison.Ordinal) == true);
+                XDocument opened = listing;
+                for (int attempt = 0; attempt < 30 && Viewer(opened) is null; attempt++)
+                {
+                    await Task.Delay(150);
+                    opened = ParseSource(await ReadSourceAsync(client, sessionId));
+                }
+                if (Viewer(opened) is null)
+                    throw new InvalidOperationException("The checksum mutation viewer did not open.");
+                viewerOpened = true;
+                await SendSessionKeysAsync(client, sessionId, "\uE009k\uE000"); // Ctrl+K reviews whole-file scope.
+                var review = ParseSource(await ReadSourceAsync(client, sessionId));
+                var reviewViewer = Viewer(review)
+                    ?? throw new InvalidOperationException("The checksum review window is unavailable.");
+                bool wholeScope = reviewViewer.Descendants().Any(element =>
+                    (string?)element.Attribute("Name") == $"Whole file · {fileLength:N0} bytes"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                var compute = reviewViewer.Descendants().Single(element =>
+                    (string?)element.Attribute("Name") == "Compute"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                uint clipboardBefore = NativeWindow.ClipboardSequence();
+                using var owner = Process.GetProcessesByName("FileCat").Single(process =>
+                    string.Equals(process.MainModule?.FileName, SelectionTestAppPath(),
+                        StringComparison.OrdinalIgnoreCase));
+                TimeSpan cpuBefore = owner.TotalProcessorTime;
+                var mutationClock = Stopwatch.StartNew();
+                NativeWindow.ClickAt(CenterX(compute), CenterY(compute));
+                double activeCpuMilliseconds = 0;
+                for (int attempt = 0; attempt < 200; attempt++)
+                {
+                    await Task.Delay(50);
+                    owner.Refresh();
+                    if (owner.HasExited)
+                        throw new InvalidOperationException("The isolated app exited during checksum computation.");
+                    activeCpuMilliseconds = (owner.TotalProcessorTime - cpuBefore).TotalMilliseconds;
+                    if (activeCpuMilliseconds >= 250) break;
+                }
+                if (activeCpuMilliseconds < 250)
+                    throw new InvalidOperationException("The isolated app did not begin sustained checksum work within ten seconds.");
+                long millisecondsToMutation = mutationClock.ElapsedMilliseconds;
+                using (var stream = new FileStream(sourceFile, FileMode.Open, FileAccess.Write,
+                    FileShare.ReadWrite | FileShare.Delete))
+                {
+                    stream.WriteByte(0x7f);
+                    stream.Flush(flushToDisk: true);
+                }
+                File.SetLastWriteTimeUtc(sourceFile, DateTime.UtcNow.AddMinutes(5));
+                string resultText = "";
+                XDocument finished = review;
+                for (int attempt = 0; attempt < 100; attempt++)
+                {
+                    await Task.Delay(100);
+                    finished = ParseSource(await ReadSourceAsync(client, sessionId));
+                    var resultId = await FindXPathAsync(client, sessionId,
+                        "//Edit[@Name='Checksum results']", "checksum results");
+                    resultText = await ReadElementTextAsync(client, sessionId, resultId);
+                    if (resultText.Contains("Checksum could not finish:", StringComparison.Ordinal)
+                        || resultText.Contains("The file changed. Open Checksum again", StringComparison.Ordinal)
+                        || resultText.Contains("SHA-256:", StringComparison.Ordinal)) break;
+                }
+                var finishedViewer = Viewer(finished)
+                    ?? throw new InvalidOperationException("The checksum viewer disappeared after mutation.");
+                var copy = finishedViewer.Descendants().Single(element =>
+                    (string?)element.Attribute("Name") == "Copy results"
+                    && (string?)element.Attribute("IsOffscreen") == "False");
+                bool changedRefusal = resultText.Contains("The file changed. Open Checksum again", StringComparison.Ordinal)
+                    || (resultText.Contains("Checksum could not finish:", StringComparison.Ordinal)
+                        && resultText.Contains("changed", StringComparison.OrdinalIgnoreCase));
+                bool noHash = !resultText.Contains("SHA-256:", StringComparison.Ordinal)
+                    && !resultText.Contains("CRC-32:", StringComparison.Ordinal);
+                bool copyDisabled = (string?)copy.Attribute("IsEnabled") == "False";
+                bool clipboardPreserved = NativeWindow.ClipboardSequence() == clipboardBefore;
+                int firstByte;
+                using (var proof = new FileStream(sourceFile, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete)) firstByte = proof.ReadByte();
+                bool fixtureIntact = new[] { "a.txt", "b.txt", "c.txt", "d.txt" }.All(name =>
+                        File.ReadAllText(Path.Combine(fixture.Source, name)) == "selection fixture " + name)
+                    && new FileInfo(sourceFile).Length == fileLength
+                    && firstByte == 0x7f
+                    && !Directory.EnumerateFileSystemEntries(fixture.Destination).Any();
+                await SendSessionKeysAsync(client, sessionId, "\uE03A"); // F10 closes the viewer.
+                viewerOpened = false;
+                bool passed = wholeScope && changedRefusal && noHash && copyDisabled
+                    && clipboardPreserved && fixtureIntact;
+                await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(new
+                {
+                    passed, wholeScope, activeCpuMilliseconds, millisecondsToMutation,
+                    changedRefusal, noHash, copyDisabled, clipboardPreserved,
+                    fixtureIntact, resultText
+                }, new JsonSerializerOptions { WriteIndented = true }));
+                return passed ? 0 : 1;
+            }
+            finally
+            {
+                if (viewerOpened)
+                {
+                    try { await SendSessionKeysAsync(client, sessionId, "\uE03A"); }
+                    catch { /* Preserve the first test failure while cleaning the owned fixture. */ }
+                }
+                if (File.Exists(sourceFile)) File.Delete(sourceFile);
+            }
         }
         else if (mode is "checksum-native" or "checksum-whole-native" or "checksum-changed-native" or "checksum-narrow-native")
         {
