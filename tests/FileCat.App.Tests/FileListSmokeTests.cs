@@ -180,10 +180,9 @@ public sealed class FileListSmokeTests
                 Assert.Equal("sample.txt", restored.Name);
                 if (OperatingSystem.IsMacOS())
                 {
-                    // The native bridge may replay the editor's old AX row
-                    // immediately after Esc; a later deliberate row focus works.
-                    list.FocusAutomationItem(0);
-                    Assert.Equal("sample.txt", tab.Listing.GetVisible(tab.Listing.FocusedIndex).Name);
+                    // The immediately replayed AX request is covered by the
+                    // time-bound guard test below. Under CI load this test's
+                    // synthetic request may arrive after that window.
                     await Task.Delay(150, TestContext.Current.CancellationToken);
                     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
                     list.FocusAutomationItem(0);
@@ -200,6 +199,23 @@ public sealed class FileListSmokeTests
         {
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
+    }
+
+    [Fact]
+    public void Rename_focus_guard_blocks_only_the_immediate_stale_automation_request()
+    {
+        static bool Ignore(bool invoke = false, bool sameStore = true, int requested = 0,
+            int restored = 1, int focused = 1, int elapsedMs = 0)
+            => FileListControl.IgnoreStaleRenameAutomationFocus(invoke, sameStore, requested,
+                restored, focused, TimeSpan.FromMilliseconds(elapsedMs));
+
+        Assert.True(Ignore());
+        Assert.True(Ignore(elapsedMs: 99));
+        Assert.False(Ignore(elapsedMs: 100));
+        Assert.False(Ignore(invoke: true));
+        Assert.False(Ignore(sameStore: false));
+        Assert.False(Ignore(requested: 1));
+        Assert.False(Ignore(focused: 0));
     }
 
     /// <summary>A location that cannot be read says so in the status line instead of counting nothing.</summary>

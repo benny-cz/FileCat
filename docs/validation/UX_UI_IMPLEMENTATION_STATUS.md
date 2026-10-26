@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+**26 October 2026, macOS inline Rename CI timing (FCUX-010):**
+The macOS App lane on the earlier `98eb47dd` head failed one headless smoke
+assertion: Escape correctly restored `sample.txt`, but a synthetic AX focus
+request ran after the 100 ms stale-request guard had expired and therefore
+deliberately focused the parent row. The guard condition is now a directly
+testable pure function; seven deterministic cases cover the immediate and
+100 ms boundary, invocation, store identity, same row and focus ownership.
+The smoke test still verifies Escape restoration and deliberate navigation
+after expiry without assuming a CI scheduler will deliver the synthetic AX
+request within 100 ms. Both focused tests passed on Windows. Native signed
+Mac focus/VoiceOver journeys had already passed; the corrected macOS CI lane
+on the new head is pending.
+
 **26 October 2026, real OpenSSH non-atomic recovery transport (FCUX-001):**
 The isolated Ubuntu VM checked out committed `7d1cd84b` from a Git bundle
 and ran the new `OpenSshNonAtomicRecoveryTests` through a user-mode OpenSSH

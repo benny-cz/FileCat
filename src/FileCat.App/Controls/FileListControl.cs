@@ -1701,9 +1701,9 @@ public sealed class FileListControl : Control
             throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
         var store = listing.Store;
         int item = listing.GetStoreIndex(row);
-        if (!invoke && ReferenceEquals(store, _renameRestoredStore) &&
-            item != _renameRestoredStoreIndex && listing.FocusedStoreIndex == _renameRestoredStoreIndex &&
-            Stopwatch.GetElapsedTime(_renameRestoredAt) < TimeSpan.FromMilliseconds(100))
+        if (IgnoreStaleRenameAutomationFocus(invoke, ReferenceEquals(store, _renameRestoredStore),
+            item, _renameRestoredStoreIndex, listing.FocusedStoreIndex,
+            Stopwatch.GetElapsedTime(_renameRestoredAt)))
             return;
         var tab = Tab;
         void CheckOwner()
@@ -1728,6 +1728,11 @@ public sealed class FileListControl : Control
             OpenRequested?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    internal static bool IgnoreStaleRenameAutomationFocus(bool invoke, bool sameStore,
+        int requestedStoreIndex, int restoredStoreIndex, int focusedStoreIndex, TimeSpan elapsed)
+        => !invoke && sameStore && requestedStoreIndex != restoredStoreIndex &&
+           focusedStoreIndex == restoredStoreIndex && elapsed < TimeSpan.FromMilliseconds(100);
 
     /// <summary>Right border of a laid-out column (tests and automation).</summary>
     internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column] - _horizontalOffset;

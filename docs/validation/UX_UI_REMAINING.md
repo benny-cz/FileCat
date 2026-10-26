@@ -31,7 +31,8 @@ increments to `main`.
    the intermittent Ubuntu metadata-demand extra read; earlier runs are
    recorded in the implementation status. Recheck the revised macOS checksum
    generation case and revised owned-FTPS stage fixture under the full CI load.
-   inline Rename and Windows SFTP edit-baseline tests in the final-head gate.
+   the revised macOS inline Rename focus-guard test and Windows SFTP
+   edit-baseline tests in the final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including native
    target changes after the journaled backup preflight on servers without
