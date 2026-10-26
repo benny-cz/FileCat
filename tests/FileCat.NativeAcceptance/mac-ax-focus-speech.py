@@ -219,6 +219,13 @@ def run(bundle, report_path, decision_returns=False, tab_only=False):
         if settled.get("title") != "c.txt":
             raise AssertionError(f"Rename cancellation settled on {settled!r}")
         if decision_returns:
+            if "output muted:true" not in osa("get volume settings"):
+                raise AssertionError("Mute Mac output before VoiceOver acceptance")
+            phrase = osa('tell application "VoiceOver" to get content of last phrase')
+            result["steps"].append({"step": "VoiceOver speaks the restored Rename row", "phrase": phrase,
+                                    "passed": "c.txt" in phrase})
+            if "c.txt" not in phrase:
+                raise AssertionError(f"VoiceOver did not speak the restored row: {phrase!r}")
             names = sorted(path.name for path in source.iterdir())
             if names != sorted(expected) or any(target.iterdir()) or any(
                     hashlib.sha256((source / name).read_bytes()).hexdigest() != digest

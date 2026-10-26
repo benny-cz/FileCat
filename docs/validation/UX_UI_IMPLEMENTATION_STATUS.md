@@ -13,7 +13,9 @@ Ten consecutive native `--decision-returns` journeys passed on the isolated
 Mac with signed candidate DLL SHA-256
 `4B00FD9D7F917DF09682A952DA9B299D1419AA460A133D75450C390CA88485B3`;
 each canceled Create folder, Delete and Rename without changing fixture
-bytes. Full CI on the pushed head remains pending.
+bytes. The tracked journey now also checks VoiceOver's actual last spoken
+phrase with Mac output muted: three further runs spoke `c.txt table row (4 of
+4)` after Rename cancellation. Full CI on the pushed head remains pending.
 
 **26 October 2026, owned FTPS CI fixture (FCUX-001 validation):** The macOS
 `915ec37d` CI lane failed after deleting an owned FTPS staging object because
