@@ -170,17 +170,29 @@ def run(app_path, helper, stale_scope=False, narrow=False):
                                             text=True, check=True, timeout=5).stdout
                 match = re.search(r"\bScale: ([0-9.]+)", scale_info)
                 scale = float(match.group(1)) if match else None
-                assert scale == 2.0, f"Expected the test VM's 200% scale, got {scale}"
+                assert scale in (1.0, 1.5, 2.0), f"Expected the test VM's 100%, 150% or 200% scale, got {scale}"
                 window_id = viewer_window_id(title, process.pid)
+                physical_size = [round(720 * scale), round(500 * scale)]
                 subprocess.run(["/usr/bin/wmctrl", "-i", "-r", window_id, "-e",
-                                "0,150,100,1440,1000"], check=True, timeout=5)
+                                f"0,150,100,{physical_size[0]},{physical_size[1]}"], check=True, timeout=5)
                 subprocess.run(["/usr/bin/wmctrl", "-ia", window_id], check=True, timeout=5)
                 time.sleep(.4)
-                geometry = {"displayScale": scale, "requestedPhysicalSize": [1440, 1000],
+                geometry = {"displayScale": scale, "requestedPhysicalSize": physical_size,
                             "frame": rect(viewer)}
             send_key(helper, "shift+left")
             send_key(helper, "ctrl+k")
-            wait_for(lambda: find(viewer, "button", "Compute"), "selected-range checksum controls")
+            try:
+                wait_for(lambda: find(viewer, "button", "Compute"), "selected-range checksum controls")
+            except AssertionError as error:
+                controls = [(node.get_role_name(), node.get_name()) for node in descendants(viewer)
+                            if node.get_role_name() in ("button", "entry", "combo box")]
+                active = subprocess.run(["/usr/bin/xdotool", "getactivewindow", "getwindowname"],
+                                        capture_output=True, text=True, timeout=5).stdout.strip()
+                scale = subprocess.run(["/usr/bin/gdctl", "show"], capture_output=True,
+                                       text=True, timeout=5).stdout
+                match = re.search(r"\bScale: ([0-9.]+)", scale)
+                raise AssertionError(f"{error}; active={active!r}; scale={match.group(1) if match else '?'}; "
+                                     f"controls={controls[:35]!r}") from error
             choices = [node.get_name() for node in descendants(viewer)
                        if "Selected range" in (node.get_name() or "")]
             assert choices, "The one-byte selection is absent from checksum scope"

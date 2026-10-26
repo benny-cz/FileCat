@@ -70,7 +70,8 @@ increments to `main`.
    searches.
    For FCUX-008, test native incomplete reads on local and remote providers,
    mid-read changes on the remaining desktop and provider routes, and other
-   narrow-layout states. For FCUX-009, the Ubuntu
+   narrow-layout states, including a stable Ubuntu 150% scale run after
+   VMware's automatic resolution reset is controlled. For FCUX-009, the Ubuntu
    long-line Copy, physical Next difference and narrow Wrap route passed;
    finish Linux pixel alignment, font fallback, pointer selection and spoken
    automation on the supported desktops. For FCUX-010, verify VoiceOver's

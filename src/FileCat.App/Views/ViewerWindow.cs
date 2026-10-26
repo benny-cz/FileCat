@@ -116,7 +116,7 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _checksumCts;
     private readonly Border _checksumPanel = new() { IsVisible = false, Padding = new Thickness(10), Classes = { "banner" } };
     private readonly ComboBox _checksumScope = new() { MinWidth = 230 };
-    private readonly TextBox _checksumResult = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 190 };
+    private readonly TextBox _checksumResult = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, MaxHeight = 190 };
     private readonly Button _computeChecksum = new() { Content = "Compute" };
     private readonly Button _copyChecksum = new() { Content = "Copy results", IsEnabled = false };
     private readonly Button _stopChecksum = new() { Content = "Stop checksum", IsVisible = false };
@@ -223,6 +223,10 @@ public sealed class ViewerWindow : Window
         };
         SizeChanged += (_, args) =>
         {
+            // The docked checksum result must leave room for the toolbar,
+            // source/scope controls and status at narrow viewer heights.
+            // Its TextBox remains scrollable and grows again with the window.
+            _checksumResult.MaxHeight = Math.Clamp(args.NewSize.Height * 0.24, 80, 190);
             if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
                 !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
             _normalSizePending = true;

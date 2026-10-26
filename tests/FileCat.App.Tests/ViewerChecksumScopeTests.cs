@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -67,6 +68,40 @@ public sealed class ViewerChecksumScopeTests
         Assert.True(Field<Border>(f.Viewer, "_checksumPanel").IsVisible);
         await (Task)Invoke(f.Viewer, "CopyChecksumAsync")!;
         Assert.Equal(result, await f.ClipboardText());
+    }
+
+    [AvaloniaFact]
+    public async Task Narrow_checksum_result_stays_inside_viewer_and_grows_when_window_expands()
+    {
+        using var f = await Fixture.Create([0, 1, 2, 3, 4], width: 720, height: 500);
+        f.Show();
+        await f.Compute();
+        var result = Field<TextBox>(f.Viewer, "_checksumResult");
+        var close = Field<Button>(f.Viewer, "_copyChecksum");
+        Assert.Contains("SHA-256:", f.Result);
+
+        void InsideViewer(Control control)
+        {
+            Dispatcher.UIThread.RunJobs();
+            f.Viewer.CaptureRenderedFrame()?.Dispose();
+            f.Viewer.UpdateLayout();
+            var origin = control.TranslatePoint(default, f.Viewer)!.Value;
+            Assert.InRange(origin.X, 0, f.Viewer.Bounds.Width - control.Bounds.Width);
+            Assert.InRange(origin.Y, 0, f.Viewer.Bounds.Height - control.Bounds.Height);
+        }
+
+        InsideViewer(result);
+        InsideViewer(close);
+        double narrowMaxHeight = result.MaxHeight;
+        f.Viewer.Height = 850;
+        InsideViewer(result);
+        Assert.True(result.MaxHeight > narrowMaxHeight,
+            $"Result max height stayed {result.MaxHeight} after viewer grew to {f.Viewer.Bounds.Height}");
+        f.Viewer.Height = 500;
+        InsideViewer(result);
+        Assert.Equal(narrowMaxHeight, result.MaxHeight);
+        result.SelectAll();
+        Assert.Equal(f.Result, result.SelectedText);
     }
 
     [AvaloniaFact]
@@ -256,7 +291,7 @@ public sealed class ViewerChecksumScopeTests
         public HexView Hex => Field<HexView>(Viewer, "_hex");
         public ComboBox Scope => Field<ComboBox>(Viewer, "_checksumScope");
         public string Result => Viewer.ChecksumResultText;
-        public static async Task<Fixture> Create(byte[] bytes, IContentSource? source = null, int width = 980)
+        public static async Task<Fixture> Create(byte[] bytes, IContentSource? source = null, int width = 980, int? height = null)
         {
             string root = Path.Join(Path.GetTempPath(), "filecat-checksum-scope-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
@@ -264,6 +299,7 @@ public sealed class ViewerChecksumScopeTests
             File.WriteAllBytes(path, bytes);
             var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
             var viewer = new ViewerWindow(services, source ?? new FileContentSource(path), path, hex: true) { Width = width };
+            if (height is not null) viewer.Height = height.Value;
             viewer.Show();
             await Until(() => Field<DispatcherTimer>(viewer, "_changeTimer").IsEnabled);
             Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
