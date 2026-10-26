@@ -115,6 +115,17 @@ target hashes remained unchanged. The passing receipt is
 `ftps-implicit-warning-nvda-2f1f43c9.json` in the guest validation folder.
 Other scales and spoken routes remain open.
 
+**26 October 2026, Win11 interrupted FTP Copy and Move (FCUX-001):** The
+restored VM built the Git crash harness and interrupted separate owned FTP
+Copy and Move workers after each had written 786,432 bytes to an unpublished
+`.fc-*` stage. For both operations, the native recovery window showed the
+exact stage identity in its row, conservative cleanup dialog and report.
+FileCat did not delete the remote stage automatically. The test inspected and
+deleted that exact stage through FTP, then explicitly marked the retained
+journal reviewed; the journal closed and the original source hash remained
+unchanged. Both server directories finished empty. Passing guest receipts are
+`ftp-crash-copy-2f1f43c9.json` and `ftp-crash-move-2f1f43c9.json`.
+
 **25 October 2026, Mac FTPS interruption (FCUX-001):** On the signed
 `7a5492fe` Mac bundle, implicit-TLS FTPS was dropped after 262,144 staged
 bytes. FileCat kept the exact unpublished stage and reported its path in the

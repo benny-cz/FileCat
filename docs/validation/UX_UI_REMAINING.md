@@ -47,8 +47,8 @@ increments to `main`.
    remaining supported provider failure and cleanup paths, including races
    after the final destination content check. Finish Windows
    scaled/spoken FTP/FTPS replacement reviews, including scaled implicit TLS,
-   plus
-   Windows FTP/FTPS failure cleanup, Mac FTP/FTPS failure kinds beyond
+   plus Windows FTPS failure cleanup and FTP failure kinds beyond the native
+   interrupted Copy and Move cleanup, Mac FTP/FTPS failure kinds beyond
    changed-destination and dropped-connection staging behavior, and SFTP
    provider failures beyond the native destination-content, metadata and
    dropped-connection staging checks.
