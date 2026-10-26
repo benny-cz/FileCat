@@ -31,7 +31,7 @@ increments to `main`.
    the intermittent Ubuntu metadata-demand extra read; earlier runs are
    recorded in the implementation status. Recheck the revised macOS checksum
    generation case and revised owned-FTPS stage fixture under the full CI load.
-   the revised macOS inline Rename focus-guard test and Windows SFTP
+   Recheck the revised macOS inline Rename focus-guard test and Windows SFTP
    edit-baseline tests in the final-head gate.
 2. **Finish S1 operation and decision journeys.** For FCUX-001, cover
    remaining supported provider failure and cleanup paths, including native
@@ -52,8 +52,8 @@ increments to `main`.
    safely offered. On Mac, the preview list has no AX row children; decide
    whether direct row navigation adds value beyond the tested, spoken
    Previous/Next full-path navigator. For FCUX-004, exercise modal focus and
-   decision routes beyond the Ubuntu Copy review's background-command guard
-   and the spoken Copy/Move/Delete entry and return paths. Capture actual
+   decision routes beyond the Ubuntu Copy/Move/Delete reviews' background-command
+   guard and the spoken Copy/Move/Delete entry and return paths. Capture actual
    Orca speech for the remaining decision routes where required.
    Preserve captured scope and mapping throughout each test.
 3. **Finish the remaining S1 content and accessibility journeys.** For

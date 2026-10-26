@@ -118,6 +118,20 @@ and the target stayed absent. The guest report is
 `modal-guard-cff83525-r5.json`; no test FileCat process was left running.
 Other modal decisions and actual Orca speech remain open.
 
+**26 October 2026, Ubuntu Copy/Move/Delete modal command ownership
+(FCUX-004):** The tracked AT-SPI runner now opens each of the three reviews
+against one disposable source file. During each review, it invokes the
+obscured Copy, Move / rename and Delete toolbar controls and Copy, Move and
+Delete key-bar controls. All 18 background actions left the same single review
+open, including its exact source summary or Recycle Bin prompt; no destination
+field disappeared or extra review appeared. Cancel closed each review. The
+source SHA-256 remained
+`713e5c5a199714f532fa8992ee58eb3dde1fd2c2a351f8dd53bc37d1e576c395`
+and the target stayed absent. The Git-built `cff83525` app SHA-256 was
+`f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593`;
+guest receipt `modal-guard-current.json`. Other modal decisions and actual
+Orca speech still need native acceptance.
+
 **26 October 2026, Mac panel Tab and restored splitter focus (FCUX-010/031):**
 The native AX journey exposed a panel switch that briefly focused the target
 row, then let a late accessibility request move focus to the old panel's Filter

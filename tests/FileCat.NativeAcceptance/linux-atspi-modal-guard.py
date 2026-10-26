@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise obscured FileCat commands through Ubuntu AT-SPI while Copy owns a modal review.
+"""Exercise obscured FileCat commands through Ubuntu AT-SPI while reviews own focus.
 
 Usage: linux-atspi-modal-guard.py /home/benny/FileCatValidation/BUILD/FileCat REPORT.json
 Run as the logged-in desktop user with its AT-SPI session bus available.
@@ -49,7 +49,9 @@ def action(node, description):
 def button(app, name, toolbar):
     matches = matching(app, "button", name)
     if not matches:
-        raise AssertionError(f"The background {name} buttons are unavailable")
+        available = [node.get_name() for node in descendants(app)
+                     if node.get_role_name() == "button"]
+        raise AssertionError(f"The background {name} buttons are unavailable: {available[:50]}")
     positioned = sorted(matches, key=lambda item: item.get_component().get_extents(Atspi.CoordType.SCREEN).y)
     return positioned[0] if toolbar else positioned[-1]
 
@@ -99,32 +101,43 @@ def main():
                 raise AssertionError(f"Expected one exact source row, found {len(row)}")
             wait_for(lambda: row[0].grab_focus() and
                      row[0].get_state_set().contains(Atspi.StateType.FOCUSED), "source focus")
-            action(matching(app, "button", "Copy…")[0], "Copy command")
-            summary = f'Copy "a.txt" ({len(source_file.read_bytes())} bytes)'
-            def review_count():
-                return (len(matching(app, "label", summary)),
-                        len(matching(app, "entry", "Destination")),
-                        len(matching(app, "button", "Cancel")))
-            wait_for(lambda: review_count() == (1, 1, 1), "one complete Copy review")
-            attempts = []
-            for name in ("Copy…", "Delete…", "Copy", "Delete"):
-                toolbar = name.endswith("…")
-                control = button(app, name, toolbar)
-                action(control, f"background {name}")
-                time.sleep(0.25)
-                if review_count() != (1, 1, 1):
-                    raise AssertionError(f"Background {name} changed the modal review")
-                if (target / "a.txt").exists():
-                    raise AssertionError(f"Background {name} copied the selected file")
-                attempts.append({"command": name, "toolbar": toolbar, "modalStillSingle": True})
-            action(matching(app, "button", "Cancel")[0], "Cancel")
-            wait_for(lambda: review_count() == (0, 0, 0), "Copy review to close")
-            if (target / "a.txt").exists() or hashlib.sha256(source_file.read_bytes()).hexdigest() != original_hash:
-                raise AssertionError("Cancel changed the source or destination")
+            journeys = []
+            for verb in ("Copy", "Move", "Delete"):
+                toolbar_command = "Move / rename…" if verb == "Move" else f"{verb}…"
+                action(button(app, toolbar_command, True), f"{verb} command")
+                summary = f'{verb} "a.txt" ({source_file.stat().st_size} bytes)'
+                def summary_count():
+                    if verb == "Delete":
+                        return sum(1 for node in descendants(app)
+                                   if node.get_role_name() == "label"
+                                   and "a.txt" in (node.get_name() or "")
+                                   and "Recycle Bin" in (node.get_name() or ""))
+                    return len(matching(app, "label", summary))
+                def review_count():
+                    return (summary_count(),
+                            len(matching(app, "entry", "Destination")),
+                            len(matching(app, "button", "Cancel")))
+                expected = (1, 0 if verb == "Delete" else 1, 1)
+                wait_for(lambda: review_count() == expected, f"one complete {verb} review")
+                attempts = []
+                for name in ("Copy…", "Move / rename…", "Delete…", "Copy", "Move", "Delete"):
+                    toolbar = name.endswith("…")
+                    action(button(app, name, toolbar), f"background {name}")
+                    time.sleep(0.25)
+                    if review_count() != expected:
+                        raise AssertionError(f"Background {name} changed the {verb} review")
+                    if (target / "a.txt").exists() or hashlib.sha256(source_file.read_bytes()).hexdigest() != original_hash:
+                        raise AssertionError(f"Background {name} changed the source or destination")
+                    attempts.append({"command": name, "toolbar": toolbar, "modalStillSingle": True})
+                action(matching(app, "button", "Cancel")[0], "Cancel")
+                wait_for(lambda: review_count() == (0, 0, 0), f"{verb} review to close")
+                if (target / "a.txt").exists() or hashlib.sha256(source_file.read_bytes()).hexdigest() != original_hash:
+                    raise AssertionError(f"Cancel changed the source or destination after {verb}")
+                journeys.append({"review": verb, "before": list(expected), "attempts": attempts,
+                                 "afterCancel": [0, 0, 0], "targetAbsent": True})
             result = {"passed": True, "app": str(app_path), "appSha256": app_hash,
                       "fixture": str(fixture), "sourceSha256": original_hash,
-                      "before": [1, 1, 1], "attempts": attempts,
-                      "afterCancel": [0, 0, 0], "targetAbsent": True}
+                      "journeys": journeys}
     except Exception as exc:
         result = {"passed": False, "error": f"{type(exc).__name__}: {exc}",
                   "app": str(app_path), "fixture": str(fixture)}
