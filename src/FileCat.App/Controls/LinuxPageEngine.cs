@@ -127,7 +127,12 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         if (_view == 0) return 0;
         Native.gtk_widget_grab_focus(_view);
         _focusTries = 0;
-        if (_plug == 0 || Native.SetInputFocus(KeyTarget)) return 0;
+        if (_plug == 0) return 0;
+        // A GtkPlug takes its window's focus only from the XEmbed messages of its embedder, which Avalonia does not
+        // send: without them the page never knew it had focus, and Tab past its last item went round it again.
+        Native.SendXEmbed(_plug, Native.XEmbedWindowActivate);
+        Native.SendXEmbed(_plug, Native.XEmbedFocusIn);
+        if (Native.SetInputFocus(KeyTarget)) return 0;
         // Not on screen yet (the viewer has only just shown it): try again for up to two seconds.
         _focusTries = 40;
         if (!_focusRetrying)
@@ -138,11 +143,14 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         return 0;
     });
 
-    /// <summary>The keys back to the viewer's window (0: only stop giving them to the page).</summary>
+    /// <summary>The keys back to the viewer's window (0: its window is not active; only stop giving them to the page).</summary>
     public void ReturnFocus(nint window) => _ = OnGtk(() =>
     {
         _focusTries = 0;
-        if (_plug != 0 && window != 0) Native.SetInputFocus((nuint)window);
+        if (_plug == 0) return 0;
+        Native.SendXEmbed(_plug, Native.XEmbedFocusOut);
+        if (window != 0) Native.SetInputFocus((nuint)window);
+        else Native.SendXEmbed(_plug, Native.XEmbedWindowDeactivate);
         return 0;
     });
 
@@ -590,6 +598,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, nuint, nuint*, nuint*, nuint**, uint*, int> XQueryTree;
         public static delegate* unmanaged[Cdecl]<nint, nuint, nuint*, int*, int*, uint*, uint*, uint*, uint*, int> XGetGeometry;
         public static delegate* unmanaged[Cdecl]<void*, int> XFree;
+        public static delegate* unmanaged[Cdecl]<nint, byte*, int, nuint> XInternAtom;
+        public static delegate* unmanaged[Cdecl]<nint, nuint, int, nint, void*, int> XSendEvent;
 
         private static nint XDisplay(out nint display)
         {
@@ -633,6 +643,33 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 XFree(children);
             }
             return gdk_x11_display_error_trap_pop(display) == 0 ? found : 0;
+        }
+
+        public const int XEmbedWindowActivate = 1, XEmbedWindowDeactivate = 2, XEmbedFocusIn = 4, XEmbedFocusOut = 5;
+        private static nuint s_xembed;
+
+        /// <summary>An XEmbed message to a plug, as its embedder would send it (detail 0: focus where it was).</summary>
+        public static void SendXEmbed(nuint plug, int message, int detail = 0)
+        {
+            nint xdisplay = XDisplay(out nint display);
+            if (xdisplay == 0) return;
+            if (s_xembed == 0)
+                fixed (byte* name = Utf8("_XEMBED")) s_xembed = XInternAtom(xdisplay, name, 0);
+            // XClientMessageEvent in the 24-long XEvent union: type, serial, send_event, display, window,
+            // message_type, format, then data.l[5] = time (CurrentTime), message, detail, data1, data2.
+            nint* xevent = stackalloc nint[24];
+            new Span<nint>(xevent, 24).Clear();
+            const int ClientMessage = 33;
+            *(int*)xevent = ClientMessage;
+            xevent[3] = xdisplay;
+            xevent[4] = (nint)plug;
+            xevent[5] = (nint)s_xembed;
+            *(int*)(xevent + 6) = 32;
+            xevent[8] = message;
+            xevent[9] = detail;
+            gdk_x11_display_error_trap_push(display);
+            XSendEvent(xdisplay, plug, 0, 0, xevent);
+            gdk_x11_display_error_trap_pop(display);
         }
 
         /// <summary>The GTK window takes no keys of its own: they reach it through its focus window only.</summary>
@@ -745,7 +782,9 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                     NativeLibrary.TryGetExport(x11, "XSetInputFocus", out nint setFocus) &&
                     NativeLibrary.TryGetExport(x11, "XQueryTree", out nint queryTree) &&
                     NativeLibrary.TryGetExport(x11, "XGetGeometry", out nint geometry) &&
-                    NativeLibrary.TryGetExport(x11, "XFree", out nint free))
+                    NativeLibrary.TryGetExport(x11, "XFree", out nint free) &&
+                    NativeLibrary.TryGetExport(x11, "XInternAtom", out nint internAtom) &&
+                    NativeLibrary.TryGetExport(x11, "XSendEvent", out nint sendEvent))
                 {
                     gdk_display_get_default = (delegate* unmanaged[Cdecl]<nint>)defaultDisplay;
                     gdk_x11_display_get_xdisplay = (delegate* unmanaged[Cdecl]<nint, nint>)xdisplay;
@@ -757,6 +796,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                     XQueryTree = (delegate* unmanaged[Cdecl]<nint, nuint, nuint*, nuint*, nuint**, uint*, int>)queryTree;
                     XGetGeometry = (delegate* unmanaged[Cdecl]<nint, nuint, nuint*, int*, int*, uint*, uint*, uint*, uint*, int>)geometry;
                     XFree = (delegate* unmanaged[Cdecl]<void*, int>)free;
+                    XInternAtom = (delegate* unmanaged[Cdecl]<nint, byte*, int, nuint>)internAtom;
+                    XSendEvent = (delegate* unmanaged[Cdecl]<nint, nuint, int, nint, void*, int>)sendEvent;
                     XSetInputFocus = (delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int>)setFocus;
                 }
                 else Core.Diagnostics.AppLog.Warn("Web page engine: X11 focus functions are missing; a page's keys follow the pointer.");
