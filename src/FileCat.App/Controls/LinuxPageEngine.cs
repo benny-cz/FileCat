@@ -257,6 +257,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         // taking keys, so those under the pointer go to the viewer's window while the page does not have focus.
         _keyTarget = Native.FocusWindowOf(_plug);
         if (_keyTarget != 0) Native.StopKeys(_window);
+        else Core.Diagnostics.AppLog.Warn("Web page engine: no GTK focus window in the page; its keys follow the pointer.");
         return (nint)_plug;
     }
 
@@ -524,14 +525,14 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     {
         try
         {
-            if (Of(data) is { _focusTries: > 0, _plug: not 0 } engine &&
-                !Native.SetInputFocus(engine.KeyTarget) && --engine._focusTries > 0)
-                return 1;
-            if (Of(data) is { } done)
+            if (Of(data) is not { } engine) return 0;
+            if (engine._focusTries > 0 && engine._plug != 0 && !Native.SetInputFocus(engine.KeyTarget))
             {
-                done._focusTries = 0;
-                done._focusRetrying = false;
+                if (--engine._focusTries > 0) return 1;
+                Core.Diagnostics.AppLog.Warn("Web page engine: the page did not take the keyboard.");
             }
+            engine._focusTries = 0;
+            engine._focusRetrying = false;
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
         return 0;
@@ -758,6 +759,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                     XFree = (delegate* unmanaged[Cdecl]<void*, int>)free;
                     XSetInputFocus = (delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int>)setFocus;
                 }
+                else Core.Diagnostics.AppLog.Warn("Web page engine: X11 focus functions are missing; a page's keys follow the pointer.");
                 webkit_web_context_new_ephemeral = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(webkit, "webkit_web_context_new_ephemeral");
                 webkit_web_context_register_uri_scheme = (delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void>)NativeLibrary.GetExport(webkit, "webkit_web_context_register_uri_scheme");
                 webkit_network_proxy_settings_new = (delegate* unmanaged[Cdecl]<byte*, nint, nint>)NativeLibrary.GetExport(webkit, "webkit_network_proxy_settings_new");
