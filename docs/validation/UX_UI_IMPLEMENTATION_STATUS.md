@@ -1,5 +1,42 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-win-vanished-target-20261027"></a>
+**27 October 2026, native Windows changed destination during drag (FCUX-075):**
+The `51c4c749` Windows 11 VMware diagnostic physically hovered a valid local
+FileCat target with two Explorer files selected, then removed only that
+test-owned folder while the drag was held. FileCat automatically navigated
+the target panel to the nearest existing parent and opened Copy review for
+that **different** folder on release. Raw receipt:
+`E:\FileCat\.local-ac-s2-071-win-vanished-51c4c749-r4.json`.
+This was a product failure: each DragOver replaced the original offered
+destination, so the final check compared the parent with itself.
+
+Exact Git `3a4d7cba` fixed the drag intent and ran in the same isolated
+Windows 11 VMware guest at 1925 × 1411, 100% (app DLL SHA-256
+`31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD`).
+The native route again hovered a valid local target and removed the fixture
+folder during the held drag. FileCat navigated to its parent but then set the
+native cursor handle to `65559` (the refused state) and exposed the actionable
+notice “The drop target changed during the drag. Drop again onto the folder
+you want to use.” After mouse release, UI Automation showed no Destination or
+transfer-review fields. The initial runner assertion expected only
+“folder unavailable,” so its raw product receipt says `Passed: false` despite
+recording those successful observations:
+`E:\FileCat\.local-ac-s2-071-win-vanished-3a4d7cba-r1.json` and held frame
+`E:\FileCat\.local-ac-s2-071-win-vanished-3a-r1-hover.png`.
+Without repeating the product action, a read-only follow-up on that exact
+retained test fixture verified both original source SHA-256 hashes, absent
+target, zero files in its job journal, and zero copied files in the parent;
+`E:\FileCat\.local-ac-s2-071-win-vanished-3a4d7cba-followup.json` reports
+`Passed: true`. The tracked native runner now accepts either truthful
+changed-target or unavailable-folder wording and checks that no review opens.
+The Windows Release `DropTargetAdmissionTests` passed 6/6, including the new
+sticky first-destination regression. Paired with accepted local/ZIP exports,
+mixed refusal, ZIP target refusal and valid local review, this closes
+[AC-S2-071-WIN-VANISHED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-vanished)
+and [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071) at their stated scopes;
+audit-wide final CI remains separate.
+
 <a id="evidence-win-local-review-20261027"></a>
 **27 October 2026, native Windows Explorer-to-local review (FCUX-075):**
 On exact Git `51c4c749` in the isolated Windows 11 VMware guest at

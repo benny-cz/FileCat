@@ -11,8 +11,8 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  dialog reachability, remaining unsupported/changed-target drag boundaries,
-  operation evidence, Undo/sync, navigation, workspace/listing, panels,
+  dialog reachability, operation evidence, Undo/sync, navigation,
+  workspace/listing, panels,
   Settings/rename, Find, scrolling, provider context and viewer refresh.
   Each table row specifies one bounded consequential route.
 - [AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019) and
