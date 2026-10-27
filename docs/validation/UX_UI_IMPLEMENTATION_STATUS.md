@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-win-local-review-20261027"></a>
+**27 October 2026, native Windows Explorer-to-local review (FCUX-075):**
+On exact Git `51c4c749` in the isolated Windows 11 VMware guest at
+1925 × 1411, 100%, the [native runner](../../tests/FileCat.NativeAcceptance/win-ax-drag-external.ps1)
+selected two test-owned Explorer files and physically dragged them into a
+separate FileCat local panel. UI Automation identified the actual Explorer
+source rows and the FileCat target list; the held pointer's top-level window
+matched FileCat (`132518`). The hovered local folder was
+`…\DropTarget-ac7c5126`, and the resulting Copy review's selectable
+Destination was that **exact complete folder path** with its trailing
+separator. Its operation journal held zero files before approval. Invoking
+the review's Cancel button left the target sentinel SHA-256
+`8C6BCD59…8FA19C` and both source SHA-256 hashes unchanged. Guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-local-review-51c4c749-r1.json`;
+ignored host receipt/frame:
+`E:\FileCat\.local-ac-s2-071-win-local-review-51c4c749-r1.json` and
+`E:\FileCat\.local-ac-s2-071-win-local-review-r1-hover.png`. The app DLL
+was SHA-256 `63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87`.
+This accepts [AC-S2-071-WIN-LOCAL-REVIEW](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local-review).
+The separate `DropTargetAdmissionTests` passed captured-folder continuation
+after the target panel navigated; native disconnected and changed-target
+boundaries remain open.
+
 <a id="evidence-win-archive-target-20261027"></a>
 **27 October 2026, native Windows unsupported target (FCUX-075):**
 Exact Git `51c4c749` ran in the isolated Windows 11 VMware guest at
@@ -27,8 +50,9 @@ at the ZIP-target boundary. An earlier candidate used a title-only window
 lookup that could match FileCat itself; that run was discarded. The tracked
 runner now requires Explorer's native window class. On the preceding `4c042d37`
 build, the DragOver path gave no hover explanation; the `51c4c749` change
-reports the refusal once per drag and target. Disconnected and changed-target
-routes and valid local review remain [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
+reports the refusal once per drag and target. At this checkpoint, disconnected
+and changed-target routes and valid local review remained
+[AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
 
 <a id="evidence-win-external-drag-20261027"></a>
 **27 October 2026, native Windows external local Copy (FCUX-071/075):**
