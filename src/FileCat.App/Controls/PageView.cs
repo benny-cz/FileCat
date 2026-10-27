@@ -20,6 +20,11 @@ public sealed class PageView : NativeControlHost
     private IDisposable? _noHost;
     private bool _hasKeyboard;
     private TopLevel? _keyboardOwner;
+    // macOS: the control that last took the keyboard from the page, and when; and whether the viewer is focusing the
+    // page itself.
+    private IInputElement? _keyboardTaker;
+    private long _keyboardTakenAt = long.MinValue;
+    private bool _focusingPage;
 
     public PageView(string dataFolder)
     {
@@ -124,6 +129,8 @@ public sealed class PageView : NativeControlHost
         }
         // macOS: once Avalonia has moved its focus. Handing over the first responder in the middle of the move made
         // Avalonia announce the page's host again just before Find, and VoiceOver put the focus back on the host.
+        _keyboardTaker = e.Source as IInputElement;
+        _keyboardTakenAt = Environment.TickCount64;
         Dispatcher.UIThread.Post(() =>
         {
             if (!_hasKeyboard) _engine?.ReturnFocus(home);
@@ -157,7 +164,19 @@ public sealed class PageView : NativeControlHost
     protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
-        if (ManagesKeyboard) GiveKeysToPage();
+        if (!ManagesKeyboard) return;
+        // macOS: when the web view hands the keyboard over, WebKit reports a focus change in the page a moment later;
+        // VoiceOver moves its cursor there and, following its cursor, focuses the page's host, which took the
+        // keyboard straight back from Find. Such a focus without a key, click or the viewer behind it, just after
+        // a control took the keyboard, goes back to that control.
+        if (OperatingSystem.IsMacOS() && e.NavigationMethod == NavigationMethod.Unspecified && !_focusingPage &&
+            Environment.TickCount64 - _keyboardTakenAt < 500 && _keyboardTaker is { } taker && !ReferenceEquals(taker, this))
+        {
+            _keyboardTakenAt = long.MinValue;
+            Dispatcher.UIThread.Post(() => taker.Focus());
+            return;
+        }
+        GiveKeysToPage();
     }
 
     // Linux: Tab past the page's last item, or Shift+Tab past its first, goes on to the viewer's controls, past the
@@ -269,7 +288,12 @@ public sealed class PageView : NativeControlHost
     {
         if (ManagesKeyboard)
         {
-            if (!IsFocused && Focus()) return; // OnGotFocus gives the page the keys.
+            _focusingPage = true;
+            try
+            {
+                if (!IsFocused && Focus()) return; // OnGotFocus gives the page the keys.
+            }
+            finally { _focusingPage = false; }
             _hasKeyboard = true;
         }
         _engine?.Focus();

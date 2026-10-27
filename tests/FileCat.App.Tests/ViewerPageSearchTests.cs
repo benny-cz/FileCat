@@ -233,7 +233,7 @@ public sealed class ViewerPageSearchTests
         Assert.Equal(returned + 1, fixture.Engine.ReturnCount);
         // Shift+Tab past the page's first item goes back past its host, which would only give the page the keys again,
         // and past Find's Previous and Next buttons, which cannot take focus with nothing to find.
-        page.Focus();
+        page.Focus(NavigationMethod.Tab);
         Dispatcher.UIThread.RunJobs();
         fixture.Engine.TabOut(backward: true);
         Dispatcher.UIThread.RunJobs();
