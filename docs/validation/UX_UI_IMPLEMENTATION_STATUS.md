@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-background-keyboard-20261027"></a>
+**27 October 2026, keyboard item-context separation
+(AC-S2-048-KEYBOARD):** The earlier Git-built `278b8655` Ubuntu VM at 200%
+used physical uinput Shift+F10 to open FileCat's real item context menu,
+as recorded in the [24 October popup result](#evidence-scaled-find-20261024).
+On `0e50214b`, the new `Keyboard_item_context_keeps_the_marked_virtual_item_instead_of_opening_location_actions`
+[regression](../../tests/FileCat.App.Tests/BackgroundContextMenuTests.cs) passed
+1/1 in Windows Release with 16 build workers. It dispatches Shift+F10 on a
+marked, focused virtual row and checks that item Open appears, location Copy
+location name/Create folder do not, and mark/focus survive menu dismissal.
+Git blame confirms the keyboard command dispatch and item menu opening code
+used by those two routes did not change between the dated builds. The
+Windows VMware synthetic Shift+F10/Menu-key diagnostic did not produce a
+popup despite the focused row and foreground window; it is inconclusive as
+native input evidence, so this acceptance uses the physical Ubuntu route.
+The disconnected-provider background remains [open](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-048).
+
 <a id="evidence-background-registry-20261027"></a>
 **27 October 2026, native Registry background menu
 (AC-S2-048-REGISTRY):** The same `5a4d3486` Git-built Windows VMware app
