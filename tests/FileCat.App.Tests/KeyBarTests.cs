@@ -75,6 +75,11 @@ public sealed class KeyBarTests
             vm.UpdateKeyBar(KeyMods.Shift);
             Assert.Equal(("Context", "Context menu"), (vm.KeyBar[9].Label, vm.KeyBar[9].Title));
             Assert.StartsWith("Shift+F10: Context menu", vm.KeyBar[9].Tip);
+            // A key without a command in the layer is named for its key, not for its content (readers said "Button").
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Null(vm.KeyBar[0].CommandId);
+            Assert.Equal("Shift+F1: no command", Avalonia.Automation.AutomationProperties.GetName(keys[0]));
+            Assert.Null(ToolTip.GetTip(keys[0]));
             vm.UpdateKeyBar(KeyMods.Alt);
             Assert.Equal(("Cmd hist", "Command history…"), (vm.KeyBar[7].Label, vm.KeyBar[7].Title));
             Assert.StartsWith("Alt+F8: Command history…", vm.KeyBar[7].Tip);

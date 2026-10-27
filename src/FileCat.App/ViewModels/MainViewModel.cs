@@ -212,11 +212,13 @@ public sealed partial class MainViewModel : ObservableObject
             var key = KeyBar[i];
             var availability = bar[i].CommandId is { } id ? GetAvailability(id) : default;
             string? title = bar[i].CommandId is { } command ? Services.Commands.Get(command)?.Title : null;
+            string chord = new KeyChord("F" + (i + 1), mods).ToDisplayString();
             key.Label = bar[i].Label;
             key.CommandId = bar[i].CommandId;
             key.IsEnabled = bar[i].CommandId is not null && availability.Enabled;
-            key.Title = title ?? bar[i].Label;
-            key.Tip = title is null ? null : new KeyChord("F" + (i + 1), mods).ToDisplayString() + ": " + title +
+            // A key without a command in this layer still says which key it is (unnamed, readers said "Button").
+            key.Title = title ?? chord + ": no command";
+            key.Tip = title is null ? null : chord + ": " + title +
                 (availability.Enabled ? string.Empty : Environment.NewLine + "Unavailable here: " +
                     (availability.Reason ?? "This command is not available in the current context."));
         }
