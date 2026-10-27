@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-keybar-clipping-review-20261027"></a>
+**27 October 2026, UXBUG-018 evidence review:** The existing physical
+Ubuntu [24 October popup/Find result](#evidence-scaled-find-20261024)
+already passed the requested 200% popup, Find, Escape and modifier-state
+checks on Git-built `278b8655` (DLL SHA-256
+`12266cd579f2b331b9aad177952832f2672fef1a199324e9630c7619c4dbe125`).
+The [direct receipt](evidence/ac-s2-keybar-ubuntu-200.json),
+[popup capture](evidence/ubuntu-popup-200-278b8655.png) and
+[Find capture](evidence/ubuntu-find-200-278b8655.png) are preserved in Git;
+no product rerun was needed to repair the ledger. Reviewing the popup image
+also showed the key-bar's “Context menu” button text cut to “Context me” at
+the right edge. [AC-S2-KEYBAR-POPUP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-keybar-popup)
+keeps the passed scope; [AC-S2-KEYBAR](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-keybar)
+now names only that remaining label-fit issue.
+
 <a id="evidence-background-disconnected-20261027"></a>
 **27 October 2026, disconnected SFTP and working-set location menus
 (AC-S2-048):** The Git-built `75331c3e` Ubuntu VMware app (DLL SHA-256

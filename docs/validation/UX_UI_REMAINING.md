@@ -12,7 +12,7 @@ accepted equivalent routes stay in
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
   viewer refresh/Go to, Compare range, Settings wording, Markdown, window
-  geometry, Unix attributes and key-bar visual boundaries.
+  geometry, Unix attributes and the clipped key-bar action label.
   Each table row specifies one bounded consequential route.
 
 ## S3 and final gate

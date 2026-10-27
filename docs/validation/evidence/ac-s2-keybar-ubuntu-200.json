@@ -1,0 +1,178 @@
+{
+  "passed": true,
+  "appDllSha256": "12266cd579f2b331b9aad177952832f2672fef1a199324e9630c7619c4dbe125",
+  "displayScale": 2.0,
+  "fixture": "/home/benny/FileCatValidation/KeyBarPopupFixture/93701eedc5f24c3fbdb70c6e898336a7",
+  "sourceSha256": "ae3b773e0f0e85022027340cee283d0be60beaed76b85688ffc08e62ec27ed59",
+  "input": "physical uinput keyboard",
+  "expectFind": true,
+  "steps": [
+    {
+      "action": "Shift+F10",
+      "menu": [
+        [
+          "menu",
+          "Menu"
+        ],
+        [
+          "menu item",
+          "File"
+        ],
+        [
+          "menu item",
+          "Mark"
+        ],
+        [
+          "menu item",
+          "Navigate"
+        ],
+        [
+          "menu item",
+          "Commands"
+        ],
+        [
+          "menu item",
+          "Panels"
+        ],
+        [
+          "menu item",
+          "View"
+        ],
+        [
+          "menu item",
+          "Tools"
+        ],
+        [
+          "menu item",
+          "Help"
+        ],
+        [
+          "menu",
+          "ContextMenu"
+        ],
+        [
+          "menu item",
+          "Open"
+        ],
+        [
+          "menu item",
+          "Open with system application"
+        ],
+        [
+          "menu item",
+          "Cut items to clipboard"
+        ],
+        [
+          "menu item",
+          "Copy items to clipboard"
+        ],
+        [
+          "menu item",
+          "Paste items or go to pasted path"
+        ],
+        [
+          "menu item",
+          "Open focused folder in target panel"
+        ],
+        [
+          "menu item",
+          "Reveal in file manager"
+        ],
+        [
+          "menu item",
+          "Properties"
+        ],
+        [
+          "menu item",
+          "Streams and attributes"
+        ],
+        [
+          "menu item",
+          "File-system record"
+        ]
+      ],
+      "keyBarWhileOpen": [
+        "Button",
+        "Button",
+        "Reveal",
+        "New file",
+        "Duplicate",
+        "Rename",
+        "Go to",
+        "Delete!",
+        "Button",
+        "Context menu",
+        "Button",
+        "Target"
+      ]
+    },
+    {
+      "action": "Escape context menu",
+      "keyBar": [
+        "Help",
+        "Rename",
+        "View",
+        "Edit",
+        "Copy",
+        "Move",
+        "MkDir",
+        "Delete",
+        "User",
+        "Menu",
+        "Maximize",
+        "Panels"
+      ]
+    },
+    {
+      "action": "Alt+F7",
+      "findWindows": [
+        "0x01400026  0 208883 filecat-ubuntu2604 Find files"
+      ],
+      "keyBarWhileOpen": [
+        "Help",
+        "Rename",
+        "View",
+        "Edit",
+        "Copy",
+        "Move",
+        "MkDir",
+        "Delete",
+        "User",
+        "Menu",
+        "Maximize",
+        "Panels"
+      ]
+    },
+    {
+      "action": "Escape Alt+F7",
+      "keyBar": [
+        "Help",
+        "Rename",
+        "View",
+        "Edit",
+        "Copy",
+        "Move",
+        "MkDir",
+        "Delete",
+        "User",
+        "Menu",
+        "Maximize",
+        "Panels"
+      ]
+    }
+  ],
+  "baseline": [
+    "Help",
+    "Rename",
+    "View",
+    "Edit",
+    "Copy",
+    "Move",
+    "MkDir",
+    "Delete",
+    "User",
+    "Menu",
+    "Maximize",
+    "Panels"
+  ]
+}
