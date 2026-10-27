@@ -1,6 +1,7 @@
 using Avalonia.Input.Platform;
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.App.Services;
 
@@ -8,6 +9,15 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    /// <summary>A background write must not use a folder whose current listing has not established availability.</summary>
+    internal static string? LocationWriteBlockReason(TabViewModel tab, Location location)
+    {
+        if (tab.Location != location) return "This location changed. Open its menu again.";
+        if (tab.Listing.State == ListingState.Failed || tab.Listing.LastRefreshError is not null)
+            return "This location is not available. Reread it (Ctrl+R) to retry before changing it.";
+        return null;
+    }
+
     /// <summary>Runs a background-menu action against the captured folder, never the current item selection.</summary>
     internal async Task ExecuteLocationContextAsync(string id, PanelViewModel panel, TabViewModel tab, Location location)
     {
@@ -18,6 +28,12 @@ public sealed partial class MainViewModel
         }
         try
         {
+            if ((id is CommandIds.PasteFromClipboard or CommandIds.MakeDirectory) &&
+                LocationWriteBlockReason(tab, location) is { } unavailable)
+            {
+                Notify(unavailable, true);
+                return;
+            }
             var provider = Services.Providers.For(location);
             var caps = provider.GetCapabilities(location);
             switch (id)

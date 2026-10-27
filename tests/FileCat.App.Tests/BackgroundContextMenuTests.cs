@@ -58,6 +58,37 @@ public sealed class BackgroundContextMenuTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Failed_location_disables_background_writes_and_explains_reread()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.ActivePanel!;
+            var tab = panel.ActiveTab!;
+            var missing = Location.FileSystem(Path.Combine(root, "not-created"));
+            tab.Navigate(missing);
+            await Until(() => tab.Listing.State == ListingState.Failed);
+            var menu = ContextMenuFactory.BuildBackground(vm, panel, tab, missing);
+            var actions = ((IEnumerable<object>)menu.ItemsSource!).OfType<MenuItem>().ToArray();
+            foreach (var name in new[] { "Paste items or go to pasted path", "Create folder…" })
+            {
+                var item = Assert.Single(actions, action => action.Header as string == name);
+                Assert.False(item.IsEnabled);
+                Assert.Contains("Reread", AutomationProperties.GetHelpText(item));
+            }
+            Assert.Contains(actions, item => item.Header as string == "Reread" && item.IsEnabled);
+            Assert.DoesNotContain(actions, item => item.Header as string == "Delete…");
+            await vm.ExecuteLocationContextAsync(CommandIds.MakeDirectory, panel, tab, missing);
+            Assert.False(vm.Dialogs.IsOpen);
+            Assert.Contains("Reread", vm.Notification);
+            await vm.ExecuteLocationContextAsync(CommandIds.PasteFromClipboard, panel, tab, missing);
+            Assert.Contains("Reread", vm.Notification);
+            Assert.False(Directory.Exists(missing.Path));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

@@ -16,9 +16,10 @@ public static class ContextMenuFactory
     {
         var provider = vm.Services.Providers.For(location);
         var caps = provider.GetCapabilities(location);
-        bool canPaste = location.IsFileSystem && (caps & LocationCapabilities.TransferTarget) != 0;
+        string? unavailable = MainViewModel.LocationWriteBlockReason(tab, location);
+        bool canPaste = unavailable is null && location.IsFileSystem && (caps & LocationCapabilities.TransferTarget) != 0;
         bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Sftp or Schemes.Mtp &&
-                         (caps & LocationCapabilities.CreateDirectory) != 0;
+                         (caps & LocationCapabilities.CreateDirectory) != 0 && unavailable is null;
         var items = new List<Control>();
         void Add(string id, bool enabled, string? reason = null)
         {
@@ -36,12 +37,12 @@ public static class ContextMenuFactory
             items.Add(item);
         }
         Add(CommandIds.PasteFromClipboard, canPaste,
-            location.IsFileSystem ? provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget)
-                : "Paste items into a file-system folder.");
+            unavailable ?? (location.IsFileSystem ? provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget)
+                : "Paste items into a file-system folder."));
         Add(CommandIds.MakeDirectory, canCreate,
-            (caps & LocationCapabilities.CreateDirectory) == 0
+            unavailable ?? ((caps & LocationCapabilities.CreateDirectory) == 0
                 ? provider.ExplainUnavailable(location, LocationCapabilities.CreateDirectory)
-                : "Create a folder in a file-system, ZIP, SFTP, or device location.");
+                : "Create a folder in a file-system, ZIP, SFTP, or device location."));
         items.Add(new Separator());
         Add(CommandIds.Refresh, true);
         if (location.IsFileSystem) Add(CommandIds.OpenTerminal, true);
