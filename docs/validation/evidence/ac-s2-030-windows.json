@@ -1,0 +1,146 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NestedPanelResize\\de383c089e284644ba8ff4cc247e0c8d",
+    "AppSha256":  "B2DD758015E8C76CCCD73112285E4AE1D7CADD75C3C5DBC5226F8377B284E5CF",
+    "AppDllSha256":  "D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291",
+    "Dpi":  144,
+    "WindowBounds":  [
+                         51,
+                         85,
+                         1428,
+                         1144
+                     ],
+    "PanelLists":  [
+                       {
+                           "Name":  "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NestedPanelResize\\de383c089e284644ba8ff4cc247e0c8d\\panel-1",
+                           "Bounds":  [
+                                          60,
+                                          342,
+                                          698,
+                                          288
+                                      ]
+                       },
+                       {
+                           "Name":  "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NestedPanelResize\\de383c089e284644ba8ff4cc247e0c8d\\panel-2",
+                           "Bounds":  [
+                                          59,
+                                          819,
+                                          700,
+                                          290
+                                      ]
+                       },
+                       {
+                           "Name":  "Panel 3, panel, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NestedPanelResize\\de383c089e284644ba8ff4cc247e0c8d\\panel-3",
+                           "Bounds":  [
+                                          771,
+                                          341,
+                                          700,
+                                          290
+                                      ]
+                       },
+                       {
+                           "Name":  "Panel 4, panel, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NestedPanelResize\\de383c089e284644ba8ff4cc247e0c8d\\panel-4",
+                           "Bounds":  [
+                                          771,
+                                          819,
+                                          700,
+                                          290
+                                      ]
+                       }
+                   ],
+    "HorizontalInitial":  {
+                              "Name":  "Horizontal panel boundary, first side\u0027s share of panels 1 and 2",
+                              "Share":  50,
+                              "Bounds":  [
+                                             57,
+                                             662,
+                                             704,
+                                             9
+                                         ],
+                              "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                              "Focused":  false
+                          },
+    "HorizontalChanged":  {
+                              "Name":  "Horizontal panel boundary, first side\u0027s share of panels 1 and 2",
+                              "Share":  51,
+                              "Bounds":  [
+                                             57,
+                                             674,
+                                             704,
+                                             9
+                                         ],
+                              "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                              "Focused":  true
+                          },
+    "HorizontalCanceled":  {
+                               "Name":  "Horizontal panel boundary, first side\u0027s share of panels 1 and 2",
+                               "Share":  50,
+                               "Bounds":  [
+                                              57,
+                                              662,
+                                              704,
+                                              9
+                                          ],
+                               "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                               "Focused":  false
+                           },
+    "VerticalInitial":  {
+                            "Name":  "Vertical panel boundary, first side\u0027s share of panels 1, 2 and 3, 4",
+                            "Share":  50,
+                            "Bounds":  [
+                                           761,
+                                           192,
+                                           9,
+                                           947
+                                       ],
+                            "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                            "Focused":  false
+                        },
+    "VerticalCommitted":  {
+                              "Name":  "Vertical panel boundary, first side\u0027s share of panels 1, 2 and 3, 4",
+                              "Share":  51,
+                              "Bounds":  [
+                                             773,
+                                             192,
+                                             9,
+                                             947
+                                         ],
+                              "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                              "Focused":  true
+                          },
+    "VerticalPointer":  {
+                            "Name":  "Vertical panel boundary, first side\u0027s share of panels 1, 2 and 3, 4",
+                            "Share":  54,
+                            "Bounds":  [
+                                           820,
+                                           192,
+                                           9,
+                                           947
+                                       ],
+                            "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                            "Focused":  true
+                        },
+    "VerticalRestored":  {
+                             "Name":  "Vertical panel boundary, first side\u0027s share of panels 1, 2 and 3, 4",
+                             "Share":  50,
+                             "Bounds":  [
+                                            761,
+                                            192,
+                                            9,
+                                            947
+                                        ],
+                             "Help":  "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+                             "Focused":  false
+                         },
+    "VisibleRows":  [
+                        3,
+                        3,
+                        3,
+                        3
+                    ],
+    "SavedExact":  true,
+    "SourcesExact":  true,
+    "Error":  null,
+    "DebugUi":  null
+}

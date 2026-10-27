@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-nested-panel-windows-20261027"></a>
+**27 October 2026, native nested Windows panel resize (AC-S2-030-WIN):** The
+isolated Win11 VMware guest selected 150% in Display Settings and the exact
+Git-built `2a371b4c` app reported 144 DPI, a 1428 × 1144 physical window and
+DLL SHA-256
+`D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291`.
+The [tracked UI Automation and mouse runner](../../tests/FileCat.NativeAcceptance/win-ax-nested-panel-resize.ps1)
+opened a fresh named workspace with two columns of two stacked panels. Each
+list showed all three fixture rows. The horizontal left-pair splitter exposed
+its panel identity and 50% share. Physical Down changed it to 51%, and Escape
+returned its rectangle to the original pixel. Keyboard Tab then focused the
+outer vertical splitter; Right committed 51%, and a native mouse drag moved
+it to 54%. Reopening the unchanged saved arrangement restored its 50% share
+and exact original rectangle. All 12 source hashes and the named-workspace
+hash stayed exact. The [direct native receipt](evidence/ac-s2-030-windows.json)
+passed. The [150% selection](evidence/ac-s2-030-windows-scale-150.json) and
+[100% restoration](evidence/ac-s2-030-windows-scale-restored.json) receipts
+show the VM scale was put back. This accepts the Windows child
+[AC-S2-030-WIN](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-030-win); the distinct Unix
+scaled arrangement remains open under AC-S2-030.
+
 <a id="evidence-notifications-20261027"></a>
 **27 October 2026, native scaled notices and action (AC-S2-029):** On the
 isolated Win11 VMware desktop, Windows Display Settings changed from 100% to

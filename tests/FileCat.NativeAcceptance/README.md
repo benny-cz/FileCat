@@ -2083,3 +2083,14 @@ the two-to-three-tab transition and retained action History. Each runner
 refuses a concurrent FileCat process, records the exact app DLL, writes a
 fresh JSON receipt and removes only its owned fixture. The 27 October 2026
 receipts are tracked under `docs/validation/evidence/ac-s2-029-*.json`.
+
+`win-ax-nested-panel-resize.ps1 -AppPath FILECAT.exe -ReportPath REPORT.json`
+uses a fresh four-panel, two-level layout in the same isolated Windows VM.
+Set 150% first with `win-ax-display-scale.ps1`; the runner requires 144 DPI,
+four lists with at least two visible file rows each, named horizontal and
+vertical slider peers, keyboard Down/Escape and Tab/Right/Enter, a native
+mouse drag on the outer splitter, and exact geometry after reopening the
+test-owned saved arrangement. It verifies all 12 source hashes and the saved
+JSON hash, closes its own app and removes only its owned fixture. Restore the
+VM's original display scale afterward. The dated native and scale receipts
+are tracked under `docs/validation/evidence/ac-s2-030-windows*.json`.
