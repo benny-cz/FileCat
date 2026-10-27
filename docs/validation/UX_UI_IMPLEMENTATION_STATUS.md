@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-sftp-20261027"></a>
+**27 October 2026, native Find from SFTP (AC-S2-044-SFTP):** The
+[Ubuntu runner](../../tests/FileCat.NativeAcceptance/linux-atspi-find-sftp-scope.py)
+used Git-built `e7a306f7` (app DLL SHA-256
+`7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1`)
+and a fresh data profile to connect to its own loopback SFTP directory. It
+matched FileCat's displayed host key to the guest's SSH public keys before
+one-time trust and observed the owned remote file row. Native Find then said
+“Find cannot search the SFTP folder,” kept Look in empty and disabled Find
+until a local scope is chosen. The local and remote fixture bytes stayed
+unchanged. The [direct receipt](evidence/ac-s2-044-ubuntu-sftp-scope.json)
+records the connected panel, guidance and disabled action. This accepts only
+the SFTP origin; Registry, result-set and narrow completion remain under
+[AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+
 <a id="evidence-recovery-speech-20261027"></a>
 **27 October 2026, Orca recovery status and Stop (AC-S2-042-SPEECH):**
 On the same `e7a306f7` Ubuntu VMware build and 200% display scale as the

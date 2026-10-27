@@ -2198,3 +2198,14 @@ For a diagnostic screenshot during Reviewing, set
 owned `ac-s2-042-capture.ready` marker exists; the bounded pause still leaves
 Stop before the eight-second source read returns. The 200% visual result is
 `docs/validation/evidence/ac-s2-042-ubuntu-recovery-visible.png`.
+
+`linux-atspi-find-sftp-scope.py APP REPORT.json KEY_HELPER` runs in the
+logged-in Ubuntu guest with `FILECAT_NATIVE_SUDO_PASSWORD` for physical Enter
+and `FILECAT_NATIVE_SFTP_PASSWORD` for its loopback SSH login. The runner
+removes both from FileCat's environment, creates an isolated local/remote
+fixture and data profile, independently matches the displayed SSH host key,
+then opens Find from the connected SFTP panel. It requires explicit SFTP
+limitation guidance, an empty Look in and disabled Find, and checks the owned
+source bytes. Its accepted receipt is
+`docs/validation/evidence/ac-s2-044-ubuntu-sftp-scope.json`; Registry,
+result-set and narrow completion are separate open ledger boundaries.

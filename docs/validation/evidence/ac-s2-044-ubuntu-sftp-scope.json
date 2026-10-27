@@ -1,0 +1,428 @@
+{
+  "passed": true,
+  "appDllSha256": "7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1",
+  "fixture": "/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a",
+  "sftpAddress": "sftp://benny@127.0.0.1:22/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/server/",
+  "steps": [
+    "Connected to owned loopback SFTP directory",
+    "Find identifies SFTP limitation and requires an explicit local scope"
+  ],
+  "hostKeyMatched": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "lastLists": [
+    "ItemsControl",
+    "Panel 1, target, /home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/source",
+    "ItemsControl",
+    "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/server/",
+    "ItemsControl"
+  ],
+  "lastRemoteRows": [
+    "remote-only.txt, file, 31 bytes, modified 10/27/2026 2:33:59\u202fPM, not marked, 2 of 2"
+  ],
+  "sftpLists": [
+    "ItemsControl",
+    "Panel 1, target, /home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/source",
+    "ItemsControl",
+    "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/server/",
+    "ItemsControl"
+  ],
+  "toolbarButtons": [
+    "Back",
+    "Forward",
+    "Go to parent",
+    "Reread",
+    "Copy\u2026",
+    "Move / rename\u2026",
+    "Create folder\u2026",
+    "Delete\u2026",
+    "Find files\u2026",
+    "Operations",
+    "More toolbar commands",
+    "source, Unlocked tab, /home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/source",
+    "Sort files: Name, ascending",
+    "+",
+    "/",
+    "Working sets",
+    "Home",
+    "Connect to a server\u2026",
+    "Computer",
+    "Network",
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "More places",
+    "\u25be",
+    "Panel 2 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "server, Unlocked tab, sftp://benny@127.0.0.1/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/server/",
+    "Sort files: Name, ascending",
+    "+",
+    "/",
+    "Working sets",
+    "Home",
+    "Connect to a server\u2026",
+    "Computer",
+    "Network",
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "More places",
+    "\u25be",
+    "Help",
+    "Rename",
+    "View",
+    "Edit",
+    "Copy",
+    "Move",
+    "MkDir",
+    "Delete",
+    "User",
+    "Menu",
+    "Maximize",
+    "Panels"
+  ],
+  "afterFindWindows": [
+    [
+      "application",
+      "FileCat",
+      60699
+    ]
+  ],
+  "afterFindLabels": [
+    [
+      "label",
+      "/"
+    ],
+    [
+      "label",
+      "Working sets"
+    ],
+    [
+      "label",
+      "Home"
+    ],
+    [
+      "label",
+      "Connect\u2026"
+    ],
+    [
+      "label",
+      "Computer"
+    ],
+    [
+      "label",
+      "Network"
+    ],
+    [
+      "label",
+      "Desktop"
+    ],
+    [
+      "label",
+      "Documents"
+    ],
+    [
+      "label",
+      "Downloads"
+    ],
+    [
+      "label",
+      "\u00bb"
+    ],
+    [
+      "label",
+      "1"
+    ],
+    [
+      "entry",
+      "Location"
+    ],
+    [
+      "label",
+      "114 GB free"
+    ],
+    [
+      "entry",
+      "Filter"
+    ],
+    [
+      "label",
+      "Filter ready"
+    ],
+    [
+      "label",
+      "TARGET"
+    ],
+    [
+      "label",
+      "0 folders, 1 file \u00b7 24 bytes"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "server"
+    ],
+    [
+      "label",
+      "/"
+    ],
+    [
+      "label",
+      "Working sets"
+    ],
+    [
+      "label",
+      "Home"
+    ],
+    [
+      "label",
+      "Connect\u2026"
+    ],
+    [
+      "label",
+      "Computer"
+    ],
+    [
+      "label",
+      "Network"
+    ],
+    [
+      "label",
+      "Desktop"
+    ],
+    [
+      "label",
+      "Documents"
+    ],
+    [
+      "label",
+      "Downloads"
+    ],
+    [
+      "label",
+      "\u00bb"
+    ],
+    [
+      "label",
+      "2"
+    ],
+    [
+      "entry",
+      "Location"
+    ],
+    [
+      "entry",
+      "Filter"
+    ],
+    [
+      "label",
+      "Filter ready"
+    ],
+    [
+      "label",
+      "0 folders, 1 file \u00b7 31 bytes"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "sftp://benny@127.0.0.1/home/benny/FileCatValidation/FindSftpScopeFixture/454c859113954694aa6bb9243e4a8a9a/server/>"
+    ],
+    [
+      "entry",
+      "Command line"
+    ],
+    [
+      "label",
+      "Command line (Ctrl+E) \u00b7 Ctrl+Enter inserts the focused name"
+    ],
+    [
+      "label",
+      "1"
+    ],
+    [
+      "label",
+      "Help"
+    ],
+    [
+      "label",
+      "2"
+    ],
+    [
+      "label",
+      "Rename"
+    ],
+    [
+      "label",
+      "3"
+    ],
+    [
+      "label",
+      "View"
+    ],
+    [
+      "label",
+      "4"
+    ],
+    [
+      "label",
+      "Edit"
+    ],
+    [
+      "label",
+      "5"
+    ],
+    [
+      "label",
+      "Copy"
+    ],
+    [
+      "label",
+      "6"
+    ],
+    [
+      "label",
+      "Move"
+    ],
+    [
+      "label",
+      "7"
+    ],
+    [
+      "label",
+      "MkDir"
+    ],
+    [
+      "label",
+      "8"
+    ],
+    [
+      "label",
+      "Delete"
+    ],
+    [
+      "label",
+      "9"
+    ],
+    [
+      "label",
+      "User"
+    ],
+    [
+      "label",
+      "10"
+    ],
+    [
+      "label",
+      "Menu"
+    ],
+    [
+      "label",
+      "11"
+    ],
+    [
+      "label",
+      "Maximize"
+    ],
+    [
+      "label",
+      "12"
+    ],
+    [
+      "label",
+      "Panels"
+    ],
+    [
+      "label",
+      "Find cannot search the SFTP folder. Choose local folders in Look in, choose drives, or use local home before searching."
+    ],
+    [
+      "label",
+      "Named:"
+    ],
+    [
+      "entry",
+      "Names"
+    ],
+    [
+      "label",
+      "Look in:"
+    ],
+    [
+      "entry",
+      "Look in"
+    ],
+    [
+      "label",
+      "Folders to search, separated by semicolons"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "Containing:"
+    ],
+    [
+      "entry",
+      "Containing"
+    ],
+    [
+      "label",
+      "Text inside files (optional)"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "Advanced:"
+    ],
+    [
+      "label",
+      "none"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "TextBlock"
+    ],
+    [
+      "label",
+      "Found items appear here. Enter searches; Ctrl+I keeps only items found again, Ctrl+S removes them from the list, and Ctrl+W adds new finds."
+    ]
+  ],
+  "findButtons": [
+    [
+      "Find files\u2026",
+      false
+    ],
+    [
+      "Find",
+      true
+    ]
+  ],
+  "find": {
+    "guidance": "Find cannot search the SFTP folder. Choose local folders in Look in, choose drives, or use local home before searching.",
+    "lookIn": "",
+    "buttonEnabled": false
+  }
+}
