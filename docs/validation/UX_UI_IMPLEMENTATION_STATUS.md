@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-windows-motion-20261027"></a>
+**27 October 2026, native Windows reduced-motion toggle (FCUX-050/051):**
+Exact Git `4c042d37` ran on the isolated Windows 11 VMware desktop at
+1925 × 1411, 100% (app DLL SHA-256
+`D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952`).
+The guest runner held the test-owned Psychedelic window in the foreground and
+changed the native client-area animation preference on/off/on while it was
+open. A tracked capture checker measured moving menu pixels
+**8,670 / 0 / 14,679** and footer pixels **9,908 / 0 / 10,954** across the
+three pairs of direct VMware frames; both file-list regions changed **zero**
+pixels in every phase. The guest receipt confirms the source unchanged,
+target empty and the original OS animation setting restored to on. Direct
+guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-013-win-motion-4c042d37-r6.json`;
+ignored host receipt/measurement:
+`E:\FileCat\.local-ac-s2-013-win-motion-4c042d37-r6.json` and
+`E:\FileCat\.local-ac-s2-013-win-motion-pixels-r6.json`; direct host frames:
+`E:\FileCat\.local-ac-s2-013-win-motion-r6-{moving,reduced,resumed}-{1,2}.png`.
+The [native runner](../../tests/FileCat.NativeAcceptance/win-ax-theme-motion.ps1)
+and [capture checker](../../tests/FileCat.NativeAcceptance/check-win-theme-motion-captures.py)
+accept only [AC-S2-013-WIN-MOTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-win-motion).
+Mac live motion and the accuracy of the Settings explanation remain separate.
+
 <a id="evidence-expressive-cycle-20261027"></a>
 **27 October 2026, native expressive palette and transparent picture
 (FCUX-013/014/050):** Exact Git `4c042d37` ran on the isolated Ubuntu
