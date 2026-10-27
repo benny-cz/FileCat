@@ -207,16 +207,33 @@ public sealed class CompareTextInteractionTests
             int first = window.Rows.ToList().FindIndex(r => r is CompareRow { LeftText: "alpha" });
             int last = window.Rows.ToList().FindIndex(r => r is CompareRow { LeftText: "gamma" });
             Assert.True(first >= 0 && last > first);
-            window.UpdateLayout();
-            await Until(() => view.RealizedRow(first)?.LeftCell?.SourceLayout is not null &&
-                view.RealizedRow(last)?.LeftCell?.SourceLayout is not null);
-            var firstCell = view.RealizedRow(first)!.LeftCell!;
-            var lastCell = view.RealizedRow(last)!.LeftCell!;
             Point At(CompareSourceCell cell, int offset)
             {
                 var rect = cell.SourceBounds(offset);
                 return cell.TranslatePoint(new Point(rect.X + cell.TextOrigin.X + 1, rect.Y + rect.Height / 2), window)!.Value;
             }
+            // A shaped source line can exist before virtualization and hit testing
+            // finish arranging its row. Wait for the actual pointer target used by
+            // this test; Linux CI occasionally delivered the drag to an old slot.
+            await Until(() =>
+            {
+                window.UpdateLayout();
+                using var frame = window.CaptureRenderedFrame();
+                var firstRow = view.RealizedRow(first);
+                var lastRow = view.RealizedRow(last);
+                if (firstRow?.LeftCell?.SourceLayout is null || lastRow?.LeftCell?.SourceLayout is null ||
+                    !view.IsCurrent(firstRow) || !view.IsCurrent(lastRow)) return false;
+                return Hits(firstRow.LeftCell, 1) && Hits(firstRow.LeftCell, 4) &&
+                    Hits(lastRow.LeftCell, 2);
+            });
+            var firstCell = view.RealizedRow(first)!.LeftCell!;
+            var lastCell = view.RealizedRow(last)!.LeftCell!;
+            bool Hits(CompareSourceCell cell, int offset) =>
+                cell.TranslatePoint(new Point(cell.SourceBounds(offset).X + cell.TextOrigin.X + 1,
+                    cell.SourceBounds(offset).Y + cell.SourceBounds(offset).Height / 2), view) is { } inView &&
+                ReferenceEquals(view.SourceAt(inView), cell) &&
+                window.InputHitTest(At(cell, offset)) is Visual hit &&
+                hit.GetSelfAndVisualAncestors().Contains(view);
             var start = At(firstCell, 1);
             var end = At(firstCell, 4);
             window.MouseMove(start);

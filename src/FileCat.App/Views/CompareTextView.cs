@@ -134,7 +134,7 @@ internal sealed class CompareTextView : Grid, IDisposable
     private IEnumerable<CompareTextRow> RealizedRows() => _rows.GetRealizedContainers()
         .SelectMany(c => c.GetVisualDescendants().OfType<CompareTextRow>());
 
-    private CompareSourceCell? SourceAt(Point point)
+    internal CompareSourceCell? SourceAt(Point point)
     {
         foreach (var row in RealizedRows())
         {
