@@ -753,6 +753,13 @@ folders. Both native Save as prompts hold the same fresh name before either
 publishes. After the first save, the second must show a replacement review;
 Cancel leaves the saved JSON, absent backup and both source files unchanged.
 The dated `34fee315` receipt accepts this collision route only.
+`linux-atspi-workspace-40-tabs.py APP REPORT.json KEY_HELPER` opens a
+test-owned named workspace with four panels, ten distinct local tabs per panel,
+and cyclic target links. It measures native display/window scale, checks each
+active path and target announcement, then physically cycles through all ten
+tabs per panel while reading AT-SPI path and focus. Its bounded tree limit is
+larger than a file-list runner because 40 tab controls are present. The dated
+`34fee315` 200% narrow-window receipt accepts this restore route.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
