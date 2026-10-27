@@ -1,0 +1,82 @@
+{
+  "passed": true,
+  "buildDllSha256": "7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1",
+  "fixture": "/home/benny/FileCatValidation/RecoveryHeldFixture/e1ed5eb240924565bb5f3c35a95abdf5",
+  "sourceSha256": "e3023526e682689992aa1d3271601f0b4f73e1e77475052c9344028dc61ecaf7",
+  "steps": [
+    {
+      "interrupted": {
+        "stagedBytes": 20000000,
+        "journalEntries": 1,
+        "targetUnpublished": true
+      }
+    },
+    {
+      "busyStatus": "Reviewing recovery sources\u2026",
+      "busyVisibleAfterSeconds": 1.13,
+      "actionCallPendingDuringBusy": false,
+      "duplicateContinueEnabled": false,
+      "stopVisible": true,
+      "stopClickedBeforeApproval": true
+    },
+    {
+      "delayedSourceStatSeconds": 8,
+      "finalStatus": "Review stopped. Any completed cleanup is kept; the recovery journal remains available.",
+      "journalSha256": {
+        "job-20261027131432-b7a976ac.fcj": "9717d180e7b5c8dc7b8638db55d81f31ad269be5e0aff229cc17c0588d0419bd"
+      },
+      "stagedSha256": {
+        ".fc-b7a976ac-1.tmp": "9cb2490b9ab19e48e0dc2ec309c164263ed33a140ffd1f47a966c3f1d241a0c1"
+      },
+      "sourcePreserved": true,
+      "targetUnpublished": true,
+      "lateApprovalAbsent": true
+    }
+  ],
+  "restartedPid": 58293,
+  "actionAncestors": [
+    {
+      "role": "panel",
+      "name": "",
+      "children": 5
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 2
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "ContentControl",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 2
+    }
+  ],
+  "actionBefore": {
+    "bounds": [
+      200,
+      742,
+      238,
+      59
+    ],
+    "showing": true,
+    "enabled": true
+  },
+  "actionReturnedWithinHalfSecond": true,
+  "continueDisabledWhileHeld": true,
+  "directStateQuerySeconds": 0.004
+}

@@ -2189,4 +2189,9 @@ restarts that profile, and uses path-filtered `strace` to delay the source
 delay returns, invokes Stop, then checks byte-exact source/staging/journal,
 unpublished target and no late approval. It closes only its own app and tracer.
 The accepted receipt is `docs/validation/evidence/ac-s2-042-ubuntu-recovery-stop.json`;
-narrow visual and spoken status are a separate open ledger subcase.
+narrow visual reachability passed separately and spoken status remains open.
+For a diagnostic screenshot during Reviewing, set
+`FILECAT_NATIVE_CAPTURE_PAUSE=3` on the runner and capture the VM while its
+owned `ac-s2-042-capture.ready` marker exists; the bounded pause still leaves
+Stop before the eight-second source read returns. The 200% visual result is
+`docs/validation/evidence/ac-s2-042-ubuntu-recovery-visible.png`.

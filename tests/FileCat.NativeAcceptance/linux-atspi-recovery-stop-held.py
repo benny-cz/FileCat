@@ -247,6 +247,11 @@ def main(app_path, report_path):
                                 "stopVisible": True})
         if latency >= 4 or action_enabled:
             raise AssertionError("The slow review did not promptly expose busy/disabled controls")
+        capture_pause = float(os.environ.get("FILECAT_NATIVE_CAPTURE_PAUSE", "0"))
+        if not 0 <= capture_pause <= 3:
+            raise AssertionError("Capture pause must stay within the owned source delay")
+        if capture_pause:
+            time.sleep(capture_pause)
         if not stop.do_action(0):
             raise AssertionError("Could not Stop the busy review")
         result["steps"][-1]["stopClickedBeforeApproval"] = True
