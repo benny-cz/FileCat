@@ -1,0 +1,34 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "File":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FractionalViewerFixture\\e64e69c3806a48e09fe473f4c8cdcc39\\source\\wheel-viewer.txt",
+    "Text":  [
+                 {
+                     "Input":  "ten 12-unit downward events",
+                     "TopLine":  3
+                 },
+                 {
+                     "Input":  "one 120-unit downward event",
+                     "TopLine":  3
+                 },
+                 {
+                     "Input":  "ten 12-unit upward events",
+                     "TopLine":  0
+                 }
+             ],
+    "Hex":  [
+                {
+                    "Input":  "ten 12-unit downward events",
+                    "TopRow":  3
+                },
+                {
+                    "Input":  "one 120-unit downward event",
+                    "TopRow":  3
+                },
+                {
+                    "Input":  "ten 12-unit upward events",
+                    "TopRow":  0
+                }
+            ],
+    "Error":  null
+}

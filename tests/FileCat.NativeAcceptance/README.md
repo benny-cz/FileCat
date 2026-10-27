@@ -8,6 +8,12 @@ one whole event, reversal and both end clamps, then verifies unchanged source
 hashes and an empty destination. Its app, private profile and report must be
 inside the Windows guest's `FileCatValidation` directory.
 
+`win-ax-fractional-viewer-wheel.ps1` uses the same owned Windows guest route
+for a 300-line Text file, then its Hex mode. It compares ten 12-unit events
+with one 120-unit event and reverses to the starting viewport using UI
+Automation document text and scrollbar position. It checks byte-exact source
+preservation and an empty destination. HexCompare has a separate open case.
+
 `linux-atspi-find-stop-held.py APP REPORT.json --speech` runs a native Ubuntu
 Find against an owned local fixture. A path-filtered, bounded `strace` delay
 holds the child-directory read long enough to activate Stop; the runner then
