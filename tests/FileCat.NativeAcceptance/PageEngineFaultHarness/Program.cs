@@ -77,6 +77,8 @@ internal sealed class HarnessApp : Application
             ["harnessDllSha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(
                 Path.Combine(AppContext.BaseDirectory, "PageEngineFaultHarness.dll")))).ToLowerInvariant()
         };
+        void Save() => File.WriteAllText(ReportPath, JsonSerializer.Serialize(result,
+            new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
         AppServices? services = null;
         ViewerWindow? viewer = null;
         try
@@ -98,6 +100,7 @@ internal sealed class HarnessApp : Application
             string? pageFailure = null;
             page.Failed += why => pageFailure = why;
             result["stage"] = "initial native page";
+            Save();
             try { await Until(() => page.PageLoaded, TimeSpan.FromSeconds(20)); }
             catch (TimeoutException)
             {
@@ -107,14 +110,21 @@ internal sealed class HarnessApp : Application
                 result["initialPageVisible"] = page.IsEffectivelyVisible;
                 throw;
             }
+            result["stage"] = "initial native page loaded";
+            Save();
             var oldFind = await page.FindAsync("oldpagetoken", false, true, CancellationToken.None);
             if (oldFind is not { Found: true }) throw new InvalidOperationException("Native engine did not render the old page");
             result["oldPageFound"] = true;
+            result["stage"] = "initial native page searched";
+            Save();
             var refresh = typeof(ViewerWindow).GetMethod("RefreshAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Viewer Refresh is unavailable");
             result["stage"] = "native replacement load failure";
+            Save();
             await Until(() => viewer.IsVisible && page.PageLoaded, TimeSpan.FromSeconds(10));
             await ((Task)refresh.Invoke(viewer, null)!).WaitAsync(TimeSpan.FromSeconds(25));
+            result["stage"] = "native Refresh returned";
+            Save();
             result["replacementReadCalls"] = replacement.ReadCalls;
             result["failureReadCall"] = replacement.FailureReadCall;
             await Until(() => page.PageLoaded, TimeSpan.FromSeconds(20));
@@ -133,6 +143,7 @@ internal sealed class HarnessApp : Application
                 newFind?.Found != true && (bool)result["pageModeRetained"]! &&
                 (banner?.Text?.StartsWith("Refresh failed:", StringComparison.Ordinal) ?? false);
             result["stage"] = "complete";
+            Save();
         }
         catch (Exception ex)
         {
@@ -140,12 +151,12 @@ internal sealed class HarnessApp : Application
         }
         finally
         {
+            Save();
             desktop.MainWindow = null;
             viewer?.Close();
             services?.Dispose();
             Directory.Delete(root, recursive: true);
-            await File.WriteAllTextAsync(ReportPath, JsonSerializer.Serialize(result,
-                new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+            Save();
             desktop.Shutdown((bool)result["passed"]! ? 0 : 1);
         }
     }
