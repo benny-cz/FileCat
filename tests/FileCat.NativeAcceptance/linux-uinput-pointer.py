@@ -2,7 +2,8 @@
 """Short-lived physical mouse for an isolated Ubuntu acceptance journey.
 
 Commands on stdin: MOVE signed-dx signed-dy, HWHEEL signed-steps,
-WHEEL signed-steps, SHIFT_DOWN, SHIFT_UP, DOWN, UP, QUIT. Every command
+WHEEL signed-steps, SHIFT_DOWN, SHIFT_UP, DOWN, UP, RIGHT_DOWN, RIGHT_UP,
+QUIT. Every command
 returns OK on stdout. The button and device are released on normal EOF too.
 The caller keeps moves inside the disposable test VM's display bounds.
 """
@@ -26,11 +27,13 @@ def main():
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     created = False
     pressed = False
+    right_pressed = False
     shift_held = False
     try:
         fcntl.ioctl(fd, 0x40045564, 1)  # UI_SET_EVBIT EV_KEY
         fcntl.ioctl(fd, 0x40045564, 2)  # UI_SET_EVBIT EV_REL
         fcntl.ioctl(fd, 0x40045565, 272)  # UI_SET_KEYBIT BTN_LEFT
+        fcntl.ioctl(fd, 0x40045565, 273)  # UI_SET_KEYBIT BTN_RIGHT
         fcntl.ioctl(fd, 0x40045565, 42)  # UI_SET_KEYBIT KEY_LEFTSHIFT
         fcntl.ioctl(fd, 0x40045566, 0)  # UI_SET_RELBIT REL_X
         fcntl.ioctl(fd, 0x40045566, 1)  # UI_SET_RELBIT REL_Y
@@ -54,6 +57,12 @@ def main():
             elif parts == ["UP"] and pressed:
                 emit(fd, 1, 272, 0)
                 pressed = False
+            elif parts == ["RIGHT_DOWN"] and not right_pressed:
+                emit(fd, 1, 273, 1)
+                right_pressed = True
+            elif parts == ["RIGHT_UP"] and right_pressed:
+                emit(fd, 1, 273, 0)
+                right_pressed = False
             elif parts == ["SHIFT_DOWN"] and not shift_held:
                 emit(fd, 1, 42, 1)
                 shift_held = True
@@ -87,6 +96,9 @@ def main():
             sync(fd)
         if pressed:
             emit(fd, 1, 272, 0)
+            sync(fd)
+        if right_pressed:
+            emit(fd, 1, 273, 0)
             sync(fd)
         if created:
             time.sleep(0.1)

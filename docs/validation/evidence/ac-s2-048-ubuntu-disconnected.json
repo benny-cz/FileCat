@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "75331c3e7f7bca9dd66cbe24df9d18259f422c1f",
+  "appDllSha256": "a4977144dd138d3319c1498ae955c6f6c2588a24679ea54a0e63a57f35a0227d",
+  "fixture": "/home/benny/FileCatValidation/BackgroundDisconnected/2555fdd9e57144b7b656d93568892a4d",
+  "remoteAddress": "sftp://benny@127.0.0.1:38409/home/benny/FileCatValidation/BackgroundDisconnected/2555fdd9e57144b7b656d93568892a4d/remote/",
+  "localSha256": "2a88dc381ba128fcbbeed60e8a7d706bb67abbe09bd58db0a72876c1f9ad2487",
+  "remoteSha256": "888a18d237802ed6cbb94a9250026653554a07f9ecaa874dcfeba8dee5a38c82",
+  "matchedHostKeys": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "connectedList": "Panel 2, source, sftp://benny@127.0.0.1:38409/home/benny/FileCatValidation/BackgroundDisconnected/2555fdd9e57144b7b656d93568892a4d/remote/",
+  "disconnectedList": "Panel 2, source, sftp://benny@127.0.0.1:38409/home/benny/FileCatValidation/BackgroundDisconnected/2555fdd9e57144b7b656d93568892a4d/remote/",
+  "disconnectedDescription": "Refresh failed. Could not reach benny@127.0.0.1:38409: Connection refused Previously listed items are shown. Use Refresh to try again. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+  "pointer": [
+    1115,
+    998
+  ],
+  "menu": [
+    [
+      "File",
+      true,
+      ""
+    ],
+    [
+      "Mark",
+      true,
+      ""
+    ],
+    [
+      "Navigate",
+      true,
+      ""
+    ],
+    [
+      "Commands",
+      true,
+      ""
+    ],
+    [
+      "Panels",
+      true,
+      ""
+    ],
+    [
+      "View",
+      true,
+      ""
+    ],
+    [
+      "Tools",
+      true,
+      ""
+    ],
+    [
+      "Help",
+      true,
+      ""
+    ],
+    [
+      "Paste items or go to pasted path",
+      false,
+      "This location is not available. Reread it (Ctrl+R) to retry before changing it."
+    ],
+    [
+      "Create folder\u2026",
+      false,
+      "This location is not available. Reread it (Ctrl+R) to retry before changing it."
+    ],
+    [
+      "Reread",
+      true,
+      ""
+    ],
+    [
+      "Copy location name",
+      true,
+      ""
+    ]
+  ],
+  "bytesExact": true
+}

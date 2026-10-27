@@ -2281,3 +2281,15 @@ Without `-BackgroundOnly`, the runner also probes Shift+F10 and the Menu key
 on the focused item; that separate diagnostic has not passed on the Windows
 guest and is not part of the accepted background receipts. Existing Ubuntu
 physical Shift+F10 evidence is recorded separately in the acceptance ledger.
+
+`linux-atspi-background-disconnected.py APP REPORT.json KEY_HELPER POINTER_HELPER`
+uses the logged-in Ubuntu VMware guest, transient input/SFTP credentials and
+the guest's loopback SSH service. It connects through a test-owned TCP relay,
+independently checks the displayed server key, loads one owned member, drops
+only the relay and rereads the same remote panel. A physical uinput right
+click on listing whitespace must then expose disabled Paste/Create with
+accessible Reread reasons, plus safe Reread/Copy location name. The panel
+continues to name its exact remote address and failed refresh; source hashes
+must stay exact. The runner kills only its own app, closes its own relay and
+deletes only its own fixture. Its direct receipt is
+`docs/validation/evidence/ac-s2-048-ubuntu-disconnected.json`.

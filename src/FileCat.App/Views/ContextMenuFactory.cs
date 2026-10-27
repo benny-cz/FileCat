@@ -37,7 +37,8 @@ public static class ContextMenuFactory
             items.Add(item);
         }
         Add(CommandIds.PasteFromClipboard, canPaste,
-            unavailable ?? (location.IsFileSystem ? provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget)
+            unavailable ?? (location.IsFileSystem || location.Scheme == Schemes.ResultSet
+                ? provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget)
                 : "Paste items into a file-system folder."));
         Add(CommandIds.MakeDirectory, canCreate,
             unavailable ?? ((caps & LocationCapabilities.CreateDirectory) == 0

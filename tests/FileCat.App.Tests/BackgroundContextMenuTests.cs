@@ -16,6 +16,7 @@ using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Search;
 using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
@@ -85,6 +86,34 @@ public sealed class BackgroundContextMenuTests
             await vm.ExecuteLocationContextAsync(CommandIds.PasteFromClipboard, panel, tab, missing);
             Assert.Contains("Reread", vm.Notification);
             Assert.False(Directory.Exists(missing.Path));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Working_set_background_explains_that_it_holds_references()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var set = services.WorkingSets.Create("Owned context set");
+            var location = ResultSetProvider.LocationOf(set);
+            var panel = vm.Workspace.ActivePanel!;
+            var tab = panel.ActiveTab!;
+            tab.Navigate(location);
+            await Until(() => tab.Listing.State == ListingState.Complete);
+            var menu = ContextMenuFactory.BuildBackground(vm, panel, tab, location);
+            var actions = ((IEnumerable<object>)menu.ItemsSource!).OfType<MenuItem>().ToArray();
+            foreach (var name in new[] { "Paste items or go to pasted path", "Create folder…" })
+            {
+                var item = Assert.Single(actions, action => action.Header as string == name);
+                Assert.False(item.IsEnabled);
+                Assert.Contains("working set holds references", AutomationProperties.GetHelpText(item),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            Assert.Contains(actions, item => item.Header as string == "Reread" && item.IsEnabled);
+            Assert.Contains(actions, item => item.Header as string == "Copy location name" && item.IsEnabled);
+            Assert.DoesNotContain(actions, item => item.Header as string == "Delete…");
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
