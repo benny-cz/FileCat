@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
 
@@ -5,6 +6,41 @@ namespace FileCat.App.Tests;
 
 public sealed class MotionPreferenceTests
 {
+    [AvaloniaFact]
+    public async Task Viewer_activation_keeps_effects_running_after_main_window_deactivates()
+    {
+        string prior = ThemeManager.RequestedName;
+        var originalReader = ThemeAnimation.PreferenceReader;
+        var main = new Window();
+        var viewer = new Window();
+        try
+        {
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.PreferenceReader = _ => Task.FromResult<bool?>(false);
+            ThemeManager.Apply("Psychedelic");
+            ThemeAnimation.SetWindowActive(main, true);
+            ThemeAnimation.SetAllowed(true);
+            await ThemeAnimation.RefreshPreferenceAsync();
+            Assert.True(ThemeAnimation.IsRunning);
+
+            ThemeAnimation.SetWindowActive(viewer, true);
+            ThemeAnimation.SetWindowActive(main, false);
+            Assert.True(ThemeAnimation.IsRunning);
+            ThemeAnimation.SetWindowActive(viewer, false);
+            Assert.False(ThemeAnimation.IsRunning);
+        }
+        finally
+        {
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.SetWindowActive(main, false);
+            ThemeAnimation.SetWindowActive(viewer, false);
+            ThemeAnimation.PreferenceReader = originalReader;
+            ThemeManager.Apply(prior);
+            ThemeAnimation.SetActive(true);
+            ThemeAnimation.SetAllowed(true);
+        }
+    }
+
     [Theory]
     [InlineData(true, true, true, false, true)]
     [InlineData(true, true, true, true, false)]

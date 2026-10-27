@@ -180,13 +180,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             EndPanelResize(restore: false, returnFocus: false);
             _vm.ReconcileKeyBar(KeyMods.None);
-            ThemeAnimation.SetActive(false);
+            ThemeAnimation.SetWindowActive(this, false);
         };
         Activated += (_, _) =>
         {
             // A popup or another top-level window can receive the modifier's release instead of this window.
             _vm.ReconcileKeyBar(KeyMods.None);
-            ThemeAnimation.SetActive(true);
+            ThemeAnimation.SetWindowActive(this, true);
             if (!WindowsContextMenu.IsOpenOrRecentlyClosed)
                 foreach (var panel in _panelViews.Values) panel.List.RefreshGitStatuses();
         };

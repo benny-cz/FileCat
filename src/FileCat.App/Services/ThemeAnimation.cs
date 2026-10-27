@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Threading;
 
 namespace FileCat.App.Services;
@@ -12,6 +13,7 @@ public static class ThemeAnimation
     };
     private static readonly System.Diagnostics.Stopwatch Clock = new();
     private static bool _requestedAllowed = true, _active = true, _preferenceReady, _probeInFlight;
+    private static readonly HashSet<Window> ActiveWindows = [];
     private static bool? _systemReducedMotion;
     private static int _observationVersion;
     internal static Func<CancellationToken, Task<bool?>> PreferenceReader { get; set; } =
@@ -47,6 +49,18 @@ public static class ThemeAnimation
     {
         _active = active;
         Update();
+    }
+
+    /// <summary>
+    /// A child viewer can be active after the main window deactivates. Keep
+    /// motion available while any FileCat window owns focus, and release each
+    /// window at detach so a closed viewer cannot retain the application.
+    /// </summary>
+    internal static void SetWindowActive(Window window, bool active)
+    {
+        if (active) ActiveWindows.Add(window);
+        else ActiveWindows.Remove(window);
+        SetActive(ActiveWindows.Count > 0);
     }
 
     private static void Update()

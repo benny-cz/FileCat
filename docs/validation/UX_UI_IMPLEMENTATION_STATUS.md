@@ -1,5 +1,32 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-expressive-toolbar-20261027"></a>
+**27 October 2026, expressive-theme native diagnostic and toolbar correction
+(FCUX-050/051):** On Git `0553f746` (Ubuntu Wayland, app DLL SHA-256
+`fed76012…`), the Psychedelic panel, Delete review, selected Text and search
+hit were captured with test-owned files. The viewer toolbar showed a moving
+bright green area directly behind white `Text+` and `Refresh` labels. A
+transparent 480 × 320 RGBA PNG displayed with its checkerboard and solid/
+semi-transparent regions intact, but the first three picture frames showed
+**zero changed pixels** in both its picture and toolbar regions while the
+viewer was active: deactivation of the main window had paused the global
+animation clock. The picture-only diagnostic was deliberately stopped after
+that bounded result; its fixture was removed and GNOME's original motion
+setting `true` was restored. The direct guest partial diagnostic is
+`/home/benny/FileCatValidation/ac-s2-013-ubuntu-expressive-0553f746-r1.json`;
+ignored host receipt and VM frames are
+`E:\FileCat\.local-ac-s2-013-ubuntu-expressive-0553f746-r1.json`,
+`E:\FileCat\.local-ac-s2-013-expressive-r1-{panel,danger,selection,search}.png`
+and `E:\FileCat\.local-ac-s2-013-expressive-picture-r2-{0,1,2}.png`.
+The r1 picture step did not recognize a toggle-button accessibility role;
+the picture-only r2 reached the viewer without repeating the accepted
+panel/dialog/search steps. The product correction gives viewer, report and
+Hex-editor control strips an opaque, live theme-bound surface and tracks
+activity across FileCat windows. On the Windows host, the focused theme,
+motion and readability groups passed 36/36 in Release with 16 workers.
+**Native acceptance on the corrected Git build remains pending**; the
+expressive and full-cycle portion of AC-S2-013 stays Open.
+
 <a id="evidence-high-contrast-20261027"></a>
 **27 October 2026, native Ubuntu High Contrast panel and viewer (FCUX-013/014):**
 Git `0553f746` on the isolated Ubuntu Wayland VM (app DLL SHA-256

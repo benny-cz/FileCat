@@ -16,6 +16,8 @@ namespace FileCat.App.Controls;
 /// </summary>
 public sealed class ThemeBackdrop : Control
 {
+    private Window? _window;
+
     public ThemeBackdrop() => IsHitTestVisible = false;
 
     // Static events: subscribed while shown, so a closed window is not kept alive by them.
@@ -24,6 +26,13 @@ public sealed class ThemeBackdrop : Control
         base.OnAttachedToVisualTree(e);
         ThemeManager.ThemeChanged += InvalidateVisual;
         ThemeAnimation.Frame += OnFrame;
+        _window = TopLevel.GetTopLevel(this) as Window;
+        if (_window is { } window)
+        {
+            window.Activated += OnWindowActivated;
+            window.Deactivated += OnWindowDeactivated;
+            ThemeAnimation.SetWindowActive(window, window.IsActive);
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -31,6 +40,23 @@ public sealed class ThemeBackdrop : Control
         base.OnDetachedFromVisualTree(e);
         ThemeManager.ThemeChanged -= InvalidateVisual;
         ThemeAnimation.Frame -= OnFrame;
+        if (_window is { } window)
+        {
+            window.Activated -= OnWindowActivated;
+            window.Deactivated -= OnWindowDeactivated;
+            ThemeAnimation.SetWindowActive(window, false);
+            _window = null;
+        }
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (_window is { } window) ThemeAnimation.SetWindowActive(window, true);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+    {
+        if (_window is { } window) ThemeAnimation.SetWindowActive(window, false);
     }
 
     /// <summary>Where the menu bar ends and the lower control strip begins.</summary>
@@ -91,6 +117,17 @@ public sealed class ThemeBackdrop : Control
 /// </summary>
 public static class ThemeLayers
 {
+    /// <summary>
+    /// Keep controls and their labels on the palette's opaque window color.
+    /// The expressive backdrop is allowed around work surfaces, not behind
+    /// text whose contrast would otherwise vary during a motion cycle.
+    /// </summary>
+    public static Border OpaqueControls(Control content) => new()
+    {
+        Child = content,
+        [!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FcWindow"),
+    };
+
     /// <summary><paramref name="content"/> over the backdrop; each of <paramref name="surfaces"/> gets the card color.</summary>
     public static Control Over(Control content, params Control[] surfaces)
     {

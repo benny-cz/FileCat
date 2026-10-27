@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Stage native High Contrast panel, danger, selection and search captures.
+"""Stage native theme panel, danger, selection and search captures.
 
-Usage: linux-atspi-theme-contrast.py GIT_APP REPORT.json UINPUT_KEY_HELPER
+Usage: linux-atspi-theme-contrast.py GIT_APP REPORT.json UINPUT_KEY_HELPER [--expressive|--picture-only]
 After each READY line, capture the Ubuntu VM screen, then create its printed
-.done marker. Every file and dialog belongs to the disposable fixture.
+.done marker. Expressive mode also checks a transparent picture over one full
+slowest-blob animation cycle. Every file and dialog belongs to the fixture.
 """
 
 import hashlib
@@ -12,10 +13,12 @@ import os
 from pathlib import Path
 import runpy
 import shutil
+import struct
 import subprocess
 import sys
 import time
 from uuid import uuid4
+import zlib
 
 import gi
 
@@ -32,6 +35,28 @@ NAME = "visible.txt"
 CONTENT = b"visible keyword stays readable in High Contrast\n"
 
 
+def transparent_picture():
+    """Generate an owned RGBA PNG without an image-library dependency."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(
+            ">I", zlib.crc32(kind + data) & 0xffffffff)
+
+    width, height = 480, 320
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # PNG filter: none
+        for x in range(width):
+            if x < 40 or x >= width - 40 or y < 40 or y >= height - 40:
+                raw.extend((0, 0, 0, 0))
+            elif x < width // 2:
+                raw.extend((255, 45, 130, 255))
+            else:
+                raw.extend((10, 215, 165, 128))
+    return (b"\x89PNG\r\n\x1a\n" +
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(bytes(raw), 6)) + chunk(b"IEND", b""))
+
+
 def key(helper, password, chord):
     sent = subprocess.run(["sudo", "-S", sys.executable, str(helper), chord],
                           input=password + "\n", text=True, capture_output=True, timeout=15)
@@ -39,7 +64,7 @@ def key(helper, password, chord):
         raise AssertionError(f"Physical {chord} failed: {sent.stderr[-240:]}")
 
 
-def run(app_path, report_path, helper):
+def run(app_path, report_path, helper, expressive=False, picture_only=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path, helper = (path.resolve(strict=True) for path in (app_path, helper))
     if app_path.name != "FileCat" or validation not in app_path.parents or \
@@ -52,24 +77,55 @@ def run(app_path, report_path, helper):
     password = os.environ.pop("FILECAT_NATIVE_SUDO_PASSWORD", None)
     if not password:
         raise AssertionError("The physical-key helper needs a transient guest credential")
-    root = validation / "ThemeContrast" / uuid4().hex
+    root = validation / ("ThemeExpressive" if expressive else "ThemeContrast") / uuid4().hex
     source, target, data = (root / part for part in ("source", "target", "data"))
     for folder in (source, target, data):
         folder.mkdir(parents=True)
     (source / NAME).write_bytes(CONTENT)
     (source / ".hidden.txt").write_text("hidden but actionable\n", encoding="utf-8")
+    picture_bytes = transparent_picture() if expressive else None
+    if picture_bytes is not None:
+        (source / "sample.png").write_bytes(picture_bytes)
     (data / "settings.json").write_text(json.dumps({"SchemaVersion": 1,
-        "Theme": "HighContrast", "ThemeAnimations": False}), encoding="utf-8")
+        "Theme": "Psychedelic" if expressive else "HighContrast",
+        "ThemeAnimations": expressive}), encoding="utf-8")
     env = os.environ.copy()
     env.update(desktop_environment())
+    motion_settings = None
+    original_animations = None
+    if expressive:
+        motion_settings = runpy.run_path(str(HERE / "linux-atspi-theme-motion.py"))["settings"]
+        shell_pids = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "gnome-shell"],
+                                    capture_output=True, text=True, timeout=5).stdout.split()
+        if len(shell_pids) != 1:
+            raise AssertionError("The expressive route requires the logged-in GNOME shell")
+        shell_env = dict(part.split("=", 1) for part in Path(
+            f"/proc/{shell_pids[0]}/environ").read_bytes().decode("utf-8").split("\0")
+                         if "=" in part)
+        env["XDG_CURRENT_DESKTOP"] = shell_env.get("XDG_CURRENT_DESKTOP", "")
+        env["XDG_SESSION_TYPE"] = shell_env.get("XDG_SESSION_TYPE", "")
+        if "GNOME" not in env["XDG_CURRENT_DESKTOP"].split(":") or \
+                env["XDG_SESSION_TYPE"] != "wayland":
+            raise AssertionError("The expressive route needs GNOME Wayland")
+        original_animations = motion_settings(env)
+        if original_animations not in ("true", "false"):
+            raise AssertionError("The GNOME motion preference was unavailable")
     env["DOTNET_ROOT"] = str(validation / "dotnet-sdk")
-    result = {"passed": False, "appDllSha256": hashlib.sha256(
+    result = {"passed": False, "theme": "Psychedelic" if expressive else "HighContrast",
+        "appDllSha256": hashlib.sha256(
         (app_path.parent / "FileCat.dll").read_bytes()).hexdigest(),
         "sourceSha256": hashlib.sha256(CONTENT).hexdigest(), "phases": []}
+    if picture_bytes is not None:
+        result["pictureSha256"] = hashlib.sha256(picture_bytes).hexdigest()
+        result["originalGnomeAnimations"] = original_animations
     process = None
     mouse = helper.with_name("linux-uinput-mouse.py")
     if not mouse.is_file():
         raise AssertionError("The owned native pointer helper is unavailable")
+
+    phases = [] if picture_only else ["panel", "danger", "selection", "search"]
+    if expressive:
+        phases.extend(f"picture-{index}" for index in range(6))
 
     def handoff(phase, app):
         if process.poll() is not None:
@@ -94,7 +150,34 @@ def run(app_path, report_path, helper):
         ready.unlink(missing_ok=True)
         done.unlink(missing_ok=True)
 
+    def picture_route(app):
+        image_row = wait_for(lambda: next((node for node in descendants(app)
+            if node.get_role_name() == "list item" and
+            (node.get_name() or "").startswith("sample.png, file,")), None),
+            "owned transparent picture row")
+        if not image_row.grab_focus():
+            raise AssertionError("The owned picture row could not take focus")
+        checked_action(find(app, "button", "View"), "owned picture viewer")
+        picture_viewer = wait_for(lambda: find(app, "frame", "sample.png — FileCat Viewer"),
+                                  "owned picture viewer")
+        control = wait_for(lambda: next((node for node in descendants(picture_viewer)
+            if node.get_name() == "Fit picture to window"), None),
+            "picture mode controls")
+        result["pictureFitControlRole"] = control.get_role_name()
+        start = time.monotonic()
+        for index in range(6):
+            while time.monotonic() - start < index * 61:
+                if process.poll() is not None:
+                    raise AssertionError("FileCat exited during expressive animation")
+                time.sleep(0.25)
+            result["pictureCycleSeconds"] = round(time.monotonic() - start, 2)
+            handoff(f"picture-{index}", app)
+        if result["pictureCycleSeconds"] < 300:
+            raise AssertionError("The slowest decorative blob did not complete a cycle")
+
     try:
+        if motion_settings is not None:
+            motion_settings(env, "true")
         with (root / "app.log").open("wb") as log:
             process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
                                         "--left", str(source), "--right", str(target)],
@@ -121,6 +204,13 @@ def run(app_path, report_path, helper):
         subprocess.run(["/usr/bin/wmctrl", "-ir", window, "-e", "0,100,75,1000,660"],
                        env=env, check=True, timeout=8)
         time.sleep(1)
+        if picture_only:
+            picture_route(app)
+            if (source / NAME).read_bytes() != CONTENT or \
+                    (source / "sample.png").read_bytes() != picture_bytes or list(target.iterdir()):
+                raise AssertionError("Picture review changed the owned fixture")
+            result["sourceUnchanged"] = result["targetEmpty"] = result["passed"] = True
+            return result
         handoff("panel", app)
         if not row.grab_focus():
             raise AssertionError("The owned visible row could not take focus")
@@ -156,8 +246,22 @@ def run(app_path, report_path, helper):
                  "visible search hit")
         result["searchStatus"] = text_value(viewer)[2]
         handoff("search", app)
+        if expressive:
+            viewer_window = wait_for(lambda: next((parts[0] for line in
+                subprocess.run(["/usr/bin/wmctrl", "-lp"], env=env, text=True,
+                               capture_output=True, timeout=5).stdout.splitlines()
+                if (parts := line.split(maxsplit=4)) and len(parts) == 5 and
+                parts[2] == str(process.pid) and f"{NAME} — FileCat Viewer" in parts[4]),
+                None), "owned Text viewer window ID")
+            subprocess.run(["/usr/bin/wmctrl", "-ic", viewer_window], env=env,
+                           check=True, timeout=8)
+            wait_for(lambda: find(app, "frame", f"{NAME} — FileCat Viewer") is None,
+                     "Text viewer close")
+            picture_route(app)
         if (source / NAME).read_bytes() != CONTENT or list(target.iterdir()):
             raise AssertionError("Theme review changed the source or target")
+        if picture_bytes is not None and (source / "sample.png").read_bytes() != picture_bytes:
+            raise AssertionError("The transparent picture fixture changed")
         result["sourceUnchanged"] = result["targetEmpty"] = result["passed"] = True
     except Exception as error:
         result["error"] = f"{type(error).__name__}: {error}"
@@ -172,7 +276,10 @@ def run(app_path, report_path, helper):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=10)
-        for phase in ("panel", "danger", "selection", "search"):
+        if motion_settings is not None and original_animations is not None:
+            motion_settings(env, original_animations)
+            result["restoredGnomeAnimations"] = motion_settings(env)
+        for phase in phases:
             report_path.with_name(report_path.stem + f".{phase}.ready").unlink(missing_ok=True)
             report_path.with_name(report_path.stem + f".{phase}.done").unlink(missing_ok=True)
         shutil.rmtree(root)
@@ -180,10 +287,12 @@ def run(app_path, report_path, helper):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and
+            sys.argv[4] not in ("--expressive", "--picture-only")):
         raise SystemExit(__doc__)
     receipt = Path(sys.argv[2]).resolve()
-    outcome = run(Path(sys.argv[1]), receipt, Path(sys.argv[3]))
+    outcome = run(Path(sys.argv[1]), receipt, Path(sys.argv[3]),
+                  len(sys.argv) == 5, len(sys.argv) == 5 and sys.argv[4] == "--picture-only")
     receipt.write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(outcome), flush=True)
     raise SystemExit(0 if outcome["passed"] else 1)

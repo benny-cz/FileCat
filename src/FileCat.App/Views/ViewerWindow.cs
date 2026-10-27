@@ -390,11 +390,13 @@ public sealed class ViewerWindow : Window
         DockPanel.SetDock(_encodingInfo, Dock.Right);
         var content = new Panel { Children = { _text, _hex, _info, _picture, _pageView } };
         var root = new DockPanel();
-        DockPanel.SetDock(toolbar, Dock.Top);
-        DockPanel.SetDock(_findBar, Dock.Top);
+        var toolbarSurface = ThemeLayers.OpaqueControls(toolbar);
+        var findSurface = ThemeLayers.OpaqueControls(_findBar);
+        DockPanel.SetDock(toolbarSurface, Dock.Top);
+        DockPanel.SetDock(findSurface, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
-        root.Children.Add(toolbar);
-        root.Children.Add(_findBar);
+        root.Children.Add(toolbarSurface);
+        root.Children.Add(findSurface);
         _staleBanner.Child = _staleText;
         DockPanel.SetDock(_staleBanner, Dock.Top);
         root.Children.Add(_staleBanner);

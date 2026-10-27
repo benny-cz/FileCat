@@ -8,6 +8,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
@@ -221,6 +222,99 @@ public sealed class ReadabilityTests
 
     private static T Field<T>(object owner, string name) where T : class =>
         Assert.IsType<T>(owner.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(owner));
+
+    [AvaloniaFact]
+    public void Viewer_controls_keep_an_opaque_live_palette_surface_during_theme_changes()
+    {
+        using var styles = new FileCatStyles();
+        string before = ThemeManager.RequestedName;
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var viewer = new ViewerWindow(services,
+                new MemoryContentSource("owned.txt", Encoding.UTF8.GetBytes("visible\n")),
+                "owned.txt", hex: false);
+            try
+            {
+                ThemeManager.Apply("Psychedelic");
+                viewer.Show();
+                Named<Button>(viewer, "Show or hide viewer Find bar")
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var surfaces = viewer.GetVisualDescendants().OfType<Border>()
+                    .Where(border => border.Child is WrapPanel panel &&
+                        (panel.Children.OfType<Button>().Any(button => button.Content as string == "Refresh") ||
+                         panel.Children.OfType<TextBox>().Any(box => box.PlaceholderText == "Find (Ctrl+F)")))
+                    .ToArray();
+                Assert.Equal(2, surfaces.Length);
+                foreach (string palette in new[] { "Psychedelic", "HighContrast", "Classic" })
+                {
+                    ThemeManager.Apply(palette);
+                    viewer.CaptureRenderedFrame()?.Dispose();
+                    foreach (var surface in surfaces)
+                    {
+                        var brush = Assert.IsType<SolidColorBrush>(surface.Background);
+                        Assert.Equal(255, brush.Color.A);
+                        Assert.Equal(Color.Parse(ThemeManager.Current.Window), brush.Color);
+                    }
+                }
+            }
+            finally { viewer.Close(); }
+        }
+        finally
+        {
+            ThemeManager.Apply(before);
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [AvaloniaFact]
+    public void Report_and_hex_editor_toolbars_follow_the_opaque_palette_surface()
+    {
+        using var styles = new FileCatStyles();
+        string before = ThemeManager.RequestedName;
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "owned.bin");
+        File.WriteAllBytes(path, [0, 1, 2, 3]);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(root, "data")));
+            Assert.Null(HexEditorWindow.OpenOrActivate(services, path));
+            var editor = Assert.Single(HexEditorWindow.OpenWindows);
+            var report = new ReportWindow("Owned report", "owned fixture", _ => Task.FromResult("safe report\n"));
+            report.Show();
+            try
+            {
+                var save = Field<Button>(editor, "_save");
+                var refresh = Field<Button>(report, "_refresh");
+                Border Surface(Window window, Button button) => window.GetVisualDescendants()
+                    .OfType<Border>().Single(border => border.Child is WrapPanel panel &&
+                        panel.Children.Contains(button));
+                var editorToolbar = Surface(editor, save);
+                var reportToolbar = Surface(report, refresh);
+                foreach (string palette in new[] { "Psychedelic", "HighContrast", "Classic" })
+                {
+                    ThemeManager.Apply(palette);
+                    editor.CaptureRenderedFrame()?.Dispose();
+                    report.CaptureRenderedFrame()?.Dispose();
+                    foreach (var surface in new[] { editorToolbar, reportToolbar })
+                    {
+                        var brush = Assert.IsType<SolidColorBrush>(surface.Background);
+                        Assert.Equal(255, brush.Color.A);
+                        Assert.Equal(Color.Parse(ThemeManager.Current.Window), brush.Color);
+                    }
+                }
+            }
+            finally { report.Close(); editor.Close(); }
+        }
+        finally
+        {
+            ThemeManager.Apply(before);
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
 
     private static T Named<T>(Window window, string name) where T : Control =>
         window.GetVisualDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == name);

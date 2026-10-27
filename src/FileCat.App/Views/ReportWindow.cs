@@ -104,11 +104,13 @@ public sealed class ReportWindow : Window
         AutomationProperties.SetLiveSetting(_spokenLine, AutomationLiveSetting.Polite);
         var statusBar = new Border { Classes = { "status" }, Child = _status };
         var root = new DockPanel();
-        DockPanel.SetDock(toolbar, Dock.Top);
-        DockPanel.SetDock(lineNavigation, Dock.Top);
+        var toolbarSurface = ThemeLayers.OpaqueControls(toolbar);
+        var navigationSurface = ThemeLayers.OpaqueControls(lineNavigation);
+        DockPanel.SetDock(toolbarSurface, Dock.Top);
+        DockPanel.SetDock(navigationSurface, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
-        root.Children.Add(toolbar);
-        root.Children.Add(lineNavigation);
+        root.Children.Add(toolbarSurface);
+        root.Children.Add(navigationSurface);
         root.Children.Add(statusBar);
         DockPanel.SetDock(_copyNotice, Dock.Bottom);
         root.Children.Add(_copyNotice);
