@@ -727,6 +727,13 @@ remain selected after the second append. Source and target hashes for skipped
 conflicts and the middle copied file must remain exact. The dated `2a371b4c`
 receipt accepts this scope; do not rerun it because another audit case remains
 open.
+`win-ax-sync-stop.ps1 -AppPath GIT_BUILT_FILECAT_EXE -ReportPath FRESH_JSON`
+uses the isolated Windows VM to review Mirror with one Copy child and one
+target-only removal. The first small file must arrive exactly while a large
+second file keeps Copy active. Stop must cancel both unfinished child steps,
+retain the first committed effect and both exact child reports, leave the
+target-only file unchanged, and admit no later target mutation. The dated
+`2a371b4c` receipt accepts this bounded interruption route.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window

@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-sync-stop-20261027"></a>
+**27 October 2026, native reviewed synchronization Stop after one effect:**
+The [tracked Windows VM runner](../../tests/FileCat.NativeAcceptance/win-ax-sync-stop.ps1)
+used exact Git `2a371b4c` (app DLL SHA-256
+`D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291`).
+Its reviewed Mirror action named the full source and target and **copy 2,
+remove 1**. The first small file arrived byte-exact while the second 1 GiB
+file was still actively copying; the removal child remained paused. Stop this
+synchronization then showed Copy **Canceled, 1 done/1 not processed** and
+removal **Canceled, 0 done**. Both child Open reports retained the canceled
+state, action and exact counts. The source hashes, committed small target and
+target-only file stayed exact, and no further target file appeared after a
+three-second stability wait. A read-only `vmrun listDirectoryInGuest` check
+of that same target after the run listed only `a-small.txt` and
+`z-extra.txt`, including no hidden staging entry. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-021-sync-stop-r5.json` (`Passed: true`, no error).
+The earlier r1–r3 runs exercised the wrong comparison route or had a driver
+argument error; r4 passed the Stop/file effects but lacked the retained-report
+boundary, which justified r5. This accepts
+[AC-S2-021](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-021). Audit-wide CI remains
+separate.
+
 <a id="evidence-operation-live-issue-native-20261027"></a>
 **27 October 2026, native selected Operations issue speech and selection:**
 On exact Git `2a371b4c` in Windows 11 VMware (app DLL SHA-256
