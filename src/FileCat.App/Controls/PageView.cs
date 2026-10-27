@@ -24,18 +24,25 @@ public sealed class PageView : NativeControlHost
     public PageView(string dataFolder)
     {
         _dataFolder = dataFolder;
-        if (OperatingSystem.IsLinux())
+        if (ManagesKeyboard)
         {
             // Orca follows focus into the embedded GTK page, but Avalonia's AT-SPI tree has no socket for its plug
-            // (UXBUG-021): readers said nothing while the page itself had the keyboard, before Tab reached anything in
-            // it. The page's host takes focus first, so they hear what it is and how to move into it.
+            // (UXBUG-021); and on macOS Avalonia named no focused element while the web view had the keyboard, so
+            // VoiceOver stayed where it was. Readers said nothing while the page itself had the keyboard. The page's
+            // host takes focus with it, so they hear what it is and how to move into it.
             Focusable = true;
-            Avalonia.Automation.AutomationProperties.SetHelpText(this, LinuxReaderHelp);
+            Avalonia.Automation.AutomationProperties.SetHelpText(this, ReaderHelp);
         }
     }
 
-    /// <summary>What a Linux screen reader hears on the page's host, before focus moves into the page.</summary>
-    internal const string LinuxReaderHelp = "Tab moves into the page. F4 shows the same file as text.";
+    /// <summary>
+    /// Linux and macOS: Avalonia does not move the native keyboard focus between its window and the page's own view,
+    /// so the page's host does (see <see cref="IPageEngine.Focus"/> and <see cref="IPageEngine.ReturnFocus"/>).
+    /// </summary>
+    internal static bool ManagesKeyboard => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+
+    /// <summary>What a screen reader hears on the page's host when the page takes the keyboard.</summary>
+    internal const string ReaderHelp = "Tab moves into the page. F4 shows the same file as text.";
 
     /// <summary>The page could not be shown: why (no engine installed, or none on this display).</summary>
     public event Action<string>? Failed;
@@ -67,7 +74,7 @@ public sealed class PageView : NativeControlHost
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (OperatingSystem.IsLinux() && TopLevel.GetTopLevel(this) is { } top)
+        if (ManagesKeyboard && TopLevel.GetTopLevel(this) is { } top)
         {
             _keyboardOwner = top;
             top.AddHandler(GotFocusEvent, OnWindowGotFocus, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
@@ -101,10 +108,10 @@ public sealed class PageView : NativeControlHost
         base.OnDetachedFromVisualTree(e);
     }
 
-    // Linux: the X keyboard focus follows Avalonia's focus between the page and the rest of its window (see
-    // LinuxPageEngine.Focus). Another control taking focus, such as Find after F7, takes the keys back from the page;
-    // the window coming back with the page focused gives them to the page again. A window that is not active never
-    // takes the keyboard from the one that is.
+    // Linux and macOS: the native keyboard focus (X's, or AppKit's first responder) follows Avalonia's focus between
+    // the page and the rest of its window. Another control taking focus, such as Find after F7, takes the keys back
+    // from the page; the window coming back with the page focused gives them to the page again. A window that is not
+    // active never takes the keyboard from the one that is.
     private void OnWindowGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
     {
         if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
@@ -125,12 +132,12 @@ public sealed class PageView : NativeControlHost
         if (_keyboardOwner is WindowBase { IsActive: true }) _engine?.Focus();
     }
 
-    // Linux: however the host gets focus (the viewer focusing the page, Tab from the controls around it, or a click in
-    // the page), the keys go into the page next, so the following Tab moves into it as the host's help says.
+    // Linux and macOS: however the host gets focus (the viewer focusing the page, Tab from the controls around it, or a
+    // click in the page), the keys go into the page next, so the following Tab moves into it as the host's help says.
     protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
-        if (OperatingSystem.IsLinux()) GiveKeysToPage();
+        if (ManagesKeyboard) GiveKeysToPage();
     }
 
     // Linux: Tab past the page's last item, or Shift+Tab past its first, goes on to the viewer's controls, past the
@@ -237,10 +244,10 @@ public sealed class PageView : NativeControlHost
         _engine?.SetSize((int)Math.Ceiling(Bounds.Width * scaling), (int)Math.Ceiling(Bounds.Height * scaling));
     }
 
-    /// <summary>The keyboard to the page; on Linux through its host, which screen readers can announce.</summary>
+    /// <summary>The keyboard to the page; on Linux and macOS through its host, which screen readers can announce.</summary>
     public void FocusPage()
     {
-        if (OperatingSystem.IsLinux())
+        if (ManagesKeyboard)
         {
             if (!IsFocused && Focus()) return; // OnGotFocus gives the page the keys.
             _hasKeyboard = true;
@@ -276,7 +283,7 @@ internal interface IPageEngine : IDisposable
     void Focus();
     /// <summary>The keyboard back to the window holding the page (its native handle; 0: only stop giving it to the page).</summary>
     void ReturnFocus(nint window) { }
-    /// <summary>The page was clicked, so its host should take focus (raised on the engine's thread).</summary>
+    /// <summary>The page was clicked, or took the keyboard itself, so its host should take focus (raised on the engine's thread).</summary>
     event Action? FocusRequested { add { } remove { } }
     /// <summary>Tab, or Shift+Tab (true), went past the page's last or first item (raised on the engine's thread).</summary>
     event Action<bool>? FocusLeft { add { } remove { } }

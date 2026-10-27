@@ -163,8 +163,8 @@ public sealed class ViewerPageSearchTests
     [AvaloniaFact]
     public async Task Escape_from_Find_returns_the_keyboard_to_the_page()
     {
-        // On Linux the page's host takes focus first: Orca cannot reach inside the embedded GTK page (UXBUG-021), and
-        // it said nothing at all when the page took the keyboard.
+        // On Linux and macOS the page's host takes focus with the page: Orca said nothing at all when the page took the
+        // keyboard (UXBUG-021), and VoiceOver was left with no focused element.
         using var fixture = new Fixture();
         await fixture.OpenAsync();
         var viewer = fixture.Viewer;
@@ -174,22 +174,25 @@ public sealed class ViewerPageSearchTests
         Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
         Dispatcher.UIThread.RunJobs();
         Assert.True(search.IsFocused);
-        // Linux: the X keyboard focus left the page too, or the typed text kept going into it.
-        Assert.Equal(OperatingSystem.IsLinux() ? 1 : 0, fixture.Engine.ReturnCount);
+        // Linux and macOS: the native keyboard focus left the page too, or the typed text kept going into it.
+        Assert.Equal(PageView.ManagesKeyboard ? 1 : 0, fixture.Engine.ReturnCount);
         int before = fixture.Engine.FocusCount;
         viewer.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
-        Assert.Equal(OperatingSystem.IsLinux() ? 1 : 0, fixture.Engine.ReturnCount);
-        Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
-        Assert.Equal(OperatingSystem.IsLinux() ? PageView.LinuxReaderHelp : null, AutomationProperties.GetHelpText(page));
+        Assert.Equal(PageView.ManagesKeyboard ? 1 : 0, fixture.Engine.ReturnCount);
+        Assert.Equal(PageView.ManagesKeyboard, page.IsFocused);
+        Assert.Equal(PageView.ManagesKeyboard ? PageView.ReaderHelp : null, AutomationProperties.GetHelpText(page));
         if (OperatingSystem.IsLinux())
         {
             // Not Avalonia's interop child, which AT-SPI showed as an unnamed, unknown node: the host is the page.
             var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(page);
-            Assert.Equal(("Web page", PageView.LinuxReaderHelp), (peer.GetName(), peer.GetHelpText()));
+            Assert.Equal(("Web page", PageView.ReaderHelp), (peer.GetName(), peer.GetHelpText()));
             Assert.True(peer.HasKeyboardFocus());
             Assert.Empty(peer.GetChildren());
+        }
+        if (PageView.ManagesKeyboard)
+        {
             // Tab back onto the host from Find hands the keys to the page as well, so the next Tab moves into it.
             search.Focus();
             Dispatcher.UIThread.RunJobs();
@@ -204,7 +207,8 @@ public sealed class ViewerPageSearchTests
     [AvaloniaFact]
     public async Task A_click_in_the_page_or_Tab_past_its_ends_moves_the_keys_with_focus()
     {
-        // Linux: the keys went to the page whenever the pointer rested on it, and Tab never left it.
+        // Linux: the keys went to the page whenever the pointer rested on it, and Tab never left it. macOS: a click in
+        // the page left Avalonia's focus, and the screen reader, on Find.
         using var fixture = new Fixture();
         await fixture.OpenAsync();
         var viewer = fixture.Viewer;
@@ -216,9 +220,9 @@ public sealed class ViewerPageSearchTests
         int focused = fixture.Engine.FocusCount;
         fixture.Engine.Click();
         Dispatcher.UIThread.RunJobs();
-        Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
-        Assert.Equal(focused + (OperatingSystem.IsLinux() ? 1 : 0), fixture.Engine.FocusCount);
-        if (!OperatingSystem.IsLinux()) return;
+        Assert.Equal(PageView.ManagesKeyboard, page.IsFocused);
+        Assert.Equal(focused + (PageView.ManagesKeyboard ? 1 : 0), fixture.Engine.FocusCount);
+        if (!PageView.ManagesKeyboard) return;
 
         var focus = TopLevel.GetTopLevel(page)!.FocusManager!;
         int returned = fixture.Engine.ReturnCount;

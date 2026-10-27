@@ -69,6 +69,9 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     public event Action<bool, string?>? Loaded;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
+    /// <summary>Raised when the web view takes the keyboard itself (a click in it, say).</summary>
+    public event Action? FocusRequested;
+
     // ---- For the smoke test, which runs the engine without Avalonia on its own main thread ------------------
 
     /// <summary>An application for WebKit to draw in, as Avalonia starts one.</summary>
@@ -167,6 +170,18 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         if (_view == 0) return;
         nint window = ObjC.Send(_view, "window");
         if (window != 0) ObjC.Send(window, "makeFirstResponder:", _view);
+    }
+
+    /// <summary>
+    /// The keyboard back to the viewer's own view. Avalonia does not take the first responder back from a hosted view
+    /// when one of its controls takes focus: with Find focused, every key went through WebKit first, which kept the
+    /// arrows, Escape and Command+A for the page.
+    /// </summary>
+    public void ReturnFocus(nint window)
+    {
+        if (_view == 0 || window == 0 || !HasKeyboard(_view)) return;
+        nint own = ObjC.Send(_view, "window");
+        if (own != 0) ObjC.Send(own, "makeFirstResponder:", window);
     }
 
     public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
@@ -440,6 +455,19 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         return ObjC.SendSuperReturnsBool(self, selector, keyEvent) ? (byte)1 : (byte)0;
     }
 
+    /// <summary>The web view took the keyboard (a click in it, or AppKit's key view loop): its host takes focus too.</summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static byte BecomeFirstResponder(nint self, nint selector)
+    {
+        bool became = ObjC.SendSuperReturnsBool(self, selector);
+        try
+        {
+            if (became) Of(self)?.FocusRequested?.Invoke();
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
+        return became ? (byte)1 : (byte)0;
+    }
+
     /// <summary>Whether the view, or a view inside it, is its window's first responder.</summary>
     private static bool HasKeyboard(nint view)
     {
@@ -585,6 +613,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
                 ViewClass = objc_allocateClassPair(Class("WKWebView"), "FileCatPageWebView", 0);
                 Add(ViewClass, "keyDown:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, void>)&KeyDown, "v@:@");
                 Add(ViewClass, "performKeyEquivalent:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, byte>)&KeyEquivalent, "c@:@");
+                Add(ViewClass, "becomeFirstResponder", (nint)(delegate* unmanaged[Cdecl]<nint, nint, byte>)&BecomeFirstResponder, "c@:");
                 objc_registerClassPair(ViewClass);
                 return HandlerClass == 0 || DelegateClass == 0 || ViewClass == 0 ? "FileCat's page view could not be set up." : null;
             }
@@ -642,6 +671,12 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             // back into KeyDown and eventually overflows the process stack.
             var super = new Super { Receiver = self, SuperClass = class_getSuperclass(ViewClass) };
             ((delegate* unmanaged[Cdecl]<Super*, nint, nint, void>)s_msgSendSuper)(&super, selector, argument);
+        }
+
+        public static bool SendSuperReturnsBool(nint self, nint selector)
+        {
+            var super = new Super { Receiver = self, SuperClass = class_getSuperclass(ViewClass) };
+            return ((delegate* unmanaged[Cdecl]<Super*, nint, byte>)s_msgSendSuper)(&super, selector) != 0;
         }
 
         public static bool SendSuperReturnsBool(nint self, nint selector, nint argument)
