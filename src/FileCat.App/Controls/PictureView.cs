@@ -120,16 +120,17 @@ public sealed class PictureView : Border
     }
 
     /// <summary>The picture as large as fits, never larger than its actual size, centered.</summary>
-    private void FitNow()
+    private void FitNow(Size? arrangedSize = null)
     {
         _fit = true;
-        if (Picture is { } p && Bounds.Width > 0 && Bounds.Height > 0)
+        var available = arrangedSize ?? Bounds.Size;
+        if (Picture is { } p && available.Width > 0 && available.Height > 0)
         {
             var pixels = p.Bitmap.PixelSize;
-            _scale = Math.Min(Math.Min(Bounds.Width / pixels.Width, Bounds.Height / pixels.Height), ScaleFor(1));
+            _scale = Math.Min(Math.Min(available.Width / pixels.Width, available.Height / pixels.Height), ScaleFor(1));
         }
-        Clamp();
-        Changed();
+        Clamp(available);
+        Changed(available);
     }
 
     /// <summary>The scale that shows the picture at <paramref name="zoom"/> of its own pixels.</summary>
@@ -149,20 +150,25 @@ public sealed class PictureView : Border
     }
 
     /// <summary>A side smaller than the window is centered; a larger one never leaves empty space at its edges.</summary>
-    private void Clamp()
+    private void Clamp(Size? arrangedSize = null)
     {
         if (Picture is not { } p) return;
+        var available = arrangedSize ?? Bounds.Size;
         double width = p.Bitmap.PixelSize.Width * _scale, height = p.Bitmap.PixelSize.Height * _scale;
-        double x = width <= Bounds.Width ? (Bounds.Width - width) / 2 : Math.Clamp(_offset.X, Bounds.Width - width, 0);
-        double y = height <= Bounds.Height ? (Bounds.Height - height) / 2 : Math.Clamp(_offset.Y, Bounds.Height - height, 0);
+        double x = width <= available.Width ? (available.Width - width) / 2 : Math.Clamp(_offset.X, available.Width - width, 0);
+        double y = height <= available.Height ? (available.Height - height) / 2 : Math.Clamp(_offset.Y, available.Height - height, 0);
         _offset = new Point(x, y);
     }
 
-    private bool Movable => Picture is { } p && (p.Bitmap.PixelSize.Width * _scale > Bounds.Width + 0.5 || p.Bitmap.PixelSize.Height * _scale > Bounds.Height + 0.5);
+    private bool Movable => MovableFor(Bounds.Size);
 
-    private void Changed()
+    private bool MovableFor(Size available) => Picture is { } p &&
+        (p.Bitmap.PixelSize.Width * _scale > available.Width + 0.5 ||
+         p.Bitmap.PixelSize.Height * _scale > available.Height + 0.5);
+
+    private void Changed(Size? arrangedSize = null)
     {
-        _surface.Cursor = Movable ? new Cursor(StandardCursorType.SizeAll) : Cursor.Default;
+        _surface.Cursor = MovableFor(arrangedSize ?? Bounds.Size) ? new Cursor(StandardCursorType.SizeAll) : Cursor.Default;
         _surface.InvalidateVisual();
         ZoomChanged?.Invoke();
     }
@@ -171,10 +177,11 @@ public sealed class PictureView : Border
     {
         var size = base.ArrangeOverride(finalSize);
         // A fitted picture follows the window's size; a zoomed one keeps its zoom and stays within bounds.
-        if (_fit) FitNow();
+        if (_fit) FitNow(size);
         else
         {
-            Clamp();
+            Clamp(size);
+            _surface.Cursor = MovableFor(size) ? new Cursor(StandardCursorType.SizeAll) : Cursor.Default;
             _surface.InvalidateVisual();
         }
         return size;

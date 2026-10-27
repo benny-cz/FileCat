@@ -40,6 +40,25 @@ public sealed class PictureViewerTests
         finally { view.Clear(); }
     }
 
+    [AvaloniaFact]
+    public void Fitted_picture_tracks_the_new_arranged_width_after_resize()
+    {
+        var view = new FileCat.App.Controls.PictureView();
+        view.Measure(new Size(1600, 500));
+        view.Arrange(new Rect(0, 0, 980, 500));
+        try
+        {
+            view.Show(DecodeHere(Encode(4000, 40, SKEncodedImageFormat.Png), 4096));
+            double narrow = view.Zoom;
+            view.Arrange(new Rect(0, 0, 1350, 500));
+            Assert.True(view.Fit);
+            Assert.True(view.Zoom > narrow + 0.05,
+                $"Fit stayed at {view.Zoom:P1} after widening from {narrow:P1}.");
+            Assert.Equal(1350d / 4000, view.Zoom, 2);
+        }
+        finally { view.Clear(); }
+    }
+
     /// <summary>A picture with its left half red and its right half blue.</summary>
     private static byte[] Encode(int width, int height, SKEncodedImageFormat format)
     {
