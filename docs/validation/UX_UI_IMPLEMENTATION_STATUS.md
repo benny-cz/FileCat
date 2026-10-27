@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-registry-min-20261027"></a>
+**27 October 2026, minimum native Registry form (FCUX-011):** The isolated
+Win11 VM built Git `759ae044` (app DLL SHA-256
+`6357B300E7C6508A6C521412B04B635B6F457495AD297D4AAD28595651B94E0A`).
+At 96 DPI the owner measured exactly 640 × 420 DIP. The named Key and Value
+chooser options, then the actual Create key form's “New key name” field,
+Cancel, disabled Next and 30 × 30 centered X were in bounds. Native Win32
+clicks on the X and backdrop separately closed the form; no input was
+submitted. Exact receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-011-registry-form-min-759ae044-r1.json`
+in the guest, with an ignored host copy at
+`E:\FileCat\.local-ac-s2-011-registry-form-min-759ae044-r1.json` and a
+matching frame capture. The preceding minimum chooser alone passed separately
+as `ac-s2-011-registry-min-759ae044-r4.json`. Combined with the dated 200%
+long-path Undo and Find form routes and 150% Registry pointer result, this
+closes [AC-S2-011](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-011) by pairwise coverage.
+
 <a id="evidence-choice-name-20261027"></a>
 **27 October 2026, minimum Registry chooser diagnosis (FCUX-011):** The
 isolated Win11 `d2829324` build kept the chooser's close X inside a settled
@@ -9,8 +26,8 @@ names. This is a native accessibility defect, distinct from layout. The
 bound row now supplies its full title and explanatory detail as the native
 name; the new headless chooser regression passed 4/4 at 640 × 420. The
 updated pointer runner checks minimum owner geometry, option reachability,
-and both intended mouse exits. Its final native run and the separate actual
-Find/Registry form route remain open. Earlier diagnostic VM receipts are
+and both intended mouse exits. Its later native chooser and actual form runs
+passed as recorded above. Earlier diagnostic VM receipts are
 `ac-s2-011-registry-min-d2829324-r1` through `r5` under the guest validation
 directory; none is accepted product evidence.
 
@@ -42,7 +59,9 @@ Core lane built cleanly but had 4,442 passing tests, 153 platform skips and
 one failed `MetadataDemandTests.Forgetting_one_field_keeps_an_unrelated_inflight_value`:
 an unrelated producer ran twice. `MetadataService.Schedule` could admit a
 new producer after `Get` saw a cache miss but before it rechecked an earlier
-producer's newly published value. The scheduler now rechecks under the
+producer's newly published value. The documentation-only `3faa6748` run
+passed on the same product code, so this was an intermittent race, not a
+consistently failing configuration. The scheduler now rechecks under the
 publication lock. The focused local Windows Core regression passed 7/7 with
 zero build warnings; five-lane CI for this correction remains required.
 
@@ -2584,6 +2603,7 @@ closing only Settings, all five routes passed. The native Scale selector was
 restored to its original 100% value, confirmed in
 `win-scale-restored-20261024.json`, and Settings closed.
 
+<a id="evidence-scaled-find-20261024"></a>
 **24 October 2026, Ubuntu scaled popup and Find acceptance (UXBUG-016):**
 The Git-built `278b8655` app passed physical Shift+F10 context-menu and
 Alt+F7 Find journeys at GNOME 200% scale. A bounded native runner pause let

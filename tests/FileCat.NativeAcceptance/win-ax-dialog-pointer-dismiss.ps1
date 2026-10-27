@@ -2,10 +2,12 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [ValidateSet('Registry', 'Folder', 'Copy', 'Move', 'Delete')][string]$DialogKind = 'Registry',
-    [switch]$MinimumOwner
+    [switch]$MinimumOwner,
+    [switch]$RegistryForm
 )
 
 $ErrorActionPreference = 'Stop'
+if ($RegistryForm -and $DialogKind -ne 'Registry') { throw 'RegistryForm requires DialogKind Registry.' }
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
@@ -50,7 +52,9 @@ New-Item -ItemType Directory -Force -Path $data, $source, $target | Out-Null
 $sourceFile = Join-Path $source 'a.txt'
 if ($DialogKind -in @('Copy', 'Move', 'Delete')) { [IO.File]::WriteAllText($sourceFile, 'dialog pointer source bytes') }
 $sourceHash = if ($DialogKind -in @('Copy', 'Move', 'Delete')) { (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash } else { $null }
-$dialogTitle = switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } 'Move' { 'Move' } 'Delete' { 'Delete' } default { 'Create in Registry' } }
+$dialogTitle = if ($RegistryForm) { 'Create key' } else {
+    switch ($DialogKind) { 'Folder' { 'Create folder' } 'Copy' { 'Copy' } 'Move' { 'Move' } 'Delete' { 'Delete' } default { 'Create in Registry' } }
+}
 $process = $null
 
 function Snapshot($window) {
@@ -93,7 +97,13 @@ function EnsureForeground($process, $window) {
     (New-Object -ComObject WScript.Shell).AppActivate($process.Id) | Out-Null
     [FileCatDialogPointer]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
     $frame = $window.Current.BoundingRectangle
-    [FileCatDialogPointer]::Click([int]($frame.X + $frame.Width / 2), [int]($frame.Y + 14))
+    # At the minimum width the header-center coordinate hits Tools. A
+    # single click in the left listing activates the tested Registry panel.
+    if ($MinimumOwner) {
+        [FileCatDialogPointer]::Click([int]($frame.X + 20), [int]($frame.Y + $frame.Height / 2))
+    } else {
+        [FileCatDialogPointer]::Click([int]($frame.X + $frame.Width / 2), [int]($frame.Y + 14))
+    }
     Start-Sleep -Milliseconds 300
     $foreground = [FileCatDialogPointer]::ForegroundProcessId()
     if ($foreground -ne $process.Id) {
@@ -125,6 +135,19 @@ function OpenDialog($process, $window) {
             [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
     } else {
         (New-Object -ComObject WScript.Shell).SendKeys('{F7}')
+        if ($RegistryForm) {
+            $keyChoice = $null
+            for ($i = 0; $i -lt 50 -and $null -eq $keyChoice; $i++) {
+                Start-Sleep -Milliseconds 100
+                $keyChoice = @(Snapshot $window | Where-Object {
+                    $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+                    $_.Current.Name.StartsWith('Key,', [StringComparison]::Ordinal)
+                } | Select-Object -First 1)[0]
+            }
+            if ($null -eq $keyChoice) { throw 'The Registry chooser did not expose its named Key choice.' }
+            $keyChoice.SetFocus()
+            (New-Object -ComObject WScript.Shell).SendKeys('{ENTER}')
+        }
     }
     return WaitForChooser $window $true
 }
@@ -171,17 +194,18 @@ try {
         $ownerBounds = $window.Current.BoundingRectangle
         $visibleActions = @(Snapshot $window | Where-Object {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-            $_.Current.IsEnabled -and !$_.Current.IsOffscreen -and
+            ($_.Current.IsEnabled -or $_.Current.Name -eq 'Next') -and
+            !$_.Current.IsOffscreen -and
             $_.Current.BoundingRectangle.Width -gt 0 -and
             $_.Current.BoundingRectangle.Height -gt 0 -and
-            $_.Current.Name -in @('Close dialog', 'Cancel', 'Create key', 'Create value')
+            $_.Current.Name -in @('Close dialog', 'Cancel', 'Next')
         })
         if (@($visibleActions | Where-Object { $_.Current.Name -eq 'Close dialog' }).Count -ne 1 -or
             ($DialogKind -ne 'Registry' -and
              @($visibleActions | Where-Object { $_.Current.Name -eq 'Cancel' }).Count -ne 1)) {
             throw 'The minimum-size dialog did not expose its intended mouse cancellation controls.'
         }
-        if ($DialogKind -eq 'Registry') {
+        if ($DialogKind -eq 'Registry' -and !$RegistryForm) {
             $choices = @(Snapshot $window | Where-Object {
                 $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
                 ($_.Current.Name.StartsWith('Key', [StringComparison]::Ordinal) -or
@@ -196,6 +220,17 @@ try {
             }
             $visibleActions += $choices
         }
+        if ($RegistryForm) {
+            $fields = @(Snapshot $window | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and
+                $_.Current.Name -eq 'New key name:' -and !$_.Current.IsOffscreen
+            })
+            if ($fields.Count -ne 1 -or
+                @($visibleActions | Where-Object { $_.Current.Name -eq 'Next' }).Count -ne 1) {
+                throw 'The minimum Registry form did not expose its named input and Next action.'
+            }
+            $visibleActions += $fields
+        }
         foreach ($item in $visibleActions) {
             $area = $item.Current.BoundingRectangle
             if ($area.Left -lt $ownerBounds.Left -or $area.Top -lt $ownerBounds.Top -or
@@ -208,6 +243,18 @@ try {
     if ($help -notlike '*Cancel this dialog*') { throw 'The close X lacks its accessible cancel explanation.' }
     $bounds = $close.Current.BoundingRectangle
     if ($bounds.Width -lt 25 -or $bounds.Height -lt 25) { throw 'The close X has an undersized native pointer target.' }
+    if ($MinimumOwner) {
+        $frame = $window.Current.BoundingRectangle
+        $frameCapture = [System.Drawing.Bitmap]::new([int]$frame.Width, [int]$frame.Height)
+        try {
+            $frameGraphics = [System.Drawing.Graphics]::FromImage($frameCapture)
+            try {
+                $frameGraphics.CopyFromScreen([int]$frame.X, [int]$frame.Y, 0, 0,
+                    [System.Drawing.Size]::new([int]$frame.Width, [int]$frame.Height))
+            } finally { $frameGraphics.Dispose() }
+            $frameCapture.Save($ReportPath + '.frame.png', [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally { $frameCapture.Dispose() }
+    }
     $iconPixels = 0; $sumX = 0; $sumY = 0; $offsetX = 0; $offsetY = 0
     $capture = [System.Drawing.Bitmap]::new([int]$bounds.Width, [int]$bounds.Height)
     try {
@@ -258,6 +305,7 @@ try {
         MinimumOwner = [bool]$MinimumOwner
         OwnerSizeDip = "$([Math]::Round($ownerWidthDip))x$([Math]::Round($ownerHeightDip))"
         DialogKind = $DialogKind
+        RegistryForm = [bool]$RegistryForm
         DialogTitle = $dialogTitle
         DialogOpenedTwice = $true
         NativeCloseX = $true

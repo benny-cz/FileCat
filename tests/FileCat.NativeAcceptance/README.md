@@ -197,6 +197,11 @@ Pass `-MinimumOwner` to restore and settle the owner at 640 × 420 DIP before
 opening the chooser, then require its visible native options and mouse exits
 to remain inside the owner. The Registry chooser has no Cancel footer; its
 close X and backdrop are its intended pointer cancellation controls.
+Combine it with `-RegistryForm` to select the named Key option and inspect
+the actual Create key form: its input, Cancel, Next and X stay inside the
+minimum owner, then separate native X and backdrop clicks cancel without
+submitting a Registry change. The runner saves a full frame beside this
+minimum-size receipt for visual inspection.
 Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
 with an empty disposable filesystem fixture; the default remains `Registry`.
 Pass `-DialogKind Copy` to open the Copy review for one disposable file and
