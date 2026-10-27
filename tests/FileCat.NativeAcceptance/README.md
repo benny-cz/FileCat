@@ -2176,3 +2176,17 @@ the window, writes `ac-s2-042-ubuntu-drawer.json`, and closes only its own app
 and input device. The Ubuntu acceptance run used a separately measured GDK
 monitor scale of 2; pair its result with `OperationsDrawerLayoutTests` for the
 1/5/20 interrupted-row combinations.
+
+`linux-atspi-recovery-stop-held.py APP REPORT.json` requires a Git-built
+Ubuntu app under the guest's `~/FileCatValidation`, a fresh report path there,
+and the same-directory `linux-atspi-active-copy-interruption.py` and
+`linux-atspi-clipboard-owned-move.py` helpers. Set
+`FILECAT_NATIVE_SUDO_PASSWORD` only for the transient guest runner; it is
+removed from the FileCat child environment. The runner copies owned bytes at a
+bounded rate, kills only its exact child after a durable journal/staging file,
+restarts that profile, and uses path-filtered `strace` to delay the source
+`lstat` eight seconds. It requires Reviewing/disabled Continue/Stop before the
+delay returns, invokes Stop, then checks byte-exact source/staging/journal,
+unpublished target and no late approval. It closes only its own app and tracer.
+The accepted receipt is `docs/validation/evidence/ac-s2-042-ubuntu-recovery-stop.json`;
+narrow visual and spoken status are a separate open ledger subcase.
