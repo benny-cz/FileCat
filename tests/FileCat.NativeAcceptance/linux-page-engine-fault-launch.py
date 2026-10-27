@@ -6,6 +6,7 @@ The report and harness must be inside the isolated FileCatValidation checkout.
 """
 
 import os
+import json
 from pathlib import Path
 import runpy
 import subprocess
@@ -28,7 +29,9 @@ def main(harness: Path, report: Path):
     environment["DOTNET_ROOT"] = str(validation / "dotnet-sdk")
     completed = subprocess.run([str(validation / "dotnet-sdk/dotnet"), str(harness), str(report)],
                                env=environment, timeout=60, check=False)
-    return completed.returncode
+    if completed.returncode != 0 or not report.exists():
+        return completed.returncode or 1
+    return 0 if json.loads(report.read_text(encoding="utf-8")).get("passed") is True else 1
 
 
 if __name__ == "__main__":

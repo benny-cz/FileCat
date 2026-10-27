@@ -26,7 +26,9 @@ internal sealed class FaultingPageSource(byte[] bytes) : IContentSource
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ReadCalls++;
-        if (ReadCalls == 3)
+        // Refresh reads a prefix once, then the preflight page read and its
+        // EOF probe. The fourth read is the native browser's scheme request.
+        if (ReadCalls == 4)
         {
             FailureReadCall = ReadCalls;
             throw new IOException("Owned replacement page read failed during native load.");
@@ -92,8 +94,10 @@ internal sealed class HarnessApp : Application
             result["replacementReadCalls"] = replacement.ReadCalls;
             result["failureReadCall"] = replacement.FailureReadCall;
             await Until(() => page.PageLoaded, TimeSpan.FromSeconds(20));
+            page.ClearFind();
             var restoredFind = await page.FindAsync("oldpagetoken", false, true, CancellationToken.None);
             result["oldPageFoundAfterFailure"] = restoredFind?.Found == true;
+            page.ClearFind();
             var newFind = await page.FindAsync("newpagetoken", false, true, CancellationToken.None);
             result["newPageFoundAfterFailure"] = newFind?.Found == true;
             var banner = (TextBlock?)(typeof(ViewerWindow).GetField("_staleText", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -101,7 +105,7 @@ internal sealed class HarnessApp : Application
             result["failureBanner"] = banner?.Text;
             result["pageModeRetained"] = (bool)(typeof(ViewerWindow).GetProperty("IsPageShown", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?.GetValue(viewer) ?? false);
-            result["passed"] = replacement.FailureReadCall == 3 && restoredFind?.Found == true &&
+            result["passed"] = replacement.FailureReadCall == 4 && restoredFind?.Found == true &&
                 newFind?.Found != true && (bool)result["pageModeRetained"]! &&
                 (banner?.Text?.StartsWith("Refresh failed:", StringComparison.Ordinal) ?? false);
             result["stage"] = "complete";
