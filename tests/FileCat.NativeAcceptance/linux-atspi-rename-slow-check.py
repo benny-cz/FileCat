@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hold an owned rename-target stat while testing the live native dialog.
 
-Usage: linux-atspi-rename-slow-check.py APP_PATH REPORT.json KEY_HELPER
+Usage: linux-atspi-rename-slow-check.py APP_PATH REPORT.json KEY_HELPER [--cancel-held|--move-held]
 Requires the logged-in Ubuntu VMware desktop, strace and a Git-built FileCat in
 ~/FileCatValidation. FILECAT_NATIVE_SUDO_PASSWORD is consumed only by the
 physical-key helper and is removed from the FileCat environment.
@@ -56,7 +56,7 @@ def modal_button(root, name):
     return matches[0]
 
 
-def main(app_path, report_path, key_helper):
+def main(app_path, report_path, key_helper, held_mode):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -83,6 +83,7 @@ def main(app_path, report_path, key_helper):
     delayed_path = source / "slow_1.txt"
     trace = fixture / "target-stat.log"
     result = {"passed": False, "platform": "Ubuntu", "fixture": str(fixture),
+              "heldMode": held_mode,
               "appDllSha256": hashlib.sha256(app_path.with_name("FileCat.dll").read_bytes()).hexdigest(),
               "delayedPath": str(delayed_path), "steps": []}
     process = tracer = None
@@ -185,6 +186,79 @@ def main(app_path, report_path, key_helper):
                     list(target.iterdir())):
                 raise AssertionError("Cancel changed source bytes or target")
             result["steps"].append("Physical Escape canceled without a rename or changed bytes")
+            if held_mode:
+                # The accepted rule-change route above is not the held-Cancel
+                # criterion. Reopen this same owned dialog, enter a new held
+                # check and cancel the dialog during that call.
+                prior_stat_count = trace.read_text(errors="replace").count(str(delayed_path))
+                prior_delays = trace.read_text(errors="replace").count("(DELAYED)")
+                send("ctrl+m")
+                wait_for(lambda: named(app, "entry", "Name mask"), "reopened review")
+                reopened = one(app, "entry", "Name mask")
+                mask_set = time.monotonic()
+                if not reopened.get_editable_text().set_text_contents("slow_[C]"):
+                    raise AssertionError("Could not start the held target check")
+                time.sleep(0.6)  # The dialog's debounce is 150 ms.
+                if held_mode == "move":
+                    owned = [line.split()[0] for line in subprocess.run(
+                        ["/usr/bin/wmctrl", "-lp"], capture_output=True, text=True,
+                        check=True, timeout=5).stdout.splitlines()
+                        if len(line.split()) > 2 and line.split()[2] == str(pid)]
+                    if len(owned) != 1:
+                        raise AssertionError(f"Expected one owned app window: {owned}")
+                    subprocess.run(["/usr/bin/wmctrl", "-ir", owned[0], "-b",
+                                    "remove,maximized_vert,maximized_horz"],
+                                   check=True, timeout=5)
+                    time.sleep(0.4)
+
+                    def geometry():
+                        output = subprocess.run(["/usr/bin/xdotool", "getwindowgeometry",
+                                                 "--shell", owned[0]], capture_output=True,
+                                                text=True, check=True, timeout=5).stdout
+                        values = dict(line.split("=", 1) for line in output.splitlines()
+                                      if "=" in line)
+                        return int(values["X"]), int(values["Y"])
+
+                    before = geometry()
+                    result["windowPositionBefore"] = before
+                    moving = time.monotonic()
+                    send("window-move-left")
+                    def moved():
+                        current = geometry()
+                        return current if current != before else None
+
+                    try:
+                        after = wait_for(moved,
+                                         "window moved during held target check", seconds=4)
+                    except AssertionError:
+                        result["windowPositionAfterTimeout"] = geometry()
+                        result["windowManagerState"] = subprocess.run(
+                            ["/usr/bin/wmctrl", "-lG"], capture_output=True,
+                            text=True, check=True, timeout=5).stdout[-1200:]
+                        raise
+                    result["windowMoveSeconds"] = round(time.monotonic() - moving, 3)
+                    result["windowPositionAfter"] = after
+                    if time.monotonic() - mask_set >= 7.5:
+                        raise AssertionError("Window movement waited for the eight-second target check")
+                    result["steps"].append("Window moved during held target check before the old stat returned")
+                closing = time.monotonic()
+                send("escape")
+                wait_for(lambda: not named(app, "entry", "Name mask"),
+                         "dialog canceled during held target check", seconds=5)
+                result["heldCancelSeconds"] = round(time.monotonic() - closing, 3)
+                result["maskToCancelSeconds"] = round(time.monotonic() - mask_set, 3)
+                if held_mode == "cancel" and result["maskToCancelSeconds"] >= 7.5:
+                    raise AssertionError("Cancel did not precede the eight-second target check")
+                wait_for(lambda: trace.read_text(errors="replace").count("(DELAYED)") >
+                         prior_delays, "canceled target stat returned", seconds=12)
+                if trace.read_text(errors="replace").count(str(delayed_path)) <= prior_stat_count:
+                    raise AssertionError("The second owned target check was not traced")
+                if (named(app, "entry", "Name mask") or
+                        {entry.name for entry in source.iterdir()} != set(original) or
+                        any((source / name).read_bytes() != value for name, value in original.items()) or
+                        list(target.iterdir())):
+                    raise AssertionError("Late check republished the dialog or changed files")
+                result["steps"].append("Escape left no stale dialog or changed files after the held check")
             result["passed"] = True
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
@@ -215,6 +289,8 @@ def main(app_path, report_path, key_helper):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and
+                                     sys.argv[4] not in ("--cancel-held", "--move-held")):
         raise SystemExit(__doc__)
-    raise SystemExit(main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])))
+    raise SystemExit(main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
+                          sys.argv[4][2:].split("-")[0] if len(sys.argv) == 5 else None))

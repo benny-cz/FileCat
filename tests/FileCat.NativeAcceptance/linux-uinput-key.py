@@ -37,6 +37,7 @@ LETTERS = dict(zip("abcdefghijklmnopqrstuvwxyz ", (30, 48, 46, 32, 18, 33, 34, 3
                                                      31, 20, 22, 47, 17, 45, 21, 44, 57)))
 SEQUENCES = {"filter-hide": ((42, 9), (42, 43), (48,), (42, 9)),
              "filter-reset": ((42, 9),),
+             "window-move-left": ((56, 65),) + ((105,),) * 6 + ((28,),),
              "down-ten": ((108,),) * 10,
              "up-ten": ((103,),) * 10}  # *|b*, *, and bounded list focus runs
 EV_KEY = 1

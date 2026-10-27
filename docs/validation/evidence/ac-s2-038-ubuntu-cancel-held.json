@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "platform": "Ubuntu",
+  "fixture": "/home/benny/FileCatValidation/RenameSlowCheckFixture/e251870906ac4212b23d358adb46896b",
+  "cancelHeldBoundary": true,
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "delayedPath": "/home/benny/FileCatValidation/RenameSlowCheckFixture/e251870906ac4212b23d358adb46896b/source/slow_1.txt",
+  "steps": [
+    "New rule and exact mapping became approvable before held stat returned",
+    "Old delayed stat completed without stale preview publication",
+    "Physical Escape canceled without a rename or changed bytes",
+    "Escape canceled during the held check; its late result did not republish or change files"
+  ],
+  "newPreviewSeconds": 5.332,
+  "heldCancelSeconds": 5.358,
+  "maskToCancelSeconds": 5.972,
+  "delayedStatCalls": [
+    "43784 lstat(\"/home/benny/FileCatValidation/RenameSlowCheckFixture/e251870906ac4212b23d358adb46896b/source/slow_1.txt\", {st_mode=S_IFREG|0664, st_size=18, ...}) = 0 (DELAYED)",
+    "43831 lstat(\"/home/benny/FileCatValidation/RenameSlowCheckFixture/e251870906ac4212b23d358adb46896b/source/slow_1.txt\", {st_mode=S_IFREG|0664, st_size=18, ...}) = 0 (DELAYED)"
+  ],
+  "sourceSha256": {
+    "a.txt": "b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060",
+    "b.txt": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad",
+    "slow_1.txt": "ebec6e2ea2e3b6464abc9986951fcf16a2ee2ed9a566c1797fdc0f03eee5d7e7"
+  },
+  "targetNames": []
+}

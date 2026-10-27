@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "platform": "Ubuntu Orca",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/RenameCounterSpeechFixture/7b336beb18a743929560bc57cca9c4a3",
+  "speech": [
+    "counter start must be a signed 64-bit whole number.",
+    "No rename mappings match the current preview filter.",
+    "counter start must be a signed 64-bit whole number.",
+    "Counter, search and case options Step (negative counts down; zero repeats) counter start must be a signed 64-bit whole number.",
+    "panel",
+    "Counter start",
+    "entry",
+    "10x.",
+    "counter start must be a signed 64-bit whole number. Use a signed 64-bit whole number.",
+    "counter start must be a signed 64-bit whole number. Use a signed 64-bit whole number."
+  ],
+  "steps": [
+    "Orca spoke the inline error; draft stayed exact and approval disabled",
+    "Physical Escape preserved all files"
+  ],
+  "sourceSha256": {
+    "a.txt": "b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060",
+    "b.txt": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad"
+  },
+  "targetNames": []
+}

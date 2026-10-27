@@ -2148,3 +2148,11 @@ new full-path mapping wins before and after the old call returns, and cancels
 with physical Escape. It records the delayed syscall and source hashes,
 terminates only its app/tracer and leaves the target empty. The 27 October
 direct receipt is `docs/validation/evidence/ac-s2-038-ubuntu-slow.json`.
+`--cancel-held` reopens the owned review, presses physical Escape before a
+second held `lstat` returns and checks no late publication; `--move-held`
+uses physical Alt+F7/Left/Enter to move the window during the delay. Their
+separate receipts are `ac-s2-038-ubuntu-cancel-held.json` and
+`ac-s2-038-ubuntu-move-held.json`. `linux-orca-rename-counter.py APP
+REPORT.json KEY_HELPER` runs Orca against an invalid counter draft and
+records actual spoken error, exact input, disabled approval and unchanged
+bytes in `ac-s2-038-ubuntu-counter.json`.

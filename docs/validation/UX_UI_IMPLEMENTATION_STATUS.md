@@ -1,5 +1,32 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-rename-counter-20261027"></a>
+**27 October 2026, native spoken counter validation (AC-S2-038-COUNTER):**
+The [focused Orca runner](../../tests/FileCat.NativeAcceptance/linux-orca-rename-counter.py)
+opened Bulk rename in Git-built `34fee315` on the isolated Ubuntu VM (DLL
+SHA-256 `b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`).
+Its invalid `10x` counter start stayed exact; Rename was disabled and the
+inline error appeared. Orca's actual speech included “counter start must be
+a signed 64-bit whole number” and the field's help. Physical Escape left
+the source hashes and target unchanged. The [direct receipt](evidence/ac-s2-038-ubuntu-counter.json)
+retains the spoken phrases and file hashes. `BulkRenameCounterValidationTests`
+separately covers overflowing numbers, digits and zero/negative steps.
+
+<a id="evidence-rename-held-20261027"></a>
+**27 October 2026, delayed-check Cancel and window movement
+(AC-S2-038-SLOW):** The [native runner](../../tests/FileCat.NativeAcceptance/linux-atspi-rename-slow-check.py)
+reopened only its own dialog and used the same path-filtered eight-second
+`lstat` delay. In the [held-Cancel receipt](evidence/ac-s2-038-ubuntu-cancel-held.json),
+physical Escape closed the dialog 5.972 seconds after the slow mask was set,
+before the delayed call could finish; completion did not restore the dialog
+or change any source/target byte. In a separate
+[held-move receipt](evidence/ac-s2-038-ubuntu-move-held.json), physical
+Alt+F7 and Left/Enter moved the normal window from X=184 to X=64 in 2.081
+seconds during another held check. The dialog was then canceled and every
+fixture file stayed exact. The audited closure concerns a responsive dialog
+and safe work retirement. A diagnostic whole-app WM close attempt during
+the held call was inconclusive and is not an added required acceptance gate.
+
 <a id="evidence-rename-slow-20261027"></a>
 **27 October 2026, native slow target rename rule (AC-S2-038-SLOW):**
 The [Ubuntu AT-SPI and physical-key runner](../../tests/FileCat.NativeAcceptance/linux-atspi-rename-slow-check.py)
@@ -12,10 +39,10 @@ complete new source/target mapping and enabled Rename in 5.428 seconds.
 After the old call returned, the new mapping remained current. Physical
 Escape closed the review; no rename job ran, all three source hashes matched
 and the target stayed empty. The [direct native receipt](evidence/ac-s2-038-ubuntu-slow.json)
-records the delayed syscall, timing, result and exact bytes. The separate
-native counter speech and held-check shutdown boundaries remain open in
-[AC-S2-038](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-038); the earlier 3,001-row Mac
-and 50,000-row headless results remain accepted independently.
+records the delayed syscall, timing, result and exact bytes. Counter speech,
+held-Cancel and window movement passed in the separately linked 27 October
+routes above. The earlier 3,001-row Mac and 50,000-row headless results
+remain accepted independently in [AC-S2-038](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-038).
 
 <a id="evidence-command-availability-20261027"></a>
 **27 October 2026, native command availability parity (AC-S2-037-PARITY):**
