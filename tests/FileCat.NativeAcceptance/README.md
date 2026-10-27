@@ -30,6 +30,21 @@ guest's `~/FileCatValidation`; use a fresh report path and pass
 `FILECAT_NATIVE_SUDO_PASSWORD` only to this runner. The password is removed
 before launching FileCat.
 
+`win-window-fit.ps1 -AppPath <Git-built FileCat.exe> -ReportPath <fresh guest
+JSON>` changes the isolated VMware guest's primary display through the
+DisplayConfig calls Settings uses and restores the original scaling at the end.
+At 100% it opens a viewer and Find and enlarges the viewer; after the change to
+200% both frames must lie inside the working area. Closing must keep the
+viewer's chosen size, and a reopened viewer and a Find opened at 200% must fit.
+It refuses to run beside another FileCat and captures the 200% screen beside
+the report.
+
+`win-nvda-dialog-grip.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` opens Find's Advanced
+criteria dialog under a private NVDA configuration, reaches its resize grip by
+Tab, requires NVDA to speak the grip's name and arrow-key help, widens the
+dialog with three Right arrows and closes it with Escape.
+
 `win-ax-find-exclusions.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` uses a private local folder and a separate private data
 profile with one ignored `cache` folder. It restores the Find window on-screen,

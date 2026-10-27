@@ -1,0 +1,117 @@
+﻿{
+    "Passed":  true,
+    "App":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\app-cd6a592c\\FileCat.exe",
+    "AppDllSha256":  "55E6E541634B7D8B361D4C4B033136B1B6BD6E3F0E7FCE7AF981D8B2FF934B1B",
+    "OriginalScale":  100,
+    "Steps":  [
+                  {
+                      "Step":  "viewer at 100%",
+                      "Frame":  {
+                                    "Left":  33,
+                                    "Top":  26,
+                                    "Width":  982,
+                                    "Height":  732
+                                },
+                      "WorkArea":  {
+                                       "Left":  0,
+                                       "Top":  0,
+                                       "Width":  1925,
+                                       "Height":  1363
+                                   },
+                      "Dpi":  96
+                  },
+                  {
+                      "Step":  "Find at 100%",
+                      "Frame":  {
+                                    "Left":  111,
+                                    "Top":  104,
+                                    "Width":  1042,
+                                    "Height":  752
+                                }
+                  },
+                  {
+                      "Step":  "viewer enlarged at 100%",
+                      "Frame":  {
+                                    "Left":  127,
+                                    "Top":  40,
+                                    "Width":  1486,
+                                    "Height":  1193
+                                }
+                  },
+                  {
+                      "Step":  "Find after the display changed to 200%",
+                      "Frame":  {
+                                    "Left":  12,
+                                    "Top":  1,
+                                    "Width":  1901,
+                                    "Height":  1302
+                                },
+                      "WorkArea":  {
+                                       "Left":  0,
+                                       "Top":  0,
+                                       "Width":  1925,
+                                       "Height":  1315
+                                   },
+                      "Dpi":  192,
+                      "Inside":  true
+                  },
+                  {
+                      "Step":  "viewer after the display changed to 200%",
+                      "Frame":  {
+                                    "Left":  12,
+                                    "Top":  1,
+                                    "Width":  1901,
+                                    "Height":  1302
+                                },
+                      "WorkArea":  {
+                                       "Left":  0,
+                                       "Top":  0,
+                                       "Width":  1925,
+                                       "Height":  1315
+                                   },
+                      "Dpi":  192,
+                      "Inside":  true
+                  },
+                  {
+                      "Step":  "viewer reopened at 200%",
+                      "Frame":  {
+                                    "Left":  33,
+                                    "Top":  0,
+                                    "Width":  1881,
+                                    "Height":  1304
+                                },
+                      "WorkArea":  {
+                                       "Left":  0,
+                                       "Top":  0,
+                                       "Width":  1925,
+                                       "Height":  1315
+                                   },
+                      "Inside":  true
+                  },
+                  {
+                      "Step":  "Find opened at 200%",
+                      "Frame":  {
+                                    "Left":  11,
+                                    "Top":  0,
+                                    "Width":  1903,
+                                    "Height":  1304
+                                },
+                      "WorkArea":  {
+                                       "Left":  0,
+                                       "Top":  0,
+                                       "Width":  1925,
+                                       "Height":  1315
+                                   },
+                      "Inside":  true
+                  }
+              ],
+    "Error":  null,
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\WindowFitFixture\\a45f41f3b35d4adb906ea398276e8b5f",
+    "SourceSha256":  "557AEB34B828F5EAD4E36EB7943C47E51FA0154F9E97485B5BDD4582F2C899CD",
+    "Capture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\window-fit-cd6a592c.png",
+    "SavedViewerSize":  {
+                            "Width":  1484,
+                            "Height":  1161
+                        },
+    "RestoredScale":  100
+}

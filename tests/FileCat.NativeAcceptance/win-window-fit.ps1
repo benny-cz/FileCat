@@ -6,7 +6,8 @@ param(
 # Only for the isolated, logged-in VMware validation guest: it changes the primary display's scaling through the
 # DisplayConfig calls Settings uses and restores the original scaling afterwards. The viewer opens at 100% and is
 # enlarged as a user would; the display then changes to 200% with it open. The viewer must stay inside the working
-# area, its deliberate size must survive close, reopening must fit, and Find opened at 200% must fit too.
+# area, and so must Find open across the change; the viewer's deliberate size must survive close, reopening
+# must fit, and Find opened at 200% must fit too.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @"
@@ -43,10 +44,12 @@ public static class FileCatWindowFit {
             return true; }, IntPtr.Zero);
         return found;
     }
-    public static uint ForegroundProcessId() { uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return pid; }
+    public static IntPtr ForegroundWindow() { return GetForegroundWindow(); }
+    // The title bar's right end, left of the caption buttons: a secondary window opened over the middle cannot cover it.
     public static void ClickTitle(IntPtr hwnd) {
         RECT r; GetWindowRect(hwnd, out r);
-        SetCursorPos((r.Left + r.Right) / 2, r.Top + 12);
+        double scale = GetDpiForWindow(hwnd) / 96.0;
+        SetCursorPos(Math.Max(r.Left + (int)(40 * scale), r.Right - (int)(300 * scale)), r.Top + (int)(12 * scale));
         mouse_event(2, 0, 0, 0, UIntPtr.Zero); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
     }
     public static void Key(byte vk, bool extended) {
@@ -119,7 +122,13 @@ function WindowNamed($process, [string]$pattern) {
 }
 function Foreground($process, $handle) {
     [FileCatWindowFit]::ClickTitle($handle); Start-Sleep -Milliseconds 600
-    if ([FileCatWindowFit]::ForegroundProcessId() -ne $process.Id) { throw 'The isolated FileCat is not foreground; refusing keys.' }
+    # The window itself: another FileCat window over its title bar would take the keys.
+    if ([FileCatWindowFit]::ForegroundWindow() -ne $handle) { throw 'The isolated FileCat main window is not foreground; refusing keys.' }
+}
+function OpenFind {
+    [FileCatWindowFit]::keybd_event(0x12, [byte][FileCatWindowFit]::MapVirtualKey(0x12, 0), 0, [UIntPtr]::Zero)
+    [FileCatWindowFit]::Key(0x76, $false)                                  # Alt+F7: Find
+    [FileCatWindowFit]::keybd_event(0x12, [byte][FileCatWindowFit]::MapVirtualKey(0x12, 0), 2, [UIntPtr]::Zero)
 }
 function SavedViewerSize($data) {
     $text = (Get-ChildItem -LiteralPath $data -Recurse -Filter *.json | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
@@ -147,9 +156,21 @@ try {
     $viewer = (Await { WindowNamed $process '*FileCat Viewer*' } 'the viewer').Key
     Start-Sleep 2
     $result.Steps.Add([ordered]@{ Step = 'viewer at 100%'; Frame = Frame $viewer; WorkArea = WorkArea; Dpi = [FileCatWindowFit]::GetDpiForWindow($viewer) })
+    # Find open across the change as well, opened while the main window's title bar is still clear.
+    Foreground $process $main
+    OpenFind
+    $findAcross = (Await { WindowNamed $process 'Find files*' } 'the Find window at 100%').Key
+    Start-Sleep 2
+    $result.Steps.Add([ordered]@{ Step = 'Find at 100%'; Frame = Frame $findAcross })
     [void][FileCatWindowFit]::MoveWindow($viewer, 120, 40, 1500, 1200, $true); Start-Sleep 2
     $result.Steps.Add([ordered]@{ Step = 'viewer enlarged at 100%'; Frame = Frame $viewer })
     [FileCatWindowFit]::SetScale(200); Start-Sleep 5
+    $across = [ordered]@{ Step = 'Find after the display changed to 200%'; Frame = Frame $findAcross; WorkArea = WorkArea
+        Dpi = [FileCatWindowFit]::GetDpiForWindow($findAcross) }
+    $across.Inside = Inside $across.Frame $across.WorkArea
+    $result.Steps.Add($across)
+    [void][FileCatWindowFit]::PostMessage($findAcross, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)
+    Await { -not (WindowNamed $process 'Find files*') } 'Find to close after the change' | Out-Null
     $open = [ordered]@{ Step = 'viewer after the display changed to 200%'; Frame = Frame $viewer; WorkArea = WorkArea
         Dpi = [FileCatWindowFit]::GetDpiForWindow($viewer) }
     $open.Inside = Inside $open.Frame $open.WorkArea
@@ -172,9 +193,7 @@ try {
     [void][FileCatWindowFit]::PostMessage($again, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)
     Await { -not (WindowNamed $process '*FileCat Viewer*') } 'the reopened viewer to close' | Out-Null
     Foreground $process $main
-    [FileCatWindowFit]::keybd_event(0x12, [byte][FileCatWindowFit]::MapVirtualKey(0x12, 0), 0, [UIntPtr]::Zero)
-    [FileCatWindowFit]::Key(0x76, $false)                                  # Alt+F7: Find
-    [FileCatWindowFit]::keybd_event(0x12, [byte][FileCatWindowFit]::MapVirtualKey(0x12, 0), 2, [UIntPtr]::Zero)
+    OpenFind
     $find = (Await { WindowNamed $process 'Find files*' } 'the Find window').Key
     Start-Sleep 2
     $found = [ordered]@{ Step = 'Find opened at 200%'; Frame = Frame $find; WorkArea = WorkArea }
@@ -186,7 +205,7 @@ try {
         throw 'The window journey changed the owned source or destination.'
     }
     # The enlarged frame was 1,500 by 1,200 pixels at 100%: its client size, a little less, is the size to keep.
-    $result.Passed = $open.Inside -and $reopened.Inside -and $found.Inside -and
+    $result.Passed = $open.Inside -and $across.Inside -and $reopened.Inside -and $found.Inside -and
         $result.SavedViewerSize.Width -ge 1400 -and $result.SavedViewerSize.Height -ge 1100
 }
 catch { $result.Error = $_.Exception.Message }

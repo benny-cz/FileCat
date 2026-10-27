@@ -1,0 +1,20 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "close",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DialogGripFixture\\e1419e32aa67449e89bc58e58fc693a5",
+    "AppDllSha256":  "55E6E541634B7D8B361D4C4B033136B1B6BD6E3F0E7FCE7AF981D8B2FF934B1B",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "Dialog":  "Advanced criteria dialog",
+    "GripHelpText":  "Drag to resize, or use arrow keys. Hold Shift for larger steps.",
+    "TabPressesAfterShiftTab":  30,
+    "FocusSpeech":  [
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027OK\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Resize dialog\u0027, \u0027thumb control\u0027, \u0027Drag to resize, or use arrow keys. Hold Shift for larger steps.\u0027, CancellableSpeech (still valid)]"
+                    ],
+    "WidthBefore":  700,
+    "WidthAfter":  748,
+    "ArrowSpeech":  [
+
+                    ]
+}

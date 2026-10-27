@@ -1,5 +1,48 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-window-fit-20261027"></a>
+**27 October 2026, secondary windows across a display change and a spoken
+resize grip (AC-S2-WINDOW; UXBUG-005/007 accepted):** The new
+[window runner](../../tests/FileCat.NativeAcceptance/win-window-fit.ps1)
+changes the Win11 VM's primary display through the DisplayConfig calls
+Settings uses and restores it afterwards. On Git-built `038bbc45` it found
+three defects at 200% (1,925 × 1,315 pixel work area): Find opened 1,923 ×
+1,420 pixels and ran past the right and bottom edges; a reopened viewer,
+sized to the screen, was placed so it ended 91 pixels under the taskbar; and
+a change from 100% to 200% with an enlarged viewer open let Windows shrink it
+to fit, after which closing saved 948.5 × 621 instead of the user's size. A
+new `WindowFit` helper shrinks and moves a normal window whose frame reaches
+past its screen's working area, when it opens and when its scaling or the
+screens change; the viewer, Find, Compare, directory compare, Hex editor,
+Sync and report windows use it. The viewer treats a fit and the resize a
+scaling change brings like a window-state change (`cd6a592c`).
+`WindowFitTests` fits an oversized window into its screen, and a new
+`ViewerWindowSizeTests` case raises a platform scaling change before a resize
+and requires the chosen 850 × 600 size to be saved; without the change it
+saved 600 wide. The complete Windows Release App suite on `cd6a592c` passed 2,588 tests with 71 platform skips and no failures using 16 workers. On the Git-built `cd6a592c` app (DLL SHA-256
+`55E6E541634B7D8B361D4C4B033136B1B6BD6E3F0E7FCE7AF981D8B2FF934B1B`), Find
+and a viewer enlarged to a 1,486 × 1,193 frame at 100% both stayed inside the
+work area after the change to 200%, closing saved 1,484 × 1,161, and the
+reopened viewer (1,881 × 1,304 at 33,0) and a Find opened at 200% (1,903 ×
+1,304 at 11,0) fit; the display returned to 100%. Three runner attempts
+stopped on its own focus handling (a viewer over the main title bar took the
+click and keys twice, then a 200% click met the caption buttons) and changed
+no fixture file. The new [grip runner](../../tests/FileCat.NativeAcceptance/win-nvda-dialog-grip.ps1)
+opened Find's Advanced criteria dialog with signed NVDA 2026.2 running: Tab
+reached the resize grip after the OK button, NVDA said “Resize dialog, thumb
+control, Drag to resize, or use arrow keys. Hold Shift for larger steps.”,
+three Right arrows widened the dialog from 700 to 748 pixels without further
+speech, and Escape closed it. The [display receipt](evidence/ac-s2-window-win11-cd6a592c.json),
+[before receipt](evidence/ac-s2-window-win11-before-038bbc45.json),
+[capture](evidence/win11-viewer-200-after-change-cd6a592c.png) and
+[grip receipt](evidence/ac-s2-window-win11-nvda-grip.json) record it. No
+second physical monitor was available; the display change stood in for a move
+between monitors of different scaling. On the Ubuntu VM at 200% on a 1,920 ×
+1,200 display, GNOME itself fitted the old build's Find to the screen (1,786 ×
+1,062 pixels from 134,138; [probe](evidence/ubuntu-gnome-find-fit-038bbc45.txt)),
+so the helper leaves Linux windows to the window manager (`3801f286`): an X11
+window can report a placeholder position before it is placed.
+
 <a id="evidence-unix-xattr-20261027"></a>
 **27 October 2026, native Linux attribute deletion (AC-S2-UNIX; UXBUG-006
 accepted):** The new [attribute runner](../../tests/FileCat.NativeAcceptance/linux-atspi-xattr-delete.py)
