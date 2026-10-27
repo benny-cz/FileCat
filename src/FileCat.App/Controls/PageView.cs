@@ -116,8 +116,17 @@ public sealed class PageView : NativeControlHost
     {
         if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
         _hasKeyboard = false;
-        _engine?.ReturnFocus(_keyboardOwner is WindowBase { IsActive: true } ? _keyboardOwner.TryGetPlatformHandle()?.Handle ?? 0 : 0);
+        _engine?.ReturnFocus(_keyboardOwner is WindowBase { IsActive: true } ? KeyboardHome(_keyboardOwner) : 0);
     }
+
+    /// <summary>The native view of the window that takes its own keys: the X window, or on macOS Avalonia's NSView (a
+    /// window's own handle there is its NSWindow, which takes no keys).</summary>
+    private static nint KeyboardHome(TopLevel top) => top.TryGetPlatformHandle() switch
+    {
+        IMacOSTopLevelPlatformHandle mac => mac.NSView,
+        { } handle => handle.Handle,
+        null => 0,
+    };
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
