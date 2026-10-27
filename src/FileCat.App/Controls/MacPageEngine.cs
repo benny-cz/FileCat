@@ -430,10 +430,22 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     {
         try
         {
-            if (TakeKey(self, keyEvent)) return 1;
+            // AppKit offers key equivalents to every view in the window, not only to the one with the keyboard: the
+            // page takes them only while it has it. Escape in the viewer's Find closed the viewer, and ⌘A and ⌘C
+            // there selected and copied the page.
+            if (HasKeyboard(self) && TakeKey(self, keyEvent)) return 1;
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
         return ObjC.SendSuperReturnsBool(self, selector, keyEvent) ? (byte)1 : (byte)0;
+    }
+
+    /// <summary>Whether the view, or a view inside it, is its window's first responder.</summary>
+    private static bool HasKeyboard(nint view)
+    {
+        nint window = ObjC.Send(view, "window");
+        nint responder = window == 0 ? 0 : ObjC.Send(window, "firstResponder");
+        return responder == view || responder != 0 && ObjC.Responds(responder, "isDescendantOf:") &&
+            ObjC.SendReturnsBool(responder, "isDescendantOf:", view);
     }
 
     private static bool TakeKey(nint view, nint keyEvent)
@@ -603,6 +615,9 @@ internal sealed unsafe class MacPageEngine : IPageEngine
 
         public static bool SendReturnsBool(nint receiver, string selector) =>
             ((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_msgSend)(receiver, sel_registerName(selector)) != 0;
+
+        public static bool SendReturnsBool(nint receiver, string selector, nint argument) =>
+            ((delegate* unmanaged[Cdecl]<nint, nint, nint, byte>)s_msgSend)(receiver, sel_registerName(selector), argument) != 0;
 
         public static ushort SendReturnsUShort(nint receiver, string selector) =>
             ((delegate* unmanaged[Cdecl]<nint, nint, ushort>)s_msgSend)(receiver, sel_registerName(selector));
