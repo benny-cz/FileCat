@@ -71,7 +71,11 @@ public sealed class PageView : NativeControlHost
         {
             _keyboardOwner = top;
             top.AddHandler(GotFocusEvent, OnWindowGotFocus, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
-            if (top is WindowBase window) window.Activated += OnWindowActivated;
+            if (top is WindowBase window)
+            {
+                window.Activated += OnWindowActivated;
+                window.Deactivated += OnWindowDeactivated;
+            }
         }
         // A display without native controls (a headless test, say) never asks for one: after a moment, say so.
         _noHost?.Dispose();
@@ -86,7 +90,11 @@ public sealed class PageView : NativeControlHost
         if (_keyboardOwner is { } top)
         {
             top.RemoveHandler(GotFocusEvent, OnWindowGotFocus);
-            if (top is WindowBase window) window.Activated -= OnWindowActivated;
+            if (top is WindowBase window)
+            {
+                window.Activated -= OnWindowActivated;
+                window.Deactivated -= OnWindowDeactivated;
+            }
             _keyboardOwner = null;
         }
         _hasKeyboard = false;
@@ -95,29 +103,42 @@ public sealed class PageView : NativeControlHost
 
     // Linux: the X keyboard focus follows Avalonia's focus between the page and the rest of its window (see
     // LinuxPageEngine.Focus). Another control taking focus, such as Find after F7, takes the keys back from the page;
-    // the window coming back with the page focused gives them to the page again.
+    // the window coming back with the page focused gives them to the page again. A window that is not active never
+    // takes the keyboard from the one that is.
     private void OnWindowGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
     {
         if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
         _hasKeyboard = false;
-        _engine?.ReturnFocus(_keyboardOwner?.TryGetPlatformHandle()?.Handle ?? 0);
+        _engine?.ReturnFocus(_keyboardOwner is WindowBase { IsActive: true } ? _keyboardOwner.TryGetPlatformHandle()?.Handle ?? 0 : 0);
     }
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
-        if (!IsFocused) return;
-        _hasKeyboard = true;
-        _engine?.Focus();
+        if (IsFocused) GiveKeysToPage();
     }
 
-    // Linux: however the host gets focus (the viewer focusing the page, or Tab from the controls around it), the keys
-    // go into the page next, so the following Tab moves into it as the host's help says.
+    private void OnWindowDeactivated(object? sender, EventArgs e) => _engine?.ReturnFocus(0);
+
+    private void GiveKeysToPage()
+    {
+        _hasKeyboard = true;
+        if (_keyboardOwner is WindowBase { IsActive: true }) _engine?.Focus();
+    }
+
+    // Linux: however the host gets focus (the viewer focusing the page, Tab from the controls around it, or a click in
+    // the page), the keys go into the page next, so the following Tab moves into it as the host's help says.
     protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
-        if (!OperatingSystem.IsLinux()) return;
-        _hasKeyboard = true;
-        _engine?.Focus();
+        if (OperatingSystem.IsLinux()) GiveKeysToPage();
+    }
+
+    // Linux: Tab past the page's last item, or Shift+Tab past its first, goes on to the viewer's controls, past the
+    // page's host (which would only give the keys to the page again).
+    private void LeavePage(bool backward)
+    {
+        if (IsFocused)
+            TopLevel.GetTopLevel(this)?.FocusManager?.TryMoveFocus(backward ? NavigationDirection.Previous : NavigationDirection.Next);
     }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
@@ -140,6 +161,8 @@ public sealed class PageView : NativeControlHost
         ConnectEngine(_engine);
         Resize();
         if (_page is { } page) _engine.Show(page);
+        // The viewer gave the page focus before its engine existed.
+        if (_hasKeyboard) GiveKeysToPage();
         return _engine.Handle;
     }
 
@@ -161,6 +184,11 @@ public sealed class PageView : NativeControlHost
             Changed?.Invoke();
         });
         engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
+        engine.FocusRequested += () => Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsFocused) Focus(NavigationMethod.Pointer);
+        });
+        engine.FocusLeft += backward => Dispatcher.UIThread.Post(() => LeavePage(backward));
     }
 
     protected override void DestroyNativeControlCore(IPlatformHandle control)
@@ -236,8 +264,12 @@ internal interface IPageEngine : IDisposable
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
-    /// <summary>The keyboard back to the window holding the page (its native handle, 0 if unknown), where only the engine can move it.</summary>
+    /// <summary>The keyboard back to the window holding the page (its native handle; 0: only stop giving it to the page).</summary>
     void ReturnFocus(nint window) { }
+    /// <summary>The page was clicked, so its host should take focus (raised on the engine's thread).</summary>
+    event Action? FocusRequested { add { } remove { } }
+    /// <summary>Tab, or Shift+Tab (true), went past the page's last or first item (raised on the engine's thread).</summary>
+    event Action<bool>? FocusLeft { add { } remove { } }
     Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         Task.FromResult<PageFindResult?>(null);
     void ClearFind() { }

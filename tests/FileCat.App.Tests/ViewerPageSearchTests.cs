@@ -202,6 +202,44 @@ public sealed class ViewerPageSearchTests
     }
 
     [AvaloniaFact]
+    public async Task A_click_in_the_page_or_Tab_past_its_ends_moves_the_keys_with_focus()
+    {
+        // Linux: the keys went to the page whenever the pointer rested on it, and Tab never left it.
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        Assert.True(viewer.IsActive);
+        var page = Field<PageView>(viewer, "_pageView");
+        Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(Field<TextBox>(viewer, "_search").IsFocused);
+        int focused = fixture.Engine.FocusCount;
+        fixture.Engine.Click();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
+        Assert.Equal(focused + (OperatingSystem.IsLinux() ? 1 : 0), fixture.Engine.FocusCount);
+        if (!OperatingSystem.IsLinux()) return;
+
+        var focus = TopLevel.GetTopLevel(page)!.FocusManager!;
+        int returned = fixture.Engine.ReturnCount;
+        fixture.Engine.TabOut(backward: false);
+        Dispatcher.UIThread.RunJobs();
+        var after = focus.GetFocusedElement();
+        Assert.False(page.IsFocused);
+        Assert.NotNull(after);
+        Assert.Equal(returned + 1, fixture.Engine.ReturnCount);
+        // Shift+Tab past the page's first item goes back past its host, which would only give the page the keys again.
+        page.Focus();
+        Dispatcher.UIThread.RunJobs();
+        fixture.Engine.TabOut(backward: true);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(page.IsFocused);
+        Assert.NotNull(focus.GetFocusedElement());
+        Assert.NotSame(after, focus.GetFocusedElement());
+        Assert.Equal(returned + 2, fixture.Engine.ReturnCount);
+    }
+
+    [AvaloniaFact]
     public async Task Each_page_find_outcome_is_spoken_but_not_the_search_before_it()
     {
         // A page does not say which match is selected: Orca heard nothing after F3 and Shift+F3 on a page.
@@ -262,6 +300,9 @@ public sealed class ViewerPageSearchTests
         public async Task OpenAsync()
         {
             Viewer.Show();
+            // As a viewer opened from the main window is: an inactive window does not take the keyboard (Linux).
+            Viewer.Activate();
+            Dispatcher.UIThread.RunJobs();
             await WaitFor(() => Field<ToggleButton>(Viewer, "_modePage").IsVisible);
             Viewer.ShowPage();
             typeof(PageView).GetField("<PageLoaded>k__BackingField", Private)!
@@ -293,6 +334,10 @@ public sealed class ViewerPageSearchTests
         public void Focus() => FocusCount++;
         public int ReturnCount { get; private set; }
         public void ReturnFocus(nint window) => ReturnCount++;
+        public event Action? FocusRequested;
+        public event Action<bool>? FocusLeft;
+        public void Click() => FocusRequested?.Invoke();
+        public void TabOut(bool backward) => FocusLeft?.Invoke(backward);
         public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
         {
             var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);

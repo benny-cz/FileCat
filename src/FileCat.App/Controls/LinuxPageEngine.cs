@@ -26,6 +26,13 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private readonly nint _id;
     private nint _context, _view, _window;
     private nuint _plug;
+    // GTK thread: GTK's own focus window in the plug, through which the page gets its keys; tries left to give it the
+    // keys while the page is not yet on screen; and the last Tab (whether Shift+Tab, and when).
+    private nuint _keyTarget;
+    private int _focusTries;
+    private bool _focusRetrying;
+    private bool _tabBackward;
+    private long _tabAt = long.MinValue;
     private nint _findController;
     private readonly SemaphoreSlim _findSerial = new(1, 1);
     private volatile TaskCompletionSource<PageFindResult?>? _findPending;
@@ -82,6 +89,12 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
 
+    /// <summary>Raised on the GTK thread when the page is clicked.</summary>
+    public event Action? FocusRequested;
+
+    /// <summary>Raised on the GTK thread when Tab, or Shift+Tab (true), goes past the page's last or first item.</summary>
+    public event Action<bool>? FocusLeft;
+
     /// <summary>Called on the GTK thread: the viewer's handler only posts its work to the UI thread.</summary>
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
@@ -106,22 +119,34 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
 
     /// <summary>
     /// The keyboard to the page. Avalonia reparents the page's window rather than embedding it (it sends no XEmbed
-    /// focus messages), so the X input focus is moved here: otherwise it stayed wherever it was, and the keys went to
-    /// the page after Find had taken focus, or to the window after the page had.
+    /// focus messages), so the X input focus is moved here, to GTK's own focus window in the plug: otherwise the keys
+    /// went to the page whenever the pointer rested on it, and to the viewer otherwise, whatever had focus.
     /// </summary>
     public void Focus() => _ = OnGtk(() =>
     {
         if (_view == 0) return 0;
         Native.gtk_widget_grab_focus(_view);
-        if (_plug != 0) Native.SetInputFocus(_plug);
+        _focusTries = 0;
+        if (_plug == 0 || Native.SetInputFocus(KeyTarget)) return 0;
+        // Not on screen yet (the viewer has only just shown it): try again for up to two seconds.
+        _focusTries = 40;
+        if (!_focusRetrying)
+        {
+            _focusRetrying = true;
+            Native.g_timeout_add(50, (nint)(delegate* unmanaged[Cdecl]<nint, int>)&OnFocusRetry, _id);
+        }
         return 0;
     });
 
+    /// <summary>The keys back to the viewer's window (0: only stop giving them to the page).</summary>
     public void ReturnFocus(nint window) => _ = OnGtk(() =>
     {
+        _focusTries = 0;
         if (_plug != 0 && window != 0) Native.SetInputFocus((nuint)window);
         return 0;
     });
+
+    private nuint KeyTarget => _keyTarget != 0 ? _keyTarget : _plug;
 
     public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         FindCoreAsync(text, matchCase, forward, ct);
@@ -185,7 +210,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             if (_window != 0) Native.gtk_widget_destroy(_window);
             if (_context != 0) Native.g_object_unref(_context);
             _window = _view = _context = _findController = 0;
-            _plug = 0;
+            _plug = _keyTarget = 0;
+            _focusTries = 0;
             return 0;
         });
     }
@@ -217,12 +243,20 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         Connect(_view, "load-changed", (nint)(delegate* unmanaged[Cdecl]<nint, int, nint, void>)&OnLoadChanged);
         Connect(_view, "load-failed", (nint)(delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, int>)&OnLoadFailed);
         Connect(_view, "permission-request", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnPermission);
-        Connect(_view, "key-press-event", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnKey);
+        Connect(_view, "button-press-event", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnPressed);
 
         _window = offscreen ? Native.gtk_offscreen_window_new() : Native.gtk_plug_new(0);
+        // On the window, so the viewer's keys are seen also while nothing in the page has focus.
+        Connect(_window, "key-press-event", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnKey);
+        Connect(_window, "set-focus", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, void>)&OnSetFocus);
         Native.gtk_container_add(_window, _view);
         Native.gtk_widget_show_all(_window);
-        _plug = offscreen ? 0 : Native.gtk_plug_get_id(_window);
+        if (offscreen) return 0;
+        _plug = Native.gtk_plug_get_id(_window);
+        // Keys reach the page through GTK's focus window, which Focus gives the X focus; the plug itself stops
+        // taking keys, so those under the pointer go to the viewer's window while the page does not have focus.
+        _keyTarget = Native.FocusWindowOf(_plug);
+        if (_keyTarget != 0) Native.StopKeys(_window);
         return (nint)_plug;
     }
 
@@ -440,10 +474,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     {
         try
         {
-            if (Of(data) is not { KeyRequested: { } handler }) return 0;
+            if (Of(data) is not { } engine) return 0;
             uint keyval, state;
             if (Native.gdk_event_get_keyval(gdkEvent, &keyval) == 0 || Native.gdk_event_get_state(gdkEvent, &state) == 0) return 0;
-            if (ToKey(keyval) is not { } key) return 0;
+            const uint Tab = 0xff09, LeftTab = 0xfe20;
+            if (keyval is Tab or LeftTab)
+            {
+                engine._tabBackward = keyval == LeftTab || (state & 1) != 0;
+                engine._tabAt = Environment.TickCount64;
+            }
+            if (engine.KeyRequested is not { } handler || ToKey(keyval) is not { } key) return 0;
             var modifiers = ((state & 4) != 0 ? KeyModifiers.Control : 0) | ((state & 1) != 0 ? KeyModifiers.Shift : 0) | ((state & 8) != 0 ? KeyModifiers.Alt : 0);
             return handler(key, modifiers) ? 1 : 0;
         }
@@ -452,6 +492,49 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message);
             return 0;
         }
+    }
+
+    /// <summary>A click in the page: its host takes focus, which gives the page the keys.</summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static int OnPressed(nint widget, nint gdkEvent, nint data)
+    {
+        try { Of(data)?.FocusRequested?.Invoke(); }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
+        return 0;
+    }
+
+    /// <summary>
+    /// Nothing in the page has focus any more right after a Tab: it went past the page's last item, or Shift+Tab past
+    /// its first (GTK would otherwise go round the page again, and Tab could never leave it).
+    /// </summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnSetFocus(nint window, nint widget, nint data)
+    {
+        try
+        {
+            if (widget != 0 || Of(data) is not { } engine || Environment.TickCount64 - engine._tabAt > 1000) return;
+            engine._tabAt = long.MinValue;
+            engine.FocusLeft?.Invoke(engine._tabBackward);
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static int OnFocusRetry(nint data)
+    {
+        try
+        {
+            if (Of(data) is { _focusTries: > 0, _plug: not 0 } engine &&
+                !Native.SetInputFocus(engine.KeyTarget) && --engine._focusTries > 0)
+                return 1;
+            if (Of(data) is { } done)
+            {
+                done._focusTries = 0;
+                done._focusRetrying = false;
+            }
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
+        return 0;
     }
 
     private static Key? ToKey(uint keyval) => keyval switch
@@ -493,25 +576,70 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, int, int, void> gtk_window_resize;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_keyval;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_state;
+        public static delegate* unmanaged[Cdecl]<uint, nint, nint, uint> g_timeout_add;
         // Optional: without them the keyboard stays where the X server has it.
         public static delegate* unmanaged[Cdecl]<nint> gdk_display_get_default;
         public static delegate* unmanaged[Cdecl]<nint, nint> gdk_x11_display_get_xdisplay;
         public static delegate* unmanaged[Cdecl]<nint, void> gdk_x11_display_error_trap_push;
-        public static delegate* unmanaged[Cdecl]<nint, void> gdk_x11_display_error_trap_pop_ignored;
+        public static delegate* unmanaged[Cdecl]<nint, int> gdk_x11_display_error_trap_pop;
+        public static delegate* unmanaged[Cdecl]<nint, nint> gtk_widget_get_window;
+        public static delegate* unmanaged[Cdecl]<nint, int> gdk_window_get_events;
+        public static delegate* unmanaged[Cdecl]<nint, int, void> gdk_window_set_events;
         public static delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int> XSetInputFocus;
-        public static delegate* unmanaged[Cdecl]<nint, int> XFlush;
+        public static delegate* unmanaged[Cdecl]<nint, nuint, nuint*, nuint*, nuint**, uint*, int> XQueryTree;
+        public static delegate* unmanaged[Cdecl]<nint, nuint, nuint*, int*, int*, uint*, uint*, uint*, uint*, int> XGetGeometry;
+        public static delegate* unmanaged[Cdecl]<void*, int> XFree;
 
-        /// <summary>The X input focus to a window, on GTK's own connection; a window gone meanwhile is ignored.</summary>
-        public static void SetInputFocus(nuint window)
+        private static nint XDisplay(out nint display)
         {
-            if (XSetInputFocus == null || gdk_display_get_default() is var display && display == 0) return;
-            nint xdisplay = gdk_x11_display_get_xdisplay(display);
-            if (xdisplay == 0) return;
+            display = XSetInputFocus == null ? 0 : gdk_display_get_default();
+            return display == 0 ? 0 : gdk_x11_display_get_xdisplay(display);
+        }
+
+        /// <summary>The X input focus to a window, on GTK's own connection: false when it cannot take it (not on screen yet, or gone).</summary>
+        public static bool SetInputFocus(nuint window)
+        {
+            nint xdisplay = XDisplay(out nint display);
+            if (xdisplay == 0) return false;
             const int RevertToParent = 2;
             gdk_x11_display_error_trap_push(display);
             XSetInputFocus(xdisplay, window, RevertToParent, 0);
-            XFlush(xdisplay);
-            gdk_x11_display_error_trap_pop_ignored(display);
+            return gdk_x11_display_error_trap_pop(display) == 0;
+        }
+
+        /// <summary>
+        /// The window GTK keeps in a toplevel for the keyboard: 1 by 1 pixel at -1,-1, so keys sent to it do not depend
+        /// on what the pointer is over. 0 when there is none.
+        /// </summary>
+        public static nuint FocusWindowOf(nuint toplevel)
+        {
+            nint xdisplay = XDisplay(out nint display);
+            if (xdisplay == 0) return 0;
+            nuint found = 0, root, parent;
+            nuint* children = null;
+            uint count = 0;
+            gdk_x11_display_error_trap_push(display);
+            if (XQueryTree(xdisplay, toplevel, &root, &parent, &children, &count) != 0 && children != null)
+            {
+                for (uint i = 0; i < count && found == 0; i++)
+                {
+                    int x, y;
+                    uint width, height, border, depth;
+                    if (XGetGeometry(xdisplay, children[i], &root, &x, &y, &width, &height, &border, &depth) != 0 &&
+                        (x, y, width, height) == (-1, -1, 1u, 1u))
+                        found = children[i];
+                }
+                XFree(children);
+            }
+            return gdk_x11_display_error_trap_pop(display) == 0 ? found : 0;
+        }
+
+        /// <summary>The GTK window takes no keys of its own: they reach it through its focus window only.</summary>
+        public static void StopKeys(nint gtkWindow)
+        {
+            const int KeyPressMask = 1 << 10, KeyReleaseMask = 1 << 11;
+            if (gtk_widget_get_window(gtkWindow) is var window && window != 0)
+                gdk_window_set_events(window, gdk_window_get_events(window) & ~(KeyPressMask | KeyReleaseMask));
         }
         public static delegate* unmanaged[Cdecl]<nint> webkit_web_context_new_ephemeral;
         public static delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void> webkit_web_context_register_uri_scheme;
@@ -604,20 +732,31 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 gtk_window_resize = (delegate* unmanaged[Cdecl]<nint, int, int, void>)NativeLibrary.GetExport(gtk, "gtk_window_resize");
                 gdk_event_get_keyval = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_keyval");
                 gdk_event_get_state = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_state");
+                g_timeout_add = (delegate* unmanaged[Cdecl]<uint, nint, nint, uint>)NativeLibrary.GetExport(glib, "g_timeout_add");
                 if (NativeLibrary.TryLoad("libX11.so.6", out nint x11) &&
                     NativeLibrary.TryGetExport(gdk, "gdk_display_get_default", out nint defaultDisplay) &&
                     NativeLibrary.TryGetExport(gdk, "gdk_x11_display_get_xdisplay", out nint xdisplay) &&
                     NativeLibrary.TryGetExport(gdk, "gdk_x11_display_error_trap_push", out nint trapPush) &&
-                    NativeLibrary.TryGetExport(gdk, "gdk_x11_display_error_trap_pop_ignored", out nint trapPop) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_x11_display_error_trap_pop", out nint trapPop) &&
+                    NativeLibrary.TryGetExport(gtk, "gtk_widget_get_window", out nint widgetWindow) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_window_get_events", out nint getEvents) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_window_set_events", out nint setEvents) &&
                     NativeLibrary.TryGetExport(x11, "XSetInputFocus", out nint setFocus) &&
-                    NativeLibrary.TryGetExport(x11, "XFlush", out nint flush))
+                    NativeLibrary.TryGetExport(x11, "XQueryTree", out nint queryTree) &&
+                    NativeLibrary.TryGetExport(x11, "XGetGeometry", out nint geometry) &&
+                    NativeLibrary.TryGetExport(x11, "XFree", out nint free))
                 {
                     gdk_display_get_default = (delegate* unmanaged[Cdecl]<nint>)defaultDisplay;
                     gdk_x11_display_get_xdisplay = (delegate* unmanaged[Cdecl]<nint, nint>)xdisplay;
                     gdk_x11_display_error_trap_push = (delegate* unmanaged[Cdecl]<nint, void>)trapPush;
-                    gdk_x11_display_error_trap_pop_ignored = (delegate* unmanaged[Cdecl]<nint, void>)trapPop;
+                    gdk_x11_display_error_trap_pop = (delegate* unmanaged[Cdecl]<nint, int>)trapPop;
+                    gtk_widget_get_window = (delegate* unmanaged[Cdecl]<nint, nint>)widgetWindow;
+                    gdk_window_get_events = (delegate* unmanaged[Cdecl]<nint, int>)getEvents;
+                    gdk_window_set_events = (delegate* unmanaged[Cdecl]<nint, int, void>)setEvents;
+                    XQueryTree = (delegate* unmanaged[Cdecl]<nint, nuint, nuint*, nuint*, nuint**, uint*, int>)queryTree;
+                    XGetGeometry = (delegate* unmanaged[Cdecl]<nint, nuint, nuint*, int*, int*, uint*, uint*, uint*, uint*, int>)geometry;
+                    XFree = (delegate* unmanaged[Cdecl]<void*, int>)free;
                     XSetInputFocus = (delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int>)setFocus;
-                    XFlush = (delegate* unmanaged[Cdecl]<nint, int>)flush;
                 }
                 webkit_web_context_new_ephemeral = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(webkit, "webkit_web_context_new_ephemeral");
                 webkit_web_context_register_uri_scheme = (delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void>)NativeLibrary.GetExport(webkit, "webkit_web_context_register_uri_scheme");
