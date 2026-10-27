@@ -313,9 +313,14 @@ public sealed class PictureViewerTests
             Assert.NotNull(viewer.PictureLoad);
             await viewer.PictureLoad;
             Assert.NotNull(viewer.Picture);
-            Assert.True(viewer.Picture.Bitmap.PixelSize.Width < viewer.Picture.Width);
+            Assert.Equal(4096, viewer.Picture.Bitmap.PixelSize.Width);
             Assert.Contains("detail limited: decoded to", viewer.StatusLine);
-            Assert.Contains("4,096-pixel side cap", viewer.StatusLine);
+            Assert.Contains("pixel side cap", viewer.StatusLine);
+            var limit = viewer.GetVisualDescendants().OfType<TextBlock>().Single(b =>
+                Avalonia.Automation.AutomationProperties.GetAutomationId(b) == "Picture decode limit");
+            Assert.True(limit.IsVisible);
+            Assert.StartsWith("Detail limited: decoded to", limit.Text);
+            Assert.Contains("pixel side cap", limit.Text);
             var zoomButton = viewer.GetVisualDescendants().OfType<Button>().Single(b =>
                 Avalonia.Automation.AutomationProperties.GetName(b) == "Choose picture zoom level");
             zoomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -326,7 +331,7 @@ public sealed class PictureViewerTests
             actual.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             var view = viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().Single();
             Assert.Equal(1, view.Zoom, 3);
-            Assert.Contains("4,096-pixel side cap", viewer.StatusLine);
+            Assert.Contains("pixel side cap", viewer.StatusLine);
             menu.Close();
         }
         finally

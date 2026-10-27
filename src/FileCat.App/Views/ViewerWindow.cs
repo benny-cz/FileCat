@@ -72,6 +72,8 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _actualSize = new() { Content = "100%", IsVisible = false };
     private readonly TextBlock _pictureZoom = new() { IsVisible = false, Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _zoomLevels = new() { Content = "Zoom…", IsVisible = false };
+    private readonly TextBlock _pictureLimit = new() { IsVisible = false, Classes = { "small" },
+        TextWrapping = TextWrapping.Wrap, MaxWidth = 300, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _modeLabel = new() { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
     private readonly Button _findToggle = new() { Content = "Find…" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
@@ -284,6 +286,7 @@ public sealed class ViewerWindow : Window
         toolbar.Children.Add(_actualSize);
         toolbar.Children.Add(_pictureZoom);
         toolbar.Children.Add(_zoomLevels);
+        toolbar.Children.Add(_pictureLimit);
         ToolTip.SetTip(_modePicture, "The picture (Ctrl+P)");
         ToolTip.SetTip(_fitPicture, "Fit the whole picture in the window (0)");
         ToolTip.SetTip(_actualSize, "Show at 100%: one source pixel per device pixel, subject to the decoder's resolution cap (1 or Z)");
@@ -293,6 +296,8 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureZoom, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_zoomLevels, "Choose picture zoom level");
         ToolTip.SetTip(_zoomLevels, "Choose Fit, 50%, 100%, 125% or 200%; wheel and +/- also zoom");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_pictureLimit, "Picture decode limit");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureLimit, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
@@ -805,7 +810,8 @@ public sealed class ViewerWindow : Window
         _modePicture.IsChecked = false;
         _findToggle.IsVisible = true;
         _findBar.IsVisible = _findOpen;
-        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible = false;
+        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible =
+            _pictureLimit.IsVisible = false;
         foreach (var part in _textOnly) part.IsVisible = true;
     }
 
@@ -988,6 +994,13 @@ public sealed class ViewerWindow : Window
         _actualSize.IsChecked = !_picture.Fit && Math.Abs(_picture.Zoom - 1) < 0.001;
         _pictureZoom.Text = _picture.Fit ? $"Fit · {_picture.Zoom * 100:0}%" : $"Zoom {_picture.Zoom * 100:0}%";
         _zoomLevels.IsEnabled = _picture.Picture is not null;
+        var picture = _picture.Picture;
+        bool limited = picture is not null &&
+            (picture.Bitmap.PixelSize.Width < picture.Width || picture.Bitmap.PixelSize.Height < picture.Height);
+        _pictureLimit.IsVisible = _isPicture && limited;
+        _pictureLimit.Text = limited
+            ? $"Detail limited: decoded to {picture!.Bitmap.PixelSize.Width:N0} × {picture.Bitmap.PixelSize.Height:N0} ({PictureSide:N0}-pixel side cap)."
+            : null;
     }
 
     private void OpenPictureZoomMenu()
@@ -1048,7 +1061,7 @@ public sealed class ViewerWindow : Window
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
                   $" · {Formatters.ExactSize(_reader.Length)}" +
                   (p.Bitmap.PixelSize.Width < p.Width || p.Bitmap.PixelSize.Height < p.Height
-                      ? $" · detail limited: decoded to {p.Bitmap.PixelSize.Width:N0} × {p.Bitmap.PixelSize.Height:N0} pixels (4,096-pixel side cap)"
+                      ? $" · detail limited: decoded to {p.Bitmap.PixelSize.Width:N0} × {p.Bitmap.PixelSize.Height:N0} pixels ({PictureSide:N0}-pixel side cap)"
                       : string.Empty)
                 : Formatters.ExactSize(_reader.Length);
             if (_pictureGeneration != _sourceGeneration)
