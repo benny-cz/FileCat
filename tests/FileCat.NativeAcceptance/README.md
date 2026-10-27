@@ -553,8 +553,11 @@ source bytes and empty destination. On that same still-open fixture,
 window and uses Copy all, checks the report's documented JSON-escaped
 complete paths, then Cancels **Mark reviewed…** once before explicit
 approval. It requires unchanged source/destination bytes and a saved
-closure-confirmed full-path reviewed record. Spoken review and reopening the
-saved report after another restart are separate AC-S2-020 work.
+closure-confirmed full-path reviewed record. After the reviewed decision,
+`win-ax-reviewed-report-reopen.ps1` restarts only the
+test-owned profile, opens the saved report through Operations, and requires
+Copy all to exactly equal the durable record with both full paths; it does
+not repeat the review or approval. Narrow spoken review remains separate.
 
 For an actual Core worker interruption, run `interrupt-live live-fixture.json`
 in the guest. Its nonzero exit is expected: the runner terminates itself after

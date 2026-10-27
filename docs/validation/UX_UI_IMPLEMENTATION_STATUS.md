@@ -1,5 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-reviewed-report-reopen-20261027"></a>
+**27 October 2026, native Windows reviewed recovery report after restart:**
+The Windows 11 VMware guest reopened the same isolated Git `3a4d7cba`
+profile after [explicit reviewed closure](#evidence-recovery-report-reviewed-20261027)
+(app DLL SHA-256 `31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD`).
+The [read-only native runner](../../tests/FileCat.NativeAcceptance/win-ax-reviewed-report-reopen.ps1)
+found no returning Mark reviewed action, opened **Operations** from its
+persistent toolbar, found **Reviewed recovery reports**, and invoked the
+specific **Open reviewed recovery report** action. **Copy all** from that
+new window exactly matched the saved record's text (1,219 characters),
+including both complete JSON-escaped paths and the reviewed/no-file-change
+outcome. Both source hashes and the empty destination remained exact. Ignored
+receipt: `E:\FileCat\.local-ac-s2-020-reviewed-reopen-r4.json` (Passed true).
+The first three read-only probes corrected test-driver assumptions about
+the status-bar Details button and the reopened window title; no recovery
+action was repeated. This accepts [AC-S2-020-REOPEN](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-reopen).
+The narrow spoken review remains open.
+
 <a id="evidence-recovery-report-reviewed-20261027"></a>
 **27 October 2026, native Windows interrupted recovery report and reviewed decision:**
 On the same test-owned `seed-recovery` journal used for Hide/reopen, the
