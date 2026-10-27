@@ -146,7 +146,7 @@ public sealed class ViewerRefreshTests
             typeof(ViewerWindow).GetMethod("UpdateStatus", Private)!.Invoke(viewer, []);
             refreshing = viewer.RefreshAsync();
             await Until(() => engine.Pages.Count == 3);
-            engine.Complete(false, "native load failed");
+            engine.Complete(false, "Unknown");
             await refreshing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             Assert.Same(current, Field<PagedReader>(viewer, "_reader"));
             Assert.Equal(4, engine.Pages.Count); // the previous page is restored
@@ -154,6 +154,8 @@ public sealed class ViewerRefreshTests
             Assert.Null(engine.Pages[2].Resolve("/"));
             Assert.True(Field<Border>(viewer, "_staleBanner").IsVisible);
             Assert.Contains("Refresh failed", Field<TextBlock>(viewer, "_staleText").Text);
+            Assert.Contains("browser could not complete the page request", Field<TextBlock>(viewer, "_staleText").Text);
+            Assert.DoesNotContain("Unknown", Field<TextBlock>(viewer, "_staleText").Text);
         }
         finally
         {

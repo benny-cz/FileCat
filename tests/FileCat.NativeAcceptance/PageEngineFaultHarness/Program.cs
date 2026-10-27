@@ -160,8 +160,20 @@ internal sealed class HarnessApp : Application
             services?.Dispose();
             result["cleanupStage"] = "removing owned fixture";
             Save();
-            Directory.Delete(root, recursive: true);
-            result["cleanupStage"] = "desktop shutdown";
+            try
+            {
+                await Task.Run(() => Directory.Delete(root, recursive: true))
+                    .WaitAsync(TimeSpan.FromSeconds(5));
+                result["cleanupStage"] = "owned fixture removed";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TimeoutException)
+            {
+                // WebView2 can keep its private profile files open after the
+                // controller closes. The caller can remove this exact owned
+                // directory after the helper process has exited.
+                result["cleanupStage"] = "deferred until helper exit";
+                result["cleanupError"] = ex.GetType().Name + ": " + ex.Message;
+            }
             Save();
             desktop.Shutdown((bool)result["passed"]! ? 0 : 1);
         }

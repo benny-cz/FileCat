@@ -1308,7 +1308,13 @@ public sealed class ViewerWindow : Window
         {
             _pageView.Show(next);
             var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(15), ct);
-            if (!result.Ok) throw new IOException("The new page could not be drawn: " + (result.Why ?? "unknown error"));
+            if (!result.Ok)
+            {
+                string reason = string.IsNullOrWhiteSpace(result.Why) ||
+                    string.Equals(result.Why.Trim(), "Unknown", StringComparison.OrdinalIgnoreCase)
+                    ? "the browser could not complete the page request" : result.Why.Trim();
+                throw new IOException("The new page could not be drawn: " + reason);
+            }
         }
         catch
         {
