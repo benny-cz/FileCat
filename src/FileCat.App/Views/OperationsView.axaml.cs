@@ -68,12 +68,15 @@ public partial class OperationsView : UserControl
         };
         DrawerResizeHandle.KeyDown += (_, e) =>
         {
+            // A smaller window may clamp the displayed drawer below the saved
+            // preference. Relative keys must start from what the user sees.
+            double displayedHeight = DetailsDrawer.Height;
             double? next = e.Key switch
             {
-                Key.Up => _preferredDrawerHeight + 16,
-                Key.Down => _preferredDrawerHeight - 16,
-                Key.PageUp => _preferredDrawerHeight + 64,
-                Key.PageDown => _preferredDrawerHeight - 64,
+                Key.Up => displayedHeight + 16,
+                Key.Down => displayedHeight - 16,
+                Key.PageUp => displayedHeight + 64,
+                Key.PageDown => displayedHeight - 64,
                 Key.Home => 0,
                 Key.End => double.MaxValue,
                 _ => null,

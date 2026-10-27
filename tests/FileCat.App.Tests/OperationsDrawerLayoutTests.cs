@@ -154,6 +154,38 @@ public sealed class OperationsDrawerLayoutTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public void Down_key_shrinks_the_drawer_from_its_clamped_visible_height()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 900);
+        try
+        {
+            vm.Operations.IsOpen = true;
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var handle = view.FindControl<Border>("DrawerResizeHandle")!;
+            handle.Focus();
+            window.KeyPress(Key.End, RawInputModifiers.None, PhysicalKey.End, null);
+            window.KeyRelease(Key.End, RawInputModifiers.None, PhysicalKey.End, null);
+            Layout(window);
+            double preferred = drawer.Bounds.Height;
+            window.Height = 700;
+            Layout(window);
+            double clamped = drawer.Bounds.Height;
+            Assert.True(preferred > clamped + 16);
+
+            handle.Focus();
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Layout(window);
+            Assert.InRange(clamped - drawer.Bounds.Height, 15, 17);
+            Assert.Equal(drawer.Bounds.Height, services.Settings.OperationsDrawerHeight, 1);
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(20)]
