@@ -186,6 +186,41 @@ public sealed class OperationsDrawerLayoutTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public void Busy_recovery_reveals_stop_inside_the_bounded_drawer_at_small_size()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var item = new InterruptedJobViewModel(new InterruptedJob(
+                Path.Combine(root, "journal"), nameof(JobKind.Copy), "Interrupted copy", DateTime.UtcNow,
+                [Path.Combine(root, "source")], Path.Combine(root, "target"), [], [], 0, 1));
+            center.Interrupted.Add(item);
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var recovery = view.FindControl<ScrollViewer>("RecoveryScroll")!;
+            item.SetActionPhase(RecoveryActionPhase.Reviewing, "Reviewing recovery sources…");
+            Layout(window);
+            Assert.True(recovery.Extent.Height > recovery.Viewport.Height + 1,
+                "The fixture must exercise a clipped recovery card.");
+
+            view.RevealRecoveryReview(item);
+            Layout(window);
+            var stop = view.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Content as string == "Stop review" && b.IsVisible);
+            var top = stop.TranslatePoint(new Point(0, 0), recovery)!.Value.Y;
+            var bottom = stop.TranslatePoint(new Point(0, stop.Bounds.Height), recovery)!.Value.Y;
+            double visibleHeight = Math.Min(bottom, recovery.Bounds.Height) - Math.Max(top, 0);
+            Assert.True(visibleHeight >= 24 && visibleHeight >= stop.Bounds.Height * .6,
+                $"Stop must have a reachable pointer target: visible {visibleHeight} of {stop.Bounds.Height} DIP in {recovery.Bounds.Height} DIP viewport.");
+            Assert.InRange((top + bottom) / 2, 0, recovery.Bounds.Height);
+            Assert.Equal(RecoveryActionPhase.Reviewing, item.ActionPhase);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(20)]

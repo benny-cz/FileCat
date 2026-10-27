@@ -420,10 +420,25 @@ public partial class OperationsView : UserControl
         // posting the review lets them observe its busy state and Stop control.
         Dispatcher.UIThread.Post(async () =>
         {
-            if (!await main.RunInterruptedAgainAsync(item.Job)) return;
+            var review = main.RunInterruptedAgainAsync(item.Job);
+            RevealRecoveryReview(item);
+            if (!await review) return;
             c.Interrupted.Remove(item);
             c.UpdateSummary();
         }, DispatcherPriority.Background);
+    }
+
+    internal void RevealRecoveryReview(InterruptedJobViewModel item)
+    {
+        // The bounded recovery viewport can hide the action row at a high
+        // display scale. Reveal the current Stop control after its busy phase
+        // has been measured, without changing the user's saved drawer size.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (Center is { IsOpen: true } center &&
+                ReferenceEquals(center.SelectedInterrupted, item) && item.CanStopReview)
+                RecoveryScroll.ScrollToEnd();
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
