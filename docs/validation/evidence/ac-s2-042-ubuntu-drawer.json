@@ -1,0 +1,96 @@
+{
+  "passed": true,
+  "buildDllSha256": "5a6d712f93b985fde82daa35c24cb6ce586c68d447949ee3e346dd57ecefa542",
+  "displayScale": "200%",
+  "fixture": "/home/benny/FileCatValidation/OperationsDrawerFixture/175980a9aff6489ba1cab3973f397efe",
+  "steps": [
+    {
+      "initialWindow": [
+        134,
+        138,
+        1786,
+        1062
+      ],
+      "initialHistory": [
+        134,
+        722,
+        710,
+        358
+      ],
+      "initialReport": [
+        318,
+        655,
+        191,
+        59
+      ]
+    },
+    {
+      "keyboardGripBefore": [
+        134,
+        613,
+        1786,
+        16
+      ],
+      "gripFocused": true,
+      "afterDown": [
+        134,
+        645,
+        1786,
+        16
+      ],
+      "gripFocusedAfterDown": true,
+      "focusedNodesAfterDown": [
+        "Resize operations details"
+      ],
+      "keyboardGripAfter": [
+        134,
+        613,
+        1786,
+        16
+      ],
+      "reportReachable": true,
+      "historyVisible": true
+    },
+    {
+      "physicalPointerGripBefore": [
+        134,
+        613,
+        1786,
+        16
+      ],
+      "physicalPointerGripAfter": [
+        134,
+        765,
+        1786,
+        16
+      ]
+    },
+    {
+      "narrowWindow": [
+        134,
+        138,
+        1280,
+        840
+      ],
+      "report": [
+        318,
+        604,
+        191,
+        59
+      ],
+      "history": [
+        134,
+        671,
+        507,
+        187
+      ],
+      "grip": [
+        134,
+        562,
+        1280,
+        16
+      ],
+      "sourceAndTargetSha256": "649a80fece87be6beeb87d2075397197ac408425d48f97b2f7184cea0062a4ff"
+    }
+  ]
+}

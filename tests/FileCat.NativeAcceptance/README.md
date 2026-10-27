@@ -2166,3 +2166,13 @@ must receive the exact source bytes; the old target must stay absent after
 the delayed call returns. It closes only its app/tracer and records the
 bounded syscall, mapping and hashes in
 `docs/validation/evidence/ac-s2-041-ubuntu-stale.json`.
+
+`linux-atspi-operations-drawer.py APP REPORT.json KEY_HELPER POINTER_HELPER`
+uses a fresh Ubuntu data profile and byte-exact local Copy. It opens the
+Operations drawer, resizes its focused grip using physical Down/Up and a
+short-lived uinput pointer, then narrows the X11 window to 1,280×840 physical
+pixels. It verifies a visible operation history and Open report action inside
+the window, writes `ac-s2-042-ubuntu-drawer.json`, and closes only its own app
+and input device. The Ubuntu acceptance run used a separately measured GDK
+monitor scale of 2; pair its result with `OperationsDrawerLayoutTests` for the
+1/5/20 interrupted-row combinations.
