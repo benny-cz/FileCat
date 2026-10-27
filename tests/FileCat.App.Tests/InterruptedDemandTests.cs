@@ -22,6 +22,35 @@ namespace FileCat.App.Tests;
 
 public sealed class InterruptedDemandTests(ITestOutputHelper output)
 {
+    [AvaloniaFact]
+    public async Task Recovery_button_releases_its_action_before_starting_a_held_review()
+    {
+        using var f = await Fixture.Create("open");
+        var row = f.SelectInterrupted();
+        var view = Assert.Single(f.Window.GetVisualDescendants().OfType<OperationsView>());
+        var click = typeof(OperationsView).GetMethod("OnRunAgainInterrupted",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        click.Invoke(view, [new Button { Tag = row },
+            new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)]);
+        Assert.Equal(RecoveryActionPhase.Idle, row.ActionPhase);
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Wait(() => f.Provider.Active > 0);
+            Assert.Equal(RecoveryActionPhase.Reviewing, row.ActionPhase);
+            Assert.True(row.CanStopReview);
+            f.Vm.StopInterruptedReview(f.Interrupted);
+            Assert.Contains("Stopping review", row.ActionStatus, StringComparison.Ordinal);
+        }
+        finally { f.Provider.Release.Set(); }
+        await Wait(() => row.ActionPhase == RecoveryActionPhase.Idle);
+        Assert.False(f.Ended);
+        Assert.True(File.Exists(f.Staged));
+        Assert.False(f.HasDialog);
+        Workers(f);
+    }
+
     [AvaloniaTheory]
     [InlineData("open")]
     [InlineData("read")]

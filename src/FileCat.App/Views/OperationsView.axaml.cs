@@ -412,12 +412,18 @@ public partial class OperationsView : UserControl
             main.StopInterruptedReview(item.Job);
     }
 
-    private async void OnRunAgainInterrupted(object? sender, RoutedEventArgs e)
+    private void OnRunAgainInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;
-        if (!await main.RunInterruptedAgainAsync(item.Job)) return;
-        c.Interrupted.Remove(item);
-        c.UpdateSummary();
+        // Release the native button/AT action before any source or journal probe.
+        // Some accessibility backends serialize queries behind an active action;
+        // posting the review lets them observe its busy state and Stop control.
+        Dispatcher.UIThread.Post(async () =>
+        {
+            if (!await main.RunInterruptedAgainAsync(item.Job)) return;
+            c.Interrupted.Remove(item);
+            c.UpdateSummary();
+        }, DispatcherPriority.Background);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
