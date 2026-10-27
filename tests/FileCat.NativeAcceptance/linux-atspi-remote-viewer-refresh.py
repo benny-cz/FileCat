@@ -116,8 +116,11 @@ def run(app_path: Path, report: Path, helper: Path):
         result["matchedHostKeys"] = sorted(set(fingerprints()) & shown)
         if not result["matchedHostKeys"]:
             raise AssertionError("The server key differs from independent OpenSSH fingerprints")
-        action(wait_for(lambda: find(app, "button", "Connect once"), "one-time trust"),
-               "verified one-time trust")
+        # Refresh needs another connection while the first viewer source is
+        # leased. Remember this independently verified key in the owned profile
+        # so a new trust prompt does not block the content boundary under test.
+        action(wait_for(lambda: find(app, "button", "Trust and connect"), "owned host trust"),
+               "verified test-profile host trust")
         row = wait_for(lambda: next((node for node in tree(app) if
                        node.get_role_name() == "list item" and
                        (node.get_name() or "").startswith("member.txt,")), None),
