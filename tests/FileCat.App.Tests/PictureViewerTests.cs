@@ -227,12 +227,21 @@ public sealed class PictureViewerTests
             Assert.True(fit.IsChecked);
             Assert.False(actual.IsChecked);
             Assert.Equal(fitted, view.Zoom, 3);
+            var zoomButton = viewer.GetVisualDescendants().OfType<Button>().Single(b =>
+                Avalonia.Automation.AutomationProperties.GetName(b) == "Choose picture zoom level");
             foreach (double level in new[] { 0.5, 1.25, 2.0 })
             {
-                view.SetZoom(level);
+                zoomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var menu = Assert.IsType<ContextMenu>(zoomButton.ContextMenu);
+                var choice = Assert.IsType<MenuItem>(Assert.Single(
+                    Assert.IsAssignableFrom<IEnumerable<Control>>(menu.ItemsSource), item =>
+                        item is MenuItem option && option.Header as string == $"{level * 100:0}%"));
+                choice.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Assert.False(fit.IsChecked);
                 Assert.False(actual.IsChecked);
                 Assert.Contains($"{level * 100:0}%", zoomLabel.Text);
+                Assert.Equal(level, view.Zoom, 3);
+                menu.Close();
             }
             actual.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(fit.IsChecked);
@@ -245,6 +254,80 @@ public sealed class PictureViewerTests
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F4, Avalonia.Input.RawInputModifiers.None);
             Assert.Null(viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().FirstOrDefault(v => v.IsEffectivelyVisible));
             Assert.Equal("Mode: Hex", modeLabel.Text);
+        }
+        finally
+        {
+            viewer.Close();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Small_picture_keeps_Fit_and_100_percent_as_distinct_visible_choices()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var viewer = new ViewerWindow(services,
+            new MemoryContentSource("icon.png", Encode(8, 8, SKEncodedImageFormat.Png)), "icon.png", hex: false);
+        viewer.Show();
+        try
+        {
+            for (int i = 0; i < 250 && viewer.PictureLoad is null; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.NotNull(viewer.PictureLoad);
+            await viewer.PictureLoad;
+            var toggles = viewer.GetVisualDescendants().OfType<ToggleButton>().ToArray();
+            var fit = toggles.Single(b => b.Content as string == "Fit");
+            var actual = toggles.Single(b => b.Content as string == "100%");
+            var zoom = viewer.GetVisualDescendants().OfType<TextBlock>().Single(b =>
+                Avalonia.Automation.AutomationProperties.GetAutomationId(b) == "Picture zoom percentage");
+            Assert.True(fit.IsChecked);
+            Assert.False(actual.IsChecked);
+            Assert.Equal("Fit · 100%", zoom.Text);
+            actual.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(fit.IsChecked);
+            Assert.True(actual.IsChecked);
+            Assert.Equal("Zoom 100%", zoom.Text);
+        }
+        finally
+        {
+            viewer.Close();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Decode_cap_is_visible_while_100_percent_uses_source_dimensions()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var viewer = new ViewerWindow(services,
+            new MemoryContentSource("wide.png", Encode(5000, 50, SKEncodedImageFormat.Png)), "wide.png", hex: false);
+        viewer.Show();
+        try
+        {
+            for (int i = 0; i < 250 && viewer.PictureLoad is null; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.NotNull(viewer.PictureLoad);
+            await viewer.PictureLoad;
+            Assert.NotNull(viewer.Picture);
+            Assert.True(viewer.Picture.Bitmap.PixelSize.Width < viewer.Picture.Width);
+            Assert.Contains("detail limited: decoded to", viewer.StatusLine);
+            Assert.Contains("4,096-pixel side cap", viewer.StatusLine);
+            var zoomButton = viewer.GetVisualDescendants().OfType<Button>().Single(b =>
+                Avalonia.Automation.AutomationProperties.GetName(b) == "Choose picture zoom level");
+            zoomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var menu = Assert.IsType<ContextMenu>(zoomButton.ContextMenu);
+            var actual = Assert.IsType<MenuItem>(Assert.Single(
+                Assert.IsAssignableFrom<IEnumerable<Control>>(menu.ItemsSource), item =>
+                    item is MenuItem option && option.Header as string == "100%"));
+            actual.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            var view = viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().Single();
+            Assert.Equal(1, view.Zoom, 3);
+            Assert.Contains("4,096-pixel side cap", viewer.StatusLine);
+            menu.Close();
         }
         finally
         {

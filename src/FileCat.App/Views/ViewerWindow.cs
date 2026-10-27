@@ -71,6 +71,7 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _fitPicture = new() { Content = "Fit", IsVisible = false };
     private readonly ToggleButton _actualSize = new() { Content = "100%", IsVisible = false };
     private readonly TextBlock _pictureZoom = new() { IsVisible = false, Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _zoomLevels = new() { Content = "Zoom…", IsVisible = false };
     private readonly TextBlock _modeLabel = new() { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
     private readonly Button _findToggle = new() { Content = "Find…" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
@@ -282,6 +283,7 @@ public sealed class ViewerWindow : Window
         toolbar.Children.Add(_fitPicture);
         toolbar.Children.Add(_actualSize);
         toolbar.Children.Add(_pictureZoom);
+        toolbar.Children.Add(_zoomLevels);
         ToolTip.SetTip(_modePicture, "The picture (Ctrl+P)");
         ToolTip.SetTip(_fitPicture, "Fit the whole picture in the window (0)");
         ToolTip.SetTip(_actualSize, "Show at 100%: one source pixel per device pixel, subject to the decoder's resolution cap (1 or Z)");
@@ -289,6 +291,8 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_actualSize, "Picture at 100 percent");
         Avalonia.Automation.AutomationProperties.SetAutomationId(_pictureZoom, "Picture zoom percentage");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureZoom, Avalonia.Automation.AutomationLiveSetting.Polite);
+        Avalonia.Automation.AutomationProperties.SetName(_zoomLevels, "Choose picture zoom level");
+        ToolTip.SetTip(_zoomLevels, "Choose Fit, 50%, 100%, 125% or 200%; wheel and +/- also zoom");
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
@@ -434,6 +438,7 @@ public sealed class ViewerWindow : Window
         _pageView.KeyRequested = OnPageKey;
         _fitPicture.Click += (_, _) => { _picture.Fit = true; UpdatePictureZoomControls(); };
         _actualSize.Click += (_, _) => { _picture.ShowActualSize(); UpdatePictureZoomControls(); };
+        _zoomLevels.Click += (_, _) => OpenPictureZoomMenu();
         _picture.SizeChanged += (_, _) => { if (_isPicture) UpdateStatus(); };
         _picture.ZoomChanged += () => { UpdatePictureZoomControls(); if (_isPicture) UpdateStatus(); };
         _wrap.IsCheckedChanged += (_, _) =>
@@ -673,7 +678,7 @@ public sealed class ViewerWindow : Window
         _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
         _modePicture.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
-        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = true;
+        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible = true;
         UpdatePictureZoomControls();
         foreach (var part in _textOnly) part.IsVisible = false;
         _wrap.IsEnabled = false;
@@ -800,7 +805,7 @@ public sealed class ViewerWindow : Window
         _modePicture.IsChecked = false;
         _findToggle.IsVisible = true;
         _findBar.IsVisible = _findOpen;
-        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = false;
+        _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible = false;
         foreach (var part in _textOnly) part.IsVisible = true;
     }
 
@@ -982,6 +987,28 @@ public sealed class ViewerWindow : Window
         _fitPicture.IsChecked = _picture.Fit;
         _actualSize.IsChecked = !_picture.Fit && Math.Abs(_picture.Zoom - 1) < 0.001;
         _pictureZoom.Text = _picture.Fit ? $"Fit · {_picture.Zoom * 100:0}%" : $"Zoom {_picture.Zoom * 100:0}%";
+        _zoomLevels.IsEnabled = _picture.Picture is not null;
+    }
+
+    private void OpenPictureZoomMenu()
+    {
+        if (!_isPicture || _picture.Picture is null) return;
+        var items = new List<MenuItem>();
+        var fit = new MenuItem { Header = "Fit to window", ToggleType = MenuItemToggleType.Radio,
+            IsChecked = _picture.Fit };
+        fit.Click += (_, _) => _picture.Fit = true;
+        items.Add(fit);
+        foreach (double level in new[] { 0.5, 1.0, 1.25, 2.0 })
+        {
+            double chosen = level;
+            var item = new MenuItem { Header = $"{level * 100:0}%", ToggleType = MenuItemToggleType.Radio,
+                IsChecked = !_picture.Fit && Math.Abs(_picture.Zoom - level) < 0.001 };
+            item.Click += (_, _) => _picture.SetZoom(chosen);
+            items.Add(item);
+        }
+        var menu = new ContextMenu { ItemsSource = items };
+        _zoomLevels.ContextMenu = menu;
+        menu.Open(_zoomLevels);
     }
 
     private void SetFindOpen(bool open, bool focus = false)
@@ -1019,7 +1046,10 @@ public sealed class ViewerWindow : Window
                 ? $"{p.Format} · {p.Width:N0} × {p.Height:N0} pixels · {(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}%" +
                   (p.Frames > 1 ? $" · animated, {p.Frames:N0} frames: the first is shown" : "") +
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
-                  $" · {Formatters.ExactSize(_reader.Length)}"
+                  $" · {Formatters.ExactSize(_reader.Length)}" +
+                  (p.Bitmap.PixelSize.Width < p.Width || p.Bitmap.PixelSize.Height < p.Height
+                      ? $" · detail limited: decoded to {p.Bitmap.PixelSize.Width:N0} × {p.Bitmap.PixelSize.Height:N0} pixels (4,096-pixel side cap)"
+                      : string.Empty)
                 : Formatters.ExactSize(_reader.Length);
             if (_pictureGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this picture. " + _status.Text;
