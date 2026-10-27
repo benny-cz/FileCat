@@ -1,5 +1,34 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-keybar-label-20261027"></a>
+**27 October 2026, key-bar labels inside their keys (AC-S2-KEYBAR;
+UXBUG-018 accepted):** The key-bar label sat in a horizontal StackPanel,
+which measures its children without a width limit, so the label's ellipsis
+never applied and a long label was cut at its key's edge (“Context me” at
+200%). The label now takes the column the number leaves and ends in an
+ellipsis (`fdfd6b37`). The two long built-in titles have short labels,
+“Context” for Shift+F10 and “Cmd hist” for Alt+F8 beside “File hist” and
+“Dir hist”, and each key's accessible name and tooltip give the whole
+command and its key with any unavailability reason (“Shift+F10: Context
+menu”). The first native run read the Shift layer's empty keys as
+“Avalonia.Controls.Grid”; the earlier receipt had read them as “Button”.
+Such a key is now named for its key, “Shift+F1: no command” (`038bbc45`).
+The new `KeyBarTests` case binds Ctrl+F2 to a command without a short label
+in a 640-unit window and requires every label to end inside its key, the long
+one trimmed, the whole title as the key's name and tooltip, and named empty
+keys; with the old layout that label ended at 443 units in a 53-unit key.
+The complete Windows Release App suite on `038bbc45` passed 2,586 tests with 71 platform skips and no failures using 16 workers. The new [label runner](../../tests/FileCat.NativeAcceptance/linux-atspi-keybar-label.py)
+held a physical Shift on the Git-built `038bbc45` Ubuntu VMware app (DLL
+SHA-256 `fd81575ace8b743a60f28ae4684b4280ff5d32390fb4d1603b737a29808277b7`)
+at GNOME 200% on a 1920 × 1200 desktop: AT-SPI read F10 as “Context menu”
+with the help “Shift+F10: Context menu” and every other key named, and
+release restored the normal layer with the source hash and empty target
+exact. That 960-unit-wide window leaves each key about 74 units, so the
+Shift layer's labels end in visible ellipses ([capture](evidence/ubuntu-keybar-label-200-038bbc45.png),
+[receipt](evidence/ac-s2-keybar-label-ubuntu-200.json)); the whole names are
+in the tooltip and accessible name. The tooltip was not hovered natively;
+AT-SPI read the same bound text as help.
+
 <a id="evidence-page-engine-fault-20261027"></a>
 **27 October 2026, native Page replacement-engine rollback
 (AC-S2-052-PAGE-ENGINE; FCUX-052 accepted):** A tracked

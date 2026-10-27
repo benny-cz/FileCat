@@ -101,6 +101,11 @@ Create `<report-stem>.resume` after capturing the upper review. It then focuses
 the full-path detail and waits at `<report-stem>.detail.ready`; create
 `<report-stem>.detail.resume` after capturing its lower layout. Both waits are
 bounded to 120 seconds and all marker files are removed when the run ends.
+`linux-atspi-keybar-label.py` holds a physical Shift in the same setup and
+reads the twelve key-bar buttons from AT-SPI: F10 must be named "Context menu"
+with the help "Shift+F10: Context menu", and a key without a command must be
+named for its key. It captures the window beside the report (`<report>.png`)
+for the visible labels, preserves fixture bytes and kills only its own app.
 `linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
 physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
 Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly

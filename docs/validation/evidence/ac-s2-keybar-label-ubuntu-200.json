@@ -1,0 +1,232 @@
+{
+  "passed": true,
+  "appDllSha256": "fd81575ace8b743a60f28ae4684b4280ff5d32390fb4d1603b737a29808277b7",
+  "displayScale": 2.0,
+  "fixture": "/home/benny/FileCatValidation/KeyBarLabelFixture/083a736b76b44378ae81dba615d5c3c3",
+  "sourceSha256": "2e724f5ce2c1b3c6af629777f94a41ca4cdfb19c93a9c7074535e5b1173ff747",
+  "input": "physical uinput Shift hold",
+  "capture": "/home/benny/FileCatValidation/keybar-label-038bbc45.png",
+  "normal": [
+    {
+      "x": 140,
+      "width": 144,
+      "name": "Keyboard reference",
+      "help": "F1: Keyboard reference"
+    },
+    {
+      "x": 288,
+      "width": 144,
+      "name": "Rename in place",
+      "help": "F2: Rename in place\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 436,
+      "width": 144,
+      "name": "View",
+      "help": "F3: View\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 584,
+      "width": 144,
+      "name": "Edit",
+      "help": "F4: Edit\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 732,
+      "width": 144,
+      "name": "Copy\u2026",
+      "help": "F5: Copy\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 880,
+      "width": 144,
+      "name": "Move / rename\u2026",
+      "help": "F6: Move / rename\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1028,
+      "width": 144,
+      "name": "Create folder\u2026",
+      "help": "F7: Create folder\u2026"
+    },
+    {
+      "x": 1176,
+      "width": 144,
+      "name": "Delete\u2026",
+      "help": "F8: Delete\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1324,
+      "width": 144,
+      "name": "User commands\u2026",
+      "help": "F9: User commands\u2026"
+    },
+    {
+      "x": 1472,
+      "width": 144,
+      "name": "Menu bar",
+      "help": "F10: Menu bar"
+    },
+    {
+      "x": 1620,
+      "width": 144,
+      "name": "Maximize or restore panel",
+      "help": "F11: Maximize or restore panel"
+    },
+    {
+      "x": 1768,
+      "width": 144,
+      "name": "Focus panel\u2026",
+      "help": "F12: Focus panel\u2026"
+    }
+  ],
+  "shift": [
+    {
+      "x": 140,
+      "width": 144,
+      "name": "Shift+F1: no command",
+      "help": ""
+    },
+    {
+      "x": 288,
+      "width": 144,
+      "name": "Shift+F2: no command",
+      "help": ""
+    },
+    {
+      "x": 436,
+      "width": 144,
+      "name": "Reveal in file manager",
+      "help": "Shift+F3: Reveal in file manager"
+    },
+    {
+      "x": 584,
+      "width": 144,
+      "name": "Edit new file\u2026",
+      "help": "Shift+F4: Edit new file\u2026"
+    },
+    {
+      "x": 732,
+      "width": 144,
+      "name": "Duplicate here\u2026",
+      "help": "Shift+F5: Duplicate here\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 880,
+      "width": 144,
+      "name": "Rename in place",
+      "help": "Shift+F6: Rename in place\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1028,
+      "width": 144,
+      "name": "Go to path\u2026",
+      "help": "Shift+F7: Go to path\u2026"
+    },
+    {
+      "x": 1176,
+      "width": 144,
+      "name": "Delete permanently\u2026",
+      "help": "Shift+F8: Delete permanently\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1324,
+      "width": 144,
+      "name": "Shift+F9: no command",
+      "help": ""
+    },
+    {
+      "x": 1472,
+      "width": 144,
+      "name": "Context menu",
+      "help": "Shift+F10: Context menu"
+    },
+    {
+      "x": 1620,
+      "width": 144,
+      "name": "Shift+F11: no command",
+      "help": ""
+    },
+    {
+      "x": 1768,
+      "width": 144,
+      "name": "Choose target panel\u2026",
+      "help": "Shift+F12: Choose target panel\u2026"
+    }
+  ],
+  "captureSize": "1786 1062",
+  "afterRelease": [
+    {
+      "x": 140,
+      "width": 144,
+      "name": "Keyboard reference",
+      "help": "F1: Keyboard reference"
+    },
+    {
+      "x": 288,
+      "width": 144,
+      "name": "Rename in place",
+      "help": "F2: Rename in place\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 436,
+      "width": 144,
+      "name": "View",
+      "help": "F3: View\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 584,
+      "width": 144,
+      "name": "Edit",
+      "help": "F4: Edit\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 732,
+      "width": 144,
+      "name": "Copy\u2026",
+      "help": "F5: Copy\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 880,
+      "width": 144,
+      "name": "Move / rename\u2026",
+      "help": "F6: Move / rename\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1028,
+      "width": 144,
+      "name": "Create folder\u2026",
+      "help": "F7: Create folder\u2026"
+    },
+    {
+      "x": 1176,
+      "width": 144,
+      "name": "Delete\u2026",
+      "help": "F8: Delete\u2026\nUnavailable here: The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+    },
+    {
+      "x": 1324,
+      "width": 144,
+      "name": "User commands\u2026",
+      "help": "F9: User commands\u2026"
+    },
+    {
+      "x": 1472,
+      "width": 144,
+      "name": "Menu bar",
+      "help": "F10: Menu bar"
+    },
+    {
+      "x": 1620,
+      "width": 144,
+      "name": "Maximize or restore panel",
+      "help": "F11: Maximize or restore panel"
+    },
+    {
+      "x": 1768,
+      "width": 144,
+      "name": "Focus panel\u2026",
+      "help": "F12: Focus panel\u2026"
+    }
+  ]
+}
