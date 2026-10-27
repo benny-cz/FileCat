@@ -244,6 +244,10 @@
             <Button Content="Copy report" Click="OnCopyReport" />
             <Button Content="Save report…" Click="OnSaveReport" />
           </WrapPanel>
+          <TextBlock DockPanel.Dock="Top" Margin="8,0" Classes="small" TextWrapping="Wrap"
+                     Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).IssueAnnouncement}"
+                     AutomationProperties.AutomationId="operations-new-issue"
+                     AutomationProperties.LiveSetting="Polite" />
           <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}"
                    SelectedItem="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssue, Mode=TwoWay}" Classes="choices">
             <AutomationProperties.Name>Selected operation issues</AutomationProperties.Name>

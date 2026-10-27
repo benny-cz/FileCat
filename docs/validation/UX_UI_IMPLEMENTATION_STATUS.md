@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-operation-live-issue-implementation-20261027"></a>
+**27 October 2026, selected Operations issue announcement implementation:**
+The selected job now exposes a polite, visible live announcement only when
+new issues arrive while Details is open. It gives the new/total count and
+latest retained severity, message and path, or says when the retention limit
+prevents that detail. Selecting an existing job or reopening Details does not
+misreport old issues as new. The stable issue list and deliberate selection
+remain intact. Focused Release App tests, including the live-region naming
+check, passed 2/2 with `-m:16`. This is implementation and deterministic
+coverage for [AC-S2-015](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015); native
+screen-reader speech and issue-focus preservation remain required.
+
 <a id="evidence-operation-selection-20261027"></a>
 **27 October 2026, deliberate Operations history selection survives live refresh:**
 On exact Git `e7b448b7` in Windows 11 VMware (app DLL SHA-256

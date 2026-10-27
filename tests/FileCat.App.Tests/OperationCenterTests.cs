@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -264,6 +265,12 @@ public sealed class OperationCenterTests
             job.Decision!.Resolve(new Decision(DecisionAction.Skip));
             await Until(() => job.IssueCount == 1 && job.State == JobState.AwaitingDecision && center.SelectedIssues.Count == 1);
             var first = center.SelectedIssues[0];
+            Assert.Contains("New issue; 1 total", center.IssueAnnouncement);
+            Assert.Contains(first.AccessibleSummary, center.IssueAnnouncement);
+            var liveIssue = window.GetVisualDescendants().OfType<TextBlock>()
+                .Single(block => AutomationProperties.GetAutomationId(block) == "operations-new-issue");
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(liveIssue));
+            Assert.Equal(center.IssueAnnouncement, ControlAutomationPeer.CreatePeerForElement(liveIssue).GetName());
             issueList.SelectedItem = first;
             window.UpdateLayout();
             var issueRow = issueList.GetVisualDescendants().OfType<ListBoxItem>()
@@ -284,9 +291,13 @@ public sealed class OperationCenterTests
             Assert.Same(center.SelectedIssues, issueList.ItemsSource);
             Assert.Same(first, issueList.SelectedItem);
             Assert.Equal([NotifyCollectionChangedAction.Add], changes);
+            Assert.Contains("New issue; 2 total", center.IssueAnnouncement);
+            Assert.Contains(center.SelectedIssues[1].AccessibleSummary, center.IssueAnnouncement);
             center.IsOpen = false;
+            Assert.Empty(center.IssueAnnouncement);
             center.IsOpen = true;
             Assert.Equal(2, center.SelectedIssues.Count);
+            Assert.Empty(center.IssueAnnouncement);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

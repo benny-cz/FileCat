@@ -384,6 +384,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     private readonly HashSet<Job> _pendingChanges = [];
     private Job? _selectedIssueJob;
     private bool _issueRefreshQueued;
+    private int _lastAnnouncedIssueCount;
 
     private readonly Func<Location, string>? _display;
 
@@ -459,6 +460,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     [ObservableProperty] private InterruptedJobViewModel? _selectedInterrupted;
     [ObservableProperty] private JobIssue? _selectedIssue;
     [ObservableProperty] private string _issueSummary = string.Empty;
+    [ObservableProperty] private string _issueAnnouncement = string.Empty;
     [ObservableProperty] private JobViewModel? _primary;
     [ObservableProperty] private string _summary = string.Empty;
     [ObservableProperty] private bool _hasVisibleWork;
@@ -476,6 +478,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         SelectedIssue = null;
         _selectedIssueJob = value?.Job;
+        _lastAnnouncedIssueCount = value?.Job.IssueCount ?? 0;
+        IssueAnnouncement = string.Empty;
         SelectedIssues.Clear();
         ReconcileSelectedIssues();
     }
@@ -483,7 +487,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     /// <summary>Opening Details follows active work; selection inside an open drawer remains the user's choice.</summary>
     partial void OnIsOpenChanged(bool value)
     {
-        if (!value) return;
+        if (!value)
+        {
+            IssueAnnouncement = string.Empty;
+            return;
+        }
+        _lastAnnouncedIssueCount = Selected?.Job.IssueCount ?? 0;
         UpdateSummary();
         if (Selected is null)
             Selected = Primary ?? Jobs.FirstOrDefault();
@@ -520,6 +529,21 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         var next = job.ReadIssues(SelectedIssues.Count, IssueBatchSize);
         foreach (var issue in next) SelectedIssues.Add(issue);
         UpdateIssueSummary();
+        if (job.IssueCount > _lastAnnouncedIssueCount)
+        {
+            int added = job.IssueCount - _lastAnnouncedIssueCount;
+            _lastAnnouncedIssueCount = job.IssueCount;
+            if (IsOpen)
+            {
+                var totals = job.IssueTotals;
+                string label = added == 1 ? "New issue" : $"{added:N0} new issues";
+                string detail = totals.Omitted > 0
+                    ? "Latest details exceed the retention limit; see the issue count."
+                    : job.ReadIssues(job.IssueCount - 1, 1).FirstOrDefault()?.AccessibleSummary
+                        ?? "Issue details are unavailable.";
+                IssueAnnouncement = $"{label}; {totals.Total:N0} total. Latest: {detail}";
+            }
+        }
         if (SelectedIssues.Count < job.IssueCount) QueueIssueRefresh();
     }
 
