@@ -28,6 +28,15 @@ audit_ids = set(re.findall(r'(?m)^<a id="(fcux-[0-9]{3})"', AUDIT))
 audit_ids = {item.upper() for item in audit_ids}
 assert len(audit_ids) == 76, f"Expected 76 stable audit IDs, got {len(audit_ids)}"
 
+accepted_section = LEDGER.split("## Accepted cases with durable scope", 1)[1].split(
+    "## S2 — shared desktop boundaries", 1)[0].strip().splitlines()
+accepted_table = accepted_section[next(index for index, line in enumerate(accepted_section)
+    if line.startswith("| Stable case |")):]
+assert len(accepted_table) > 2, "The accepted-case table is empty"
+assert all(line.startswith("|") and line.count("|") == 7 for line in accepted_table), (
+    "The accepted-case table has a blank/broken row or a different number of fields"
+)
+
 lines = [line for line in LEDGER.splitlines() if re.match(r"^\| <a id=", line)]
 assert lines, "The current ledger lost its finite scenario rows"
 anchors: set[str] = set()
