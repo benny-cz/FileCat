@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/PageEngineFault/22c6cd66f93f43ae9e6b6e74014c843a",
+  "platform": "Linux WebKitGTK",
+  "oldPageFound": true,
+  "replacementReadCalls": 4,
+  "failureReadCall": 4,
+  "oldPageFoundAfterFailure": true,
+  "newPageFoundAfterFailure": false,
+  "failureBanner": "Refresh failed: The new page could not be drawn: Not served: only the page and the files in its folder are. The previous view remains available.",
+  "pageModeRetained": true
+}

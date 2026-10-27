@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\PageEngineFault\\c00b8c150c614af287dc1dadfda85e18",
+  "platform": "Windows WebView2",
+  "appDllSha256": "c8bdbcda164add211b632067aee896d24d336517a3a8034d6f5bce43a3264582",
+  "harnessDllSha256": "ac51c8182c8d39fb07f9a45ca7fdd8ee33a46832ae5644845ce4d3e7bb29631e",
+  "oldPageFound": true,
+  "replacementReadCalls": 4,
+  "failureReadCall": 4,
+  "oldPageFoundAfterFailure": true,
+  "newPageFoundAfterFailure": false,
+  "failureBanner": "Refresh failed: The new page could not be drawn: the browser could not complete the page request. The previous view remains available.",
+  "pageModeRetained": true,
+  "cleanupStage": "deferred until helper exit",
+  "cleanupError": "IOException: The process cannot access the file \u0027declarative_performance_observer.db\u0027 because it is being used by another process."
+}

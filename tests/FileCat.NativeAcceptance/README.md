@@ -2324,5 +2324,22 @@ readable stale/failure state, then restores it and verifies a rendered retry.
 Stale Page search is intentionally guarded until Refresh; this runner checks
 the retained Page mode and stale explanation instead of expecting Find to
 search stale content. The receipt is
-`docs/validation/evidence/ac-s2-052-ubuntu-page-refresh.json`. An engine
-load failure after replacement starts remains a separate ledger boundary.
+`docs/validation/evidence/ac-s2-052-ubuntu-page-refresh.json`. Engine load
+failure after replacement starts has its own accepted child in the ledger.
+
+`PageEngineFaultHarness` is a locked, isolated native acceptance executable
+for the replacement-engine boundary. It opens an in-memory Markdown Page and
+fails the fourth replacement-source read, after the viewer's prefix and
+preflight reads, when the native browser requests the replacement. It requires
+the old rendered token and Page mode to survive, rejects the new token and
+records the failure banner. Build its project in
+`tests/FileCat.NativeAcceptance/PageEngineFaultHarness` with 16 workers, then
+run its executable in the logged-in Windows desktop with a fresh report under
+`%LOCALAPPDATA%\FileCatValidation`, or use
+`linux-page-engine-fault-launch.py` in the logged-in Ubuntu guest with a fresh
+report under `~/FileCatValidation`. The two accepted receipts are
+`docs/validation/evidence/ac-s2-052-win-webview2-engine-fault.json` and
+`docs/validation/evidence/ac-s2-052-ubuntu-native-engine-fault.json`. The
+Windows browser may briefly retain its private test profile after viewer
+close; the harness bounds immediate cleanup and reports its exact path for
+removal after the helper exits.

@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-page-engine-fault-20261027"></a>
+**27 October 2026, native Page replacement-engine rollback
+(AC-S2-052-PAGE-ENGINE; FCUX-052 accepted):** A tracked
+[controlled-source harness](../../tests/FileCat.NativeAcceptance/PageEngineFaultHarness/Program.cs)
+allowed the viewer's prefix and page preflight reads, then failed the fourth
+read made by the native browser's page request. The Git-built Ubuntu VMware
+WebKitGTK run on `72fa38df` (app DLL SHA-256
+`2519c19fe077afec709448ed1286164e846c97742fe64a14c8169ad9c5d6e30b`)
+and the Windows VMware WebView2 run on `ea12e4e7` (app DLL SHA-256
+`c8bdbcda164add211b632067aee896d24d336517a3a8034d6f5bce43a3264582`)
+both found the old rendered token after failure, did not find the replacement
+token, retained Page mode, and showed a failure banner. [Ubuntu receipt](evidence/ac-s2-052-ubuntu-native-engine-fault.json)
+and [WebView2 receipt](evidence/ac-s2-052-win-webview2-engine-fault.json)
+record the results. The WebView2 run exposed the unhelpful literal “Unknown”
+from the engine. The focused regression failed before a viewer-level fallback
+to “the browser could not complete the page request,” then all eight
+`ViewerRefreshTests` passed on Windows Release with 16 workers. The changed
+banner passed the native WebView2 rerun. Viewer close and service disposal
+returned; Windows WebView2 held a private cache file during immediate
+test-harness cleanup, so its exact resolved test-owned profile was removed
+after the helper exited, and its absence was verified. This completes
+[AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052) by risk-based native engine
+and provider combinations. Final CI remains a separate audit-wide gate.
+
 <a id="evidence-page-viewer-refresh-20261027"></a>
 **27 October 2026, native WebKit Markdown Page Refresh
 (AC-S2-052-PAGE-WEBKIT):** The Git-built Ubuntu VMware app DLL SHA-256
@@ -13,10 +37,10 @@ Refresh render the new token; the source SHA-256 and empty target remained
 exact. The first diagnostic wrongly expected Find to search the deliberately
 guarded stale Page. The corrected [native receipt](evidence/ac-s2-052-ubuntu-page-refresh.json)
 and [runner](../../tests/FileCat.NativeAcceptance/linux-atspi-page-viewer-refresh.py)
-check the actual stale-search contract and retry. The native engine did not
-fail during replacement loading: [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
-still requires that rollback boundary, including WebView2 or a justified
-equivalent. Final CI remains separate.
+check the actual stale-search contract and retry. This checkpoint did not
+exercise replacement-engine failure; the later
+[native engine result](#evidence-page-engine-fault-20261027) completes that
+boundary. Final CI remains separate.
 
 <a id="evidence-remote-viewer-refresh-20261027"></a>
 **27 October 2026, native delayed SFTP Text viewer Refresh
@@ -35,9 +59,11 @@ record the route. Earlier bounded probes used “Connect once”; a second SFTP
 connection then waited for another host-key decision. The successful route
 trusted that verified key only in the disposable test profile. The
 [late-reopen/close regression](../../tests/FileCat.App.Tests/ViewerRefreshTests.cs)
-covers safe cancellation and source retirement. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
-now retains only native Page engine load-failure rollback, including the WebView2 boundary or a
-justified equivalent engine route. Final CI remains separate.
+covers safe cancellation and source retirement. At this checkpoint,
+[AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052) retained Page engine
+load-failure rollback; the later
+[native engine result](#evidence-page-engine-fault-20261027) closes it. Final
+CI remains separate.
 
 <a id="evidence-archive-viewer-refresh-20261027"></a>
 **27 October 2026, native read-only archive viewer Refresh
@@ -53,8 +79,10 @@ exact new SHA-256 and the destination stayed empty. The first native run on
 failed before the correction, all eight `ViewerRefreshTests` then passed with
 16 workers, and the [final native receipt](evidence/ac-s2-052-ubuntu-archive-refresh.json)
 and [runner](../../tests/FileCat.NativeAcceptance/linux-atspi-archive-viewer-refresh.py)
-passed once on the corrected build. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
-still requires native Page rollback; Quick View
+passed once on the corrected build. At this checkpoint,
+[AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052) still required native Page
+rollback; the later [engine result](#evidence-page-engine-fault-20261027)
+closes it. Quick View
 and picture zoom are independent AC-S2-053 and AC-S2-055 rows. Final CI is
 separate.
 
