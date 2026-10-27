@@ -11,13 +11,9 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  Settings,
   command availability, rename, transfer validation, operations, Find,
-  scrolling, provider context, Markdown and viewer refresh.
+  scrolling, provider context, Markdown, viewer refresh and Settings wording.
   Each table row specifies one bounded consequential route.
-- [AC-S2-036](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-036) and
-  [AC-S2-037](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-037): separate editable Settings
-  round trip and command-availability parity.
 
 ## S3 and final gate
 

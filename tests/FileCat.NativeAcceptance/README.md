@@ -2115,3 +2115,12 @@ speech, exact Copy path, Open here/new tab, cancel/current-list focus and
 unchanged local/remote files; it restores the prior clipboard, closes only
 its owned app/Orca and deletes only its fixture. The 27 October direct receipt
 is `docs/validation/evidence/ac-s2-032-ubuntu.json`.
+
+`linux-atspi-settings-structured.py APP REPORT.json KEY_HELPER` runs the
+editable Settings route at Ubuntu GNOME 200%, with a fresh test-owned data
+profile, a spaced executable path and a program-run marker. It checks the
+user-command labels and Tab-to-Browse route, nonexecuting argument preview,
+filter exclusion, association priority, Advanced text round trip and
+Cancel/reopen restoration. It preserves its sample bytes, removes only its
+fixture and never runs the configured tool. The 27 October direct receipt is
+`docs/validation/evidence/ac-s2-036-ubuntu.json`.

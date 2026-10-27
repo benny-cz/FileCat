@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-settings-structured-20261027"></a>
+**27 October 2026, native enlarged structured Settings (AC-S2-036-NATIVE):**
+In the isolated Ubuntu VMware guest at 1920 × 1200 physical/200%, the
+Git-built `34fee315` app had DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`.
+The [tracked native Settings runner](../../tests/FileCat.NativeAcceptance/linux-atspi-settings-structured.py)
+made only a test-owned draft. It added a named command with a spaced
+executable path, checked field labels and physical Tab to its Browse
+control, and previewed the two distinct arguments including a spaced sample
+filename. The executable would have written a marker if launched; no marker
+appeared. A saved filter used `|` exclusion syntax. For the same filename,
+an overlapping broad association won first, then a specific association won
+after Move up; the nonexecuting first-match preview reported each result.
+Advanced text contained both ordered definitions, and returning to the
+structured editor retained the specific winner. Cancel/reopen showed none
+of the draft command, filter or associations. The first-run default
+settings file contained no draft markers; the sample hash stayed exact.
+The [direct native receipt](evidence/ac-s2-036-ubuntu.json) passed. Earlier
+[protected-profile](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-036-protected) and
+[failed-import](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-036-draft) component cases
+retain their narrower independent scopes, and the Windows picker evidence
+remains on its own earlier build. This closes the editable native sibling
+without reopening passed cases. Final audit CI is separate.
+
 <a id="evidence-remote-breadcrumb-20261027"></a>
 **27 October 2026, native remote breadcrumb menu (AC-S2-032):** On the
 isolated Ubuntu VMware desktop at 1920 × 1200 physical/200% scale, the

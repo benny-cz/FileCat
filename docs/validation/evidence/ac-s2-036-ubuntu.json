@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "program": "/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool",
+  "sample": "/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/source/secret file.txt",
+  "display": "1920x1200@59.950, 200%",
+  "settingsBefore": null,
+  "filterList": [
+    "1. native-exclusion  \u2014  *.txt|secret*.txt",
+    "1. native-exclusion  \u2014  *.txt|secret*.txt"
+  ],
+  "commandLabels": [
+    "Selected command or menu name",
+    "Selected command program",
+    "Selected command arguments",
+    "Command preview file"
+  ],
+  "browseFocused": true,
+  "commandPreview": "Sample invocation; no program or list file was created.\nProgram: /home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\nArguments (2):\n1: \"--view\"\n2: \"/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/source/secret file.txt\"\n",
+  "broadPreview": "secret file.txt \u00b7 view: association 1 wins (*.txt).\nProgram: /home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\nArguments: {file}\nNo program was started.",
+  "specificPreview": "secret file.txt \u00b7 view: association 1 wins (secret*.txt).\nProgram: /home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\nArguments: {file}\nNo program was started.",
+  "rawRoundTrip": "secret*.txt | view | \"/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\" | {file} | name=Specific\n*.txt | view | \"/home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\" | {file} | name=Broad",
+  "afterRawPreview": "secret file.txt \u00b7 view: association 1 wins (secret*.txt).\nProgram: /home/benny/FileCatValidation/StructuredSettings/484c14d613274b57b702e13ab9586d19/safe preview tool\nArguments: {file}\nNo program was started.",
+  "specificStillFirst": true,
+  "settingsAfterCancel": "9ffa871672680f917d2ad7958fe897c712eb99ad1205500dc6c4064331e17902",
+  "savedDraftAbsent": true,
+  "commandRestored": true,
+  "associationsRestored": true,
+  "filterRestored": true,
+  "sampleExact": true,
+  "programNotRun": true
+}
