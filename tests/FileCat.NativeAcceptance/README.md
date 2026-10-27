@@ -2394,5 +2394,16 @@ instruction and footer bounds, retains invalid hex with an inline reason,
 uses native pointer Go to reach exact Hex offset `0x10`, then physical Enter
 to reach line 900 and Escape to cancel a new draft. It checks the source hash
 and empty destination, then removes its own fixture. The accepted local
-receipt is `docs/validation/evidence/ac-s2-054-win-local.json`; native
-nonseekable-source acceptance is a separate open ledger boundary.
+receipt is `docs/validation/evidence/ac-s2-054-win-local.json`; the native
+nonseekable-source acceptance passed separately in the following route.
+
+`GoToNonseekHarness` is an independently built native Viewer executable with
+an instrumented 1.08 MiB source declaring `CanSeek=false`. Build its locked
+project in `tests/FileCat.NativeAcceptance/GoToNonseekHarness` with 16 workers
+from a Git checkout, then run `win-nvda-viewer-go-to-nonseek.ps1 -HarnessPath
+HARNESS.exe -NvdaPath SIGNED_NVDA.exe -ReportPath FRESH.json` in the logged-in
+Windows VMware desktop. The runner checks `L2` remains in the 480 × 300
+prompt, Go is disabled, the visible/field-associated reason and actual NVDA
+speech name the seekability limit, and the source read count does not advance
+into a line scan. It verifies the source hash, target and owned cleanup. The
+accepted direct receipt is `docs/validation/evidence/ac-s2-054-win-nonseek.json`.

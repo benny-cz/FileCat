@@ -1,0 +1,38 @@
+﻿{
+    "passed":  true,
+    "stage":  "complete",
+    "gitHead":  "115b4d0ce2a80b344a562e73af0cd00a408bea93",
+    "nvdaVersion":  "2026.2",
+    "windowBounds":  [
+                         216,
+                         239,
+                         480,
+                         300
+                     ],
+    "readsBefore":  {
+                        "bytes":  65536,
+                        "calls":  1
+                    },
+    "reason":  "Line navigation needs a seekable source; this provider cannot scan to a line.",
+    "draft":  "L2",
+    "speech":  [
+                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Line navigation needs a seekable source; this provider cannot scan to a line.\u0027]"
+               ],
+    "readsAfter":  {
+                       "bytes":  65536,
+                       "calls":  1
+                   },
+    "promptRetained":  true,
+    "spokenReason":  true,
+    "harness":  {
+                    "sourceCanSeek":  false,
+                    "sourceLength":  1080000,
+                    "readCallsAtClose":  1,
+                    "bytesReadAtClose":  65536,
+                    "sourceSha256":  "39653322313c34dac4db937cadc4a734b73d80ced978c7696f400ef0a5947484",
+                    "sourceUnchanged":  true,
+                    "targetEmpty":  true,
+                    "appDllSha256":  "a93f792edee5735b801b23ecb7a5b4294f7cfecb2e4ab672ac993c7f415dd519",
+                    "harnessDllSha256":  "43783ca9e1887824e1ea433aa9794bcec5a591e08e640f378f9b6ac334bd4bbf"
+                }
+}
