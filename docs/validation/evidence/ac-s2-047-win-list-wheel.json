@@ -1,0 +1,62 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "Source":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FractionalWheelFixture\\cf9c9d69c63243b6ab91c442caa5217e\\source",
+    "States":  [
+                   {
+                       "Name":  "ten fractional downward events",
+                       "Delta":  -12,
+                       "Events":  10,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "one whole downward event",
+                       "Delta":  -120,
+                       "Events":  1,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "ten fractional upward events",
+                       "Delta":  12,
+                       "Events":  10,
+                       "TopRow":  0
+                   },
+                   {
+                       "Name":  "conventional downward detent",
+                       "Delta":  -120,
+                       "Events":  1,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "conventional upward detent",
+                       "Delta":  120,
+                       "Events":  1,
+                       "TopRow":  0
+                   },
+                   {
+                       "Name":  "fractional input at list end",
+                       "Delta":  -12,
+                       "Events":  10,
+                       "TopRow":  176
+                   },
+                   {
+                       "Name":  "reverse after list-end clamp",
+                       "Delta":  12,
+                       "Events":  10,
+                       "TopRow":  173
+                   },
+                   {
+                       "Name":  "fractional input at list start",
+                       "Delta":  12,
+                       "Events":  10,
+                       "TopRow":  0
+                   },
+                   {
+                       "Name":  "reverse after list-start clamp",
+                       "Delta":  -12,
+                       "Events":  10,
+                       "TopRow":  3
+                   }
+               ],
+    "Error":  null
+}

@@ -1,5 +1,13 @@
 # Native Windows acceptance runner
 
+`win-ax-fractional-list-wheel.ps1 -AppPath <Git-built FileCat.exe>
+-ReportPath <fresh guest JSON>` sends native Win32 12-unit fractional and
+120-unit conventional wheel messages over an owned 200-file panel. It reads
+the list's UI Automation scroll position to compare ten fractional events with
+one whole event, reversal and both end clamps, then verifies unchanged source
+hashes and an empty destination. Its app, private profile and report must be
+inside the Windows guest's `FileCatValidation` directory.
+
 `linux-atspi-find-stop-held.py APP REPORT.json --speech` runs a native Ubuntu
 Find against an owned local fixture. A path-filtered, bounded `strace` delay
 holds the child-directory read long enough to activate Stop; the runner then
