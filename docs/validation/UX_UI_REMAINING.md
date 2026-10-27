@@ -15,8 +15,6 @@ accepted equivalent routes stay in
   workspace/listing, panels,
   Settings/rename, Find, scrolling, provider context and viewer refresh.
   Each table row specifies one bounded consequential route.
-- [AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019): active Undo lifetime
-  and retained result when its original finished history row is removed.
 - [AC-S2-036](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-036) and
   [AC-S2-037](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-037): separate editable Settings
   round trip and command-availability parity.

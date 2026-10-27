@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-clear-history-active-20261027"></a>
+**27 October 2026, native active Undo survives approved history removal:**
+The Windows 11 VMware guest used exact Git `e7b448b7` (app DLL SHA-256
+`19E179E5FFFFF35A64B463791E3A863381ACF71F1D957DC394497B02D4A621B3`)
+and the [tracked native runner](../../tests/FileCat.NativeAcceptance/win-ax-undo-active-close.ps1)
+with **ClearOriginalHistory** on a 5,000-file test-owned Move. Once the
+inverse was admitted, the Clear finished history review explicitly said
+that an Undo attempt was being reviewed or run. Approving it removed the
+original finished row while the inverse remained active. All 5,000 files
+returned to source with exact per-file content, the target emptied, and
+Undo report remained available. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-019-active-e7b448b7-r3.json` (`Passed: true`,
+`Error: null`). The focused Release App run on this product change passed
+17/17 with one platform skip, including the deterministic
+[duplicate-admission and queued-inverse regression](../../tests/FileCat.App.Tests/UndoLifecycleUiTests.cs).
+The first native probe toggled an already-open Details drawer closed; `r2`
+observed all product conditions but had a post-assertion driver `else`
+error and is **invalid as a passing receipt**. The corrected `r3` passed
+cleanly; this is the bounded stopping condition for
+[AC-S2-019-ACTIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019-active) and closes
+[AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019) with its separate layout
+and spoken Keep receipts. Audit-wide CI remains separate.
+
 <a id="evidence-clear-history-spoken-20261027"></a>
 **27 October 2026, narrow Windows spoken Clear finished history:**
 The Windows 11 VMware guest ran exact Git `e7b448b7` (app DLL SHA-256
@@ -21,7 +44,8 @@ attempted to set UIA focus on a list that already received initial dialog
 focus. These are bounded driver corrections; `r4` satisfies the spoken
 Keep/retention stop condition. This accepts only
 [AC-S2-019-KEEP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019-keep). The separate
-active-inverse lifetime after approved history removal remains open.
+active-inverse lifetime is accepted in the later
+[receipt above](#evidence-clear-history-active-20261027).
 
 <a id="evidence-operation-focus-running-20261027"></a>
 **27 October 2026, native Operations Details selects the new Running job:**

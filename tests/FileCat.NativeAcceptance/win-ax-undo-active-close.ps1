@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [ValidateRange(100, 20000)][int]$FileCount = 5000,
-    [ValidateSet('KeepCancelReport', 'StopExitRestart')][string]$Action = 'KeepCancelReport'
+    [ValidateSet('KeepCancelReport', 'StopExitRestart', 'ClearOriginalHistory')][string]$Action = 'KeepCancelReport'
 )
 
 # Interactive Windows VM only. The fixture, profile and report must stay below
@@ -120,6 +120,30 @@ try {
     Await { TextContains $window "$formattedCount recorded inverse actions" } 'complete inverse review' 60 | Out-Null
     $approval = Await { Button $window 'Run these inverse actions' } 'inverse approval'
     $approval.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ($Action -eq 'ClearOriginalHistory') {
+        $clearLabel = 'Clear finished history' + [char]0x2026
+        $result.DrawerOpenBefore = [bool](Button $window $clearLabel)
+        if (!$result.DrawerOpenBefore) { ClickButton $window 'Details (Ctrl+J)' }
+        $clear = Await { Button $window $clearLabel } 'Clear finished history during active inverse' 30
+        if (!(TextContains $window 'Undo')) { throw 'Active inverse disappeared before history review.' }
+        $clear.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Await { Button $window 'Keep history' } 'active-inverse history decision' 30 | Out-Null
+        $result.ClearReviewActive = TextContains $window 'Undo attempt is being reviewed or run'
+        if (!$result.ClearReviewActive) { throw 'History review did not disclose the admitted inverse.' }
+        ClickButton $window 'Clear finished history'
+        Await { !(Button $window 'Keep history') } 'approved history removal' 30 | Out-Null
+        $result.ActiveInverseAfterClear = TextContains $window 'Undo'
+        $result.OriginalRowRemoved = !(Button $window $clearLabel)
+        Await { (FolderCount $source) -eq $FileCount -and
+            (FolderCount $target) -eq 0 -and (Button $window 'Undo report') } 'exact inverse and retained report after original history removal' 240 | Out-Null
+        Assert-SplitBytes
+        $result.Restored = FolderCount $source
+        $result.ReportAfter = [bool](Button $window 'Undo report')
+        $result.Passed = $result.ClearReviewActive -and $result.ActiveInverseAfterClear -and
+            $result.OriginalRowRemoved -and $result.ReportAfter -and
+            $result.Restored -eq $FileCount -and (FolderCount $target) -eq 0
+    }
+    else {
     if (!$process.CloseMainWindow()) { throw 'The owned FileCat close request was refused.' }
     $keep = Await {
         if (TextContains $window 'Closing FileCat stops these operations') {
@@ -195,19 +219,21 @@ try {
         $result.OutcomeLines = $lines.Count
         $result.Passed = $true
     }
+    }
 }
 catch {
+    $result.Passed = $false
     $result.Error = $_ | Out-String
     try {
         if ($window) {
             $result.ObservedText = @((Snapshot $window) | Where-Object {
                 $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
                 $_.Current.Name.Length -gt 0
-            } | Select-Object -First 24 | ForEach-Object { $_.Current.Name })
+            } | Select-Object -Last 75 | ForEach-Object { $_.Current.Name })
             $result.ObservedButtons = @((Snapshot $window) | Where-Object {
                 $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
                 $_.Current.Name.Length -gt 0
-            } | Select-Object -First 30 | ForEach-Object { $_.Current.Name })
+            } | Select-Object -Last 75 | ForEach-Object { $_.Current.Name })
         }
     } catch { }
 }

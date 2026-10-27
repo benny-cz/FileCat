@@ -808,6 +808,14 @@ before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
 action to remain reachable, then cancels and verifies the moved bytes remain
 at their destination. Finish with `clipboard-stop`.
+For a separate test-owned 5,000-file Move, run
+`win-ax-undo-active-close.ps1 -AppPath GIT_BUILT_FILECAT_EXE -ReportPath
+FRESH_JSON -FileCount 5000 -Action ClearOriginalHistory`. It admits an Undo,
+approves removal of the original completed row while the inverse is active,
+and requires all 5,000 exact files restored with a retained inverse report.
+The runner records that the review disclosed active Undo, the original row
+disappeared and active work survived. Its other action modes retain their
+separate earlier scopes.
 `win-nvda-clear-history.ps1 -AppPath GIT_BUILT_FILECAT_EXE -NvdaPath
 SIGNED_PORTABLE_NVDA_EXE -ReportPath FRESH_JSON` checks a separate 900 × 650
 native Windows Move and unused Undo. It hears the Clear finished history
@@ -815,7 +823,7 @@ consequences and Keep history choice through NVDA, then requires Undo,
 Open report and exact moved bytes to remain after Keep. It admits only a
 signed NVDA and a Git app under the VM's `FileCatValidation` folder, and
 closes only its owned processes. The `e7b448b7` receipt accepts this exact
-route; active inverse lifetime after approved removal remains separate.
+route; active inverse lifetime is covered by the separate action above.
 `linux-atspi-clear-history.py` is a separate, currently diagnostic Ubuntu
 200% Orca route for the unused Undo consequence and Keep history retention.
 It runs an owned Move in the logged-in VM desktop. Its 27 October
