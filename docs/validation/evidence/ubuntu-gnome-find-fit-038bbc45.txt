@@ -1,0 +1,8 @@
+screen:   dimensions:    1920x1200 pixels (508x317 millimeters)
+monitor 0 0 960 600 workarea 0 0 960 600 scale 2
+0x01600013  0 84285  184  262  1786 1062 filecat-ubuntu2604 s — FileCat — benny
+0x0160002c  0 84285  134  212  1786 1062 filecat-ubuntu2604 Find files
+  Absolute upper-left X:  134
+  Absolute upper-left Y:  138
+  Width: 1786
+  Height: 1062

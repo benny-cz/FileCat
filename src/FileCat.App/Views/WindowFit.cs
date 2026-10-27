@@ -17,6 +17,10 @@ internal static class WindowFit
     /// </summary>
     internal static void Attach(Window window, Action<bool>? fitting = null)
     {
+        // GNOME fits a window to its screen itself (Find at 200% on a 1,920 by 1,200 display: 1,786 by 1,062 pixels),
+        // and an X11 window can report a placeholder position before the window manager places it, which a fit would
+        // pin to the corner.
+        if (OperatingSystem.IsLinux()) return;
         void Later() => Dispatcher.UIThread.Post(() => Fit(window, fitting), DispatcherPriority.Background);
         void ScreensChanged(object? sender, EventArgs e) => Later();
         window.Opened += (_, _) =>
