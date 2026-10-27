@@ -11,7 +11,8 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  provider context, Markdown, viewer refresh and Settings wording.
+  provider context (disconnected and keyboard item route only),
+  Markdown, viewer refresh and Settings wording.
   Each table row specifies one bounded consequential route.
 
 ## S3 and final gate

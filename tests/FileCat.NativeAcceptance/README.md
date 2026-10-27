@@ -2269,3 +2269,15 @@ limitation guidance, an empty Look in and disabled Find, and checks the owned
 source bytes. Its accepted receipt is
 `docs/validation/evidence/ac-s2-044-ubuntu-sftp-scope.json`; Registry,
 result-set and narrow completion are separate open ledger boundaries.
+
+`win-ax-background-archive.ps1 -AppPath FILECAT_EXE -ReportPath FRESH_JSON
+-Provider Archive -BackgroundOnly` runs in the logged-in Windows VM. The
+Git-built executable and fresh report must be inside the isolated validation
+root. It creates an owned read-only TAR, marks and focuses its member, then
+right-clicks list whitespace and checks location actions, disabled reasons,
+mark/focus retention and unchanged source/target. `-Provider Registry` uses
+an owned HKCU key with one child and removes that key after checking it.
+Without `-BackgroundOnly`, the runner also probes Shift+F10 and the Menu key
+on the focused item; that separate diagnostic has not passed on the Windows
+guest and is not part of the accepted background receipts. Existing Ubuntu
+physical Shift+F10 evidence is recorded separately in the acceptance ledger.

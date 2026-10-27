@@ -1,0 +1,78 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "ArchiveSha256":  "1386FC48215079F1DF43AD62AEEA32AE8C47D363D3C0CC3C6A500B5180F04E88",
+    "ArchiveList":  "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ArchiveBackgroundFixture\\50f360cec5704573a736cc751f6f66f7\\source\\owned.tar",
+    "Background":  [
+                       {
+                           "Name":  "Paste items or go to pasted path",
+                           "Enabled":  false,
+                           "Help":  "Paste items into a file-system folder."
+                       },
+                       {
+                           "Name":  "Create folder…",
+                           "Enabled":  false,
+                           "Help":  "FileCat reads this archive format but does not change it: copy (extract) members with F5; only ZIP archives are updated in place."
+                       },
+                       {
+                           "Name":  "Reread",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Copy location name",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "File",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Mark",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Navigate",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Commands",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Panels",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "View",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Tools",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Help",
+                           "Enabled":  true,
+                           "Help":  ""
+                       }
+                   ],
+    "ArchiveBackgroundPassed":  true,
+    "KeyboardItem":  [
+
+                     ],
+    "ShiftF10Opened":  false,
+    "MenuKeyOpened":  false,
+    "KeyboardDiagnostic":  null,
+    "MarkRetained":  true,
+    "FocusRetained":  true,
+    "Error":  null
+}

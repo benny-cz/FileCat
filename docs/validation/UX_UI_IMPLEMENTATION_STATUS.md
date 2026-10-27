@@ -1,5 +1,37 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-background-registry-20261027"></a>
+**27 October 2026, native Registry background menu
+(AC-S2-048-REGISTRY):** The same `5a4d3486` Git-built Windows VMware app
+(DLL SHA-256 `E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45`)
+opened a test-owned HKCU key with one child. Right-clicking its whitespace
+showed disabled Paste and Create folder with specific accessible help, enabled
+Reread and Copy location name, and no destructive item actions. The panel
+exposed the complete Registry identity; Escape retained the marked child's
+focus and selection. The key, source TAR sentinel and empty target remained
+exact, and the runner removed its test-owned Registry key after checking it.
+The [direct receipt](evidence/ac-s2-048-win-registry-background.json) and
+[native runner](../../tests/FileCat.NativeAcceptance/win-ax-background-archive.ps1)
+accept this sibling of the [archive route](#evidence-background-archive-20261027).
+Disconnected-provider and keyboard item-context boundaries remain open.
+
+<a id="evidence-background-archive-20261027"></a>
+**27 October 2026, native read-only archive background menu
+(AC-S2-048-ARCHIVE):** The Windows VMware app built from `5a4d3486`
+(DLL SHA-256 `E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45`)
+opened an owned read-only TAR. A native right-click below its marked and
+focused member displayed only location actions: Paste and Create folder were
+disabled with specific reasons, Reread and Copy location name were available,
+and no Delete, Move or Rename item action appeared. Escape preserved the mark
+and focus. The TAR SHA-256 and empty target stayed exact. The
+[direct passing receipt](evidence/ac-s2-048-win-archive-background.json) and
+[native runner](../../tests/FileCat.NativeAcceptance/win-ax-background-archive.ps1)
+accept only this archive whitespace route. Diagnostic attempts to open the
+keyboard item menu via Shift+F10 and the Menu key did not show an item popup;
+that distinct route and a native virtual/disconnected route remain in
+[AC-S2-048](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-048). The failed keyboard
+diagnostics do not invalidate the independently checked archive pointer route.
+
 <a id="evidence-precision-compare-20261027"></a>
 **27 October 2026, native binary Compare precision wheel
 (AC-S2-047-COMPARE):** On the same `5a4d3486` Git-built Windows VMware app

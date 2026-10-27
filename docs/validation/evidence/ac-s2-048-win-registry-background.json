@@ -1,0 +1,79 @@
+﻿{
+    "Passed":  true,
+    "Provider":  "Registry",
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "ArchiveSha256":  "8006521D15ADA98A6F94701CD15643667470BE594A7E787F6DC971942D968345",
+    "ArchiveList":  "Panel 1, source, Registry › HKCU\\Software\\FileCatValidation\\BackgroundContext\\5935fa06452042999d527a507c4c6255",
+    "Background":  [
+                       {
+                           "Name":  "Paste items or go to pasted path",
+                           "Enabled":  false,
+                           "Help":  "Paste items into a file-system folder."
+                       },
+                       {
+                           "Name":  "Create folder…",
+                           "Enabled":  false,
+                           "Help":  "Create a folder in a file-system, ZIP, SFTP, or device location."
+                       },
+                       {
+                           "Name":  "Reread",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Copy location name",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "File",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Mark",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Navigate",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Commands",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Panels",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "View",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Tools",
+                           "Enabled":  true,
+                           "Help":  ""
+                       },
+                       {
+                           "Name":  "Help",
+                           "Enabled":  true,
+                           "Help":  ""
+                       }
+                   ],
+    "ArchiveBackgroundPassed":  true,
+    "KeyboardItem":  [
+
+                     ],
+    "ShiftF10Opened":  false,
+    "MenuKeyOpened":  false,
+    "KeyboardDiagnostic":  null,
+    "MarkRetained":  true,
+    "FocusRetained":  true,
+    "Error":  null
+}
