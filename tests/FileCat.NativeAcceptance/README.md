@@ -2352,3 +2352,5 @@ checks explicit empty, damaged-picture and 64 MiB cap messages, a decoded
 image contained in the small pane, and unchanged source/empty target. The
 slow remote source and pointer-specific full-viewer action remain separate
 ledger boundaries; this local runner does not claim either.
+The accepted exact-build receipt is
+`docs/validation/evidence/ac-s2-053-ubuntu-local.json`.

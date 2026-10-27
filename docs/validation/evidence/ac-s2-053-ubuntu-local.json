@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "964c95014b9fed9f6a08a92901717e8c4f481e67",
+  "appDllSha256": "29003473e6bb514d303b3e614b515c5c7a1575bfd4c1dc5bf9866706b8382306",
+  "fixture": "/home/benny/FileCatValidation/QuickViewLocal/d2f096fb5b754b78a43c7527fd0f957d",
+  "sourceSha256": {
+    "c-broken.png": "92022488dfbd5df14e26de2f5ace45659446407f7d575c8dec6ff297517490a0",
+    "d-valid.png": "4a1c12f837a9f747f969861c409bdfd90c6f22ff708e688a20d581d42a31fbe4",
+    "b-normal.txt": "d89f43c2be811103a4d6995293fb3c28ce20f795d1f5d2bf408c9dd37c2a7314",
+    "a-empty.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e-oversize.png": "2cf71295f07b30cc262810d5a47b3543a9ae4b19fd6ddc53d06641e370ec6412"
+  },
+  "emptyMessage": "This file is empty. Open full viewer (F3) for its details.",
+  "fullViewerAction": "Open focused file in full viewer",
+  "quickViewName": "Quick view",
+  "splitterName": "Vertical panel boundary, first side's share of panels 1 and 2",
+  "quickViewBounds": [
+    888,
+    480,
+    516,
+    332
+  ],
+  "fullViewerBounds": [
+    904,
+    575,
+    297,
+    59
+  ],
+  "emptyViewerWindow": "a-empty.txt \u2014 FileCat Viewer",
+  "damagedNotice": "Picture preview failed: it is damaged or not a picture. Hex bytes are shown; Open full viewer (F3) for more detail.",
+  "pictureInfo": "4,025 bytes \u00b7 10/27/2026 6:27:57\u202fPM \u00b7 PNG, 1,024 \u00d7 768 (F3 shows the picture)",
+  "thumbnail": "Thumbnail",
+  "thumbnailBounds": [
+    1070,
+    674,
+    152,
+    114
+  ],
+  "oversizeNotice": "Automatic picture preview is limited to 64 MiB; this file is 64.0 MB. Hex bytes are shown. Open full viewer (F3) for more detail.",
+  "currentTextControl": "Text viewer",
+  "viewerWindow": "b-normal.txt \u2014 FileCat Viewer",
+  "sourceUnchanged": true,
+  "targetEmpty": true
+}
