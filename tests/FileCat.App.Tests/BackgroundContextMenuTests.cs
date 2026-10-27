@@ -25,6 +25,39 @@ public sealed class BackgroundContextMenuTests
     private static readonly FieldInfo OpenMenu = typeof(PanelView).GetField("_openItemMenu",
         BindingFlags.Static | BindingFlags.NonPublic)!;
 
+    [AvaloniaFact]
+    public async Task Keyboard_item_context_keeps_the_marked_virtual_item_instead_of_opening_location_actions()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var tab = vm.ActiveTab!;
+            tab.Navigate(new Location(Schemes.Computer, string.Empty));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.VisibleCount > 0);
+            var listing = tab.Listing;
+            listing.SetFocus(0);
+            listing.ToggleMark(0);
+            Assert.Single(listing.GetSelection());
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(panel => ReferenceEquals(panel.DataContext, vm.Workspace.ActivePanel));
+            view.FindControl<FileListControl>("List")!.Focus();
+
+            window.KeyPressQwerty(PhysicalKey.F10, RawInputModifiers.Shift);
+            var menu = Assert.IsType<ContextMenu>(OpenMenu.GetValue(null));
+            var titles = ((IEnumerable<object>)menu.ItemsSource!).OfType<MenuItem>()
+                .Select(item => item.Header as string).ToArray();
+            Assert.Contains("Open", titles);
+            Assert.DoesNotContain("Copy location name", titles);
+            Assert.DoesNotContain("Create folder…", titles);
+            Assert.Equal(0, listing.FocusedIndex);
+            Assert.Equal(1, listing.MarkedCount);
+            menu.Close();
+            Assert.Equal(0, listing.FocusedIndex);
+            Assert.Equal(1, listing.MarkedCount);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
