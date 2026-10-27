@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Local', 'Archive')][string]$Scope = 'Local'
+    [ValidateSet('Local', 'Archive', 'MixedRefusal')][string]$Scope = 'Local'
 )
 
 # Runs only in the disposable Windows VM. The host captures a screen while
@@ -119,7 +119,8 @@ else {
     try {
         $zip = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create, $false)
         try {
-            foreach ($name in $names) {
+            $archiveNames = if ($Scope -eq 'Archive') { $names } else { @($names[1]) }
+            foreach ($name in $archiveNames) {
                 $bytes = [Text.Encoding]::UTF8.GetBytes("FileCat external ZIP drag $name $fixture")
                 $sourceHashes[$name] = [BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace('-', '')
                 $entry = $zip.CreateEntry($name, [IO.Compression.CompressionLevel]::NoCompression)
@@ -132,6 +133,22 @@ else {
     }
     finally { $hasher.Dispose(); $stream.Dispose() }
     $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
+    if ($Scope -eq 'MixedRefusal') {
+        [IO.File]::WriteAllText((Join-Path $source $names[0]), 'FileCat external drag alpha ' + $fixture, [Text.Encoding]::UTF8)
+        $sourceHashes[$names[0]] = (Get-FileHash -LiteralPath (Join-Path $source $names[0]) -Algorithm SHA256).Hash
+        $now = [DateTime]::UtcNow.ToString('o')
+        $state = @{
+            SchemaVersion = 1
+            Sets = @(@{
+                Id = 'mixed-native-drag'; Name = 'Mixed native drag'; CreatedUtc = $now; ModifiedUtc = $now
+                Items = @(
+                    @{ Parent = @{ s = 'fs'; p = $source }; Name = $names[0]; Kind = 'File'; Size = (Get-Item (Join-Path $source $names[0])).Length },
+                    @{ Parent = @{ s = 'zip'; p = ''; c = @{ s = 'fs'; p = $archivePath } }; Name = $names[1]; Kind = 'File'; Size = $bytes.Length }
+                )
+            })
+        }
+        [IO.File]::WriteAllText((Join-Path $data 'working-sets.json'), ($state | ConvertTo-Json -Depth 10), [Text.Encoding]::UTF8)
+    }
 }
 $hoverReady = $report + '.HoverReady'
 $hoverCaptured = $report + '.HoverCaptured'
@@ -169,6 +186,21 @@ try {
         [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
         Wait-For { Get-Row $window $names[0] } 'first archive member' | Out-Null
     }
+    elseif ($Scope -eq 'MixedRefusal') {
+        $result.Stage = 'open mixed working set'
+        $places = Wait-For {
+            $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+            @($all | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+                $_.Current.Name -like 'Working sets*' }) | Select-Object -First 1
+        } 'Working sets place'
+        ([System.Windows.Automation.InvokePattern]$places.GetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        $set = Wait-For { Get-Row $window 'Mixed native drag' } 'test-owned working set'
+        $set.SetFocus()
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        Wait-For { Get-Row $window $names[1] } 'archive member in working set' | Out-Null
+    }
     $result.Stage = 'selected complete scope'
     $first = Wait-For { Get-Row $window $names[0] } 'first source row'
     $second = Wait-For { Get-Row $window $names[1] } 'second source row'
@@ -199,11 +231,25 @@ try {
     [NativeDragInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
     $mouseDown = $true
     Move-Pointer $fromX $fromY ($fromX + 12) ($fromY + 10)
-    Start-Sleep -Milliseconds 400
-    # Explorer defaults to Move on the same volume. Ctrl requests a truthful
-    # Copy, so source preservation is part of this acceptance route.
-    [NativeDragInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
-    $controlDown = $true
+    if ($Scope -eq 'MixedRefusal') {
+        $notice = Wait-For {
+            $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+            @($all | Where-Object { $_.Current.Name -like 'No items were dragged from the 2 selected*' }) |
+                Select-Object -First 1
+        } 'complete-scope drag refusal' 8
+        $result.Refusal = $notice.Current.Name
+        if ($result.Refusal -notlike '*1 local and 1 non-file-system*' -or $result.Refusal -notlike '*F5*') {
+            throw "The native refusal did not explain the complete scope and alternative: $($result.Refusal)"
+        }
+    }
+    else {
+        Start-Sleep -Milliseconds 400
+        # Explorer defaults to Move on the same volume. Ctrl requests a truthful
+        # Copy, so source preservation is part of these accepted export routes.
+        [NativeDragInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+        $controlDown = $true
+    }
     Move-Pointer ($fromX + 12) ($fromY + 10) $toX $toY
     Start-Sleep -Milliseconds 650
     $result.HoverCursor = Cursor-Receipt
@@ -216,30 +262,43 @@ try {
     $result.Stage = 'external drop'
     [NativeDragInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     $mouseDown = $false
-    [NativeDragInput]::keybd_event(0x11, 0, 0x0002, [UIntPtr]::Zero)
-    $controlDown = $false
-    Wait-For { if (@(Get-ChildItem -LiteralPath $target -File).Count -eq 2) { $true } } 'two Explorer copies' 30 | Out-Null
+    if ($controlDown) {
+        [NativeDragInput]::keybd_event(0x11, 0, 0x0002, [UIntPtr]::Zero)
+        $controlDown = $false
+    }
+    if ($Scope -ne 'MixedRefusal') {
+        Wait-For { if (@(Get-ChildItem -LiteralPath $target -File).Count -eq 2) { $true } } 'two Explorer copies' 30 | Out-Null
+    }
+    else { Start-Sleep -Milliseconds 600 }
     $targetNames = @(Get-ChildItem -LiteralPath $target -File | ForEach-Object { $_.Name } | Sort-Object)
     $result.TargetNames = $targetNames
     $result.TargetHashes = @{}
     foreach ($name in $targetNames) { $result.TargetHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $target $name) -Algorithm SHA256).Hash }
-    if ($Scope -eq 'Archive') {
+    if ($Scope -ne 'Local') {
         $result.ArchiveStillPresentSha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
     }
-    else {
+    if ($Scope -ne 'Archive') {
         $result.SourceStillPresent = @{}
-        foreach ($name in $names) {
+        $sourceNames = if ($Scope -eq 'Local') { $names } else { @($names[0]) }
+        foreach ($name in $sourceNames) {
             $result.SourceStillPresent[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash
         }
     }
-    if (@(Compare-Object ($names | Sort-Object) $targetNames).Count -ne 0) { throw 'Explorer received an incomplete or extra manifest.' }
-    foreach ($name in $names) {
-        if ($result.TargetHashes[$name] -ne $sourceHashes[$name] -or
-            $Scope -eq 'Local' -and $result.SourceStillPresent[$name] -ne $sourceHashes[$name]) {
-            throw "Content or source changed for $name."
+    if ($Scope -eq 'MixedRefusal') {
+        if ($targetNames.Count -ne 0 -or $result.SourceStillPresent[$names[0]] -ne $sourceHashes[$names[0]]) {
+            throw 'The refused mixed drag published a partial target or changed the local source.'
         }
     }
-    if ($Scope -eq 'Archive' -and $result.ArchiveStillPresentSha256 -ne $archiveHash) {
+    else {
+        if (@(Compare-Object ($names | Sort-Object) $targetNames).Count -ne 0) { throw 'Explorer received an incomplete or extra manifest.' }
+        foreach ($name in $names) {
+            if ($result.TargetHashes[$name] -ne $sourceHashes[$name] -or
+                $Scope -eq 'Local' -and $result.SourceStillPresent[$name] -ne $sourceHashes[$name]) {
+                throw "Content or source changed for $name."
+            }
+        }
+    }
+    if ($Scope -ne 'Local' -and $result.ArchiveStillPresentSha256 -ne $archiveHash) {
         throw 'The source archive changed during external drag.'
     }
     $result.Passed = $true

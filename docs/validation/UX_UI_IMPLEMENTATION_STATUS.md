@@ -36,12 +36,24 @@ window handle `460008`. These results accept
 [AC-S2-071-WIN-LOCAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local)
 and [AC-S2-071-WIN-ARCHIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-archive)
 at their named scopes.
+The runner's MixedRefusal scope populated a test-owned working set with one
+local file and one ZIP member, marked both in the native list, and attempted
+to drag them to a fresh Explorer folder. The on-screen and UI Automation
+notice said **“No items were dragged from the 2 selected”**, identified
+**1 local and 1 non-file-system** item and offered **F5** for the complete
+selection. Explorer stayed empty, and both original SHA-256 hashes stayed
+unchanged. Guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-mixed-4c042d37-r1.json`;
+ignored host receipt/frame:
+`E:\FileCat\.local-ac-s2-071-win-mixed-4c042d37-r1.json` and
+`E:\FileCat\.local-ac-s2-071-win-mixed-r1-hover.png`. This accepts
+[AC-S2-071-WIN-MIXED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-mixed).
 The first diagnostic selected Move on the same volume; the second hovered
 an older test-owned Explorer folder and produced a conflict prompt. Both
 were harness setup errors, not accepted Copy evidence. The runner now
 requests Copy explicitly, closes old test-owned Explorer windows and checks
-the actual hover target before releasing the mouse. Archive staging and
-mixed-selection and unsupported-target refusal remain open in
+the actual hover target before releasing the mouse. Unsupported and
+changed-target refusal remain open in
 [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
 
 <a id="evidence-mac-motion-20261027"></a>
