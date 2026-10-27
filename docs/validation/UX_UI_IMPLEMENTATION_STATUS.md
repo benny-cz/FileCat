@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-high-contrast-20261027"></a>
+**27 October 2026, native Ubuntu High Contrast panel and viewer (FCUX-013/014):**
+Git `0553f746` on the isolated Ubuntu Wayland VM (app DLL SHA-256
+`fed76012…`) used a test-owned visible and hidden text file, a read-only
+viewer and an empty target at 1280 × 800, 100%. Four direct VMware captures
+show the visible and dimmed hidden filename, the focused Delete review and
+yellow destructive button, yellow selected Text glyphs, and a blue search
+hit with `1 match` and Previous/Next controls. AT-SPI exposed the actionable
+hidden row, a closable Delete review, selected source bytes 0–47 and the
+Text Find controls. The review was cancelled; the source SHA-256 was unchanged
+and the target stayed empty. The direct guest receipt is
+`/home/benny/FileCatValidation/ac-s2-013-ubuntu-contrast-0553f746-r1.json`;
+the ignored host copy is
+`E:\FileCat\.local-ac-s2-013-ubuntu-contrast-0553f746-r1.json`, with
+`E:\FileCat\.local-ac-s2-013-contrast-r1-{panel,danger,selection,search}.png`
+captures. This accepts the bounded
+[AC-S2-013-UBUNTU-CONTRAST](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-ubuntu-contrast)
+subcase. Expressive/transparent picture, complete cycle, Windows/macOS live
+motion and spoken preference remain open.
+
 <a id="evidence-gnome-motion-20261027"></a>
 **27 October 2026, native GNOME reduced-motion toggle (FCUX-050/051):**
 Git `0553f746` ran on the isolated Ubuntu Wayland VM with a verified
