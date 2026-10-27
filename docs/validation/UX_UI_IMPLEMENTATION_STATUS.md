@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-recovery-hide-reopen-20261027"></a>
+**27 October 2026, native Windows interrupted recovery Hide/reopen:**
+The isolated Windows 11 VMware guest ran exact Git `3a4d7cba` (app DLL
+SHA-256 `31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD`).
+The Git-native `seed-recovery` generator wrote a genuine queued Move journal
+with a recorded `*.jpg` filter and no worker slots. The
+[native UI Automation runner](../../tests/FileCat.NativeAcceptance/win-ax-recovery-hide-reopen.ps1)
+selected its sole interrupted row, invoked **Hide for now**, and confirmed
+the notice disappeared in that session. After a normal close and restart of
+the same isolated app/profile, the interrupted row and separate **Mark
+reviewed…** action returned. SHA-256 of the open journal, source photo and
+excluded note remained identical before Hide, after Hide and after restart;
+the destination stayed empty. Ignored receipt:
+`E:\FileCat\.local-ac-s2-020-hide-reopen-r4.json` (Passed true). Three
+earlier probes fixed the test-only PowerShell path guard, row selection and
+startup-open drawer assumption; none submitted recovery work. This accepts
+only [AC-S2-020-HIDE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-hide).
+Narrow spoken Mark reviewed, copied retained report, Cancel and deliberate
+closure remain [AC-S2-020](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020).
+
 <a id="evidence-clear-history-ubuntu-diagnostic-20261027"></a>
 **27 October 2026, bounded Ubuntu 200% Clear finished history diagnostic:**
 The isolated Ubuntu VMware guest used Git-built `4c042d37`, app DLL SHA-256

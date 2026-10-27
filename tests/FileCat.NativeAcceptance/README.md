@@ -543,6 +543,13 @@ the journal and files remain intact. Finally run
 only `photo.jpg` reaches the destination while excluded `notes.txt` stays at
 the source. These modes mutate only their isolated guest fixture. A seeded
 begin-only journal exercises startup recovery without killing a live process.
+On Windows, `win-ax-recovery-hide-reopen.ps1 -AppPath <Git-built FileCat.exe>
+-FixturePath <seed-recovery.json> -ReportPath <fresh report.json>` covers only
+the native **Hide for now** boundary. It selects the sole interrupted row,
+checks the notice disappears, closes and restarts its owned app, and requires
+the same notice and Mark reviewed action to return with identical journal,
+source bytes and empty destination. The retained-report and deliberate
+review closure are separate AC-S2-020 work.
 
 For an actual Core worker interruption, run `interrupt-live live-fixture.json`
 in the guest. Its nonzero exit is expected: the runner terminates itself after
