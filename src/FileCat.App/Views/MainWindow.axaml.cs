@@ -288,18 +288,36 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         DragDrop.SetAllowDrop(view, true);
         DropTargetAdmission.Offer? offered = null;
+        string? reportedRefusal = null;
         view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            (offered, _) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File),
+            bool files = e.DataTransfer.Contains(DataFormat.File);
+            string? refusal;
+            (offered, refusal) = DropTargetAdmission.Check(panel, files,
                 (e.KeyModifiers & KeyModifiers.Shift) != 0);
+            // Native drag managers may never raise Drop when the offered effect is None.
+            // Explain an unsupported file destination on its first hover, but do not
+            // repeat a notice for every DragOver frame or for unrelated tab drags.
+            if (files && offered is null && refusal is not null &&
+                !string.Equals(reportedRefusal, refusal, StringComparison.Ordinal))
+            {
+                reportedRefusal = refusal;
+                _vm.Notify(refusal);
+            }
+            else if (offered is not null) reportedRefusal = null;
             e.DragEffects = offered?.Effect ?? DragDropEffects.None;
             e.Handled = true;
         });
-        view.AddHandler(DragDrop.DragLeaveEvent, (_, _) => offered = null);
+        view.AddHandler(DragDrop.DragLeaveEvent, (_, _) =>
+        {
+            offered = null;
+            reportedRefusal = null;
+        });
         view.AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
             var previous = offered;
             offered = null;
+            reportedRefusal = null;
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
