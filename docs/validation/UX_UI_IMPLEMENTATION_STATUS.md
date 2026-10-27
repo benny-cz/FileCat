@@ -1,5 +1,37 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-sftp-delayed-list-20261027"></a>
+**27 October 2026, delayed SFTP accessibility (FCUX-010):** On the isolated
+Ubuntu Wayland VMware guest, the Git-built `d2829324` app (DLL SHA-256
+`57cde541c14955c1d0aa8ea4e8b5427159da1b852e6c3b13db0583c8eeff710a`)
+listed 2,000 test-owned files through a loopback SSH relay delaying each
+server packet by 30 ms. Three pending AT-SPI queries visited 521–539 nodes
+in 1.3–1.4 seconds; the complete listing visited 558 nodes with 21 visible
+rows in 1.6 seconds. Insert marked the first file, End focused the last
+unmarked file, and Review marked items exposed the first file's complete
+original SFTP location. View opened the last file in Text mode. The relay
+forwarded 287,594 server bytes in 590 delayed chunks. All 2,000 source
+files retained their original bytes, the local source was unchanged and the
+target stayed empty. Exact receipt:
+`/home/benny/FileCatValidation/ac-s1-010-ubuntu-delayed-d2829324-r6.json`
+in the guest, with ignored host copy
+`E:\FileCat\.local-ac-s1-010-ubuntu-delayed-d2829324-r6.json`. This closes
+[AC-S1-010-UBUNTU-DELAY](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010-ubuntu-delay)
+and, with the independent Windows archive and accepted Mac navigator routes,
+FCUX-010. Earlier r1/r2 lacked the isolated .NET runtime; r3–r5 corrected
+test-observer races and AT-SPI name/text queries. They are diagnostic runs,
+not additional product acceptance.
+
+<a id="evidence-metadata-race-20261027"></a>
+**27 October 2026, CI metadata demand race:** The `d2829324` Windows ARM64
+Core lane built cleanly but had 4,442 passing tests, 153 platform skips and
+one failed `MetadataDemandTests.Forgetting_one_field_keeps_an_unrelated_inflight_value`:
+an unrelated producer ran twice. `MetadataService.Schedule` could admit a
+new producer after `Get` saw a cache miss but before it rechecked an earlier
+producer's newly published value. The scheduler now rechecks under the
+publication lock. The focused local Windows Core regression passed 7/7 with
+zero build warnings; five-lane CI for this correction remains required.
+
 <a id="evidence-archive-uia-20261027"></a>
 **27 October 2026, Windows archive accessibility (FCUX-010):** The isolated
 Win11 VMware guest built Git head `d2829324` with Avalonia 12.1.4 (app DLL
@@ -14,9 +46,9 @@ the last member and exposed the expected text. The archive SHA-256 was
 unchanged, the target stayed empty, and the owned process and fixture were
 removed. Exact receipt: `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s1-010-win-archive-d2829324-r3.json`
 in the guest, with an ignored host copy at
-`E:\FileCat\.local-ac-s1-010-win-archive-d2829324-r3.json`. This closes only
+`E:\FileCat\.local-ac-s1-010-win-archive-d2829324-r3.json`. This closes
 [AC-S1-010-WIN-ARCHIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010-win-archive);
-the delayed Ubuntu SFTP/result-list sibling remains open.
+the delayed Ubuntu sibling has its separate acceptance above.
 
 <a id="evidence-avalonia-uia-20261027"></a>
 **27 October 2026, Windows selection bridge and CI:** Against Git build
@@ -1136,6 +1168,7 @@ revised App test passed 32 isolated Mac reruns and the revised Core test
 passed on Mac and Windows; both focused Windows tests passed with 16 build
 workers. A final-head five-lane CI pass is still required.
 
+<a id="evidence-rename-mac-20261026"></a>
 **26 October 2026, Mac bulk-rename accessibility geometry:** The signed
 Git-built `2f1f43c9` app (DLL SHA-256
 `1dad0b6faa53748d8ac9867c56e8576b88b7aeeb6e826c090a24d8a2fa953f2e`)

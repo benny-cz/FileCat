@@ -1908,3 +1908,14 @@ moves offscreen, the marked item's original archive path in Review marked
 items, and a real View action on the final member. It records app and archive
 hashes and removes only its own fixture. The archive is test content; app
 builds and test transfer use Git.
+
+`python3 linux-atspi-sftp-delayed-listing.py APP REPORT.json KEY_HELPER`
+uses a Git-built Ubuntu app and the isolated local OpenSSH account. It owns
+2,000 remote files and a loopback SSH relay that delays server packets without
+interpreting them. It requires transient `FILECAT_NATIVE_SUDO_PASSWORD` and
+`FILECAT_NATIVE_SFTP_PASSWORD` environment variables, the isolated .NET
+runtime under `~/FileCatValidation/dotnet-sdk`, and no other FileCat process.
+The runner checks pending and complete bounded AT-SPI listings, a mark that
+survives offscreen End focus, original SFTP location in Review marked items,
+a real View of the last member, and unchanged source/empty target. It writes
+a fresh JSON receipt and removes only its own fixture.

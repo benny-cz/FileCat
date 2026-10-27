@@ -8,13 +8,10 @@ accepted equivalent routes stay in
 [implementation status](UX_UI_IMPLEMENTATION_STATUS.md). Follow the
 [session workflow](UX_UI_SESSION_WORKFLOW.md) before any repeat run.
 
-## Highest priority — S1
+## Highest priority — S2 and queued defects
 
-- [AC-S1-010](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010): delayed Ubuntu
-  SFTP/result-list accessibility.
-
-## S2 and queued defects
-
+- [AC-S2-011](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-011): long-path Undo/recovery
+  review and Registry/Find dialog at minimum and enlarged size.
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
   dialog reachability, viewer semantics, native contrast and motion, drag,
   operation evidence, Undo/sync, navigation, workspace/listing, panels,

@@ -147,6 +147,20 @@ public sealed class MetadataService
     private void Schedule(string key, MetadataField field, string path, string deviceKey, Func<bool>? isStillWanted)
     {
         if (!_inFlight.TryAdd(key, 0)) return;
+        // A previous producer may publish between Get's cache miss and this admission.
+        // Recheck under the publication lock so a late caller cannot start a duplicate
+        // producer after the first has already removed its in-flight record.
+        lock (_publicationLock)
+        {
+            if (_cache.ContainsKey(key) &&
+                (field.RefreshAfter is not { } refresh ||
+                 !_producedAt.TryGetValue(key, out var at) ||
+                 Environment.TickCount64 - at <= refresh.TotalMilliseconds))
+            {
+                _inFlight.TryRemove(key, out _);
+                return;
+            }
+        }
         int outstanding = _outstanding.AddOrUpdate(deviceKey, 1, (_, n) => n + 1);
         if (outstanding > MaxOutstandingPerDevice * 64)
         {
