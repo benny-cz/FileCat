@@ -1,0 +1,32 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "source and destination integrity",
+    "AppDllSha256":  "A93F792EDEE5735B801B23ECB7A5B4294F7CFECB2E4AB672AC993C7F415DD519",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompareRangeFixture\\66276d768ecf43b09dcd20ddc0eb7e99",
+    "Text":  {
+                 "Foreground":  true,
+                 "Clipboard":  "one changed",
+                 "MatchStatus":  "Match 1 of 2 in both shown sources, all rows.",
+                 "MainWindow":  "FileCat — left — Admin (administrator, not elevated)",
+                 "Window":  [
+                                640,
+                                320
+                            ],
+                 "RowBounds":  [
+                                   328,
+                                   483,
+                                   630,
+                                   22
+                               ]
+             },
+    "Hex":  {
+                "Range":  "Right file, offset 0xF, 4 selected bytes. Copied 4 bytes as hex.",
+                "Window":  [
+                               640,
+                               320
+                           ],
+                "Clipboard":  "AA BB CC DD",
+                "SourcePath":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompareRangeFixture\\66276d768ecf43b09dcd20ddc0eb7e99\\right\\range-compare.bin"
+            },
+    "Error":  null
+}

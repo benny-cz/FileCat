@@ -2407,3 +2407,19 @@ prompt, Go is disabled, the visible/field-associated reason and actual NVDA
 speech name the seekability limit, and the source read count does not advance
 into a line scan. It verifies the source hash, target and owned cleanup. The
 accepted direct receipt is `docs/validation/evidence/ac-s2-054-win-nonseek.json`.
+
+### Windows native Compare range and clipboard route
+
+Run `win-compare-range.ps1` in the logged-in Windows VMware guest's
+**interactive** desktop, with `-AppPath` pointing to the isolated Git-built
+`FileCat.exe` and `-ReportPath` to a new file under `FileCatValidation`.
+The runner owns two source pairs and a separate data directory. It sets each
+Compare window to 640 × 320, checks pointer Copy line and Find/Next text,
+keyboard byte-range selection and exact clipboard bytes, then verifies all
+four source hashes. With optional `-NvdaPath` pointing to the signed portable
+NVDA executable under `FileCatValidation`, the same route also captures
+actual spoken Find/Next and selected-byte-range status in its JSON receipt.
+VMware `runProgramInGuest` needs `-interactive` for native pointer and keyboard
+input; `-activeWindow` alone starts a different input desktop. Accepted
+receipts are `docs/validation/evidence/ac-s2-056-win-local.json` and
+`docs/validation/evidence/ac-s2-056-win-nvda.json`.

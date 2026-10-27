@@ -1,0 +1,72 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "source and destination integrity",
+    "AppDllSha256":  "A93F792EDEE5735B801B23ECB7A5B4294F7CFECB2E4AB672AC993C7F415DD519",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompareRangeFixture\\79ec573292af4073991f51b95d26e108",
+    "Text":  {
+                 "Foreground":  true,
+                 "Speech":  [
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Windows PowerShell\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\u0027, \u0027terminal\u0027, \u0027Windows PowerShell\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\CompareRangeFixture\\\\79ec573292af4073991f51b95d26e108\\\\left\u0027, \u0027list\u0027, \u00273 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 3\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027range-compare.txt\u0027, \u0027not selected\u0027, \u0027file, 27 bytes, modified 27.10.2026 20:20:45, not marked, 3 of 3\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027First differing text starts at character 5 (UTF-16).\u0027]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Difference 1 of 2: 1 line changed at line 1.\u0027]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027First differing text starts at character 5 (UTF-16).\u0027]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Compare: range-compare.txt ↔ range-compare.txt\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Differences\u0027, \u0027list\u0027, \u0027Aligned source lines scroll horizontally together; Alt+Left and Alt+Right move both panes. Wrap long lines preserves aligned source numbers and gaps. Lines over 16\\xa0384 UTF-16 characters have an explicit complete-line action. Alt+L or a double-click focuses selectable full-line details.\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Left source line 1\u0027, \u0027one changed\u0027, \u0027Read-only source text. Drag or Shift+click to select source characters; Ctrl+C copies them without line numbers. Alt+L opens complete source-line details.\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy line\u0027, \u0027button\u0027, \u0027Copy the complete current source line from the chosen side, without its line number or terminator.\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Copied the complete source line without its number or terminator.\u0027]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Show or hide comparison Find bar\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Find text in comparison (Ctrl+F)\u0027, \u0027edit\u0027, \u0027Find in comparison\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u00272 matches in both shown sources, all rows. F3/Shift+F3 moves between matches.\u0027]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Next match\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Match 1 of 2 in both shown sources, all rows.\u0027]"
+                            ],
+                 "Clipboard":  "one changed",
+                 "MatchStatus":  "Match 1 of 2 in both shown sources, all rows.",
+                 "MainWindow":  "FileCat — left — Admin (administrator, not elevated)",
+                 "Window":  [
+                                640,
+                                320
+                            ],
+                 "RowBounds":  [
+                                   328,
+                                   483,
+                                   630,
+                                   22
+                               ]
+             },
+    "Hex":  {
+                "Speech":  [
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Windows PowerShell\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\u0027, \u0027terminal\u0027, \u0027Windows PowerShell\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\CompareRangeFixture\\\\79ec573292af4073991f51b95d26e108\\\\left\u0027, \u0027list\u0027, \u00273 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 3\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027range-compare.bin\u0027, \u0027not selected\u0027, \u0027file, 128 bytes, modified 27.10.2026 20:20:45, not marked, 2 of 3\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Compare: range-compare.bin ↔ range-compare.bin\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Bytes of both files\u0027, \u0027document\u0027, \u0027No byte range selected. Use Select byte range to choose a side, offset and count, or select bytes with the pointer.\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Select byte range dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Source side for byte selection\u0027, \u0027combo box\u0027, \u0027Left file\u0027, \u0027collapsed\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027expanded\u0027]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Left file\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Right file\u0027, \u0027not selected\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Source side for byte selection\u0027, \u0027combo box\u0027, \u0027Right file\u0027, \u0027collapsed\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Bytes of both files\u0027, \u0027document\u0027, \u0027Right file, offset 0xF, 4 selected bytes. Right file: 4 bytes selected at 0xF–0x12. Ctrl+C copies them as hex; the context menu has more.\u0027, CancellableSpeech (still valid)]",
+                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Bytes of both files\u0027, \u0027document\u0027, \u0027Right file, offset 0xF, 4 selected bytes. Copied 4 bytes as hex.\u0027, \u0027focused\u0027, \u0027read only\u0027]"
+                           ],
+                "Range":  "Right file, offset 0xF, 4 selected bytes. Copied 4 bytes as hex.",
+                "Window":  [
+                               640,
+                               320
+                           ],
+                "Clipboard":  "AA BB CC DD",
+                "SourcePath":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompareRangeFixture\\79ec573292af4073991f51b95d26e108\\right\\range-compare.bin"
+            },
+    "Error":  null,
+    "NvdaVersion":  "2026.2"
+}
