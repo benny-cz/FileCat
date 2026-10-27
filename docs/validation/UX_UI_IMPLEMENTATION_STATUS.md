@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-stop-20261027"></a>
+**27 October 2026, minimum-size native Find Stop and Orca speech
+(AC-S2-044-STOP):** On exact Git-built Ubuntu VM commit `7e5d8fd3` (app DLL
+SHA-256 `79927166453a07d96adec78563b29491016f1e369b3c1874c46bf77964b67f64`),
+a path-filtered 30-second delay held an owned child-directory read. Stop was
+invoked at 9.972 seconds while Find showed active progress. At its advertised
+640 × 420 logical minimum in the 200% session, the stopped headline stayed
+within the native Find window, and the separate zero-result explanation named
+the exact absent query and source folder. Orca spoke “Stopped · no results yet ·
+Only part of the scope was searched.” Both source files kept their SHA-256
+hashes and the destination remained empty. The
+[final direct receipt](evidence/ac-s2-044-ubuntu-find-stop-fixed.json) records
+the bounds, speech and preservation. The
+[earlier native speech diagnostic](evidence/ac-s2-044-ubuntu-find-stop-pre-fix.json)
+on `e7a306f7` proved the incomplete wording was visible but Orca announced
+only “Stopped”; the live-headline fix and one bounded rerun closed that
+boundary. The focused Find Release suite passed 22/22 with 16 workers.
+Together with the accepted Windows no-match and exclusion/log routes and
+state-matrix tests, this closes FCUX-045 pairwise in
+[AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044). Final CI remains separate.
+
 <a id="evidence-find-viewport-fixed-20261027"></a>
 **27 October 2026, on-screen minimum-height Find confirmation:** The Windows
 VM built exact Git `5a4d3486` (app DLL SHA-256
@@ -16,8 +37,8 @@ verified the headline on both axes and its exact query/scope. A
 confirmed on-screen Ctrl+Shift+S guidance and the same correct physical-key
 dispatch. These reruns were justified by the invalid earlier visual bounds
 and the intervening Find layout fix; they did not reopen the accepted origin
-routes. FCUX-046 is complete. FCUX-045 still needs a stopped/incomplete route
-and spoken qualification.
+routes. FCUX-046 is complete; FCUX-045 closed after the
+[native Stop and Orca route](#evidence-find-stop-20261027).
 
 <a id="evidence-find-viewport-correction-20261027"></a>
 **27 October 2026, Find minimum-height evidence correction:** The new
@@ -57,8 +78,9 @@ gesture visibility passed on the [fixed Git build](#evidence-find-viewport-fixed
 and [result-set](#evidence-find-result-scope-20261027) routes named or refused
 their actual scopes. `FindOriginScopeTests` cover local selection, This PC,
 archive and other unsupported providers, load-on-open presets, and result-set
-snapshot precedence. These risk-based native/component routes close FCUX-044;
-the separate completion finding FCUX-045 remains open.
+snapshot precedence. These risk-based native/component routes close FCUX-044.
+The separate FCUX-045 completion finding was open at this checkpoint and
+[later closed with spoken Stop qualification](#evidence-find-stop-20261027).
 
 <a id="evidence-find-narrow-nomatch-20261027"></a>
 **27 October 2026, narrow Find no-match state (AC-S2-044-NOMATCH):**
@@ -71,9 +93,7 @@ with a “No matches” headline and a separate accessible
 explanation naming the exact query and two-result scope. The list and both
 files stayed byte-exact. The [direct receipt](evidence/ac-s2-044-win-narrow-nomatch.json)
 accepts only successful zero-match semantics; its original geometry check
-omitted screen position and vertical bounds; the [fixed build confirmed both](#evidence-find-viewport-fixed-20261027). Stopped/limited
-results and spoken qualification remain under
-[AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+omitted screen position and vertical bounds; the [fixed build confirmed both](#evidence-find-viewport-fixed-20261027).
 
 <a id="evidence-find-result-scope-20261027"></a>
 **27 October 2026, native Find within a result set (AC-S2-044-RESULT):**
@@ -86,8 +106,8 @@ search only this result-set snapshot. Find was enabled without changing the
 scope or either file; the owned list and both files remained byte-exact. The
 [direct receipt](evidence/ac-s2-044-win-result-scope.json) accepts this origin
 route. Narrow zero-match and Find shortcut bindings passed separately;
-stopped/limited completion and speech boundaries remain
-open under [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+stopped/limited completion and speech were open at this checkpoint and
+[later passed](#evidence-find-stop-20261027).
 
 <a id="evidence-find-registry-20261027"></a>
 **27 October 2026, native Find from Registry (AC-S2-044-REGISTRY):** The
@@ -7418,7 +7438,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-004 — Markdown prose width on resize | Let prose blocks use the article's available width, matching table regions as the Page window changes size; retain article padding and table-local horizontal scrolling. | Forty-eight `MarkdownTests` cases pass. Headless Chrome measured prose and table regions at 505 px in a narrow window and 1,441 px in a wide window, with no page-level horizontal overflow. VMware native pointer tests widened the table by 335 px while prose shortened by 25 px; narrowing the viewer kept its document within the window and the table in a keyboard-focusable horizontal scroll region. Mac native Page captures at 760 × 620 and 1,220 × 700 show the same prose and table expansion with exact source bytes retained. | Native Windows/Mac Markdown resize routes pass; only the distinct scale/accessibility boundary AC-S2-MD remains. |
 | FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` covers held open/read calls, approval, new-transfer form, partial cleanup, Stop during job admission and release of the native action before slow review; 44/44 focused Windows Release cases passed. The [27 October Ubuntu held-source route](#evidence-recovery-stop-20261027) stopped in Reviewing and preserved exact bytes/journal without late approval. The [separate 200% native capture](#evidence-recovery-visual-20261027) shows Reviewing and Stop together in the narrow drawer, with 11/11 focused layout tests. [Orca then spoke](#evidence-recovery-speech-20261027) Reviewing, Stop and the final stopped result. | Accepted for FCUX-043 by [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042). Final audit-wide CI remains separate. |
 | FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. Native SFTP, Registry and result-set origin routes passed on Git builds with direct receipts above. | Accepted pairwise by [AC-S2-044-SCOPE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-scope); FCUX-045 completion remains separate. |
-| FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. Native 640 × 420 zero-match semantics passed on `a5ebd315`; the corrected on-screen layout on `5a4d3486` passed no-match and ignored-folder qualifications with a keyboard-opened Log. The focused Find/Settings Release suite passed 31/31. | [No-match](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-nomatch) and [excluded-folder](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-exclusions) branches are accepted. Native stopped/incomplete and spoken qualification remain open. |
+| FCUX-045 — Find completion feedback | Keep completion state and issue counts in wrapping, non-ellipsized lines, put incomplete coverage in the spoken stopped headline, keep changing path/counters secondary, and expose the log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. Native 640 × 420 zero-match semantics passed on `a5ebd315`; the corrected on-screen layout on `5a4d3486` passed no-match and ignored-folder qualifications with a keyboard-opened Log. The `7e5d8fd3` Ubuntu 200% route stopped an owned delayed Find at the 640 × 420 logical minimum and heard Orca speak incomplete coverage. Focused Find Release tests passed 22/22 after the live-headline fix. | Accepted pairwise in [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044), with direct [Stop and Orca](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-stop), [no-match](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-nomatch) and [exclusion/log](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-exclusions) receipts. |
 | FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | Core keymap and App Find/Settings cases pass. Native Windows at 640 × 420 confirmed on-screen remapped/unbound guidance and physical-key dispatch against exact result membership on Git `5a4d3486`; `FindWindowTests` and `SettingsDialogTests` cover menu, editor, suggestion, dialog and settings conflict boundaries. | Accepted pairwise by [AC-S2-044-BINDINGS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-bindings); native Settings-editor traversal is optional reconfirmation. |
 | FCUX-047 — fractional scroll and one-row paging | Accumulate precision-wheel fractions into whole rows in file list, text, hex and binary comparison; reset them at source/layout/navigation changes and list boundaries. Keep PageUp/PageDown moving with one visible row and retain list rename alignment. | Fifteen focused App cases and 117 nearby viewer/list regressions pass. The complete App Release run passes 2,238 with 63 skips. | Native conventional-wheel, precision touchpad and inertial-input acceptance remains open. |
 | UXBUG-005 — viewer window size | Remember a deliberate normal viewer size in profile settings and restore it for text, Markdown, PE Info, hex and picture modes. Clamp invalid or oversized values to the active display; an older untouched viewer cannot overwrite a newer size. Debounce normal geometry and discard any pending sample when state changes, including an early maximized-sized event. | Three `ViewerWindowSizeTests` cases cover validation, screen bounds, reopen across viewer modes, restart persistence, concurrent windows and maximize/restore transitions. Native Windows retained a 1,592 × 1,414 viewer through maximize, restore, close and reopen, with the saved normal dimensions unchanged. | Native multi-monitor and DPI acceptance remains open. |

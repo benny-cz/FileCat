@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import signal
 import subprocess
@@ -43,6 +44,11 @@ def button(root, name):
 def label_text(root, prefix):
     return next((text_of(node) for node in tree(root) if node.get_role_name() == "label"
                  and text_of(node).startswith(prefix)), None)
+
+
+def rect(node):
+    area = node.get_component().get_extents(Atspi.CoordType.SCREEN)
+    return {"x": area.x, "y": area.y, "width": area.width, "height": area.height}
 
 
 def main(app_path, report_path, speech_mode):
@@ -111,6 +117,30 @@ def main(app_path, report_path, speech_mode):
         find = wait_for(lambda: next((node for node in tree(app)
             if node.get_role_name() in ("frame", "window") and
             node.get_name() == "Find files"), None), "Find window", seconds=20)
+        listing = subprocess.run(["/usr/bin/wmctrl", "-lp"], check=True,
+                                 capture_output=True, text=True, timeout=5).stdout
+        ids = [parts[0] for line in listing.splitlines()
+               if len(parts := line.split(maxsplit=4)) == 5 and
+               parts[2] == str(process.pid) and "Find files" in parts[4]]
+        if len(ids) != 1:
+            raise AssertionError(f"Expected one owned Find window, found {ids}")
+        hints = subprocess.run(["/usr/bin/xprop", "-id", ids[0], "WM_NORMAL_HINTS"],
+                               check=True, capture_output=True, text=True, timeout=5).stdout
+        minimum = re.search(r"minimum size:\s*(\d+) by (\d+)", hints)
+        if minimum is None:
+            raise AssertionError("Find minimum size was not advertised")
+        render_scale = int(minimum.group(1)) / 640
+        if not (0.5 <= render_scale <= 4 and
+                abs(render_scale - int(minimum.group(2)) / 420) < 0.02):
+            raise AssertionError("Find minimum size does not match 640 by 420 DIPs")
+        requested = (round(640 * render_scale), round(420 * render_scale))
+        subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-b",
+                        "remove,maximized_vert,maximized_horz"], check=True, timeout=5)
+        subprocess.run(["/usr/bin/wmctrl", "-ir", ids[0], "-e",
+                        f"0,0,0,{requested[0]},{requested[1]}"], check=True, timeout=5)
+        result["minimumWindow"] = {"logical": [640, 420],
+                                   "renderScale": render_scale,
+                                   "requestedPhysical": requested}
         names = wait_for(lambda: next((node for node in tree(find)
             if node.get_role_name() == "entry" and node.get_name() == "Names"), None),
             "Find Names field")
@@ -153,11 +183,28 @@ def main(app_path, report_path, speech_mode):
         stop_at = time.monotonic()
         if not stop.do_action(0):
             raise AssertionError("Could not stop the active Find")
-        stopped = wait_for(lambda: label_text(find, "Stopped · no results yet"),
+        stopped_node = wait_for(lambda: next((node for node in tree(find)
+            if node.get_role_name() == "label" and
+            text_of(node).startswith("Stopped · no results yet")), None),
                            "partial stopped completion", seconds=35)
+        stopped = text_of(stopped_node)
         explanation = wait_for(lambda: next((text_of(node) for node in tree(find)
-            if node.get_role_name() == "label" and "Only part of the scope was searched" in text_of(node)), None),
+            if node.get_role_name() == "label" and
+            text_of(node).startswith("Criteria and scope:") and
+            query in text_of(node) and str(source) in text_of(node) and
+            "Only part of the scope was searched" in text_of(node)), None),
             "incomplete-scope explanation", seconds=10)
+        window_bounds, headline_bounds = rect(find), rect(stopped_node)
+        if (headline_bounds["width"] < 1 or headline_bounds["height"] < 1 or
+                headline_bounds["x"] < window_bounds["x"] or
+                headline_bounds["y"] < window_bounds["y"] or
+                headline_bounds["x"] + headline_bounds["width"] >
+                window_bounds["x"] + window_bounds["width"] or
+                headline_bounds["y"] + headline_bounds["height"] >
+                window_bounds["y"] + window_bounds["height"]):
+            raise AssertionError("Stopped headline was outside the narrow Find window")
+        result["minimumWindow"]["bounds"] = window_bounds
+        result["minimumWindow"]["headlineBounds"] = headline_bounds
         finished_at = time.monotonic()
         if stop_at - start >= stop_deadline or finished_at - start < hold_seconds - 2:
             raise AssertionError("The search did not stop during the owned delayed read")

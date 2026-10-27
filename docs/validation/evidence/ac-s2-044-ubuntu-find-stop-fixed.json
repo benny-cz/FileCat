@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "buildDllSha256": "79927166453a07d96adec78563b29491016f1e369b3c1874c46bf77964b67f64",
+  "fixture": "/home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058",
+  "sourceSha256": {
+    "/home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058/source/visible.txt": "219c9741d592e64a8844e6babc58e525792f902eb739a1485b2f1e5572773d99",
+    "/home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058/source/zz-slow/untouched.txt": "c142652a1cb1a3bd31574d67a33a1af053dcd569bf8901b0a20d292f2e969331"
+  },
+  "steps": [
+    {
+      "progress": "2 folders \u00b7 0 files read \u00b7 0 matched \u00b7 /home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058/source/zz-slow",
+      "busy": "Searching \u00b7 no matches yet",
+      "stopClickedAfterSeconds": 9.972,
+      "finishedAfterSeconds": 36.3,
+      "headline": "Stopped \u00b7 no results yet \u00b7 Only part of the scope was searched",
+      "explanation": "Criteria and scope: names \"native-absent-a33d766d010c484c92be99f7bdb6f83e\" in /home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058/source Only part of the scope was searched.",
+      "sourcePreserved": true,
+      "targetEmpty": true
+    }
+  ],
+  "minimumWindow": {
+    "logical": [
+      640,
+      420
+    ],
+    "renderScale": 2.0,
+    "requestedPhysical": [
+      1280,
+      840
+    ],
+    "bounds": {
+      "x": 134,
+      "y": 138,
+      "width": 1280,
+      "height": 840
+    },
+    "headlineBounds": {
+      "x": 154,
+      "y": 531,
+      "width": 1163,
+      "height": 39
+    }
+  },
+  "beforeStop": {
+    "progress": "2 folders \u00b7 0 files read \u00b7 0 matched \u00b7 /home/benny/FileCatValidation/FindHeldFixture/f36b79d1b9ff436e933b097f675a4058/source/zz-slow",
+    "busy": "Searching \u00b7 no matches yet",
+    "elapsedSeconds": 9.958
+  },
+  "speech": [
+    "Find: native-absent-a33d766d010c484c92be99f7bdb6f83e",
+    "Stop",
+    "button.",
+    "Esc.",
+    "Esc",
+    "Stopped \u00b7 no results yet \u00b7 Only part of the scope was searched"
+  ]
+}
