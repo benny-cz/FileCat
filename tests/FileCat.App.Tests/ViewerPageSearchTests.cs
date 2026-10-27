@@ -180,6 +180,14 @@ public sealed class ViewerPageSearchTests
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
         Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
         Assert.Equal(OperatingSystem.IsLinux() ? PageView.LinuxReaderHelp : null, AutomationProperties.GetHelpText(page));
+        if (OperatingSystem.IsLinux())
+        {
+            // Not Avalonia's interop child, which AT-SPI showed as an unnamed, unknown node: the host is the page.
+            var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(page);
+            Assert.Equal(("Web page", PageView.LinuxReaderHelp), (peer.GetName(), peer.GetHelpText()));
+            Assert.True(peer.HasKeyboardFocus());
+            Assert.Empty(peer.GetChildren());
+        }
     }
 
     private sealed class Fixture : IDisposable

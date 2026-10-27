@@ -133,6 +133,19 @@ public sealed class PageView : NativeControlHost
         Resize();
     }
 
+    // Avalonia gives a native control host an interop child for backends that embed native accessibility; Linux's
+    // cannot follow it into the GTK plug and showed an unnamed, unknown node. There the host itself is the page.
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        OperatingSystem.IsLinux() ? new LinuxPageHostPeer(this) : base.OnCreateAutomationPeer();
+
+    private sealed class LinuxPageHostPeer(PageView owner) : Avalonia.Automation.Peers.ControlAutomationPeer(owner)
+    {
+        protected override Avalonia.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() =>
+            Avalonia.Automation.Peers.AutomationControlType.Group;
+
+        protected override IReadOnlyList<Avalonia.Automation.Peers.AutomationPeer>? GetChildrenCore() => null;
+    }
+
     private void Resize()
     {
         double scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
