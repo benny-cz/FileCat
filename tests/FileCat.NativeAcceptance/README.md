@@ -2303,3 +2303,15 @@ good text visible and display a readable single-sentence failure; the runner
 then restores the last good archive and checks its SHA-256 and empty target.
 The accepted receipt is
 `docs/validation/evidence/ac-s2-052-ubuntu-archive-refresh.json`.
+
+`linux-atspi-remote-viewer-refresh.py APP REPORT.json KEY_HELPER` runs in the
+logged-in Ubuntu VMware guest with transient physical-input and SFTP
+credentials. It independently checks the loopback SSH server key, remembers
+that verified key only in an owned disposable profile (Refresh needs another
+connection while the first source is leased), and opens a remote Text viewer.
+Its owned relay delays the changed reopen: the old content must remain until
+the new view is ready in the same window. Dropping only that relay makes the
+next Refresh fail with a visible reason while preserving the last good view.
+The runner checks exact source bytes and an empty target and removes its owned
+profile and fixture. The accepted receipt is
+`docs/validation/evidence/ac-s2-052-ubuntu-remote-refresh.json`.

@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-remote-viewer-refresh-20261027"></a>
+**27 October 2026, native delayed SFTP Text viewer Refresh
+(AC-S2-052-REMOTE):** The Ubuntu VMware app built from `0fa917d6` (DLL
+SHA-256 `84de08fc02462a36c82b52c3130be1814e1cfdd56be445d53254083c525c4f9f`)
+opened a test-owned remote item after an independently matched OpenSSH host
+fingerprint. The runner at `2933e3cf` used an owned delayed loopback relay;
+there were no product-code changes between those commits. When the remote
+bytes changed, Refresh left the old text visible while its action was
+disabled, then showed the new text in the same viewer with no stale banner.
+After the runner dropped its relay, another Refresh displayed a clear
+connection-refused failure and retained the last good text. The remote bytes
+and empty local target stayed exact. The [direct receipt](evidence/ac-s2-052-ubuntu-remote-refresh.json)
+and [native runner](../../tests/FileCat.NativeAcceptance/linux-atspi-remote-viewer-refresh.py)
+record the route. Earlier bounded probes used “Connect once”; a second SFTP
+connection then waited for another host-key decision. The successful route
+trusted that verified key only in the disposable test profile. The
+[late-reopen/close regression](../../tests/FileCat.App.Tests/ViewerRefreshTests.cs)
+covers safe cancellation and source retirement. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
+now retains only native Page rollback, including the WebView2 boundary or a
+justified equivalent engine route. Final CI remains separate.
+
 <a id="evidence-archive-viewer-refresh-20261027"></a>
 **27 October 2026, native read-only archive viewer Refresh
 (AC-S2-052-ARCHIVE):** Git-built `0fcb3abb` in Ubuntu VMware (DLL SHA-256
@@ -15,7 +36,7 @@ failed before the correction, all eight `ViewerRefreshTests` then passed with
 16 workers, and the [final native receipt](evidence/ac-s2-052-ubuntu-archive-refresh.json)
 and [runner](../../tests/FileCat.NativeAcceptance/linux-atspi-archive-viewer-refresh.py)
 passed once on the corrected build. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
-still requires remote delayed/reopen and native Page rollback; Quick View
+still requires native Page rollback; Quick View
 and picture zoom are independent AC-S2-053 and AC-S2-055 rows. Final CI is
 separate.
 
