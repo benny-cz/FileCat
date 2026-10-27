@@ -2375,3 +2375,14 @@ receipt is `docs/validation/evidence/ac-s2-053-win-pointer.json`. The tested
 Windows build predates only a picture-failure punctuation correction in the
 Quick View pane; the action and open handler are identical, so the accepted
 pointer route does not require repetition on the later documentation head.
+
+`win-picture-zoom.ps1 -AppPath APP -ReportPath REPORT.json -ExpectedDpi 96|144|192`
+runs inside the logged-in Windows VMware desktop against two owned PNGs. Use
+`win-ax-display-scale.ps1` to set 100/150/200% before each run and restore
+100% afterward. It drives the real picture viewer through UI Automation and
+native pointer events: small-image Fit versus Actual at equal numeric 100%,
+exact 50/125/200% menu presets, wheel zoom, visible 4,096-pixel decode cap,
+and Fit recomputation as the viewer widens. It checks measured window DPI,
+unchanged source hashes and an empty target; each run removes its own fixture.
+The accepted receipts are `docs/validation/evidence/ac-s2-055-win-100.json`,
+`ac-s2-055-win-150.json` and `ac-s2-055-win-200.json` in the same directory.

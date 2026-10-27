@@ -1,0 +1,83 @@
+﻿{
+    "passed":  true,
+    "stage":  "complete",
+    "expectedDpi":  192,
+    "fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\PictureZoom\\e122d9aba0fa421cbe9016f29c514b85",
+    "gitHead":  "698236d704c3d994939dc224b4901ed7d2746331",
+    "appDllSha256":  "f97cfaa89147d9ef5d628deb8c8032f67ac7bfe4acab80c7a24411030de9f6cc",
+    "sourceSha256":  {
+                         "a-small.png":  "ffc591e7489ec8754636564f5bf019520f45aa43f876c355fd533ab6803ade40",
+                         "b-wide.png":  "63e4b57dda9c1a977d09823d6941ddd4e813f694dc09cfe910692e3770034753"
+                     },
+    "smallRowType":  "ControlType.ListItem",
+    "smallFocus":  "a-small.png",
+    "mainWindowHandle":  1441950,
+    "activatedMain":  true,
+    "windowDpi":  192,
+    "smallFit":  {
+                     "text":  "Fit · 100%",
+                     "fit":  "On",
+                     "actual":  "Off"
+                 },
+    "smallActual":  {
+                        "text":  "Zoom 100%",
+                        "fit":  "Off",
+                        "actual":  "On"
+                    },
+    "smallFitAgain":  {
+                          "text":  "Fit · 100%",
+                          "fit":  "On",
+                          "actual":  "Off"
+                      },
+    "decodeLimit":  "Detail limited: decoded to 4 096 × 32 (4 096-pixel side cap).",
+    "decodeLimitBounds":  [
+                              1156,
+                              164,
+                              558,
+                              62
+                          ],
+    "zoom50":  {
+                   "text":  "Zoom 50%",
+                   "fit":  "Off",
+                   "actual":  "Off"
+               },
+    "zoom125":  {
+                    "text":  "Zoom 125%",
+                    "fit":  "Off",
+                    "actual":  "Off"
+                },
+    "zoom200":  {
+                    "text":  "Zoom 200%",
+                    "fit":  "Off",
+                    "actual":  "Off"
+                },
+    "wheelTarget":  [
+                        1050,
+                        790
+                    ],
+    "afterWheel":  {
+                       "text":  "Zoom 250%",
+                       "fit":  "Off",
+                       "actual":  "Off"
+                   },
+    "beforeResize":  {
+                         "text":  "Fit · 23%",
+                         "fit":  "On",
+                         "actual":  "Off"
+                     },
+    "originalViewerWidth":  1877,
+    "narrowViewerWidth":  960,
+    "wideViewerWidth":  1324,
+    "fitNarrow":  {
+                      "text":  "Fit · 12%",
+                      "fit":  "On",
+                      "actual":  "Off"
+                  },
+    "fitWide":  {
+                    "text":  "Fit · 16%",
+                    "fit":  "On",
+                    "actual":  "Off"
+                },
+    "sourceUnchanged":  true,
+    "targetEmpty":  true
+}
