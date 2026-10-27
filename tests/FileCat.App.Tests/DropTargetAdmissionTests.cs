@@ -86,6 +86,42 @@ public sealed class DropTargetAdmissionTests
     }
 
     [AvaloniaFact]
+    public async Task Native_drag_intent_retains_first_folder_when_panel_navigates_during_hover()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[1];
+            await Listed(panel.ActiveTab!.Listing);
+            var drag = new DropTargetAdmission.DragIntent();
+            var (first, _) = DropTargetAdmission.Check(panel, true, false);
+            Assert.NotNull(first);
+            Assert.Equal(first, drag.Hover(first, null).Accepted);
+
+            // A transient unavailable state must not erase the original offer.
+            Assert.Null(drag.Hover(null, "Folder unavailable").Accepted);
+            Assert.Same(first, drag.Original);
+
+            string parent = Directory.CreateDirectory(Path.Combine(root, "replacement-target")).FullName;
+            panel.ActiveTab.Navigate(Location.FileSystem(parent));
+            await Listed(panel.ActiveTab.Listing);
+            var (changed, _) = DropTargetAdmission.Check(panel, true, false);
+            Assert.NotNull(changed);
+            var refused = drag.Hover(changed, null);
+            Assert.Null(refused.Accepted);
+            Assert.Equal(DropTargetAdmission.ChangedTargetMessage, refused.Refusal);
+            Assert.Same(first, drag.Original);
+            Assert.True(drag.TargetChanged);
+            Assert.Null(drag.Hover(first, null).Accepted); // cannot silently restore the old offer
+
+            drag.Reset(); // a later, distinct native drag may use the new folder
+            Assert.Equal(changed, drag.Hover(changed, null).Accepted);
+            Assert.False(drag.TargetChanged);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Changed_or_unavailable_target_refuses_without_activating_panel_or_opening_review()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

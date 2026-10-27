@@ -287,41 +287,48 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
         DragDrop.SetAllowDrop(view, true);
-        DropTargetAdmission.Offer? offered = null;
+        var dragIntent = new DropTargetAdmission.DragIntent();
         string? reportedRefusal = null;
         view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
             bool files = e.DataTransfer.Contains(DataFormat.File);
             string? refusal;
-            (offered, refusal) = DropTargetAdmission.Check(panel, files,
+            var (current, candidateRefusal) = DropTargetAdmission.Check(panel, files,
                 (e.KeyModifiers & KeyModifiers.Shift) != 0);
+            (current, refusal) = dragIntent.Hover(current, candidateRefusal);
             // Native drag managers may never raise Drop when the offered effect is None.
             // Explain an unsupported file destination on its first hover, but do not
             // repeat a notice for every DragOver frame or for unrelated tab drags.
-            if (files && offered is null && refusal is not null &&
+            if (files && current is null && refusal is not null &&
                 !string.Equals(reportedRefusal, refusal, StringComparison.Ordinal))
             {
                 reportedRefusal = refusal;
                 _vm.Notify(refusal);
             }
-            else if (offered is not null) reportedRefusal = null;
-            e.DragEffects = offered?.Effect ?? DragDropEffects.None;
+            else if (current is not null) reportedRefusal = null;
+            e.DragEffects = current?.Effect ?? DragDropEffects.None;
             e.Handled = true;
         });
         view.AddHandler(DragDrop.DragLeaveEvent, (_, _) =>
         {
-            offered = null;
+            dragIntent.Reset();
             reportedRefusal = null;
         });
         view.AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
-            var previous = offered;
-            offered = null;
+            var previous = dragIntent.Original;
+            bool targetChanged = dragIntent.TargetChanged;
+            dragIntent.Reset();
             reportedRefusal = null;
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
             var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move);
+            if (targetChanged)
+            {
+                _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
+                return;
+            }
             if (current is null)
             {
                 _vm.Notify(refusal!, true);
@@ -329,7 +336,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             }
             if (previous is not null && !DropTargetAdmission.SameTarget(previous, current))
             {
-                _vm.Notify("The drop target changed during the drag. Drop again onto the folder you want to use.", true);
+                _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
                 return;
             }
             IReadOnlyList<string>? paths;

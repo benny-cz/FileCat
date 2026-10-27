@@ -9,6 +9,32 @@ namespace FileCat.App.Services;
 internal static class DropTargetAdmission
 {
     internal sealed record Offer(TabViewModel Tab, Location Destination, DragDropEffects Effect);
+    internal const string ChangedTargetMessage = "The drop target changed during the drag. Drop again onto the folder you want to use.";
+
+    /// <summary>Keep the first offered destination for one native drag, even if the panel navigates under the pointer.</summary>
+    internal sealed class DragIntent
+    {
+        internal Offer? Original { get; private set; }
+        internal bool TargetChanged { get; private set; }
+
+        internal (Offer? Accepted, string? Refusal) Hover(Offer? current, string? refusal)
+        {
+            if (TargetChanged) return (null, ChangedTargetMessage);
+            if (Original is not null && current is not null && !SameTarget(Original, current))
+            {
+                TargetChanged = true;
+                return (null, ChangedTargetMessage);
+            }
+            Original ??= current;
+            return (current, refusal);
+        }
+
+        internal void Reset()
+        {
+            Original = null;
+            TargetChanged = false;
+        }
+    }
 
     internal static (Offer? Accepted, string? Refusal) Check(PanelViewModel panel, bool hasFilePayload, bool move)
     {
