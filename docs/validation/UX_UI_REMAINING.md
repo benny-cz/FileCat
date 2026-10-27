@@ -1,6 +1,6 @@
 # Remaining UX/UI audit work
 
-Updated 27 October 2026. [The acceptance ledger](UX_UI_ACCEPTANCE_LEDGER.md)
+Updated 28 October 2026. [The acceptance ledger](UX_UI_ACCEPTANCE_LEDGER.md)
 is the sole authoritative list of required scenarios, their status, tested
 build/environment, evidence and exact closure condition. This file is a
 severity-ordered index of **remaining work only**. Dated passing results and
@@ -11,7 +11,7 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  Markdown.
+  Markdown Page focus return on the Mac with VoiceOver.
   Each table row specifies one bounded consequential route.
 
 ## S3 and final gate

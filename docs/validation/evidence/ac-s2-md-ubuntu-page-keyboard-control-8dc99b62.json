@@ -1,0 +1,143 @@
+{
+  "passed": false,
+  "appDllSha256": "1ef9da6e781f3c3b86ab0a6bdc470d46ea1447fc5800d8ed3a270923a0235c35",
+  "displayScale": "2.0",
+  "fixture": "/home/benny/FileCatValidation/PageKeyboardFixture/23d19458030e47df9babf8098704dce2",
+  "input": "uinput keyboard and absolute pointer",
+  "steps": [
+    {
+      "step": "F3 opens the page with its keys",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:300 y:175 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": null,
+      "expect": {
+        "xFocus": "0x1a00004",
+        "focused": "panel 'Web page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "F7 and typing with the pointer over the page fill Find",
+      "xFocus": "0x1600023",
+      "activeWindow": "0x1600023",
+      "pointer": "x:729 y:456 screen:0 window:23068707",
+      "focused": "entry 'Find in file'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1600023",
+        "focused": "entry 'Find in file'",
+        "findText": "mar"
+      },
+      "passed": true
+    },
+    {
+      "step": "Escape gives the keys back to the page",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:729 y:456 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1a00004",
+        "focused": "panel 'Web page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "Tab with the pointer over the toolbar stays in the page",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:174 y:158 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1a00004",
+        "focused": "panel 'Web page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "Tab past the page's last item goes on to the Page button",
+      "xFocus": "0x1600023",
+      "activeWindow": "0x1600023",
+      "pointer": "x:174 y:158 screen:0 window:23068707",
+      "focused": "toggle button 'Page'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1600023",
+        "focused": "toggle button 'Page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "Shift+Tab comes back to the page",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:174 y:158 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1a00004",
+        "focused": "panel 'Web page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "A click in the page with Find focused gives the page focus and keys",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:729 y:456 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": "mar",
+      "expect": {
+        "xFocus": "0x1a00004",
+        "focused": "panel 'Web page'"
+      },
+      "passed": true
+    },
+    {
+      "step": "Letters typed after the click leave Find unchanged",
+      "xFocus": "0x1a00004",
+      "activeWindow": "0x1600023",
+      "pointer": "x:729 y:456 screen:0 window:23068707",
+      "focused": "panel 'Web page'",
+      "findText": "mar",
+      "expect": {
+        "findText": "mar"
+      },
+      "passed": true
+    },
+    {
+      "step": "A click on the Text button shows the text",
+      "xFocus": "0x1600023",
+      "activeWindow": "0x1600023",
+      "pointer": "x:300 y:175 screen:0 window:23068707",
+      "focused": "entry 'Text viewer'",
+      "findText": "mar",
+      "expect": {
+        "focused": "entry 'Text viewer'"
+      },
+      "passed": true
+    }
+  ],
+  "viewer": "0x1600023",
+  "pageFocusWindow": "0x1a00004",
+  "viewerGeometry": [
+    134,
+    138,
+    1786,
+    1062
+  ],
+  "screen": [
+    1920,
+    1200
+  ],
+  "pageSizesWithFind": {
+    "host": "1786x880",
+    "plug": "3572x1760"
+  },
+  "error": "Unmet: With Find open the page is 3572x1760 in a 1786x880 host",
+  "log": "2026-10-27T23:12:52.8045178Z Info    FileCat starting on Linux, profile default\n"
+}

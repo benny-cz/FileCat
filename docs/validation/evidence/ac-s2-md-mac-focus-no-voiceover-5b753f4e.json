@@ -1,0 +1,259 @@
+{
+  "passed": true,
+  "platform": "macOS",
+  "fixture": "/Users/benny/FileCatValidation/MacPageFocus/e70dbc7d067548d587b8b255535bb86d",
+  "sourceSha256": "562c78e956956aa67cc15df69fbdadf8b3232d1a7c494ee60ad79307b7b43430",
+  "appDllSha256": "66a8c0418f97bd2ee80a1e4f2a2a5dc54591fe0b7c79e5c0e68b07194bc7db53",
+  "steps": [
+    {
+      "step": "down to wide.md",
+      "keys": [
+        "down"
+      ],
+      "expect": "the wide.md row",
+      "notifications": [
+        {
+          "description": "",
+          "help": "file, 484 bytes, modified 28.10.2026 00:47:14, not marked, 2 of 2",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXRow",
+          "subrole": "AXTableRow",
+          "time": "1793144836.839",
+          "title": "wide.md",
+          "value": ""
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "file, 484 bytes, modified 28.10.2026 00:47:14, not marked, 2 of 2",
+        "pid": "23078",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "wide.md",
+        "value": ""
+      },
+      "notified": true,
+      "passed": true
+    },
+    {
+      "step": "F7 focuses Find",
+      "keys": [
+        "f7"
+      ],
+      "expect": "the Find field",
+      "notifications": [
+        {
+          "description": "",
+          "help": "Tab moves into the page. F4 shows the same file as text.",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXUnknown",
+          "subrole": "AXUnknown",
+          "time": "1793144842.421",
+          "title": "Web page",
+          "value": ""
+        },
+        {
+          "description": "",
+          "help": "Find (Ctrl+F)",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXTextField",
+          "subrole": "AXUnknown",
+          "time": "1793144842.422",
+          "title": "Find in file",
+          "value": ""
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "Find (Ctrl+F)",
+        "pid": "23078",
+        "role": "AXTextField",
+        "subrole": "AXUnknown",
+        "title": "Find in file",
+        "value": ""
+      },
+      "notified": true,
+      "passed": true
+    },
+    {
+      "step": "marker and Return search the page from Find",
+      "focused": {
+        "description": "",
+        "help": "Find (Ctrl+F)",
+        "pid": "23078",
+        "role": "AXTextField",
+        "subrole": "AXUnknown",
+        "title": "Find in file",
+        "value": "marker"
+      },
+      "passed": true
+    },
+    {
+      "step": "Command+A and Command+C in Find copy its text",
+      "expect": "exactly marker",
+      "copied": "marker",
+      "passed": true
+    },
+    {
+      "step": "Escape gives the keyboard back to the page",
+      "expect": "the page's text",
+      "copied": "Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\nItem\tOwner\tLocation\tSize\tModified\tKind\tChecksum\tState\tNotes\tRightmost marker cell\nalpha\tbenny\t/srv/data/alpha\t1 MiB",
+      "passed": true
+    },
+    {
+      "step": "F7 focuses Find again",
+      "keys": [
+        "f7"
+      ],
+      "expect": "the Find field",
+      "notifications": [
+        {
+          "description": "",
+          "help": "Tab moves into the page. F4 shows the same file as text.",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXUnknown",
+          "subrole": "AXUnknown",
+          "time": "1793144851.522",
+          "title": "Web page",
+          "value": ""
+        },
+        {
+          "description": "",
+          "help": "Find (Ctrl+F)",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXTextField",
+          "subrole": "AXUnknown",
+          "time": "1793144851.523",
+          "title": "Find in file",
+          "value": "marker"
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "Find (Ctrl+F)",
+        "pid": "23078",
+        "role": "AXTextField",
+        "subrole": "AXUnknown",
+        "title": "Find in file",
+        "value": "marker"
+      },
+      "notified": true,
+      "passed": true
+    },
+    {
+      "step": "Escape returns to the page again",
+      "expect": "the page's text",
+      "copied": "Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\nItem\tOwner\tLocation\tSize\tModified\tKind\tChecksum\tState\tNotes\tRightmost marker cell\nalpha\tbenny\t/srv/data/alpha\t1 MiB",
+      "passed": true
+    },
+    {
+      "step": "F4 from the page shows the text",
+      "keys": [
+        "f4"
+      ],
+      "expect": "the text viewer",
+      "notifications": [
+        {
+          "description": "",
+          "help": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "23078",
+          "role": "AXStaticText",
+          "subrole": "AXUnknown",
+          "time": "1793144855.693",
+          "title": "Text viewer",
+          "value": "# Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\n| Item | Owner | Location | Size | Modified | Kind | Checksum | State | Notes | Rightmost marker cell |\n|---|---|---|---|---|---|---|---|---|---|\n| alpha | benny | /srv/data/alpha | 1 MiB | 2026-10-27 | file | 3a7bd3e2360a3d29 | ok | first | edge one |\n\nThe closing paragraph has the last marker.\n"
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "pid": "23078",
+        "role": "AXStaticText",
+        "subrole": "AXUnknown",
+        "title": "Text viewer",
+        "value": "# Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\n| Item | Owner | Location | Size | Modified | Kind | Checksum | State | Notes | Rightmost marker cell |\n|---|---|---|---|---|---|---|---|---|---|\n| alpha | benny | /srv/data/alpha | 1 MiB | 2026-10-27 | file | 3a7bd3e2360a3d29 | ok | first | edge one |\n\nThe closing paragraph has the last marker.\n"
+      },
+      "notified": true,
+      "passed": true
+    }
+  ],
+  "afterOpen": {
+    "focused": {
+      "description": "",
+      "help": "Tab moves into the page. F4 shows the same file as text.",
+      "pid": "23078",
+      "role": "AXUnknown",
+      "subrole": "AXUnknown",
+      "title": "Web page",
+      "value": ""
+    },
+    "notifications": [
+      {
+        "description": "",
+        "help": "file, 484 bytes, modified 28.10.2026 00:47:14, not marked, 2 of 2",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "23078",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "time": "1793144837.575",
+        "title": "wide.md",
+        "value": ""
+      },
+      {
+        "description": "",
+        "help": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "23078",
+        "role": "AXStaticText",
+        "subrole": "AXUnknown",
+        "time": "1793144837.576",
+        "title": "Text viewer",
+        "value": "# Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\n| Item | Owner | Location | Size | Modified | Kind | Checksum | State | Notes | Rightmost marker cell |\n|---|---|---|---|---|---|---|---|---|---|\n| alpha | benny | /srv/data/alpha | 1 MiB | 2026-10-27 | file | 3a7bd3e2360a3d29 | ok | first | edge one |\n\nThe closing paragraph has the last marker.\n"
+      },
+      {
+        "description": "",
+        "help": "Tab moves into the page. F4 shows the same file as text.",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "23078",
+        "role": "AXUnknown",
+        "subrole": "AXUnknown",
+        "time": "1793144837.576",
+        "title": "Web page",
+        "value": ""
+      }
+    ]
+  },
+  "viewerSize": "520, 520",
+  "matchStatus": "At least 1 match \u00b7 total unavailable in Page mode",
+  "afterEscape": {
+    "viewerOpen": true,
+    "focused": {
+      "description": "",
+      "help": "Tab moves into the page. F4 shows the same file as text.",
+      "pid": "23078",
+      "role": "AXUnknown",
+      "subrole": "AXUnknown",
+      "title": "Web page",
+      "value": ""
+    },
+    "notifications": [
+      {
+        "description": "",
+        "help": "Tab moves into the page. F4 shows the same file as text.",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "23078",
+        "role": "AXUnknown",
+        "subrole": "AXUnknown",
+        "time": "1793144847.257",
+        "title": "Web page",
+        "value": ""
+      }
+    ]
+  }
+}

@@ -32,7 +32,8 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "s": (31,), "p": (25,), "l": (38,), "i": (23,), "t": (20,), "e": (18,),
         "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47), "ctrl+q": (29, 16), "alt+f7": (56, 65),
         "shift+f10": (42, 68), "f1": (59,), "f9": (67,), "f10": (68,), "delete": (111,), "alt+2": (56, 3), "alt+3": (56, 4),
-        "alt+shift+enter": (56, 42, 28)}
+        "alt+shift+enter": (56, 42, 28), "insert+a": (110, 30), "alt+shift+right": (56, 42, 106),
+        "shift+tab": (42, 15)}
 # "type:find files" types lowercase letters and spaces with one device (US layout).
 LETTERS = dict(zip("abcdefghijklmnopqrstuvwxyz ", (30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50, 49, 24, 25, 16, 19,
                                                      31, 20, 22, 47, 17, 45, 21, 44, 57)))

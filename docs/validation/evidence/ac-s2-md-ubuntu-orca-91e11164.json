@@ -1,0 +1,293 @@
+{
+  "passed": true,
+  "appDllSha256": "61834ff855ce32008cc88a538dbf76910cbd9be271a5aed2bff9e6df85be5a65",
+  "orca": "Orca version 50.2, AT-SPI2 version: 2.60.4",
+  "displayScale": "2.0",
+  "fixture": "/home/benny/FileCatValidation/OrcaMarkdownFixture/6cd1a3d05f904b48ac18404a2e818fd2",
+  "sourceSha256": "d06d79b55d8b991eb6e763bac3726bfca5fba7244f8bffc204f3baad7a65580d",
+  "input": "uinput keyboard",
+  "steps": [
+    {
+      "step": "focus wide.md",
+      "keys": [
+        "down"
+      ],
+      "expect": "wide.md",
+      "heard": [
+        "wide.md, file, 677 bytes, modified 10/28/2026 12:10:26\u202fAM, not marked, 2 of 2.",
+        "not selected."
+      ],
+      "passed": true
+    },
+    {
+      "step": "F3 opens the page, whose host says how to move into it",
+      "keys": [
+        "f3"
+      ],
+      "expect": "Tab moves into the page",
+      "heard": [
+        "F3",
+        "wide.md \u2014 FileCat Viewer",
+        "frame",
+        "Web page",
+        "Tab moves into the page. F4 shows the same file as text. Tab moves into the page. F4 shows the same file as text.",
+        "Tab moves into the page. F4 shows the same file as text."
+      ],
+      "passed": true
+    },
+    {
+      "step": "Tab enters the page's table region",
+      "keys": [
+        "tab"
+      ],
+      "expect": "scroll horizontally",
+      "heard": [
+        "tab",
+        "Table; scroll horizontally if needed.",
+        "Browse mode"
+      ],
+      "passed": true
+    },
+    {
+      "step": "Orca's focus mode passes the arrows to the page",
+      "keys": [
+        "insert+a"
+      ],
+      "expect": "Focus mode",
+      "heard": [
+        "insert",
+        "Focus mode"
+      ],
+      "passed": true
+    },
+    {
+      "step": "Right arrows scroll the table region",
+      "keys": [
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "expect": null,
+      "heard": [],
+      "passed": true
+    },
+    {
+      "step": "Orca's browse mode reads the page again",
+      "keys": [
+        "insert+a"
+      ],
+      "expect": "Browse mode",
+      "heard": [
+        "insert",
+        "Browse mode"
+      ],
+      "passed": true
+    },
+    {
+      "step": "Orca's next-table key enters the table",
+      "keys": [
+        "t"
+      ],
+      "expect": "a phrase naming a table, in any case",
+      "heard": [
+        "t",
+        "table with 3 rows 10 columns",
+        "Item",
+        "column header."
+      ],
+      "passed": true
+    },
+    {
+      "step": "Orca's next-cell key reads to the rightmost header cell",
+      "keys": [
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right",
+        "alt+shift+right"
+      ],
+      "expect": "Rightmost marker cell",
+      "heard": [
+        "left alt",
+        "Owner",
+        "column header.",
+        "Row 1, column 2.",
+        "left alt",
+        "Location",
+        "column header.",
+        "Row 1, column 3.",
+        "left alt",
+        "Size",
+        "column header.",
+        "Row 1, column 4.",
+        "left alt",
+        "Modified",
+        "column header.",
+        "Row 1, column 5.",
+        "left alt",
+        "Kind",
+        "column header.",
+        "Row 1, column 6.",
+        "left alt",
+        "Checksum",
+        "column header.",
+        "Row 1, column 7.",
+        "left alt",
+        "State",
+        "column header.",
+        "Row 1, column 8.",
+        "left alt",
+        "Notes",
+        "column header.",
+        "Row 1, column 9.",
+        "left alt",
+        "Rightmost marker cell",
+        "column header.",
+        "Row 1, column 10."
+      ],
+      "passed": true
+    },
+    {
+      "step": "F7 opens Find",
+      "keys": [
+        "f7"
+      ],
+      "expect": "Find in file",
+      "heard": [
+        "F7",
+        "wide.md \u2014 FileCat Viewer",
+        "Find in file",
+        "entry",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)"
+      ],
+      "passed": true
+    },
+    {
+      "step": "marker is typed into Find",
+      "keys": [
+        "type:marker"
+      ],
+      "expect": null,
+      "heard": [
+        "m",
+        "a",
+        "Find in file",
+        "entry",
+        "mar.",
+        "r",
+        "k",
+        "e",
+        "r"
+      ],
+      "passed": true
+    },
+    {
+      "step": "Enter counts the matches",
+      "keys": [
+        "enter"
+      ],
+      "expect": "3 matches",
+      "heard": [
+        "return",
+        "3 matches",
+        "Found \"marker\" in the page."
+      ],
+      "passed": true
+    },
+    {
+      "step": "F3 speaks the next match",
+      "keys": [
+        "f3"
+      ],
+      "expect": "Found \"marker\" in the page",
+      "heard": [
+        "F3",
+        "Found \"marker\" in the page."
+      ],
+      "passed": true
+    },
+    {
+      "step": "Shift+F3 speaks the previous match",
+      "keys": [
+        "shift+f3"
+      ],
+      "expect": "Found \"marker\" in the page",
+      "heard": [
+        "left shift",
+        "F3",
+        "Found \"marker\" in the page."
+      ],
+      "passed": true
+    },
+    {
+      "step": "Escape gives the keyboard back to the page",
+      "keys": [
+        "escape"
+      ],
+      "expect": "Tab moves into the page",
+      "heard": [
+        "escape",
+        "Web page",
+        "Tab moves into the page. F4 shows the same file as text. Tab moves into the page. F4 shows the same file as text.",
+        "Tab moves into the page. F4 shows the same file as text.",
+        "grayed."
+      ],
+      "passed": true
+    },
+    {
+      "step": "F4 shows the file as text",
+      "keys": [
+        "f4"
+      ],
+      "expect": "Text viewer",
+      "heard": [
+        "source \u2014 FileCat \u2014 benny",
+        "F4",
+        "wide.md \u2014 FileCat Viewer",
+        "Text viewer",
+        "read only entry",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped."
+      ],
+      "passed": true
+    }
+  ],
+  "viewerActiveAfterF3": true,
+  "viewerPixels": [
+    1040,
+    1040
+  ],
+  "openCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.open.png",
+    "size": "1040 1040"
+  },
+  "tabCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.tab.png",
+    "size": "1040 1040"
+  },
+  "scrolledCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.scrolled.png",
+    "size": "1040 1040"
+  },
+  "cellsCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.cells.png",
+    "size": "1040 1040"
+  },
+  "typedCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.typed.png",
+    "size": "1040 1040"
+  },
+  "foundCapture": {
+    "path": "/home/benny/FileCatValidation/orca-markdown-91e11164.found.png",
+    "size": "1040 1040"
+  }
+}

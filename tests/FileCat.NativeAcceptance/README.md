@@ -129,6 +129,25 @@ reads the twelve key-bar buttons from AT-SPI: F10 must be named "Context menu"
 with the help "Shift+F10: Context menu", and a key without a command must be
 named for its key. It captures the window beside the report (`<report>.png`)
 for the visible labels, preserves fixture bytes and kills only its own app.
+`linux-orca-markdown-page.py APP_PATH REPORT.json KEY_HELPER [--record-all]`
+hears a ten-column Markdown page through a test-owned Orca at the desktop's
+scale: it opens the page with F3, un-maximizes and narrows the viewer to
+520 × 520 units (and refuses a viewer that did not narrow), enters the table
+region with Tab, scrolls it in Orca's focus mode (Insert+A), reads the header
+cells with Orca's next-table and next-cell keys, finds “marker” (3 matches)
+with spoken F3/Shift+F3 outcomes, returns with Escape and shows the text with
+F4. It captures the viewer beside the report at each stage and refuses a
+running Orca, `FileCat` or packaged `filecat`.
+`linux-atspi-page-keyboard.py APP_PATH REPORT.json KEY_HELPER CLICK_HELPER`
+records, after each physical key or click, the X focus window, GNOME's active
+window, the focused accessible and the Find field's text. It requires the
+keyboard in GTK's focus window inside the page's plug while the page has
+focus and in the viewer's window otherwise, wherever the pointer is; Tab past
+the page's last item to reach the Page button and Shift+Tab to return; a real
+click in the page to take focus; and, with Find open, the plug to keep its
+native host's size. `linux-uinput-click.py X Y SCREEN_WIDTH SCREEN_HEIGHT`
+clicks once through an absolute uinput pointer, since XTEST clicks do not
+reach X11 windows under GNOME's Xwayland.
 `linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
 physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
 Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly
@@ -2122,6 +2141,15 @@ offsets, so the runner checks the actual visible status and unchanged copy.
 It closes the viewer, removes only its exact test-owned copy and refreshes
 the listing.
 
+`python3 mac-ax-page-focus-return.py BUNDLE.app REPORT.json` opens a
+wide-table Markdown page in an isolated signed bundle, narrows the viewer to
+520 × 520 points and follows the AX focus VoiceOver speaks from (keep
+`mac-ax-focus-observer.swift` beside it). It requires the page's host as the
+focused element on open, Find after F7, and, judged from what Command+A and
+Command+C copy, the Find field's text while Find has the keyboard and the
+page's text after Escape with the viewer still open, then a second F7/Escape
+and F4 to the text. It overwrites the general pasteboard and kills only its
+own process.
 `python3 mac-ax-markdown-find.py SOURCE REPORT.json` creates one short
 temporary Markdown file in the same isolated source folder. It opens Page
 mode, reveals Find, sends Command+A/Delete and types `marker` through native

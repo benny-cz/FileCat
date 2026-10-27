@@ -1,5 +1,105 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-markdown-mac-20261028"></a>
+**28 October 2026, Mac Page focus return (AC-S2-MD; failing with VoiceOver,
+passing without it):** The new
+[Mac runner](../../tests/FileCat.NativeAcceptance/mac-ax-page-focus-return.py)
+opens a wide-table Markdown file in Page mode in a signed, isolated bundle,
+narrows the viewer to 520 × 520 points, and judges where the keys go by what
+Command+A and Command+C copy (`pbpaste`), with focus read through a read-only
+AX observer. On Git-built `91e11164` (DLL `9f7d6e6e…e03d5c64`) Command+A/C
+with Find focused copied the page's text instead of “marker”
+([before receipt](evidence/ac-s2-md-mac-focus-before-91e11164.json)); in a
+VoiceOver probe Escape in Find closed the viewer, and with the page shown the
+app had no focused element (VoiceOver said “WindowChrome group”). The web view
+was taking key equivalents that AppKit offers every view, and it stayed first
+responder while Avalonia's Find had focus, so every key went through WebKit
+first. Fixed in `bbfc8cdf`/`4703fcd5` (key equivalents only while the page has
+the keyboard, never passed to WebKit otherwise), `4c499d6a` (as on Linux, the
+page's host takes Avalonia's focus with the page and announces it; another
+control taking focus hands AppKit's first responder back; a click in the page
+gives its host focus) and `5b753f4e` (the handoff goes to Avalonia's NSView,
+not its NSWindow, which took no keys). With VoiceOver off, all eight steps on
+`5b753f4e` (DLL `66a8c041…4bc7db53`) passed: “Web page” focused on open, F7 to
+Find, “At least 1 match · total unavailable in Page mode”, Command+A/C in Find
+copying exactly “marker”, Escape keeping the viewer open with the page's text
+copied, a second F7 and Escape, and F4 to the text
+([receipt](evidence/ac-s2-md-mac-focus-no-voiceover-5b753f4e.json)). With
+VoiceOver running, the second F7 failed: a trace showed
+`AvnAutomationPeer.SetFocus()` from VoiceOver putting focus back on the host
+under its cursor ([receipt](evidence/ac-s2-md-mac-focus-voiceover-5b753f4e.json)).
+That remains open. The page's own text now appears in the Mac AX tree under
+the host; whether VoiceOver reads it is part of the remaining route.
+
+<a id="evidence-markdown-ubuntu-20261028"></a>
+**28 October 2026, Markdown at Ubuntu 200% with Orca, keyboard and pointer
+(AC-S2-MD-UBUNTU200 accepted):** The new
+[Orca runner](../../tests/FileCat.NativeAcceptance/linux-orca-markdown-page.py)
+opens a ten-column, three-match Markdown file in Page mode on the Ubuntu VM at
+scale 2.0, un-maximizes the viewer GNOME had maximized and narrows it to
+520 × 520 units (measured 1,040 × 1,040 pixels), and judges Orca 50.2's own
+speech; keys are physical (uinput). The route found and fixed, in order:
+
+- The page's host was an unnamed, unknown node, and Orca said nothing when the
+  page took the keyboard (`e9feb2c7`, `5795d058`): the host is now “Web page”
+  with the help “Tab moves into the page. F4 shows the same file as text.”
+- After F7 the typed search went into the page, and F4 with the keyboard
+  outside a page showed hex, not the text its status line promises; Page
+  Next/Previous were silent (`9452d696`). Each outcome is now spoken, not the
+  searching state before it.
+- The keys went to the page whenever the pointer rested on it, whatever had
+  focus: X delivered them to the reparented plug. The plug no longer selects
+  key events; the page gets the keys through GTK's own 1-pixel focus window,
+  retried while not yet on screen and never while its window is inactive; a
+  click gives the host focus; Tab past the page's end, or Shift+Tab past its
+  start, goes on to the viewer's controls, past Find's disabled buttons
+  (`35554431`, `7b4198f4`, `2f4c7a87`). XTEST clicks do not reach X11 windows
+  under this Xwayland, so the new
+  [click helper](../../tests/FileCat.NativeAcceptance/linux-uinput-click.py)
+  uses an absolute uinput pointer.
+- GtkPlug takes its window focus only from XEmbed messages: without them
+  Tab past the end went round the page again (`8dc99b62` sends
+  WINDOW_ACTIVATE/FOCUS_IN/FOCUS_OUT as an embedder would).
+- With Find open the page ran past the window's right and bottom edges:
+  sizes in pixels were given to GTK as its units, twice as large at 200%
+  (plug 2,080 × 1,582 in a 1,040 × 791 host;
+  [before](evidence/ubuntu-md-200-found-overflow-8dc99b62.png)); `91e11164`
+  converts by the plug's scale factor.
+
+On `91e11164` (DLL `61834ff8…85be5a65`) the Orca route passed all fifteen
+steps ([receipt](evidence/ac-s2-md-ubuntu-orca-91e11164.json)): the host and
+its help on F3; “Table; scroll horizontally if needed.” on Tab; focus-mode
+Right arrows scrolling the region
+([capture](evidence/ubuntu-md-200-scrolled-91e11164.png)); “table with 3 rows
+10 columns” and the next-cell key reading every header to “Rightmost marker
+cell, column header, Row 1, column 10” with the region scrolled to it
+([capture](evidence/ubuntu-md-200-cells-91e11164.png)); “3 matches” and
+“Found "marker" in the page.” for Enter, F3 and Shift+F3 with the prose still
+wrapped ([capture](evidence/ubuntu-md-200-found-91e11164.png)); the host on
+Escape; “Text viewer” on F4. The new
+[keyboard runner](../../tests/FileCat.NativeAcceptance/linux-atspi-page-keyboard.py)
+passed nine steps plus its size check
+([receipt](evidence/ac-s2-md-ubuntu-page-keyboard-91e11164.json)): GTK's focus
+window holds the X focus while the page has the keyboard and the viewer's
+window otherwise, “mar” typed with the pointer parked over the page fills
+Find, Tab stays in the page with the pointer over the toolbar, Tab past its
+last item reaches the Page button and Shift+Tab returns, a real click in the
+page takes focus (typed letters leave Find unchanged), a click on Text shows
+the text, and GNOME's active window stays the viewer throughout. Run against
+`8dc99b62` it failed only the size check, 3,572 × 1,760 in a 1,786 × 880 host
+([control](evidence/ac-s2-md-ubuntu-page-keyboard-control-8dc99b62.json)). The
+complete Windows Release App suite on `91e11164` passed 2,593 tests with 63
+platform skips and no failures using 16 workers, and the page-viewer tests
+(19) passed headless on the Ubuntu VM at `7b4198f4`. Limits: Orca reads the
+page by following focus into WebKit; Avalonia has no AT-SPI socket for the
+plug (UXBUG-021, outside closure in the ledger), and Orca can add “grayed”
+for WebKit's parentless GTK accessible when the page takes the keyboard back.
+Leftovers of an earlier failed attempt (a GNOME Text Editor and the packaged
+`filecat` showing a `marker` folder) had made Orca speak a stray frame name;
+they were closed, and both runners now refuse a running packaged `filecat`.
+GNOME's Remote Desktop request that an XTEST click raised was not granted
+and had closed.
+
 <a id="evidence-window-fit-20261027"></a>
 **27 October 2026, secondary windows across a display change and a spoken
 resize grip (AC-S2-WINDOW; UXBUG-005/007 accepted):** The new

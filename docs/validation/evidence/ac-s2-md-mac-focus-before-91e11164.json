@@ -1,0 +1,120 @@
+{
+  "passed": false,
+  "platform": "macOS",
+  "fixture": "/Users/benny/FileCatValidation/MacPageFocus/473ef7e7852a4c46b52c6a54c91c552a",
+  "sourceSha256": "562c78e956956aa67cc15df69fbdadf8b3232d1a7c494ee60ad79307b7b43430",
+  "appDllSha256": "9f7d6e6e5108a31adf58e8e71d74f21839361655c1d44fbd5b43672be03d5c64",
+  "steps": [
+    {
+      "step": "down to wide.md",
+      "keys": [
+        "down"
+      ],
+      "expect": "the wide.md row",
+      "notifications": [
+        {
+          "description": "",
+          "help": "file, 484 bytes, modified 28.10.2026 00:30:00, not marked, 2 of 2",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "19921",
+          "role": "AXRow",
+          "subrole": "AXTableRow",
+          "time": "1793143802.707",
+          "title": "wide.md",
+          "value": ""
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "file, 484 bytes, modified 28.10.2026 00:30:00, not marked, 2 of 2",
+        "pid": "19921",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "wide.md",
+        "value": ""
+      },
+      "notified": true,
+      "passed": true
+    },
+    {
+      "step": "F7 focuses Find",
+      "keys": [
+        "f7"
+      ],
+      "expect": "the Find field",
+      "notifications": [
+        {
+          "description": "",
+          "help": "Find (Ctrl+F)",
+          "notification": "AXFocusedUIElementChanged",
+          "pid": "19921",
+          "role": "AXTextField",
+          "subrole": "AXUnknown",
+          "time": "1793143808.384",
+          "title": "Find in file",
+          "value": ""
+        }
+      ],
+      "focused": {
+        "description": "",
+        "help": "Find (Ctrl+F)",
+        "pid": "19921",
+        "role": "AXTextField",
+        "subrole": "AXUnknown",
+        "title": "Find in file",
+        "value": ""
+      },
+      "notified": true,
+      "passed": true
+    },
+    {
+      "step": "marker and Return search the page from Find",
+      "focused": {
+        "description": "",
+        "help": "Find (Ctrl+F)",
+        "pid": "19921",
+        "role": "AXTextField",
+        "subrole": "AXUnknown",
+        "title": "Find in file",
+        "value": "marker"
+      },
+      "passed": true
+    },
+    {
+      "step": "Command+A and Command+C in Find copy its text",
+      "expect": "exactly marker",
+      "copied": "Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\nItem\tOwner\tLocation\tSize\tModified\tKind\tChecksum\tState\tNotes\tRightmost marker cell\nalpha\tbenny\t/srv/data/alpha\t1 MiB",
+      "passed": false
+    }
+  ],
+  "afterOpen": {
+    "focused": {},
+    "notifications": [
+      {
+        "description": "",
+        "help": "file, 484 bytes, modified 28.10.2026 00:30:00, not marked, 2 of 2",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "19921",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "time": "1793143803.457",
+        "title": "wide.md",
+        "value": ""
+      },
+      {
+        "description": "",
+        "help": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "notification": "AXFocusedUIElementChanged",
+        "pid": "19921",
+        "role": "AXStaticText",
+        "subrole": "AXUnknown",
+        "time": "1793143803.458",
+        "title": "Text viewer",
+        "value": "# Wide table check\n\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\n\n| Item | Owner | Location | Size | Modified | Kind | Checksum | State | Notes | Rightmost marker cell |\n|---|---|---|---|---|---|---|---|---|---|\n| alpha | benny | /srv/data/alpha | 1 MiB | 2026-10-27 | file | 3a7bd3e2360a3d29 | ok | first | edge one |\n\nThe closing paragraph has the last marker.\n"
+      }
+    ]
+  },
+  "viewerSize": "520, 520",
+  "matchStatus": "Find previous match   Find the previous match (Shift+F3)",
+  "error": "Command+A and Command+C in Find copy its text: copied 'Wide table check\\n\\nThe first marker paragraph says enough words to need several lines in a narrow viewer, so its lines must wrap inside the window instead of pushing the page sideways.\\n\\nItem\\tOwner\\tLoca'"
+}
