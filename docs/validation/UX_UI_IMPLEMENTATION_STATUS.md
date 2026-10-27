@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-registry-20261027"></a>
+**27 October 2026, native Find from Registry (AC-S2-044-REGISTRY):** The
+[Windows UI Automation runner](../../tests/FileCat.NativeAcceptance/win-ax-find-registry-scope.ps1)
+launched the Git-built `a5ebd315` app (DLL SHA-256
+`FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119`)
+with a fresh profile and `HKCU\\Software` as the active panel. After focusing
+the Microsoft key, the native toolbar Find opened **Find in Registry**. Its
+accessible scope said “Search below Registry › HKCU\\Software” and explained
+that Registry links are listed by name but their targets are not searched.
+The Registry search field and Close action were exposed and enabled; the
+owned filesystem sentinel stayed byte-exact. The [direct receipt](evidence/ac-s2-044-win-registry-scope.json)
+accepts only this origin route. Result-set scope and narrow Find completion
+remain under [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+
 <a id="evidence-find-sftp-20261027"></a>
 **27 October 2026, native Find from SFTP (AC-S2-044-SFTP):** The
 [Ubuntu runner](../../tests/FileCat.NativeAcceptance/linux-atspi-find-sftp-scope.py)
@@ -12,7 +26,7 @@ one-time trust and observed the owned remote file row. Native Find then said
 until a local scope is chosen. The local and remote fixture bytes stayed
 unchanged. The [direct receipt](evidence/ac-s2-044-ubuntu-sftp-scope.json)
 records the connected panel, guidance and disabled action. This accepts only
-the SFTP origin; Registry, result-set and narrow completion remain under
+the SFTP origin; Registry passed separately, while result-set and narrow completion remain under
 [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
 
 <a id="evidence-recovery-speech-20261027"></a>
@@ -48,13 +62,16 @@ documentation alone. The focused 640×420-DIP drawer suite passed 11/11.
 Actual Orca speech passed separately in
 [AC-S2-042-SPEECH](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-speech).
 
+<a id="evidence-ubuntu-compare-ci-20261027"></a>
 **27 October 2026, Ubuntu CI Compare Text correction:** The intermittent
 `a3092ae7` Ubuntu App failure in `CompareTextInteractionTests` used a stale
 pointer target. `2b8f97c5` waits for the current realized source row before
 dragging; the seven focused tests passed on Windows Release and a Git-built
 Ubuntu VM. The exact [Ubuntu CI job](https://github.com/benny-cz/FileCat/actions/runs/40506148097/job/122195965728)
-also completed successfully at 13:14 UTC. Its other matrix jobs were still
-running when recorded; this is not the final audit-wide CI gate.
+also completed successfully at 13:14 UTC. The [full five-lane run](https://github.com/benny-cz/FileCat/actions/runs/40506148097)
+subsequently completed green, as did the [five-lane `139d6644` run](https://github.com/benny-cz/FileCat/actions/runs/40506296933).
+These dated checkpoints precede later implementation and are not the final
+audit-wide CI gate.
 
 <a id="evidence-recovery-stop-20261027"></a>
 **27 October 2026, native delayed recovery Stop (AC-S2-042-STOP):** The

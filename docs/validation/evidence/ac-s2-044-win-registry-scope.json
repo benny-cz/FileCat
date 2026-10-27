@@ -1,0 +1,13 @@
+{
+  "Passed": true,
+  "AppDllSha256": "FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119",
+  "Fixture": "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindRegistryScopeFixture\\728aec883bb14f1bb8c460dd6b6cfb11",
+  "RegistryOrigin": "reg:HKCU\\Software",
+  "Scope": {
+    "Heading": "Find in Registry",
+    "Guidance": "Search below Registry › HKCU\\Software. Registry links are listed by name but their targets are not searched.",
+    "SearchTextCount": 1,
+    "CloseEnabled": true
+  },
+  "Error": null
+}

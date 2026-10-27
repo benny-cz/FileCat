@@ -1,5 +1,12 @@
 # Native Windows acceptance runner
 
+`win-ax-find-registry-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
+<fresh guest JSON>` runs in the logged-in Windows VMware desktop with a fresh
+profile under `FileCatValidation`. It opens Find from `HKCU\\Software`, verifies
+the native Registry scope guidance, accessible search field and Close action,
+and preserves an owned filesystem sentinel. It reads but does not change the
+Registry and closes only its own app process. The report path must be fresh.
+
 This runner exercises actual Win32 pointer input against a running FileCat
 window. It requires a logged-in Windows desktop, FileCat, and the locally
 installed Windows Application Driver listening on `127.0.0.1:4723`. It does
