@@ -466,4 +466,95 @@ public sealed class TransferDestinationValidationTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task A_removed_slow_destination_and_invalid_localized_speed_cannot_submit_stale_mapping()
+    {
+        var previousCulture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("cs-CZ");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string source = Path.Combine(root, "files", "a.txt");
+            string first = Directory.CreateDirectory(Path.Combine(root, "slow")).FullName;
+            string current = Directory.CreateDirectory(Path.Combine(root, "current")).FullName;
+            vm.TransferDestinationDirectoryExists = path =>
+            {
+                if (string.Equals(path.TrimEnd(Path.DirectorySeparatorChar), first,
+                        StringComparison.Ordinal))
+                {
+                    entered.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                }
+                return Directory.Exists(path);
+            };
+            var pending = OperationDialogs.ShowTransferAsync(vm, new TransferDialogInput(JobKind.Copy,
+                [ItemRef.ForFileSystemPath(source, EntryKind.File)], "1 file",
+                current + Path.DirectorySeparatorChar, null, 0, false)
+                { BaseLocation = vm.ActiveTab?.Location });
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            await Until(() => dialogs.IsOpen);
+            window.UpdateLayout();
+            var destination = window.GetVisualDescendants().OfType<TextBox>().Single(b =>
+                AutomationProperties.GetName(b) == "Destination");
+            var options = window.GetVisualDescendants().OfType<Expander>().Single(e =>
+                Equals(e.Header, "Options"));
+            options.IsExpanded = true;
+            window.UpdateLayout();
+            var speed = window.GetVisualDescendants().OfType<TextBox>().Single(b =>
+                AutomationProperties.GetName(b) == "Speed limit (MB/s):");
+            var filter = window.GetVisualDescendants().OfType<TextBox>().Single(b =>
+                AutomationProperties.GetName(b) == "Only files matching:");
+            var start = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Copy"));
+            var queue = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Queue"));
+            var error = window.GetVisualDescendants().OfType<TextBlock>().Single(b =>
+                AutomationProperties.GetAutomationId(b) == "Transfer options error");
+            filter.Text = "*.txt";
+            speed.Text = "0,0625x";
+            destination.Text = first + Path.DirectorySeparatorChar;
+            await Until(() => entered.IsSet);
+            Assert.False(start.IsEnabled);
+            Assert.False(queue.IsEnabled);
+            Directory.Delete(first);
+            destination.Text = current + Path.DirectorySeparatorChar;
+            await Until(() => start.IsEnabled && queue.IsEnabled);
+            Assert.False(release.IsSet);
+
+            start.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(dialogs.IsOpen);
+            Assert.True(error.IsVisible);
+            Assert.Contains("Speed limit", error.Text);
+            Assert.Equal(current + Path.DirectorySeparatorChar, destination.Text);
+            Assert.Equal("*.txt", filter.Text);
+            speed.Text = "0,0625";
+            await Until(() => !error.IsVisible);
+            queue.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var accepted = Assert.IsType<TransferDialogResult>(await pending);
+            Assert.True(accepted.Queue);
+            Assert.Equal(current, accepted.ResolvedDestination!.Path.TrimEnd(Path.DirectorySeparatorChar));
+            Assert.Null(accepted.NewName);
+            Assert.Equal(65536, accepted.Options.RateLimit);
+            Assert.NotNull(accepted.Options.Filter);
+            release.Set();
+            await Task.Delay(100, ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal("alpha", File.ReadAllText(source));
+
+            async Task Until(Func<bool> ready)
+            {
+                for (int i = 0; i < 250 && !ready(); i++) await Task.Delay(20, ct);
+                Assert.True(ready(), "Current transfer mapping or options did not settle.");
+            }
+        }
+        finally
+        {
+            release.Set();
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            AccessibilityTests.Close(services, window, root);
+            CultureInfo.CurrentCulture = previousCulture;
+        }
+    }
 }
