@@ -1,5 +1,12 @@
 # Native Windows acceptance runner
 
+`win-ax-find-result-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
+<fresh guest JSON>` opens an owned two-file `--list` result set in a fresh
+Windows VMware profile. It invokes native toolbar Find, verifies the separate
+Find within results window, read-only two-item snapshot scope and enabled Find
+action, then checks that the list and both files stayed byte-exact. It closes
+only its own app process. The report path must be fresh.
+
 `win-ax-find-registry-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` runs in the logged-in Windows VMware desktop with a fresh
 profile under `FileCatValidation`. It opens Find from `HKCU\\Software`, verifies

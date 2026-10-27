@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-result-scope-20261027"></a>
+**27 October 2026, native Find within a result set (AC-S2-044-RESULT):**
+The [Windows UI Automation runner](../../tests/FileCat.NativeAcceptance/win-ax-find-result-scope.ps1)
+opened an owned two-file list through `--list` on Git-built `a5ebd315`
+(app DLL SHA-256 `FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119`).
+Toolbar Find opened **Find within results**. Its read-only Search within field
+named `List: owned.lst (2 items)`, and the accessible guidance said Find would
+search only this result-set snapshot. Find was enabled without changing the
+scope or either file; the owned list and both files remained byte-exact. The
+[direct receipt](evidence/ac-s2-044-win-result-scope.json) accepts this origin
+route. The context shortcut and narrow completion/speech boundaries remain
+open under [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+
 <a id="evidence-find-registry-20261027"></a>
 **27 October 2026, native Find from Registry (AC-S2-044-REGISTRY):** The
 [Windows UI Automation runner](../../tests/FileCat.NativeAcceptance/win-ax-find-registry-scope.ps1)
@@ -11,7 +24,7 @@ accessible scope said “Search below Registry › HKCU\\Software” and explain
 that Registry links are listed by name but their targets are not searched.
 The Registry search field and Close action were exposed and enabled; the
 owned filesystem sentinel stayed byte-exact. The [direct receipt](evidence/ac-s2-044-win-registry-scope.json)
-accepts only this origin route. Result-set scope and narrow Find completion
+accepts only this origin route. Result-set scope passed separately; narrow Find completion
 remain under [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
 
 <a id="evidence-find-sftp-20261027"></a>
@@ -26,7 +39,7 @@ one-time trust and observed the owned remote file row. Native Find then said
 until a local scope is chosen. The local and remote fixture bytes stayed
 unchanged. The [direct receipt](evidence/ac-s2-044-ubuntu-sftp-scope.json)
 records the connected panel, guidance and disabled action. This accepts only
-the SFTP origin; Registry passed separately, while result-set and narrow completion remain under
+the SFTP origin; Registry and result-set scope passed separately, while narrow completion remains under
 [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
 
 <a id="evidence-recovery-speech-20261027"></a>

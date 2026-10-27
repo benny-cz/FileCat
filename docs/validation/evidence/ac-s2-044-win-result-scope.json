@@ -1,0 +1,15 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindResultScopeFixture\\1840b9878fdb4966bcca274b15cee761",
+    "ResultSource":  "owned.lst",
+    "Scope":  {
+                  "Heading":  "Find within results",
+                  "SearchWithin":  "Search within",
+                  "SearchWithinValue":  "List: owned.lst (2 items)",
+                  "SearchWithinReadOnly":  true,
+                  "Guidance":  "Find will search only this result-set snapshot.",
+                  "FindEnabled":  true
+              },
+    "Error":  null
+}
