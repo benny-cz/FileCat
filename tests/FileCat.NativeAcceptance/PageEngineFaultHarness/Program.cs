@@ -54,11 +54,17 @@ internal sealed class HarnessApp : Application
     {
         base.OnFrameworkInitializationCompleted();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             _ = ExecuteAsync(desktop);
+        }
     }
 
     private static async Task ExecuteAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
+        // Let the desktop lifetime finish startup before assigning its first
+        // window; otherwise it can try to show a closed test window again.
+        await Task.Yield();
         string validation = ValidationRoot;
         string root = Path.Combine(validation, "PageEngineFault", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -124,6 +130,7 @@ internal sealed class HarnessApp : Application
         }
         finally
         {
+            desktop.MainWindow = null;
             viewer?.Close();
             services?.Dispose();
             Directory.Delete(root, recursive: true);
