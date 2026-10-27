@@ -1,5 +1,30 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-recovery-report-reviewed-20261027"></a>
+**27 October 2026, native Windows interrupted recovery report and reviewed decision:**
+On the same test-owned `seed-recovery` journal used for Hide/reopen, the
+Windows 11 VMware guest ran Git `3a4d7cba` (app DLL SHA-256
+`31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD`).
+The [native runner](../../tests/FileCat.NativeAcceptance/win-ax-recovery-report-reviewed.ps1)
+selected the interrupted Move, opened **Review report**, and used its real
+**Copy all** button. The 1,225-character clipboard replacement contained
+both complete source and destination paths in the report's documented JSON
+escaping and the inspection-only/no-change consequence. **Mark reviewed…**
+exposed no-file-change and retained-report disclosures. **Cancel** left the
+open journal hash, both source hashes and empty destination unchanged.
+Reopening the decision and approving **Mark reviewed and stop reminders**
+created a reviewed-record file with `ClosureConfirmed=true`, both full paths
+and the no-file-change result; source hashes and empty destination were
+still exact. Ignored receipt:
+`E:\FileCat\.local-ac-s2-020-report-reviewed-r4.json` (Passed true).
+Earlier `r1`–`r3` runs exposed only test-driver mistakes: a PowerShell `$PID`
+name collision, a clipboard expectation that prevented observation, and a
+raw-path assertion against the report's documented JSON escaping. None
+closed the journal before the successful run. This accepts the exact
+[AC-S2-020-REPORT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-report) scope;
+saved-report UI reopening after a restart and narrow spoken consequences
+remain untested.
+
 <a id="evidence-recovery-hide-reopen-20261027"></a>
 **27 October 2026, native Windows interrupted recovery Hide/reopen:**
 The isolated Windows 11 VMware guest ran exact Git `3a4d7cba` (app DLL

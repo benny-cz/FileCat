@@ -548,8 +548,13 @@ On Windows, `win-ax-recovery-hide-reopen.ps1 -AppPath <Git-built FileCat.exe>
 the native **Hide for now** boundary. It selects the sole interrupted row,
 checks the notice disappears, closes and restarts its owned app, and requires
 the same notice and Mark reviewed action to return with identical journal,
-source bytes and empty destination. The retained-report and deliberate
-review closure are separate AC-S2-020 work.
+source bytes and empty destination. On that same still-open fixture,
+`win-ax-recovery-report-reviewed.ps1` opens the distinct **Review report**
+window and uses Copy all, checks the report's documented JSON-escaped
+complete paths, then Cancels **Mark reviewed…** once before explicit
+approval. It requires unchanged source/destination bytes and a saved
+closure-confirmed full-path reviewed record. Spoken review and reopening the
+saved report after another restart are separate AC-S2-020 work.
 
 For an actual Core worker interruption, run `interrupt-live live-fixture.json`
 in the guest. Its nonzero exit is expected: the runner terminates itself after
