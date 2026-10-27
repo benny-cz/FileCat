@@ -158,6 +158,17 @@ public sealed class LinuxPageEngineTests
         Assert.Equal(new PageFindResult(true), LinuxPageEngine.FindResultFromCount(0));
     }
 
+    [Fact]
+    public void The_page_is_sized_in_GTK_units_at_its_scale()
+    {
+        // At 200% the viewer's 1,040 by 791 pixels are 520 by 396 GTK units; given as units, GTK drew a 2,080 by
+        // 1,582 pixel page whose prose ran past the window's edges.
+        Assert.Equal((520, 396), (LinuxPageEngine.ToGtkUnits(1040, 2), LinuxPageEngine.ToGtkUnits(791, 2)));
+        Assert.Equal(1041, LinuxPageEngine.ToGtkUnits(1041, 1));
+        Assert.Equal(347, LinuxPageEngine.ToGtkUnits(1040, 3));
+        Assert.Equal(1040, LinuxPageEngine.ToGtkUnits(1040, 0));
+    }
+
     /// <summary>A 1×1 PNG.</summary>
     private const string Png ="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 }

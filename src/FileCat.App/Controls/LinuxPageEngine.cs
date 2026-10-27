@@ -113,9 +113,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
 
     public void SetSize(int width, int height) => _ = OnGtk(() =>
     {
-        if (_window != 0 && width > 0 && height > 0) Native.gtk_window_resize(_window, width, height);
+        if (_window == 0 || width <= 0 || height <= 0) return 0;
+        // The viewer gives pixels and GTK sizes its windows in its own units: on a 200% desktop GTK made the page
+        // twice as wide and high as its room, so its prose ran past the window's right and bottom edges.
+        int scale = Native.gtk_widget_get_scale_factor(_window);
+        Native.gtk_window_resize(_window, ToGtkUnits(width, scale), ToGtkUnits(height, scale));
         return 0;
     });
+
+    /// <summary>Pixels in GTK's units at its window scale, rounded up so the page fills its room.</summary>
+    internal static int ToGtkUnits(int pixels, int scale) => scale <= 1 ? pixels : (pixels + scale - 1) / scale;
 
     /// <summary>
     /// The keyboard to the page. Avalonia reparents the page's window rather than embedding it (it sends no XEmbed
@@ -583,6 +590,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, void> gtk_widget_destroy;
         public static delegate* unmanaged[Cdecl]<nint, void> gtk_widget_grab_focus;
         public static delegate* unmanaged[Cdecl]<nint, int, int, void> gtk_window_resize;
+        public static delegate* unmanaged[Cdecl]<nint, int> gtk_widget_get_scale_factor;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_keyval;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_state;
         public static delegate* unmanaged[Cdecl]<uint, nint, nint, uint> g_timeout_add;
@@ -768,6 +776,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 gtk_widget_destroy = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(gtk, "gtk_widget_destroy");
                 gtk_widget_grab_focus = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(gtk, "gtk_widget_grab_focus");
                 gtk_window_resize = (delegate* unmanaged[Cdecl]<nint, int, int, void>)NativeLibrary.GetExport(gtk, "gtk_window_resize");
+                gtk_widget_get_scale_factor = (delegate* unmanaged[Cdecl]<nint, int>)NativeLibrary.GetExport(gtk, "gtk_widget_get_scale_factor");
                 gdk_event_get_keyval = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_keyval");
                 gdk_event_get_state = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_state");
                 g_timeout_add = (delegate* unmanaged[Cdecl]<uint, nint, nint, uint>)NativeLibrary.GetExport(glib, "g_timeout_add");
