@@ -430,10 +430,11 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     {
         try
         {
-            // AppKit offers key equivalents to every view in the window, not only to the one with the keyboard: the
-            // page takes them only while it has it. Escape in the viewer's Find closed the viewer, and ⌘A and ⌘C
-            // there selected and copied the page.
-            if (HasKeyboard(self) && TakeKey(self, keyEvent)) return 1;
+            // AppKit offers key equivalents to every view in the window, not only to the one with the keyboard, and
+            // WebKit acts on them either way: without the keyboard the page passes them on untouched. Escape in the
+            // viewer's Find closed the viewer, and ⌘A and ⌘C there selected and copied the page.
+            if (!HasKeyboard(self)) return 0;
+            if (TakeKey(self, keyEvent)) return 1;
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
         return ObjC.SendSuperReturnsBool(self, selector, keyEvent) ? (byte)1 : (byte)0;
