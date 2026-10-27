@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-gnome-motion-20261027"></a>
+**27 October 2026, native GNOME reduced-motion toggle (FCUX-050/051):**
+Git `0553f746` ran on the isolated Ubuntu Wayland VM with a verified
+`ubuntu:GNOME` desktop marker (app DLL SHA-256 `fed76012…`). A Psychedelic
+FileCat window displayed test-owned visible and hidden file rows. Six direct
+VMware screen captures, two each while GNOME animations were on, off, then
+on again, were checked by the tracked pixel runner at 1280 × 800. The menu
+changed 3,502 / 0 / 9,227 pixels and the decorative footer changed
+9,389 / 0 / 6,492 pixels across those pairs. Both file-list regions changed
+zero pixels in all phases; all 471 sampled bright menu glyph pixels stayed
+fixed. The source and empty target were unchanged, and the original GNOME
+setting `true` was restored. Direct guest receipt:
+`/home/benny/FileCatValidation/ac-s2-013-ubuntu-motion-0553f746-r3.json`;
+ignored host receipt and measurement:
+`E:\FileCat\.local-ac-s2-013-ubuntu-motion-0553f746-r3.json` and
+`E:\FileCat\.local-ac-s2-013-motion-pixels-r3.json`.
+The preceding run did not inherit `XDG_CURRENT_DESKTOP` from SSH, so FileCat
+correctly treated GNOME's preference provider as unavailable; those reduced
+frames are invalid for native preference acceptance. The corrected runner
+reads the marker from the logged-in GNOME shell. This accepts only
+[AC-S2-013-GNOME-MOTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-gnome-motion).
+Windows/macOS motion, native contrast, transparent picture and spoken
+preference remain open.
+
 <a id="evidence-hex-editor-blocked-20261027"></a>
 **27 October 2026, native interrupted Hex-save speech (FCUX-073):**
 The isolated Ubuntu Wayland guest ran Git `0553f746` (app DLL SHA-256
