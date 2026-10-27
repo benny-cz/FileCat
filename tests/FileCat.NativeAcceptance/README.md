@@ -2105,3 +2105,13 @@ and workspace JSON. It refuses another FileCat/Orca process, removes only its
 fixture and closes its own app. Restore the guest's original display mode
 afterward. The 27 October native, selected-mode and restored-mode receipts
 are tracked under `docs/validation/evidence/ac-s2-030-ubuntu*`.
+
+`linux-atspi-remote-breadcrumb.py APP REPORT.json KEY_HELPER` runs in the
+isolated Ubuntu desktop at 1920 × 1200/200% with a test-owned deep SFTP
+path. Pass the sudo/uinput and SFTP credentials only as transient environment
+variables. The runner independently checks the shown host-key fingerprint,
+then uses physical Alt+Up, arrow/Enter, Ctrl+Tab and Ctrl+L. It records Orca
+speech, exact Copy path, Open here/new tab, cancel/current-list focus and
+unchanged local/remote files; it restores the prior clipboard, closes only
+its owned app/Orca and deletes only its fixture. The 27 October direct receipt
+is `docs/validation/evidence/ac-s2-032-ubuntu.json`.

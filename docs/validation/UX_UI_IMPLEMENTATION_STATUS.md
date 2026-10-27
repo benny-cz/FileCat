@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-remote-breadcrumb-20261027"></a>
+**27 October 2026, native remote breadcrumb menu (AC-S2-032):** On the
+isolated Ubuntu VMware desktop at 1920 × 1200 physical/200% scale, the
+Git-built `34fee315` app had DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`.
+The [tracked native runner](../../tests/FileCat.NativeAcceptance/linux-atspi-remote-breadcrumb.py)
+opened a test-owned, deep SFTP leaf over guest loopback after independently
+matching the displayed OpenSSH host key. From the remote list, physical
+Alt+Up focused the parent menu; Orca spoke the full target of its action.
+Keyboard Copy path put that exact path on the clipboard. Open in new tab
+opened the parent while retaining the original leaf tab; Ctrl+Tab returned
+to it. Escape left focus on the current listing. Open here then navigated
+the original tab to the same parent with list focus, and Ctrl+L focused the
+direct location editor. The two source hashes stayed exact; the runner
+restored the VM clipboard and removed its owned fixture. The
+[direct native receipt](evidence/ac-s2-032-ubuntu.json) passed.
+`BreadcrumbMenuTests` independently covers local Windows ancestors and
+stale-action refusal; `PathLineElisionTests` covers long-root/leaf, Unicode,
+escaped control text and mapped hit targets in bounded rendered layouts.
+This accepts the nonfilesystem spoken and narrow route without repeating the
+previously passed local route. Audit-wide final CI remains separate.
+
 <a id="evidence-nested-panel-ubuntu-20261027"></a>
 **27 October 2026, native nested Ubuntu panel resize (AC-S2-030-UBUNTU):**
 The Ubuntu VMware guest selected its supported 2560 × 1600 display mode at

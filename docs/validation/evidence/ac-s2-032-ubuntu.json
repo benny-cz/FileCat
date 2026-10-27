@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2",
+  "remoteAddress": "sftp://benny@127.0.0.1:22/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle/distinct-leaf-tail/",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "display": "1920x1200@59.950, 200%",
+  "matchedHostKeys": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "remoteInitial": "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle/distinct-leaf-tail/",
+  "ancestors": [
+    "Ancestor middle: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+    "Ancestor middle: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+    "Ancestor middle: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle"
+  ],
+  "actions": [
+    "Copy path: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+    "Open in new tab: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+    "Open here: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle"
+  ],
+  "speech": [
+    [
+      "left alt",
+      "expanded",
+      "PopupRoot",
+      "Open in new tab: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle.",
+      "Copy path: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle."
+    ],
+    [
+      "left alt",
+      "expanded",
+      "PopupRoot",
+      "Open in new tab: sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle."
+    ],
+    [
+      "left alt",
+      "expanded"
+    ]
+  ],
+  "copiedPath": "sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+  "copyExact": true,
+  "afterCopyList": "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle/distinct-leaf-tail/",
+  "afterNewTabList": "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+  "afterNewTabFocused": true,
+  "afterCancelList": "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle/distinct-leaf-tail/",
+  "afterCancelFocused": true,
+  "afterOpenHereList": "Panel 2, source, sftp://benny@127.0.0.1/home/benny/FileCatValidation/RemoteBreadcrumb/d1969b4066f046b0a6fdf4083b5340e2/server/long-root-for-narrow-breadcrumb/middle",
+  "afterOpenHereFocused": true,
+  "directEdit": [
+    "Location"
+  ],
+  "sourcesExact": true,
+  "fullTargetSpoken": true
+}
