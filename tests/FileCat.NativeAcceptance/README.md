@@ -760,6 +760,13 @@ active path and target announcement, then physically cycles through all ten
 tabs per panel while reading AT-SPI path and focus. Its bounded tree limit is
 larger than a file-list runner because 40 tab controls are present. The dated
 `34fee315` 200% narrow-window receipt accepts this restore route.
+`linux-atspi-horizontal-sort.py APP REPORT.json KEY_HELPER POINTER_HELPER`
+uses an isolated Ubuntu profile with 20-point list text and three files whose
+name and modification orders differ. It drives a physical Shift+wheel over the
+clipped list, clicks the revealed Modified header, checks the actual reordered
+rows and retained AT-SPI file focus, then records Orca's spoken file name and
+modified value after Down/Up. Source bytes and empty target must stay exact.
+The dated `34fee315` receipt accepts the 200% stricter-scale equivalent route.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
