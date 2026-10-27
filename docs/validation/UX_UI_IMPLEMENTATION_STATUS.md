@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-navigation-capacity-20261027"></a>
+**27 October 2026, native delayed navigation and current-mount capacity:**
+On exact Git `34fee315` in Ubuntu VMware (app DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`),
+the [tracked AT-SPI runner](../../tests/FileCat.NativeAcceptance/linux-atspi-navigation-capacity.py)
+used a test-owned loopback SSH relay and a 2,000-file SFTP directory. The
+remote listing was **not complete** before two newer local navigation intents.
+The panel finished at the second local path, and its capacity changed from
+**3.6 GB free** on `/dev/shm` (device 26) to **115 GB free** on the home
+filesystem (device 2050). Closing the owned relay left that panel and
+capacity unchanged, without a stale connection banner; both local sentinel
+hashes stayed exact. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-022-nav-capacity-r2.json` (`passed: true`, no error).
+The first native receipt passed but did not record whether the remote listing
+had finished before navigation, so the bounded r2 run added that uncovered
+check. This accepts only
+[AC-S2-022-NAVCAP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022-navcap).
+A current failed navigation's spoken error remains
+[AC-S2-022](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022); the held first-reply
+ordering remains covered by deterministic tests, and final CI stays separate.
+
 <a id="evidence-sync-stop-20261027"></a>
 **27 October 2026, native reviewed synchronization Stop after one effect:**
 The [tracked Windows VM runner](../../tests/FileCat.NativeAcceptance/win-ax-sync-stop.ps1)

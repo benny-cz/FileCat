@@ -734,6 +734,13 @@ second file keeps Copy active. Stop must cancel both unfinished child steps,
 retain the first committed effect and both exact child reports, leave the
 target-only file unchanged, and admit no later target mutation. The dated
 `2a371b4c` receipt accepts this bounded interruption route.
+`linux-atspi-navigation-capacity.py APP REPORT.json KEY_HELPER` uses an
+isolated Ubuntu Git build, the transient native input and SFTP credentials,
+an owned delayed loopback SSH relay, and a real `/dev/shm`/home mount boundary.
+It requires two newer navigation intents before the remote listing completes,
+then drops the owned relay and requires the current panel/capacity and exact
+sentinels to remain stable. The dated `34fee315` receipt accepts that scope;
+current-failure screen-reader speech remains a separate check.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
