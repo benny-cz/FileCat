@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Hear current native Hex-editor state with Orca on an owned local file.
 
-Usage: linux-orca-hex-editor-state.py GIT_APP REPORT.json UINPUT_KEY_HELPER
+Usage: linux-orca-hex-editor-state.py GIT_APP REPORT.json UINPUT_KEY_HELPER [--blocked|--trace-startup]
 The editor's dirty overlay is never saved; the test verifies original bytes.
+--blocked injects one source write failure after the durable recovery journal.
 """
 
 import hashlib
@@ -11,6 +12,7 @@ import os
 from pathlib import Path
 import runpy
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -52,7 +54,7 @@ def hear(speech, orca, expected, description, seconds=4):
     raise AssertionError(f"Orca did not speak {description}: {heard[:30]!r}")
 
 
-def run(app_path, report_path, key_helper):
+def run(app_path, report_path, key_helper, blocked=False, trace_startup=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     key_helper = key_helper.resolve(strict=True)
@@ -77,24 +79,41 @@ def run(app_path, report_path, key_helper):
     environment = os.environ.copy()
     environment["DOTNET_ROOT"] = str(validation / "dotnet-sdk")
     speech = SpeechLog(root / "orca-debug.log")
-    result = {"passed": False, "stage": "startup", "sourceSha256": hashlib.sha256(CONTENT).hexdigest(),
+    result = {"passed": False, "stage": "startup",
+              "mode": "blocked" if blocked else "trace-startup" if trace_startup else "normal",
+              "sourceSha256": hashlib.sha256(CONTENT).hexdigest(),
               "appDllSha256": hashlib.sha256((app_path.parent / "FileCat.dll").read_bytes()).hexdigest(),
               "speechLog": str(speech.path), "spokenSteps": []}
     orca = process = None
+    app_pid = None
     try:
         orca_environment = {**environment, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
         with (root / "orca.err").open("wb") as errors:
             orca = subprocess.Popen(["/usr/bin/python3", "-c", ORCA_WRAPPER, str(speech.path)],
                                     stdout=subprocess.DEVNULL, stderr=errors, env=orca_environment)
         hear(speech, orca, "Screen reader on", "owned Orca startup", seconds=25)
+        launch = [str(app_path), "--new-instance", "--data", str(data),
+                  "--left", str(source), "--right", str(target)]
+        if blocked or trace_startup:
+            launch = ["/usr/bin/strace", "-f", "-yy", "-o", str(root / "pwrite-trace.log"),
+                      "-e", "trace=pwrite64",
+                      *(["-P", str(file), "-e", "inject=pwrite64:error=EIO:when=1"]
+                        if blocked else []), *launch]
         with (root / "app.log").open("wb") as log:
-            process = subprocess.Popen([str(app_path), "--new-instance", "--data", str(data),
-                                        "--left", str(source), "--right", str(target)],
-                                       cwd=root, env=environment, stdout=log, stderr=subprocess.STDOUT)
+            process = subprocess.Popen(launch, cwd=root, env=environment,
+                                       stdout=log, stderr=subprocess.STDOUT)
+        if blocked or trace_startup:
+            app_pid = int(wait_for(lambda: (found if found.isdigit() else None) if
+                          (found := subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "FileCat"],
+                                                  capture_output=True, text=True).stdout.strip()) else None,
+                          "test-owned traced FileCat process", seconds=35))
+        else:
+            app_pid = process.pid
+        result["appPid"] = app_pid
         desktop = Atspi.get_desktop(0)
         app = wait_for(lambda: next((node for node in
                        (desktop.get_child_at_index(i) for i in range(desktop.get_child_count()))
-                       if node.get_process_id() == process.pid and node.get_name() == "FileCat"), None),
+                       if node.get_process_id() == app_pid), None),
                        "exact owned FileCat", seconds=35)
         row = wait_for(lambda: next((node for node in descendants(app)
                        if node.get_role_name() == "list item" and
@@ -120,6 +139,9 @@ def run(app_path, report_path, key_helper):
         # utterance to finish before testing a pending-nibble change event.
         time.sleep(0.5)
         speech.take()
+        if trace_startup:
+            result["stage"] = "startup trace captured"
+            return result
         result["stage"] = "spoken normal editing state"
         def step(name, key, semantic, spoken):
             speech.take()
@@ -129,6 +151,52 @@ def run(app_path, report_path, key_helper):
             heard = hear(speech, orca, spoken, name)
             result["spokenSteps"].append({"step": name, "key": key, "semantic": value[:320],
                                           "spoken": heard[:12]})
+        if blocked:
+            step("pending setup byte", "a", "pending first nibble A", "pending first nibble A")
+            step("unsaved setup byte", "c", "1 modified bytes, unsaved", "unsaved")
+            speech.take()
+            send_key(key_helper, password, "ctrl+s")
+            approval = wait_for(lambda: find(editor, "button", "Save in place"),
+                                "owned Save in place approval")
+            if not approval.do_action(0):
+                raise AssertionError("Save in place approval was unavailable")
+            value = wait_for(lambda: state if "Byte editing blocked" in
+                             (state := hex_value(editor)) else None,
+                             "interrupted-save editing block", seconds=15)
+            heard = hear(speech, orca, "Interrupted save", "blocked state before another action")
+            result["spokenSteps"].append({"step": "blocked after failed save",
+                                          "semantic": value[:360], "spoken": heard[:12]})
+            if file.read_bytes() != CONTENT:
+                raise AssertionError("The injected write fault changed the source")
+            before = hex_value(editor)
+            send_key(key_helper, password, "c")
+            if hex_value(editor) != before or file.read_bytes() != CONTENT:
+                raise AssertionError("Typing changed the blocked editor or source")
+            send_key(key_helper, password, "f6")
+            recovery = wait_for(lambda: find(editor, "button", "Finish saving"),
+                                "Finish saving recovery action")
+            wait_for(lambda: recovery.get_state_set().contains(Atspi.StateType.FOCUSED),
+                     "focused recovery action")
+            speech.take()
+            send_key(key_helper, password, "f6")
+            wait_for(lambda: document.get_state_set().contains(Atspi.StateType.FOCUSED),
+                     "blocked editor focus return")
+            heard = hear(speech, orca, "Byte editing blocked",
+                         "blocked state after recovery focus return")
+            result["spokenSteps"].append({"step": "blocked focus return", "spoken": heard[:12]})
+            trace = (root / "pwrite-trace.log").read_text(encoding="utf-8", errors="replace")
+            if not any(f"/source/{NAME}" in line and "EIO" in line and "INJECTED" in line
+                       for line in trace.splitlines()):
+                raise AssertionError("The owned source write was not the injected syscall")
+            journals = list((data / "hex-recovery" / "default").glob("hex-*.fcj"))
+            if len(journals) != 1:
+                raise AssertionError(f"Expected one durable test-owned recovery journal, got {journals!r}")
+            if list(target.iterdir()):
+                raise AssertionError("Blocked editing published a target item")
+            result.update({"passed": True, "stage": "complete", "sourceUnchanged": True,
+                           "targetEmpty": True, "journalRetainedBeforeCleanup": True,
+                           "injectedSourceWrite": True})
+            return result
         step("pending hex nibble", "a", "pending first nibble A", "pending first nibble A")
         step("unsaved hex byte", "c", "1 modified bytes, unsaved", "unsaved")
         step("text typing column", "tab", "active typing column: text (ASCII)", "Typing: text (ASCII)")
@@ -158,11 +226,19 @@ def run(app_path, report_path, key_helper):
                        "targetEmpty": True})
     except Exception as error:
         result["error"] = f"{type(error).__name__}: {error}"
+        if "desktop" in locals():
+            result["desktopApps"] = [(node.get_name(), node.get_process_id()) for node in
+                                     (desktop.get_child_at_index(i) for i in range(desktop.get_child_count()))]
         result["speechTail"] = speech.take()[-30:]
         if (root / "app.log").is_file():
             result["appLogTail"] = (root / "app.log").read_text(
                 encoding="utf-8", errors="replace")[-900:]
     finally:
+        if (blocked or trace_startup) and app_pid is not None:
+            try:
+                os.kill(app_pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
         for owned in (process, orca):
             if owned is not None and owned.poll() is None:
                 owned.terminate()
@@ -176,15 +252,20 @@ def run(app_path, report_path, key_helper):
             retained = report_path.with_suffix(".orca.log")
             shutil.copy2(speech.path, retained)
             result["speechLog"] = str(retained)
+        if (root / "pwrite-trace.log").is_file():
+            retained = report_path.with_suffix(".strace.log")
+            shutil.copy2(root / "pwrite-trace.log", retained)
+            result["syscallTrace"] = str(retained)
         shutil.rmtree(root)
     return result
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or len(sys.argv) == 5 and sys.argv[4] not in ("--blocked", "--trace-startup"):
         raise SystemExit(__doc__)
     report = Path(sys.argv[2]).resolve()
-    outcome = run(Path(sys.argv[1]), report, Path(sys.argv[3]))
+    outcome = run(Path(sys.argv[1]), report, Path(sys.argv[3]),
+                  blocked="--blocked" in sys.argv[4:], trace_startup="--trace-startup" in sys.argv[4:])
     report.write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: value for key, value in outcome.items() if key != "spokenSteps"}))
     raise SystemExit(0 if outcome["passed"] else 1)

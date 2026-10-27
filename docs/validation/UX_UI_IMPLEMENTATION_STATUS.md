@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-hex-editor-blocked-20261027"></a>
+**27 October 2026, native interrupted Hex-save speech (FCUX-073):**
+The isolated Ubuntu Wayland guest ran Git `0553f746` (app DLL SHA-256
+`fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe`).
+In a disposable 64-byte source, a pathname-filtered `strace` fault caused one
+`pwrite64` of that exact source to return `EIO` after FileCat had durably
+written its recovery journal. A separate two-file probe confirmed that the
+path filter does not fault unrelated writes. Orca spoke that editing was
+blocked after the failed save. A further typed key changed neither the editor
+value nor original bytes; F6 reached the focused “Finish saving” recovery
+action and returned to the Hex document with the current blocked state spoken.
+The original SHA-256
+`fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108`
+remained unchanged, the target was empty, and one durable journal was present
+until test-owned cleanup. Direct receipt and syscall trace:
+`/home/benny/FileCatValidation/ac-s2-012-hex-editor-blocked-0553f746-r3.json`
+and its `.strace.log`; ignored host receipt:
+`E:\FileCat\.local-ac-s2-012-hex-editor-blocked-0553f746-r3.json`.
+Earlier diagnostics hit an unrelated startup write, then counted writes per
+thread incorrectly; the path-scoped run is the accepted result. This accepts
+[AC-S2-012-EDIT-BLOCKED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-edit-blocked)
+and completes [AC-S2-012](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012) at its
+recorded pairwise scope. Audit-wide CI remains a separate final gate.
+
 <a id="evidence-hex-editor-normal-20261027"></a>
 **27 October 2026, native Hex-editor normal editing speech (FCUX-073):**
 On Git `0553f746` (Ubuntu Wayland app DLL SHA-256
@@ -106,7 +130,10 @@ test-harness correction, not evidence of a production transfer failure. The
 rebuilt Windows Release Remote project had zero warnings and errors; all nine
 focused FTP/FTPS disconnect Retry/Skip/Cancel cases passed in 1 minute 21
 seconds (`E:\FileCat\.local-ac-s2-012-ftp-focused-fixed.log`).
-The exact-head five-lane run after this change remains the integration gate.
+Git `5e9a73e8` [five-lane CI run](https://github.com/benny-cz/FileCat/actions/runs/40430717302)
+completed green in producer, Windows, Windows ARM64, Ubuntu and macOS lanes.
+That confirms the fixture correction at that historical build; the final
+integration gate still needs the last implementation head.
 The [GitHub runs](https://github.com/benny-cz/FileCat/actions/runs/40424923552)
 and [second run](https://github.com/benny-cz/FileCat/actions/runs/40426220086)
 retain their historical results; diagnostic sequences were downloaded into
