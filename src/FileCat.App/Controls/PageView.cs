@@ -137,8 +137,18 @@ public sealed class PageView : NativeControlHost
     // page's host (which would only give the keys to the page again).
     private void LeavePage(bool backward)
     {
-        if (IsFocused)
-            TopLevel.GetTopLevel(this)?.FocusManager?.TryMoveFocus(backward ? NavigationDirection.Previous : NavigationDirection.Next);
+        if (!IsFocused || TopLevel.GetTopLevel(this)?.FocusManager is not { } focus) return;
+        var direction = backward ? NavigationDirection.Previous : NavigationDirection.Next;
+        // Avalonia offers controls that cannot take focus too (Find's Next button with nothing to find): past them.
+        IInputElement from = this;
+        for (int tries = 0; tries < 64; tries++)
+        {
+            if (focus.FindNextElement(direction, new FindNextElementOptions { FocusedElement = from }) is not { } next ||
+                ReferenceEquals(next, this) || ReferenceEquals(next, from))
+                return;
+            if (next.IsEffectivelyEnabled && next.Focus(NavigationMethod.Tab)) return;
+            from = next;
+        }
     }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)

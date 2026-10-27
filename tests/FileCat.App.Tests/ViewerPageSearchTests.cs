@@ -224,18 +224,17 @@ public sealed class ViewerPageSearchTests
         int returned = fixture.Engine.ReturnCount;
         fixture.Engine.TabOut(backward: false);
         Dispatcher.UIThread.RunJobs();
-        var after = focus.GetFocusedElement();
         Assert.False(page.IsFocused);
-        Assert.NotNull(after);
+        Assert.Same(Field<ToggleButton>(viewer, "_modePage"), focus.GetFocusedElement());
         Assert.Equal(returned + 1, fixture.Engine.ReturnCount);
-        // Shift+Tab past the page's first item goes back past its host, which would only give the page the keys again.
+        // Shift+Tab past the page's first item goes back past its host, which would only give the page the keys again,
+        // and past Find's Previous and Next buttons, which cannot take focus with nothing to find.
         page.Focus();
         Dispatcher.UIThread.RunJobs();
         fixture.Engine.TabOut(backward: true);
         Dispatcher.UIThread.RunJobs();
         Assert.False(page.IsFocused);
-        Assert.NotNull(focus.GetFocusedElement());
-        Assert.NotSame(after, focus.GetFocusedElement());
+        Assert.Same(Field<CheckBox>(viewer, "_matchCase"), focus.GetFocusedElement());
         Assert.Equal(returned + 2, fixture.Engine.ReturnCount);
     }
 
@@ -293,8 +292,7 @@ public sealed class ViewerPageSearchTests
             _services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(_root, "state")));
             _source = new FileContentSource(path);
             Viewer = new ViewerWindow(_services, _source, path, hex: false);
-            var page = Field<PageView>(Viewer, "_pageView");
-            typeof(PageView).GetField("_engine", Private)!.SetValue(page, Engine);
+            Field<PageView>(Viewer, "_pageView").InstallEngineForTests(Engine);
         }
 
         public async Task OpenAsync()
