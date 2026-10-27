@@ -783,6 +783,13 @@ before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
 action to remain reachable, then cancels and verifies the moved bytes remain
 at their destination. Finish with `clipboard-stop`.
+`linux-atspi-clear-history.py` is a separate, currently diagnostic Ubuntu
+200% Orca route for the unused Undo consequence and Keep history retention.
+It runs an owned Move in the logged-in VM desktop. Its 27 October
+`4c042d37` probes stopped before a valid history review while the AT-SPI
+tree refreshed; they do not establish product acceptance. A future run must
+capture actual speech and verify Undo and file bytes after Keep history.
+The retained-report and active-inverse boundaries remain separate.
 For the Windows Recycle Bin inverse, use another fresh `seed-clipboard`
 fixture and launch its isolated FileCat instance. Run `recycle-review
 <source.xml>` to select `a.txt`, press F8 and require the explicit Recycle Bin

@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-clear-history-ubuntu-diagnostic-20261027"></a>
+**27 October 2026, bounded Ubuntu 200% Clear finished history diagnostic:**
+The isolated Ubuntu VMware guest used Git-built `4c042d37`, app DLL SHA-256
+`DD4A201C915BC45D6F2AFC1D19CDFFAF2810810DABE25896EE0569D6BE61AB6F`.
+Its test-owned native fixture completed an exact local Move and exposed an
+unused Undo button. No Clear finished history result was established: the
+runner's first launch lacked the logged-in Xwayland authority, another probe
+matched the abbreviated filename instead of the full accessible row name,
+and the final probes encountered an AT-SPI object retired during the drawer
+refresh. The last ignored receipt is
+`E:\FileCat\.local-ac-s2-019-ubuntu-undo-spoken-r5.json`; earlier `r1`–`r4`
+receipts preserve the setup diagnostics. The display was restored from 200%
+to its original 100% without restarting the VM. This is **setup evidence
+only**: [AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019) still requires
+the spoken consequence, Keep history retention, report eligibility, and
+active inverse boundary. The historical Windows visual/Cancel
+[subcase](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019-win-layout) stays accepted.
+The next diagnostic must tolerate transient AT-SPI objects and stop after
+one complete fixture or one identified new blocker; it must not rerun the
+already accepted visual route merely because the parent remains open.
+
 <a id="evidence-operation-focus-diagnostic-20261027"></a>
 **27 October 2026, bounded native Operations focus diagnostic:**
 The isolated Windows 11 VMware guest ran exact Git `3a4d7cba` (app DLL
