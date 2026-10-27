@@ -164,6 +164,7 @@ internal sealed class HarnessApp : Application
 
 internal static class Program
 {
+    [STAThread]
     public static int Main(string[] args)
     {
         if (args.Length != 1) throw new ArgumentException("Usage: PageEngineFaultHarness REPORT.json");
