@@ -35,6 +35,7 @@ public sealed class SettingsDialogTests
             Assert.Contains("Help → Check for updates", note.Text);
             Assert.Contains("network locations still connect", note.Text);
             Assert.DoesNotContain("no network requests", note.Text, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(note.Text, AutomationProperties.GetHelpText(updates));
             updates.IsChecked = true;
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK")
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
