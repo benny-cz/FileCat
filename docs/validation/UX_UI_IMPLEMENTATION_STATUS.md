@@ -6250,6 +6250,14 @@ More. The narrow row retained More for overflow; the wide row gained Phones
 and cameras. Native pinned-place interaction, display-scale and spoken
 acceptance remain open.
 
+<a id="evidence-finished-speed-20261021"></a>
+**21 October 2026, finished average speed:** The narrow Windows acceptance
+was recorded at Git checkpoint `a4a1045f`, after the `d286e4bd` product label
+change; the exact executable hash was not retained in that historical run.
+The Windows, Ubuntu and Mac observations below are dated to their own
+builds. They accept [AC-S2-015-SPEED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-speed)
+without reopening finished transfers for a documentation-only check.
+
 UXBUG-014 retains a completed operation's average speed in the drawer and
 includes it in Open/Copy/Save report. It divides actual copied or read bytes
 by monotonic elapsed time since work began, including pauses, decisions and
@@ -6257,7 +6265,8 @@ verification, but excluding queue time and logical credit for skipped bytes
 or same-volume renames. Zero-data operations say the rate is not applicable
 in the report. Thirty-eight affected Release tests pass, including a real
 verified Copy, same-volume Move, skipped Copy, stable finished timing and
-rate-format boundaries. Native scaling and spoken presentation remain open.
+rate-format boundaries. At this implementation checkpoint, native scaling and
+spoken presentation remained open; the later routes below cover narrow layout.
 
 On 21 October 2026, the Windows 11 guest completed a FileCat-owned Copy from
 an isolated fixture. The source survived, destination bytes matched exactly,
@@ -6269,7 +6278,8 @@ skips and no failures using 16 workers. The complete Core Release suite passed
 4,429 cases with 150 platform skips and no failures. The guest's native Save
 report picker also wrote a local report with the same average, 30 actual
 processed bytes and one completed item; source and target bytes remained exact.
-Scaled layout and spoken acceptance remain open.
+At this first Windows Copy checkpoint, scaled layout and spoken acceptance
+remained open.
 
 The selected finished operation's on-screen details now say `Average transfer
 speed: 587,4 bytes/s` in the Windows guest, using the same calculated rate as
@@ -6278,6 +6288,15 @@ bytes exact; native UI Automation found the visible details label and matching
 report bodies. Twelve focused operation-report/progress tests pass for the
 explicit finished label. The prior Save report check remains valid because
 its export content is unchanged.
+
+At the later `a4a1045f` Windows native checkpoint, the finished Operations
+window narrowed from 1,254 × 818 to 746 × 613 pixels. The selected details
+kept the same `Average transfer speed: 587,4 bytes/s` label, Copy and Open
+reports matched it, and the original bounds were restored. Source and target
+bytes remained exact. The [native operation runner](../../tests/FileCat.NativeAcceptance/Program.cs)
+contains the narrow details/report route. This accepted speed scope does not
+include the separate eight-finished-plus-one-running Details focus or live
+spoken issue scenario.
 
 The signed Mac validation app completed a fresh one-file Copy after clearing
 stale test marks. Its selected finished Operations details exposed the
