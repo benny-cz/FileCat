@@ -2301,5 +2301,5 @@ replaces that TAR, and requires Refresh to change the content without opening
 another viewer. Removing the TAR before the next Refresh must leave the last
 good text visible and display a readable single-sentence failure; the runner
 then restores the last good archive and checks its SHA-256 and empty target.
-The accepted receipt is recorded under AC-S2-052 only after the native run
-passes on the corrected build.
+The accepted receipt is
+`docs/validation/evidence/ac-s2-052-ubuntu-archive-refresh.json`.

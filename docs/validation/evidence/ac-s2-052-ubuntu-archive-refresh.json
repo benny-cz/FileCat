@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "0fcb3abbdbee4c4612149f1e22fdfc8df96a25de",
+  "appDllSha256": "4ade88f45983d267f5a41766635cbf01016d787147f8b5f54a29b14eeb6f8982",
+  "fixture": "/home/benny/FileCatValidation/ArchiveViewerRefresh/031d9735941347d791bb963f5d3dfd84",
+  "originalTarSha256": "a97c2caccd138819b0191ca6924562990927d6383fc3080253a4e5c10f6720bb",
+  "replacementTarSha256": "6ec265db21866af720bbc6b425f8214820a38eb1419060f5b5981f6131cb749f",
+  "originalText": "old archive revision\n",
+  "beforeRefreshText": "old archive revision\n",
+  "preRefreshBanners": [],
+  "refreshedText": "new archive revision\n",
+  "sameViewer": true,
+  "afterRefreshBanners": [],
+  "failedRefreshBanner": [
+    "Refresh failed: The archive no longer exists. The previous view remains available."
+  ],
+  "retainedAfterFailure": "new archive revision\n",
+  "restoredArchiveSha256": "6ec265db21866af720bbc6b425f8214820a38eb1419060f5b5981f6131cb749f",
+  "targetEmpty": true
+}

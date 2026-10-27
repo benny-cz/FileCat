@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-archive-viewer-refresh-20261027"></a>
+**27 October 2026, native read-only archive viewer Refresh
+(AC-S2-052-ARCHIVE):** Git-built `0fcb3abb` in Ubuntu VMware (DLL SHA-256
+`4ade88f45983d267f5a41766635cbf01016d787147f8b5f54a29b14eeb6f8982`)
+opened one owned TAR member in the Text viewer. Replacing the TAR externally
+left the old text visible until Refresh, which showed the new text in the
+same viewer without a stale warning. Removing the TAR before another Refresh
+kept the last good text and showed “Refresh failed: The archive no longer
+exists. The previous view remains available.” Restoring the TAR gave the
+exact new SHA-256 and the destination stayed empty. The first native run on
+`75331c3e` found a duplicate period in that banner; a focused regression
+failed before the correction, all eight `ViewerRefreshTests` then passed with
+16 workers, and the [final native receipt](evidence/ac-s2-052-ubuntu-archive-refresh.json)
+and [runner](../../tests/FileCat.NativeAcceptance/linux-atspi-archive-viewer-refresh.py)
+passed once on the corrected build. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
+still requires remote delayed/reopen and native Page rollback; Quick View
+and picture zoom are independent AC-S2-053 and AC-S2-055 rows. Final CI is
+separate.
+
 <a id="evidence-keybar-clipping-review-20261027"></a>
 **27 October 2026, UXBUG-018 evidence review:** The existing physical
 Ubuntu [24 October popup/Find result](#evidence-scaled-find-20261024)
