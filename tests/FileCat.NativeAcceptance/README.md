@@ -2386,3 +2386,13 @@ and Fit recomputation as the viewer widens. It checks measured window DPI,
 unchanged source hashes and an empty target; each run removes its own fixture.
 The accepted receipts are `docs/validation/evidence/ac-s2-055-win-100.json`,
 `ac-s2-055-win-150.json` and `ac-s2-055-win-200.json` in the same directory.
+
+`win-viewer-go-to.ps1 -AppPath APP -ReportPath REPORT.json` runs inside the
+logged-in Windows VMware desktop with an owned 1,200-line source and fresh
+profile. It opens the actual Viewer at 480 × 300, checks the complete Go to
+instruction and footer bounds, retains invalid hex with an inline reason,
+uses native pointer Go to reach exact Hex offset `0x10`, then physical Enter
+to reach line 900 and Escape to cancel a new draft. It checks the source hash
+and empty destination, then removes its own fixture. The accepted local
+receipt is `docs/validation/evidence/ac-s2-054-win-local.json`; native
+nonseekable-source acceptance is a separate open ledger boundary.

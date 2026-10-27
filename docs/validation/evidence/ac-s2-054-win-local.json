@@ -1,0 +1,34 @@
+﻿{
+    "passed":  true,
+    "stage":  "complete",
+    "gitHead":  "698236d704c3d994939dc224b4901ed7d2746331",
+    "appDllSha256":  "f97cfaa89147d9ef5d628deb8c8032f67ac7bfe4acab80c7a24411030de9f6cc",
+    "sourceSha256":  "7d232561e9db8411f636c5c30081eb52d1fcc833795688e84882ea6e4a8bedfe",
+    "viewerBounds":  [
+                         88,
+                         111,
+                         480,
+                         300
+                     ],
+    "goBounds":  [
+                     493,
+                     323,
+                     32,
+                     29
+                 ],
+    "instructionBounds":  [
+                              131,
+                              231,
+                              394,
+                              19
+                          ],
+    "invalidHex":  "Enter hexadecimal bytes after 0x, such as 0x1F00.",
+    "goPointer":  [
+                      509,
+                      338
+                  ],
+    "afterHex":  "85 200 bytes · offset 0x10 (16) · 0%",
+    "lineStatus":  "Line 900. 85 200 bytes · offset 0xF955 (63 829) · 74,9%",
+    "sourceUnchanged":  true,
+    "targetEmpty":  true
+}
