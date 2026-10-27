@@ -11,7 +11,7 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  Quick View pointer activation, picture zoom,
+  picture zoom,
   Go to, Compare range, Settings wording, Markdown, window geometry,
   Unix attributes and the clipped key-bar action label.
   Each table row specifies one bounded consequential route.

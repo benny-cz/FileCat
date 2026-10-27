@@ -2362,5 +2362,16 @@ then delays a Quick View demand long enough to observe named Loading, Cancel
 and Retry. A pending second-file demand is superseded by a return to the
 first file; the resulting title/text and both remote hashes must stay exact.
 The accepted receipt is
-`docs/validation/evidence/ac-s2-053-ubuntu-remote.json`. Actual pointer
-activation of the visible full-viewer action remains a separate ledger case.
+`docs/validation/evidence/ac-s2-053-ubuntu-remote.json`. Native pointer
+activation of the visible full-viewer action is the separate Windows child
+below.
+
+`win-quickview-pointer.ps1 -AppPath APP -ReportPath REPORT.json` runs inside
+the logged-in Windows VMware desktop against an owned empty source. It checks
+the visible Quick View button through UI Automation, moves the actual guest
+cursor to its measured center and sends a native mouse down/up. The viewer
+must open that exact current file; source hash and target stay unchanged. Its
+receipt is `docs/validation/evidence/ac-s2-053-win-pointer.json`. The tested
+Windows build predates only a picture-failure punctuation correction in the
+Quick View pane; the action and open handler are identical, so the accepted
+pointer route does not require repetition on the later documentation head.

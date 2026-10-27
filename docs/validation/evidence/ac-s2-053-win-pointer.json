@@ -1,0 +1,25 @@
+﻿{
+    "passed":  true,
+    "stage":  "complete",
+    "fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QuickViewPointer\\4033c30349f34f259de63aaf10455e06",
+    "gitHead":  "ea12e4e7c695edfb4c21574c373a21e17f693ec9",
+    "appDllSha256":  "c8bdbcda164add211b632067aee896d24d336517a3a8034d6f5bce43a3264582",
+    "sourceSha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pointerTarget":  [
+                          1045,
+                          498
+                      ],
+    "pointerActual":  [
+                          1045,
+                          498
+                      ],
+    "buttonBounds":  [
+                         974,
+                         484,
+                         142,
+                         29
+                     ],
+    "viewerTitle":  "a-empty.txt — FileCat Viewer",
+    "sourceUnchanged":  true,
+    "targetEmpty":  true
+}
