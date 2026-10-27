@@ -26,9 +26,10 @@ public sealed class FindFeedbackTests
     public void Stopped_search_never_claims_complete_coverage()
     {
         var stopped = Feedback(finished: true, complete: false);
-        Assert.Equal("Stopped · no results yet", stopped.Headline);
+        Assert.Equal("Stopped · no results yet · Only part of the scope was searched", stopped.Headline);
         Assert.Contains("Only part of the scope", stopped.EmptyExplanation);
-        Assert.Equal("Stopped · partial results", Feedback(finished: true, complete: false, resultCount: 2).Headline);
+        Assert.Equal("Stopped · partial results · Only part of the scope was searched",
+            Feedback(finished: true, complete: false, resultCount: 2).Headline);
     }
 
     [Fact]

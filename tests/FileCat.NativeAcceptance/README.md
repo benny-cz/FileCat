@@ -1,5 +1,15 @@
 # Native Windows acceptance runner
 
+`linux-atspi-find-stop-held.py APP REPORT.json --speech` runs a native Ubuntu
+Find against an owned local fixture. A path-filtered, bounded `strace` delay
+holds the child-directory read long enough to activate Stop; the runner then
+checks the incomplete headline and exact scope explanation, unchanged source
+hashes, and empty destination. With `--speech`, it also requires Orca to say
+that only part of the scope was searched. The app and report must be below the
+guest's `~/FileCatValidation`; use a fresh report path and pass
+`FILECAT_NATIVE_SUDO_PASSWORD` only to this runner. The password is removed
+before launching FileCat.
+
 `win-ax-find-exclusions.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` uses a private local folder and a separate private data
 profile with one ignored `cache` folder. It restores the Find window on-screen,

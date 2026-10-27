@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "buildDllSha256": "7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1",
+  "fixture": "/home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d",
+  "sourceSha256": {
+    "/home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d/source/visible.txt": "219c9741d592e64a8844e6babc58e525792f902eb739a1485b2f1e5572773d99",
+    "/home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d/source/zz-slow/untouched.txt": "c142652a1cb1a3bd31574d67a33a1af053dcd569bf8901b0a20d292f2e969331"
+  },
+  "steps": [
+    {
+      "progress": "2 folders \u00b7 0 files read \u00b7 0 matched \u00b7 /home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d/source/zz-slow",
+      "busy": "Searching \u00b7 no matches yet",
+      "stopClickedAfterSeconds": 15.461,
+      "finishedAfterSeconds": 37.055,
+      "headline": "Stopped \u00b7 no results yet",
+      "explanation": "Criteria and scope: names \"native-absent-eb91652942d1476cb86ef5c554323c7f\" in /home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d/source Only part of the scope was searched.",
+      "sourcePreserved": true,
+      "targetEmpty": true
+    }
+  ],
+  "beforeStop": {
+    "progress": "2 folders \u00b7 0 files read \u00b7 0 matched \u00b7 /home/benny/FileCatValidation/FindHeldFixture/82ba7cc0577247569aac5fe452a7fc4d/source/zz-slow",
+    "busy": "Searching \u00b7 no matches yet",
+    "elapsedSeconds": 15.447
+  },
+  "speech": [
+    "Find: native-absent-eb91652942d1476cb86ef5c554323c7f",
+    "frame",
+    "Stop",
+    "button.",
+    "Esc.",
+    "Esc",
+    "Stopped \u00b7 no results yet"
+  ]
+}

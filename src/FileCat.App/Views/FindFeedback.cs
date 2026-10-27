@@ -19,7 +19,9 @@ internal sealed record FindFeedback(string Headline, string Qualifications, stri
 
         string headline = !finished
             ? resultCount == 0 ? "Searching · no matches yet" : "Searching · results are appearing"
-            : !complete ? resultCount == 0 ? "Stopped · no results yet" : "Stopped · partial results"
+            : !complete ? resultCount == 0
+                ? "Stopped · no results yet · Only part of the scope was searched"
+                : "Stopped · partial results · Only part of the scope was searched"
             : resultCount == 0 ? matches > 0 ? "No results in the list"
                 : limited ? "No matches in searched portion" : ignored > 0 ? "No matches outside exclusions" : "No matches"
             : limited ? "Finished · coverage limited" : ignored > 0 ? "Finished · exclusions applied" : "Finished";
