@@ -740,7 +740,13 @@ an owned delayed loopback SSH relay, and a real `/dev/shm`/home mount boundary.
 It requires two newer navigation intents before the remote listing completes,
 then drops the owned relay and requires the current panel/capacity and exact
 sentinels to remain stable. The dated `34fee315` receipt accepts that scope;
-current-failure screen-reader speech remains a separate check.
+current-failure screen-reader speech is a separately accepted check.
+`linux-atspi-current-navigation-error.py APP REPORT.json KEY_HELPER`
+reserves a non-listening loopback SFTP port in the isolated Ubuntu VM. It
+requires transient input/SFTP credentials and no other FileCat or Orca process.
+The native Orca and AT-SPI result must expose the specific connection refusal;
+physical Alt+Left must restore the prior local folder, show its sentinel row,
+and leave its bytes exact. The dated `34fee315` receipt accepts this route.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window

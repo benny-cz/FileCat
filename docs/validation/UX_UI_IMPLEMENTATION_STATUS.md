@@ -1,5 +1,24 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-current-navigation-error-20261027"></a>
+**27 October 2026, native current disconnected-remote error and Back:**
+On exact Git `34fee315` in Ubuntu VMware (app DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`),
+the [tracked AT-SPI/Orca runner](../../tests/FileCat.NativeAcceptance/linux-atspi-current-navigation-error.py)
+reserved a non-listening loopback SFTP port. After Connect, the current panel
+showed the failed remote location and its list description explained the
+specific **Connection refused** condition. Orca spoke the full error. Physical
+Alt+Left restored the prior local folder, showed its `still-usable.txt` row,
+and the sentinel SHA-256 remained exact. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-022-current-error-r3.json` (`passed: true`, no error).
+The first two attempts had invalid test assertions: r1 expected the prior path
+to remain displayed during a current failed navigation, and r2 compared panel
+role text even though entering the failed location changes the source/target
+role. The bounded r3 corrected those assertions and passed without a product
+change. This accepts [AC-S2-022-CURRENT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022-current)
+and completes [AC-S2-022](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022) with the
+separate delayed-listing/capacity result below. Final CI remains separate.
+
 <a id="evidence-navigation-capacity-20261027"></a>
 **27 October 2026, native delayed navigation and current-mount capacity:**
 On exact Git `34fee315` in Ubuntu VMware (app DLL SHA-256
@@ -17,9 +36,10 @@ The first native receipt passed but did not record whether the remote listing
 had finished before navigation, so the bounded r2 run added that uncovered
 check. This accepts only
 [AC-S2-022-NAVCAP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022-navcap).
-A current failed navigation's spoken error remains
-[AC-S2-022](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022); the held first-reply
-ordering remains covered by deterministic tests, and final CI stays separate.
+The current failed-navigation speech and Back route passed separately at
+[AC-S2-022-CURRENT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-022-current); the held
+first-reply ordering remains covered by deterministic tests, and final CI stays
+separate.
 
 <a id="evidence-sync-stop-20261027"></a>
 **27 October 2026, native reviewed synchronization Stop after one effect:**
