@@ -363,7 +363,24 @@ public sealed class FindWindow : Window, IViewActions
         _useLocalHome.Margin = new Thickness(8, 0, 0, 0);
         _scopeHost.Children.Add(_scopeNotice);
         _scopeHost.Children.Add(_useLocalHome);
-        return new StackPanel { Children = { _scopeHost, grid, actions, _error } };
+        // The criteria can exceed the minimum window height (especially with a
+        // wrapped scope or enlarged text). Keep the actions and completion
+        // summary outside their scroll area so the result view retains space.
+        var fields = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = new StackPanel { Children = { _scopeHost, grid } },
+        };
+        AutomationName(fields, "Find criteria fields");
+        void FitFields() => fields.MaxHeight = Math.Max(112, ClientSize.Height - 300);
+        FitFields();
+        SizeChanged += (_, _) => FitFields();
+        fields.AddHandler(InputElement.GotFocusEvent, (_, e) =>
+        {
+            if (e.Source is Control focused && !ReferenceEquals(focused, fields)) focused.BringIntoView();
+        }, RoutingStrategies.Bubble);
+        return new StackPanel { Children = { fields, actions, _error } };
     }
 
     /// <summary>A small button that lists a field's history; choosing an entry puts it in the field.</summary>

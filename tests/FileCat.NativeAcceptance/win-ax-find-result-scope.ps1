@@ -13,6 +13,9 @@ using System;
 using System.Runtime.InteropServices;
 public static class FileCatFindInput {
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr after,
+        int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, int flags, IntPtr extra);
 }
 '@
@@ -85,6 +88,18 @@ function Send-FindKey([bool]$shift) {
     [FileCatFindInput]::keybd_event(0x11, 0, 2, [IntPtr]::Zero)
 }
 
+function Place-FindWindow($element) {
+    $transform = [System.Windows.Automation.TransformPattern]$element.GetCurrentPattern(
+        [System.Windows.Automation.TransformPattern]::Pattern)
+    if (!$transform.Current.CanResize) { throw 'Find window does not expose resize.' }
+    $handle = [IntPtr]$element.Current.NativeWindowHandle
+    if ($handle -eq [IntPtr]::Zero) { throw 'Find window has no native handle.' }
+    [FileCatFindInput]::ShowWindow($handle, 9) | Out-Null
+    if (![FileCatFindInput]::SetWindowPos($handle, [IntPtr]::Zero, 100, 100, 640, 420, 0x40)) {
+        throw 'Could not place the Find window on the guest desktop.'
+    }
+}
+
 try {
     $process = Start-Process -FilePath $app -ArgumentList @('--new-instance', '--data', $data,
         '--left', $fixture, '--right', $fixture, '--list', $list) -PassThru
@@ -140,10 +155,7 @@ try {
         throw 'Find did not identify the active immutable result-set scope.'
     }
     if ($RemappedShortcut) {
-        $transform = [System.Windows.Automation.TransformPattern]$findWindow.GetCurrentPattern(
-            [System.Windows.Automation.TransformPattern]::Pattern)
-        if (!$transform.Current.CanResize) { throw 'Find window does not expose resize.' }
-        $transform.Resize(640, 420)
+        Place-FindWindow $findWindow
         $intro = Wait-For { @(Descendants $findWindow | Where-Object {
             $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
             $_.Current.Name -like '*Ctrl+Shift+S*'
@@ -193,18 +205,18 @@ try {
             RemainingRows = @($remainingRows)
         }
         if ($result.RemappedShortcut.Width -gt 700 -or $result.RemappedShortcut.Height -gt 480 -or
+            $findWindow.Current.BoundingRectangle.Left -lt 0 -or
+            $findWindow.Current.BoundingRectangle.Top -lt 0 -or
             $result.RemappedShortcut.Intro -like '*Ctrl+W*') {
             throw 'The narrow Find shortcut guidance did not match the configured bindings.'
         }
     }
     if ($NarrowNoMatch) {
-        $transform = [System.Windows.Automation.TransformPattern]$findWindow.GetCurrentPattern(
-            [System.Windows.Automation.TransformPattern]::Pattern)
-        if (!$transform.Current.CanResize) { throw 'Find window does not expose resize.' }
-        $transform.Resize(640, 420)
+        Place-FindWindow $findWindow
         $bounds = Wait-For {
             $rect = $findWindow.Current.BoundingRectangle
-            if ($rect.Width -le 700 -and $rect.Height -le 480) { $rect }
+            if ($rect.Width -le 700 -and $rect.Height -le 480 -and
+                $rect.Left -ge 0 -and $rect.Top -ge 0) { $rect }
         } 'the 640 by 420 Find window'
         $names = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Edit) 'Names') |
             Select-Object -First 1 } 'Names field'

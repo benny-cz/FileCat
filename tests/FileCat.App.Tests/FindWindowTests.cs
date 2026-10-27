@@ -1,3 +1,5 @@
+using System.Reflection;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -14,6 +16,9 @@ namespace FileCat.App.Tests;
 /// <summary>Find (Alt+F7) in a window of its own, as in Salamander (plan §11, SEARCH-002).</summary>
 public sealed class FindWindowTests
 {
+    private static T Field<T>(FindWindow find, string name) where T : Control =>
+        Assert.IsType<T>(typeof(FindWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(find));
+
     private static async Task WaitFor(Func<bool> condition, CancellationToken ct)
     {
         for (int i = 0; i < 250 && !condition(); i++) await Task.Delay(20, ct);
@@ -334,6 +339,21 @@ public sealed class FindWindowTests
 
             Assert.Equal("No matches outside exclusions", find.EmptyResultHeadline);
             Assert.Contains("1 not searched (1 ignored)", find.Status);
+            find.Width = find.MinWidth;
+            find.Height = find.MinHeight;
+            find.UpdateLayout();
+            foreach (var control in new Control[]
+            {
+                Field<Button>(find, "_find"), Field<TextBlock>(find, "_status"),
+                Field<TextBlock>(find, "_qualifications"), Field<Button>(find, "_logButton"),
+                Field<TextBlock>(find, "_emptyHeadline"),
+            })
+            {
+                var top = control.TranslatePoint(new Avalonia.Point(0, 0), find);
+                Assert.NotNull(top);
+                Assert.True(top.Value.Y >= 0 && top.Value.Y + control.Bounds.Height <= find.ClientSize.Height + 1,
+                    $"{control.GetType().Name} is outside the {find.ClientSize.Height}-DIP Find viewport: {top.Value.Y} + {control.Bounds.Height}.");
+            }
             var review = find.GetVisualDescendants().OfType<Button>()
                 .Single(b => b.Content as string == "Review search log");
             Assert.True(review.IsVisible);

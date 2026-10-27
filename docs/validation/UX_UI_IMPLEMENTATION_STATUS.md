@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-viewport-correction-20261027"></a>
+**27 October 2026, Find minimum-height evidence correction:** The new
+excluded-folder native route on `a5ebd315` found correct completion text but
+first measured the Find window at Windows' minimized `-32000` coordinates.
+After restoring it to `108,131` at 640 × 420, “Review search log” lay below
+the viewport (bottom 685 versus window bottom 551). Earlier no-match and
+shortcut receipts did not record screen position or vertical bounds, so their
+text and physical dispatch remain valid while on-screen visibility is
+unproven. The Find criteria now scroll within a bounded height; actions and
+completion remain outside that scroll area. The focused Find/Settings Release
+suite passed 31/31 with 16 build workers. The
+[direct pre-fix diagnostic receipt](evidence/ac-s2-044-win-exclusions-pre-fix.json)
+and [new headless viewport regression](../../tests/FileCat.App.Tests/FindWindowTests.cs)
+justify one native on-screen reconfirmation after this relevant layout change.
+SFTP, Registry and result-set origin scopes remain accepted.
+
 <a id="evidence-find-shortcuts-20261027"></a>
 **27 October 2026, native Find shortcut remapping (AC-S2-044-BINDINGS):**
 The [Windows native runner](../../tests/FileCat.NativeAcceptance/win-ax-find-result-scope.ps1)
@@ -11,10 +27,10 @@ Find menu for unbound Add. With a two-file result list, physical Ctrl+S left
 both results, then physical Ctrl+Shift+S removed only the matching result;
 both original files and the list stayed byte-exact. The
 [direct receipt](evidence/ac-s2-044-win-remapped-shortcut.json) covers native
-dispatch and visible guidance. `FindWindowTests` cover criteria editing,
+dispatch and accessible guidance. `FindWindowTests` cover criteria editing,
 path-suggestion and dialog priority and menu gestures; `SettingsDialogTests`
-cover same-context conflicts and panel/Find explanations. Together these
-accept FCUX-046 without asserting that this native runner opened Settings.
+cover same-context conflicts and panel/Find explanations. Its on-screen
+gesture visibility awaits the [bounded reconfirmation](#evidence-find-viewport-correction-20261027).
 
 <a id="evidence-find-scope-accepted-20261027"></a>
 **27 October 2026, Find origin scope closure (AC-S2-044-SCOPE):** Native
@@ -32,10 +48,11 @@ reused the owned two-file result-set fixture to exercise a previously uncovered
 completion boundary on Git-built `a5ebd315` (app DLL SHA-256
 `FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119`).
 At the 640 × 420 minimum Find size, a query absent from both files completed
-with a visible, in-window “No matches” headline and a separate accessible
+with a “No matches” headline and a separate accessible
 explanation naming the exact query and two-result scope. The list and both
 files stayed byte-exact. The [direct receipt](evidence/ac-s2-044-win-narrow-nomatch.json)
-accepts only the successful zero-match branch of FCUX-045. Stopped/limited
+accepts only successful zero-match semantics; its original geometry check
+omitted screen position and vertical bounds. Stopped/limited
 results and spoken qualification remain under
 [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
 
@@ -7382,8 +7399,8 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-004 — Markdown prose width on resize | Let prose blocks use the article's available width, matching table regions as the Page window changes size; retain article padding and table-local horizontal scrolling. | Forty-eight `MarkdownTests` cases pass. Headless Chrome measured prose and table regions at 505 px in a narrow window and 1,441 px in a wide window, with no page-level horizontal overflow. VMware native pointer tests widened the table by 335 px while prose shortened by 25 px; narrowing the viewer kept its document within the window and the table in a keyboard-focusable horizontal scroll region. Mac native Page captures at 760 × 620 and 1,220 × 700 show the same prose and table expansion with exact source bytes retained. | Native Windows/Mac Markdown resize routes pass; only the distinct scale/accessibility boundary AC-S2-MD remains. |
 | FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` covers held open/read calls, approval, new-transfer form, partial cleanup, Stop during job admission and release of the native action before slow review; 44/44 focused Windows Release cases passed. The [27 October Ubuntu held-source route](#evidence-recovery-stop-20261027) stopped in Reviewing and preserved exact bytes/journal without late approval. The [separate 200% native capture](#evidence-recovery-visual-20261027) shows Reviewing and Stop together in the narrow drawer, with 11/11 focused layout tests. [Orca then spoke](#evidence-recovery-speech-20261027) Reviewing, Stop and the final stopped result. | Accepted for FCUX-043 by [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042). Final audit-wide CI remains separate. |
 | FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. Native SFTP, Registry and result-set origin routes passed on Git builds with direct receipts above. | Accepted pairwise by [AC-S2-044-SCOPE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-scope); FCUX-045 completion remains separate. |
-| FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. Native 640 × 420 zero-match headline and exact criteria/scope passed on Git `a5ebd315`. | The zero-match branch is accepted in [AC-S2-044-NOMATCH](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-nomatch). Native stopped/limited and spoken qualification remain open. |
-| FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | Core keymap and App Find/Settings cases pass. Native Windows at 640 × 420 showed remapped/unbound guidance and physical-key dispatch against exact result membership on Git `a5ebd315`; `FindWindowTests` and `SettingsDialogTests` cover menu, editor, suggestion, dialog and settings conflict boundaries. | Accepted by [AC-S2-044-BINDINGS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-bindings); native Settings-editor traversal is optional reconfirmation. |
+| FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. Native 640 × 420 zero-match headline and exact criteria/scope text passed on Git `a5ebd315`; on-screen vertical visibility was not established by that receipt. A later native diagnostic exposed a minimum-height layout problem, and the new focused viewport regression passes. | Zero-match semantics are accepted in [AC-S2-044-NOMATCH](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-nomatch). On-screen minimum-size layout, stopped/limited and spoken qualification remain open. |
+| FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | Core keymap and App Find/Settings cases pass. Native Windows UIA exposed remapped/unbound guidance and physical-key dispatch against exact result membership on Git `a5ebd315`; its on-screen vertical position was not recorded. `FindWindowTests` and `SettingsDialogTests` cover menu, editor, suggestion, dialog and settings conflict boundaries. | Dispatch/AX are accepted in [AC-S2-044-BINDINGS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044-bindings). On-screen minimum-size gesture guidance needs one bounded reconfirmation; native Settings-editor traversal is optional. |
 | FCUX-047 — fractional scroll and one-row paging | Accumulate precision-wheel fractions into whole rows in file list, text, hex and binary comparison; reset them at source/layout/navigation changes and list boundaries. Keep PageUp/PageDown moving with one visible row and retain list rename alignment. | Fifteen focused App cases and 117 nearby viewer/list regressions pass. The complete App Release run passes 2,238 with 63 skips. | Native conventional-wheel, precision touchpad and inertial-input acceptance remains open. |
 | UXBUG-005 — viewer window size | Remember a deliberate normal viewer size in profile settings and restore it for text, Markdown, PE Info, hex and picture modes. Clamp invalid or oversized values to the active display; an older untouched viewer cannot overwrite a newer size. Debounce normal geometry and discard any pending sample when state changes, including an early maximized-sized event. | Three `ViewerWindowSizeTests` cases cover validation, screen bounds, reopen across viewer modes, restart persistence, concurrent windows and maximize/restore transitions. Native Windows retained a 1,592 × 1,414 viewer through maximize, restore, close and reopen, with the saved normal dimensions unchanged. | Native multi-monitor and DPI acceptance remains open. |
 | UXBUG-006 — stale Streams count after deletion | After confirmed Delete removes a stream or attribute, retire only the parent file's cached `hidden` metadata before refreshing the side-data list. Requery the provider when the parent row appears; partial failures also requery so the count reflects actual remaining data. | `HiddenDataUiTests` primes and reads the Streams/Attributes cell, presses Delete, confirms the side item is gone and file contents survive, then checks the parent row's count decreases by one. The related 105-case App selection has 89 passes and 16 skips. A native Windows Delete-key check removed a temporary NTFS stream on disk, and the parent row's Streams cell was blank immediately after navigation back. | Native Unix attribute acceptance remains open. |

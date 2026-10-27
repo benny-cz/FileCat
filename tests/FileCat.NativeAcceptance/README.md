@@ -1,5 +1,12 @@
 # Native Windows acceptance runner
 
+`win-ax-find-exclusions.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
+<fresh guest JSON>` uses a private local folder and a separate private data
+profile with one ignored `cache` folder. It restores the Find window on-screen,
+sizes it to 640 × 420, searches for an absent name, and checks the qualified
+headline, visible issue count, in-window Log action, keyboard-opened log, and
+unchanged fixture hashes. It changes no unrelated settings or files.
+
 `win-ax-find-result-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` opens an owned two-file `--list` result set in a fresh
 Windows VMware profile. It invokes native toolbar Find, verifies the separate

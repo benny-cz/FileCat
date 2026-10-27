@@ -1,0 +1,30 @@
+﻿{
+    "Passed":  false,
+    "AppDllSha256":  "FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindExclusionFixture\\6e1b3d1f6ab84ea7af88e00283ea165a",
+    "Find":  {
+                 "Width":  640,
+                 "Height":  420,
+                 "Headline":  "No matches outside exclusions",
+                 "Qualification":  "1 not searched (1 ignored)",
+                 "Explanation":  "Criteria and scope: names \"native-no-match-796eb2ea1eed44c49636ba79aef6fcce\" in C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindExclusionFixture\\6e1b3d1f6ab84ea7af88e00283ea165a Review the search log for exclusions and items that could not be checked.",
+                 "ReviewLogEnabled":  true,
+                 "ReviewLogBounds":  {
+                                         "Left":  231,
+                                         "Top":  656,
+                                         "Right":  355,
+                                         "Bottom":  685,
+                                         "Width":  124,
+                                         "Height":  29
+                                     },
+                 "WindowBounds":  {
+                                      "Left":  108,
+                                      "Top":  131,
+                                      "Right":  748,
+                                      "Bottom":  551
+                                  },
+                 "ReviewLogReachable":  false,
+                 "LogOpenedByKeyboard":  false
+             },
+    "Error":  "Narrow Find did not expose qualified, query-specific feedback and its log."
+}
