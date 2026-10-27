@@ -148,9 +148,19 @@ def run(app_path: Path, report: Path, helper: Path):
         result["relayChunksDuringRefresh"] = relay.delayed_chunks
         if "old remote revision" not in result["duringRefreshText"]:
             raise AssertionError("Delayed refresh discarded the old view before completion")
-        result["refreshedText"] = wait_for(lambda: value if "new remote revision" in
-                                           (value := text_of(document)) else None,
-                                           "new remote text", seconds=35)
+        try:
+            result["refreshedText"] = wait_for(lambda: value if "new remote revision" in
+                                               (value := text_of(document)) else None,
+                                               "new remote text", seconds=35)
+        except AssertionError:
+            result["textAfterTimeout"] = text_of(document)
+            result["bannersAfterTimeout"] = banners(viewer)
+            result["visibleLabelsAfterTimeout"] = [node.get_name() for node in tree(viewer)
+                if node.get_role_name() == "label" and
+                node.get_state_set().contains(Atspi.StateType.SHOWING)]
+            result["refreshEnabledAfterTimeout"] = refresh.get_state_set().contains(Atspi.StateType.ENABLED)
+            result["relayDelayedChunks"] = relay.delayed_chunks
+            raise
         result["sameViewer"] = viewer_id(title, process.pid) == initial_viewer_id
         result["afterRefreshBanners"] = banners(viewer)
         if not result["sameViewer"] or result["afterRefreshBanners"]:
