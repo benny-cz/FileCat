@@ -2,6 +2,7 @@ using System.Reflection;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -159,6 +160,28 @@ public sealed class ViewerPageSearchTests
         Assert.True(condition(), "Page search request did not reach the engine.");
     }
 
+    [AvaloniaFact]
+    public async Task Escape_from_Find_returns_the_keyboard_to_the_page()
+    {
+        // On Linux the page's host takes focus first: Orca cannot reach inside the embedded GTK page (UXBUG-021), and
+        // it said nothing at all when the page took the keyboard.
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        var page = Field<PageView>(viewer, "_pageView");
+        var search = viewer.GetVisualDescendants().OfType<TextBox>()
+            .Single(c => AutomationProperties.GetName(c) == "Find in file");
+        Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(search.IsFocused);
+        int before = fixture.Engine.FocusCount;
+        viewer.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(before + 1, fixture.Engine.FocusCount);
+        Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
+        Assert.Equal(OperatingSystem.IsLinux() ? PageView.LinuxReaderHelp : null, AutomationProperties.GetHelpText(page));
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "filecat-page-search-" + Guid.NewGuid().ToString("N"));
@@ -209,7 +232,8 @@ public sealed class ViewerPageSearchTests
         public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
         public void Show(HtmlPage page) { }
         public void SetSize(int width, int height) { }
-        public void Focus() { }
+        public int FocusCount { get; private set; }
+        public void Focus() => FocusCount++;
         public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
         {
             var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);

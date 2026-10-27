@@ -22,7 +22,18 @@ public sealed class PageView : NativeControlHost
     public PageView(string dataFolder)
     {
         _dataFolder = dataFolder;
+        if (OperatingSystem.IsLinux())
+        {
+            // Orca cannot reach inside the embedded GTK page (UXBUG-021): Avalonia's AT-SPI tree has no socket for its
+            // plug, and readers said nothing once the page took the keyboard. The page's host takes focus first, so
+            // they hear what it is and how to read the file.
+            Focusable = true;
+            Avalonia.Automation.AutomationProperties.SetHelpText(this, LinuxReaderHelp);
+        }
     }
+
+    /// <summary>What a Linux screen reader hears on the page's host, which is all it can reach of the page.</summary>
+    internal const string LinuxReaderHelp = "Screen readers cannot read inside the rendered page here. F4 shows the same file as text.";
 
     /// <summary>The page could not be shown: why (no engine installed, or none on this display).</summary>
     public event Action<string>? Failed;
@@ -128,8 +139,12 @@ public sealed class PageView : NativeControlHost
         _engine?.SetSize((int)Math.Ceiling(Bounds.Width * scaling), (int)Math.Ceiling(Bounds.Height * scaling));
     }
 
-    /// <summary>The keyboard to the page.</summary>
-    public void FocusPage() => _engine?.Focus();
+    /// <summary>The keyboard to the page; on Linux through its host, which screen readers can announce.</summary>
+    public void FocusPage()
+    {
+        if (OperatingSystem.IsLinux()) Focus();
+        _engine?.Focus();
+    }
 
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
     public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
