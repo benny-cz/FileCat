@@ -70,6 +70,10 @@ def run(app_path: Path, report: Path, helper: Path):
 
     def page_find(viewer, query):
         entry = wait_for(lambda: find(viewer, "entry", "Find in file"), "Page Find field")
+        # Repeating the same query after a failed refresh must issue a fresh
+        # native-engine search rather than reuse a prior result/status.
+        if not entry.get_editable_text().set_text_contents(""):
+            raise AssertionError("Could not reset the Page Find query")
         if not entry.get_editable_text().set_text_contents(query):
             raise AssertionError("Could not enter the Page Find query")
         next_button = wait_for(lambda: find(viewer, "button", "Find next match"), "Page Find next")
@@ -128,7 +132,16 @@ def run(app_path: Path, report: Path, helper: Path):
         action(refresh, "missing Page Refresh")
         result["failedRefreshBanner"] = wait_for(lambda: banner(viewer),
                                                  "missing Page failure", seconds=25)
-        result["retainedPageFind"] = page_find(viewer, "newpagetoken")
+        try:
+            result["retainedPageFind"] = page_find(viewer, "newpagetoken")
+        except AssertionError:
+            result["labelsAfterFailedRefresh"] = [node.get_name() for node in tree(viewer)
+                if node.get_role_name() == "label" and
+                node.get_state_set().contains(Atspi.StateType.SHOWING)]
+            result["pageNodesAfterFailedRefresh"] = [(node.get_role_name(), node.get_name())
+                for node in tree(viewer) if "document" in node.get_role_name().lower() or
+                "web" in node.get_role_name().lower()]
+            raise
         result["sameViewerAfterFailure"] = viewer_id(title, process.pid) == initial_id
         os.replace(retired, page_path)
         result["restoredSourceSha256"] = hashlib.sha256(page_path.read_bytes()).hexdigest()
