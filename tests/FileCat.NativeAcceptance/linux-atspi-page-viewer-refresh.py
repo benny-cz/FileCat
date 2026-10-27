@@ -132,18 +132,19 @@ def run(app_path: Path, report: Path, helper: Path):
         action(refresh, "missing Page Refresh")
         result["failedRefreshBanner"] = wait_for(lambda: banner(viewer),
                                                  "missing Page failure", seconds=25)
-        try:
-            result["retainedPageFind"] = page_find(viewer, "newpagetoken")
-        except AssertionError:
-            result["labelsAfterFailedRefresh"] = [node.get_name() for node in tree(viewer)
-                if node.get_role_name() == "label" and
-                node.get_state_set().contains(Atspi.StateType.SHOWING)]
-            result["pageNodesAfterFailedRefresh"] = [(node.get_role_name(), node.get_name())
-                for node in tree(viewer) if "document" in node.get_role_name().lower() or
-                "web" in node.get_role_name().lower()]
-            raise
+        result["retainedPageMode"] = find(viewer, "label", "Mode: Page") is not None
+        result["stalePageStatus"] = wait_for(lambda: next((node.get_name() for node in tree(viewer)
+            if node.get_role_name() == "label" and
+            "The file changed; Refresh (F5) to update this page" in (node.get_name() or "")), None),
+            "retained Page stale status")
+        if not result["retainedPageMode"]:
+            raise AssertionError("Failed Refresh left native Page mode")
         result["sameViewerAfterFailure"] = viewer_id(title, process.pid) == initial_id
         os.replace(retired, page_path)
+        action(refresh, "restored Page Refresh")
+        wait_for(lambda: refresh.get_state_set().contains(Atspi.StateType.ENABLED),
+                 "restored Page Refresh completion", seconds=25)
+        result["restoredPageFind"] = page_find(viewer, "newpagetoken")
         result["restoredSourceSha256"] = hashlib.sha256(page_path.read_bytes()).hexdigest()
         result["targetEmpty"] = not any(target.iterdir())
         result["passed"] = (result["sameViewerAfterFailure"] and result["targetEmpty"] and
