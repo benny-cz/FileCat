@@ -10,8 +10,8 @@ accepted equivalent routes stay in
 
 ## Highest priority — S2 and queued defects
 
-- [AC-S2-011](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-011): long-path Undo/recovery
-  review and Registry/Find dialog at minimum and enlarged size.
+- [AC-S2-011](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-011): one actual Registry
+  or Find form at minimum/enlarged size.
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
   dialog reachability, viewer semantics, native contrast and motion, drag,
   operation evidence, Undo/sync, navigation, workspace/listing, panels,

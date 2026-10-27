@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Registry', 'Folder', 'Copy', 'Move', 'Delete')][string]$DialogKind = 'Registry'
+    [ValidateSet('Registry', 'Folder', 'Copy', 'Move', 'Delete')][string]$DialogKind = 'Registry',
+    [switch]$MinimumOwner
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,6 +19,7 @@ public static class FileCatDialogPointer {
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr handle);
+    [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr handle, int x, int y, int width, int height, bool repaint);
     [DllImport("user32.dll")] public static extern void mouse_event(int flags, int dx, int dy, int data, int extra);
     public static void Click(int x, int y) {
         SetCursorPos(x, y);
@@ -140,11 +142,68 @@ try {
     if ($process.MainWindowHandle -eq [IntPtr]::Zero) { throw 'The isolated FileCat window did not open.' }
     if ([IO.Path]::GetFullPath($process.MainModule.FileName) -ine $app) { throw 'Unexpected executable owns the window.' }
     $windowDpi = [FileCatDialogPointer]::GetDpiForWindow($process.MainWindowHandle)
+    if ($MinimumOwner) {
+        # The app may apply its saved geometry after the native handle first appears.
+        Start-Sleep -Seconds 1
+        $scale = $windowDpi / 96.0
+        $requestedWidth = [int][Math]::Round(640 * $scale)
+        $requestedHeight = [int][Math]::Round(420 * $scale)
+        [FileCatDialogPointer]::ShowWindow($process.MainWindowHandle, 9) | Out-Null
+        if (![FileCatDialogPointer]::MoveWindow($process.MainWindowHandle, 40, 40,
+                $requestedWidth, $requestedHeight, $true)) {
+            throw 'Could not resize the isolated FileCat window to its supported minimum.'
+        }
+        Start-Sleep -Milliseconds 500
+    }
     $window = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+    $ownerBounds = $window.Current.BoundingRectangle
+    $ownerWidthDip = $ownerBounds.Width * 96 / $windowDpi
+    $ownerHeightDip = $ownerBounds.Height * 96 / $windowDpi
+    if ($MinimumOwner -and ($ownerWidthDip -gt 700 -or $ownerHeightDip -gt 480 -or
+            $ownerWidthDip -lt 635 -or $ownerHeightDip -lt 415)) {
+        throw "The requested minimum owner did not settle: $ownerWidthDip x $ownerHeightDip DIP."
+    }
     Start-Sleep -Seconds 1
 
     $close = OpenDialog $process $window
     if ($close.Current.IsOffscreen -or !$close.Current.IsEnabled) { throw 'The close X is not reachable.' }
+    if ($MinimumOwner) {
+        $ownerBounds = $window.Current.BoundingRectangle
+        $visibleActions = @(Snapshot $window | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+            $_.Current.IsEnabled -and !$_.Current.IsOffscreen -and
+            $_.Current.BoundingRectangle.Width -gt 0 -and
+            $_.Current.BoundingRectangle.Height -gt 0 -and
+            $_.Current.Name -in @('Close dialog', 'Cancel', 'Create key', 'Create value')
+        })
+        if (@($visibleActions | Where-Object { $_.Current.Name -eq 'Close dialog' }).Count -ne 1 -or
+            ($DialogKind -ne 'Registry' -and
+             @($visibleActions | Where-Object { $_.Current.Name -eq 'Cancel' }).Count -ne 1)) {
+            throw 'The minimum-size dialog did not expose its intended mouse cancellation controls.'
+        }
+        if ($DialogKind -eq 'Registry') {
+            $choices = @(Snapshot $window | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+                ($_.Current.Name.StartsWith('Key', [StringComparison]::Ordinal) -or
+                 $_.Current.Name.StartsWith('Value', [StringComparison]::Ordinal)) -and
+                !$_.Current.IsOffscreen
+            })
+            if ($choices.Count -ne 2) {
+                $names = @(Snapshot $window | Where-Object {
+                    $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem
+                } | ForEach-Object { $_.Current.Name } | Select-Object -Last 8) -join '; '
+                throw "The Registry chooser did not expose both visible choices: $($choices.Count); list items: $names."
+            }
+            $visibleActions += $choices
+        }
+        foreach ($item in $visibleActions) {
+            $area = $item.Current.BoundingRectangle
+            if ($area.Left -lt $ownerBounds.Left -or $area.Top -lt $ownerBounds.Top -or
+                $area.Right -gt $ownerBounds.Right -or $area.Bottom -gt $ownerBounds.Bottom) {
+                throw "The minimum-size dialog action '$($item.Current.Name)' is outside the owner."
+            }
+        }
+    }
     $help = $close.Current.HelpText
     if ($help -notlike '*Cancel this dialog*') { throw 'The close X lacks its accessible cancel explanation.' }
     $bounds = $close.Current.BoundingRectangle
@@ -196,6 +255,8 @@ try {
     [pscustomobject]@{
         BuildSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash
         WindowDpi = $windowDpi
+        MinimumOwner = [bool]$MinimumOwner
+        OwnerSizeDip = "$([Math]::Round($ownerWidthDip))x$([Math]::Round($ownerHeightDip))"
         DialogKind = $DialogKind
         DialogTitle = $dialogTitle
         DialogOpenedTwice = $true

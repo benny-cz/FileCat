@@ -1071,5 +1071,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         public bool Deleted { get; set; }
         public bool Pinned { get; set; } = item.Pinned;
         public string Haystack { get; } = item.Title + " " + item.Detail + " " + item.Gesture;
+
+        // ListBoxItem's default native name uses the bound item's string value.
+        // Keep the full choice and its explanation available to screen readers.
+        public override string ToString() => (Pinned ? "Pinned, " : string.Empty) + Item.Title +
+            (string.IsNullOrWhiteSpace(Item.Detail) ? string.Empty : ", " + Item.Detail);
     }
 }

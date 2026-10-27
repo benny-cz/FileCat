@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-choice-name-20261027"></a>
+**27 October 2026, minimum Registry chooser diagnosis (FCUX-011):** The
+isolated Win11 `d2829324` build kept the chooser's close X inside a settled
+640 × 420 DIP owner. Native UI Automation exposed both visual options only
+as `FileCat.App.Views.OverlayDialogService+ChoiceRow`, omitting their action
+names. This is a native accessibility defect, distinct from layout. The
+bound row now supplies its full title and explanatory detail as the native
+name; the new headless chooser regression passed 4/4 at 640 × 420. The
+updated pointer runner checks minimum owner geometry, option reachability,
+and both intended mouse exits. Its final native run and the separate actual
+Find/Registry form route remain open. Earlier diagnostic VM receipts are
+`ac-s2-011-registry-min-d2829324-r1` through `r5` under the guest validation
+directory; none is accepted product evidence.
+
 <a id="evidence-sftp-delayed-list-20261027"></a>
 **27 October 2026, delayed SFTP accessibility (FCUX-010):** On the isolated
 Ubuntu Wayland VMware guest, the Git-built `d2829324` app (DLL SHA-256

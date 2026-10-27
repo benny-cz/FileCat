@@ -193,6 +193,10 @@ backdrop with native Win32 pointer input. Pass the same isolated `-AppPath` and
 guest-local `-ReportPath`. It checks the foreground process ID before sending
 F7, so an older FileCat window cannot receive its keystrokes. A guest desktop
 that refuses to foreground the isolated app fails safely before the check.
+Pass `-MinimumOwner` to restore and settle the owner at 640 × 420 DIP before
+opening the chooser, then require its visible native options and mouse exits
+to remain inside the owner. The Registry chooser has no Cancel footer; its
+close X and backdrop are its intended pointer cancellation controls.
 Pass `-DialogKind Folder` to repeat the same check on the Create folder dialog
 with an empty disposable filesystem fixture; the default remains `Registry`.
 Pass `-DialogKind Copy` to open the Copy review for one disposable file and

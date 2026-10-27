@@ -1,3 +1,4 @@
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -10,6 +11,30 @@ namespace FileCat.App.Tests;
 
 public sealed class ChooserTests
 {
+    [AvaloniaFact]
+    public async Task Native_registry_choices_name_the_action_and_explanation()
+    {
+        var host = new Grid();
+        var window = new Window { Width = 640, Height = 420, Content = host };
+        window.Show();
+        try
+        {
+            var dialogs = new OverlayDialogService(host, () => null);
+            var pending = dialogs.ChooseAsync(new ChoiceOptions("Create in Registry", [
+                new ChoiceItem("Key", "A navigable subkey"),
+                new ChoiceItem("Value", "A typed value; an empty name means (Default)"),
+            ]));
+            List<ListBoxItem> Rows() => window.GetVisualDescendants().OfType<ListBoxItem>().ToList();
+            for (int i = 0; i < 100 && Rows().Count < 2; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            var names = Rows().Select(row => ControlAutomationPeer.CreatePeerForElement(row).GetName()).ToArray();
+            Assert.Equal(["Key, A navigable subkey", "Value, A typed value; an empty name means (Default)"], names);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.Equal(-1, (await pending).Index);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task History_chooser_pins_with_insert_and_removes_with_ctrl_delete()
     {
