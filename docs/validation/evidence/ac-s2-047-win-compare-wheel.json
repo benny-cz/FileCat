@@ -1,0 +1,39 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "LeftSha256":  "24DDAA4710480313757F965C38D60208A334556CB244F830D5006A893EDD8DA7",
+    "RightSha256":  "718349052901ADD76A9CC4E73A144F0E9207B8F5E0843E5CF85F3B78297C1B3F",
+    "States":  [
+                   {
+                       "Name":  "ten fractional downward events",
+                       "Delta":  -12,
+                       "Events":  10,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "one whole downward event",
+                       "Delta":  -120,
+                       "Events":  1,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "ten fractional upward events",
+                       "Delta":  12,
+                       "Events":  10,
+                       "TopRow":  0
+                   },
+                   {
+                       "Name":  "conventional downward detent",
+                       "Delta":  -120,
+                       "Events":  1,
+                       "TopRow":  3
+                   },
+                   {
+                       "Name":  "conventional upward detent",
+                       "Delta":  120,
+                       "Events":  1,
+                       "TopRow":  0
+                   }
+               ],
+    "Error":  null
+}

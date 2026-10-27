@@ -12,7 +12,13 @@ inside the Windows guest's `FileCatValidation` directory.
 for a 300-line Text file, then its Hex mode. It compares ten 12-unit events
 with one 120-unit event and reverses to the starting viewport using UI
 Automation document text and scrollbar position. It checks byte-exact source
-preservation and an empty destination. HexCompare has a separate open case.
+preservation and an empty destination. HexCompare uses the separate runner below.
+
+`win-ax-fractional-compare-wheel.ps1` opens a native binary Compare window
+from two owned files with one changed byte. It compares ten 12-unit wheel
+messages, one 120-unit message, reversal and ordinary detents through the
+HexCompare vertical scrollbar, then verifies both source hashes. It creates
+only a private profile and fixture under the Windows guest's validation root.
 
 `linux-atspi-find-stop-held.py APP REPORT.json --speech` runs a native Ubuntu
 Find against an owned local fixture. A path-filtered, bounded `strace` delay
