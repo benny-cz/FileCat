@@ -1,5 +1,38 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-mac-motion-20261027"></a>
+**27 October 2026, native macOS reduced-motion toggle (FCUX-050/051):**
+Git `799e8918` ran as an isolated, signed app on macOS 27.0.1 Apple Silicon
+at 2880 × 1800 Retina (app DLL SHA-256
+`4134da26bd8c950d4976c010192a1fa93009ac955e18a3dda5015f71394bf128`).
+The runner changed the **actual** System Settings → Accessibility → Motion
+checkbox off/on/off while FileCat was open, confirmed each value through
+AppKit and captured two native frames per phase with the owner's approved
+capture helper. Its bounded pixel checker measured moving menu pixels
+**7,839 / 0 / 35,476** and decorative footer pixels **4,227 / 0 / 3,917**;
+both file-list regions changed **zero** in all three pairs. The account alert
+was absent in each valid capture. The test-owned source was unchanged, the
+target remained empty, and both the checkbox and AppKit value returned to
+their original off state. The focused Mac motion tests passed **23/23** with
+16 workers. Guest receipt:
+`/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.json`;
+ignored host receipt and measurement:
+`E:\FileCat\.local-ac-s2-013-mac-motion-799e8918-r1.json` and
+`E:\FileCat\.local-ac-s2-013-mac-motion-pixels-r1.json`; direct frames:
+`E:\FileCat\.local-ac-s2-013-mac-motion-799e8918-r1.{moving,reduced,resumed}-{1,2}.png`.
+The tracked [native route](../../tests/FileCat.NativeAcceptance/mac-ax-theme-motion.py),
+[native UI toggle](../../tests/FileCat.NativeAcceptance/mac-motion-toggle.applescript)
+and [capture checker](../../tests/FileCat.NativeAcceptance/check-mac-theme-motion-captures.py)
+accept [AC-S2-013-MAC-MOTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-mac-motion)
+and close its [parent](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013) at the recorded
+pairwise scope. Earlier `4c042d37` Mac receipt
+`E:\FileCat\.local-ac-s2-013-mac-motion-4c042d37-r7.json` is **invalid
+for live-preference acceptance**: `defaults write` made a new AppKit process
+see the changed value but did not update an already running AppKit process.
+That diagnostic prompted the fresh, bounded AppKit query in `799e8918`.
+The correct UI-controlled route supersedes it; accepted Ubuntu and Windows
+routes were not rerun.
+
 <a id="evidence-windows-motion-20261027"></a>
 **27 October 2026, native Windows reduced-motion toggle (FCUX-050/051):**
 Exact Git `4c042d37` ran on the isolated Windows 11 VMware desktop at
