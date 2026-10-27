@@ -95,8 +95,18 @@ internal sealed class HarnessApp : Application
             viewer.Show();
             var page = (PageView)(typeof(ViewerWindow).GetField("_pageView", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?.GetValue(viewer) ?? throw new InvalidOperationException("Page view is unavailable"));
+            string? pageFailure = null;
+            page.Failed += why => pageFailure = why;
             result["stage"] = "initial native page";
-            await Until(() => page.PageLoaded, TimeSpan.FromSeconds(20));
+            try { await Until(() => page.PageLoaded, TimeSpan.FromSeconds(20)); }
+            catch (TimeoutException)
+            {
+                result["initialPageFailure"] = pageFailure;
+                result["initialViewerStatus"] = viewer.StatusLine;
+                result["initialPageMode"] = viewer.IsPageShown;
+                result["initialPageVisible"] = page.IsEffectivelyVisible;
+                throw;
+            }
             var oldFind = await page.FindAsync("oldpagetoken", false, true, CancellationToken.None);
             if (oldFind is not { Found: true }) throw new InvalidOperationException("Native engine did not render the old page");
             result["oldPageFound"] = true;
