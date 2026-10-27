@@ -1,5 +1,21 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-workspace-save-race-20261027"></a>
+**27 October 2026, native two-process named-workspace collision:** On exact
+Git `34fee315` in Ubuntu VMware (app DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`),
+the [tracked AT-SPI runner](../../tests/FileCat.NativeAcceptance/linux-atspi-workspace-save-race.py)
+opened two distinct FileCat processes on one test-owned `--data` root. Both
+Save workspace as dialogs held the same fresh name before either file existed.
+The first process published its local arrangement; the second encountered a
+visible `Replace "Native race …"?` review. Cancel preserved the first JSON
+byte-for-byte (SHA-256
+`ec731e35e569e88c9420e356ab20819cacb29dd605e36047f9b76ec45b4ccc46`),
+created no backup and left both local source files exact. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-024-save-race-r1.json` (`passed: true`). This accepts
+[AC-S2-024-RACE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-024-race). The native narrow
+40-tab/four-panel restore remains [AC-S2-024](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-024).
+
 <a id="evidence-current-navigation-error-20261027"></a>
 **27 October 2026, native current disconnected-remote error and Back:**
 On exact Git `34fee315` in Ubuntu VMware (app DLL SHA-256

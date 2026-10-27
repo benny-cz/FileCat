@@ -747,6 +747,12 @@ requires transient input/SFTP credentials and no other FileCat or Orca process.
 The native Orca and AT-SPI result must expose the specific connection refusal;
 physical Alt+Left must restore the prior local folder, show its sentinel row,
 and leave its bytes exact. The dated `34fee315` receipt accepts this route.
+`linux-atspi-workspace-save-race.py APP REPORT.json KEY_HELPER` launches two
+FileCat processes with a shared test-owned `--data` root and distinct local
+folders. Both native Save as prompts hold the same fresh name before either
+publishes. After the first save, the second must show a replacement review;
+Cancel leaves the saved JSON, absent backup and both source files unchanged.
+The dated `34fee315` receipt accepts this collision route only.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
