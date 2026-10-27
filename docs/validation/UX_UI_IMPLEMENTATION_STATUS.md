@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-operation-live-issue-native-20261027"></a>
+**27 October 2026, native selected Operations issue speech and selection:**
+On exact Git `2a371b4c` in Windows 11 VMware (app DLL SHA-256
+`D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291`),
+the [tracked native runner](../../tests/FileCat.NativeAcceptance/win-nvda-operation-issues.ps1)
+submitted three selected local files to an owned target. Two names already
+existed; a rate-limited middle file gave time to select the first issue before
+the second conflict. The pending Copy was selected in Details with zero issues.
+After each explicit Skip, NVDA 2026.2 spoke the new total, severity, message
+and complete source path without job reselection. The first issue stayed
+selected after the second appeared; the summary said **2 of 2 issues**, with
+two details retained. Source and target hashes for both conflicts stayed
+exact; the middle file copied byte-exact. Direct clean receipt:
+`E:\FileCat\.local-ac-s2-015-live-issue-r3.json` (`Passed: true`, no error).
+The earlier r1/r2 fixtures reached the review and proved native speech; their
+driver-only Options-pattern and virtualized-row assumptions were corrected
+before r3. This accepts [AC-S2-015-ISSUES](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-issues)
+and closes [AC-S2-015](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015) by pairwise
+coverage. Final audit CI remains separate.
+
 <a id="evidence-operation-live-issue-implementation-20261027"></a>
 **27 October 2026, selected Operations issue announcement implementation:**
 The selected job now exposes a polite, visible live announcement only when

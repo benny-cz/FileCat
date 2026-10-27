@@ -718,6 +718,15 @@ distinct route that deliberately selects completed `finished-08` after the
 ninth Copy is Running and requires that selection to survive a later live
 Copy status refresh with the exact source hash intact. The dated `e7b448b7`
 receipt accepts that scope.
+`win-nvda-operation-issues.ps1 -AppPath GIT_BUILT_FILECAT_EXE -NvdaPath SIGNED_NVDA_EXE -ReportPath FRESH_JSON`
+tests the separate live-issue route in the Windows VM. It selects three
+test-owned source files with two existing target names, uses a rate-limited
+middle file to separate conflicts, and requires NVDA to speak both new issue
+counts and full paths without job reselection. The first selected issue must
+remain selected after the second append. Source and target hashes for skipped
+conflicts and the middle copied file must remain exact. The dated `2a371b4c`
+receipt accepts this scope; do not rerun it because another audit case remains
+open.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
