@@ -101,6 +101,14 @@ Create `<report-stem>.resume` after capturing the upper review. It then focuses
 the full-path detail and waits at `<report-stem>.detail.ready`; create
 `<report-stem>.detail.resume` after capturing its lower layout. Both waits are
 bounded to 120 seconds and all marker files are removed when the run ends.
+`linux-atspi-xattr-delete.py` gives an owned file two user extended attributes
+and another file one, opens the first file's attributes with physical
+Alt+Shift+Enter in the Full column profile (Alt+2, then Right to its last
+column), deletes `user.filecat.payload` through the confirmation (which starts
+on Cancel) and returns with Backspace without rereading. Only the sibling
+attribute may remain on disk; both files' bytes, the other file's attribute and
+the empty target must be unchanged. Captures beside the report show the
+Attributes cell before the deletion, the confirmation and the cell on return.
 `linux-atspi-keybar-label.py` holds a physical Shift in the same setup and
 reads the twelve key-bar buttons from AT-SPI: F10 must be named "Context menu"
 with the help "Shift+F10: Context menu", and a key without a command must be

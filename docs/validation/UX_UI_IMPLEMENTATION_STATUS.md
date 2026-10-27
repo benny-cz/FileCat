@@ -1,5 +1,27 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-unix-xattr-20261027"></a>
+**27 October 2026, native Linux attribute deletion (AC-S2-UNIX; UXBUG-006
+accepted):** The new [attribute runner](../../tests/FileCat.NativeAcceptance/linux-atspi-xattr-delete.py)
+gave `tool.bin` the user attributes `user.xdg.origin.url` and
+`user.filecat.payload` and `other.bin` one of its own, then drove the
+Git-built `038bbc45` Ubuntu VMware app (DLL SHA-256
+`fd81575ace8b743a60f28ae4684b4280ff5d32390fb4d1603b737a29808277b7`) at
+GNOME 200% with physical uinput keys. In the Full column profile (Alt+2,
+then Right to its last column) the Attributes cell read 2 for `tool.bin`
+and 1 for `other.bin`. Alt+Shift+Enter listed the two attributes; Delete on
+the payload asked “Delete “user.filecat.payload” of tool.bin? This cannot
+be undone.” with Cancel focused, Tab moved to Delete and Enter deleted it.
+Backspace returned to `tool.bin`, and without a reread its cell read 1. On
+disk only `user.xdg.origin.url` remained; both files' bytes, `other.bin`'s
+attribute and the empty target were unchanged. The
+[receipt](evidence/ac-s2-unix-ubuntu-xattr.json),
+[count before and on return](evidence/ubuntu-xattr-count-038bbc45.png) and
+[confirmation](evidence/ubuntu-xattr-confirm-038bbc45.png) record it. The
+first runs stopped on the runner's own assumptions (a row's name carries its
+details; the permanent-delete confirmation starts on Cancel; Alt+3 is the
+Media profile) and deleted nothing.
+
 <a id="evidence-keybar-label-20261027"></a>
 **27 October 2026, key-bar labels inside their keys (AC-S2-KEYBAR;
 UXBUG-018 accepted):** The key-bar label sat in a horizontal StackPanel,

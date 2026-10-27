@@ -1,0 +1,165 @@
+{
+  "passed": true,
+  "appDllSha256": "fd81575ace8b743a60f28ae4684b4280ff5d32390fb4d1603b737a29808277b7",
+  "displayScale": "2.0",
+  "fixture": "/home/benny/FileCatValidation/XattrDeleteFixture/6c1a0df0ca9c40878f1711f70928cbb2",
+  "input": "physical uinput keyboard",
+  "before": {
+    "tool": {
+      "user.filecat.payload": "hidden payload",
+      "user.xdg.origin.url": "https://example.com/tool.bin"
+    },
+    "other": {
+      "user.filecat.other": "untouched"
+    },
+    "toolSha256": "c17797d5ea6e82fb8b4b21b40db6f0ceaaeb65f986b716beb1827ece2d9bb2b3",
+    "otherSha256": "7d467c53662eefaa6c5d73e84d7d697e5530eb5837a5ac82ccfea529ab2a9044"
+  },
+  "steps": [
+    {
+      "key": "alt+2",
+      "focused": "Go to parent location, parent navigation, 1 of 3"
+    },
+    {
+      "key": "down",
+      "focused": "other.bin, file, 15 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 2 of 3"
+    },
+    {
+      "key": "down",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "alt+shift+enter",
+      "focused": "Go to parent location, parent navigation, 1 of 3"
+    },
+    {
+      "key": "down",
+      "focused": "user.filecat.payload, Attribute (user), 14 bytes, hidden payload, not marked, 2 of 3"
+    },
+    {
+      "key": "delete",
+      "focused": null
+    },
+    {
+      "key": "tab",
+      "focused": null
+    },
+    {
+      "key": "enter",
+      "focused": "user.xdg.origin.url, Attribute (user), 28 bytes, Downloaded from https://example.com/tool.bin, not marked, 2 of 2"
+    },
+    {
+      "key": "backspace",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    },
+    {
+      "key": "right",
+      "focused": "tool.bin, file, 14 bytes, modified 10/27/2026 9:19:53\u202fPM, not marked, 3 of 3"
+    }
+  ],
+  "beforeCapture": {
+    "path": "/home/benny/FileCatValidation/xattr-delete-038bbc45.before.png",
+    "size": "1786 1062"
+  },
+  "dialogCapture": {
+    "path": "/home/benny/FileCatValidation/xattr-delete-038bbc45.dialog.png",
+    "size": "1786 1062"
+  },
+  "dialogFocus": [
+    "button",
+    "Cancel"
+  ],
+  "afterDelete": {
+    "user.xdg.origin.url": "https://example.com/tool.bin"
+  },
+  "afterCapture": {
+    "path": "/home/benny/FileCatValidation/xattr-delete-038bbc45.after.png",
+    "size": "1786 1062"
+  },
+  "after": {
+    "tool": {
+      "user.xdg.origin.url": "https://example.com/tool.bin"
+    },
+    "other": {
+      "user.filecat.other": "untouched"
+    },
+    "toolSha256": "c17797d5ea6e82fb8b4b21b40db6f0ceaaeb65f986b716beb1827ece2d9bb2b3",
+    "otherSha256": "7d467c53662eefaa6c5d73e84d7d697e5530eb5837a5ac82ccfea529ab2a9044"
+  }
+}
