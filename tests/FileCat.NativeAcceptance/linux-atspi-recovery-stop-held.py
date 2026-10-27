@@ -24,6 +24,7 @@ from gi.repository import Atspi
 
 active = runpy.run_path(str(Path(__file__).with_name("linux-atspi-active-copy-interruption.py")))
 wait_for = active["wait_for"]
+speech_module = runpy.run_path(str(Path(__file__).with_name("linux-orca-speech.py")))
 
 
 def descendants(node):
@@ -100,7 +101,7 @@ def trigger_review(source, ready):
     ready.with_suffix(".done").write_text(str(time.monotonic()), encoding="ascii")
 
 
-def main(app_path, report_path):
+def main(app_path, report_path, speech_mode=False):
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     app_path = app_path.resolve(strict=True)
     if (app_path.name != "FileCat" or validation not in app_path.parents or
@@ -114,6 +115,7 @@ def main(app_path, report_path):
     os.environ["DOTNET_ROOT"] = str(validation / "dotnet-sdk")
     os.environ.setdefault("DISPLAY", ":0")
     os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
     os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={os.environ['XDG_RUNTIME_DIR']}/bus")
 
     root = validation / "RecoveryHeldFixture" / uuid4().hex
@@ -129,7 +131,8 @@ def main(app_path, report_path):
     result = {"passed": False, "buildDllSha256": hashlib.sha256(
         app_path.with_name("FileCat.dll").read_bytes()).hexdigest(),
         "fixture": str(root), "sourceSha256": expected_hash, "steps": []}
-    process = tracer = trigger_process = None
+    process = tracer = trigger_process = orca = None
+    speech = None
     capture_marker = validation / "ac-s2-042-capture.ready"
     if capture_marker.exists():
         raise AssertionError("A previous owned capture marker remains")
@@ -163,6 +166,19 @@ def main(app_path, report_path):
         process = None
         result["steps"].append({"interrupted": {key: interrupted[key] for key in
             ("stagedBytes", "journalEntries", "targetUnpublished")}})
+
+        if speech_mode:
+            if subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", "orca"],
+                              capture_output=True).returncode == 0:
+                raise AssertionError("Another Orca instance owns the speech session")
+            speech = speech_module["SpeechLog"](root / "orca-debug.log")
+            orca_env = {**child_env, "GDK_BACKEND": "wayland", "WAYLAND_DISPLAY": "wayland-0"}
+            orca = subprocess.Popen(["/usr/bin/python3", "-c", speech_module["ORCA_WRAPPER"],
+                                     str(speech.path)], env=orca_env,
+                                    stdout=subprocess.DEVNULL,
+                                    stderr=(root / "orca.err").open("wb"), start_new_session=True)
+            wait_for(lambda: "Screen reader on" in " ".join(speech.take()),
+                     "Orca speech startup", seconds=25)
 
         process = launch()
         result["restartedPid"] = process.pid
@@ -247,6 +263,18 @@ def main(app_path, report_path):
                                 "stopVisible": True})
         if latency >= 4 or action_enabled:
             raise AssertionError("The slow review did not promptly expose busy/disabled controls")
+        spoken = []
+        if speech is not None:
+            def heard(fragment):
+                spoken.extend(speech.take())
+                return any(fragment in phrase.lower() for phrase in spoken)
+            wait_for(lambda: heard("reviewing recovery sources"),
+                     "Orca Reviewing speech", seconds=3)
+            if not stop.grab_focus():
+                raise AssertionError("Could not focus the native Stop review action")
+            # Orca may queue the focus phrase behind the live announcement.
+            # Stop must remain inside the held source window, so inspect that
+            # queued speech after invoking it instead of waiting here.
         capture_pause = float(os.environ.get("FILECAT_NATIVE_CAPTURE_PAUSE", "0"))
         if not 0 <= capture_pause <= 3:
             raise AssertionError("Capture pause must stay within the owned source delay")
@@ -259,6 +287,10 @@ def main(app_path, report_path):
             raise AssertionError("The recovery action subprocess did not finish cleanly")
         wait_for(lambda: label(app, "Review stopped.") and not button(app, "Stop review"),
                  "canceled recovery to retire", seconds=20)
+        if speech is not None:
+            wait_for(lambda: heard("stop review"), "Orca Stop speech", seconds=10)
+            wait_for(lambda: heard("review stopped"), "Orca final stopped speech", seconds=10)
+            result["speech"] = spoken
         time.sleep(0.4)
         trace_text = trace.read_text(errors="replace")
         if (f'lstat("{payload}"' not in trace_text or "<8." not in trace_text or
@@ -297,6 +329,9 @@ def main(app_path, report_path):
         if process is not None and process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)
             process.wait(timeout=10)
+        if orca is not None and orca.poll() is None:
+            os.killpg(orca.pid, signal.SIGTERM)
+            orca.wait(timeout=10)
         report_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
 
@@ -304,6 +339,6 @@ if __name__ == "__main__":
     if len(sys.argv) == 4 and sys.argv[1] == "--trigger":
         trigger_review(Path(sys.argv[2]), Path(sys.argv[3]))
         raise SystemExit(0)
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: linux-atspi-recovery-stop-held.py APP REPORT.json")
-    main(Path(sys.argv[1]), Path(sys.argv[2]))
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--speech"):
+        raise SystemExit("Usage: linux-atspi-recovery-stop-held.py APP REPORT.json [--speech]")
+    main(Path(sys.argv[1]), Path(sys.argv[2]), speech_mode=len(sys.argv) == 4)

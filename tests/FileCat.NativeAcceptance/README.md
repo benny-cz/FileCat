@@ -2189,7 +2189,10 @@ restarts that profile, and uses path-filtered `strace` to delay the source
 delay returns, invokes Stop, then checks byte-exact source/staging/journal,
 unpublished target and no late approval. It closes only its own app and tracer.
 The accepted receipt is `docs/validation/evidence/ac-s2-042-ubuntu-recovery-stop.json`;
-narrow visual reachability passed separately and spoken status remains open.
+narrow visual reachability passed separately. Add `--speech` with no other Orca
+process to start a test-owned reader, require its actual Reviewing, Stop and
+final stopped speech, and record the
+`docs/validation/evidence/ac-s2-042-ubuntu-recovery-orca.json` transcript.
 For a diagnostic screenshot during Reviewing, set
 `FILECAT_NATIVE_CAPTURE_PAUSE=3` on the runner and capture the VM while its
 owned `ac-s2-042-capture.ready` marker exists; the bounded pause still leaves

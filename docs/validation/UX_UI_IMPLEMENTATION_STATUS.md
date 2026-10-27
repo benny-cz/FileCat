@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-recovery-speech-20261027"></a>
+**27 October 2026, Orca recovery status and Stop (AC-S2-042-SPEECH):**
+On the same `e7a306f7` Ubuntu VMware build and 200% display scale as the
+accepted visual route (DLL SHA-256
+`7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1`),
+the [native runner in `--speech` mode](../../tests/FileCat.NativeAcceptance/linux-atspi-recovery-stop-held.py)
+started its own Orca and read only its actual speech output. The
+[direct receipt](evidence/ac-s2-042-ubuntu-recovery-orca.json) contains
+“Reviewing recovery sources…”, “Stop review”, the Stop help, “Stopping review;
+no changes have been approved,” and the final stopped/journal-retained
+announcement. Stop preceded return of the eight-second held source `lstat`;
+source, staging and journal stayed byte-exact and no late approval appeared.
+This was new speech coverage on the existing native fixture route, not a
+reconfirmation caused by the visual evidence commit. With the previously
+accepted component approval/cleanup/admission cases, FCUX-043 is closed by
+[AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042).
+
 <a id="evidence-recovery-visual-20261027"></a>
 **27 October 2026, narrow recovery status and Stop (AC-S2-042-VISUAL):**
 The `e7a306f7` Ubuntu VMware build (app DLL SHA-256
@@ -13,7 +30,8 @@ rerun was justified by the intervening `36f7397f` scroll-to-action and
 `e7a306f7` status-layout changes, which directly affect the visual boundary;
 the previously accepted held-Stop subcase did not require reconfirmation for
 documentation alone. The focused 640×420-DIP drawer suite passed 11/11.
-Actual screen-reader speech remains in [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042).
+Actual Orca speech passed separately in
+[AC-S2-042-SPEECH](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-speech).
 
 **27 October 2026, Ubuntu CI Compare Text correction:** The intermittent
 `a3092ae7` Ubuntu App failure in `CompareTextInteractionTests` used a stale
@@ -39,7 +57,8 @@ and produced no late approval. The [direct receipt](evidence/ac-s2-042-ubuntu-re
 records the hashes, action timing and final stopped status. The focused
 Windows Release recovery suite passed 44/44. Narrow visual reachability passed
 separately under [AC-S2-042-VISUAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-visual);
-screen-reader speech remains under [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042).
+screen-reader speech passed separately under
+[AC-S2-042-SPEECH](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-speech).
 
 <a id="evidence-operations-drawer-20261027"></a>
 **27 October 2026, native Operations drawer at the clamped window boundary
@@ -63,7 +82,7 @@ hashes. The existing headless 1/5/20-interruption and 640×420-DIP tests cover
 the bounded review section and report/keyboard reachability. FCUX-042 is
 accepted with this pairwise scope. FCUX-043's held-source Stop is recorded
 separately under [AC-S2-042-STOP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-stop);
-narrow visual reachability passed separately; speech remains open.
+narrow visual reachability and speech passed in their own child cases.
 
 <a id="evidence-transfer-stale-20261027"></a>
 **27 October 2026, current Copy destination during a delayed old probe
@@ -7276,7 +7295,7 @@ FCUX-034 validation-session preservation and FCUX-035 protected-profile wording/
 | UXBUG-003 — PE Info scrollbar drag | Throttle thumb-driven seeks to one latest viewport about every 32 ms, retire pending seeks on source or other navigation changes, and cache the report's line count for status updates. | `ViewerGeometryAndSemanticsTests` covers 80 rapid scrollbar values, repeated pointer moves down/up through the thumb, and stale seek retirement. A temporary local headless check against the supplied SignalSetup.exe passed; the sample-specific test is not committed. The 66-case related viewer suite passes. | The user manually confirmed the Windows desktop drag on the supplied EXE works. |
 | FCUX-042 — operations drawer layout | Persist a vertically resizable drawer while preserving usable workspace; bound and scroll recovery review with one selected item, keep a complete operation row and Open report action at 640 × 420, wrap controls, and collapse the graph until requested. | `OperationsDrawerLayoutTests` covers 1/5/20 interruptions, keyboard navigation, small/wide windows, a selected operation and report entry, pointer/keyboard resize, saved height and shrink/expand restoration. The 27 October `47316c50` focused Release suite passed 10/10 and the [Ubuntu native route](#evidence-operations-drawer-20261027) passed at 200% with pointer, keyboard and narrow report access. | Accepted for FCUX-042 by [AC-S2-042-LAYOUT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042-layout); delayed recovery and spoken phase remain under FCUX-043. |
 | UXBUG-004 — Markdown prose width on resize | Let prose blocks use the article's available width, matching table regions as the Page window changes size; retain article padding and table-local horizontal scrolling. | Forty-eight `MarkdownTests` cases pass. Headless Chrome measured prose and table regions at 505 px in a narrow window and 1,441 px in a wide window, with no page-level horizontal overflow. VMware native pointer tests widened the table by 335 px while prose shortened by 25 px; narrowing the viewer kept its document within the window and the table in a keyboard-focusable horizontal scroll region. Mac native Page captures at 760 × 620 and 1,220 × 700 show the same prose and table expansion with exact source bytes retained. | Native Windows/Mac Markdown resize routes pass; only the distinct scale/accessibility boundary AC-S2-MD remains. |
-| FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` covers held open/read calls, approval, new-transfer form, partial cleanup, Stop during job admission and release of the native action before slow review; 44/44 focused Windows Release cases passed. The [27 October Ubuntu held-source route](#evidence-recovery-stop-20261027) stopped in Reviewing and preserved exact bytes/journal without late approval. The [separate 200% native capture](#evidence-recovery-visual-20261027) shows Reviewing and Stop together in the narrow drawer, with 11/11 focused layout tests. | Only actual screen-reader speech in [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042) remains; held Stop and narrow visual reachability are accepted independently. |
+| FCUX-043 — recovery preparation state | Show Reviewing, Awaiting approval, Applying, and Submitted states on the interrupted row; disable conflicting actions and offer Stop. Stopping before approval closes that review's dialog and preserves the old journal. Stopping after approved cleanup retains completed effects and an open-journal report. A submitted job has independent ownership. | `InterruptedDemandTests` covers held open/read calls, approval, new-transfer form, partial cleanup, Stop during job admission and release of the native action before slow review; 44/44 focused Windows Release cases passed. The [27 October Ubuntu held-source route](#evidence-recovery-stop-20261027) stopped in Reviewing and preserved exact bytes/journal without late approval. The [separate 200% native capture](#evidence-recovery-visual-20261027) shows Reviewing and Stop together in the narrow drawer, with 11/11 focused layout tests. [Orca then spoke](#evidence-recovery-speech-20261027) Reviewing, Stop and the final stopped result. | Accepted for FCUX-043 by [AC-S2-042](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-042). Final audit-wide CI remains separate. |
 | FCUX-044 — explicit Find scope | Keep local, result-set, and Registry search scopes distinct. Unsupported SFTP, FTP, archive, and virtual locations open Find with no local root, explanatory guidance, and a disabled Find action until the user chooses a local scope. Loaded presets identify their own local scope; result-set snapshots ignore preset folders. | Twelve `FindOriginScopeTests` cases pass across an actual This PC command, unsupported providers, deliberate local choice, saved presets, and result-set scope. The related 47-case Find/Registry selection and complete App Release run pass. | Native provider navigation and assistive announcement acceptance remain open. |
 | FCUX-045 — Find completion feedback | Give the completion state and search qualifications separate wrapping lines, keep changing path/counters secondary, and expose the existing log beside the summary. Replace the generic empty-folder text with the search's captured criteria/scope, Edit criteria, and Review search log. Distinguish stopped, excluded, inaccessible, warning, regex timeout, and manually emptied results. | `FindFeedbackTests` covers the state matrix; `FindWindowTests` exercises narrow zero-result layout, keyboard log access, and hiding the last result. The 98-case Release Find selection and complete App Release run pass. | Native narrow-window, keyboard, and screen-reader acceptance remains open. |
 | FCUX-046 — Find shortcut contexts | Register Find criteria/results actions with stable IDs and preserve their default keys. Resolve actions through the keymap, show effective gestures in menus and hints, explain panel overlaps and same-context conflicts in Settings, and keep text editing, path suggestions and dialogs ahead of Find dispatch. Find-only actions appear as unavailable outside Find instead of offering a no-op. | New Core keymap and App Find/Settings cases pass. The related 56-case App selection passes; the complete Core Release run passes 4,420 with 150 skips using 16 workers. The complete App Release run passes 2,232 with 63 skips. | Native keyboard and shortcut editor acceptance remains open. |

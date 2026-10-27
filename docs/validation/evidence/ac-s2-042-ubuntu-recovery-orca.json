@@ -1,0 +1,107 @@
+{
+  "passed": true,
+  "buildDllSha256": "7fe5241c9bb0cdd1d9b250b8475ddffbe3f21c9a4ed731c5a878819638522ac1",
+  "fixture": "/home/benny/FileCatValidation/RecoveryHeldFixture/f429db669e7843958bf34bfdf25b6a40",
+  "sourceSha256": "e3023526e682689992aa1d3271601f0b4f73e1e77475052c9344028dc61ecaf7",
+  "steps": [
+    {
+      "interrupted": {
+        "stagedBytes": 20000000,
+        "journalEntries": 1,
+        "targetUnpublished": true
+      }
+    },
+    {
+      "busyStatus": "Reviewing recovery sources\u2026",
+      "busyVisibleAfterSeconds": 1.241,
+      "actionCallPendingDuringBusy": false,
+      "duplicateContinueEnabled": false,
+      "stopVisible": true,
+      "stopClickedBeforeApproval": true
+    },
+    {
+      "delayedSourceStatSeconds": 8,
+      "finalStatus": "Review stopped. Any completed cleanup is kept; the recovery journal remains available.",
+      "journalSha256": {
+        "job-20261027132210-f3fef22d.fcj": "47efc8358491a02239d6e035e818a00ac86518a2935c9a306ce3f2419aa30b3d"
+      },
+      "stagedSha256": {
+        ".fc-f3fef22d-1.tmp": "9cb2490b9ab19e48e0dc2ec309c164263ed33a140ffd1f47a966c3f1d241a0c1"
+      },
+      "sourcePreserved": true,
+      "targetUnpublished": true,
+      "lateApprovalAbsent": true
+    }
+  ],
+  "restartedPid": 59384,
+  "actionAncestors": [
+    {
+      "role": "panel",
+      "name": "",
+      "children": 5
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 2
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "ContentControl",
+      "children": 1
+    },
+    {
+      "role": "panel",
+      "name": "",
+      "children": 2
+    }
+  ],
+  "actionBefore": {
+    "bounds": [
+      200,
+      742,
+      238,
+      59
+    ],
+    "showing": true,
+    "enabled": true
+  },
+  "actionReturnedWithinHalfSecond": true,
+  "continueDisabledWhileHeld": true,
+  "directStateQuerySeconds": 0.005,
+  "speech": [
+    "Ubuntu",
+    "Continue",
+    "button.",
+    "source \u2014 FileCat \u2014 benny",
+    "1 operation was interrupted when FileCat last closed. Review them in the operations pane.",
+    "Panel 1, source, /home/benny/FileCatValidation/RecoveryHeldFixture/f429db669e7843958bf34bfdf25b6a40/source",
+    "Go to parent location, parent navigation, 1 of 2.",
+    "not selected.",
+    "Interrupted operations needing review 1 source items \u00b7 0 steps had finished. No step was in progress.",
+    "panel",
+    "ContentControl 1 source items \u00b7 0 steps had finished. No step was in progress.",
+    "panel",
+    "Continue copy\u2026",
+    "button.",
+    "Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy.",
+    "Review the original naming, filter and folder layout; existing files are kept under recovery's Skip policy",
+    "Reviewing recovery sources\u2026",
+    "Stop review",
+    "button.",
+    "Stops recovery preparation before approval, or after the current safe cleanup step.",
+    "Stops recovery preparation before approval, or after the current safe cleanup step",
+    "Stopping review; no changes have been approved.",
+    "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
+  ]
+}
