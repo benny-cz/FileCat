@@ -817,9 +817,10 @@ public sealed class ViewerWindow : Window
         _text.IsVisible = _hex.IsVisible = false;
         _modeInfo.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = false;
-        // Find works in the report; the text-only settings do not apply to it.
+        // Info uses the shared text size, Find and Wrap; encoding/follow are source-text settings.
         foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase || part == _wrap ||
-            part == _previousMatch || part == _nextMatch || part == _matchCount || part == _stopCount;
+            part == _previousMatch || part == _nextMatch || part == _matchCount || part == _stopCount ||
+            part == _smallerText || part == _contentSize || part == _largerText;
         UpdateMatchControls();
         _wrap.IsEnabled = true;
         _wrap.IsChecked = _info.Wrap;

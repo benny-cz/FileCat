@@ -7,6 +7,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
@@ -22,6 +23,26 @@ namespace FileCat.App.Tests;
 public sealed class ViewerSourceCopyTests
 {
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+    [AvaloniaFact]
+    public async Task Info_keeps_shared_readability_controls_visible_and_changes_report_size()
+    {
+        using var f = await ViewerFixture.Open(Encoding.UTF8.GetBytes("plain fixture"), hex: false);
+        double originalSize = f.Text.FontSize;
+        await f.Window.ShowInfoAsync();
+        var info = Field<TextViewer>(f.Window, "_info");
+        var smaller = Field<Button>(f.Window, "_smallerText");
+        var larger = Field<Button>(f.Window, "_largerText");
+        var size = Field<TextBlock>(f.Window, "_contentSize");
+        Assert.True(smaller.IsVisible && larger.IsVisible && size.IsVisible);
+        Assert.True(smaller.IsEnabled && larger.IsEnabled);
+        larger.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(originalSize + 1, info.FontSize);
+        Assert.Equal(info.FontSize, f.Text.FontSize);
+        Assert.Contains($"{info.FontSize:0} size", size.Text);
+        smaller.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(originalSize, info.FontSize);
+    }
 
     [AvaloniaTheory]
     [InlineData(false, false)]
