@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Avalonia;
@@ -45,6 +46,10 @@ internal sealed class FaultingPageSource(byte[] bytes) : IContentSource
 internal sealed class HarnessApp : Application
 {
     internal static string ReportPath = "";
+    internal static string ValidationRoot => Path.Combine(
+        Environment.GetFolderPath(OperatingSystem.IsWindows()
+            ? Environment.SpecialFolder.LocalApplicationData
+            : Environment.SpecialFolder.UserProfile), "FileCatValidation");
     public override void OnFrameworkInitializationCompleted()
     {
         base.OnFrameworkInitializationCompleted();
@@ -54,14 +59,17 @@ internal sealed class HarnessApp : Application
 
     private static async Task ExecuteAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
-        string validation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "FileCatValidation");
+        string validation = ValidationRoot;
         string root = Path.Combine(validation, "PageEngineFault", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var result = new Dictionary<string, object?>
         {
             ["passed"] = false, ["stage"] = "startup", ["fixture"] = root,
-            ["platform"] = OperatingSystem.IsWindows() ? "Windows WebView2" : "Linux WebKitGTK"
+            ["platform"] = OperatingSystem.IsWindows() ? "Windows WebView2" : "Linux WebKitGTK",
+            ["appDllSha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(
+                Path.Combine(AppContext.BaseDirectory, "FileCat.dll")))).ToLowerInvariant(),
+            ["harnessDllSha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(
+                Path.Combine(AppContext.BaseDirectory, "PageEngineFaultHarness.dll")))).ToLowerInvariant()
         };
         AppServices? services = null;
         ViewerWindow? viewer = null;
@@ -143,8 +151,7 @@ internal static class Program
     {
         if (args.Length != 1) throw new ArgumentException("Usage: PageEngineFaultHarness REPORT.json");
         HarnessApp.ReportPath = Path.GetFullPath(args[0]);
-        string validation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "FileCatValidation");
+        string validation = HarnessApp.ValidationRoot;
         if (Path.GetDirectoryName(HarnessApp.ReportPath) != validation || File.Exists(HarnessApp.ReportPath))
             throw new InvalidOperationException("Use a fresh report in the isolated validation directory");
         return AppBuilder.Configure<HarnessApp>().UsePlatformDetect().StartWithClassicDesktopLifetime([]);
