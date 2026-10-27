@@ -114,6 +114,12 @@ def run(app_path, report_path, key_helper):
         document = wait_for(lambda: find(editor, "entry", "Hex view"), "Hex document")
         if not document.grab_focus():
             raise AssertionError("Hex document could not take focus")
+        hear(speech, orca, "No byte selection; active typing column: hex",
+             "initial Hex editor focus")
+        # The first focus announcement reads the whole row. Allow that queued
+        # utterance to finish before testing a pending-nibble change event.
+        time.sleep(0.5)
+        speech.take()
         result["stage"] = "spoken normal editing state"
         def step(name, key, semantic, spoken):
             speech.take()
@@ -131,6 +137,7 @@ def run(app_path, report_path, key_helper):
         # F6 visits the toolbar and returns to the same editor state. Ctrl+F
         # visits Find; Escape returns without changing unsaved bytes.
         for away, back in (("f6", "f6"), ("ctrl+f", "escape")):
+            speech.take()
             send_key(key_helper, password, away)
             speech.take()
             send_key(key_helper, password, back)
@@ -138,7 +145,13 @@ def run(app_path, report_path, key_helper):
                      f"focus return after {away}")
             if "2 modified bytes, unsaved" not in hex_value(editor):
                 raise AssertionError(f"Editing state changed after {away}")
-            result["spokenSteps"].append({"step": f"focus returned after {away}"})
+            heard = hear(speech, orca, "Selected bytes 1 through 2", f"current editor state after {away}")
+            time.sleep(0.5)
+            heard.extend(speech.take())
+            if sum("Selected bytes 1 through 2" in phrase for phrase in heard) > 5:
+                raise AssertionError(f"Repeated editor state flooded speech after {away}: {heard!r}")
+            result["spokenSteps"].append({"step": f"focus returned after {away}",
+                                          "spoken": heard[:12]})
         if file.read_bytes() != CONTENT or list(target.iterdir()):
             raise AssertionError("Unsaved editor state changed original bytes or target")
         result.update({"passed": True, "stage": "complete", "sourceUnchanged": True,

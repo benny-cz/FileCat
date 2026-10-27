@@ -1,5 +1,25 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-hex-editor-normal-20261027"></a>
+**27 October 2026, native Hex-editor normal editing speech (FCUX-073):**
+On Git `0553f746` (Ubuntu Wayland app DLL SHA-256
+`fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe`),
+physical keys and Orca's actual speech confirmed pending first hex nibble,
+unsaved bytes, the text typing column and selected bytes 1 through 2. F6
+visited the toolbar and returned; Ctrl+F visited Find and Escape returned.
+Both returns spoke the current selected range and unsaved state, with no more
+than five repeated state phrases. The source SHA-256
+`fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108`
+remained unchanged and the target stayed empty. Direct receipt:
+`/home/benny/FileCatValidation/ac-s2-012-hex-editor-spoken-0553f746-r4.json`;
+ignored host copy:
+`E:\FileCat\.local-ac-s2-012-hex-editor-spoken-0553f746-r4.json`.
+One preceding same-build run stopped when a key arrived during Orca's initial
+full-row focus announcement; the bounded paced retry waited for that speech
+before editing. This accepts only
+[AC-S2-012-EDIT-NORMAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-edit-normal).
+Native blocked-editing speech is still required.
+
 <a id="evidence-hex-editor-speech-20261027"></a>
 **27 October 2026, native Hex-editor speech diagnostic (FCUX-073):** A
 test-owned 64-byte file was opened in the isolated Ubuntu Wayland guest on Git
@@ -11,8 +31,9 @@ only “tab.” The exact diagnostic receipt is
 This exposed a product gap: the footer now publishes a concise polite live
 summary when the typing column or dirty state changes, while cursor offsets
 stay outside that live region. The focused Windows Release Hex-editor
-regressions passed 8/8. A native rerun of the corrected build is still needed;
-this diagnostic alone does not accept the remaining Hex-editor route.
+regressions passed 8/8. This was diagnostic evidence at that time; the
+corrected native normal-editing result is recorded above, while blocked
+editing remains open.
 
 <a id="evidence-viewer-delay-20261027"></a>
 **27 October 2026, held first-page semantic publication (FCUX-073):** The
