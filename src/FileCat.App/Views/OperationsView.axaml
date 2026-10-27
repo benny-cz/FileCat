@@ -106,7 +106,7 @@
                   <Border Classes="banner">
                     <StackPanel Spacing="4">
                       <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
-                      <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}" Classes="small" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasPassiveActionStatus}" Classes="small" TextWrapping="Wrap" />
                       <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
                         <Button Content="{Binding ContinueLabel}" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
                                 IsEnabled="{Binding !IsActionBusy}"
@@ -124,9 +124,12 @@
                         <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged" />
-                        <Button Content="{Binding StopReviewLabel}" Tag="{Binding}" Click="OnStopInterruptedReview" IsVisible="{Binding CanStopReview}"
-                                AutomationProperties.HelpText="Stops recovery preparation before approval, or after the current safe cleanup step" />
                       </WrapPanel>
+                      <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding CanStopReview}" ColumnSpacing="8">
+                        <TextBlock Text="{Binding ActionStatus}" Classes="small" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="{Binding StopReviewLabel}" Tag="{Binding}" Click="OnStopInterruptedReview"
+                                AutomationProperties.HelpText="Stops recovery preparation before approval, or after the current safe cleanup step" />
+                      </Grid>
                     </StackPanel>
                   </Border>
                 </DataTemplate>

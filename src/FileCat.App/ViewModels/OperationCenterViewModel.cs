@@ -340,6 +340,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
     public RecoveryActionPhase ActionPhase => _actionPhase;
     public string ActionStatus => _actionStatus;
     public bool HasActionStatus => _actionStatus.Length > 0;
+    public bool HasPassiveActionStatus => HasActionStatus && !CanStopReview;
     public bool IsActionBusy => _actionPhase != RecoveryActionPhase.Idle;
     public bool CanStopReview => _actionPhase is RecoveryActionPhase.Reviewing or RecoveryActionPhase.AwaitingApproval or RecoveryActionPhase.Applying;
     public string StopReviewLabel => _actionPhase == RecoveryActionPhase.Applying ? "Stop after this step" : "Stop review";
@@ -351,6 +352,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         OnPropertyChanged(nameof(ActionPhase));
         OnPropertyChanged(nameof(ActionStatus));
         OnPropertyChanged(nameof(HasActionStatus));
+        OnPropertyChanged(nameof(HasPassiveActionStatus));
         OnPropertyChanged(nameof(IsActionBusy));
         OnPropertyChanged(nameof(CanStopReview));
         OnPropertyChanged(nameof(StopReviewLabel));

@@ -216,6 +216,12 @@ public sealed class OperationsDrawerLayoutTests
             Assert.True(visibleHeight >= 24 && visibleHeight >= stop.Bounds.Height * .6,
                 $"Stop must have a reachable pointer target: visible {visibleHeight} of {stop.Bounds.Height} DIP in {recovery.Bounds.Height} DIP viewport.");
             Assert.InRange((top + bottom) / 2, 0, recovery.Bounds.Height);
+            var status = view.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => t.Text == "Reviewing recovery sources…" && t.IsVisible);
+            var statusTop = status.TranslatePoint(new Point(0, 0), recovery)!.Value.Y;
+            var statusBottom = status.TranslatePoint(new Point(0, status.Bounds.Height), recovery)!.Value.Y;
+            Assert.True(statusTop < recovery.Bounds.Height && statusBottom > 0,
+                $"Reviewing status must share Stop's visible recovery row: {statusTop}..{statusBottom} in {recovery.Bounds.Height} DIP.");
             Assert.Equal(RecoveryActionPhase.Reviewing, item.ActionPhase);
         }
         finally { AccessibilityTests.Close(services, window, root); }
