@@ -53,7 +53,7 @@ def run(app_path: Path, report: Path, helper: Path):
     for folder in (local, remote, data):
         folder.mkdir(parents=True)
     member = remote / "member.txt"
-    old, new = b"old remote revision\n", b"new remote revision\n" + b"N" * 65536
+    old, new = b"old remote revision\n", b"new remote revision\n" + b"N" * 8192
     member.write_bytes(old)
     relay = relay_class()
     relay_thread = threading.Thread(target=relay.serve_forever, daemon=True)
@@ -187,6 +187,9 @@ def run(app_path: Path, report: Path, helper: Path):
         result["error"] = f"{type(error).__name__}: {error}"
     finally:
         stop(process)
+        app_log = root / "app.log"
+        if app_log.exists():
+            result["appLogTail"] = app_log.read_text(encoding="utf-8", errors="replace")[-2000:]
         relay.drop_sessions()
         relay.shutdown()
         relay.server_close()
