@@ -1,0 +1,42 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "explicit manual update check",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\UpdateSettingsFixture\\a6be9b23eb9141b4afcf6dd9821b7431",
+    "AppDllSha256":  "CFBD5806E1DF0C88453ACCC447D76E7E60FED6B011A52F97058F3C605AFD764C",
+    "NvdaVersion":  "2026.2",
+    "Privacy":  {
+                    "Note":  "At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.",
+                    "Speech":  [
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\u0027, \u0027terminal\u0027, \u0027Windows PowerShell\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\UpdateSettingsFixture\\\\a6be9b23eb9141b4afcf6dd9821b7431\\\\left\u0027, \u0027list\u0027, \u0027Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 1\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Settings dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027OK\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027tab control\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Privacy\u0027, \u0027tab\u0027, \u0027selected\u0027, CancellableSpeech (still valid)]",
+                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Automatically check for updates\u0027, \u0027check box\u0027, \u0027checked\u0027, \u0027At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.\u0027, CancellableSpeech (still valid)]"
+                               ],
+                    "HelpText":  "At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.",
+                    "Initial":  "On",
+                    "AfterToggle":  "Off",
+                    "SavedOff":  true,
+                    "StoredFontSize":  21
+                },
+    "ManualCheck":  {
+                        "Speech":  [
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\UpdateSettingsFixture\\\\a6be9b23eb9141b4afcf6dd9821b7431\\\\left\u0027, \u0027list\u0027, \u0027Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.\u0027, CancellableSpeech (still valid)]",
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 1\u0027, CancellableSpeech (still valid)]",
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Help\u0027, \u0027expanded\u0027, CharacterModeCommand(True), \u0027H\u0027, CharacterModeCommand(False), CancellableSpeech (still valid)]",
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Check for updates…\u0027, CancellableSpeech (still valid)]",
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Check for updates dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027OK\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                   ],
+                        "Dialog":  "Check for updates dialog",
+                        "Action":  "Check for updates…",
+                        "Text":  [
+                                     "No release has been published yet."
+                                 ]
+                    },
+    "Error":  null
+}

@@ -184,10 +184,13 @@ try {
     } 'Help Check for updates action'
     $result.ManualCheck.Action = $check.Current.Name
     Click $check
-    $result.ManualCheck.Dialog = Await {
-        $names = @(Descendants $main | ForEach-Object { $_.Current.Name })
-        @($names | Where-Object { $_ -match 'Checking for a newer FileCat release|latest release|could not|cannot|failed|newer release' } | Select-Object -First 1)[0]
-    } 'explicit update-check feedback' 40
+    $dialog = Await { Named $main 'Check for updates dialog' } 'explicit update-check result'
+    $result.ManualCheck.Dialog = $dialog.Current.Name
+    $result.ManualCheck.Text = @(Descendants $dialog | ForEach-Object { $_.Current.Name } |
+        Where-Object { $_ -match 'No release has been published|latest release|could not|cannot|failed|newer release|downloads or installs' })
+    if (-not $result.ManualCheck.Text.Count) {
+        throw 'The manual update-check result did not explain its outcome'
+    }
     Start-Sleep -Milliseconds 500
     $result.ManualCheck.Speech = @(TakeSpeech)
     $result.Privacy.StoredFontSize = (Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json).FontSize
@@ -195,6 +198,19 @@ try {
     $result.Passed = $true
 } catch {
     $result.Error = $_.Exception.Message
+    if ($owned -and -not $owned.HasExited) {
+        try {
+            $desktop = [System.Windows.Automation.AutomationElement]::RootElement
+            $result.DebugWindows = @($desktop.FindAll([System.Windows.Automation.TreeScope]::Children,
+                [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+                    $_.Current.ProcessId -eq $owned.Id
+                } | ForEach-Object {
+                    [ordered]@{ Name = $_.Current.Name; Type = $_.Current.ControlType.ProgrammaticName;
+                        Children = @(Descendants $_ | ForEach-Object { $_.Current.Name } | Where-Object { $_ }) }
+                })
+            $result.DebugSpeech = @(TakeSpeech)
+        } catch { $result.DebugError = $_.Exception.Message }
+    }
 } finally {
     if ($owned -and -not $owned.HasExited) { $owned.Kill(); $owned.WaitForExit(10000) | Out-Null }
     if ($reader -and -not $reader.HasExited) { $reader.Kill(); $reader.WaitForExit(10000) | Out-Null }

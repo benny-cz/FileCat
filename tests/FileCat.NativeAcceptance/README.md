@@ -2423,3 +2423,17 @@ VMware `runProgramInGuest` needs `-interactive` for native pointer and keyboard
 input; `-activeWindow` alone starts a different input desktop. Accepted
 receipts are `docs/validation/evidence/ac-s2-056-win-local.json` and
 `docs/validation/evidence/ac-s2-056-win-nvda.json`.
+
+### Windows native Settings update privacy route
+
+Use `win-build-git-commit.ps1` to build an exact pushed commit in an isolated
+Windows VMware checkout with locked restore and 16 build workers. Then run
+`win-nvda-update-settings.ps1` in the guest's **interactive** desktop with
+the Git-built `FileCat.exe`, signed portable NVDA and a fresh JSON report
+under `FileCatValidation`. The runner uses isolated 21-point Settings data,
+captures the spoken automatic/manual network distinction, disables automatic
+checks and verifies the saved preference. It then invokes Help → Check for
+updates and records its separate result window. Keep the build and native
+receipts together so the tested DLL hash is traceable.
+Accepted receipts are `docs/validation/evidence/ac-s2-057-win-build.json`
+and `docs/validation/evidence/ac-s2-057-win-nvda.json`.

@@ -80,6 +80,7 @@ function Chord([byte[]] $codes) {
 function OpenCompare([string] $name, [string] $left, [string] $right, [string] $data) {
     $process = Start-Process -FilePath $app -WorkingDirectory (Split-Path $app) -PassThru `
         -ArgumentList @('--new-instance', '--data', $data, '--left', $left, '--right', $right)
+    try {
     $main = Await {
         $process.Refresh()
         if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
@@ -118,6 +119,13 @@ function OpenCompare([string] $name, [string] $left, [string] $right, [string] $
         60, 60, 640, 320, 0x0040)) { throw 'Could not size Compare to 640 x 320' }
     [FileCatCompareRangeInput]::SetForegroundWindow($handle) | Out-Null
     return @{ Process = $process; Window = $compare; Handle = $handle }
+    } catch {
+        if (-not $process.HasExited) {
+            $process.Kill()
+            $process.WaitForExit(10000) | Out-Null
+        }
+        throw
+    }
 }
 
 $validation = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation'))

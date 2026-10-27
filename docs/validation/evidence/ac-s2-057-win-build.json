@@ -1,0 +1,11 @@
+﻿{
+    "Passed":  true,
+    "Checkout":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\GitMain-AC-S2-013-4c042d37",
+    "RequestedCommit":  "360ff9d3fb82904bba9d12ef8c8e67378e94cec8",
+    "Error":  null,
+    "Head":  "360ff9d3fb82904bba9d12ef8c8e67378e94cec8",
+    "RestoreLog":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ac-s2-057-build-360ff9d3-r3.json.restore.log",
+    "BuildLog":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ac-s2-057-build-360ff9d3-r3.json.build.log",
+    "AppPath":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\GitMain-AC-S2-013-4c042d37\\src\\FileCat.App\\bin\\Release\\net10.0\\FileCat.exe",
+    "AppDllSha256":  "CFBD5806E1DF0C88453ACCC447D76E7E60FED6B011A52F97058F3C605AFD764C"
+}
