@@ -5,10 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Standalone native UI harnesses below this directory are separate projects. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The page-engine fault probe is an independently built app. -->
-    <Compile Remove="PageEngineFaultHarness/**/*.cs" />
+    <Compile Include="Program.cs" />
     <ProjectReference Include="../../src/FileCat.Core/FileCat.Core.csproj" />
   </ItemGroup>
 </Project>
