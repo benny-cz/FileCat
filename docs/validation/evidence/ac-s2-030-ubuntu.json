@@ -1,0 +1,141 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/NestedPanelResize/735d2f7fe4dc4269a711598b13833b5f",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "displayScale": 2.0,
+  "displayMode": "2560x1600",
+  "panels": [
+    {
+      "name": "Panel 1, source, /home/benny/FileCatValidation/NestedPanelResize/735d2f7fe4dc4269a711598b13833b5f/panel-1",
+      "bounds": [
+        146,
+        431,
+        1192,
+        398
+      ],
+      "visibleRows": 3
+    },
+    {
+      "name": "Panel 2, target, /home/benny/FileCatValidation/NestedPanelResize/735d2f7fe4dc4269a711598b13833b5f/panel-2",
+      "bounds": [
+        144,
+        1033,
+        1196,
+        402
+      ],
+      "visibleRows": 3
+    },
+    {
+      "name": "Panel 3, panel, /home/benny/FileCatValidation/NestedPanelResize/735d2f7fe4dc4269a711598b13833b5f/panel-3",
+      "bounds": [
+        1354,
+        429,
+        1196,
+        402
+      ],
+      "visibleRows": 3
+    },
+    {
+      "name": "Panel 4, panel, /home/benny/FileCatValidation/NestedPanelResize/735d2f7fe4dc4269a711598b13833b5f/panel-4",
+      "bounds": [
+        1354,
+        1033,
+        1196,
+        402
+      ],
+      "visibleRows": 3
+    }
+  ],
+  "horizontalInitial": {
+    "name": "Horizontal panel boundary, first side's share of panels 1 and 2",
+    "share": 50.0,
+    "bounds": [
+      142,
+      872,
+      1200,
+      12
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": false
+  },
+  "verticalInitial": {
+    "name": "Vertical panel boundary, first side's share of panels 1, 2 and 3, 4",
+    "share": 50.0,
+    "bounds": [
+      1341,
+      279,
+      12,
+      1197
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": false
+  },
+  "horizontalChanged": {
+    "name": "Horizontal panel boundary, first side's share of panels 1 and 2",
+    "share": 51.0,
+    "bounds": [
+      142,
+      888,
+      1200,
+      12
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": true
+  },
+  "horizontalCanceled": {
+    "name": "Horizontal panel boundary, first side's share of panels 1 and 2",
+    "share": 50.0,
+    "bounds": [
+      142,
+      872,
+      1200,
+      12
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": false
+  },
+  "verticalCommitted": {
+    "name": "Vertical panel boundary, first side's share of panels 1, 2 and 3, 4",
+    "share": 51.0,
+    "bounds": [
+      1357,
+      279,
+      12,
+      1197
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": true
+  },
+  "pointerEnd": [
+    1451,
+    877
+  ],
+  "verticalPointer": {
+    "name": "Vertical panel boundary, first side's share of panels 1, 2 and 3, 4",
+    "share": 54.0,
+    "bounds": [
+      1447,
+      279,
+      12,
+      1197
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": true
+  },
+  "verticalRestored": {
+    "name": "Vertical panel boundary, first side's share of panels 1, 2 and 3, 4",
+    "share": 50.0,
+    "bounds": [
+      1341,
+      279,
+      12,
+      1197
+    ],
+    "description": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+    "focused": false
+  },
+  "savedExact": true,
+  "sourcesExact": true
+}

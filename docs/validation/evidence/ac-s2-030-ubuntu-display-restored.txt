@@ -1,0 +1,18 @@
+Monitors:
+└──Monitor Virtual-1 (Unknown Display)
+   ├──Vendor: unknown
+   ├──Product: unknown
+   ├──Serial: unknown
+   ├──Current mode
+   │   └──1920x1200@59.950
+   └──Preferences
+       └──Backlight: None
+
+Logical monitors:
+└──Logical monitor #1
+   ├──Position: (0, 0)
+   ├──Scale: 2.0
+   ├──Transform: normal
+   ├──Primary: yes
+   └──Monitors: (1)
+       └──Virtual-1 (Unknown Display)

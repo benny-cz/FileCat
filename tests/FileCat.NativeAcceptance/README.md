@@ -2094,3 +2094,14 @@ test-owned saved arrangement. It verifies all 12 source hashes and the saved
 JSON hash, closes its own app and removes only its owned fixture. Restore the
 VM's original display scale afterward. The dated native and scale receipts
 are tracked under `docs/validation/evidence/ac-s2-030-windows*.json`.
+
+`linux-atspi-nested-panel-resize.py APP REPORT.json KEY_HELPER POINTER_HELPER`
+uses the isolated Ubuntu VMware guest and a fresh four-panel saved workspace.
+Set GNOME's supported 2560 × 1600 mode at 200% first. The runner checks four
+lists with at least two visible rows each, named/value-bearing AT-SPI
+horizontal and vertical splitters, keyboard Down/Escape and Tab/Right/Enter,
+a physical pointer drag, exact restored rectangles and unchanged owned files
+and workspace JSON. It refuses another FileCat/Orca process, removes only its
+fixture and closes its own app. Restore the guest's original display mode
+afterward. The 27 October native, selected-mode and restored-mode receipts
+are tracked under `docs/validation/evidence/ac-s2-030-ubuntu*`.

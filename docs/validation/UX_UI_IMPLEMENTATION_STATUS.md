@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-nested-panel-ubuntu-20261027"></a>
+**27 October 2026, native nested Ubuntu panel resize (AC-S2-030-UBUNTU):**
+The Ubuntu VMware guest selected its supported 2560 × 1600 display mode at
+200% scale. The exact Git-built `34fee315` app had DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`.
+The [tracked native AT-SPI, keyboard and pointer runner](../../tests/FileCat.NativeAcceptance/linux-atspi-nested-panel-resize.py)
+opened a fresh nested two-column/four-panel workspace. Each list retained
+three visible fixture rows. Both splitters exposed their panel identities,
+orientation, instructions and 50% share. Down moved the nested horizontal
+share to 51%; Escape restored its original value and rectangle. Tab focused
+the outer vertical splitter; Right committed 51% and a physical mouse drag
+reached 54%. Reopening the saved workspace restored 50% and the exact outer
+rectangle. All 12 fixture hashes and the saved JSON hash stayed exact. The
+[direct receipt](evidence/ac-s2-030-ubuntu.json) passed. The
+[selected-mode](evidence/ac-s2-030-ubuntu-scale-2560.txt) and
+[restored-mode](evidence/ac-s2-030-ubuntu-display-restored.txt) receipts show
+that the guest returned to its original 1920 × 1200 at 200%. The separate
+[22 October live Orca result](#evidence-panel-slider-speech-20261022)
+established speech for the same named slider/value/help contract. The native
+nested route itself checked AT-SPI exposure, not an additional Orca speech
+capture. Together with [AC-S2-030-WIN](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-030-win),
+this accepts AC-S2-030 at the ledger's pairwise scope; final CI is separate.
+
 <a id="evidence-nested-panel-windows-20261027"></a>
 **27 October 2026, native nested Windows panel resize (AC-S2-030-WIN):** The
 isolated Win11 VMware guest selected 150% in Display Settings and the exact
@@ -4785,6 +4808,7 @@ and left frame at 200% before, and the whole picture after. A theme's tinted
 icon keeps its scaling, but no built-in theme tints icons, so that path has no
 native check.
 
+<a id="evidence-panel-slider-speech-20261022"></a>
 **22 October 2026, keyboard panel resizing heard as a slider (FCUX-031):**
 The speech runners now open command search, type "splitter", press Enter,
 then Right and Escape. While the boundary was a thumb whose name carried the
