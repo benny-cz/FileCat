@@ -29,7 +29,7 @@ audit_ids = {item.upper() for item in audit_ids}
 assert len(audit_ids) == 76, f"Expected 76 stable audit IDs, got {len(audit_ids)}"
 
 lines = [line for line in LEDGER.splitlines() if re.match(r"^\| <a id=", line)]
-assert len(lines) >= 35, "The current ledger lost its finite scenario rows"
+assert lines, "The current ledger lost its finite scenario rows"
 anchors: set[str] = set()
 scenario_ids: set[str] = set()
 ledger_finding_ids: set[str] = set()

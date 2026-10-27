@@ -557,7 +557,16 @@ closure-confirmed full-path reviewed record. After the reviewed decision,
 `win-ax-reviewed-report-reopen.ps1` restarts only the
 test-owned profile, opens the saved report through Operations, and requires
 Copy all to exactly equal the durable record with both full paths; it does
-not repeat the review or approval. Narrow spoken review remains separate.
+not repeat the review or approval. For the separate narrow spoken
+boundary, `win-nvda-recovery-review.ps1 -AppPath <Git-built FileCat.exe>
+-FixturePath <still-open seed-recovery.json> -NvdaPath <signed portable nvda.exe>
+-ReportPath <fresh report.json>` runs in the interactive Windows guest at
+900 × 650. It reads NVDA's actual speech for the Mark reviewed consequences
+and all retained-report lines, then Cancels and verifies the exact open
+journal and fixture files. It accepts only a signed NVDA and fixture paths
+under the guest's `FileCatValidation` folder; it closes only its owned app
+and NVDA processes. Use a separate still-open fixture from the one explicitly
+closed by the reviewed-decision runner.
 
 For an actual Core worker interruption, run `interrupt-live live-fixture.json`
 in the guest. Its nonzero exit is expected: the runner terminates itself after

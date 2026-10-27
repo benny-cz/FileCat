@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-recovery-spoken-20261027"></a>
+**27 October 2026, narrow Windows NVDA interrupted-recovery review:**
+An independent `seed-recovery` Move journal in the Windows 11 VMware guest
+remained open while the [native NVDA runner](../../tests/FileCat.NativeAcceptance/win-nvda-recovery-review.ps1)
+opened **Mark reviewed** in a 900 × 650 FileCat window. On Git product
+`e7b1dbdf` (app DLL SHA-256
+`CC41DD6FE6933AEDB82D3BD23E319AA4A7A1F220503F550B18B1794C7B24C39A`),
+NVDA 2026.2 spoke the initial decision button's concise key points:
+stopping recovery reminders, **no file changes**, and a retained report.
+It then spoke all 15 lines of the separate Review report, including the
+complete JSON-escaped destination and recorded source paths. The runner
+selected **Cancel**, leaving the open journal, both exact source hashes and
+empty destination unchanged. Direct guest receipt copied to
+`E:\FileCat\.local-ac-s2-020-nvda-review-e7b1dbdf-r4.json` (`Passed: true`)
+contains the spoken lines, build hash, window size, UIA identities and file
+checks. Early `r1` on `3a4d7cba` established report speech but lacked the
+consequence; `r2`/`r3` on `e7b1dbdf` lost foreground focus. The bounded
+foreground correction produced `r4`; those diagnostics do not invalidate
+the passed route. This accepts [AC-S2-020-SPOKEN](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-spoken)
+and closes [AC-S2-020](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020) with its separate
+Hide, decision, and saved-report child receipts. Audit-wide CI remains a
+separate final gate.
+
 <a id="evidence-reviewed-report-reopen-20261027"></a>
 **27 October 2026, native Windows reviewed recovery report after restart:**
 The Windows 11 VMware guest reopened the same isolated Git `3a4d7cba`
