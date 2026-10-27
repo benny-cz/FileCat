@@ -43,6 +43,7 @@ ScaffoldingReadMe.txt
 
 # Others
 .tmp/
+__pycache__/
 ~$*
 *~
 CodeCoverage/

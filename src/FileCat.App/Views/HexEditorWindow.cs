@@ -55,7 +55,8 @@ public sealed class HexEditorWindow : Window
     private readonly HexView _hex = new() { TracksActiveColumn = true };
     private readonly OverlayDialogService _dialogs;
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    private readonly TextBlock _state = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+    private readonly TextBlock _state = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(12, 0, 0, 0), TextWrapping = TextWrapping.Wrap };
     private readonly Button _save = new() { Content = "Save" };
     private readonly Button _saveAs = new() { Content = "Save As…" };
     private readonly Button _exportPatch = new() { Content = "Export patch…" };
@@ -129,6 +130,11 @@ public sealed class HexEditorWindow : Window
         ToolTip.SetTip(_matchCount, "Counts distinct matches visited with this query. The whole file is not counted.");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_matchCount,
             Avalonia.Automation.AutomationLiveSetting.Polite);
+        // This summary changes only when editing eligibility, dirty bytes, or the typing column changes.
+        // The cursor/offset footer changes for every move and must not become a speech flood.
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_state,
+            Avalonia.Automation.AutomationLiveSetting.Polite);
+        LiveRegions.Watch(_state);
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 6), ItemSpacing = 6, LineSpacing = 4 };
         Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease editor content size");
@@ -389,10 +395,10 @@ public sealed class HexEditorWindow : Window
         int dirty = _overlay.DirtyBytes;
         string protection = ProtectedHexFile.ExcludesWriters ? "other programs cannot write this file while it is open"
             : "advisory lock; other programs may still write this file";
-        _state.Text = _saving ? "Saving…"
+        _state.Text = (_hex.TextColumnActive ? "Typing: text (ASCII) · " : "Typing: hex · ") + (_saving ? "Saving…"
             : _interrupted is not null ? "Interrupted save: choose Finish or Restore above"
             : dirty > 0 ? $"{Formatters.Plural(dirty, "byte", "bytes")} modified (unsaved) · {protection}"
-            : $"No unsaved changes · {protection}";
+            : $"No unsaved changes · {protection}");
         if (_overlay.TouchedBytes > HexPatchOverlay.MaxTouchedBytes / 2)
             _state.Text += $" · edit budget {100.0 * _overlay.TouchedBytes / HexPatchOverlay.MaxTouchedBytes:0}% used";
         bool idle = CanEdit;

@@ -77,6 +77,9 @@ public sealed class HexEditorSemanticsTests
         Assert.Same(f.Hex, f.Window.FocusManager.GetFocusedElement());
         Assert.True(f.Hex.TextColumnActive);
         Assert.Contains("active typing column: text (ASCII)", f.Peer.Value);
+        var state = Field<TextBlock>(f.Window, "_state");
+        Assert.StartsWith("Typing: text (ASCII) · ", state.Text);
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(state));
         f.Window.KeyTextInput("Z");
         Assert.Contains("2 modified bytes, unsaved", f.Peer.Value);
         f.Hex.GoTo(0, select: true, 2);

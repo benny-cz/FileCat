@@ -1,5 +1,77 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-hex-editor-speech-20261027"></a>
+**27 October 2026, native Hex-editor speech diagnostic (FCUX-073):** A
+test-owned 64-byte file was opened in the isolated Ubuntu Wayland guest on Git
+`c4e86a18` (app DLL SHA-256 `61f8b95e…`). Orca spoke the pending first nibble
+and the first unsaved byte through its actual speech output. After physical Tab
+changed the active typing column, AT-SPI exposed `text (ASCII)` but Orca said
+only “tab.” The exact diagnostic receipt is
+`/home/benny/FileCatValidation/ac-s2-012-hex-editor-spoken-c4e86a18-r1.json`.
+This exposed a product gap: the footer now publishes a concise polite live
+summary when the typing column or dirty state changes, while cursor offsets
+stay outside that live region. The focused Windows Release Hex-editor
+regressions passed 8/8. A native rerun of the corrected build is still needed;
+this diagnostic alone does not accept the remaining Hex-editor route.
+
+<a id="evidence-viewer-delay-20261027"></a>
+**27 October 2026, held first-page semantic publication (FCUX-073):** The
+focused Release App test on Git `c4e86a18` with pinned Avalonia 12.1.4 passed
+both held-source cases in 684 ms. One case released a delayed first page and
+required its current text and Value event; the other replaced that source
+before release and required only the new source's content. Repeated getter
+queries did not cause source reads. Exact local result:
+`E:\FileCat\.local-ac-s2-073-delayed-headless-c4e86a18.log`; the targeted
+[`ViewerGeometryAndSemanticsTests`](../../tests/FileCat.App.Tests/ViewerGeometryAndSemanticsTests.cs)
+preserve the event/new-source assertions. Paired with the independent native
+AT-SPI payload/getter match on the same Git build, this accepts
+[AC-S2-073-DELAY](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-073-delay) as the bounded
+equivalent route. A second remote delayed first-page test is not required by
+the audit's pairwise stopping rule absent a backend-specific regression.
+Hex-editor spoken editing state remains open.
+
+<a id="evidence-viewer-events-20261027"></a>
+**27 October 2026, native current Text value event (FCUX-073):** On the
+isolated Ubuntu Wayland guest, Git `c4e86a18` and app DLL SHA-256
+`61f8b95e4e7ff20118af59156f3a1bed3ef22edf6ccf0b0e31d441dcf91508b5`
+opened a test-owned 400-line ASCII file. After the initial visible value began
+at line 0000, a physical PageDown changed it to line 0031. The AT-SPI
+`object:property-change:accessible-value` event contained the exact newly
+visible text; a getter inside the callback and the settled getter matched
+that payload. No event returned the old viewport. The source SHA-256
+`73e88b29205d2c14413e21495821c9006af7a7206b34dd27d6ca6f107e08965a`
+was unchanged and the target remained empty. Direct guest receipt:
+`/home/benny/FileCatValidation/ac-s2-073-ubuntu-value-events-c4e86a18-r2.json`;
+ignored host copy:
+`E:\FileCat\.local-ac-s2-073-ubuntu-value-events-c4e86a18-r2.json`.
+The first run recorded the same current payload but did not assert payload
+equality in its runner; the ledger authorized one bounded rerun to add that
+required assertion. This accepts
+[AC-S2-073-EVENT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-073-event). A delayed first
+page and Hex-editor spoken states remain untested native siblings.
+
+<a id="evidence-info-long-line-20261027"></a>
+**27 October 2026, native Info long-line access (FCUX-012):** The Info mode
+hid the shared text-size controls even though its report uses the same font.
+Git `c4e86a18` exposes smaller, current size and larger controls in Info;
+the focused Windows Release App regression passed 1/1 with zero build
+warnings (`E:\FileCat\.local-ac-s2-012-info-app-test.log`). A separate
+test-owned 1 × 1 PNG carried a 186-character `Description` metadata path
+ending `INFO-PATH-END-9C4D`. The isolated Ubuntu Wayland guest built that Git
+head (app DLL SHA-256
+`61f8b95e4e7ff20118af59156f3a1bed3ef22edf6ccf0b0e31d441dcf91508b5`).
+At 480 × 300 after four visible font increases, native AT-SPI Find revealed
+the complete suffix at horizontal position 1445 of 1609. After resizing to
+900 × 650 it remained visible at position 1189 of 1189; the Info Wrap toggle
+then changed the read-only document status to wrapped. The source SHA-256
+`17c65fee2019f9a133cb2ea631bce6edb95117abe4a3e16ebed9d519bbd8471d`
+was unchanged and the target remained empty. Direct guest receipt:
+`/home/benny/FileCatValidation/ac-s2-012-info-ubuntu-c4e86a18-r2.json`;
+ignored host copy: `E:\FileCat\.local-ac-s2-012-info-ubuntu-c4e86a18-r2.json`.
+The first run stopped at the hidden font controls and is diagnostic. This
+accepts [AC-S2-012-INFO](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-info);
+native FCUX-073 event/editor spoken semantics remain open.
+
 <a id="evidence-ftps-ci-20261027"></a>
 **27 October 2026, macOS FTPS CI diagnosis:** Five-lane run `4ebac020`
 timed out after 2,596 passed Remote tests and run `759ae044` after 2,600
