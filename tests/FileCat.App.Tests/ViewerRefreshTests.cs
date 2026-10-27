@@ -22,6 +22,31 @@ public sealed class ViewerRefreshTests
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [AvaloniaFact]
+    public async Task Failed_refresh_banner_uses_one_sentence_separator_after_a_provider_error()
+    {
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+            "filecat-refresh-message-" + Guid.NewGuid().ToString("N"))).FullName;
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var viewer = new ViewerWindow(services,
+            new MemoryContentSource("member.txt", "last good"u8.ToArray()), "member.txt",
+            hex: false, deviceKey: "refresh-message", preparedReader: null,
+            reopen: _ => Task.FromException<IContentSource?>(new IOException("The archive no longer exists.")));
+        try
+        {
+            viewer.Show();
+            await Until(() => Field<Button>(viewer, "_refresh").IsEnabled);
+            await viewer.RefreshAsync();
+            Assert.Equal("Refresh failed: The archive no longer exists. The previous view remains available.",
+                Field<TextBlock>(viewer, "_staleText").Text);
+        }
+        finally
+        {
+            viewer.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Closing_during_provider_reopen_retires_the_late_source()
     {
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-refresh-close-" + Guid.NewGuid().ToString("N"))).FullName;

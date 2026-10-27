@@ -1105,9 +1105,13 @@ public sealed class ViewerWindow : Window
         _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing &&
             (!_isPage || _pageView.PageLoaded);
         _staleBanner.IsVisible = stale || _refreshFailure is not null;
-        _staleText.Text = _refreshFailure is { } failure
-            ? $"Refresh failed: {failure}. The previous view remains available{(stale ? " and is still stale" : "")}."
-            : stale ? "File changed — Refresh (F5) to show the new version." : string.Empty;
+        if (_refreshFailure is { } failure)
+        {
+            string reason = Formatters.SafeName(failure).Trim().TrimEnd('.');
+            if (reason.Length == 0) reason = "The selected item could not be reopened";
+            _staleText.Text = $"Refresh failed: {reason}. The previous view remains available{(stale ? " and is still stale" : "")}.";
+        }
+        else _staleText.Text = stale ? "File changed — Refresh (F5) to show the new version." : string.Empty;
     }
 
     /// <summary>Reopens the exact provider item and prepares its visible snapshot before retiring the old source.</summary>
