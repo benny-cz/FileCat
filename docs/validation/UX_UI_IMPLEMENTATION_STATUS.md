@@ -1,5 +1,34 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-background-disconnected-20261027"></a>
+**27 October 2026, disconnected SFTP and working-set location menus
+(AC-S2-048):** The Git-built `75331c3e` Ubuntu VMware app (DLL SHA-256
+`a4977144dd138d3319c1498ae955c6f6c2588a24679ea54a0e63a57f35a0227d`)
+connected to one owned SFTP member through a test-owned loopback relay after
+independently verifying the shown OpenSSH host key. The runner dropped only
+that relay, asked FileCat to Reread, and observed a named, retained remote
+snapshot with an explicit connection-refused refresh failure. A physical
+uinput right-click below the member opened the location menu. Paste and
+Create folder were disabled with accessible Reread reasons; Reread and Copy
+location name remained enabled; no Delete, Move or Rename item action
+appeared. Both source SHA-256 hashes stayed exact. The
+[direct receipt](evidence/ac-s2-048-ubuntu-disconnected.json) and
+[native runner](../../tests/FileCat.NativeAcceptance/linux-atspi-background-disconnected.py)
+record the result. The earlier direct-URI startup attempt met the deferred
+credential gate and did not reach the remote listing; it is excluded from
+acceptance evidence.
+
+The same slice corrected a separate working-set explanation: Paste now says
+the set holds references and directs the user to a real folder, as Create
+folder already did. A test with an actual owned working set failed before
+that wording change and all eight `BackgroundContextMenuTests` passed after
+it on `7e221fa2` Windows Release with 16 build workers. Together with the
+[archive](#evidence-background-archive-20261027),
+[Registry](#evidence-background-registry-20261027) and
+[keyboard](#evidence-background-keyboard-20261027) accepted children, this
+closes FCUX-048 in [the ledger](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-048).
+Audit-wide final CI remains separate.
+
 <a id="evidence-background-keyboard-20261027"></a>
 **27 October 2026, keyboard item-context separation
 (AC-S2-048-KEYBOARD):** The earlier Git-built `278b8655` Ubuntu VM at 200%
