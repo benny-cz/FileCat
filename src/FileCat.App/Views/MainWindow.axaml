@@ -85,12 +85,15 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:KeyBarItem">
+          <!-- The label's column takes what the number leaves, so a label too long for its key ends in an ellipsis;
+               the name and tip give the whole command and its key. -->
           <Button Classes="fkey" IsEnabled="{Binding IsEnabled}" Tag="{Binding CommandId}" Click="OnKeyBarClick"
-                  AutomationProperties.Name="{Binding Label}">
-            <StackPanel Orientation="Horizontal">
+                  AutomationProperties.Name="{Binding Title}" AutomationProperties.HelpText="{Binding Tip}"
+                  ToolTip.Tip="{Binding Tip}" ToolTip.ShowOnDisabled="True">
+            <Grid ColumnDefinitions="Auto,*">
               <TextBlock Classes="fkeynum" Text="{Binding Number}" />
-              <TextBlock Classes="fkeylabel" Text="{Binding Label}" />
-            </StackPanel>
+              <TextBlock Grid.Column="1" Classes="fkeylabel" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+            </Grid>
           </Button>
         </DataTemplate>
       </ItemsControl.ItemTemplate>

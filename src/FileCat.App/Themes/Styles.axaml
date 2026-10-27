@@ -226,7 +226,6 @@
   </Style>
   <Style Selector="TextBlock.fkeylabel">
     <Setter Property="Foreground" Value="{DynamicResource FcKeyBarLabel}" />
-    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
   </Style>
 
   <!-- Overlay dialogs -->

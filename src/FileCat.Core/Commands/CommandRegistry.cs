@@ -305,7 +305,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
         Add(CommandIds.HiddenData, "Streams and attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
         Add(CommandIds.FileRecord, "File-system record", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
-        Add(CommandIds.ContextMenu, "Context menu", F, null, CommandContext.Panel, "Shift+F10", "Apps");
+        Add(CommandIds.ContextMenu, "Context menu", F, "Context", CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
         Add(CommandIds.VerifyChecksums, "Verify checksums and signatures", F);
@@ -440,7 +440,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FindDeleted, "Recover deleted files…", C);
         Add(CommandIds.ChangeJournal, "Change journal of this drive", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
-        Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
+        Add(CommandIds.CommandHistory, "Command history…", C, "Cmd hist", CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
         Add(CommandIds.InsertPath, "Insert focused path into command line", C, null, CommandContext.Panel, "Ctrl+Shift+Enter");
         // Num/ as in Altap Salamander.

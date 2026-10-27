@@ -16,6 +16,12 @@ public sealed partial class KeyBarItem : ObservableObject
     [ObservableProperty] private string _label = string.Empty;
     [ObservableProperty] private string? _commandId;
     [ObservableProperty] private bool _isEnabled = true;
+
+    /// <summary>The whole command title, where the bar shows a short label or trims a long one.</summary>
+    [ObservableProperty] private string _title = string.Empty;
+
+    /// <summary>The key with its modifiers and the whole title, and why the command is unavailable here.</summary>
+    [ObservableProperty] private string? _tip;
 }
 
 /// <summary>Root view model: workspace, key bar, command line, and command dispatch (plan §4.4).</summary>
@@ -203,9 +209,16 @@ public sealed partial class MainViewModel : ObservableObject
         var bar = Services.Keymap.GetFunctionKeyBar(mods, CommandContext.Panel);
         for (int i = 0; i < 12; i++)
         {
-            KeyBar[i].Label = bar[i].Label;
-            KeyBar[i].CommandId = bar[i].CommandId;
-            KeyBar[i].IsEnabled = bar[i].CommandId is not null && GetAvailability(bar[i].CommandId!).Enabled;
+            var key = KeyBar[i];
+            var availability = bar[i].CommandId is { } id ? GetAvailability(id) : default;
+            string? title = bar[i].CommandId is { } command ? Services.Commands.Get(command)?.Title : null;
+            key.Label = bar[i].Label;
+            key.CommandId = bar[i].CommandId;
+            key.IsEnabled = bar[i].CommandId is not null && availability.Enabled;
+            key.Title = title ?? bar[i].Label;
+            key.Tip = title is null ? null : new KeyChord("F" + (i + 1), mods).ToDisplayString() + ": " + title +
+                (availability.Enabled ? string.Empty : Environment.NewLine + "Unavailable here: " +
+                    (availability.Reason ?? "This command is not available in the current context."));
         }
         CommandAvailabilityChanged?.Invoke(this, EventArgs.Empty);
     }

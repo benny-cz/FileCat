@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Controls;
@@ -39,6 +40,49 @@ public sealed class KeyBarTests
             Assert.Equal(Layer(KeyMods.None), Shown());
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void A_label_too_long_for_its_key_ends_in_an_ellipsis_and_the_key_names_the_whole_command()
+    {
+        // At 200% on Ubuntu the Shift layer's F10 read "Context me": the label ran past its key and was cut off there.
+        // A key the user binds to a command without a short label shows its whole title, longer still.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640);
+        try
+        {
+            services.Settings.KeyBindings[CommandIds.OpenInNewTab] = ["Ctrl+F2"];
+            services.ReloadKeymap();
+            vm.UpdateKeyBar(KeyMods.Ctrl);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var keys = window.GetVisualDescendants().OfType<Button>().Where(b => b.Classes.Contains("fkey")).ToList();
+            Assert.Equal(12, keys.Count);
+            static TextBlock Label(Button key) =>
+                key.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Classes.Contains("fkeylabel"));
+            foreach (var key in keys)
+            {
+                var label = Label(key);
+                double end = label.TranslatePoint(new Point(label.Bounds.Width, 0), key)!.Value.X;
+                Assert.True(end <= key.Bounds.Width - key.Padding.Right + 0.5,
+                    $"\"{label.Text}\" ends at {end:F1} in a key {key.Bounds.Width:F1} wide");
+            }
+            var bound = keys[1];
+            Assert.Equal("Open focused folder in new tab", Label(bound).Text);
+            Assert.Contains(Label(bound).TextLayout.TextLines, line => line.HasCollapsed);
+            Assert.Equal("Open focused folder in new tab", Avalonia.Automation.AutomationProperties.GetName(bound));
+            Assert.Equal("Ctrl+F2: Open focused folder in new tab", ToolTip.GetTip(bound) as string);
+            // The two long built-in titles have short labels; the name and tip keep the whole command.
+            vm.UpdateKeyBar(KeyMods.Shift);
+            Assert.Equal(("Context", "Context menu"), (vm.KeyBar[9].Label, vm.KeyBar[9].Title));
+            Assert.StartsWith("Shift+F10: Context menu", vm.KeyBar[9].Tip);
+            vm.UpdateKeyBar(KeyMods.Alt);
+            Assert.Equal(("Cmd hist", "Command history…"), (vm.KeyBar[7].Label, vm.KeyBar[7].Title));
+            Assert.StartsWith("Alt+F8: Command history…", vm.KeyBar[7].Tip);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     [AvaloniaFact]
