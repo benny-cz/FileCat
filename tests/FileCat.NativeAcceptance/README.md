@@ -2063,3 +2063,23 @@ The runner checks pending and complete bounded AT-SPI listings, a mark that
 survives offscreen End focus, original SFTP location in Review marked items,
 a real View of the last member, and unchanged source/empty target. It writes
 a fresh JSON receipt and removes only its own fixture.
+
+`win-ax-admin-notification.ps1`, `win-ax-clipboard-warning.ps1` and
+`win-ax-notification-action.ps1` accept `-AppPath` and `-ReportPath` inside
+the isolated, signed-in Windows VMware guest. Set 150% with the existing
+`win-ax-display-scale.ps1`, verify the app's measured 144 DPI, and restore the
+original scale afterward. The administrator runner must be elevated; VMware's
+interactive launch has a filtered token, so run
+`win-ax-admin-notification-launch.ps1` through the elevated guest launcher
+with its additional `-LaunchReportPath`. It creates a temporary task for the
+logged-in VM user at highest privilege, stores no password and removes the
+task. The admin runner checks visible Copy/History/Dismiss, full copied text,
+timed expiry and retained History. The clipboard runner copies an existing
+HKCU key, requires a truthful refusal with the old clipboard kept, then
+checks the warning controls, History and dismissal; it restores the guest
+clipboard. The action runner saves an owned two-tab workspace, adds a third,
+opens the saved arrangement and invokes the visible Restore action, checking
+the two-to-three-tab transition and retained action History. Each runner
+refuses a concurrent FileCat process, records the exact app DLL, writes a
+fresh JSON receipt and removes only its owned fixture. The 27 October 2026
+receipts are tracked under `docs/validation/evidence/ac-s2-029-*.json`.

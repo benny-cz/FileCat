@@ -1,0 +1,52 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AdminNotification\\1ea1da7cd66b40b2967daf9ef479307b",
+    "AppSha256":  "B2DD758015E8C76CCCD73112285E4AE1D7CADD75C3C5DBC5226F8377B284E5CF",
+    "AppDllSha256":  "D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291",
+    "Elevated":  true,
+    "Dpi":  144,
+    "WindowBounds":  [
+                         51,
+                         85,
+                         1158,
+                         804
+                     ],
+    "Notice":  "FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.",
+    "CopyButton":  {
+                       "Name":  "Copy notification",
+                       "Enabled":  true,
+                       "Bounds":  [
+                                      131,
+                                      714,
+                                      111,
+                                      44
+                                  ]
+                   },
+    "HistoryButton":  {
+                          "Name":  "Recent notifications",
+                          "Enabled":  true,
+                          "Bounds":  [
+                                         253,
+                                         714,
+                                         88,
+                                         44
+                                     ]
+                      },
+    "DismissButton":  {
+                          "Name":  "Dismiss notification",
+                          "Enabled":  true,
+                          "Bounds":  [
+                                         354,
+                                         714,
+                                         92,
+                                         44
+                                     ]
+                      },
+    "CopiedText":  "FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.",
+    "Expired":  true,
+    "HistoryText":  "[27.10.2026 9:53] Notice\r\nFileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.",
+    "SourceExact":  true,
+    "TargetEmpty":  true,
+    "Error":  null
+}

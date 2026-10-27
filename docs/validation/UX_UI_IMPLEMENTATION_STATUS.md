@@ -1,5 +1,44 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-notifications-20261027"></a>
+**27 October 2026, native scaled notices and action (AC-S2-029):** On the
+isolated Win11 VMware desktop, Windows Display Settings changed from 100% to
+150% and the new FileCat window measured 144 DPI, 1158 × 804 physical pixels.
+The exact Git-built `2a371b4c` app had DLL SHA-256
+`D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291`.
+The [scaled-selection receipt](evidence/ac-s2-029-scale-150.json) and
+[restoration receipt](evidence/ac-s2-029-scale-restored.json) show that the
+VM's original 100% scale was restored afterward.
+
+The [elevated native runner](../../tests/FileCat.NativeAcceptance/win-ax-admin-notification.ps1)
+used a temporary highest-privilege task for the signed-in VM user because
+VMware's interactive guest launcher has a filtered UAC token. The task used
+no stored password and was removed; its [launcher receipt](evidence/ac-s2-029-admin-launch.json)
+and [notice receipt](evidence/ac-s2-029-admin.json) both passed. The
+administrator notice had enabled, visible Copy/History/Dismiss controls at
+150%. Copy returned its entire text. After focus and pointer moved away the
+notice expired, while Recent notifications retained the same text. The owned
+source hash and empty target stayed exact.
+
+The [clipboard runner](../../tests/FileCat.NativeAcceptance/win-ax-clipboard-warning.ps1)
+selected the existing `HKCU\Software\Microsoft` key without changing the
+Registry. Native Ctrl+C reported that an item outside the file system could
+not be placed on the clipboard, and the previous sentinel remained intact.
+The persistent error exposed all three controls; Copy returned the full
+warning, History retained it, and Dismiss closed it. The guest clipboard was
+restored and the owned target file was byte-exact. The
+[direct clipboard receipt](evidence/ac-s2-029-clipboard.json) passed.
+
+The [action runner](../../tests/FileCat.NativeAcceptance/win-ax-notification-action.ps1)
+saved an owned two-tab workspace, added a third tab, then opened the saved
+arrangement. Its `Restore previous workspace` notice action was enabled,
+visible and accessible at 150%; invoking it changed the live tab count from
+two back to three. History retained the action labels on both notices, while
+source and target stayed exact. The [direct action receipt](evidence/ac-s2-029-action.json)
+passed. Earlier `7da4fc0b` Orca/NVDA and signed Mac first/repeated
+announcements remain separately accepted; these three scaled routes complete
+[AC-S2-029](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-029). Final-head CI is separate.
+
 <a id="evidence-horizontal-sort-20261027"></a>
 **27 October 2026, native clipped-column wheel/sort/focus:** On exact Git
 `34fee315` in Ubuntu VMware (app DLL SHA-256
@@ -4839,6 +4878,7 @@ each (`fc9b44edf19354aee038b87078e8c5ac0e12f669741dbd44dfe00a6c86872531`).
 A FileCat whose dialog is open does not exit on SIGTERM; the Mac runner now
 kills its own process after an unanswered TERM.
 
+<a id="evidence-notification-announcements-20261022"></a>
 **22 October 2026, spoken notifications on every desktop and macOS modifier
 input (FCUX-029, FCUX-010):** The speech runners now also copy the focused
 file twice. The first notification after startup was never announced on any

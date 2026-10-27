@@ -1,0 +1,47 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca",
+    "AppSha256":  "B2DD758015E8C76CCCD73112285E4AE1D7CADD75C3C5DBC5226F8377B284E5CF",
+    "AppDllSha256":  "D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291",
+    "Dpi":  144,
+    "WindowBounds":  [
+                         51,
+                         85,
+                         1158,
+                         804
+                     ],
+    "WorkspaceName":  "notice-action-1d62db6e46304461ba6e1b02dfffe3de",
+    "SavedTabs":  2,
+    "BeforeOpenTabs":  [
+                           "source · fs / C: / Users / Admin / AppData / Local / FileCatValidation / NotificationAction / a3ecb64d28e54835a3b1cbd03ef887ca #1, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\source",
+                           "source · fs / C: / Users / Admin / AppData / Local / FileCatValidation / NotificationAction / a3ecb64d28e54835a3b1cbd03ef887ca #2, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\source",
+                           "target, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\target"
+                       ],
+    "OpenedTabs":  [
+                       "source, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\source",
+                       "target, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\target"
+                   ],
+    "RestoredTabs":  [
+                         "source · fs / C: / Users / Admin / AppData / Local / FileCatValidation / NotificationAction / a3ecb64d28e54835a3b1cbd03ef887ca #1, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\source",
+                         "source · fs / C: / Users / Admin / AppData / Local / FileCatValidation / NotificationAction / a3ecb64d28e54835a3b1cbd03ef887ca #2, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\source",
+                         "target, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NotificationAction\\a3ecb64d28e54835a3b1cbd03ef887ca\\target"
+                     ],
+    "OpenNotice":  "Workspace \"notice-action-1d62db6e46304461ba6e1b02dfffe3de\" opened. Restore the previous panels, tabs, layout and targets with Restore previous workspace.",
+    "ActionButton":  {
+                         "Name":  "Restore previous workspace",
+                         "Enabled":  true,
+                         "Bounds":  [
+                                        125,
+                                        714,
+                                        280,
+                                        44
+                                    ]
+                     },
+    "RestoreNotice":  "Previous workspace restored. The workspace you left can be restored again.",
+    "HistoryText":  "[27.10.2026 10:03] Notice\r\nPrevious workspace restored. The workspace you left can be restored again.\r\nAction: Restore previous workspace\r\n\r\n[27.10.2026 10:03] Notice\r\nWorkspace \"notice-action-1d62db6e46304461ba6e1b02dfffe3de\" opened. Restore the previous panels, tabs, layout and targets with Restore previous workspace.\r\nAction: Restore previous workspace\r\n\r\n[27.10.2026 10:03] Notice\r\nWorkspace \"notice-action-1d62db6e46304461ba6e1b02dfffe3de\" saved.",
+    "SourceExact":  true,
+    "TargetEmpty":  true,
+    "DebugUi":  null,
+    "Error":  null
+}

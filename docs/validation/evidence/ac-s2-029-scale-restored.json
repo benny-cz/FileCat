@@ -1,0 +1,10 @@
+﻿{
+    "Passed":  true,
+    "Requested":  100,
+    "Original":  150,
+    "Selected":  100,
+    "CallerDpiAtStart":  96,
+    "SettingsClosed":  true,
+    "SettingsCloseError":  null,
+    "Error":  null
+}
