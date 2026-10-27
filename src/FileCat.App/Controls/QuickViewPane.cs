@@ -404,7 +404,8 @@ public sealed class QuickViewPane : Border
                                    InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             if (IsCurrent(request) && ex is not OperationCanceledException)
-                ShowNotice("Picture preview failed: " + Core.Jobs.ErrorText.Describe(ex) + " Hex bytes are shown; Open full viewer (F3) for more detail.");
+                ShowNotice("Picture preview failed: " + Core.Jobs.ErrorText.Describe(ex).TrimEnd().TrimEnd('.') +
+                           ". Hex bytes are shown; Open full viewer (F3) for more detail.");
         }
     }
 

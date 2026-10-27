@@ -2343,3 +2343,12 @@ report under `~/FileCatValidation`. The two accepted receipts are
 Windows browser may briefly retain its private test profile after viewer
 close; the harness bounds immediate cleanup and reports its exact path for
 removal after the helper exits.
+
+`linux-atspi-quick-view-local.py APP REPORT.json KEY_HELPER` exercises an
+owned local Quick View in the logged-in Ubuntu VM. A physical keyboard opens
+Quick View, narrows its real panel boundary and opens the focused item with
+F3. The accessible full-viewer action also opens an empty file. The runner
+checks explicit empty, damaged-picture and 64 MiB cap messages, a decoded
+image contained in the small pane, and unchanged source/empty target. The
+slow remote source and pointer-specific full-viewer action remain separate
+ledger boundaries; this local runner does not claim either.

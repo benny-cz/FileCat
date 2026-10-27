@@ -240,6 +240,7 @@ public sealed class QuickViewLifetimeTests(ITestOutputHelper output)
                 FileCat.App.Services.PictureDecoder.Timeout + TimeSpan.FromSeconds(30),
                 () => string.Join(" | ", Labels(pane)));
             Assert.True(pane.GetVisualDescendants().OfType<HexView>().Single().IsVisible);
+            Assert.Contains(Labels(pane), text => text.Contains(". Hex bytes are shown", StringComparison.Ordinal));
             Assert.Contains(Labels(pane), text => text.Contains("Open full viewer (F3)", StringComparison.Ordinal));
         }
         finally { pane.Attach(null); preview.Close(); AccessibilityTests.Close(services, main, root); }
