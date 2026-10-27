@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [switch]$CheckSelectionPreservation
 )
 
 # Use only in the disposable, logged-in Windows VMware guest. Every file and
@@ -218,8 +219,48 @@ try {
         !$result.After.Selected[0].Offscreen -and
         (Get-FileHash -LiteralPath $large -Algorithm SHA256).Hash -eq $largeHash
     if (!$result.Passed) { throw 'Details did not select and reveal the ninth running Copy.' }
+    if ($CheckSelectionPreservation) {
+        $result.Stage = 'deliberate finished selection during active Copy'
+        $history = Wait-For { Find-HistoryList $window } 'open Operations history'
+        $finished = Wait-For {
+            @(Descendants $history | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+                @((Descendants $_) | Where-Object {
+                    $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                    $_.Current.Name -eq 'Create folder "finished-08"'
+                }).Count -gt 0
+            } | Select-Object -First 1)
+        } 'finished-08 history row'
+        ([System.Windows.Automation.SelectionItemPattern]$finished.GetCurrentPattern(
+            [System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
+        $result.DeliberateSelection = History-Snapshot $window
+        $result.ProgressBefore = @((Descendants $window | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            $_.Current.Name -like 'Copying*' -and !$_.Current.IsOffscreen
+        }) | ForEach-Object { $_.Current.Name } | Select-Object -First 1)
+        if ($result.ProgressBefore.Count -ne 1) { throw 'Running Copy progress is not visible before the later tick.' }
+        $result.ProgressAfter = Wait-For {
+            $current = @((Descendants $window | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+                $_.Current.Name -like 'Copying*' -and !$_.Current.IsOffscreen
+            }) | ForEach-Object { $_.Current.Name } | Select-Object -First 1)
+            if ($current.Count -eq 1 -and $current[0] -cne $result.ProgressBefore[0]) { $current }
+        } 'later active Copy progress' 30
+        $result.SelectionAfterProgress = History-Snapshot $window
+        $result.Passed = $result.DeliberateSelection.Selected.Count -eq 1 -and
+            $result.SelectionAfterProgress.Selected.Count -eq 1 -and
+            @($result.DeliberateSelection.Selected[0].Text | Where-Object {
+                $_ -eq 'Create folder "finished-08"' }).Count -eq 1 -and
+            @($result.SelectionAfterProgress.Selected[0].Text | Where-Object {
+                $_ -eq 'Create folder "finished-08"' }).Count -eq 1 -and
+            !$result.SelectionAfterProgress.Selected[0].Offscreen -and
+            (Get-FileHash -LiteralPath $large -Algorithm SHA256).Hash -eq $largeHash
+        if (!$result.Passed) { throw 'Later active progress stole the deliberate finished-row selection.' }
+        $result.Stage = 'complete'
+    }
 }
 catch {
+    $result.Passed = $false
     $result.Error = $_.Exception.Message
     $result.ErrorType = $_.Exception.GetType().FullName
 }

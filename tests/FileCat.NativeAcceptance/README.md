@@ -713,7 +713,11 @@ Details. The selected Running row must be visible and the source hash exact.
 It invokes the Copy approval inside the named dialog, avoiding the key-bar
 Copy button, and closes only its owned app even if an active-copy close prompt
 persists. The dated `e7b1dbdf` receipt accepts this focus route; native live
-issue speech and selection preservation during later progress remain separate.
+issue speech remains separate. Add `-CheckSelectionPreservation` for the
+distinct route that deliberately selects completed `finished-08` after the
+ninth Copy is Running and requires that selection to survive a later live
+Copy status refresh with the exact source hash intact. The dated `e7b448b7`
+receipt accepts that scope.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window

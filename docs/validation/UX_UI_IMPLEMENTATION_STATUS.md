@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-operation-selection-20261027"></a>
+**27 October 2026, deliberate Operations history selection survives live refresh:**
+On exact Git `e7b448b7` in Windows 11 VMware (app DLL SHA-256
+`19E179E5FFFFF35A64B463791E3A863381ACF71F1D957DC394497B02D4A621B3`),
+the [native runner](../../tests/FileCat.NativeAcceptance/win-ax-operation-focus.ps1)
+used its separate `-CheckSelectionPreservation` action. After eight
+completed folder jobs it independently observed a ninth 64 MiB Copy in
+**Running** state with a new journal. In open Details it deliberately
+selected completed `finished-08`. The Copy status/speed text changed on
+a subsequent live refresh, while `finished-08` remained selected, visible
+and at identical bounds; the 64 MiB source hash stayed exact. Direct
+receipt: `E:\FileCat\.local-ac-s2-015-selection-e7b448b7-r1.json`
+(`Passed: true`). This accepts
+[AC-S2-015-SELECTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-selection).
+Live issue append/announcement remains the only AC-S2-015 child open;
+the prior Running focus and finished-speed scopes stay accepted.
+
 <a id="evidence-clear-history-active-20261027"></a>
 **27 October 2026, native active Undo survives approved history removal:**
 The Windows 11 VMware guest used exact Git `e7b448b7` (app DLL SHA-256
