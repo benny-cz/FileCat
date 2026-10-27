@@ -725,6 +725,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var btns = buttons.Select(b =>
         {
             var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
+            if (!string.IsNullOrWhiteSpace(b.HelpText))
+                AutomationProperties.SetHelpText(btn, b.HelpText);
             if (b.IsDanger) btn.Classes.Add("danger");
             else if (b.IsDefault) btn.Classes.Add("primary");
             var available = b.IsDefault && canConfirm is not null

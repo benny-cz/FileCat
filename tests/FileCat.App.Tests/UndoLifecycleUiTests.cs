@@ -42,9 +42,24 @@ public sealed class UndoLifecycleUiTests
         Assert.Contains("1 unused Undo record", f.Text);
         Assert.Contains("also removes their reports and unused Undo steps", f.Text);
         Assert.Contains("does not change files", f.Text);
+        Assert.Contains("Important effects", f.Text);
+        var effects = Assert.Single(f.Window.GetVisualDescendants().OfType<Border>(),
+            border => border.Classes.Contains("reviewWarnings"));
+        var effectLines = effects.GetVisualDescendants().OfType<SelectableTextBlock>()
+            .Select(block => block.Inlines is { } inlines
+                ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
+                : block.Text ?? string.Empty).ToArray();
+        Assert.Contains("Unused Undo: 1 eligible record removed if approved", effectLines);
+        Assert.Contains("Reports: selected operation reports leave this session's history if approved", effectLines);
+        Assert.Contains("File changes: none", effectLines);
         Assert.Contains($"configured to keep {f.Services.Jobs.KeepFinished:N0} finished operations", f.Text);
         var historyRows = f.Window.GetVisualDescendants().OfType<ListBox>()
             .Single(l => AutomationProperties.GetName(l) == "Finished operations and records to remove");
+        Assert.Contains("removes 1 unused Undo record", AutomationProperties.GetHelpText(historyRows));
+        Assert.Contains("does not change files", AutomationProperties.GetHelpText(historyRows));
+        var keepHistory = f.Window.GetVisualDescendants().OfType<Button>()
+            .Single(b => b.Content as string == "Keep history");
+        Assert.Equal(AutomationProperties.GetHelpText(historyRows), AutomationProperties.GetHelpText(keepHistory));
         Assert.Equal(ScrollBarVisibility.Disabled, ScrollViewer.GetHorizontalScrollBarVisibility(historyRows));
         var historyText = historyRows.GetVisualDescendants().OfType<TextBlock>().ToArray();
         Assert.NotEmpty(historyText);

@@ -77,6 +77,9 @@ public sealed record DialogButton(string Text, object Result, bool IsDefault = f
     /// </summary>
     public Func<bool>? IsAvailable { get; init; }
 
+    /// <summary>Concise consequence announced when this choice receives screen-reader focus.</summary>
+    public string? HelpText { get; init; }
+
     /// <summary>Runs only on an explicit activation. False keeps this dialog open so field validation can retain the draft and focus.</summary>
     public Func<bool>? Validate { get; init; }
 }

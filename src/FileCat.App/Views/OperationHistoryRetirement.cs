@@ -42,6 +42,26 @@ internal sealed class OperationHistoryRetirement
             Text = $"Remove {Jobs.Count:N0} finished operation{(Jobs.Count == 1 ? "" : "s")} from this session's history?",
             FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap,
         });
+        string spokenConsequence = $"Clearing history removes {AvailableUndoCount:N0} unused Undo " +
+            (AvailableUndoCount == 1 ? "record" : "records") +
+            " and the selected operation reports; it does not change files. " +
+            (ActiveUndoCount > 0 ? "Already running Undo work continues. " : string.Empty) +
+            "Keep history preserves the available Undo and reports.";
+        var keyPoints = new StackPanel { Spacing = 5 };
+        keyPoints.Children.Add(new TextBlock
+        {
+            Text = "Important effects", FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        keyPoints.Children.Add(OverlayDialogService.ReviewLine(
+            $"Unused Undo: {AvailableUndoCount:N0} eligible record{(AvailableUndoCount == 1 ? "" : "s")} removed if approved"));
+        keyPoints.Children.Add(OverlayDialogService.ReviewLine(
+            "Reports: selected operation reports leave this session's history if approved"));
+        keyPoints.Children.Add(OverlayDialogService.ReviewLine("File changes: none"));
+        if (ActiveUndoCount > 0)
+            keyPoints.Children.Add(OverlayDialogService.ReviewLine(
+                "Active Undo: already admitted inverse work continues independently"));
+        body.Children.Add(new Border { Classes = { "reviewWarnings" }, Child = keyPoints });
         body.Children.Add(new TextBlock
         {
             Text = $"{AvailableUndoCount:N0} unused Undo record{(AvailableUndoCount == 1 ? "" : "s")}; " +
@@ -68,10 +88,12 @@ internal sealed class OperationHistoryRetirement
             ItemTemplate = DialogLayout.WrappingListText,
         };
         AutomationProperties.SetName(rows, "Finished operations and records to remove");
+        AutomationProperties.SetHelpText(rows, spokenConsequence);
         ScrollViewer.SetHorizontalScrollBarVisibility(rows, ScrollBarVisibility.Disabled);
         body.Children.Add(rows);
         return await main.Dialogs.ShowCustomAsync("Remove operation history", body,
-            [new("Keep history", false, IsDefault: true, IsCancel: true), new(action, true, IsDanger: true)], rows,
+            [new("Keep history", false, IsDefault: true, IsCancel: true) { HelpText = spokenConsequence },
+             new(action, true, IsDanger: true)], rows,
             resizable: true) is true;
     }
 
