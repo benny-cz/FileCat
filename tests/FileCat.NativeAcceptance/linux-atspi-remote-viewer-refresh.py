@@ -56,6 +56,7 @@ def run(app_path: Path, report: Path, helper: Path):
     old, new = b"old remote revision\n", b"new remote revision\n" + b"N" * 8192
     member.write_bytes(old)
     relay = relay_class()
+    relay.delay_seconds = 0.005
     relay_thread = threading.Thread(target=relay.serve_forever, daemon=True)
     relay_thread.start()
     address = f"sftp://benny@127.0.0.1:{relay.server_address[1]}{remote}/"
@@ -63,6 +64,7 @@ def run(app_path: Path, report: Path, helper: Path):
         ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
         "appDllSha256": hashlib.sha256(app_path.with_name("FileCat.dll").read_bytes()).hexdigest(),
         "fixture": str(root), "remoteAddress": address,
+        "relayDelaySeconds": relay.delay_seconds,
         "oldSha256": hashlib.sha256(old).hexdigest(), "newSha256": hashlib.sha256(new).hexdigest()}
     process = None
 

@@ -35,6 +35,7 @@ class DelayedRelay(socketserver.ThreadingTCPServer):
         self.lock = threading.Lock()
         self.sockets = set()
         self.delayed_chunks = 0
+        self.delay_seconds = 0.03
 
     def drop_sessions(self):
         with self.lock:
@@ -68,7 +69,7 @@ class RelayHandler(socketserver.BaseRequestHandler):
                         if not block:
                             return
                         if source is upstream:
-                            time.sleep(0.03)
+                            time.sleep(self.server.delay_seconds)
                             with self.server.lock:
                                 self.server.delayed_chunks += 1
                         (self.request if source is upstream else upstream).sendall(block)
