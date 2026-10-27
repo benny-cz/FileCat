@@ -2315,3 +2315,14 @@ next Refresh fail with a visible reason while preserving the last good view.
 The runner checks exact source bytes and an empty target and removes its owned
 profile and fixture. The accepted receipt is
 `docs/validation/evidence/ac-s2-052-ubuntu-remote-refresh.json`.
+
+`linux-atspi-page-viewer-refresh.py APP REPORT.json KEY_HELPER` runs in the
+same isolated Ubuntu desktop with a transient physical-input credential. It
+opens an owned Markdown Page in native WebKit, uses rendered Page Find to prove
+an explicit same-window changed-source Refresh, removes the file to verify a
+readable stale/failure state, then restores it and verifies a rendered retry.
+Stale Page search is intentionally guarded until Refresh; this runner checks
+the retained Page mode and stale explanation instead of expecting Find to
+search stale content. The receipt is
+`docs/validation/evidence/ac-s2-052-ubuntu-page-refresh.json`. An engine
+load failure after replacement starts remains a separate ledger boundary.

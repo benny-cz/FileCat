@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "a47462b163474629d91a65588efff0165f9eadfa",
+  "appDllSha256": "84de08fc02462a36c82b52c3130be1814e1cfdd56be445d53254083c525c4f9f",
+  "fixture": "/home/benny/FileCatValidation/PageViewerRefresh/53e0801f6871433387c6e877ab1850bb",
+  "oldSha256": "2743fa87c5f7a9d3dc219caf7653a88356627eeaa6a58bc5bf24b8191ed7d6c6",
+  "newSha256": "720dd843b8c07efff9aecea59c963eaddd24bb6e311ae3a78dc2c6750d27faf8",
+  "oldPageFind": {
+    "count": "1 match",
+    "status": "Found \"oldpagetoken\" in the page. \u00b7 Markdown drawn as a page: its HTML is shown as text, scripts do not run and nothing is fetched from the web \u00b7 F4 shows its text \u00b7 51 bytes"
+  },
+  "newPageFind": {
+    "count": "1 match",
+    "status": "Found \"newpagetoken\" in the page. \u00b7 Markdown drawn as a page: its HTML is shown as text, scripts do not run and nothing is fetched from the web \u00b7 F4 shows its text \u00b7 51 bytes"
+  },
+  "sameViewer": true,
+  "failedRefreshBanner": "Refresh failed: Could not find file '/home/benny/FileCatValidation/PageViewerRefresh/53e0801f6871433387c6e877ab1850bb/source/owned.md'. The previous view remains available.",
+  "retainedPageMode": true,
+  "stalePageStatus": "The file changed; Refresh (F5) to update this page. Markdown drawn as a page: its HTML is shown as text, scripts do not run and nothing is fetched from the web \u00b7 F4 shows its text \u00b7 51 bytes",
+  "sameViewerAfterFailure": true,
+  "restoredPageFind": {
+    "count": "1 match",
+    "status": "Found \"newpagetoken\" in the page. \u00b7 Markdown drawn as a page: its HTML is shown as text, scripts do not run and nothing is fetched from the web \u00b7 F4 shows its text \u00b7 51 bytes"
+  },
+  "restoredSourceSha256": "720dd843b8c07efff9aecea59c963eaddd24bb6e311ae3a78dc2c6750d27faf8",
+  "targetEmpty": true
+}

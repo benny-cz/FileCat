@@ -1,5 +1,23 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-page-viewer-refresh-20261027"></a>
+**27 October 2026, native WebKit Markdown Page Refresh
+(AC-S2-052-PAGE-WEBKIT):** The Git-built Ubuntu VMware app DLL SHA-256
+`84de08fc02462a36c82b52c3130be1814e1cfdd56be445d53254083c525c4f9f`
+was built at `0fa917d6`; the runner checkout `a47462b1` changed tests only.
+On a disposable Markdown file, the native WebKit Page rendered the old token,
+then explicit Refresh rendered the new token in the same window. Removing the
+file before another Refresh showed a readable failure and stale Page status
+without leaving Page mode or changing windows. Restoring the file let another
+Refresh render the new token; the source SHA-256 and empty target remained
+exact. The first diagnostic wrongly expected Find to search the deliberately
+guarded stale Page. The corrected [native receipt](evidence/ac-s2-052-ubuntu-page-refresh.json)
+and [runner](../../tests/FileCat.NativeAcceptance/linux-atspi-page-viewer-refresh.py)
+check the actual stale-search contract and retry. The native engine did not
+fail during replacement loading: [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
+still requires that rollback boundary, including WebView2 or a justified
+equivalent. Final CI remains separate.
+
 <a id="evidence-remote-viewer-refresh-20261027"></a>
 **27 October 2026, native delayed SFTP Text viewer Refresh
 (AC-S2-052-REMOTE):** The Ubuntu VMware app built from `0fa917d6` (DLL
@@ -18,7 +36,7 @@ connection then waited for another host-key decision. The successful route
 trusted that verified key only in the disposable test profile. The
 [late-reopen/close regression](../../tests/FileCat.App.Tests/ViewerRefreshTests.cs)
 covers safe cancellation and source retirement. [AC-S2-052](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-052)
-now retains only native Page rollback, including the WebView2 boundary or a
+now retains only native Page engine load-failure rollback, including the WebView2 boundary or a
 justified equivalent engine route. Final CI remains separate.
 
 <a id="evidence-archive-viewer-refresh-20261027"></a>
