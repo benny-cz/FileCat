@@ -1,0 +1,62 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/AvailabilityLatency/c610574fe6a848c49c0b1210ddc20d83",
+  "remoteAddress": "sftp://benny@127.0.0.1:42043/home/benny/FileCatValidation/AvailabilityLatency/c610574fe6a848c49c0b1210ddc20d83/server/",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "matchedHostKeys": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "largeList": "Panel 2, source, sftp://benny@127.0.0.1:42043/home/benny/FileCatValidation/AvailabilityLatency/c610574fe6a848c49c0b1210ddc20d83/server/",
+  "focusBefore": "remote-0000.txt, file, 9 bytes, modified 10/27/2026 11:23:15\u202fAM, not marked, 2 of 2001",
+  "toolbarBeforeDrop": {
+    "Copy\u2026": {
+      "enabled": true,
+      "help": "Copy\u2026 (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+    },
+    "Move / rename\u2026": {
+      "enabled": true,
+      "help": "Move / rename\u2026 (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+    },
+    "Delete\u2026": {
+      "enabled": true,
+      "help": "Delete\u2026 (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently."
+    }
+  },
+  "relayChunks": 520,
+  "focusAfterDown": "remote-0010.txt, file, 0 bytes, modified 10/27/2026 11:23:15\u202fAM, not marked, 12 of 2001",
+  "downSeconds": 3.16,
+  "toolbarAfterDown": {
+    "Copy\u2026": {
+      "enabled": true,
+      "help": "Copy\u2026 (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+    },
+    "Move / rename\u2026": {
+      "enabled": true,
+      "help": "Move / rename\u2026 (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+    },
+    "Delete\u2026": {
+      "enabled": true,
+      "help": "Delete\u2026 (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently."
+    }
+  },
+  "focusAfterUp": "remote-0000.txt, file, 9 bytes, modified 10/27/2026 11:23:15\u202fAM, not marked, 2 of 2001",
+  "upSeconds": 3.156,
+  "toolbarAfterUp": {
+    "Copy\u2026": {
+      "enabled": true,
+      "help": "Copy\u2026 (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+    },
+    "Move / rename\u2026": {
+      "enabled": true,
+      "help": "Move / rename\u2026 (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+    },
+    "Delete\u2026": {
+      "enabled": true,
+      "help": "Delete\u2026 (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently."
+    }
+  },
+  "sentinelExact": true,
+  "localEmpty": true
+}

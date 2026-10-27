@@ -1,0 +1,305 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "fixture": "/home/benny/FileCatValidation/CommandAvailability/f9da9eb60cc64f58a849f6a4a34f0e55",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "local": {
+    "Copy": {
+      "toolbar": {
+        "enabled": true,
+        "help": "Copy\u2026 (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose.",
+        "bounds": [
+          368,
+          206,
+          126,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": true,
+        "bounds": [
+          732,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Move": {
+      "toolbar": {
+        "enabled": true,
+        "help": "Move / rename\u2026 (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them.",
+        "bounds": [
+          498,
+          206,
+          132,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": true,
+        "bounds": [
+          880,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Delete": {
+      "toolbar": {
+        "enabled": true,
+        "help": "Delete\u2026 (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.",
+        "bounds": [
+          843,
+          206,
+          146,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": true,
+        "bounds": [
+          1176,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Back": {
+      "toolbar": {
+        "enabled": false,
+        "help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab.",
+        "bounds": [
+          144,
+          210,
+          52,
+          52
+        ]
+      },
+      "keybar": null
+    }
+  },
+  "localFileMenu": {
+    "Copy\u2026": true,
+    "Move / rename\u2026": true,
+    "Delete\u2026": true
+  },
+  "localNavigateMenu": {
+    "Back": false
+  },
+  "places": [
+    [
+      756,
+      340,
+      159,
+      40
+    ],
+    [
+      1644,
+      338,
+      159,
+      40
+    ]
+  ],
+  "drive": {
+    "Copy": {
+      "toolbar": {
+        "enabled": true,
+        "help": "Copy\u2026 (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose.",
+        "bounds": [
+          368,
+          206,
+          126,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": true,
+        "bounds": [
+          732,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Move": {
+      "toolbar": {
+        "enabled": false,
+        "help": "Move / rename\u2026 (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them.\nUnavailable here: Drives cannot be moved: open a drive (Enter) to move what is on it. Use F5 to copy instead.",
+        "bounds": [
+          498,
+          206,
+          132,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": false,
+        "bounds": [
+          880,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Delete": {
+      "toolbar": {
+        "enabled": false,
+        "help": "Delete\u2026 (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.\nUnavailable here: Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+        "bounds": [
+          843,
+          206,
+          146,
+          59
+        ]
+      },
+      "keybar": {
+        "enabled": false,
+        "bounds": [
+          1176,
+          1143,
+          144,
+          51
+        ]
+      }
+    },
+    "Back": {
+      "toolbar": {
+        "enabled": true,
+        "help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.",
+        "bounds": [
+          144,
+          210,
+          52,
+          52
+        ]
+      },
+      "keybar": null
+    }
+  },
+  "driveRow": "/, drive, not marked, 1 of 1",
+  "driveFileMenu": {
+    "Copy\u2026": true,
+    "Move / rename\u2026": false,
+    "Delete\u2026": false
+  },
+  "driveNavigateMenu": {
+    "Back": true
+  },
+  "paletteCopy": [
+    "Entry { Id = file.copy, Title = Copy\u2026, Category = File, Gesture = F5, MenuPath = File, Keywords = System.String[], Enabled = True, Reason = , Description = Copies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose. }",
+    "Copy\u2026",
+    "Entry { Id = clipboard.copyNames, Title = Copy names, Category = Commands, Gesture = Ctrl+Shift+N, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy names",
+    "Entry { Id = clipboard.copyPaths, Title = Copy full paths, Category = Commands, Gesture = Ctrl+Shift+C, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy full paths",
+    "Entry { Id = clipboard.copyUnc, Title = Copy UNC paths, Category = Commands, Gesture = Ctrl+Shift+U, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy UNC paths",
+    "Entry { Id = clipboard.copy, Title = Copy items to clipboard, Category = Commands, Gesture = Ctrl+C, MenuPath = Commands, Keywords = System.String[], Enabled = True, Reason = , Description = Puts the marked items (or the one under the cursor) on the clipboard, to be copied where you paste them. }",
+    "Copy items to clipboard",
+    "Entry { Id = tab.copyToTarget, Title = Copy tab to target panel, Category = Tabs, Gesture = , MenuPath = Panels, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy tab to target panel",
+    "Copy\u2026",
+    "Copy",
+    "Copy",
+    "Copy",
+    "Entry { Id = file.copy, Title = Copy\u2026, Category = File, Gesture = F5, MenuPath = File, Keywords = System.String[], Enabled = True, Reason = , Description = Copies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose. }",
+    "Copy\u2026",
+    "Entry { Id = clipboard.copyNames, Title = Copy names, Category = Commands, Gesture = Ctrl+Shift+N, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy names",
+    "Entry { Id = clipboard.copyPaths, Title = Copy full paths, Category = Commands, Gesture = Ctrl+Shift+C, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy full paths",
+    "Entry { Id = clipboard.copyUnc, Title = Copy UNC paths, Category = Commands, Gesture = Ctrl+Shift+U, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy UNC paths",
+    "Entry { Id = clipboard.copy, Title = Copy items to clipboard, Category = Commands, Gesture = Ctrl+C, MenuPath = Commands, Keywords = System.String[], Enabled = True, Reason = , Description = Puts the marked items (or the one under the cursor) on the clipboard, to be copied where you paste them. }",
+    "Copy items to clipboard",
+    "Entry { Id = tab.copyToTarget, Title = Copy tab to target panel, Category = Tabs, Gesture = , MenuPath = Panels, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Copy tab to target panel"
+  ],
+  "paletteDelete": [
+    "Entry { Id = file.delete, Title = Delete\u2026, Category = File, Gesture = F8, MenuPath = File, Keywords = System.String[], Enabled = False, Reason = Drives are not deleted from here: open a drive (Enter) to delete what is on it., Description = Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently. }",
+    "Delete\u2026",
+    "File \u00b7 unavailable here: Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+    "Entry { Id = file.deletePermanent, Title = Delete permanently\u2026, Category = File, Gesture = Shift+F8, MenuPath = File, Keywords = System.String[], Enabled = False, Reason = Drives are not deleted from here: open a drive (Enter) to delete what is on it., Description =  }",
+    "Delete permanently\u2026",
+    "File \u00b7 unavailable here: Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+    "Entry { Id = tools.findDeleted, Title = Recover deleted files\u2026, Category = Commands, Gesture = , MenuPath = Tools, Keywords = System.String[], Enabled = True, Reason = , Description = Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive. }",
+    "Recover deleted files\u2026",
+    "Tools \u00b7 Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.",
+    "Delete\u2026",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Entry { Id = file.delete, Title = Delete\u2026, Category = File, Gesture = F8, MenuPath = File, Keywords = System.String[], Enabled = False, Reason = Drives are not deleted from here: open a drive (Enter) to delete what is on it., Description = Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently. }",
+    "Delete\u2026",
+    "File \u00b7 unavailable here: Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+    "Entry { Id = file.deletePermanent, Title = Delete permanently\u2026, Category = File, Gesture = Shift+F8, MenuPath = File, Keywords = System.String[], Enabled = False, Reason = Drives are not deleted from here: open a drive (Enter) to delete what is on it., Description =  }",
+    "Delete permanently\u2026",
+    "File \u00b7 unavailable here: Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+    "Entry { Id = tools.findDeleted, Title = Recover deleted files\u2026, Category = Commands, Gesture = , MenuPath = Tools, Keywords = System.String[], Enabled = True, Reason = , Description = Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive. }",
+    "Recover deleted files\u2026",
+    "Tools \u00b7 Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive."
+  ],
+  "paletteMove": [
+    "Move tab left",
+    "Panels \u00b7 Moves the active tab one place left. Dragging a tab along the strip moves it too, or onto another panel's tabs.",
+    "Entry { Id = tab.moveRight, Title = Move tab right, Category = Tabs, Gesture = Ctrl+Shift+PgDn, MenuPath = Panels, Keywords = System.String[], Enabled = True, Reason = , Description = Moves the active tab one place right. Dragging a tab along the strip moves it too, or onto another panel's tabs. }",
+    "Move tab right",
+    "Panels \u00b7 Moves the active tab one place right. Dragging a tab along the strip moves it too, or onto another panel's tabs.",
+    "Entry { Id = mark.toggleDown, Title = Mark and move down, Category = Mark, Gesture = Ins, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Mark and move down",
+    "Entry { Id = mark.toggle, Title = Mark and move down, sizing folders, Category = Mark, Gesture = Space, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Mark and move down, sizing folders",
+    "Move / rename\u2026",
+    "Move",
+    "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Move",
+    "Move",
+    "Entry { Id = file.move, Title = Move / rename\u2026, Category = File, Gesture = F6, MenuPath = File, Keywords = System.String[], Enabled = False, Reason = Drives cannot be moved: open a drive (Enter) to move what is on it. Use F5 to copy instead., Description = Moves the marked items (or the one under the cursor) to the target panel's folder, or renames them. }",
+    "Move / rename\u2026",
+    "File \u00b7 unavailable here: Drives cannot be moved: open a drive (Enter) to move what is on it. Use F5 to copy instead.",
+    "Entry { Id = panel.moveDown, Title = Move panel down, Category = Panels, Gesture = Alt+Shift+Down, MenuPath = Panels \u203a Arrange, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Move panel down",
+    "Entry { Id = panel.moveLeft, Title = Move panel left, Category = Panels, Gesture = Alt+Shift+Left, MenuPath = Panels \u203a Arrange, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Move panel left",
+    "Entry { Id = panel.moveRight, Title = Move panel right, Category = Panels, Gesture = Alt+Shift+Right, MenuPath = Panels \u203a Arrange, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Move panel right",
+    "Entry { Id = panel.moveUp, Title = Move panel up, Category = Panels, Gesture = Alt+Shift+Up, MenuPath = Panels \u203a Arrange, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Move panel up",
+    "Entry { Id = tab.moveLeft, Title = Move tab left, Category = Tabs, Gesture = Ctrl+Shift+PgUp, MenuPath = Panels, Keywords = System.String[], Enabled = True, Reason = , Description = Moves the active tab one place left. Dragging a tab along the strip moves it too, or onto another panel's tabs. }",
+    "Move tab left",
+    "Panels \u00b7 Moves the active tab one place left. Dragging a tab along the strip moves it too, or onto another panel's tabs.",
+    "Entry { Id = tab.moveRight, Title = Move tab right, Category = Tabs, Gesture = Ctrl+Shift+PgDn, MenuPath = Panels, Keywords = System.String[], Enabled = True, Reason = , Description = Moves the active tab one place right. Dragging a tab along the strip moves it too, or onto another panel's tabs. }",
+    "Move tab right",
+    "Panels \u00b7 Moves the active tab one place right. Dragging a tab along the strip moves it too, or onto another panel's tabs.",
+    "Entry { Id = mark.toggleDown, Title = Mark and move down, Category = Mark, Gesture = Ins, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Mark and move down",
+    "Entry { Id = mark.toggle, Title = Mark and move down, sizing folders, Category = Mark, Gesture = Space, MenuPath = Mark, Keywords = System.String[], Enabled = True, Reason = , Description =  }",
+    "Mark and move down, sizing folders"
+  ],
+  "paletteBack": [
+    "ThemeBackdrop",
+    "Entry { Id = nav.back, Title = Back, Category = Navigate, Gesture = Alt+Left, MenuPath = Navigate, Keywords = System.String[], Enabled = True, Reason = , Description = Goes back to the folder this tab showed before. }",
+    "Back",
+    "Navigate \u00b7 Goes back to the folder this tab showed before.",
+    "Back",
+    "Entry { Id = nav.back, Title = Back, Category = Navigate, Gesture = Alt+Left, MenuPath = Navigate, Keywords = System.String[], Enabled = True, Reason = , Description = Goes back to the folder this tab showed before. }",
+    "Back",
+    "Navigate \u00b7 Goes back to the folder this tab showed before."
+  ],
+  "afterF8": [
+    "Delete\u2026",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Drives are not deleted from here: open a drive (Enter) to delete what is on it."
+  ],
+  "unexpectedDeleteReview": false,
+  "fileExact": true,
+  "targetEmpty": true
+}

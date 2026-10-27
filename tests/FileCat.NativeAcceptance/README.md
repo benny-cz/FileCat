@@ -2124,3 +2124,18 @@ filter exclusion, association priority, Advanced text round trip and
 Cancel/reopen restoration. It preserves its sample bytes, removes only its
 fixture and never runs the configured tool. The 27 October direct receipt is
 `docs/validation/evidence/ac-s2-036-ubuntu.json`.
+
+`linux-atspi-command-availability.py APP REPORT.json KEY_HELPER` checks
+native local-file to Computer-drive command admission through physical menu,
+search and F8 keys plus AT-SPI toolbar/key-bar state and help. It confirms
+exact owned source and empty target. The 27 October direct receipt is
+`docs/validation/evidence/ac-s2-037-ubuntu-parity.json`.
+
+`linux-atspi-availability-latency.py APP REPORT.json KEY_HELPER` uses a
+fresh 2,000-file guest-local SFTP folder through an owned loopback SSH relay.
+Pass the input and SFTP passwords only in transient environment variables.
+After verifying the server fingerprint and complete listing, it drops only
+its relay and sends ten physical Down and Up strokes. Focus, bounded time,
+stable command state and source/target integrity are recorded. It closes
+only its app and relay and removes only its fixture. The direct receipt is
+`docs/validation/evidence/ac-s2-037-ubuntu-latency.json`.

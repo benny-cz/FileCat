@@ -24,7 +24,8 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "f3": (61,), "shift+f3": (42, 61), "f4": (62,), "f5": (63,), "f6": (64,), "f7": (65,), "f8": (66,),
         "end": (107,), "pageup": (104,), "pagedown": (109,), "space": (57,),
         "right": (106,), "tab": (15,), "alt+tab": (56, 15), "alt+left": (56, 105),
-        "alt+up": (56, 103), "ctrl+l": (29, 38),
+        "alt+up": (56, 103), "alt+f": (56, 33), "alt+n": (56, 49),
+        "ctrl+l": (29, 38),
         "ctrl+a": (29, 30), "ctrl+f": (29, 33), "ctrl+i": (29, 23), "ctrl+t": (29, 20),
         "ctrl+tab": (29, 15), "ctrl+shift+l": (29, 42, 38),
         "ctrl+r": (29, 19), "ctrl+s": (29, 31), "ctrl+m": (29, 50), "ctrl+k": (29, 37), "ctrl+home": (29, 102), "slash": (53,), "a": (30,), "c": (46,), "h": (35,), "r": (19,), "backspace": (14,), "ctrl+shift+p": (29, 42, 25), "ctrl+shift+f": (29, 42, 33),
@@ -35,7 +36,9 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
 LETTERS = dict(zip("abcdefghijklmnopqrstuvwxyz ", (30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50, 49, 24, 25, 16, 19,
                                                      31, 20, 22, 47, 17, 45, 21, 44, 57)))
 SEQUENCES = {"filter-hide": ((42, 9), (42, 43), (48,), (42, 9)),
-             "filter-reset": ((42, 9),)}  # *|b* and * on a US-layout test VM
+             "filter-reset": ((42, 9),),
+             "down-ten": ((108,),) * 10,
+             "up-ten": ((103,),) * 10}  # *|b*, *, and bounded list focus runs
 EV_KEY = 1
 EV_SYN = 0
 

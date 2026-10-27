@@ -1,5 +1,35 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-command-availability-20261027"></a>
+**27 October 2026, native command availability parity (AC-S2-037-PARITY):**
+On the isolated Ubuntu VMware guest, the Git-built `34fee315` app had DLL
+SHA-256 `b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`.
+The [tracked native AT-SPI and physical-key runner](../../tests/FileCat.NativeAcceptance/linux-atspi-command-availability.py)
+focused a test-owned local file, then opened the Computer provider and
+focused its drive row. Copy remained enabled. Move and Delete switched off
+in the toolbar, File menu, function-key bar and command-search result;
+Back switched on in the toolbar and Navigate menu. AT-SPI help on the
+disabled buttons and the keyboard-reached palette gave the specific
+drive-move/delete reasons. Pressing F8 in the disabled context opened no
+Delete review. The local source hash and empty target stayed exact. The
+[direct native receipt](evidence/ac-s2-037-ubuntu-parity.json) passed.
+`ToolbarAvailabilityTests` retains the distinct stale-invocation execution
+gate, which was not inferred solely from the disabled native controls.
+
+<a id="evidence-command-availability-latency-20261027"></a>
+**27 October 2026, large remote focus without an admission wait
+(AC-S2-037-LATENCY):** The same app loaded a complete, test-owned 2,000-file
+SFTP listing through a verified loopback SSH relay. After dropping only that
+relay, ten physical Down strokes reached file 0010 in 3.160 seconds and ten
+Up strokes returned to file 0000 in 3.156 seconds, including the input
+device's setup time. Copy/Move/Delete toolbar state was identical before
+and after both runs. The remote sentinel hash stayed exact and the local
+target empty. The [direct receipt](evidence/ac-s2-037-ubuntu-latency.json)
+passed. [SFTP capability lookup](../../src/FileCat.Remote/Sftp/SftpProvider.cs)
+returns fixed flags, consistent with the native focus run remaining
+responsive while the connection was unavailable. This closes AC-S2-037 at
+its bounded pairwise scope; final audit CI remains separate.
+
 <a id="evidence-settings-structured-20261027"></a>
 **27 October 2026, native enlarged structured Settings (AC-S2-036-NATIVE):**
 In the isolated Ubuntu VMware guest at 1920 × 1200 physical/200%, the
