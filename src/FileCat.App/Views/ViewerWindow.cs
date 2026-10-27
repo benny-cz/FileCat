@@ -1413,8 +1413,9 @@ public sealed class ViewerWindow : Window
                 Close();
                 break;
             case Key.F4:
-                // From a picture to its bytes; from Info to the bytes as they read best (hex for a binary file).
-                SetMode(_isPicture || (_isInfo ? _guess.LooksBinary : !_isHex));
+                // From a picture to its bytes; from Info to the bytes as they read best (hex for a binary file); from a
+                // page to its text, as F4 from inside the page and the page's status line say.
+                SetMode(_isPicture || (_isInfo ? _guess.LooksBinary : !_isHex && !_isPage));
                 break;
             case Key.P when e.KeyModifiers == KeyModifiers.Control && _modePicture.IsVisible:
                 ShowPicture();
@@ -1599,6 +1600,8 @@ public sealed class ViewerWindow : Window
         long generation = _sourceGeneration;
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         _stopSearch.IsVisible = true;
+        // Only the outcome is spoken, not the searching state before it.
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         _pageSearchStatus = $"Searching page {(forward ? "forward" : "backward")}… (Esc stops)";
         UpdateMatchControls();
         UpdateStatus();
@@ -1619,6 +1622,8 @@ public sealed class ViewerWindow : Window
             if (result is { MatchCount: not null }) _pageCountResult = result;
             UpdateMatchControls();
             UpdateStatus();
+            // A page does not tell which match is selected: Next and Previous speak each outcome (Orca heard nothing).
+            ShowSearchOutcome(_pageSearchStatus);
         }
         catch (OperationCanceledException)
         {

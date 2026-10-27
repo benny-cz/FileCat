@@ -18,22 +18,24 @@ public sealed class PageView : NativeControlHost
     private IPageEngine? _engine;
     private HtmlPage? _page;
     private IDisposable? _noHost;
+    private bool _hasKeyboard;
+    private TopLevel? _keyboardOwner;
 
     public PageView(string dataFolder)
     {
         _dataFolder = dataFolder;
         if (OperatingSystem.IsLinux())
         {
-            // Orca cannot reach inside the embedded GTK page (UXBUG-021): Avalonia's AT-SPI tree has no socket for its
-            // plug, and readers said nothing once the page took the keyboard. The page's host takes focus first, so
-            // they hear what it is and how to read the file.
+            // Orca follows focus into the embedded GTK page, but Avalonia's AT-SPI tree has no socket for its plug
+            // (UXBUG-021): readers said nothing while the page itself had the keyboard, before Tab reached anything in
+            // it. The page's host takes focus first, so they hear what it is and how to move into it.
             Focusable = true;
             Avalonia.Automation.AutomationProperties.SetHelpText(this, LinuxReaderHelp);
         }
     }
 
-    /// <summary>What a Linux screen reader hears on the page's host, which is all it can reach of the page.</summary>
-    internal const string LinuxReaderHelp = "Screen readers cannot read inside the rendered page here. F4 shows the same file as text.";
+    /// <summary>What a Linux screen reader hears on the page's host, before focus moves into the page.</summary>
+    internal const string LinuxReaderHelp = "Tab moves into the page. F4 shows the same file as text.";
 
     /// <summary>The page could not be shown: why (no engine installed, or none on this display).</summary>
     public event Action<string>? Failed;
@@ -65,12 +67,57 @@ public sealed class PageView : NativeControlHost
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        if (OperatingSystem.IsLinux() && TopLevel.GetTopLevel(this) is { } top)
+        {
+            _keyboardOwner = top;
+            top.AddHandler(GotFocusEvent, OnWindowGotFocus, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            if (top is WindowBase window) window.Activated += OnWindowActivated;
+        }
         // A display without native controls (a headless test, say) never asks for one: after a moment, say so.
         _noHost?.Dispose();
         _noHost = DispatcherTimer.RunOnce(() =>
         {
             if (_engine is null && IsEffectivelyVisible) Failed?.Invoke("Pages cannot be drawn on this display.");
         }, TimeSpan.FromSeconds(3));
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (_keyboardOwner is { } top)
+        {
+            top.RemoveHandler(GotFocusEvent, OnWindowGotFocus);
+            if (top is WindowBase window) window.Activated -= OnWindowActivated;
+            _keyboardOwner = null;
+        }
+        _hasKeyboard = false;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    // Linux: the X keyboard focus follows Avalonia's focus between the page and the rest of its window (see
+    // LinuxPageEngine.Focus). Another control taking focus, such as Find after F7, takes the keys back from the page;
+    // the window coming back with the page focused gives them to the page again.
+    private void OnWindowGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
+    {
+        if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
+        _hasKeyboard = false;
+        _engine?.ReturnFocus(_keyboardOwner?.TryGetPlatformHandle()?.Handle ?? 0);
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (!IsFocused) return;
+        _hasKeyboard = true;
+        _engine?.Focus();
+    }
+
+    // Linux: however the host gets focus (the viewer focusing the page, or Tab from the controls around it), the keys
+    // go into the page next, so the following Tab moves into it as the host's help says.
+    protected override void OnGotFocus(FocusChangedEventArgs e)
+    {
+        base.OnGotFocus(e);
+        if (!OperatingSystem.IsLinux()) return;
+        _hasKeyboard = true;
+        _engine?.Focus();
     }
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
@@ -155,7 +202,11 @@ public sealed class PageView : NativeControlHost
     /// <summary>The keyboard to the page; on Linux through its host, which screen readers can announce.</summary>
     public void FocusPage()
     {
-        if (OperatingSystem.IsLinux()) Focus();
+        if (OperatingSystem.IsLinux())
+        {
+            if (!IsFocused && Focus()) return; // OnGotFocus gives the page the keys.
+            _hasKeyboard = true;
+        }
         _engine?.Focus();
     }
 
@@ -185,6 +236,8 @@ internal interface IPageEngine : IDisposable
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
+    /// <summary>The keyboard back to the window holding the page (its native handle, 0 if unknown), where only the engine can move it.</summary>
+    void ReturnFocus(nint window) { }
     Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         Task.FromResult<PageFindResult?>(null);
     void ClearFind() { }

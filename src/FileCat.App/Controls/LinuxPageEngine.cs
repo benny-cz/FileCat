@@ -25,6 +25,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
 
     private readonly nint _id;
     private nint _context, _view, _window;
+    private nuint _plug;
     private nint _findController;
     private readonly SemaphoreSlim _findSerial = new(1, 1);
     private volatile TaskCompletionSource<PageFindResult?>? _findPending;
@@ -103,9 +104,22 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         return 0;
     });
 
+    /// <summary>
+    /// The keyboard to the page. Avalonia reparents the page's window rather than embedding it (it sends no XEmbed
+    /// focus messages), so the X input focus is moved here: otherwise it stayed wherever it was, and the keys went to
+    /// the page after Find had taken focus, or to the window after the page had.
+    /// </summary>
     public void Focus() => _ = OnGtk(() =>
     {
-        if (_view != 0) Native.gtk_widget_grab_focus(_view);
+        if (_view == 0) return 0;
+        Native.gtk_widget_grab_focus(_view);
+        if (_plug != 0) Native.SetInputFocus(_plug);
+        return 0;
+    });
+
+    public void ReturnFocus(nint window) => _ = OnGtk(() =>
+    {
+        if (_plug != 0 && window != 0) Native.SetInputFocus((nuint)window);
         return 0;
     });
 
@@ -171,6 +185,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             if (_window != 0) Native.gtk_widget_destroy(_window);
             if (_context != 0) Native.g_object_unref(_context);
             _window = _view = _context = _findController = 0;
+            _plug = 0;
             return 0;
         });
     }
@@ -207,7 +222,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         _window = offscreen ? Native.gtk_offscreen_window_new() : Native.gtk_plug_new(0);
         Native.gtk_container_add(_window, _view);
         Native.gtk_widget_show_all(_window);
-        return offscreen ? 0 : (nint)Native.gtk_plug_get_id(_window);
+        _plug = offscreen ? 0 : Native.gtk_plug_get_id(_window);
+        return (nint)_plug;
     }
 
     private void Connect(nint instance, string signal, nint handler)
@@ -477,6 +493,26 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, int, int, void> gtk_window_resize;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_keyval;
         public static delegate* unmanaged[Cdecl]<nint, uint*, int> gdk_event_get_state;
+        // Optional: without them the keyboard stays where the X server has it.
+        public static delegate* unmanaged[Cdecl]<nint> gdk_display_get_default;
+        public static delegate* unmanaged[Cdecl]<nint, nint> gdk_x11_display_get_xdisplay;
+        public static delegate* unmanaged[Cdecl]<nint, void> gdk_x11_display_error_trap_push;
+        public static delegate* unmanaged[Cdecl]<nint, void> gdk_x11_display_error_trap_pop_ignored;
+        public static delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int> XSetInputFocus;
+        public static delegate* unmanaged[Cdecl]<nint, int> XFlush;
+
+        /// <summary>The X input focus to a window, on GTK's own connection; a window gone meanwhile is ignored.</summary>
+        public static void SetInputFocus(nuint window)
+        {
+            if (XSetInputFocus == null || gdk_display_get_default() is var display && display == 0) return;
+            nint xdisplay = gdk_x11_display_get_xdisplay(display);
+            if (xdisplay == 0) return;
+            const int RevertToParent = 2;
+            gdk_x11_display_error_trap_push(display);
+            XSetInputFocus(xdisplay, window, RevertToParent, 0);
+            XFlush(xdisplay);
+            gdk_x11_display_error_trap_pop_ignored(display);
+        }
         public static delegate* unmanaged[Cdecl]<nint> webkit_web_context_new_ephemeral;
         public static delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void> webkit_web_context_register_uri_scheme;
         public static delegate* unmanaged[Cdecl]<nint, int, void> webkit_web_context_set_cache_model;
@@ -568,6 +604,21 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 gtk_window_resize = (delegate* unmanaged[Cdecl]<nint, int, int, void>)NativeLibrary.GetExport(gtk, "gtk_window_resize");
                 gdk_event_get_keyval = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_keyval");
                 gdk_event_get_state = (delegate* unmanaged[Cdecl]<nint, uint*, int>)NativeLibrary.GetExport(gdk, "gdk_event_get_state");
+                if (NativeLibrary.TryLoad("libX11.so.6", out nint x11) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_display_get_default", out nint defaultDisplay) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_x11_display_get_xdisplay", out nint xdisplay) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_x11_display_error_trap_push", out nint trapPush) &&
+                    NativeLibrary.TryGetExport(gdk, "gdk_x11_display_error_trap_pop_ignored", out nint trapPop) &&
+                    NativeLibrary.TryGetExport(x11, "XSetInputFocus", out nint setFocus) &&
+                    NativeLibrary.TryGetExport(x11, "XFlush", out nint flush))
+                {
+                    gdk_display_get_default = (delegate* unmanaged[Cdecl]<nint>)defaultDisplay;
+                    gdk_x11_display_get_xdisplay = (delegate* unmanaged[Cdecl]<nint, nint>)xdisplay;
+                    gdk_x11_display_error_trap_push = (delegate* unmanaged[Cdecl]<nint, void>)trapPush;
+                    gdk_x11_display_error_trap_pop_ignored = (delegate* unmanaged[Cdecl]<nint, void>)trapPop;
+                    XSetInputFocus = (delegate* unmanaged[Cdecl]<nint, nuint, int, nuint, int>)setFocus;
+                    XFlush = (delegate* unmanaged[Cdecl]<nint, int>)flush;
+                }
                 webkit_web_context_new_ephemeral = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(webkit, "webkit_web_context_new_ephemeral");
                 webkit_web_context_register_uri_scheme = (delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void>)NativeLibrary.GetExport(webkit, "webkit_web_context_register_uri_scheme");
                 webkit_network_proxy_settings_new = (delegate* unmanaged[Cdecl]<byte*, nint, nint>)NativeLibrary.GetExport(webkit, "webkit_network_proxy_settings_new");

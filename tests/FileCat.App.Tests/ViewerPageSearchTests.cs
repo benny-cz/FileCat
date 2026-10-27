@@ -174,10 +174,13 @@ public sealed class ViewerPageSearchTests
         Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
         Dispatcher.UIThread.RunJobs();
         Assert.True(search.IsFocused);
+        // Linux: the X keyboard focus left the page too, or the typed text kept going into it.
+        Assert.Equal(OperatingSystem.IsLinux() ? 1 : 0, fixture.Engine.ReturnCount);
         int before = fixture.Engine.FocusCount;
         viewer.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
+        Assert.Equal(OperatingSystem.IsLinux() ? 1 : 0, fixture.Engine.ReturnCount);
         Assert.Equal(OperatingSystem.IsLinux(), page.IsFocused);
         Assert.Equal(OperatingSystem.IsLinux() ? PageView.LinuxReaderHelp : null, AutomationProperties.GetHelpText(page));
         if (OperatingSystem.IsLinux())
@@ -187,7 +190,53 @@ public sealed class ViewerPageSearchTests
             Assert.Equal(("Web page", PageView.LinuxReaderHelp), (peer.GetName(), peer.GetHelpText()));
             Assert.True(peer.HasKeyboardFocus());
             Assert.Empty(peer.GetChildren());
+            // Tab back onto the host from Find hands the keys to the page as well, so the next Tab moves into it.
+            search.Focus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, fixture.Engine.ReturnCount);
+            int focused = fixture.Engine.FocusCount;
+            page.Focus(NavigationMethod.Tab);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(focused + 1, fixture.Engine.FocusCount);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task Each_page_find_outcome_is_spoken_but_not_the_search_before_it()
+    {
+        // A page does not say which match is selected: Orca heard nothing after F3 and Shift+F3 on a page.
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        var status = Field<TextBlock>(viewer, "_status");
+        Field<TextBox>(viewer, "_search").Text = "needle";
+        foreach (bool forward in new[] { true, false })
+        {
+            var finding = Find(viewer, forward);
+            await WaitFor(() => fixture.Engine.Requests.Count == (forward ? 1 : 2));
+            Assert.StartsWith($"Searching page {(forward ? "forward" : "backward")}", status.Text);
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(status));
+            fixture.Engine.Requests[^1].Done.SetResult(new PageFindResult(true, 3, true));
+            await finding;
+            Assert.Equal(("Found \"needle\" in the page.", AutomationLiveSetting.Polite),
+                (status.Text, AutomationProperties.GetLiveSetting(status)));
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task F4_from_a_page_shows_its_text_also_from_Find()
+    {
+        // The page's status line says F4 shows its text; with the keyboard in Find it showed hex instead.
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        Assert.True(Field<PageView>(viewer, "_pageView").KeyRequested!(Key.F7, KeyModifiers.None));
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(Field<TextBox>(viewer, "_search").IsFocused);
+        viewer.KeyPressQwerty(PhysicalKey.F4, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(viewer.IsPageShown);
+        Assert.Equal("Mode: Text", Field<TextBlock>(viewer, "_modeLabel").Text);
     }
 
     private sealed class Fixture : IDisposable
@@ -242,6 +291,8 @@ public sealed class ViewerPageSearchTests
         public void SetSize(int width, int height) { }
         public int FocusCount { get; private set; }
         public void Focus() => FocusCount++;
+        public int ReturnCount { get; private set; }
+        public void ReturnFocus(nint window) => ReturnCount++;
         public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
         {
             var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
