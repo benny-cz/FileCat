@@ -1,5 +1,26 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-operation-focus-diagnostic-20261027"></a>
+**27 October 2026, bounded native Operations focus diagnostic:**
+The isolated Windows 11 VMware guest ran exact Git `3a4d7cba` (app DLL
+SHA-256 `31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD`).
+The [test-owned native driver](../../tests/FileCat.NativeAcceptance/win-ax-operation-focus.ps1)
+created eight separate finished Create folder jobs. Its UI Automation
+snapshot showed the selected `finished-08` row as Completed and five
+materialized history rows; the list virtualizes older rows. It opened Copy
+review for the exact separate target, but the subsequent snapshot still
+selected `finished-08`. The driver did not prove that it submitted or
+observed a ninth Running job, so this is **setup evidence only**, not a
+failure or acceptance of Details focus. Ignored host receipt:
+`E:\FileCat\.local-ac-s2-015-win-focus-3a4d7cba-r4.json`.
+The first three probes identified a stale UI Automation row after refresh,
+a PowerShell `History` alias collision, and the invalid assumption that all
+eight virtualized rows would be exposed at once. The diagnostic stops here:
+only a driver that waits for an independently observed Running job before
+reopening Details can cover the remaining [AC-S2-015](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015)
+focus and live-issue boundary. The accepted
+[finished-speed subcase](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-speed) stays closed.
+
 <a id="evidence-win-vanished-target-20261027"></a>
 **27 October 2026, native Windows changed destination during drag (FCUX-075):**
 The `51c4c749` Windows 11 VMware diagnostic physically hovered a valid local

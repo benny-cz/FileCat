@@ -681,6 +681,14 @@ Run `operation-save-native <report.json>` with the same finished drawer open.
 It chooses a new guest-local report path in the validation folder through the
 native Save picker, then requires the saved report's average, actual processed
 bytes, one completed item, and unchanged byte-exact source and target files.
+`win-ax-operation-focus.ps1 -AppPath GIT_BUILT_FILECAT_EXE -ReportPath FRESH_JSON`
+is a Windows VM diagnostic for the separate running-job focus case. It safely
+creates eight test-owned finished folder jobs and opens a ninth Copy review.
+The 27 October `3a4d7cba` receipt establishes only the eight finished jobs:
+the driver did not independently observe a ninth Running job before reopening
+Details. Treat that route as unfinished until a later receipt proves Running,
+selected/visible focus and the live issue. It does not reopen the accepted
+finished-speed result.
 `clipboard-cut <source.xml>` selects `a.txt`, sends Ctrl+X, and checks that
 FileCat published its exact path as a Windows shell file drop without removing
 the source. With an Explorer window
