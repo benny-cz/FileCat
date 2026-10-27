@@ -1,5 +1,28 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-clear-history-spoken-20261027"></a>
+**27 October 2026, narrow Windows spoken Clear finished history:**
+The Windows 11 VMware guest ran exact Git `e7b448b7` (app DLL SHA-256
+`19E179E5FFFFF35A64B463791E3A863381ACF71F1D957DC394497B02D4A621B3`)
+and NVDA 2026.2 against a fresh, test-owned Move. The
+[native runner](../../tests/FileCat.NativeAcceptance/win-nvda-clear-history.ps1)
+proved the completed target's exact hash and an unused Undo action, then
+opened **Clear finished history…** at 900 × 650. The emphasized callout
+visibly separated Undo loss, report removal and **File changes: none**.
+NVDA actually spoke that clearing would remove one unused Undo record and
+selected operation reports, would not change files, and that Keep history
+preserves both. **Keep history** had visible bounds and the same HelpText.
+Choosing it kept Undo and Open report available; the target hash stayed
+exact and the source did not return. Direct receipt:
+`E:\FileCat\.local-ac-s2-019-win-nvda-e7b448b7-r4.json` (`Passed: true`).
+The `r1` driver used PowerShell's reserved `$Pid` name, `r2` decoded a
+literal ellipsis incorrectly under Windows PowerShell 5.1, and `r3`
+attempted to set UIA focus on a list that already received initial dialog
+focus. These are bounded driver corrections; `r4` satisfies the spoken
+Keep/retention stop condition. This accepts only
+[AC-S2-019-KEEP](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019-keep). The separate
+active-inverse lifetime after approved history removal remains open.
+
 <a id="evidence-operation-focus-running-20261027"></a>
 **27 October 2026, native Operations Details selects the new Running job:**
 On Windows 11 VMware, exact Git `e7b1dbdf` (app DLL SHA-256

@@ -808,13 +808,22 @@ before Undo. It opens Clear finished history from Operations, measures the
 long job row before and after widening the review, requires the Keep history
 action to remain reachable, then cancels and verifies the moved bytes remain
 at their destination. Finish with `clipboard-stop`.
+`win-nvda-clear-history.ps1 -AppPath GIT_BUILT_FILECAT_EXE -NvdaPath
+SIGNED_PORTABLE_NVDA_EXE -ReportPath FRESH_JSON` checks a separate 900 × 650
+native Windows Move and unused Undo. It hears the Clear finished history
+consequences and Keep history choice through NVDA, then requires Undo,
+Open report and exact moved bytes to remain after Keep. It admits only a
+signed NVDA and a Git app under the VM's `FileCatValidation` folder, and
+closes only its owned processes. The `e7b448b7` receipt accepts this exact
+route; active inverse lifetime after approved removal remains separate.
 `linux-atspi-clear-history.py` is a separate, currently diagnostic Ubuntu
 200% Orca route for the unused Undo consequence and Keep history retention.
 It runs an owned Move in the logged-in VM desktop. Its 27 October
 `4c042d37` probes stopped before a valid history review while the AT-SPI
 tree refreshed; they do not establish product acceptance. A future run must
-capture actual speech and verify Undo and file bytes after Keep history.
-The retained-report and active-inverse boundaries remain separate.
+capture actual speech and verify Undo and file bytes after Keep history on
+that distinct platform if later needed for interoperability. The Windows
+equivalent spoken Keep route passed; the active-inverse boundary remains open.
 For the Windows Recycle Bin inverse, use another fresh `seed-clipboard`
 fixture and launch its isolated FileCat instance. Run `recycle-review
 <source.xml>` to select `a.txt`, press F8 and require the explicit Recycle Bin
