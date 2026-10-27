@@ -116,7 +116,18 @@ public sealed class PageView : NativeControlHost
     {
         if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
         _hasKeyboard = false;
-        _engine?.ReturnFocus(_keyboardOwner is WindowBase { IsActive: true } ? KeyboardHome(_keyboardOwner) : 0);
+        nint home = _keyboardOwner is WindowBase { IsActive: true } ? KeyboardHome(_keyboardOwner) : 0;
+        if (!OperatingSystem.IsMacOS())
+        {
+            _engine?.ReturnFocus(home);
+            return;
+        }
+        // macOS: once Avalonia has moved its focus. Handing over the first responder in the middle of the move made
+        // Avalonia announce the page's host again just before Find, and VoiceOver put the focus back on the host.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_hasKeyboard) _engine?.ReturnFocus(home);
+        });
     }
 
     /// <summary>The native view of the window that takes its own keys: the X window, or on macOS Avalonia's NSView (a
