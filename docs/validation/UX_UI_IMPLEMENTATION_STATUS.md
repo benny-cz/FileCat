@@ -1,5 +1,31 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-expressive-cycle-20261027"></a>
+**27 October 2026, native expressive palette and transparent picture
+(FCUX-013/014/050):** Exact Git `4c042d37` ran on the isolated Ubuntu
+Wayland VMware desktop at 1280 × 800, 100% (app DLL SHA-256 `dd4a201c…`).
+The Psychedelic panel exposed a legible hidden filename, a distinct selected
+row and stable menu labels. The Delete review kept its warning and black-on-
+pink destructive button legible and was cancelled. Text selection, search
+highlight, Previous/Next and `1 match` remained distinct below an opaque
+toolbar. A test-owned 480 × 320 RGBA PNG displayed opaque, half-alpha and
+transparent checkerboard regions. Six VM frames over **374.98 seconds**
+covered the slowest decorative blob's full cycle: each adjacent pair changed
+2,608–3,121 pixels in the exposed main backdrop and **zero** in the picture,
+viewer body and toolbar. AT-SPI confirmed the hidden row, selected bytes
+0–47 and picture Fit control; the source hashes and empty target were
+unchanged and GNOME's original animation setting was restored. Direct guest
+receipt: `/home/benny/FileCatValidation/ac-s2-013-ubuntu-expressive-4c042d37-r3.json`;
+ignored host receipt/measurement:
+`E:\FileCat\.local-ac-s2-013-ubuntu-expressive-4c042d37-r3.json` and
+`E:\FileCat\.local-ac-s2-013-expressive-pixels-r3.json`. Direct VM frames:
+`E:\FileCat\.local-ac-s2-013-expressive-4c042d37-r3-{panel,danger,selection,search,picture-0,picture-1,picture-2,picture-3,picture-4,picture-5}.png`.
+The tracked [native route](../../tests/FileCat.NativeAcceptance/linux-atspi-theme-contrast.py)
+and [capture checker](../../tests/FileCat.NativeAcceptance/check-theme-expressive-captures.py)
+accept only
+[AC-S2-013-UBUNTU-EXPRESSIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-ubuntu-expressive).
+Windows/macOS motion and spoken preference remain open.
+
 <a id="evidence-expressive-toolbar-20261027"></a>
 **27 October 2026, expressive-theme native diagnostic and toolbar correction
 (FCUX-050/051):** On Git `0553f746` (Ubuntu Wayland, app DLL SHA-256
@@ -24,8 +50,9 @@ panel/dialog/search steps. The product correction gives viewer, report and
 Hex-editor control strips an opaque, live theme-bound surface and tracks
 activity across FileCat windows. On the Windows host, the focused theme,
 motion and readability groups passed 36/36 in Release with 16 workers.
-**Native acceptance on the corrected Git build remains pending**; the
-expressive and full-cycle portion of AC-S2-013 stays Open.
+At this diagnostic checkpoint native acceptance on the corrected Git build
+remained pending; the later [exact-build full-cycle result](#evidence-expressive-cycle-20261027)
+accepted that bounded subcase without changing the historical observation.
 
 <a id="evidence-high-contrast-20261027"></a>
 **27 October 2026, native Ubuntu High Contrast panel and viewer (FCUX-013/014):**
@@ -44,8 +71,10 @@ the ignored host copy is
 `E:\FileCat\.local-ac-s2-013-contrast-r1-{panel,danger,selection,search}.png`
 captures. This accepts the bounded
 [AC-S2-013-UBUNTU-CONTRAST](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-ubuntu-contrast)
-subcase. Expressive/transparent picture, complete cycle, Windows/macOS live
-motion and spoken preference remain open.
+subcase. At this checkpoint expressive/transparent picture, complete cycle,
+Windows/macOS live motion and spoken preference remained open; the later
+[expressive-cycle result](#evidence-expressive-cycle-20261027) closed only
+the Ubuntu expressive portion.
 
 <a id="evidence-gnome-motion-20261027"></a>
 **27 October 2026, native GNOME reduced-motion toggle (FCUX-050/051):**
