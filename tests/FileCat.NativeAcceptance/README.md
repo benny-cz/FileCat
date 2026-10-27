@@ -2139,3 +2139,12 @@ its relay and sends ten physical Down and Up strokes. Focus, bounded time,
 stable command state and source/target integrity are recorded. It closes
 only its app and relay and removes only its fixture. The direct receipt is
 `docs/validation/evidence/ac-s2-037-ubuntu-latency.json`.
+
+`linux-atspi-rename-slow-check.py APP REPORT.json KEY_HELPER` starts an
+isolated Ubuntu app with three owned files, then attaches a path-filtered
+`strace` only after the Bulk rename dialog opens. It holds the actual target
+`lstat` for eight seconds, changes the rule during the hold, verifies the
+new full-path mapping wins before and after the old call returns, and cancels
+with physical Escape. It records the delayed syscall and source hashes,
+terminates only its app/tracer and leaves the target empty. The 27 October
+direct receipt is `docs/validation/evidence/ac-s2-038-ubuntu-slow.json`.

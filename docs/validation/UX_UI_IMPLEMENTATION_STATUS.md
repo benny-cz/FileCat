@@ -1,5 +1,22 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-rename-slow-20261027"></a>
+**27 October 2026, native slow target rename rule (AC-S2-038-SLOW):**
+The [Ubuntu AT-SPI and physical-key runner](../../tests/FileCat.NativeAcceptance/linux-atspi-rename-slow-check.py)
+used Git-built `34fee315` (DLL SHA-256
+`b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd`)
+and an isolated three-file source. A filtered `strace` delayed only the owned
+`slow_1.txt` target's actual `lstat` call for eight seconds. While that
+existence check was held, changing the rule to `fast_[C]` published the
+complete new source/target mapping and enabled Rename in 5.428 seconds.
+After the old call returned, the new mapping remained current. Physical
+Escape closed the review; no rename job ran, all three source hashes matched
+and the target stayed empty. The [direct native receipt](evidence/ac-s2-038-ubuntu-slow.json)
+records the delayed syscall, timing, result and exact bytes. The separate
+native counter speech and held-check shutdown boundaries remain open in
+[AC-S2-038](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-038); the earlier 3,001-row Mac
+and 50,000-row headless results remain accepted independently.
+
 <a id="evidence-command-availability-20261027"></a>
 **27 October 2026, native command availability parity (AC-S2-037-PARITY):**
 On the isolated Ubuntu VMware guest, the Git-built `34fee315` app had DLL
