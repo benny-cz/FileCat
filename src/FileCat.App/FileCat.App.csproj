@@ -36,6 +36,7 @@
     <InternalsVisibleTo Include="FileCat.App.Tests" />
     <InternalsVisibleTo Include="FileCat.InstanceSmoke" />
     <InternalsVisibleTo Include="FileCat.PageEngineSmoke" />
+    <InternalsVisibleTo Include="PageEngineFaultHarness" />
     <InternalsVisibleTo Include="FileCat.Rendering.Tests" />
     <InternalsVisibleTo Include="FileCat.Screenshots" />
   </ItemGroup>
