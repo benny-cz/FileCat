@@ -114,4 +114,38 @@ public sealed class ViewerWindowSizeTests
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
     }
+
+    [AvaloniaFact]
+    public void A_scaling_change_with_the_viewer_open_does_not_replace_the_size_the_user_chose()
+    {
+        // On the Win11 VM a change from 100% to 200% shrank an enlarged viewer to fit, and its close saved that size.
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var seed = new ViewerWindow(services, new MemoryContentSource("seed.txt", Encoding.UTF8.GetBytes("seed")), "seed.txt", hex: false);
+            seed.Show();
+            seed.Width = 850;
+            seed.Height = 600;
+            Dispatcher.UIThread.RunJobs();
+            seed.Close();
+            Assert.InRange(services.Settings.ViewerWidth!.Value, 849, 851);
+            var viewer = new ViewerWindow(services, new MemoryContentSource("note.txt", Encoding.UTF8.GetBytes("note")), "note.txt", hex: false);
+            viewer.Show();
+            Dispatcher.UIThread.RunJobs();
+            // The display's scaling changes, then the platform resizes the window for it.
+            viewer.PlatformImpl!.ScalingChanged!(2.0);
+            viewer.Width = 600;
+            viewer.Height = 400;
+            Dispatcher.UIThread.RunJobs();
+            viewer.Close();
+            Assert.InRange(services.Settings.ViewerWidth!.Value, 849, 851);
+            Assert.InRange(services.Settings.ViewerHeight!.Value, 599, 601);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
 }

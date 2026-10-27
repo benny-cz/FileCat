@@ -209,6 +209,18 @@ public sealed class ViewerWindow : Window
             _restoreSizeTimer.Stop();
             _restoringWindowState = false;
         };
+        // Neither a fit to a smaller screen nor the resize a scaling change brings is the user's: the size they chose
+        // stays for later, larger screens. (A change to 200% with the viewer open saved its fitted size instead.)
+        void NotTheUsersSize(bool ongoing)
+        {
+            _normalSizeTimer.Stop();
+            _normalSizePending = false;
+            _restoringWindowState = true;
+            _restoreSizeTimer.Stop();
+            if (!ongoing) _restoreSizeTimer.Start();
+        }
+        WindowFit.Attach(this, NotTheUsersSize);
+        ScalingChanged += (_, _) => NotTheUsersSize(false);
         _normalSizeTimer.Tick += (_, _) =>
         {
             _normalSizeTimer.Stop();

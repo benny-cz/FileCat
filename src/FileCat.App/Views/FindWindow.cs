@@ -156,6 +156,7 @@ public sealed class FindWindow : Window, IViewActions
         _within = within?.Snapshot();
         Title = within is null ? "Find files" : "Find within results";
         Width = 1040; Height = 720; MinWidth = 640; MinHeight = 420;
+        WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         _dialogs = new OverlayDialogService(_overlay, () => _tab is null ? _names : _list);
         _list.FontSize = vm.ListFontSize;

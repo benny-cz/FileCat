@@ -172,6 +172,7 @@ public sealed class CompareWindow : Window
         _reopenAsync = reopenAsync;
         Title = $"Compare: {Path.GetFileName(leftName.TrimEnd('/', '\\'))} ↔ {Path.GetFileName(rightName.TrimEnd('/', '\\'))}";
         Width = 1200; Height = 760; MinWidth = 640; MinHeight = 320;
+        WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         _first = NavigationButton("compare.first", "First difference", "Alt+Home", GoFirst);
         _previous = NavigationButton("compare.previous", "Previous difference", "Alt+Up or Shift+F8", () => Go(-1));

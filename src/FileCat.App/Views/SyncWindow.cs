@@ -68,6 +68,7 @@ public sealed class SyncWindow : Window
         _context = context;
         Title = "Synchronize folders";
         Width = 1000; Height = 680; MinWidth = 600; MinHeight = 320;
+        WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         Avalonia.Automation.AutomationProperties.SetName(_direction, "Direction");
         Avalonia.Automation.AutomationProperties.SetName(_mode, "Mode");

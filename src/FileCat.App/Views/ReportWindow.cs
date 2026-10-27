@@ -69,6 +69,7 @@ public sealed class ReportWindow : Window
         _kind = title;
         Width = 1000;
         Height = 760;
+        WindowFit.Attach(this);
         MinWidth = 480;
         MinHeight = 300;
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }

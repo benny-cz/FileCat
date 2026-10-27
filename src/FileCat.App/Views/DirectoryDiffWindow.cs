@@ -137,6 +137,7 @@ public sealed class DirectoryDiffWindow : Window
         _openSide = openSide;
         Title = $"Compare folders: {Path.GetFileName(leftName.TrimEnd('\\', '/'))} ↔ {Path.GetFileName(rightName.TrimEnd('\\', '/'))}";
         Width = 1100; Height = 700; MinWidth = 600; MinHeight = 300;
+        WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         Avalonia.Automation.AutomationProperties.SetName(_list, "Folder differences");
         Avalonia.Automation.AutomationProperties.SetName(_filter, "Show");
