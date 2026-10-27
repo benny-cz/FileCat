@@ -1,12 +1,21 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [switch]$NarrowNoMatch
+    [switch]$NarrowNoMatch,
+    [switch]$RemappedShortcut
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class FileCatFindInput {
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, int flags, IntPtr extra);
+}
+'@
 
 $validation = Join-Path $env:LOCALAPPDATA 'FileCatValidation'
 $app = [IO.Path]::GetFullPath($AppPath)
@@ -17,9 +26,16 @@ if (!$app.StartsWith(([IO.Path]::GetFullPath($validation) + [IO.Path]::Directory
     (Test-Path -LiteralPath $report)) {
     throw 'Use the isolated Git-built FileCat.exe and a fresh validation report.'
 }
+if ($NarrowNoMatch -and $RemappedShortcut) {
+    throw 'Run the narrow no-match and remapped shortcut boundaries separately.'
+}
 $fixture = Join-Path $validation ('FindResultScopeFixture\' + [guid]::NewGuid().ToString('N'))
 $data = Join-Path $fixture 'data'
 New-Item -ItemType Directory -Force -Path $fixture, $data | Out-Null
+if ($RemappedShortcut) {
+    [IO.File]::WriteAllText((Join-Path $data 'settings.json'),
+        '{"SchemaVersion":1,"KeyBindings":{"find.removeAgain":["Ctrl+Shift+S"],"find.addNew":[]}}')
+}
 $first = Join-Path $fixture 'alpha.txt'
 $second = Join-Path $fixture 'beta.txt'
 $list = Join-Path $fixture 'owned.lst'
@@ -34,6 +50,7 @@ $result = [ordered]@{
     ResultSource = 'owned.lst'
     Scope = $null
     NarrowNoMatch = $null
+    RemappedShortcut = $null
     Error = $null
 }
 $process = $null
@@ -57,6 +74,15 @@ function Named($root, $type, [string]$name) {
     @(Descendants $root | Where-Object {
         $_.Current.ControlType -eq $type -and $_.Current.Name -eq $name
     })
+}
+
+function Send-FindKey([bool]$shift) {
+    [FileCatFindInput]::keybd_event(0x11, 0, 0, [IntPtr]::Zero)
+    if ($shift) { [FileCatFindInput]::keybd_event(0x10, 0, 0, [IntPtr]::Zero) }
+    [FileCatFindInput]::keybd_event(0x53, 0, 0, [IntPtr]::Zero)
+    [FileCatFindInput]::keybd_event(0x53, 0, 2, [IntPtr]::Zero)
+    if ($shift) { [FileCatFindInput]::keybd_event(0x10, 0, 2, [IntPtr]::Zero) }
+    [FileCatFindInput]::keybd_event(0x11, 0, 2, [IntPtr]::Zero)
 }
 
 try {
@@ -112,6 +138,64 @@ try {
         $result.Scope.Guidance -notlike '*only this result-set snapshot*' -or
         !$result.Scope.FindEnabled) {
         throw 'Find did not identify the active immutable result-set scope.'
+    }
+    if ($RemappedShortcut) {
+        $transform = [System.Windows.Automation.TransformPattern]$findWindow.GetCurrentPattern(
+            [System.Windows.Automation.TransformPattern]::Pattern)
+        if (!$transform.Current.CanResize) { throw 'Find window does not expose resize.' }
+        $transform.Resize(640, 420)
+        $intro = Wait-For { @(Descendants $findWindow | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            $_.Current.Name -like '*Ctrl+Shift+S*'
+        }) | Select-Object -First 1 } 'remapped Find gesture guidance'
+        $introText = $intro.Current.Name
+        $names = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Edit) 'Names') |
+            Select-Object -First 1 } 'Names field'
+        ([System.Windows.Automation.ValuePattern]$names.GetCurrentPattern(
+            [System.Windows.Automation.ValuePattern]::Pattern)).SetValue('*')
+        ([System.Windows.Automation.InvokePattern]$findAction.GetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        $listControl = Wait-For { @(Descendants $findWindow | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::List
+        }) |
+            Select-Object -First 1 } 'found-items list'
+        function Found-Names {
+            @(Descendants $listControl | Where-Object {
+                $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem
+            } | ForEach-Object { $_.Current.Name })
+        }
+        Wait-For {
+            $rows = @(Found-Names)
+            if (($rows -join '|') -match 'alpha.txt' -and ($rows -join '|') -match 'beta.txt') { $rows }
+        } 'two initial Find results' | Out-Null
+        ([System.Windows.Automation.ValuePattern]$names.GetCurrentPattern(
+            [System.Windows.Automation.ValuePattern]::Pattern)).SetValue('alpha.txt')
+        $listControl.SetFocus()
+        [FileCatFindInput]::SetForegroundWindow([IntPtr]$findWindow.Current.NativeWindowHandle) | Out-Null
+        Send-FindKey $false
+        Start-Sleep -Milliseconds 500
+        $oldChordRows = @(Found-Names)
+        if (($oldChordRows -join '|') -notmatch 'alpha.txt' -or
+            ($oldChordRows -join '|') -notmatch 'beta.txt') {
+            throw 'The old Ctrl+S binding still changed Find result membership.'
+        }
+        Send-FindKey $true
+        $remainingRows = Wait-For {
+            $rows = @(Found-Names)
+            if (($rows -join '|') -match 'beta.txt' -and
+                ($rows -join '|') -notmatch 'alpha.txt') { $rows }
+        } 'remapped subtract to retain only beta'
+        $result.RemappedShortcut = [ordered]@{
+            Width = $findWindow.Current.BoundingRectangle.Width
+            Height = $findWindow.Current.BoundingRectangle.Height
+            Intro = $introText
+            OldChordRows = $oldChordRows
+            RemainingRows = @($remainingRows)
+        }
+        if ($result.RemappedShortcut.Width -gt 700 -or $result.RemappedShortcut.Height -gt 480 -or
+            $result.RemappedShortcut.Intro -like '*Ctrl+W*') {
+            throw 'The narrow Find shortcut guidance did not match the configured bindings.'
+        }
     }
     if ($NarrowNoMatch) {
         $transform = [System.Windows.Automation.TransformPattern]$findWindow.GetCurrentPattern(

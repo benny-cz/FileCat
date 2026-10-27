@@ -1,0 +1,28 @@
+{
+  "Passed": true,
+  "AppDllSha256": "FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119",
+  "Fixture": "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindResultScopeFixture\\fe0cfa6e4e3f41fa8e680656a94ad245",
+  "ResultSource": "owned.lst",
+  "Scope": {
+    "Heading": "Find within results",
+    "SearchWithin": "Search within",
+    "SearchWithinValue": "List: owned.lst (2 items)",
+    "SearchWithinReadOnly": true,
+    "Guidance": "Find will search only this result-set snapshot.",
+    "FindEnabled": true
+  },
+  "NarrowNoMatch": null,
+  "RemappedShortcut": {
+    "Width": 640,
+    "Height": 420,
+    "Intro": "Found items appear here. Enter searches; Ctrl+I keeps only items found again, Ctrl+Shift+S removes them from the list, and the Find menu adds new finds.",
+    "OldChordRows": [
+      "alpha.txt",
+      "beta.txt"
+    ],
+    "RemainingRows": [
+      "beta.txt"
+    ]
+  },
+  "Error": null
+}

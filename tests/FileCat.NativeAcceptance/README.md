@@ -10,6 +10,11 @@ Add `-NarrowNoMatch` to resize that Find window to 640 × 420, search for an
 absent unique name, and require a visible no-match headline plus an accessible
 explanation naming the query and result-set scope. This is a distinct
 completion boundary and does not retest the accepted origin without cause.
+Use `-RemappedShortcut` separately to seed only the private profile's Find
+Subtract binding as Ctrl+Shift+S and unbind Add. At 640 × 420, it checks the
+visible effective guidance, actual Ctrl+S versus Ctrl+Shift+S result membership,
+and unchanged original files. Component tests cover Settings conflicts, criteria
+editing, path suggestions and an open dialog.
 
 `win-ax-find-registry-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` runs in the logged-in Windows VMware desktop with a fresh
