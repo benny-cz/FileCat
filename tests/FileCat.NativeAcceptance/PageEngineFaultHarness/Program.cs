@@ -151,11 +151,17 @@ internal sealed class HarnessApp : Application
         }
         finally
         {
+            result["cleanupStage"] = "closing viewer";
             Save();
             desktop.MainWindow = null;
             viewer?.Close();
+            result["cleanupStage"] = "disposing services";
+            Save();
             services?.Dispose();
+            result["cleanupStage"] = "removing owned fixture";
+            Save();
             Directory.Delete(root, recursive: true);
+            result["cleanupStage"] = "desktop shutdown";
             Save();
             desktop.Shutdown((bool)result["passed"]! ? 0 : 1);
         }
