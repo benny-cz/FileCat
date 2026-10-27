@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "964c95014b9fed9f6a08a92901717e8c4f481e67",
+  "appDllSha256": "29003473e6bb514d303b3e614b515c5c7a1575bfd4c1dc5bf9866706b8382306",
+  "fixture": "/home/benny/FileCatValidation/QuickViewRemote/d2b6caa359024275991ea926b1fa4612",
+  "remoteAddress": "sftp://benny@127.0.0.1:42433/home/benny/FileCatValidation/QuickViewRemote/d2b6caa359024275991ea926b1fa4612/remote/",
+  "sourceSha256": {
+    "a-first.txt": "1a6c5384193bfe27a62913b405a58048383e4013520787482514fdfd4bd6f385",
+    "b-second.txt": "fea5ddb17b3a4d0727eb9e0b47e067afac7fcb14a84b2fa9934fe369ccce4d9d"
+  },
+  "matchedHostKeys": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "loading": "Loading preview of \"a-first.txt\"\u2026",
+  "cancelMessage": "Preview canceled. Retry it or choose another file.",
+  "cancelWhileRelayDelayed": true,
+  "retriedText": "quick view first selection\n",
+  "secondLoading": "Loading preview of \"b-second.txt\"\u2026",
+  "returnedText": "quick view first selection\n",
+  "lastTitle": "a-first.txt \u00b7 27 bytes",
+  "staleSecondVisible": false,
+  "sourceUnchanged": true,
+  "targetEmpty": true,
+  "relayDelayedChunks": 49
+}

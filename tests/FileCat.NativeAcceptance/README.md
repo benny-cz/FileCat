@@ -2354,3 +2354,13 @@ slow remote source and pointer-specific full-viewer action remain separate
 ledger boundaries; this local runner does not claim either.
 The accepted exact-build receipt is
 `docs/validation/evidence/ac-s2-053-ubuntu-local.json`.
+
+`linux-atspi-quick-view-remote.py APP REPORT.json KEY_HELPER` uses the
+isolated Ubuntu VM's owned loopback SFTP relay and a transient input/SFTP
+credential. It checks the server key against independent OpenSSH fingerprints,
+then delays a Quick View demand long enough to observe named Loading, Cancel
+and Retry. A pending second-file demand is superseded by a return to the
+first file; the resulting title/text and both remote hashes must stay exact.
+The accepted receipt is
+`docs/validation/evidence/ac-s2-053-ubuntu-remote.json`. Actual pointer
+activation of the visible full-viewer action remains a separate ledger case.
