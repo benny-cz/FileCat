@@ -1,5 +1,29 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-operation-focus-running-20261027"></a>
+**27 October 2026, native Operations Details selects the new Running job:**
+On Windows 11 VMware, exact Git `e7b1dbdf` (app DLL SHA-256
+`CC41DD6FE6933AEDB82D3BD23E319AA4A7A1F220503F550B18B1794C7B24C39A`),
+the [native runner](../../tests/FileCat.NativeAcceptance/win-ax-operation-focus.ps1)
+created eight completed, test-owned folder jobs and retained the completed
+selection. It then submitted a 64 MiB Copy at 65,536 bytes/s. Before
+reopening Details, the compact strip visibly said **Copying**, showed
+1.0 MiB of 64.0 MiB, and the ninth journal existed. Reopening Details
+selected the **Running** Copy row, with non-offscreen UIA bounds; the source
+hash remained exact. Direct receipt:
+`E:\FileCat\.local-ac-s2-015-win-focus-e7b1dbdf-r9.json` (`Passed: true`).
+This accepts only [AC-S2-015-FOCUS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-focus).
+The live issue announcement and deliberate history choice during later
+progress remain open; the [finished-speed result](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-speed)
+stays accepted. A bounded investigation explains repeats: the `r4` setup
+never observed Running; `r5` required a journal and an exact phase-only text
+node, `r6` exposed that the driver clicked the key-bar Copy instead of the
+review button, and `r7` proved the real Running job but its combined phase
+text defeated the exact match. `r8` stopped at preflight because `r7` left
+its owned app open; it launched no fixture. The corrected `r9` satisfied the
+predeclared Running/selected/visible stop condition. No more focus repeats
+are needed absent a relevant regression.
+
 <a id="evidence-recovery-spoken-20261027"></a>
 **27 October 2026, narrow Windows NVDA interrupted-recovery review:**
 An independent `seed-recovery` Move journal in the Windows 11 VMware guest

@@ -59,6 +59,22 @@ function Invoke-Button($Window, [string]$Name) {
     ([System.Windows.Automation.InvokePattern]$button.GetCurrentPattern(
         [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
 }
+function Invoke-DialogButton($Window, [string]$DialogName, [string]$ButtonName) {
+    $dialog = Wait-For {
+        @(Descendants $Window | Where-Object {
+            $_.Current.Name -eq $DialogName -and !$_.Current.IsOffscreen
+        } | Select-Object -First 1)
+    } "$DialogName overlay"
+    $button = Wait-For {
+        @(Descendants $dialog | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+            $_.Current.Name -eq $ButtonName -and !$_.Current.IsOffscreen
+        } | Select-Object -First 1)
+    } "$ButtonName in $DialogName"
+    if (!$button.Current.IsEnabled) { throw "$ButtonName in $DialogName is disabled." }
+    ([System.Windows.Automation.InvokePattern]$button.GetCurrentPattern(
+        [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+}
 function Row($Window, [string]$Name) {
     @(Descendants $Window | Where-Object {
         $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
@@ -96,7 +112,7 @@ $data = Join-Path $fixture 'data'
 New-Item -ItemType Directory -Force -Path $source, $target, $data | Out-Null
 $large = Join-Path $source 'a-large.bin'
 $stream = [IO.File]::Create($large)
-try { $stream.SetLength(8L * 1024 * 1024) }
+try { $stream.SetLength(64L * 1024 * 1024) }
 finally { $stream.Dispose() }
 $largeHash = (Get-FileHash -LiteralPath $large -Algorithm SHA256).Hash
 $result = [ordered]@{
@@ -163,11 +179,30 @@ try {
     $limit = Wait-For { Find-Control $window ([System.Windows.Automation.ControlType]::Edit) 'Speed limit (MB/s):' } 'Copy speed field'
     ([System.Windows.Automation.ValuePattern]$limit.GetCurrentPattern(
         [System.Windows.Automation.ValuePattern]::Pattern)).SetValue('0.0625')
-    Invoke-Button $window 'Copy'
-    Wait-For {
-        $all = Descendants $window
-        if (@($all | Where-Object { $_.Current.Name -eq 'Details (Ctrl+J)' -and $_.Current.IsEnabled }).Count) { $true }
-    } 'Details button after Copy'
+    $result.BeforeCopyJournalCount = @(Get-ChildItem -LiteralPath $data -Recurse -Filter '*.fcj' -File).Count
+    $result.CopyCandidates = @((Descendants $window | Where-Object {
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+        $_.Current.Name -eq 'Copy' -and !$_.Current.IsOffscreen
+    }) | ForEach-Object { @($_.Current.BoundingRectangle.Left,
+        $_.Current.BoundingRectangle.Top, $_.Current.BoundingRectangle.Width,
+        $_.Current.BoundingRectangle.Height) })
+    Invoke-DialogButton $window 'Copy dialog' 'Copy'
+    Start-Sleep -Milliseconds 900
+    $result.AfterCopyVisible = @((Descendants $window | Where-Object {
+        $_.Current.ControlType -in @([System.Windows.Automation.ControlType]::Text,
+            [System.Windows.Automation.ControlType]::Button) -and !$_.Current.IsOffscreen
+    }) | ForEach-Object { $_.Current.Name } | Where-Object { $_ } | Select-Object -Last 75)
+    $result.AfterCopyJournalCount = @(Get-ChildItem -LiteralPath $data -Recurse -Filter '*.fcj' -File).Count
+    $result.AfterSubmit = Wait-For {
+        $visible = @((Descendants $window | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            !$_.Current.IsOffscreen
+        }) | ForEach-Object { $_.Current.Name })
+        if (@($visible | Where-Object { $_ -like 'Copying*' }).Count -gt 0 -and
+            @(Get-ChildItem -LiteralPath $data -Recurse -Filter '*.fcj' -File).Count -gt
+                $result.BeforeCopyJournalCount) { $visible }
+    } 'independently visible ninth Running Copy' 25
+    $result.Stage = 'open Details during observed running copy'
     Invoke-Button $window 'Details (Ctrl+J)'
     $result.AfterInitial = History-Snapshot $window
     $result.After = Wait-For {
@@ -189,7 +224,13 @@ catch {
     $result.ErrorType = $_.Exception.GetType().FullName
 }
 finally {
-    if ($process -and !$process.HasExited) { $process.CloseMainWindow() | Out-Null }
+    if ($process -and !$process.HasExited) {
+        $process.CloseMainWindow() | Out-Null
+        if (!$process.WaitForExit(5000)) {
+            $process.Kill()
+            $process.WaitForExit(5000) | Out-Null
+        }
+    }
     [IO.File]::WriteAllText($report, ($result | ConvertTo-Json -Depth 10), [Text.Encoding]::UTF8)
 }
 if (!$result.Passed) { exit 1 }
