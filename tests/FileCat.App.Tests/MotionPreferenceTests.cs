@@ -70,10 +70,25 @@ public sealed class MotionPreferenceTests
     public void Gnome_animation_value_is_parsed_conservatively(string value, bool? expected) =>
         Assert.Equal(expected, SystemMotionPreference.ParseGnomeAnimationValue(value));
 
+    [Theory]
+    [InlineData("true\n", true)]
+    [InlineData("false\n", false)]
+    [InlineData("unknown", null)]
+    [InlineData("", null)]
+    public void Mac_AppKit_motion_value_is_parsed_conservatively(string value, bool? expected) =>
+        Assert.Equal(expected, SystemMotionPreference.ParseMacMotionValue(value));
+
     [Fact]
     public async Task Windows_client_animation_setting_is_read_when_available()
     {
         if (OperatingSystem.IsWindows())
+            Assert.NotNull(await SystemMotionPreference.ReadAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Mac_AppKit_motion_setting_is_read_from_a_fresh_native_process()
+    {
+        if (OperatingSystem.IsMacOS())
             Assert.NotNull(await SystemMotionPreference.ReadAsync(TestContext.Current.CancellationToken));
     }
 
