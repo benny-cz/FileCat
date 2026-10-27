@@ -1,5 +1,61 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-ftps-ci-20261027"></a>
+**27 October 2026, macOS FTPS CI diagnosis:** Five-lane run `4ebac020`
+timed out after 2,596 passed Remote tests and run `759ae044` after 2,600
+passed tests. Their blame sequences ended inside two different cases that
+stop a test-owned pyftpdlib FTPS server during a partial transfer; each
+test process exceeded its four-minute hang bound. The fixture starts one
+Python server with no children, so its `Stop`/failed-start paths now kill
+that exact process instead of asking .NET to enumerate and kill a process
+tree. `Stop` also throws after a ten-second exit deadline. This is a bounded
+test-harness correction, not evidence of a production transfer failure. The
+rebuilt Windows Release Remote project had zero warnings and errors; all nine
+focused FTP/FTPS disconnect Retry/Skip/Cancel cases passed in 1 minute 21
+seconds (`E:\FileCat\.local-ac-s2-012-ftp-focused-fixed.log`).
+The exact-head five-lane run after this change remains the integration gate.
+The [GitHub runs](https://github.com/benny-cz/FileCat/actions/runs/40424923552)
+and [second run](https://github.com/benny-cz/FileCat/actions/runs/40426220086)
+retain their historical results; diagnostic sequences were downloaded into
+ignored local `.local-ci-macos-*` directories.
+
+<a id="evidence-viewer-copy-20261027"></a>
+**27 October 2026, native viewer Copy (FCUX-012/073/076):** A test-owned
+374-byte UTF-8 file contained a unique `café 🍣` range at source bytes
+181–190, a long wrapped line and a final CRLF. The isolated Ubuntu Wayland
+guest ran Git `0e85e9b3` (app DLL SHA-256
+`cd2dd4216289c4fca0c4a95ca3671af4f1c877dbb6e9ab4ea1ad156c6c3c8608`).
+Find revealed the phrase but did not select it; the tracked runner explicitly
+used Ctrl+A in the read-only Text document. Its native AT-SPI status retained
+source bytes 0–373 through Wrap, two font increases and 480 × 300 to
+900 × 650 window reflow. Ctrl+C placed the exact decoded source, including
+multibyte characters and CRLF, on the X11 clipboard. Hex byte search then
+selected bytes 181–190 through the same window sizes; Ctrl+C produced exactly
+`636166C3A920F09F8DA3`. The source hash was unchanged and the target empty.
+Direct guest receipt:
+`/home/benny/FileCatValidation/ac-s2-012-ubuntu-copy-0e85e9b3-r5.json`;
+ignored host copy: `E:\FileCat\.local-ac-s2-012-ubuntu-copy-0e85e9b3-r5.json`.
+The earlier Ubuntu r1–r4 runs diagnosed the clipboard runner, Find-versus-
+selection distinction and toolbar overflow; they are not passing evidence.
+
+The isolated Win11 VMware guest independently ran Git `759ae044` at 96 DPI
+(app DLL SHA-256
+`6357B300E7C6508A6C521412B04B635B6F457495AD297D4AAD28595651B94E0A`).
+Its native UIA/keyboard route selected the same source, enlarged text twice,
+and measured 480 × 300 then 784 × 511 client frames. Text Ctrl+C matched the
+full decoded source byte for byte after UTF-8 encoding; Hex Find selected
+181–190, retained that range through both sizes and copied the same exact hex.
+Both UIA Value patterns were read-only and supplied current selection status.
+The fixture hash and empty target were checked after both actions. Direct
+guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-012-win-copy-759ae044-r7.json`;
+ignored host copy: `E:\FileCat\.local-ac-s2-012-win-copy-759ae044-r7.json`.
+Earlier r1–r6 adjusted only the test runner for UIA row names, Win32 client
+geometry, PowerShell 5.1 and the Hex toggle. This accepts
+[AC-S2-012-COPY](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-copy). Native Info long-line
+access and FCUX-073 event/editor spoken semantics remain
+[AC-S2-012](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012).
+
 <a id="evidence-registry-min-20261027"></a>
 **27 October 2026, minimum native Registry form (FCUX-011):** The isolated
 Win11 VM built Git `759ae044` (app DLL SHA-256

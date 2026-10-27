@@ -10,8 +10,8 @@ accepted equivalent routes stay in
 
 ## Highest priority — S2 and queued defects
 
-- [AC-S2-012](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012): native multibyte
-  Text/Hex selection, reflow, Copy and accessibility semantics.
+- [AC-S2-012](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012): native Info long-line
+  access through reflow and current-content/Hex-editor spoken semantics.
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
   dialog reachability, viewer semantics, native contrast and motion, drag,
   operation evidence, Undo/sync, navigation, workspace/listing, panels,

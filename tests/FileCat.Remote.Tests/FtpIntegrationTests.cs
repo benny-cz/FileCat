@@ -181,7 +181,7 @@ internal sealed class TestFtpServer : IDisposable
         var ready = process.StandardOutput.ReadLineAsync();
         if (!ready.Wait(TimeSpan.FromSeconds(30)) || ready.Result is not { } line || !line.StartsWith("READY ", StringComparison.Ordinal))
         {
-            try { process.Kill(true); } catch (InvalidOperationException) { }
+            try { process.Kill(); } catch (InvalidOperationException) { }
             process.Dispose();
             return null; // pyftpdlib without TLS support (pyOpenSSL) cannot run the TLS server
         }
@@ -211,8 +211,13 @@ internal sealed class TestFtpServer : IDisposable
     /// <summary>Drop only this test-owned server connection, retaining its backing files for interruption checks.</summary>
     public void Stop()
     {
-        try { _process.Kill(true); } catch (InvalidOperationException) { }
-        _process.WaitForExit(10_000);
+        // This fixture launches one Python server with no children. On macOS,
+        // tree-wide Kill can wait in descendant discovery while a dropped TLS
+        // connection is still being torn down, escaping the test's deadlines.
+        // Terminate only the owned server PID and bound the wait explicitly.
+        try { _process.Kill(); } catch (InvalidOperationException) { }
+        if (!_process.WaitForExit(10_000))
+            throw new TimeoutException($"The owned FTP test server {_process.Id} did not stop within 10 seconds.");
     }
 
     /// <summary>Restart the same test-owned server on its original port and root after a connection loss.</summary>
@@ -223,7 +228,7 @@ internal sealed class TestFtpServer : IDisposable
         var launched = Launch(_start) ?? throw new IOException("The test FTP server did not restart.");
         if (launched.Port != Port)
         {
-            launched.Process.Kill(true);
+            launched.Process.Kill();
             launched.Process.Dispose();
             throw new IOException("The test FTP server restarted on a different port.");
         }
