@@ -61,13 +61,18 @@ inspect or control the guest user's desktop.
 uses a fresh guest-local two-file source and Explorer destination; add
 `-Scope Archive` to stage two members from a test ZIP, or
 `-Scope MixedRefusal` for a test-owned working set with one local file and
-one ZIP member. Launch it
+one ZIP member. `-Scope ExternalIntoArchiveRefusal` selects two files in
+native Explorer and drags them onto FileCat's open ZIP panel; it records the
+hover refusal, supported alternative, unchanged source and ZIP hashes, and
+empty job journal. `-Scope InternalArchiveRefusal` is a diagnostic variant
+with FileCat as the source. Launch it
 with `-interactive -noWait`; when `FRESH_JSON.HoverReady` appears, capture
 the VMware screen and create `FRESH_JSON.HoverCaptured` in the guest within
 45 seconds. The runner releases Ctrl and the mouse in `finally`, verifies
 exact copied filenames/hashes and unchanged sources, and writes a receipt.
-The accepted scopes are local-to-Explorer Copy, archive-to-Explorer Copy and
-local/ZIP complete refusal; unsupported/changed-target routes remain open.
+The accepted scopes are local-to-Explorer Copy, archive-to-Explorer Copy,
+local/ZIP complete refusal and Explorer-to-ZIP refusal. Disconnected and
+changed-target routes and valid local review remain open.
 `linux-atspi-sync-endpoints.py APP_PATH REPORT.json KEY_HELPER [--pause-review]`
 checks FCUX-005 in the logged-in Ubuntu VM. It compares two isolated folders
 with the same final name, opens Synchronize, reads both complete selectable

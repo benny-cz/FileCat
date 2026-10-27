@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [ValidateSet('Local', 'Archive', 'MixedRefusal')][string]$Scope = 'Local'
+    [ValidateSet('Local', 'Archive', 'MixedRefusal', 'InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')][string]$Scope = 'Local'
 )
 
 # Runs only in the disposable Windows VM. The host captures a screen while
@@ -61,13 +61,15 @@ function Get-TopWindow([string]$Title) {
         [System.Windows.Automation.TreeScope]::Children,
         [System.Windows.Automation.Condition]::TrueCondition)
     @($tops | Where-Object { $_.Current.Name -like "*$Title*" -and
-        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window }) | Select-Object -First 1
+        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window -and
+        $_.Current.ClassName -eq 'CabinetWClass' }) | Select-Object -First 1
 }
 function Close-OldTestExplorers {
     $tops = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
         [System.Windows.Automation.TreeScope]::Children,
         [System.Windows.Automation.Condition]::TrueCondition)
-    foreach ($top in @($tops | Where-Object { $_.Current.Name -like 'DropTarget-*' -and
+    foreach ($top in @($tops | Where-Object { ($_.Current.Name -like 'DropTarget-*' -or
+        $_.Current.Name -like 'DropSource-*') -and
         $_.Current.ClassName -eq 'CabinetWClass' })) {
         ([System.Windows.Automation.WindowPattern]$top.GetCurrentPattern(
             [System.Windows.Automation.WindowPattern]::Pattern)).Close()
@@ -80,6 +82,13 @@ function Get-Row($Window, [string]$Name) {
     @($all | Where-Object { $_.Current.ControlType -eq
         [System.Windows.Automation.ControlType]::ListItem -and $_.Current.Name -eq $Name }) |
         Select-Object -First 1
+}
+function Get-ExplorerRow($Window, [string]$Name) {
+    $all = $Window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition)
+    $stem = [IO.Path]::GetFileNameWithoutExtension($Name)
+    @($all | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
+        ($_.Current.Name -eq $Name -or $_.Current.Name -eq $stem) }) | Select-Object -First 1
 }
 function Cursor-Receipt {
     $info = New-Object NativeDragInput+CursorInfo
@@ -98,7 +107,9 @@ function Move-Pointer([int]$FromX, [int]$FromY, [int]$ToX, [int]$ToY) {
 }
 
 $fixture = Join-Path $validation ('DragExternal\' + [guid]::NewGuid().ToString('N'))
-$source = Join-Path $fixture 'source'
+$source = if ($Scope -eq 'ExternalIntoArchiveRefusal') {
+    Join-Path $fixture ('DropSource-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+} else { Join-Path $fixture 'source' }
 $target = Join-Path $fixture ('DropTarget-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 $data = Join-Path $fixture 'data'
 New-Item -ItemType Directory -Force -Path $source, $target, $data | Out-Null
@@ -106,11 +117,31 @@ $names = @('alpha-native-drag.txt', 'beta-native-drag.txt')
 $sourceHashes = @{}
 $archivePath = Join-Path $source 'archive.zip'
 $archiveHash = $null
-if ($Scope -eq 'Local') {
+$targetArchivePath = Join-Path $target 'target.zip'
+$targetArchiveHash = $null
+if ($Scope -in @('Local', 'InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
     [IO.File]::WriteAllText((Join-Path $source $names[0]), 'FileCat external drag alpha ' + $fixture, [Text.Encoding]::UTF8)
     [IO.File]::WriteAllText((Join-Path $source $names[1]), 'FileCat external drag beta ' + $fixture, [Text.Encoding]::UTF8)
     foreach ($name in $names) {
         $sourceHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash
+    }
+    if ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $stream = [IO.File]::Create($targetArchivePath)
+        try {
+            $zip = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create, $false)
+            try {
+                $entry = $zip.CreateEntry('unchanged-sentinel.txt')
+                $output = $entry.Open()
+                try {
+                    $bytes = [Text.Encoding]::UTF8.GetBytes('Unsupported drop target must remain unchanged.')
+                    $output.Write($bytes, 0, $bytes.Length)
+                }
+                finally { $output.Dispose() }
+            }
+            finally { $zip.Dispose() }
+        }
+        finally { $stream.Dispose() }
+        $targetArchiveHash = (Get-FileHash -LiteralPath $targetArchivePath -Algorithm SHA256).Hash
     }
 }
 else {
@@ -155,7 +186,8 @@ $hoverCaptured = $report + '.HoverCaptured'
 $result = [ordered]@{
     Passed = $false; Stage = 'launch'; GitHead = $head; Scope = $Scope
     AppDllSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $app) 'FileCat.dll') -Algorithm SHA256).Hash
-    Fixture = $fixture; SourceHashes = $sourceHashes; SourceArchiveSha256 = $archiveHash; RequestedNames = $names
+    Fixture = $fixture; SourceHashes = $sourceHashes; SourceArchiveSha256 = $archiveHash
+    TargetArchiveSha256 = $targetArchiveHash; RequestedNames = $names
 }
 $process = $null
 $mouseDown = $false
@@ -169,14 +201,17 @@ try {
     if ([IO.Path]::GetFullPath($process.MainModule.FileName) -ine $app) {
         throw 'The accessible process is not the exact Git-built test app.'
     }
-    [NativeDragInput]::MoveWindow($process.MainWindowHandle, 30, 60, 875, 910, $true) | Out-Null
+    $appX = if ($Scope -eq 'ExternalIntoArchiveRefusal') { 955 } else { 30 }
+    $explorerX = if ($Scope -eq 'ExternalIntoArchiveRefusal') { 30 } else { 955 }
+    [NativeDragInput]::MoveWindow($process.MainWindowHandle, $appX, 60, 875, 910, $true) | Out-Null
     [NativeDragInput]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
     $window = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
     $result.Stage = 'Explorer target'
-    Start-Process -FilePath explorer.exe -ArgumentList @($target) | Out-Null
-    $explorer = Wait-For { Get-TopWindow ([IO.Path]::GetFileName($target)) } 'test-owned Explorer target'
+    $explorerFolder = if ($Scope -eq 'ExternalIntoArchiveRefusal') { $source } else { $target }
+    Start-Process -FilePath explorer.exe -ArgumentList @($explorerFolder) | Out-Null
+    $explorer = Wait-For { Get-TopWindow ([IO.Path]::GetFileName($explorerFolder)) } 'test-owned Explorer folder'
     $explorerHandle = [IntPtr]::new($explorer.Current.NativeWindowHandle)
-    [NativeDragInput]::MoveWindow($explorerHandle, 955, 60, 895, 910, $true) | Out-Null
+    [NativeDragInput]::MoveWindow($explorerHandle, $explorerX, 60, 895, 910, $true) | Out-Null
     Start-Sleep -Milliseconds 450
     [NativeDragInput]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
     if ($Scope -eq 'Archive') {
@@ -201,16 +236,42 @@ try {
         [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
         Wait-For { Get-Row $window $names[1] } 'archive member in working set' | Out-Null
     }
+    elseif ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $result.Stage = 'open unsupported target archive'
+        $targetZip = Wait-For { Get-Row $window 'target.zip' } 'target archive row'
+        $targetZip.SetFocus()
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        $targetSentinel = Wait-For { Get-Row $window 'unchanged-sentinel.txt' } 'target archive member'
+    }
     $result.Stage = 'selected complete scope'
-    $first = Wait-For { Get-Row $window $names[0] } 'first source row'
-    $second = Wait-For { Get-Row $window $names[1] } 'second source row'
+    if ($Scope -eq 'ExternalIntoArchiveRefusal') {
+        # FileCat restores its saved normal bounds shortly after launch. Place
+        # both windows once more after navigation so the source and target do
+        # not overlap during the physical drag.
+        [NativeDragInput]::MoveWindow($process.MainWindowHandle, 955, 60, 875, 910, $true) | Out-Null
+        [NativeDragInput]::MoveWindow($explorerHandle, 30, 60, 895, 910, $true) | Out-Null
+        Start-Sleep -Milliseconds 350
+        [NativeDragInput]::SetForegroundWindow($explorerHandle) | Out-Null
+        $first = Wait-For { Get-ExplorerRow $explorer $names[0] } 'first Explorer source row'
+        $second = Wait-For { Get-ExplorerRow $explorer $names[1] } 'second Explorer source row'
+    }
+    else {
+        $first = Wait-For { Get-Row $window $names[0] } 'first source row'
+        $second = Wait-For { Get-Row $window $names[1] } 'second source row'
+    }
     foreach ($row in @($first, $second)) {
         $selection = [System.Windows.Automation.SelectionItemPattern]$row.GetCurrentPattern(
             [System.Windows.Automation.SelectionItemPattern]::Pattern)
         $selection.AddToSelection()
     }
-    $first = Get-Row $window $names[0]
-    $second = Get-Row $window $names[1]
+    if ($Scope -eq 'ExternalIntoArchiveRefusal') {
+        $first = Get-ExplorerRow $explorer $names[0]
+        $second = Get-ExplorerRow $explorer $names[1]
+    }
+    else {
+        $first = Get-Row $window $names[0]
+        $second = Get-Row $window $names[1]
+    }
     $firstMarked = [System.Windows.Automation.SelectionItemPattern]$first.GetCurrentPattern(
         [System.Windows.Automation.SelectionItemPattern]::Pattern)
     $secondMarked = [System.Windows.Automation.SelectionItemPattern]$second.GetCurrentPattern(
@@ -220,8 +281,22 @@ try {
     $fromX = [int]($bounds.Left + [Math]::Min(105, $bounds.Width / 2))
     $fromY = [int]($bounds.Top + $bounds.Height / 2)
     $explorerBounds = $explorer.Current.BoundingRectangle
-    $toX = [int]($explorerBounds.Left + $explorerBounds.Width / 2)
-    $toY = [int]($explorerBounds.Top + [Math]::Min(470, $explorerBounds.Height - 100))
+    if ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $targetPeer = [System.Windows.Automation.SelectionItemPattern]$targetSentinel.GetCurrentPattern(
+            [System.Windows.Automation.SelectionItemPattern]::Pattern)
+        $rightList = $targetPeer.Current.SelectionContainer
+        if ($rightList.Current.ControlType -ne [System.Windows.Automation.ControlType]::List) {
+            throw 'The archive sentinel has no accessible target list.'
+        }
+        $result.TargetList = $rightList.Current.Name
+        $rightBounds = $rightList.Current.BoundingRectangle
+        $toX = [int]($rightBounds.Left + $rightBounds.Width / 2)
+        $toY = [int]($rightBounds.Top + [Math]::Min(220, $rightBounds.Height - 60))
+    }
+    else {
+        $toX = [int]($explorerBounds.Left + $explorerBounds.Width / 2)
+        $toY = [int]($explorerBounds.Top + [Math]::Min(470, $explorerBounds.Height - 100))
+    }
     $result.Geometry = @{ FirstRow = @($bounds.Left, $bounds.Top, $bounds.Width, $bounds.Height);
         Explorer = @($explorerBounds.Left, $explorerBounds.Top, $explorerBounds.Width, $explorerBounds.Height);
         From = @($fromX, $fromY); To = @($toX, $toY) }
@@ -255,8 +330,18 @@ try {
     $result.HoverCursor = Cursor-Receipt
     $hoverChild = [NativeDragInput]::WindowFromPoint([Drawing.Point]::new($toX, $toY))
     $hoverRoot = [NativeDragInput]::GetAncestor($hoverChild, 2)
-    $result.HoverWindow = @{ Expected = $explorerHandle.ToInt64(); Actual = $hoverRoot.ToInt64() }
-    if ($hoverRoot -ne $explorerHandle) { throw 'A different window covered the intended Explorer drop target.' }
+    $expectedHover = if ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) { $process.MainWindowHandle } else { $explorerHandle }
+    $result.HoverWindow = @{ Expected = $expectedHover.ToInt64(); Actual = $hoverRoot.ToInt64() }
+    if ($hoverRoot -ne $expectedHover) { throw 'A different window covered the intended drop target.' }
+    if ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $notice = Wait-For {
+            $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+            @($all | Where-Object { $_.Current.Name -like 'This panel cannot receive dropped files*' }) |
+                Select-Object -First 1
+        } 'hover explanation for unsupported external file drop' 4
+        $result.HoverRefusal = $notice.Current.Name
+    }
     [IO.File]::WriteAllText($hoverReady, 'capture hover', [Text.Encoding]::ASCII)
     Wait-For { Test-Path -LiteralPath $hoverCaptured } 'host hover screenshot' 45 | Out-Null
     $result.Stage = 'external drop'
@@ -266,25 +351,42 @@ try {
         [NativeDragInput]::keybd_event(0x11, 0, 0x0002, [UIntPtr]::Zero)
         $controlDown = $false
     }
-    if ($Scope -ne 'MixedRefusal') {
+    if ($Scope -in @('Local', 'Archive')) {
         Wait-For { if (@(Get-ChildItem -LiteralPath $target -File).Count -eq 2) { $true } } 'two Explorer copies' 30 | Out-Null
+    }
+    elseif ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $result.Refusal = $result.HoverRefusal
+        if ($result.Refusal -notlike '*local folder*' -or $result.Refusal -notlike '*F5*') {
+            throw "Unsupported-target feedback omitted a usable alternative: $($result.Refusal)"
+        }
     }
     else { Start-Sleep -Milliseconds 600 }
     $targetNames = @(Get-ChildItem -LiteralPath $target -File | ForEach-Object { $_.Name } | Sort-Object)
     $result.TargetNames = $targetNames
     $result.TargetHashes = @{}
     foreach ($name in $targetNames) { $result.TargetHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $target $name) -Algorithm SHA256).Hash }
-    if ($Scope -ne 'Local') {
+    if ($Scope -in @('Archive', 'MixedRefusal')) {
         $result.ArchiveStillPresentSha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
     }
     if ($Scope -ne 'Archive') {
         $result.SourceStillPresent = @{}
-        $sourceNames = if ($Scope -eq 'Local') { $names } else { @($names[0]) }
+        $sourceNames = if ($Scope -eq 'MixedRefusal') { @($names[0]) } else { $names }
         foreach ($name in $sourceNames) {
             $result.SourceStillPresent[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash
         }
     }
-    if ($Scope -eq 'MixedRefusal') {
+    if ($Scope -in @('InternalArchiveRefusal', 'ExternalIntoArchiveRefusal')) {
+        $result.TargetArchiveStillPresentSha256 = (Get-FileHash -LiteralPath $targetArchivePath -Algorithm SHA256).Hash
+        $journal = Join-Path $data 'local\journal'
+        $result.JournalFileCount = if (Test-Path -LiteralPath $journal) { @(Get-ChildItem -LiteralPath $journal -File -Recurse).Count } else { 0 }
+        if (@(Compare-Object @('target.zip') $targetNames).Count -ne 0 -or
+            $result.TargetArchiveStillPresentSha256 -ne $targetArchiveHash -or
+            $result.JournalFileCount -ne 0 -or
+            $names.Where({ $result.SourceStillPresent[$_] -ne $sourceHashes[$_] }).Count -ne 0) {
+            throw 'Unsupported drop changed source, target archive, Explorer manifest or job journal.'
+        }
+    }
+    elseif ($Scope -eq 'MixedRefusal') {
         if ($targetNames.Count -ne 0 -or $result.SourceStillPresent[$names[0]] -ne $sourceHashes[$names[0]]) {
             throw 'The refused mixed drag published a partial target or changed the local source.'
         }
@@ -298,7 +400,7 @@ try {
             }
         }
     }
-    if ($Scope -ne 'Local' -and $result.ArchiveStillPresentSha256 -ne $archiveHash) {
+    if ($Scope -in @('Archive', 'MixedRefusal') -and $result.ArchiveStillPresentSha256 -ne $archiveHash) {
         throw 'The source archive changed during external drag.'
     }
     $result.Passed = $true

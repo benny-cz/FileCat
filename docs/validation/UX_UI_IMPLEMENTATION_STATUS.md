@@ -1,5 +1,35 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-win-archive-target-20261027"></a>
+**27 October 2026, native Windows unsupported target (FCUX-075):**
+Exact Git `51c4c749` ran in the isolated Windows 11 VMware guest at
+1925 × 1411, 100% (app DLL SHA-256
+`63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87`).
+The [native runner](../../tests/FileCat.NativeAcceptance/win-ax-drag-external.ps1)
+selected two test-owned files in a native Explorer window (`CabinetWClass`),
+then physically dragged them onto FileCat's open ZIP panel. At hover, UI
+Automation read “This panel cannot receive dropped files. Open a local folder
+here, or use F5 to choose a supported destination.” The pointer was inside
+the exact FileCat window; `WindowFromPoint`/`GetAncestor` agreed with its
+window handle, and `GetCursorInfo` recorded cursor handle `65559`. The
+VMware frame shows the two separate windows and ZIP target, but omits the
+pointer glyph and was captured after the transient notice had expired;
+therefore the notice claim rests on the live UI Automation observation.
+After release, both Explorer source hashes matched their originals, the ZIP
+hash stayed `B36B1CD0…96B7DE8`, the target folder still held only that ZIP,
+and the operation journal had zero files. Guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-external-target-51c4c749-r2.json`;
+ignored host receipt/frame:
+`E:\FileCat\.local-ac-s2-071-win-external-target-51c4c749-r2.json` and
+`E:\FileCat\.local-ac-s2-071-win-external-target-51c-r2-hover.png`.
+This accepts [AC-S2-071-WIN-ARCHIVE-TARGET](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-archive-target)
+at the ZIP-target boundary. An earlier candidate used a title-only window
+lookup that could match FileCat itself; that run was discarded. The tracked
+runner now requires Explorer's native window class. On the preceding `4c042d37`
+build, the DragOver path gave no hover explanation; the `51c4c749` change
+reports the refusal once per drag and target. Disconnected and changed-target
+routes and valid local review remain [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
+
 <a id="evidence-win-external-drag-20261027"></a>
 **27 October 2026, native Windows external local Copy (FCUX-071/075):**
 Exact Git `4c042d37` ran in the isolated Windows 11 VMware guest at
@@ -52,8 +82,8 @@ The first diagnostic selected Move on the same volume; the second hovered
 an older test-owned Explorer folder and produced a conflict prompt. Both
 were harness setup errors, not accepted Copy evidence. The runner now
 requests Copy explicitly, closes old test-owned Explorer windows and checks
-the actual hover target before releasing the mouse. Unsupported and
-changed-target refusal remain open in
+the actual hover target before releasing the mouse. At this `4c042d37`
+checkpoint, unsupported and changed-target refusal remained open in
 [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
 
 <a id="evidence-mac-motion-20261027"></a>
