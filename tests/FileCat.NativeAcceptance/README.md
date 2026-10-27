@@ -6,6 +6,10 @@ Windows VMware profile. It invokes native toolbar Find, verifies the separate
 Find within results window, read-only two-item snapshot scope and enabled Find
 action, then checks that the list and both files stayed byte-exact. It closes
 only its own app process. The report path must be fresh.
+Add `-NarrowNoMatch` to resize that Find window to 640 × 420, search for an
+absent unique name, and require a visible no-match headline plus an accessible
+explanation naming the query and result-set scope. This is a distinct
+completion boundary and does not retest the accepted origin without cause.
 
 `win-ax-find-registry-scope.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` runs in the logged-in Windows VMware desktop with a fresh

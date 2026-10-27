@@ -1,5 +1,19 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-find-narrow-nomatch-20261027"></a>
+**27 October 2026, narrow Find no-match state (AC-S2-044-NOMATCH):**
+The [Windows native runner](../../tests/FileCat.NativeAcceptance/win-ax-find-result-scope.ps1)
+reused the owned two-file result-set fixture to exercise a previously uncovered
+completion boundary on Git-built `a5ebd315` (app DLL SHA-256
+`FD123CE363BA8878FB526E594E9544B06F111DCE7E65BBEEA6598E314E1D7119`).
+At the 640 × 420 minimum Find size, a query absent from both files completed
+with a visible, in-window “No matches” headline and a separate accessible
+explanation naming the exact query and two-result scope. The list and both
+files stayed byte-exact. The [direct receipt](evidence/ac-s2-044-win-narrow-nomatch.json)
+accepts only the successful zero-match branch of FCUX-045. Stopped/limited
+results, spoken qualification and the context shortcut remain under
+[AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
+
 <a id="evidence-find-result-scope-20261027"></a>
 **27 October 2026, native Find within a result set (AC-S2-044-RESULT):**
 The [Windows UI Automation runner](../../tests/FileCat.NativeAcceptance/win-ax-find-result-scope.ps1)
@@ -10,7 +24,8 @@ named `List: owned.lst (2 items)`, and the accessible guidance said Find would
 search only this result-set snapshot. Find was enabled without changing the
 scope or either file; the owned list and both files remained byte-exact. The
 [direct receipt](evidence/ac-s2-044-win-result-scope.json) accepts this origin
-route. The context shortcut and narrow completion/speech boundaries remain
+route. The narrow zero-match branch passed separately; context shortcut and
+stopped/limited completion and speech boundaries remain
 open under [AC-S2-044](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-044).
 
 <a id="evidence-find-registry-20261027"></a>

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [switch]$NarrowNoMatch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,6 +33,7 @@ $result = [ordered]@{
     Fixture = $fixture
     ResultSource = 'owned.lst'
     Scope = $null
+    NarrowNoMatch = $null
     Error = $null
 }
 $process = $null
@@ -110,6 +112,44 @@ try {
         $result.Scope.Guidance -notlike '*only this result-set snapshot*' -or
         !$result.Scope.FindEnabled) {
         throw 'Find did not identify the active immutable result-set scope.'
+    }
+    if ($NarrowNoMatch) {
+        $transform = [System.Windows.Automation.TransformPattern]$findWindow.GetCurrentPattern(
+            [System.Windows.Automation.TransformPattern]::Pattern)
+        if (!$transform.Current.CanResize) { throw 'Find window does not expose resize.' }
+        $transform.Resize(640, 420)
+        $bounds = Wait-For {
+            $rect = $findWindow.Current.BoundingRectangle
+            if ($rect.Width -le 700 -and $rect.Height -le 480) { $rect }
+        } 'the 640 by 420 Find window'
+        $names = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Edit) 'Names') |
+            Select-Object -First 1 } 'Names field'
+        $query = 'native-no-match-' + [guid]::NewGuid().ToString('N')
+        ([System.Windows.Automation.ValuePattern]$names.GetCurrentPattern(
+            [System.Windows.Automation.ValuePattern]::Pattern)).SetValue($query)
+        ([System.Windows.Automation.InvokePattern]$findAction.GetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        $headline = Wait-For { @(Descendants $findWindow | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            $_.Current.Name -eq 'No matches'
+        }) | Select-Object -First 1 } 'completed no-match headline'
+        $explanation = Wait-For { @(Descendants $findWindow | Where-Object {
+            $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text -and
+            $_.Current.Name -like 'Criteria and scope:*'
+        }) | Select-Object -First 1 } 'search-specific empty explanation'
+        $headlineRect = $headline.Current.BoundingRectangle
+        $result.NarrowNoMatch = [ordered]@{
+            Width = $bounds.Width
+            Height = $bounds.Height
+            Headline = $headline.Current.Name
+            Explanation = $explanation.Current.Name
+            HeadlineVisible = $headlineRect.Width -gt 0 -and $headlineRect.Height -gt 0 -and
+                $headlineRect.Left -ge $bounds.Left -and $headlineRect.Right -le $bounds.Right
+        }
+        if (!$result.NarrowNoMatch.HeadlineVisible -or
+            $result.NarrowNoMatch.Explanation -notlike "*$query*") {
+            throw 'Narrow Find did not expose a visible, query-specific no-match result.'
+        }
     }
     ([System.Windows.Automation.WindowPattern]$findWindow.GetCurrentPattern(
         [System.Windows.Automation.WindowPattern]::Pattern)).Close()
