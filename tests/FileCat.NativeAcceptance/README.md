@@ -57,6 +57,14 @@ when it finishes, including on failure.
 When launching the app or this runner with VMware `vmrun runProgramInGuest`,
 pass `-interactive`; otherwise the process starts in Session 0 and cannot
 inspect or control the guest user's desktop.
+`win-ax-drag-external.ps1 -AppPath GIT_BUILT_FILECAT_EXE -ReportPath FRESH_JSON`
+uses a fresh guest-local two-file source and Explorer destination. Launch it
+with `-interactive -noWait`; when `FRESH_JSON.HoverReady` appears, capture
+the VMware screen and create `FRESH_JSON.HoverCaptured` in the guest within
+45 seconds. The runner releases Ctrl and the mouse in `finally`, verifies
+exact copied filenames/hashes and unchanged sources, and writes a receipt.
+Its accepted scope is local-to-Explorer Copy only; archive and refused-target
+routes remain separate in the acceptance ledger.
 `linux-atspi-sync-endpoints.py APP_PATH REPORT.json KEY_HELPER [--pause-review]`
 checks FCUX-005 in the logged-in Ubuntu VM. It compares two isolated folders
 with the same final name, opens Synchronize, reads both complete selectable

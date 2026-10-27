@@ -1,5 +1,33 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-win-external-drag-20261027"></a>
+**27 October 2026, native Windows external local Copy (FCUX-071/075):**
+Exact Git `4c042d37` ran in the isolated Windows 11 VMware guest at
+1925 × 1411, 100% (app DLL SHA-256
+`D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952`).
+The [native runner](../../tests/FileCat.NativeAcceptance/win-ax-drag-external.ps1)
+marked both test-owned local source files, physically dragged from the
+FileCat row into a fresh Explorer folder with Ctrl held for Copy, and held
+the pointer at hover for a direct VMware frame. The cursor receipt recorded
+position `(1402, 530)` and native handle `132405`; `WindowFromPoint` and
+`GetAncestor` confirmed that the actual hovered top-level window was the
+intended Explorer target (`394534`). VMware screen capture omits the pointer
+glyph, so the final Copy effect is established by the observed OS result:
+Explorer received **exactly the two selected filenames**, each SHA-256 equal
+to its source, while both source files and hashes remained unchanged. No
+extra target item was published. Guest receipt:
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-local-4c042d37-r4.json`;
+ignored host receipt and held frame:
+`E:\FileCat\.local-ac-s2-071-win-local-4c042d37-r4.json` and
+`E:\FileCat\.local-ac-s2-071-win-local-r4-hover.png`.
+This accepts only [AC-S2-071-WIN-LOCAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local).
+The first diagnostic selected Move on the same volume; the second hovered
+an older test-owned Explorer folder and produced a conflict prompt. Both
+were harness setup errors, not accepted Copy evidence. The runner now
+requests Copy explicitly, closes old test-owned Explorer windows and checks
+the actual hover target before releasing the mouse. Archive staging and
+unsupported-target refusal remain open in [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
+
 <a id="evidence-mac-motion-20261027"></a>
 **27 October 2026, native macOS reduced-motion toggle (FCUX-050/051):**
 Git `799e8918` ran as an isolated, signed app on macOS 27.0.1 Apple Silicon
