@@ -27,6 +27,45 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogViewportTests
 {
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Highlighted_confirmation_exposes_key_points_on_the_initial_keyboard_choice(bool danger)
+    {
+        var host = new Grid();
+        var window = new Window { Width = 720, Height = 540, Content = host };
+        ProductStyles(window);
+        var dialogs = new OverlayDialogService(host, () => null);
+        window.Show();
+        try
+        {
+            var points = new[]
+            {
+                "Action: stop offering recovery reminders",
+                "File changes: none; existing files are not repaired or deleted",
+                "A bounded report remains in Operations",
+                "Path: " + new string('x', 300),
+            };
+            var pending = dialogs.ConfirmWithCancellationAsync("Stop recovery reminders?",
+                "The journal will close after approval.", "Mark reviewed", danger,
+                CancellationToken.None, points);
+            Layout(window);
+            var card = Card(window);
+            Assert.Equal("Stop recovery reminders? dialog", AutomationProperties.GetName(card));
+            var actions = Footer(card).GetVisualDescendants().OfType<Button>().ToArray();
+            var initial = Assert.Single(actions, button => button.IsDefault);
+            Assert.Equal(danger ? "Cancel" : "Mark reviewed", initial.Content);
+            var help = AutomationProperties.GetHelpText(initial);
+            Assert.Contains(points[0], help);
+            Assert.Contains(points[1], help);
+            Assert.Contains(points[2], help);
+            Assert.DoesNotContain(points[3], help);
+            dialogs.CancelAll();
+            Assert.False(await pending);
+        }
+        finally { dialogs.CancelAll(); window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task Bulk_rename_mapping_stays_visible_outside_the_scrolling_form()
     {

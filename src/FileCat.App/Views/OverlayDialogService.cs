@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
@@ -437,6 +438,16 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = !danger, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true, IsDefault = danger };
+        if (highlights is { Count: > 0 })
+        {
+            // The initial keyboard choice receives focus before NVDA reads
+            // the dialog body. Announce the concise key points there, while
+            // leaving full paths and the complete review in the visible body.
+            var spokenPoints = highlights.Take(3).Where(line => line.Length <= 180).ToArray();
+            if (spokenPoints.Length > 0)
+                AutomationProperties.SetHelpText(danger ? cancel : ok,
+                    "Key points: " + string.Join("; ", spokenPoints));
+        }
         var text = highlights is { Count: > 0 }
             ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading, collapseDetails, warnings) : MessageBody(message);
         Session? session = null;
