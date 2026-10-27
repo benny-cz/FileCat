@@ -138,10 +138,8 @@ try {
     }) | Select-Object -First 1 } 'search-specific scope explanation'
     $review = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Button) 'Review search log') |
         Select-Object -First 1 } 'Review search log action'
-    $log = Wait-For { @(Descendants $findWindow | Where-Object {
-        $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-        $_.Current.Name -like 'Log (*'
-    }) | Select-Object -First 1 } 'completion Log action'
+    $log = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Button) 'Search log') |
+        Select-Object -First 1 } 'completion Log action'
     $reviewRect = $review.Current.BoundingRectangle
     $logRect = $log.Current.BoundingRectangle
     $headlineRect = $headline.Current.BoundingRectangle

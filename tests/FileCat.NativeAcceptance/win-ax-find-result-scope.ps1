@@ -161,6 +161,8 @@ try {
             $_.Current.Name -like '*Ctrl+Shift+S*'
         }) | Select-Object -First 1 } 'remapped Find gesture guidance'
         $introText = $intro.Current.Name
+        $introRect = $intro.Current.BoundingRectangle
+        $windowRect = $findWindow.Current.BoundingRectangle
         $names = Wait-For { @(Named $findWindow ([System.Windows.Automation.ControlType]::Edit) 'Names') |
             Select-Object -First 1 } 'Names field'
         ([System.Windows.Automation.ValuePattern]$names.GetCurrentPattern(
@@ -201,12 +203,15 @@ try {
             Width = $findWindow.Current.BoundingRectangle.Width
             Height = $findWindow.Current.BoundingRectangle.Height
             Intro = $introText
+            IntroVisible = $introRect.Width -gt 0 -and $introRect.Top -ge $windowRect.Top -and
+                $introRect.Bottom -le $windowRect.Bottom
             OldChordRows = $oldChordRows
             RemainingRows = @($remainingRows)
         }
         if ($result.RemappedShortcut.Width -gt 700 -or $result.RemappedShortcut.Height -gt 480 -or
             $findWindow.Current.BoundingRectangle.Left -lt 0 -or
             $findWindow.Current.BoundingRectangle.Top -lt 0 -or
+            !$result.RemappedShortcut.IntroVisible -or
             $result.RemappedShortcut.Intro -like '*Ctrl+W*') {
             throw 'The narrow Find shortcut guidance did not match the configured bindings.'
         }
@@ -240,7 +245,8 @@ try {
             Headline = $headline.Current.Name
             Explanation = $explanation.Current.Name
             HeadlineVisible = $headlineRect.Width -gt 0 -and $headlineRect.Height -gt 0 -and
-                $headlineRect.Left -ge $bounds.Left -and $headlineRect.Right -le $bounds.Right
+                $headlineRect.Left -ge $bounds.Left -and $headlineRect.Right -le $bounds.Right -and
+                $headlineRect.Top -ge $bounds.Top -and $headlineRect.Bottom -le $bounds.Bottom
         }
         if (!$result.NarrowNoMatch.HeadlineVisible -or
             $result.NarrowNoMatch.Explanation -notlike "*$query*") {

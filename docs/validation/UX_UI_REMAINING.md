@@ -11,8 +11,7 @@ accepted equivalent routes stay in
 ## Highest priority — S2 and queued defects
 
 - [S2 shared desktop scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s2--shared-desktop-boundaries):
-  Find on-screen minimum-size no-match/shortcut reconfirmation after a layout
-  change, then stopped/incomplete qualification and speech;
+  Find stopped/incomplete qualification and speech;
   scrolling, provider
   context, Markdown, viewer refresh and Settings wording.
   Each table row specifies one bounded consequential route.

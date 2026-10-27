@@ -1,0 +1,38 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindExclusionFixture\\ffcb9c2542c94199b22c24875938e415",
+    "Find":  {
+                 "Width":  640,
+                 "Height":  420,
+                 "Headline":  "No matches outside exclusions",
+                 "Qualification":  "1 not searched (1 ignored)",
+                 "Explanation":  "Criteria and scope: names \"native-no-match-04f5f99f42bd4d5f90399ed73864ca80\" in C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindExclusionFixture\\ffcb9c2542c94199b22c24875938e415 Review the search log for exclusions and items that could not be checked.",
+                 "ReviewLogEnabled":  true,
+                 "ReviewLogBounds":  {
+                                         "Left":  229,
+                                         "Top":  516,
+                                         "Right":  353,
+                                         "Bottom":  545,
+                                         "Width":  124,
+                                         "Height":  29
+                                     },
+                 "WindowBounds":  {
+                                      "Left":  108,
+                                      "Top":  131,
+                                      "Right":  748,
+                                      "Bottom":  551
+                                  },
+                 "HeadlineVisible":  true,
+                 "QualificationVisible":  true,
+                 "ReviewLogReachable":  true,
+                 "PrimaryLogBounds":  {
+                                          "Left":  681,
+                                          "Top":  322,
+                                          "Right":  738,
+                                          "Bottom":  351
+                                      },
+                 "LogOpenedByKeyboard":  true
+             },
+    "Error":  null
+}

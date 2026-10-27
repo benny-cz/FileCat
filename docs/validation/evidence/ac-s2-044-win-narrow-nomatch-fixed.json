@@ -1,0 +1,23 @@
+﻿{
+    "Passed":  true,
+    "AppDllSha256":  "E67E21592CFBF99E94186085EBF2F29756B3710F5779B0EE372556657F198E45",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\FindResultScopeFixture\\3d82cb6ad9a64fb1b9e3ce2f5d989e3a",
+    "ResultSource":  "owned.lst",
+    "Scope":  {
+                  "Heading":  "Find within results",
+                  "SearchWithin":  "Search within",
+                  "SearchWithinValue":  "List: owned.lst (2 items)",
+                  "SearchWithinReadOnly":  true,
+                  "Guidance":  "Find will search only this result-set snapshot.",
+                  "FindEnabled":  true
+              },
+    "NarrowNoMatch":  {
+                          "Width":  640,
+                          "Height":  420,
+                          "Headline":  "No matches",
+                          "Explanation":  "Criteria and scope: names \"native-no-match-19efe7ce43544f93affef04ef17d3f68\" within 2 earlier results",
+                          "HeadlineVisible":  true
+                      },
+    "RemappedShortcut":  null,
+    "Error":  null
+}
