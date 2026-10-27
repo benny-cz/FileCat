@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [ValidateSet('Local', 'Archive')][string]$Scope = 'Local'
 )
 
 # Runs only in the disposable Windows VM. The host captures a screen while
@@ -8,6 +9,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.IO.Compression
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -100,16 +103,42 @@ $target = Join-Path $fixture ('DropTarget-' + [guid]::NewGuid().ToString('N').Su
 $data = Join-Path $fixture 'data'
 New-Item -ItemType Directory -Force -Path $source, $target, $data | Out-Null
 $names = @('alpha-native-drag.txt', 'beta-native-drag.txt')
-[IO.File]::WriteAllText((Join-Path $source $names[0]), 'FileCat external drag alpha ' + $fixture, [Text.Encoding]::UTF8)
-[IO.File]::WriteAllText((Join-Path $source $names[1]), 'FileCat external drag beta ' + $fixture, [Text.Encoding]::UTF8)
 $sourceHashes = @{}
-foreach ($name in $names) { $sourceHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash }
+$archivePath = Join-Path $source 'archive.zip'
+$archiveHash = $null
+if ($Scope -eq 'Local') {
+    [IO.File]::WriteAllText((Join-Path $source $names[0]), 'FileCat external drag alpha ' + $fixture, [Text.Encoding]::UTF8)
+    [IO.File]::WriteAllText((Join-Path $source $names[1]), 'FileCat external drag beta ' + $fixture, [Text.Encoding]::UTF8)
+    foreach ($name in $names) {
+        $sourceHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash
+    }
+}
+else {
+    $stream = [IO.File]::Create($archivePath)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $zip = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create, $false)
+        try {
+            foreach ($name in $names) {
+                $bytes = [Text.Encoding]::UTF8.GetBytes("FileCat external ZIP drag $name $fixture")
+                $sourceHashes[$name] = [BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace('-', '')
+                $entry = $zip.CreateEntry($name, [IO.Compression.CompressionLevel]::NoCompression)
+                $output = $entry.Open()
+                try { $output.Write($bytes, 0, $bytes.Length) }
+                finally { $output.Dispose() }
+            }
+        }
+        finally { $zip.Dispose() }
+    }
+    finally { $hasher.Dispose(); $stream.Dispose() }
+    $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
+}
 $hoverReady = $report + '.HoverReady'
 $hoverCaptured = $report + '.HoverCaptured'
 $result = [ordered]@{
-    Passed = $false; Stage = 'launch'; GitHead = $head
+    Passed = $false; Stage = 'launch'; GitHead = $head; Scope = $Scope
     AppDllSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $app) 'FileCat.dll') -Algorithm SHA256).Hash
-    Fixture = $fixture; SourceHashes = $sourceHashes; RequestedNames = $names
+    Fixture = $fixture; SourceHashes = $sourceHashes; SourceArchiveSha256 = $archiveHash; RequestedNames = $names
 }
 $process = $null
 $mouseDown = $false
@@ -133,6 +162,13 @@ try {
     [NativeDragInput]::MoveWindow($explorerHandle, 955, 60, 895, 910, $true) | Out-Null
     Start-Sleep -Milliseconds 450
     [NativeDragInput]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
+    if ($Scope -eq 'Archive') {
+        $result.Stage = 'open source archive'
+        $archiveRow = Wait-For { Get-Row $window 'archive.zip' } 'archive row'
+        $archiveRow.SetFocus()
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        Wait-For { Get-Row $window $names[0] } 'first archive member' | Out-Null
+    }
     $result.Stage = 'selected complete scope'
     $first = Wait-For { Get-Row $window $names[0] } 'first source row'
     $second = Wait-For { Get-Row $window $names[1] } 'second source row'
@@ -187,13 +223,24 @@ try {
     $result.TargetNames = $targetNames
     $result.TargetHashes = @{}
     foreach ($name in $targetNames) { $result.TargetHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $target $name) -Algorithm SHA256).Hash }
-    $result.SourceStillPresent = @{}
-    foreach ($name in $names) { $result.SourceStillPresent[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash }
+    if ($Scope -eq 'Archive') {
+        $result.ArchiveStillPresentSha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
+    }
+    else {
+        $result.SourceStillPresent = @{}
+        foreach ($name in $names) {
+            $result.SourceStillPresent[$name] = (Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash
+        }
+    }
     if (@(Compare-Object ($names | Sort-Object) $targetNames).Count -ne 0) { throw 'Explorer received an incomplete or extra manifest.' }
     foreach ($name in $names) {
-        if ($result.TargetHashes[$name] -ne $sourceHashes[$name] -or $result.SourceStillPresent[$name] -ne $sourceHashes[$name]) {
+        if ($result.TargetHashes[$name] -ne $sourceHashes[$name] -or
+            $Scope -eq 'Local' -and $result.SourceStillPresent[$name] -ne $sourceHashes[$name]) {
             throw "Content or source changed for $name."
         }
+    }
+    if ($Scope -eq 'Archive' -and $result.ArchiveStillPresentSha256 -ne $archiveHash) {
+        throw 'The source archive changed during external drag.'
     }
     $result.Passed = $true
     $result.Stage = 'complete'

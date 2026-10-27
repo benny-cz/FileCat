@@ -20,13 +20,29 @@ extra target item was published. Guest receipt:
 ignored host receipt and held frame:
 `E:\FileCat\.local-ac-s2-071-win-local-4c042d37-r4.json` and
 `E:\FileCat\.local-ac-s2-071-win-local-r4-hover.png`.
-This accepts only [AC-S2-071-WIN-LOCAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local).
+The same runner's Archive scope opened a test ZIP in FileCat, marked both
+members, staged them through the product drag route and Ctrl-Copied them into
+a separate fresh Explorer folder. The guest receipt
+`C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-archive-4c042d37-r1.json`
+and ignored host receipt
+`E:\FileCat\.local-ac-s2-071-win-archive-4c042d37-r1.json` verify the
+two exact member filenames and SHA-256 hashes in Explorer, no extra item,
+and the original ZIP hash
+`CE53B9107EB389F8D2B5EA64082B535020F59A7A1BB3162BD8266AAC24079F7C`
+before and after. The held frame is
+`E:\FileCat\.local-ac-s2-071-win-archive-r1-hover.png`; the cursor receipt
+records `(1402, 530)`, native handle `197895`, and exact hovered Explorer
+window handle `460008`. These results accept
+[AC-S2-071-WIN-LOCAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local)
+and [AC-S2-071-WIN-ARCHIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-archive)
+at their named scopes.
 The first diagnostic selected Move on the same volume; the second hovered
 an older test-owned Explorer folder and produced a conflict prompt. Both
 were harness setup errors, not accepted Copy evidence. The runner now
 requests Copy explicitly, closes old test-owned Explorer windows and checks
 the actual hover target before releasing the mouse. Archive staging and
-unsupported-target refusal remain open in [AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
+mixed-selection and unsupported-target refusal remain open in
+[AC-S2-071](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071).
 
 <a id="evidence-mac-motion-20261027"></a>
 **27 October 2026, native macOS reduced-motion toggle (FCUX-050/051):**
