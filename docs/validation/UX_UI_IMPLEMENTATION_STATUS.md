@@ -6110,11 +6110,14 @@ bytes. The native runner first caught an active-panel mistake in its own F7
 gesture; focusing the destination list corrected it before the successful
 rerun.
 <a id="evidence-clear-history-20261020"></a>
-A separate completed Move fixture checked the other resizable long-path
+A separate completed Move fixture on the 20 October 2026 `d359f621`
+Windows 11 VMware checkpoint checked the other resizable long-path
 review: Clear finished history. The native history row reflowed from 662 × 60
 px to 936 × 42 px when widened, Keep history remained reachable, and Cancel
 preserved the moved file and exact bytes. Narrow/scaled and spoken checks for
-this review remain open.
+this review remain open. This accepts the exact visual/Cancel scope of
+[AC-S2-019-WIN-LAYOUT](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019-win-layout);
+it does not establish retention of Undo/report eligibility after Keep history.
 A broader local App attempt on the preceding head exposed an assertion that
 read `TextBlock.Text` after the issue detail became styled inlines. The test
 now reads the rendered runs and passes with the focused report checks. That
