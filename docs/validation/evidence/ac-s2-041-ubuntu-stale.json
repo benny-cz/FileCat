@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "platform": "Ubuntu",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/TransferStaleDestinationFixture/fb152a8c080d4469b1909902ab1dfe2a",
+  "delayedPath": "/home/benny/FileCatValidation/TransferStaleDestinationFixture/fb152a8c080d4469b1909902ab1dfe2a/slow",
+  "sourceSha256": "3b996281d37fbab680003dfd3101054420f5be5975e4791d2e49ffdc71fd2597",
+  "steps": [
+    "Current destination admitted while removed old target was delayed",
+    "Invalid localized speed corrected in same form; only current target received exact bytes"
+  ],
+  "currentAdmissionSeconds": 0.471,
+  "targetSha256": "3b996281d37fbab680003dfd3101054420f5be5975e4791d2e49ffdc71fd2597",
+  "delayedStatCalls": [
+    "45516 openat(AT_FDCWD, \"/home/benny/FileCatValidation/TransferStaleDestinationFixture/fb152a8c080d4469b1909902ab1dfe2a/slow\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 182",
+    "45530 stat(\"/home/benny/FileCatValidation/TransferStaleDestinationFixture/fb152a8c080d4469b1909902ab1dfe2a/slow\", 0x6ff93514b568) = -1 ENOENT (No such file or directory) (DELAYED)"
+  ],
+  "sourcePreserved": true,
+  "currentNames": [
+    "a.txt"
+  ],
+  "removedOldTarget": true
+}

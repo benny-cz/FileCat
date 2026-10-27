@@ -2156,3 +2156,13 @@ separate receipts are `ac-s2-038-ubuntu-cancel-held.json` and
 REPORT.json KEY_HELPER` runs Orca against an invalid counter draft and
 records actual spoken error, exact input, disabled approval and unchanged
 bytes in `ac-s2-038-ubuntu-counter.json`.
+
+`linux-atspi-transfer-stale-destination.py APP REPORT.json KEY_HELPER` uses
+an isolated Copy form and Czech culture. It attaches path-filtered `strace`
+to hold only the old target's actual `stat` for eight seconds, removes that
+owned folder, enters a current folder, checks both submission controls and
+corrects an invalid comma-decimal speed in the same form. The current target
+must receive the exact source bytes; the old target must stay absent after
+the delayed call returns. It closes only its app/tracer and records the
+bounded syscall, mapping and hashes in
+`docs/validation/evidence/ac-s2-041-ubuntu-stale.json`.
