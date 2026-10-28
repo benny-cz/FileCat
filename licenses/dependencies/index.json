@@ -415,6 +415,17 @@
       "PackageArchiveSHA256": "a3ea61b4a2da6d28e562dd1cdacf80eb4dd6b9727b0a2b47f9d6aba90dbbcb1f"
     },
     {
+      "Path": "spdx/MIT/f715b3660bb164c3d0b81cba9ce94e3c558c4048/MIT.txt",
+      "Bytes": 1078,
+      "SHA256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+      "Source": "Exact SPDX license-list-data text for the package-declared NuGet license expression",
+      "Repository": "spdx/license-list-data",
+      "Revision": "f715b3660bb164c3d0b81cba9ce94e3c558c4048",
+      "SourcePath": "text/MIT.txt",
+      "GitBlobSHA1": "d817195dad53ec992418c28ffca5fbd1cd86502a",
+      "SourceURL": "https://github.com/spdx/license-list-data/blob/f715b3660bb164c3d0b81cba9ce94e3c558c4048/text/MIT.txt"
+    },
+    {
       "Path": "upstream/AvaloniaUI/Avalonia.BuildServices/777f975b0a0cecf0311273711d56697212c558c0/LICENSE",
       "Bytes": 1070,
       "SHA256": "94162c40c663bd96ec1b870e6aba6ef0a43f44c9eb500807e7965e7078f6dc47",
@@ -1219,9 +1230,23 @@
           "commit": "915cdf4eaac22bffd2623de0721f7e7d18c93268"
         }
       },
-      "RetainedNoticePaths": [],
-      "FullTextRetained": false,
-      "Coverage": "license-declaration-only"
+      "NuGetCopyrightDeclaration": "2011 - 2026, Olof Lagerkvist, LTR Data",
+      "LicenseReference": {
+        "Identifier": "MIT",
+        "NuGetReferenceURL": "https://licenses.nuget.org/MIT",
+        "SPDXRepository": "spdx/license-list-data",
+        "SPDXRevision": "f715b3660bb164c3d0b81cba9ce94e3c558c4048",
+        "SPDXSourcePath": "text/MIT.txt",
+        "SHA256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5"
+      },
+      "PackageSignatureAuthenticityQualified": true,
+      "AuthorCertificateSHA256": "25b8abb80f0feacd468c83aeffedc225f533d9d25df1707a8cb33d19544fb242",
+      "RepositoryCertificateSHA256": "1f4b311d9acc115c8dc8018b5a49e00fce6da8e2855f9f014ca6f34570bc482d",
+      "RetainedNoticePaths": [
+        "spdx/MIT/f715b3660bb164c3d0b81cba9ce94e3c558c4048/MIT.txt"
+      ],
+      "FullTextRetained": true,
+      "Coverage": "signed-nuget-spdx-expression-reference-text-retained"
     },
     {
       "ID": "MicroCom.Runtime",
@@ -1583,13 +1608,7 @@
       "Coverage": "declared-source-texts-retained"
     }
   ],
-  "KnownFullTextGaps": [
-    {
-      "ID": "LTRData.Extensions",
-      "Version": "1.0.23",
-      "Reason": "No full text retained; no license-named files found in the complete package-declared source tree. The NuGet license expression is a declaration, not a resolved provenance determination."
-    }
-  ],
+  "KnownFullTextGaps": [],
   "NuGetMetadataSourceRevisionsProveReproducibleBinaries": false,
   "NativeRuntimeAppImageAndInstallerNoticesComplete": false,
   "OSIEligibilityQualified": false,

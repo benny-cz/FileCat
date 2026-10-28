@@ -5,8 +5,8 @@ Full license and notice texts retained from pinned packages and their declared s
 are in `licenses/dependencies`, with exact source identities and hashes in `index.json`.
 The snapshot includes the pinned .NET 10.0.14 runtime pack texts, build-only packages and RID
 alternatives; it does not establish which components ship in each artifact or complete native
-license eligibility. LTRData.Extensions full-text provenance, SharpCompress's RAR provenance and
-AppImage/native obligations remain under review before stable release. Regenerate the exact
+license eligibility. SharpCompress's RAR provenance and AppImage/native obligations remain under
+review before stable release. Regenerate the exact
 SPDX inventory whenever dependencies or the SDK change: `eng/publish.ps1` writes the Windows
 `portable`, `fdd`, and `setup-payload` manifests; `eng/package-linux.sh` writes the Linux `tar`,
 `deb`, and `appimage` manifests; and `eng/package-macos.sh` writes the macOS `macos-app` manifest.
@@ -35,7 +35,7 @@ versions and source obligations remain under review.
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
 | SharpCompress | 0.50.4 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
-| LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils |
+| LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; the signed package's SPDX expression and copyright metadata are bound to retained canonical MIT text |
 | AppImage type2-runtime (Linux AppImage only) | declared commit fedfad51, immutable GitHub asset ID 657374641, exact runtime input pinned by checksum | MIT root; linked components have their own licenses | The pinned recipe declares libfuse 3.15.0, squashfuse 0.5.2, zstd, zlib, mimalloc and musl. Original root/libfuse/squashfuse texts are retained in `licenses/appimage-runtime`; complete actual static composition, source obligations and binary/source reproducibility remain unqualified. The tarball and Debian package omit this wrapper |
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
 

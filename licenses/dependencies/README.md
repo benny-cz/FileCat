@@ -12,11 +12,14 @@ their package-declared `dotnet/dotnet` source revision.
 It includes build-only packages and RID alternatives from the resolved App graph;
 their presence here does not mean their code is shipped in every FileCat package.
 
-The index explicitly records missing full texts and unresolved provenance. In
-particular, LTRData.Extensions declares MIT but has no retained full license text;
-its declared source tree contains no license-named file. SharpCompress's RAR
-implementation still requires a provenance determination beyond its root MIT
-license. The exact .NET 10.0.14 runtime pack license and notices are also retained for
+The index explicitly records unresolved provenance. LTRData.Extensions 1.0.23 has
+an author- and repository-signed NuGet archive whose metadata declares the SPDX
+`MIT` expression and package copyright. The snapshot retains byte-identical MIT
+reference text from an exact `spdx/license-list-data` revision, as prescribed for
+NuGet license expressions. Its declared source tree still has no license-named file,
+so this does not claim an upstream source-tree license file or reproducible binary.
+SharpCompress's RAR implementation still requires a provenance determination beyond
+its root MIT license. The exact .NET 10.0.14 runtime pack license and notices are also retained for
 the five existing publish RIDs. Native subcomponents, runtime composition,
 AppImage and installer obligations still require their own artifact-specific audit. This snapshot does not certify
 complete notices or OSI-only eligibility.
