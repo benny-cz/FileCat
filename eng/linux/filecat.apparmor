@@ -1,0 +1,12 @@
+# Ubuntu 24.04+ restricts unprivileged user namespaces. WebKitGTK's page-process
+# sandbox uses bubblewrap and needs this explicit application grant. The profile
+# remains otherwise unconfined, matching Ubuntu's stock Epiphany profile.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile filecat /opt/filecat/FileCat flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See /etc/apparmor.d/local/README.
+  include if exists <local/filecat>
+}

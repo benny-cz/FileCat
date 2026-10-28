@@ -81,6 +81,42 @@ desktop_entry filecat filecat > "$DEB/usr/share/applications/filecat.desktop"
 for s in $ICON_SIZES; do
   install -Dm 644 "$ICONS/filecat-$s.png" "$DEB/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"
 done
+# Ubuntu 24.04+ restricts unprivileged user namespaces. Keep the AppArmor 4
+# profile as package data, and activate it only on systems which expose that
+# restriction; older Debian/Ubuntu parsers never see unsupported userns syntax.
+install -Dm 644 "$ROOT/eng/linux/filecat.apparmor" "$DEB/usr/share/filecat/apparmor/filecat"
+cat > "$DEB/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+restriction=/proc/sys/kernel/apparmor_restrict_unprivileged_userns
+source_profile=/usr/share/filecat/apparmor/filecat
+active_profile=/etc/apparmor.d/filecat
+if [ -r "$restriction" ] && [ "$(cat "$restriction")" = 1 ]; then
+  if command -v apparmor_parser >/dev/null 2>&1; then
+    install -m 644 "$source_profile" "$active_profile"
+    if ! apparmor_parser -r "$active_profile"; then
+      rm -f "$active_profile"
+      echo "FileCat: AppArmor could not load the WebKit sandbox profile; page preview will fail closed." >&2
+    fi
+  else
+    echo "FileCat: AppArmor tools are unavailable; WebKit page preview will fail closed." >&2
+  fi
+fi
+exit 0
+EOF
+cat > "$DEB/DEBIAN/postrm" <<'EOF'
+#!/bin/sh
+set -e
+active_profile=/etc/apparmor.d/filecat
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+  if [ -f "$active_profile" ] && command -v apparmor_parser >/dev/null 2>&1; then
+    apparmor_parser -R "$active_profile" >/dev/null 2>&1 || true
+  fi
+  rm -f "$active_profile"
+fi
+exit 0
+EOF
+chmod 755 "$DEB/DEBIAN/postinst" "$DEB/DEBIAN/postrm"
 SIZE_KB="$(du -sk "$DEB/opt" | cut -f1)"
 cat > "$DEB/DEBIAN/control" <<EOF
 Package: filecat
@@ -92,7 +128,7 @@ Installed-Size: $SIZE_KB
 Maintainer: FileCat contributors <filecat@users.noreply.github.com>
 Homepage: https://github.com/benny-cz/FileCat
 Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu78 | libicu76 | libicu74 | libicu72 | libicu71 | libicu70 | libicu67, libfontconfig1, libx11-6, libice6, libsm6
-Recommends: xdg-utils, libsecret-1-0, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
+Recommends: xdg-utils, libsecret-1-0, apparmor, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
 Description: Keyboard-first two-panel file manager
  FileCat is a two-panel file manager in the tradition of Altap Salamander, Total
  Commander, and FAR Manager: keyboard-first work with folders, archives, SFTP and

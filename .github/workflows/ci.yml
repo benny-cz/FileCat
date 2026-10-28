@@ -408,7 +408,7 @@ jobs:
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
       - if: runner.os == 'Linux'
         run: |
-          FILECAT_REQUIRE_WEBKIT=1 xvfb-run -a dotnet test tests/FileCat.App.Tests -c Release --no-build --filter "FullyQualifiedName~LinuxPageEngineTests" --blame-hang-timeout 3m --blame-hang-dump-type mini
+          bash eng/validation/run-linux-webkit-tests.sh
       # D-51 on macOS: WKWebView on the runner's display, from a program whose main thread runs the run loop.
       - if: runner.os == 'macOS'
         run: dotnet run --project tests/FileCat.PageEngineSmoke -c Release

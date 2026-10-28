@@ -46,8 +46,40 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private int _blocked;
     private int _disposed;
 
+    private const string AppArmorProfileMessage =
+        "Web page preview is unavailable because this system restricts sandbox user namespaces and FileCat has no AppArmor profile. " +
+        "Install FileCat's Debian package, or ask an administrator to load its supplied AppArmor profile.";
+
     /// <summary>Why WebKitGTK cannot be used here, or null when it can.</summary>
     public static string? Unavailable => s_missing.Value;
+
+    /// <summary>
+    /// Ubuntu 24.04 and later can route an unprofiled process into a generic user-namespace profile which denies the
+    /// capabilities bubblewrap needs to finish constructing WebKit's sandbox. WebKit still reports the sandbox as
+    /// enabled in that state, then never starts its page process. A named unconfined application profile with an
+    /// explicit <c>userns</c> grant (the distro's Epiphany pattern) avoids that broken half-start.
+    /// </summary>
+    internal static bool NeedsAppArmorUserNamespaceProfile(string? restriction, string? currentProfile) =>
+        restriction?.Trim() == "1" && (string.IsNullOrWhiteSpace(currentProfile) || currentProfile.Trim() == "unconfined");
+
+    private static string? AppArmorProfileUnavailable()
+    {
+        const string restrictionPath = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
+        if (!File.Exists(restrictionPath)) return null;
+        try
+        {
+            string restriction = File.ReadAllText(restrictionPath);
+            string? profile = File.Exists("/proc/self/attr/current") ? File.ReadAllText("/proc/self/attr/current") : null;
+            return NeedsAppArmorUserNamespaceProfile(restriction, profile) ? AppArmorProfileMessage : null;
+        }
+        catch (IOException)
+        {
+            // If the restriction exists but cannot be inspected, fail closed rather than starting a WebKit process
+            // whose sandbox can remain stuck without a load-failed callback.
+            return AppArmorProfileMessage;
+        }
+        catch (UnauthorizedAccessException) { return AppArmorProfileMessage; }
+    }
 
     private LinuxPageEngine()
     {
@@ -758,6 +790,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static string? Load()
         {
             if (!OperatingSystem.IsLinux()) return "Web pages are drawn by WebKitGTK on Linux only.";
+            if (AppArmorProfileUnavailable() is { } appArmor) return appArmor;
             nint webkit = 0;
             foreach (string name in new[] { "libwebkit2gtk-4.1.so.0", "libwebkit2gtk-4.0.so.37" })
                 if (NativeLibrary.TryLoad(name, out webkit)) break;

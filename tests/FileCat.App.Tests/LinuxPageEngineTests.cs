@@ -10,6 +10,17 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class LinuxPageEngineTests
 {
+    [Theory]
+    [InlineData("1\n", "unconfined\n", true)]
+    [InlineData("1", null, true)]
+    [InlineData("0", "unconfined\n", false)]
+    [InlineData("1", "filecat (unconfined)\n", false)]
+    [InlineData("1", "docker-default (enforce)\n", false)]
+    public void Restricted_AppArmor_requires_a_named_application_profile(string restriction, string? profile, bool required)
+    {
+        Assert.Equal(required, LinuxPageEngine.NeedsAppArmorUserNamespaceProfile(restriction, profile));
+    }
+
     [Fact]
     public async Task WebKitGTK_draws_the_page_with_its_scripts_off_and_refuses_the_web()
     {
