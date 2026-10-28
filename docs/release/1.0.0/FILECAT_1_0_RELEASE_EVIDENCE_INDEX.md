@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**869 evidence entries; none is final candidate qualification.** No candidate exists.
+**870 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -37,6 +37,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I03-PAYLOAD | Actual Windows/Linux/Mac native payload bytes | 8502983 owned production export and development 37497325774 attempt 1 | Preliminary finite provenance; static/source/signature authenticity/legal/SBOM/candidate open | [E-I03-PAYLOAD](evidence/E-I03-PAYLOAD-native-windows-bytes.md) | I03, V20 |
 | E-I03-RESOURCE | Header-free resource inputs and CI retention | 8502983; retention 5e11f60; CI 37496707218/37497325774/37498145660 | Preliminary correction sealed; full input bytes/legal/candidate open | [E-I03-RESOURCE](evidence/E-I03-RESOURCE-explicit-inputs.md) | I03, I18, V20 |
 | E-I03-RUNTIMEPACK | Complete Windows .NET runtime-pack bytes, official hashes and native package signatures | Original 8502983 four publications; 2026-10-09 native verification | 398 complete comparisons/344 managed/46 native/eight symbols; six official archives/native signatures; trust-store/tool and remaining I03 limits explicit | [Runtime-pack provenance](evidence/E-I03-RUNTIMEPACK-windows-provenance.md) | I03, V20 |
+| E-I03-RUNTIME-10014 | Applied five-RID .NET 10.0.14 runtime servicing | `b20f9bac`; five official packages/catalog records/signatures and five fresh self-contained manifests | All five runtime identities and 55-file notice bindings agree; 63/63 notice controls, locked restore and zero-warning/error Release build pass. Preliminary runtime child only; complete SBOM/composition/candidate remain open. | [Runtime 10.0.14 servicing](evidence/E-I03-RUNTIME-10014-servicing.md) | I03, I14, V20 |
 | E-I03-RESTORE | Immutable NuGet restore and actual graph evidence | a7a70ae; original CI 37476206680/development 37476271305 | Preliminary restore correction sealed; notice packaging/hosted extracted/native/runtime/license/SBOM/candidate open | [E-I03-RESTORE](evidence/E-I03-RESTORE-prospective-locks.md) | I03, I18, V20 |
 | E-I03-RID | Windows inventory filename collision | Working producer hash in record | Preliminary producer | [E-I03-RID](evidence/E-I03-rid-inventory.md) | I03 |
 | E-I03-SDK-ACTIONS | Exact SDK/action commits, checkout credentials and toolchain receipts | 78a0716; CI 37415760813 | Preliminary pipeline correction; broader I03/I18/I108 open | [E-I03-SDK-ACTIONS](evidence/E-I03-SDK-ACTIONS-toolchain-pins.md) | I03, I18, I108 |
