@@ -34,3 +34,10 @@ Each holds one 4,096-byte file, `alpha.txt` (all zero bytes) or `omega.txt`
 (all `0xA7` bytes). Both archives are 4,206 bytes. Their SHA-256 digests are
 `7931db9acac5fd0124f8189684fa71e10cf20b767caee3c29e282d314b88e419` and
 `9ba572ab801806f6cf4151fb358c24f7a7f10cfedfa3229d5115cb1cc76efc48`, respectively.
+
+The other `Rar*` fixtures (RAR 1.5 through 5, stored, solid, multi-volume under both naming
+schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damaged
+`Rar.malformed_512byte.rar` and `Rar.issue1050.rar`) come unchanged from SharpCompress 0.50.5,
+commit `e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626` (same MIT license above). Each was fetched by
+its Git blob ID and rehashed with `git hash-object` to that ID. They are the differential corpus of
+FileCat's own RAR reader (`RarReaderTests`) against the retired SharpCompress RAR path.
