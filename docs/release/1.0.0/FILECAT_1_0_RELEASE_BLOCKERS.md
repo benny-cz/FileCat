@@ -40,6 +40,7 @@ DEC-06 (shared page-cache target) and DEC-11 (required Markdown rendering with a
 | EXT-01 | SignPath acceptance, roles and policy after DEC-07. | Stable Windows signing and SAC evidence. |
 | EXT-02 | Upstream/legal determination of SharpCompress 0.50.4 RAR decoder provenance. | I14, OSI-only/signing eligibility and notices. |
 | EXT-03 | Apple Developer ID/notarization credentials if DEC-03 chooses that path. | Chosen Mac distribution artifacts. |
+| EXT-04 | Legal/owner disposition for the AppImage runtime's statically linked libfuse LGPL obligations, including corresponding-source and relinkability delivery, eligibility and reproducibility/checksum semantics. | I03, V20 and REL-I03-PROVENANCE. Technical producer, version, full-text and static-link observations are complete; do not treat them as the legal disposition. |
 
 <a id="c-hardware-and-environments"></a>
 ## Environments and hardware
