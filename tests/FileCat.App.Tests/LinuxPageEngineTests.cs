@@ -47,6 +47,7 @@ public sealed class LinuxPageEngineTests
             var page = new HtmlPage(new FileContentSource(Path.Combine(folder, "index.html")), "index.html");
             using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
             Assert.True(engine is not null, unavailable);
+            Assert.True(engine.SandboxEnabled, "WebKitGTK must report its native web-process sandbox before FileCat loads the page.");
             var loaded = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
             engine.Loaded += (ok, reason) => loaded.TrySetResult((ok, reason));
             engine.Show(page);

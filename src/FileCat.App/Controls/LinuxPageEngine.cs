@@ -34,6 +34,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private bool _tabBackward;
     private long _tabAt = long.MinValue;
     private nint _findController;
+    private bool _sandboxEnabled;
     private readonly SemaphoreSlim _findSerial = new(1, 1);
     private volatile TaskCompletionSource<PageFindResult?>? _findPending;
     private string? _findPattern;
@@ -66,9 +67,12 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         try
         {
             var built = OnGtk(() => engine.Build(offscreen));
-            if (!built.Wait(TimeSpan.FromSeconds(15)) || built.Result == 0 && !offscreen)
+            bool completed = built.Wait(TimeSpan.FromSeconds(15));
+            if (!completed || !engine._sandboxEnabled || built.Result == 0 && !offscreen)
             {
-                unavailable = "The web engine (WebKitGTK) did not start.";
+                unavailable = completed && !engine._sandboxEnabled
+                    ? "The web engine (WebKitGTK) could not enable and verify its process sandbox."
+                    : "The web engine (WebKitGTK) did not start.";
                 engine.Dispose();
                 return null;
             }
@@ -86,6 +90,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     public IPlatformHandle Handle { get; private set; } = new PlatformHandle(0, "XID");
     public string? Title => _title;
     public int BlockedCount => Volatile.Read(ref _blocked);
+    /// <summary>The native WebKit context accepted and reports its process sandbox before any page was loaded.</summary>
+    internal bool SandboxEnabled => _sandboxEnabled;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
 
@@ -240,6 +246,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         Native.PrepareEnvironment();
         _context = Native.webkit_web_context_new_ephemeral();
         if (_context == 0) return 0;
+        if (!Native.EnableAndVerifySandbox(_context)) return 0;
+        _sandboxEnabled = true;
         Native.SetCacheModel(_context);
         fixed (byte* scheme = Utf8(Scheme))
             Native.webkit_web_context_register_uri_scheme(_context, scheme, (nint)(delegate* unmanaged[Cdecl]<nint, nint, void>)&OnSchemeRequest, _id, 0);
@@ -688,6 +696,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 gdk_window_set_events(window, gdk_window_get_events(window) & ~(KeyPressMask | KeyReleaseMask));
         }
         public static delegate* unmanaged[Cdecl]<nint> webkit_web_context_new_ephemeral;
+        public static delegate* unmanaged[Cdecl]<nint, int> webkit_web_context_get_sandbox_enabled;
+        public static delegate* unmanaged[Cdecl]<nint, int, void> webkit_web_context_set_sandbox_enabled;
         public static delegate* unmanaged[Cdecl]<nint, byte*, nint, nint, nint, void> webkit_web_context_register_uri_scheme;
         public static delegate* unmanaged[Cdecl]<nint, int, void> webkit_web_context_set_cache_model;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_context_get_website_data_manager;
@@ -852,6 +862,11 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             else if (NativeLibrary.TryGetExport(webkit, "webkit_web_context_set_network_proxy_settings", out nint contextProxy))
                 webkit_web_context_set_network_proxy_settings = (delegate* unmanaged[Cdecl]<nint, int, nint, void>)contextProxy;
             else return "This WebKitGTK cannot keep pages off the web (no proxy settings).";
+            if (!NativeLibrary.TryGetExport(webkit, "webkit_web_context_get_sandbox_enabled", out nint getSandbox) ||
+                !NativeLibrary.TryGetExport(webkit, "webkit_web_context_set_sandbox_enabled", out nint setSandbox))
+                return "This WebKitGTK cannot verify and enable its web-process sandbox.";
+            webkit_web_context_get_sandbox_enabled = (delegate* unmanaged[Cdecl]<nint, int>)getSandbox;
+            webkit_web_context_set_sandbox_enabled = (delegate* unmanaged[Cdecl]<nint, int, void>)setSandbox;
             foreach (var (name, _) in SafeSettings)
                 if (NativeLibrary.TryGetExport(webkit, name, out nint setter)) Setters[name] = setter;
             return Setters.ContainsKey("webkit_settings_set_enable_javascript") ? null : "This WebKitGTK cannot turn scripts off.";
@@ -873,6 +888,14 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             const int DocumentViewer = 0;
             if (webkit_web_context_set_cache_model != null) webkit_web_context_set_cache_model(context, DocumentViewer);
+        }
+
+        /// <summary>Require WebKit's native web-process sandbox before constructing a view or loading a page.</summary>
+        public static bool EnableAndVerifySandbox(nint context)
+        {
+            if (webkit_web_context_get_sandbox_enabled(context) == 0)
+                webkit_web_context_set_sandbox_enabled(context, 1);
+            return webkit_web_context_get_sandbox_enabled(context) != 0;
         }
 
         public static void RefuseTheWeb(nint context)
