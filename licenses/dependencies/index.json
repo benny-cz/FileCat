@@ -315,104 +315,104 @@
       "PackageArchiveSHA256": "361dca3a5b2fe80c4692b5a21e1bae4db46e222dada75dcdadb07081080ab928"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.12/LICENSE.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.14/LICENSE.TXT",
       "Bytes": 1116,
       "SHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "LICENSE.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.linux-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "7268839dca1ec677d4c9908b4e52395d4c003c6989550d0b8e965923a4a70036"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "116dbc39c4be97ae85f44c301f9f853cc0d13053f5d84cbb7bdface970077482"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT",
       "Bytes": 76623,
       "SHA256": "66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.linux-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "7268839dca1ec677d4c9908b4e52395d4c003c6989550d0b8e965923a4a70036"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "116dbc39c4be97ae85f44c301f9f853cc0d13053f5d84cbb7bdface970077482"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.12/LICENSE.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.14/LICENSE.TXT",
       "Bytes": 1116,
       "SHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "LICENSE.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.linux-x64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "8869e2fb974bc810ffe40b8fb8e18b7ffb1d1a03e52a094c804668c4d793b1ae"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "bcd40d8b1259dc7b88a88b638aff1fa15b1563d2cf2377ea9f7650ebc4005d40"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.14/THIRD-PARTY-NOTICES.TXT",
       "Bytes": 76623,
       "SHA256": "66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.linux-x64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "8869e2fb974bc810ffe40b8fb8e18b7ffb1d1a03e52a094c804668c4d793b1ae"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "bcd40d8b1259dc7b88a88b638aff1fa15b1563d2cf2377ea9f7650ebc4005d40"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.12/LICENSE.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.14/LICENSE.TXT",
       "Bytes": 1116,
       "SHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "LICENSE.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.osx-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "2f0e72fdf79ead91d0e1ad4960ea3a9bdeba1b7cb08467e3ead0a427d1fd2e08"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "9c15146d70feb23de1b6d27074539380f87706cf293aac173190105a55bdaee7"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT",
       "Bytes": 76623,
       "SHA256": "66f1d4e44973185519bb4aa8a9718eb22fc7af2cc532e3ae9cfc4c127ee7fc54",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.osx-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "2f0e72fdf79ead91d0e1ad4960ea3a9bdeba1b7cb08467e3ead0a427d1fd2e08"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "9c15146d70feb23de1b6d27074539380f87706cf293aac173190105a55bdaee7"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.12/LICENSE.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.14/LICENSE.TXT",
       "Bytes": 1139,
       "SHA256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "LICENSE.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.win-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "a684e7ec6acbc2d27dd6926bc11cb12ef1cbe11f1e92f9fbb9553ca7bd00db68"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "b939042d9e9a8c1fe7b7e8632a199e6809b630faad42a35e57e92c3d3c9eed51"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT",
       "Bytes": 78041,
       "SHA256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.win-arm64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "a684e7ec6acbc2d27dd6926bc11cb12ef1cbe11f1e92f9fbb9553ca7bd00db68"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "b939042d9e9a8c1fe7b7e8632a199e6809b630faad42a35e57e92c3d3c9eed51"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.win-x64/10.0.12/LICENSE.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.win-x64/10.0.14/LICENSE.TXT",
       "Bytes": 1139,
       "SHA256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "LICENSE.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.win-x64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "0f63dee7ca4383cb16848966f81e439399e2058e1671ebe27e5eaf4b200e8691"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "a3ea61b4a2da6d28e562dd1cdacf80eb4dd6b9727b0a2b47f9d6aba90dbbcb1f"
     },
     {
-      "Path": "runtime/microsoft.netcore.app.runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "Path": "runtime/microsoft.netcore.app.runtime.win-x64/10.0.14/THIRD-PARTY-NOTICES.TXT",
       "Bytes": 78041,
       "SHA256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
       "Source": "Exact published .NET runtime pack archive",
       "ArchiveMember": "THIRD-PARTY-NOTICES.TXT",
       "PackageID": "Microsoft.NETCore.App.Runtime.win-x64",
-      "PackageVersion": "10.0.12",
-      "PackageArchiveSHA256": "0f63dee7ca4383cb16848966f81e439399e2058e1671ebe27e5eaf4b200e8691"
+      "PackageVersion": "10.0.14",
+      "PackageArchiveSHA256": "a3ea61b4a2da6d28e562dd1cdacf80eb4dd6b9727b0a2b47f9d6aba90dbbcb1f"
     },
     {
       "Path": "upstream/AvaloniaUI/Avalonia.BuildServices/777f975b0a0cecf0311273711d56697212c558c0/LICENSE",
@@ -1597,73 +1597,73 @@
   "RuntimePacks": [
     {
       "ID": "Microsoft.NETCore.App.Runtime.win-x64",
-      "Version": "10.0.12",
+      "Version": "10.0.14",
       "RID": "win-x64",
-      "NuGetContentHashFromMetadata": "H3eh1w8Yevp6yO2+R3zbOPfwJ1vs2c/5PKa1ez7igGCF8EIycnzZr8gTjeVBAKjCPbyGuOdMSazLUnNqMsfTkw==",
-      "PackageArchiveSHA256": "0f63dee7ca4383cb16848966f81e439399e2058e1671ebe27e5eaf4b200e8691",
-      "RawArchiveSHA512": "Oa/LIiAy6r6+LH+lGjfEkcaw9FZ5ateIhDGXG47vT2icruVFQmA5jOD/r+SRxWWJGzXnOvxnWFo+TEvemVcQ7g==",
-      "OriginalPublishedDepsSHA256": "04480621787bee70e5c3d262f6634beb989a27aa5bf6396b7f83ebc07a962654",
+      "NuGetContentHashFromMetadata": "mLWGagTP5n7nMfJQI2XpXRYgvPcnyYvAc8ZiDfum8ShM0UcrPDyfW4Lqo45UtlCHCucERUHQuMTI6ybVweCN9A==",
+      "PackageArchiveSHA256": "a3ea61b4a2da6d28e562dd1cdacf80eb4dd6b9727b0a2b47f9d6aba90dbbcb1f",
+      "RawArchiveSHA512": "mLWGagTP5n7nMfJQI2XpXRYgvPcnyYvAc8ZiDfum8ShM0UcrPDyfW4Lqo45UtlCHCucERUHQuMTI6ybVweCN9A==",
+      "OriginalPublishedDepsSHA256": "a1bf4704e01b877e07b88d22b0fec4d17d4c7ebb6d608d5dbc6391af0c64f3ac",
       "RetainedNoticePaths": [
-        "runtime/microsoft.netcore.app.runtime.win-x64/10.0.12/LICENSE.TXT",
-        "runtime/microsoft.netcore.app.runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+        "runtime/microsoft.netcore.app.runtime.win-x64/10.0.14/LICENSE.TXT",
+        "runtime/microsoft.netcore.app.runtime.win-x64/10.0.14/THIRD-PARTY-NOTICES.TXT"
       ],
-      "PackageSignatureAuthenticityQualified": false
+      "PackageSignatureAuthenticityQualified": true
     },
     {
       "ID": "Microsoft.NETCore.App.Runtime.win-arm64",
-      "Version": "10.0.12",
+      "Version": "10.0.14",
       "RID": "win-arm64",
-      "NuGetContentHashFromMetadata": "n5OK0qtevujcVa4LgJ032WzkugNAvAGYbNMXGIYLwrt9g6+mVpiR6pI8Nm//cCJBZH5E73xjUu3glm5ZsPgAXQ==",
-      "PackageArchiveSHA256": "a684e7ec6acbc2d27dd6926bc11cb12ef1cbe11f1e92f9fbb9553ca7bd00db68",
-      "RawArchiveSHA512": "ucOvZlk4/l8N2NhCRAWrX0DX4/dBFC9UFgZVLAOb40WzokltLBbNYblIpn8tfz7qkWsQhTq08KYa5vwH2kAiPg==",
-      "OriginalPublishedDepsSHA256": "ee1010d62cdd751a46d8290bc224cec6ae850e714f296179b13a110454d1543e",
+      "NuGetContentHashFromMetadata": "VX6JXS+AXtCL8brqXN5qvXmOzrlHOraG5T8dpdn3O1IL2knDcR1XwDNWZc2lLWuyg3u1Muu4zme2C5VnLOBoMQ==",
+      "PackageArchiveSHA256": "b939042d9e9a8c1fe7b7e8632a199e6809b630faad42a35e57e92c3d3c9eed51",
+      "RawArchiveSHA512": "VX6JXS+AXtCL8brqXN5qvXmOzrlHOraG5T8dpdn3O1IL2knDcR1XwDNWZc2lLWuyg3u1Muu4zme2C5VnLOBoMQ==",
+      "OriginalPublishedDepsSHA256": "6592b0ad448cf0aabdf155656c2ffb12a8d595aaf1c84ea71b19f89310735a98",
       "RetainedNoticePaths": [
-        "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.12/LICENSE.TXT",
-        "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+        "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.14/LICENSE.TXT",
+        "runtime/microsoft.netcore.app.runtime.win-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT"
       ],
-      "PackageSignatureAuthenticityQualified": false
+      "PackageSignatureAuthenticityQualified": true
     },
     {
       "ID": "Microsoft.NETCore.App.Runtime.linux-x64",
-      "Version": "10.0.12",
+      "Version": "10.0.14",
       "RID": "linux-x64",
-      "NuGetContentHashFromMetadata": "nrSdIt6h0T6FVd96Jeg3nJ/oc10sOObwW044h26QBiQQEi7ZG9UJ0WY+hoCy/fGlSLBGkfxCqVmRc+UbtP7eMg==",
-      "PackageArchiveSHA256": "8869e2fb974bc810ffe40b8fb8e18b7ffb1d1a03e52a094c804668c4d793b1ae",
-      "RawArchiveSHA512": "FWJ8ixsfc+snzowYyAUlRGHehPjH9xtmLg0owWDV1Ju9dUeZf+OKuBagE+E/flME5Hhx7rObgcSVTXQak/wvGg==",
-      "OriginalPublishedDepsSHA256": "5722c9fb0586cd682a0340b437211cc82459df209528dd0640c9c2c528b33d60",
+      "NuGetContentHashFromMetadata": "IfDwQKE3gcK9u7iU7C/bOaqLNfoRf6zvXzGLHsJAbsC7Shwn5ztRCRWjD1mKRk5XUrPO9VWSC1+q8oimXRDlsg==",
+      "PackageArchiveSHA256": "bcd40d8b1259dc7b88a88b638aff1fa15b1563d2cf2377ea9f7650ebc4005d40",
+      "RawArchiveSHA512": "IfDwQKE3gcK9u7iU7C/bOaqLNfoRf6zvXzGLHsJAbsC7Shwn5ztRCRWjD1mKRk5XUrPO9VWSC1+q8oimXRDlsg==",
+      "OriginalPublishedDepsSHA256": "1d9780f6ff4693874633763a8d2158d17e512439fc009bee8f5f05f147e539e4",
       "RetainedNoticePaths": [
-        "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.12/LICENSE.TXT",
-        "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+        "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.14/LICENSE.TXT",
+        "runtime/microsoft.netcore.app.runtime.linux-x64/10.0.14/THIRD-PARTY-NOTICES.TXT"
       ],
-      "PackageSignatureAuthenticityQualified": false
+      "PackageSignatureAuthenticityQualified": true
     },
     {
       "ID": "Microsoft.NETCore.App.Runtime.linux-arm64",
-      "Version": "10.0.12",
+      "Version": "10.0.14",
       "RID": "linux-arm64",
-      "NuGetContentHashFromMetadata": "KRyLIbbqJFNIvvqDDWFx+p0vbor91cHu0wurR+69OthYGlx/hupDDTkvzgKYi3IXH13C5TASAR75N8kGPfbF8w==",
-      "PackageArchiveSHA256": "7268839dca1ec677d4c9908b4e52395d4c003c6989550d0b8e965923a4a70036",
-      "RawArchiveSHA512": "wi7jZfGEVTuajiD5Rx/RL5sGRGcHn5d6UU6o/H6IhexDHlVpaPGt5R6JicIcEEietKAYEatuMMzsSnFI26DIbg==",
-      "OriginalPublishedDepsSHA256": "45b007aab2b12fd58e032de6853a6d2355037d21b7bb81f24f2c114b33df9e0c",
+      "NuGetContentHashFromMetadata": "XVcOnSgh4EnuySXtcnNRlAer7C6LtXvyT61deqzgHHt4fn0nnpgwiC2zaLkhb7vl1LT1cHeboGc/FGjB6FG5pg==",
+      "PackageArchiveSHA256": "116dbc39c4be97ae85f44c301f9f853cc0d13053f5d84cbb7bdface970077482",
+      "RawArchiveSHA512": "XVcOnSgh4EnuySXtcnNRlAer7C6LtXvyT61deqzgHHt4fn0nnpgwiC2zaLkhb7vl1LT1cHeboGc/FGjB6FG5pg==",
+      "OriginalPublishedDepsSHA256": "f890a9e45c91099d499cb3ddd36d005a18ca98cb45fdffaa809f7b351fad1a81",
       "RetainedNoticePaths": [
-        "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.12/LICENSE.TXT",
-        "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+        "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.14/LICENSE.TXT",
+        "runtime/microsoft.netcore.app.runtime.linux-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT"
       ],
-      "PackageSignatureAuthenticityQualified": false
+      "PackageSignatureAuthenticityQualified": true
     },
     {
       "ID": "Microsoft.NETCore.App.Runtime.osx-arm64",
-      "Version": "10.0.12",
+      "Version": "10.0.14",
       "RID": "osx-arm64",
-      "NuGetContentHashFromMetadata": "5s6w7DIq8/3bAQkgst/wiBfrYOPKu3Pn9yxH5OXof/QY7KCQD+6KjPiFYWxltRy/uqQv+l7uPVRVvVp83pDfCQ==",
-      "PackageArchiveSHA256": "2f0e72fdf79ead91d0e1ad4960ea3a9bdeba1b7cb08467e3ead0a427d1fd2e08",
-      "RawArchiveSHA512": "8rDt9QoxwXsA6a0tVl9b4fD5my0EZtXvJndCEFESf/H5hSlqvi26RBwfnvyiz3b8wS2pdP8G6H7xqdRJbSVkwg==",
-      "OriginalPublishedDepsSHA256": "a1230a763ff715b2cf0ba56d74428cb80277c46744c613e71337c2019686f2db",
+      "NuGetContentHashFromMetadata": "aaaa/7gTMAMy7wlLle+AU0VZhYoMUBmImsZI9zcdrpSiZvb1GVVzsyQnwp4vEg+TvPRwm6qQuWisowO1q5AhKg==",
+      "PackageArchiveSHA256": "9c15146d70feb23de1b6d27074539380f87706cf293aac173190105a55bdaee7",
+      "RawArchiveSHA512": "aaaa/7gTMAMy7wlLle+AU0VZhYoMUBmImsZI9zcdrpSiZvb1GVVzsyQnwp4vEg+TvPRwm6qQuWisowO1q5AhKg==",
+      "OriginalPublishedDepsSHA256": "aa59e08d0239ae678fb01ed134270b8b352be72f55cd078777d00101c6844b5e",
       "RetainedNoticePaths": [
-        "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.12/LICENSE.TXT",
-        "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+        "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.14/LICENSE.TXT",
+        "runtime/microsoft.netcore.app.runtime.osx-arm64/10.0.14/THIRD-PARTY-NOTICES.TXT"
       ],
-      "PackageSignatureAuthenticityQualified": false
+      "PackageSignatureAuthenticityQualified": true
     }
   ],
   "ExactRuntimePackTextBytesRetained": true

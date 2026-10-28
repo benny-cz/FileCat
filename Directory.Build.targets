@@ -21,10 +21,10 @@
 
     This is the runtime pack whose license texts are pinned and reviewed in licenses/dependencies/index.json, which
     the publish step enforces. Raising it means regenerating and reviewing that snapshot for every RID first; the
-    latest release at the time of writing (10.0.13) has no reviewed snapshot, so the packages stay on 10.0.12.
+    reviewed snapshot is updated only after all five official packages, signatures and exact notice bytes agree.
   -->
   <PropertyGroup>
-    <FileCatServicedRuntimeVersion>10.0.12</FileCatServicedRuntimeVersion>
+    <FileCatServicedRuntimeVersion>10.0.14</FileCatServicedRuntimeVersion>
   </PropertyGroup>
   <Target Name="FileCatUseServicedRuntimePacks" BeforeTargets="ProcessFrameworkReferences">
     <ItemGroup>

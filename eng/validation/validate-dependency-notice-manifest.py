@@ -16,6 +16,10 @@ fixtureRoot=repo/'eng/validation/fixtures/dependency-notices';fixtureIndex=json.
 assert fixtureIndex['SchemaVersion']==1 and len(fixtureIndex['Manifests'])==7
 appLock=json.loads((repo/'src/FileCat.App/packages.lock.json').read_text())
 avaloniaVersion=appLock['dependencies']['net10.0']['Avalonia']['resolved']
+targetsText=(repo/'Directory.Build.targets').read_text()
+runtimeMarker='<FileCatServicedRuntimeVersion>'
+runtimeVersion=targetsText.split(runtimeMarker,1)[1].split('</FileCatServicedRuntimeVersion>',1)[0]
+assert runtimeVersion and runtimeVersion.count('.')==2
 inputs=[repo/'eng/DependencyNotices/Program.cs',repo/'eng/DependencyNotices/DependencyNotices.csproj',repo/'eng/DependencyNotices/packages.lock.json',repo/'src/FileCat.App/packages.lock.json',repo/'Directory.Build.props',repo/'Directory.Build.targets',repo/'Directory.Packages.props',repo/'global.json',fixtureRoot/'index.json']
 inputs += sorted(p for p in (repo/'licenses/dependencies').rglob('*') if p.is_file())
 inputs += [fixtureRoot/v['Path'] for v in fixtureIndex['Manifests']]
@@ -33,8 +37,8 @@ behaviors=['unchanged','unknown-package','wrong-package-version','wrong-package-
 for fixture in fixtureIndex['Manifests']:
     original=fixtureRoot/fixture['Path'];assert sha(original)==fixture['SHA256']
     data=json.loads(original.read_text())
-    # The retained publish manifests are historical 12.1.1 fixtures. Adapt only
-    # their Avalonia package identities in memory to test the current frozen
+    # The retained publish manifests are historical 12.1.1/runtime-10.0.12 fixtures.
+    # Adapt only their dependency identities in memory to test the current frozen
     # notice snapshot; the original fixture bytes and SHA pins remain intact.
     if avaloniaVersion!='12.1.1':
         def currentAvalonia(value):
@@ -48,6 +52,14 @@ for fixture in fixtureIndex['Manifests']:
             key=package+'/'+avaloniaVersion
             if package.startswith('Avalonia') and key in data['libraries']:
                 data['libraries'][key]['sha512']='sha512-'+entry['contentHash']
+    if runtimeVersion!='10.0.12':
+        def currentRuntime(value):
+            if isinstance(value,dict):
+                return {(name.replace('/10.0.12','/'+runtimeVersion) if name.startswith('runtimepack.') else name):currentRuntime(item)
+                        for name,item in value.items()}
+            if isinstance(value,list):return [currentRuntime(item) for item in value]
+            return runtimeVersion if value=='10.0.12' else value
+        data=currentRuntime(data)
     key='Avalonia/'+avaloniaVersion;assert data['libraries'][key]['type']=='package'
     for behavior in behaviors:
         d=json.loads(json.dumps(data));libs=d['libraries'];target=d['targets'][d['runtimeTarget']['name']]
