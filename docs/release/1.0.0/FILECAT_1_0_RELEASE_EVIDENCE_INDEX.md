@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**871 evidence entries; none is final candidate qualification.** No candidate exists.
+**872 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -26,6 +26,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-ENV-STORAGE-ARTIFACTS | Lossless artifact compaction with complete path/hash/metadata recheck | Main daccc62; 2026-10-09 storage maintenance | 20.75 GB allocation reduction; 296,743 paths retained/3,885 files compressed; no source or qualification change | [Full record](evidence/E-ENV-STORAGE-artifact-compaction.md) | Environment/storage, evidence retention |
 | E-I03-ADVISORIES | Fresh App package advisory query and range comparison | 8502983 actual App assets; 2026-10-06 official feed | Preliminary finite query; native/runtime/unknown advisories/legal/candidate open | [E-I03-ADVISORIES](evidence/E-I03-ADVISORIES-current-app-query.md) | I03, V20 |
 | E-I03-APPIMAGE | Actual wrapper input/transformation and original notice inclusion | 145f569 before; 0d61dbb/CI 37492084054/37492315642 correction | Preliminary correction sealed; static composition/legal obligations/candidate open | [E-I03-APPIMAGE](evidence/E-I03-APPIMAGE-runtime-inputs.md) | I03, I14, V20 |
+| E-I03-APPIMAGE-PIN | Immutable current runtime asset identity, signature/source binding and real AppImage/SBOM/launch/refusal | `a508a270`; Ubuntu 26.04.1 plus Windows notice controls | Preliminary runtime-pin acceptance; source/legal/static composition, exact pushed packaging and candidate remain open | [Immutable runtime](evidence/E-I03-APPIMAGE-immutable-runtime.md) | I03, I60, V20 |
 | E-I03-CHECKSUM | Native embedded-checksum observations | Actual 145f569/8502983 CI AppImages; immutable appimagetool 8c8c91f source | Finite Linux checksum matches; generic semantics/authenticity/source/candidate open | [E-I03-CHECKSUM](evidence/E-I03-CHECKSUM-native-observations.md) | I03, V20 |
 | E-I03-INNO | Pinned compiler, exact license and installer recipe/output receipts | 472f7d0/9b0415e/0646053 | Preliminary tool/recipe validation; inert recipe payload explicitly identified | [E-I03-INNO](evidence/E-I03-INNO-pinned-compiler.md) | I03, I18, V19/V20 |
 | E-I03-INVENTORY | Reject failed or inconsistent package inventories | 145f569 before; 1d6d53f/CI 37487426601/37487590559 | Preliminary correction sealed; full SBOM/candidate open | [E-I03-INVENTORY](evidence/E-I03-INVENTORY-failure-gate.md) | I03, I18, V20 |
