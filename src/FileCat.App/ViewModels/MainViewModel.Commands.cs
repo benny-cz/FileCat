@@ -306,6 +306,7 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.NextTab:
                 panel?.CycleTab(1);
+                AnnounceTab(panel);
                 break;
             case CommandIds.MoveTabLeft:
             case CommandIds.MoveTabRight:
@@ -313,6 +314,7 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.PreviousTab:
                 panel?.CycleTab(-1);
+                AnnounceTab(panel);
                 break;
             case CommandIds.ReopenTab:
                 Workspace.ReopenClosed();

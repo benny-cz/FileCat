@@ -17,6 +17,30 @@ namespace FileCat.App.Tests;
 public sealed class TabStripTests
 {
     [AvaloniaFact]
+    public void A_keyboard_tab_switch_announces_the_tab_it_reached()
+    {
+        // Orca kept the focused row and said only "Go to parent location": not which same-named tab it now was.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[0];
+            vm.Workspace.Activate(panel);
+            var first = panel.ActiveTab!;
+            var second = panel.OpenTab(FileCat.Core.Resources.Location.FileSystem(Path.Combine(root, "files")));
+            var announcement = window.FindControl<TextBlock>("RestoredFocusAnnouncement")!;
+            Assert.Same(second, panel.ActiveTab);
+            vm.Execute(CommandIds.NextTab);
+            Assert.Same(first, panel.ActiveTab);
+            Assert.Equal($"Tab 1 of 2: {first.TabAccessibleName}", announcement.Text);
+            vm.Execute(CommandIds.PreviousTab);
+            Assert.Equal($"Tab 2 of 2: {second.TabAccessibleName}", announcement.Text);
+            Assert.Contains(Path.Combine(root, "files"), announcement.Text);
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(announcement));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public void Rejected_last_tab_middle_click_preserves_real_recent_history()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

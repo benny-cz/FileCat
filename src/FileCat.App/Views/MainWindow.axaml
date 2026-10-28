@@ -61,7 +61,7 @@
       <TextBlock x:Name="ResizeText" Classes="small" TextWrapping="Wrap" />
     </Border>
 
-    <!-- Kept in the AX tree so a restored list row can be spoken after a modal closes. -->
+    <!-- Kept in the AX tree so a restored list row, or the tab a keyboard switch reached, can be spoken. -->
     <TextBlock x:Name="RestoredFocusAnnouncement" Grid.Row="1" Width="1" Height="1" Opacity="0"
                IsHitTestVisible="False" AutomationProperties.LiveSetting="Polite" />
 

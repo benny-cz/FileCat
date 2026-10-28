@@ -87,6 +87,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _notificationTimer.Tick += (_, _) => TryExpireNotification();
         vm.PropertyChanged += OnViewModelPropertyChanged;
         vm.CommandAvailabilityChanged += OnCommandAvailabilityChanged;
+        vm.TabAnnounced += text =>
+        {
+            RestoredFocusAnnouncement.Text = text;
+            LiveRegions.Repeat(RestoredFocusAnnouncement);
+        };
         if (vm.CurrentNotification is { IsError: false })
         {
             _notificationTimer.Interval = TimeSpan.FromSeconds(6);

@@ -27,6 +27,18 @@ public sealed partial class KeyBarItem : ObservableObject
 /// <summary>Root view model: workspace, key bar, command line, and command dispatch (plan §4.4).</summary>
 public sealed partial class MainViewModel : ObservableObject
 {
+    /// <summary>
+    /// Raised with what a screen reader should hear after a keyboard tab switch. The focused list keeps its row, so
+    /// Orca only said "Go to parent location" and never which of several same-named tabs it now was.
+    /// </summary>
+    public event Action<string>? TabAnnounced;
+
+    private void AnnounceTab(PanelViewModel? panel)
+    {
+        if (panel?.ActiveTab is { } tab && panel.Tabs.Count > 1)
+            TabAnnounced?.Invoke($"Tab {panel.Tabs.IndexOf(tab) + 1} of {panel.Tabs.Count}: {tab.TabAccessibleName}");
+    }
+
     /// <summary>Folder counts running, by tab and name, each with what ends it in its tab (status line, Count).</summary>
     private readonly Dictionary<string, (CancellationTokenSource Cts, Action? Ended)> _sizing = new(StringComparer.Ordinal);
 
