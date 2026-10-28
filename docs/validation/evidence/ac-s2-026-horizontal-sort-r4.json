@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/HorizontalSort/3fcaa47e21084ce89d97c292809d27e6",
+  "listFontSize": 20,
+  "displayScale": 2.0,
+  "focusBefore": [
+    "Panel 1, source, /home/benny/FileCatValidation/HorizontalSort/3fcaa47e21084ce89d97c292809d27e6/source",
+    "bravo.txt, file, 2 bytes, modified 11/14/2023 11:14:20\u202fPM, not marked, 3 of 4"
+  ],
+  "rowOrderBefore": [
+    "alpha.txt",
+    "bravo.txt",
+    "charlie.txt"
+  ],
+  "descriptionBefore": "4 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+  "scrollCandidates": [
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ],
+    [
+      "scroll pane",
+      "ScrollViewer"
+    ]
+  ],
+  "listBounds": [
+    146,
+    440,
+    699,
+    592
+  ],
+  "descriptionAfterWheel": "4 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+  "scrollAfter": null,
+  "focusAfterWheel": [
+    "Panel 1, source, /home/benny/FileCatValidation/HorizontalSort/3fcaa47e21084ce89d97c292809d27e6/source",
+    "bravo.txt, file, 2 bytes, modified 11/14/2023 11:14:20\u202fPM, not marked, 3 of 4"
+  ],
+  "descriptionAfter": "4 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Modified, descending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+  "focusAfterSort": [
+    "Panel 1, source, /home/benny/FileCatValidation/HorizontalSort/3fcaa47e21084ce89d97c292809d27e6/source",
+    "bravo.txt, file, 2 bytes, modified 11/14/2023 11:14:20\u202fPM, not marked, 3 of 4"
+  ],
+  "rowOrderAfter": [
+    "charlie.txt",
+    "bravo.txt",
+    "alpha.txt"
+  ],
+  "speechAfterSort": [
+    "left shift",
+    "4 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Modified, descending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+  ],
+  "focusAfterKeyboardRoundTrip": [
+    "Panel 1, source, /home/benny/FileCatValidation/HorizontalSort/3fcaa47e21084ce89d97c292809d27e6/source",
+    "bravo.txt, file, 2 bytes, modified 11/14/2023 11:14:20\u202fPM, not marked, 3 of 4"
+  ],
+  "speechAfterKeyboardRoundTrip": [
+    "alpha.txt, file, 1 byte, modified 11/14/2023 11:13:20\u202fPM, not marked, 4 of 4.",
+    "not selected.",
+    "bravo.txt, file, 2 bytes, modified 11/14/2023 11:14:20\u202fPM, not marked, 3 of 4.",
+    "not selected."
+  ],
+  "sourceExact": true,
+  "targetEmpty": true
+}

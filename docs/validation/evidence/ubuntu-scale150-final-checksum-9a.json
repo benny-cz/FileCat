@@ -1,0 +1,151 @@
+{
+  "passed": true,
+  "platform": "Ubuntu",
+  "appSha256": "f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593",
+  "appDllSha256": "112a09f36114d305f342afefbcbc136effb5c27fe26fde6ea096d59f6921197b",
+  "fixture": "/home/benny/FileCatValidation/ChecksumUbuntu/1e47aa179a3d4cfc81fb22a3fb211fbb",
+  "selectedByte": {
+    "scope": "selected range 0x0\u20130x0",
+    "result": "Source: /home/benny/FileCatValidation/ChecksumUbuntu/1e47aa179a3d4cfc81fb22a3fb211fbb/source/native-checksum.bin\nselected range 0x0\u20130x0, 1 of 1 bytes read\nSHA-256: 6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d\nCRC-32: d202ef8d\nRevision evidence unchanged during read: 5 bytes, modified 2026-10-26 19:20:55Z.",
+    "copiedExactly": true,
+    "layout": {
+      "frame": [
+        150,
+        174,
+        1080,
+        750
+      ],
+      "controls": {
+        "Checksum scope": [
+          170,
+          580,
+          486,
+          48
+        ],
+        "Compute": [
+          672,
+          580,
+          150,
+          59
+        ],
+        "Copy results": [
+          838,
+          580,
+          190,
+          59
+        ],
+        "Close checksums": [
+          170,
+          651,
+          252,
+          59
+        ],
+        "Checksum results": [
+          170,
+          722,
+          1040,
+          140
+        ]
+      }
+    }
+  },
+  "wholeFile": {
+    "scope": "whole file",
+    "result": "Source: /home/benny/FileCatValidation/ChecksumUbuntu/1e47aa179a3d4cfc81fb22a3fb211fbb/source/native-checksum.bin\nwhole file, 5 of 5 bytes read\nSHA-256: 5377341940b705ad8fbf7da5e6c53148373689f13659852a7939af4cfcf9b9bc\nCRC-32: ad156433\nRevision evidence unchanged during read: 5 bytes, modified 2026-10-26 19:20:55Z.",
+    "copiedExactly": true,
+    "layout": {
+      "frame": [
+        150,
+        174,
+        1080,
+        750
+      ],
+      "controls": {
+        "Checksum scope": [
+          170,
+          580,
+          460,
+          48
+        ],
+        "Compute": [
+          646,
+          580,
+          150,
+          59
+        ],
+        "Copy results": [
+          812,
+          580,
+          190,
+          59
+        ],
+        "Close checksums": [
+          170,
+          651,
+          252,
+          59
+        ],
+        "Checksum results": [
+          170,
+          722,
+          1040,
+          140
+        ]
+      }
+    }
+  },
+  "geometry": {
+    "displayScale": 1.5,
+    "requestedPhysicalSize": [
+      1080,
+      750
+    ],
+    "frame": [
+      150,
+      174,
+      1080,
+      750
+    ],
+    "selectedScope": {
+      "frame": [
+        150,
+        174,
+        1080,
+        750
+      ],
+      "controls": {
+        "Checksum scope": [
+          170,
+          631,
+          486,
+          48
+        ],
+        "Compute": [
+          672,
+          631,
+          150,
+          59
+        ],
+        "Copy results": [
+          838,
+          631,
+          190,
+          59
+        ],
+        "Close checksums": [
+          170,
+          702,
+          252,
+          59
+        ],
+        "Checksum results": [
+          170,
+          773,
+          1040,
+          89
+        ]
+      }
+    }
+  },
+  "sourceBytesUnchanged": true
+}

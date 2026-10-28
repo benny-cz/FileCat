@@ -1,0 +1,402 @@
+﻿{
+    "passed":  true,
+    "app":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\GitMain-PanelMask-2f1f43c9\\src\\FileCat.App\\bin\\Release\\net10.0\\FileCat.exe",
+    "appDllSha256":  "D74B8708FFC089672545451C5801F59B83E28A0101EE4670AD82A4E43299C092",
+    "nvda":  "2026.2",
+    "fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f",
+    "input":  "Windows virtual-key keyboard",
+    "sourceSha256":  {
+                         "a.txt":  "B6A98D9CE9A2D9149288FA3DF42D377C3E42737AFDCDAF714E33C0A100B51060",
+                         "b.txt":  "F2C82DECDD7181CF98945929A62598DB7E6B477E11F6E0EB0AE97020EFF151AD",
+                         "c.txt":  "999D1D048EE9123272DD9B718680551C83E867935B47C2650E6906DC22674E47"
+                     },
+    "steps":  [
+                  {
+                      "step":  "switch to the new window",
+                      "expect":  "Go to parent location",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — source — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "down to a.txt",
+                      "expect":  "a.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027a.txt\u0027, \u0027not selected\u0027, \u0027file, 6 bytes, modified 26.10.2026 10:02:11, not marked, 2 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "down to b.txt",
+                      "expect":  "b.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027b.txt\u0027, \u0027not selected\u0027, \u0027file, 5 bytes, modified 26.10.2026 10:02:11, not marked, 3 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "down to c.txt",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "up to b.txt",
+                      "expect":  "b.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027b.txt\u0027, \u0027not selected\u0027, \u0027file, 5 bytes, modified 26.10.2026 10:02:11, not marked, 3 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "home to parent",
+                      "expect":  "Go to parent location",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "end to c.txt",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "tab to the target panel",
+                      "expect":  "Go to parent location",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 2, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\target\u0027, \u0027list\u0027, \u0027Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 1\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "tab back to the source panel",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "F7 opens Create folder",
+                      "expect":  "folder",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Create folder dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Folder name (use \\\\ for nested folders):\u0027, \u0027edit\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  2,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape returns to the list",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Ctrl+C announces the copy notice",
+                      "expect":  "Copied 1 item",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Copied 1 item to the clipboard.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "a repeated copy is announced again",
+                      "expect":  "Copied 1 item",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Copied 1 item to the clipboard.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Ctrl+S opens Quick filter",
+                      "expect":  "Quick filter dialog",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Quick filter dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Show only the files that match (folders show unless the mask names them, as in src\\\\); empty shows all. Marks on hidden items are kept:\u0027, \u0027edit\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "typing an unclosed mask is announced",
+                      "expect":  "Unclosed regular expression in mask.",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027slash\u0027, EndUtteranceCommand()]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Unclosed regular expression in mask.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Enter on the rejected mask explains it again",
+                      "expect":  "Unclosed regular expression in mask.",
+                      "heard":  [
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027a\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Unclosed regular expression in mask.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape closes Quick filter",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Ctrl+Shift+F focuses the inline Filter field",
+                      "expect":  "Filter",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Filter\u0027, \u0027edit\u0027, \u0027*.*\u0027, \u0027Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show.\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Enter rejects an invalid inline filter",
+                      "expect":  "Unclosed regular expression in mask.",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027slash\u0027, EndUtteranceCommand()]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Unclosed regular expression in mask.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape restores the current file row",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Filter ready\u0027]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "F3 opens the viewer",
+                      "expect":  "FileCat Viewer",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt — FileCat Viewer\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Text viewer\u0027, \u0027document\u0027, \u0027charlie\\n\u0027, \u0027No selection; Copy visible source text copies the visible lines; utf-8; wrapped.\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "F7 opens the viewer search",
+                      "expect":  "Find in file",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Find in file\u0027, \u0027edit\u0027, \u0027Find (Ctrl+F)\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "a viewer search speaks its match count",
+                      "expect":  "\u00271 match\u0027",
+                      "heard":  [
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027c\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027h\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027a\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027r\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00271 match\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "a completed viewer miss speaks its outcome",
+                      "expect":  "was not found after this position",
+                      "heard":  [
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027a\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027a\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027a\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027\"aaa\" was not found after this position.\u0027]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00270 matches\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape returns from the search to the text",
+                      "expect":  "No selection",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Text viewer\u0027, \u0027document\u0027, \u0027charlie\\n\u0027, \u0027No selection; Copy visible source text copies the visible lines; utf-8; wrapped.\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape closes the viewer",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — source — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "F5 opens Copy",
+                      "expect":  "Copy dialog",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Destination\u0027, \u0027edit\u0027, \u0027C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\target\\\\\u0027, \u0027→ into the folder C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\target\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "an empty destination is announced",
+                      "expect":  "Destination: Enter a destination folder.",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Destination: Enter a destination folder.\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape cancels Copy",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Ctrl+Shift+P opens command search",
+                      "expect":  "Search commands",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Search commands\u0027, \u0027edit\u0027, \u0027Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "resizing a boundary focuses it",
+                      "expect":  "first side\u0027s share of panels 1 and 2",
+                      "heard":  [
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027s\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027p\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027l\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027i\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027t\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027t\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027e\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027r\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \"Vertical panel boundary, first side\u0027s share of panels 1 and 2\", \u0027slider\u0027, \u002750\u0027, \u0027Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Right speaks only the new share",
+                      "expect":  "re:\u00275[1-9]\u0027",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u002751\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Escape restores the boundary",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u002750\u0027]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "switch away and back",
+                      "expect":  "c.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — source — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027c.txt\u0027, \u0027not selected\u0027, \u0027file, 8 bytes, modified 26.10.2026 10:02:11, not marked, 4 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true,
+                      "repeats":  1
+                  },
+                  {
+                      "step":  "open the two-item rename review",
+                      "expect":  "Bulk rename dialog",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Bulk rename dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Name mask\u0027, \u0027edit\u0027, \u0027[N]\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Checking names…\u0027]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00270 of 2 names change\u0027]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00271 of 2 shown · From: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\a.txt · To: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\a.txt\u0027]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Next mapping speaks complete b.txt paths",
+                      "expect":  "2 of 2; From: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f\\source\\b.txt; To: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f\\source\\b.txt",
+                      "focusedBeforeInvoke":  "Next rename mapping",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00272 of 2 shown · From: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\b.txt · To: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\b.txt\u0027]"
+                                ],
+                      "passed":  true
+                  },
+                  {
+                      "step":  "Previous mapping speaks complete a.txt paths",
+                      "expect":  "1 of 2; From: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f\\source\\a.txt; To: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f\\source\\a.txt",
+                      "focusedBeforeInvoke":  "Previous rename mapping",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u00271 of 2 shown · From: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\a.txt · To: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\\\\a.txt\u0027]"
+                                ],
+                      "passed":  true
+                  },
+                  {
+                      "step":  "cancel the spoken rename review",
+                      "expect":  "b.txt",
+                      "heard":  [
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\NvdaSpeechFixture\\\\f75176a8165949f8a66734fb334daa7f\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. 2 marked items, 0 hidden by filtering or Show hidden items. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                    "[LangChangeCommand (\u0027en_US\u0027), \u0027b.txt\u0027, \u0027file, 5 bytes, modified 26.10.2026 10:02:11, marked, 3 of 4\u0027, CancellableSpeech (still valid)]"
+                                ],
+                      "matching":  1,
+                      "passed":  true
+                  }
+              ],
+    "speechLog":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaSpeechFixture\\f75176a8165949f8a66734fb334daa7f\\nvda.log"
+}

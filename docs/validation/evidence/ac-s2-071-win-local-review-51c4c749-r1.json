@@ -1,0 +1,66 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "51c4c74989490712a98c2cb1b65310d53828a82b",
+    "Scope":  "ExternalIntoLocalReview",
+    "AppDllSha256":  "63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\16edc123c94a44a9941e04383fd02f0b",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "68E7EB9B53B03F67D0719BE7E64C3D880C57971CFD93D028498474E0A5421CCC",
+                         "alpha-native-drag.txt":  "0F67D028A2DAC3711E1DE635D33C2FBFB61C3E0E203A97AF7649F015A9AF3492"
+                     },
+    "SourceArchiveSha256":  null,
+    "TargetArchiveSha256":  null,
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "TargetSentinelSha256":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C",
+    "TargetList":  "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\16edc123c94a44a9941e04383fd02f0b\\DropTarget-ac7c5126",
+    "Geometry":  {
+                     "From":  [
+                                  317,
+                                  239
+                              ],
+                     "To":  [
+                                1606,
+                                480
+                            ],
+                     "Explorer":  [
+                                      30,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      212,
+                                      227,
+                                      598,
+                                      24
+                                  ]
+                 },
+    "HoverCursor":  {
+                        "Y":  480,
+                        "Flags":  1,
+                        "Handle":  3540076,
+                        "X":  1606
+                    },
+    "HoverWindow":  {
+                        "Expected":  132518,
+                        "Actual":  132518
+                    },
+    "ReviewDestination":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\16edc123c94a44a9941e04383fd02f0b\\DropTarget-ac7c5126\\",
+    "JournalFileCountBeforeCancel":  0,
+    "CanceledReview":  true,
+    "TargetNames":  [
+                        "unchanged-sentinel.txt"
+                    ],
+    "TargetHashes":  {
+                         "unchanged-sentinel.txt":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C"
+                     },
+    "SourceStillPresent":  {
+                               "beta-native-drag.txt":  "68E7EB9B53B03F67D0719BE7E64C3D880C57971CFD93D028498474E0A5421CCC",
+                               "alpha-native-drag.txt":  "0F67D028A2DAC3711E1DE635D33C2FBFB61C3E0E203A97AF7649F015A9AF3492"
+                           },
+    "TargetSentinelStillPresentSha256":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C"
+}

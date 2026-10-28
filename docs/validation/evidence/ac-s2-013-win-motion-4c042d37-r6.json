@@ -1,0 +1,37 @@
+﻿{
+    "Passed":  true,
+    "Head":  "4c042d37",
+    "AppDllSha256":  "D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952",
+    "OriginalAnimation":  1,
+    "RestoredAnimation":  1,
+    "Phases":  [
+                   {
+                       "Name":  "moving",
+                       "Animation":  1,
+                       "ForegroundPid":  10804,
+                       "AppPid":  10804
+                   },
+                   {
+                       "Name":  "reduced",
+                       "Animation":  0,
+                       "ForegroundPid":  10804,
+                       "AppPid":  10804
+                   },
+                   {
+                       "Name":  "resumed",
+                       "Animation":  1,
+                       "ForegroundPid":  10804,
+                       "AppPid":  10804
+                   }
+               ],
+    "SourceUnchanged":  true,
+    "TargetEmpty":  true,
+    "Error":  null,
+    "WindowAtLaunch":  {
+                           "Handle":  "22020600",
+                           "OwnerPid":  10804,
+                           "ProcessId":  10804,
+                           "HasExited":  false,
+                           "SessionId":  1
+                       }
+}

@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "guestReceipt": ".local-ac-s2-013-mac-motion-799e8918-r1.json",
+  "appDllSha256": "4134da26bd8c950d4976c010192a1fa93009ac955e18a3dda5015f71394bf128",
+  "regions": {
+    "menu": [
+      750,
+      210,
+      2090,
+      265
+    ],
+    "leftList": [
+      260,
+      560,
+      1180,
+      1280
+    ],
+    "rightList": [
+      1260,
+      560,
+      2140,
+      1280
+    ],
+    "footer": [
+      1450,
+      1390,
+      2150,
+      1450
+    ]
+  },
+  "changedPixelsOver10PerChannel": {
+    "moving": {
+      "menu": 7839,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 4227
+    },
+    "reduced": {
+      "menu": 0,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 0
+    },
+    "resumed": {
+      "menu": 35476,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 3917
+    }
+  }
+}

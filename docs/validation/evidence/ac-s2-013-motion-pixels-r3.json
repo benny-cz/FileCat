@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "guestReceipt": "E:\\FileCat\\.local-ac-s2-013-ubuntu-motion-0553f746-r3.json",
+  "appDllSha256": "fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe",
+  "regions": {
+    "menu": [
+      100,
+      112,
+      1100,
+      182
+    ],
+    "leftList": [
+      105,
+      284,
+      596,
+      670
+    ],
+    "rightList": [
+      605,
+      284,
+      1095,
+      670
+    ],
+    "footer": [
+      100,
+      709,
+      1100,
+      773
+    ]
+  },
+  "changedPixelsOver10PerChannel": {
+    "moving": {
+      "menu": 3502,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 9389,
+      "fixedBrightMenuGlyphs": 471,
+      "brightMenuGlyphs": 471
+    },
+    "reduced": {
+      "menu": 0,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 0,
+      "fixedBrightMenuGlyphs": 471,
+      "brightMenuGlyphs": 471
+    },
+    "resumed": {
+      "menu": 9227,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 6492,
+      "fixedBrightMenuGlyphs": 471,
+      "brightMenuGlyphs": 471
+    }
+  }
+}

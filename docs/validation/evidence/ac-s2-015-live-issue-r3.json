@@ -1,0 +1,42 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "2a371b4c464c94ca3c7f0ff640d623568be9d432",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c",
+    "AppDllSha256":  "D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291",
+    "NvdaVersion":  "2026.2",
+    "Destination":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\target\\",
+    "FirstAnnouncement":  "New issue; 1 total. Latest: Info: Skipped: the destination already has this name. Path: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\source\\one.txt",
+    "FirstSpeech":  [
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027An item with this name already exists dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Skip\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. 3 marked items, 0 hidden by filtering or Show hidden items. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027two.txt\u0027, \u0027file, 14 bytes, modified 27.10.2026 8:27:52, marked, 4 of 4\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027New issue; 1 total. Latest: Info: Skipped: the destination already has this name. Path: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\source\\\\one.txt\u0027]"
+                    ],
+    "SelectedIssueBefore":  "Info: Skipped: the destination already has this name. Path: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\source\\one.txt",
+    "SecondAnnouncement":  "New issue; 2 total. Latest: Info: Skipped: the destination already has this name. Path: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\source\\two.txt",
+    "SecondSpeech":  [
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Selected operation issues\u0027, \u0027list\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Info: Skipped: the destination already has this name. Path: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\source\\\\one.txt\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027An item with this name already exists dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Skip\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\source\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. 2 marked items, 0 hidden by filtering or Show hidden items. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027two.txt\u0027, \u0027file, 14 bytes, modified 27.10.2026 8:27:52, marked, 4 of 4\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027New issue; 2 total. Latest: Info: Skipped: the destination already has this name. Path: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\source\\\\two.txt\u0027]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy 3 items to C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\OperationIssueSpeech\\\\df2df57d57eb4565b2ef004f6005e08c\\\\target: completed with issues — 1 done, 2 skipped  (Ctrl+J shows details)\u0027]"
+                     ],
+    "SelectedIssueAfter":  [
+                               "Info: Skipped: the destination already has this name. Path: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\source\\one.txt"
+                           ],
+    "IssueRowsAfter":  [
+                           "Info: Skipped: the destination already has this name. Path: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationIssueSpeech\\df2df57d57eb4565b2ef004f6005e08c\\source\\one.txt"
+                       ],
+    "IssueSummaryAfter":  [
+                              "Showing first 2 of 2 issues · 2 details retained · 2 info, 0 warnings, 0 errors"
+                          ],
+    "ExactFiles":  true,
+    "PaddingExact":  true,
+    "FirstSpoken":  true,
+    "SecondSpoken":  true
+}

@@ -1,0 +1,126 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3",
+  "savedWorkspaceSha256": "2bdfbee3eacc2e9b995c3011f2f8a895056cc0cc034d9f11e166a055154aa8a1",
+  "restoredPanelNames": [
+    "Panel 1, panel, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-03",
+    "Panel 2, panel, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-05",
+    "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-07",
+    "Panel 4, target, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-09"
+  ],
+  "displayScale": 2.0,
+  "physicalWindow": [
+    1440,
+    1062
+  ],
+  "logicalWindow": [
+    720,
+    531
+  ],
+  "checks": [
+    {
+      "panel": 1,
+      "before": "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-03",
+      "after": "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-04",
+      "cycledTabPaths": [
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-04",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-05",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-06",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-07",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-08",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-09",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-10",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-01",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-02",
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-03"
+      ],
+      "focusAfterFirstSwitch": [
+        "Panel 1, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-1/tab-04",
+        "Go to parent location, parent navigation, 1 of 2"
+      ],
+      "visibleChooserRows": 8,
+      "targetAnnouncement": [
+        "F5 and F6 copy and move to panel 2. Click to choose another target (Shift+F12), or click \u201cSet as target\u201d on another panel."
+      ]
+    },
+    {
+      "panel": 2,
+      "before": "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-05",
+      "after": "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-06",
+      "cycledTabPaths": [
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-06",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-07",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-08",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-09",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-10",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-01",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-02",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-03",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-04",
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-05"
+      ],
+      "focusAfterFirstSwitch": [
+        "Panel 2, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-2/tab-06",
+        "Go to parent location, parent navigation, 1 of 2"
+      ],
+      "visibleChooserRows": 9,
+      "targetAnnouncement": [
+        "F5 and F6 copy and move to panel 3. Click to choose another target (Shift+F12), or click \u201cSet as target\u201d on another panel."
+      ]
+    },
+    {
+      "panel": 3,
+      "before": "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-07",
+      "after": "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-08",
+      "cycledTabPaths": [
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-08",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-09",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-10",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-01",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-02",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-03",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-04",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-05",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-06",
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-07"
+      ],
+      "focusAfterFirstSwitch": [
+        "Panel 3, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-3/tab-08",
+        "Go to parent location, parent navigation, 1 of 2"
+      ],
+      "visibleChooserRows": 9,
+      "targetAnnouncement": [
+        "F5 and F6 copy and move to panel 4. Click to choose another target (Shift+F12), or click \u201cSet as target\u201d on another panel."
+      ]
+    },
+    {
+      "panel": 4,
+      "before": "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-09",
+      "after": "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-10",
+      "cycledTabPaths": [
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-10",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-01",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-02",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-03",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-04",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-05",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-06",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-07",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-08",
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-09"
+      ],
+      "focusAfterFirstSwitch": [
+        "Panel 4, source, /home/benny/FileCatValidation/Workspace40Tabs/3d2cac0e890a40e3af701b3d3b6cd9e3/panel-4/tab-10",
+        "Go to parent location, parent navigation, 1 of 2"
+      ],
+      "visibleChooserRows": 9,
+      "targetAnnouncement": [
+        "F5 and F6 copy and move to panel 1. Click to choose another target (Shift+F12), or click \u201cSet as target\u201d on another panel."
+      ]
+    }
+  ],
+  "savedWorkspaceUnchanged": true
+}

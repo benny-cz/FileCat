@@ -1,0 +1,25 @@
+  Determining projects to restore...
+  Restored /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj (in 613 ms).
+  Restored /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj (in 928 ms).
+  3 of 5 projects are up-to-date for restore.
+  FileCat.Core -> /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/src/FileCat.Core/bin/Release/net10.0/FileCat.Core.dll
+  FileCat.Recovery -> /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/src/FileCat.Recovery/bin/Release/net10.0/FileCat.Recovery.dll
+  FileCat.Archives -> /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/src/FileCat.Archives/bin/Release/net10.0/FileCat.Archives.dll
+  FileCat.CoreCrashHarness -> /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/tests/FileCat.CoreCrashHarness/bin/Release/net10.0/FileCat.CoreCrashHarness.dll
+  FileCat.Core.Tests -> /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll
+Test run for /home/benny/FileCatValidation/GitMain-OrcaCurrent-20261025/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.13)
+[xUnit.net 00:00:00.32]   Discovering: FileCat.Core.Tests
+[xUnit.net 00:00:02.42]   Discovered:  FileCat.Core.Tests
+[xUnit.net 00:00:02.65]   Starting:    FileCat.Core.Tests
+[xUnit.net 00:00:03.44]   Finished:    FileCat.Core.Tests (ID = 'c08f1a70d6158bbb796138b7debdfc5dd71153633a0672564ac8aeef4f4fbe55')
+  Passed FileCat.Core.Tests.FreedesktopIconsTests.A_stalled_theme_setting_helper_does_not_hold_icon_detection [687 ms]
+
+Test Run Successful.
+Total tests: 1
+     Passed: 1
+ Total time: 4.0043 Seconds

@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-receipts-moved-20261028"></a>
+**28 October 2026, host receipts moved into the evidence folder:** The
+entries of 26 and 27 October cited 100 receipts, frames and logs by their
+untracked path in the host checkout (`E:\FileCat\.local-*`). They are now in
+`evidence/` under the same names without the `.local-` prefix, and the
+entries link to them. Two files that entries named only in passing were
+copied back from the guests, which keep the originals: the AC-S2-011
+[Registry form frame](evidence/ac-s2-011-registry-form-min-759ae044-r1.frame.png)
+from the Windows VM, and the
+[Ubuntu App rerun log](evidence/ubuntu-app-full-orca-final.log), the Ubuntu
+VM's `ubuntu-app-full-orca.log`, whose summary reports 0 failed, 2,414
+passed and 126 skipped of 2,540 tests in 14 m 8 s. The ignored host copies
+and test output that other entries mention were deleted that day; those
+entries name their guest receipts, which were left untouched.
+
 <a id="evidence-ci-final-20261028"></a>
 **28 October 2026, the final integration gate (GATE-CI-FINAL accepted):**
 With AC-S3-064 accepted, every scenario in the ledger was accepted and
@@ -1139,7 +1154,7 @@ from `alpha, bravo, charlie` to `charlie, bravo, alpha`, while `bravo.txt`
 retained AT-SPI focus. The list described `Sort: Modified, descending` and,
 after physical Down/Up, Orca spoke `bravo.txt` and its modified value. Three
 source hashes stayed exact and the target was empty. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-026-horizontal-sort-r4.json` (`passed: true`). The
+[`ac-s2-026-horizontal-sort-r4.json`](evidence/ac-s2-026-horizontal-sort-r4.json) (`passed: true`). The
 earlier r1 required a scrollbar node that this AT-SPI bridge does not expose;
 r2's horizontal-wheel event did not scroll in this GNOME/Xwayland session;
 r3 proved Shift+wheel sort/focus but its timestamps left visual order unchanged.
@@ -1161,7 +1176,7 @@ target (`1→2→3→4→1`); physical Ctrl+Tab reached all ten unique paths in 
 panel and returned to the original. AT-SPI reported focus on the selected
 panel and its row after the first switch in each panel, and the saved
 workspace SHA-256 stayed exact.
-Direct clean receipt: `E:\FileCat\.local-ac-s2-024-40-tabs-r4.json` (`passed:
+Direct clean receipt: [`ac-s2-024-40-tabs-r4.json`](evidence/ac-s2-024-40-tabs-r4.json) (`passed:
 true`). The first probe's 800-node cap was for large-file listings; r2 had a
 stale accessibility peer after resize; r3 inspected only one tab per panel and
 misread the chooser's 8–9 virtualized visible rows as its total. The bounded
@@ -1182,7 +1197,7 @@ visible `Replace "Native race …"?` review. Cancel preserved the first JSON
 byte-for-byte (SHA-256
 `ec731e35e569e88c9420e356ab20819cacb29dd605e36047f9b76ec45b4ccc46`),
 created no backup and left both local source files exact. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-024-save-race-r1.json` (`passed: true`). This accepts
+[`ac-s2-024-save-race-r1.json`](evidence/ac-s2-024-save-race-r1.json) (`passed: true`). This accepts
 [AC-S2-024-RACE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-024-race). The native narrow
 40-tab/four-panel restore passed separately at
 [AC-S2-024-TABS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-024-tabs).
@@ -1197,7 +1212,7 @@ showed the failed remote location and its list description explained the
 specific **Connection refused** condition. Orca spoke the full error. Physical
 Alt+Left restored the prior local folder, showed its `still-usable.txt` row,
 and the sentinel SHA-256 remained exact. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-022-current-error-r3.json` (`passed: true`, no error).
+[`ac-s2-022-current-error-r3.json`](evidence/ac-s2-022-current-error-r3.json) (`passed: true`, no error).
 The first two attempts had invalid test assertions: r1 expected the prior path
 to remain displayed during a current failed navigation, and r2 compared panel
 role text even though entering the failed location changes the source/target
@@ -1218,7 +1233,7 @@ The panel finished at the second local path, and its capacity changed from
 filesystem (device 2050). Closing the owned relay left that panel and
 capacity unchanged, without a stale connection banner; both local sentinel
 hashes stayed exact. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-022-nav-capacity-r2.json` (`passed: true`, no error).
+[`ac-s2-022-nav-capacity-r2.json`](evidence/ac-s2-022-nav-capacity-r2.json) (`passed: true`, no error).
 The first native receipt passed but did not record whether the remote listing
 had finished before navigation, so the bounded r2 run added that uncovered
 check. This accepts only
@@ -1243,7 +1258,7 @@ target-only file stayed exact, and no further target file appeared after a
 three-second stability wait. A read-only `vmrun listDirectoryInGuest` check
 of that same target after the run listed only `a-small.txt` and
 `z-extra.txt`, including no hidden staging entry. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-021-sync-stop-r5.json` (`Passed: true`, no error).
+[`ac-s2-021-sync-stop-r5.json`](evidence/ac-s2-021-sync-stop-r5.json) (`Passed: true`, no error).
 The earlier r1–r3 runs exercised the wrong comparison route or had a driver
 argument error; r4 passed the Stop/file effects but lacked the retained-report
 boundary, which justified r5. This accepts
@@ -1263,7 +1278,7 @@ and complete source path without job reselection. The first issue stayed
 selected after the second appeared; the summary said **2 of 2 issues**, with
 two details retained. Source and target hashes for both conflicts stayed
 exact; the middle file copied byte-exact. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-015-live-issue-r3.json` (`Passed: true`, no error).
+[`ac-s2-015-live-issue-r3.json`](evidence/ac-s2-015-live-issue-r3.json) (`Passed: true`, no error).
 The earlier r1/r2 fixtures reached the review and proved native speech; their
 driver-only Options-pattern and virtualized-row assumptions were corrected
 before r3. This accepts [AC-S2-015-ISSUES](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-issues)
@@ -1293,7 +1308,7 @@ completed folder jobs it independently observed a ninth 64 MiB Copy in
 selected completed `finished-08`. The Copy status/speed text changed on
 a subsequent live refresh, while `finished-08` remained selected, visible
 and at identical bounds; the 64 MiB source hash stayed exact. Direct
-receipt: `E:\FileCat\.local-ac-s2-015-selection-e7b448b7-r1.json`
+receipt: [`ac-s2-015-selection-e7b448b7-r1.json`](evidence/ac-s2-015-selection-e7b448b7-r1.json)
 (`Passed: true`). This accepts
 [AC-S2-015-SELECTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-selection).
 Live issue append/announcement remains the only AC-S2-015 child open;
@@ -1310,7 +1325,7 @@ that an Undo attempt was being reviewed or run. Approving it removed the
 original finished row while the inverse remained active. All 5,000 files
 returned to source with exact per-file content, the target emptied, and
 Undo report remained available. Direct clean receipt:
-`E:\FileCat\.local-ac-s2-019-active-e7b448b7-r3.json` (`Passed: true`,
+[`ac-s2-019-active-e7b448b7-r3.json`](evidence/ac-s2-019-active-e7b448b7-r3.json) (`Passed: true`,
 `Error: null`). The focused Release App run on this product change passed
 17/17 with one platform skip, including the deterministic
 [duplicate-admission and queued-inverse regression](../../tests/FileCat.App.Tests/UndoLifecycleUiTests.cs).
@@ -1336,7 +1351,7 @@ selected operation reports, would not change files, and that Keep history
 preserves both. **Keep history** had visible bounds and the same HelpText.
 Choosing it kept Undo and Open report available; the target hash stayed
 exact and the source did not return. Direct receipt:
-`E:\FileCat\.local-ac-s2-019-win-nvda-e7b448b7-r4.json` (`Passed: true`).
+[`ac-s2-019-win-nvda-e7b448b7-r4.json`](evidence/ac-s2-019-win-nvda-e7b448b7-r4.json) (`Passed: true`).
 The `r1` driver used PowerShell's reserved `$Pid` name, `r2` decoded a
 literal ellipsis incorrectly under Windows PowerShell 5.1, and `r3`
 attempted to set UIA focus on a list that already received initial dialog
@@ -1357,7 +1372,7 @@ reopening Details, the compact strip visibly said **Copying**, showed
 1.0 MiB of 64.0 MiB, and the ninth journal existed. Reopening Details
 selected the **Running** Copy row, with non-offscreen UIA bounds; the source
 hash remained exact. Direct receipt:
-`E:\FileCat\.local-ac-s2-015-win-focus-e7b1dbdf-r9.json` (`Passed: true`).
+[`ac-s2-015-win-focus-e7b1dbdf-r9.json`](evidence/ac-s2-015-win-focus-e7b1dbdf-r9.json) (`Passed: true`).
 This accepts only [AC-S2-015-FOCUS](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-focus).
 The live issue announcement and deliberate history choice during later
 progress remain open; the [finished-speed result](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-015-speed)
@@ -1383,7 +1398,7 @@ It then spoke all 15 lines of the separate Review report, including the
 complete JSON-escaped destination and recorded source paths. The runner
 selected **Cancel**, leaving the open journal, both exact source hashes and
 empty destination unchanged. Direct guest receipt copied to
-`E:\FileCat\.local-ac-s2-020-nvda-review-e7b1dbdf-r4.json` (`Passed: true`)
+[`ac-s2-020-nvda-review-e7b1dbdf-r4.json`](evidence/ac-s2-020-nvda-review-e7b1dbdf-r4.json) (`Passed: true`)
 contains the spoken lines, build hash, window size, UIA identities and file
 checks. Early `r1` on `3a4d7cba` established report speech but lacked the
 consequence; `r2`/`r3` on `e7b1dbdf` lost foreground focus. The bounded
@@ -1405,7 +1420,7 @@ specific **Open reviewed recovery report** action. **Copy all** from that
 new window exactly matched the saved record's text (1,219 characters),
 including both complete JSON-escaped paths and the reviewed/no-file-change
 outcome. Both source hashes and the empty destination remained exact. Ignored
-receipt: `E:\FileCat\.local-ac-s2-020-reviewed-reopen-r4.json` (Passed true).
+receipt: [`ac-s2-020-reviewed-reopen-r4.json`](evidence/ac-s2-020-reviewed-reopen-r4.json) (Passed true).
 The first three read-only probes corrected test-driver assumptions about
 the status-bar Details button and the reopened window title; no recovery
 action was repeated. This accepts [AC-S2-020-REOPEN](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-reopen).
@@ -1427,7 +1442,7 @@ Reopening the decision and approving **Mark reviewed and stop reminders**
 created a reviewed-record file with `ClosureConfirmed=true`, both full paths
 and the no-file-change result; source hashes and empty destination were
 still exact. Ignored receipt:
-`E:\FileCat\.local-ac-s2-020-report-reviewed-r4.json` (Passed true).
+[`ac-s2-020-report-reviewed-r4.json`](evidence/ac-s2-020-report-reviewed-r4.json) (Passed true).
 Earlier `r1`–`r3` runs exposed only test-driver mistakes: a PowerShell `$PID`
 name collision, a clipboard expectation that prevented observation, and a
 raw-path assertion against the report's documented JSON escaping. None
@@ -1449,7 +1464,7 @@ the same isolated app/profile, the interrupted row and separate **Mark
 reviewed…** action returned. SHA-256 of the open journal, source photo and
 excluded note remained identical before Hide, after Hide and after restart;
 the destination stayed empty. Ignored receipt:
-`E:\FileCat\.local-ac-s2-020-hide-reopen-r4.json` (Passed true). Three
+[`ac-s2-020-hide-reopen-r4.json`](evidence/ac-s2-020-hide-reopen-r4.json) (Passed true). Three
 earlier probes fixed the test-only PowerShell path guard, row selection and
 startup-open drawer assumption; none submitted recovery work. This accepts
 only [AC-S2-020-HIDE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-020-hide).
@@ -1466,7 +1481,7 @@ runner's first launch lacked the logged-in Xwayland authority, another probe
 matched the abbreviated filename instead of the full accessible row name,
 and the final probes encountered an AT-SPI object retired during the drawer
 refresh. The last ignored receipt is
-`E:\FileCat\.local-ac-s2-019-ubuntu-undo-spoken-r5.json`; earlier `r1`–`r4`
+[`ac-s2-019-ubuntu-undo-spoken-r5.json`](evidence/ac-s2-019-ubuntu-undo-spoken-r5.json); earlier `r1`–`r4`
 receipts preserve the setup diagnostics. The display was restored from 200%
 to its original 100% without restarting the VM. This is **setup evidence
 only**: [AC-S2-019](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-019) still requires
@@ -1488,8 +1503,8 @@ materialized history rows; the list virtualizes older rows. It opened Copy
 review for the exact separate target, but the subsequent snapshot still
 selected `finished-08`. The driver did not prove that it submitted or
 observed a ninth Running job, so this is **setup evidence only**, not a
-failure or acceptance of Details focus. Ignored host receipt:
-`E:\FileCat\.local-ac-s2-015-win-focus-3a4d7cba-r4.json`.
+failure or acceptance of Details focus. Committed receipt:
+[`ac-s2-015-win-focus-3a4d7cba-r4.json`](evidence/ac-s2-015-win-focus-3a4d7cba-r4.json).
 The first three probes identified a stale UI Automation row after refresh,
 a PowerShell `History` alias collision, and the invalid assumption that all
 eight virtualized rows would be exposed at once. The diagnostic stops here:
@@ -1505,7 +1520,7 @@ FileCat target with two Explorer files selected, then removed only that
 test-owned folder while the drag was held. FileCat automatically navigated
 the target panel to the nearest existing parent and opened Copy review for
 that **different** folder on release. Raw receipt:
-`E:\FileCat\.local-ac-s2-071-win-vanished-51c4c749-r4.json`.
+[`ac-s2-071-win-vanished-51c4c749-r4.json`](evidence/ac-s2-071-win-vanished-51c4c749-r4.json).
 This was a product failure: each DragOver replaced the original offered
 destination, so the final check compared the parent with itself.
 
@@ -1520,12 +1535,12 @@ you want to use.” After mouse release, UI Automation showed no Destination or
 transfer-review fields. The initial runner assertion expected only
 “folder unavailable,” so its raw product receipt says `Passed: false` despite
 recording those successful observations:
-`E:\FileCat\.local-ac-s2-071-win-vanished-3a4d7cba-r1.json` and held frame
-`E:\FileCat\.local-ac-s2-071-win-vanished-3a-r1-hover.png`.
+[`ac-s2-071-win-vanished-3a4d7cba-r1.json`](evidence/ac-s2-071-win-vanished-3a4d7cba-r1.json) and held frame
+[`ac-s2-071-win-vanished-3a-r1-hover.png`](evidence/ac-s2-071-win-vanished-3a-r1-hover.png).
 Without repeating the product action, a read-only follow-up on that exact
 retained test fixture verified both original source SHA-256 hashes, absent
 target, zero files in its job journal, and zero copied files in the parent;
-`E:\FileCat\.local-ac-s2-071-win-vanished-3a4d7cba-followup.json` reports
+[`ac-s2-071-win-vanished-3a4d7cba-followup.json`](evidence/ac-s2-071-win-vanished-3a4d7cba-followup.json) reports
 `Passed: true`. The tracked native runner now accepts either truthful
 changed-target or unavailable-folder wording and checks that no review opens.
 The Windows Release `DropTargetAdmissionTests` passed 6/6, including the new
@@ -1549,9 +1564,9 @@ separator. Its operation journal held zero files before approval. Invoking
 the review's Cancel button left the target sentinel SHA-256
 `8C6BCD59…8FA19C` and both source SHA-256 hashes unchanged. Guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-local-review-51c4c749-r1.json`;
-ignored host receipt/frame:
-`E:\FileCat\.local-ac-s2-071-win-local-review-51c4c749-r1.json` and
-`E:\FileCat\.local-ac-s2-071-win-local-review-r1-hover.png`. The app DLL
+committed receipt/frame:
+[`ac-s2-071-win-local-review-51c4c749-r1.json`](evidence/ac-s2-071-win-local-review-51c4c749-r1.json) and
+[`ac-s2-071-win-local-review-r1-hover.png`](evidence/ac-s2-071-win-local-review-r1-hover.png). The app DLL
 was SHA-256 `63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87`.
 This accepts [AC-S2-071-WIN-LOCAL-REVIEW](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local-review).
 The separate `DropTargetAdmissionTests` passed captured-folder continuation
@@ -1577,9 +1592,9 @@ After release, both Explorer source hashes matched their originals, the ZIP
 hash stayed `B36B1CD0…96B7DE8`, the target folder still held only that ZIP,
 and the operation journal had zero files. Guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-external-target-51c4c749-r2.json`;
-ignored host receipt/frame:
-`E:\FileCat\.local-ac-s2-071-win-external-target-51c4c749-r2.json` and
-`E:\FileCat\.local-ac-s2-071-win-external-target-51c-r2-hover.png`.
+committed receipt/frame:
+[`ac-s2-071-win-external-target-51c4c749-r2.json`](evidence/ac-s2-071-win-external-target-51c4c749-r2.json) and
+[`ac-s2-071-win-external-target-51c-r2-hover.png`](evidence/ac-s2-071-win-external-target-51c-r2-hover.png).
 This accepts [AC-S2-071-WIN-ARCHIVE-TARGET](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-archive-target)
 at the ZIP-target boundary. An earlier candidate used a title-only window
 lookup that could match FileCat itself; that run was discarded. The tracked
@@ -1606,20 +1621,20 @@ Explorer received **exactly the two selected filenames**, each SHA-256 equal
 to its source, while both source files and hashes remained unchanged. No
 extra target item was published. Guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-local-4c042d37-r4.json`;
-ignored host receipt and held frame:
-`E:\FileCat\.local-ac-s2-071-win-local-4c042d37-r4.json` and
-`E:\FileCat\.local-ac-s2-071-win-local-r4-hover.png`.
+committed receipt and held frame:
+[`ac-s2-071-win-local-4c042d37-r4.json`](evidence/ac-s2-071-win-local-4c042d37-r4.json) and
+[`ac-s2-071-win-local-r4-hover.png`](evidence/ac-s2-071-win-local-r4-hover.png).
 The same runner's Archive scope opened a test ZIP in FileCat, marked both
 members, staged them through the product drag route and Ctrl-Copied them into
 a separate fresh Explorer folder. The guest receipt
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-archive-4c042d37-r1.json`
-and ignored host receipt
-`E:\FileCat\.local-ac-s2-071-win-archive-4c042d37-r1.json` verify the
+and committed receipt
+[`ac-s2-071-win-archive-4c042d37-r1.json`](evidence/ac-s2-071-win-archive-4c042d37-r1.json) verify the
 two exact member filenames and SHA-256 hashes in Explorer, no extra item,
 and the original ZIP hash
 `CE53B9107EB389F8D2B5EA64082B535020F59A7A1BB3162BD8266AAC24079F7C`
 before and after. The held frame is
-`E:\FileCat\.local-ac-s2-071-win-archive-r1-hover.png`; the cursor receipt
+[`ac-s2-071-win-archive-r1-hover.png`](evidence/ac-s2-071-win-archive-r1-hover.png); the cursor receipt
 records `(1402, 530)`, native handle `197895`, and exact hovered Explorer
 window handle `460008`. These results accept
 [AC-S2-071-WIN-LOCAL](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-local)
@@ -1633,9 +1648,9 @@ notice said **“No items were dragged from the 2 selected”**, identified
 selection. Explorer stayed empty, and both original SHA-256 hashes stayed
 unchanged. Guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-071-win-mixed-4c042d37-r1.json`;
-ignored host receipt/frame:
-`E:\FileCat\.local-ac-s2-071-win-mixed-4c042d37-r1.json` and
-`E:\FileCat\.local-ac-s2-071-win-mixed-r1-hover.png`. This accepts
+committed receipt/frame:
+[`ac-s2-071-win-mixed-4c042d37-r1.json`](evidence/ac-s2-071-win-mixed-4c042d37-r1.json) and
+[`ac-s2-071-win-mixed-r1-hover.png`](evidence/ac-s2-071-win-mixed-r1-hover.png). This accepts
 [AC-S2-071-WIN-MIXED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-071-win-mixed).
 The first diagnostic selected Move on the same volume; the second hovered
 an older test-owned Explorer folder and produced a conflict prompt. Both
@@ -1661,17 +1676,17 @@ target remained empty, and both the checkbox and AppKit value returned to
 their original off state. The focused Mac motion tests passed **23/23** with
 16 workers. Guest receipt:
 `/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.json`;
-ignored host receipt and measurement:
-`E:\FileCat\.local-ac-s2-013-mac-motion-799e8918-r1.json` and
-`E:\FileCat\.local-ac-s2-013-mac-motion-pixels-r1.json`; direct frames:
-`E:\FileCat\.local-ac-s2-013-mac-motion-799e8918-r1.{moving,reduced,resumed}-{1,2}.png`.
+committed receipt and measurement:
+[`ac-s2-013-mac-motion-799e8918-r1.json`](evidence/ac-s2-013-mac-motion-799e8918-r1.json) and
+[`ac-s2-013-mac-motion-pixels-r1.json`](evidence/ac-s2-013-mac-motion-pixels-r1.json); direct frames:
+`evidence/ac-s2-013-mac-motion-799e8918-r1.{moving,reduced,resumed}-{1,2}.png`.
 The tracked [native route](../../tests/FileCat.NativeAcceptance/mac-ax-theme-motion.py),
 [native UI toggle](../../tests/FileCat.NativeAcceptance/mac-motion-toggle.applescript)
 and [capture checker](../../tests/FileCat.NativeAcceptance/check-mac-theme-motion-captures.py)
 accept [AC-S2-013-MAC-MOTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-mac-motion)
 and close its [parent](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013) at the recorded
 pairwise scope. Earlier `4c042d37` Mac receipt
-`E:\FileCat\.local-ac-s2-013-mac-motion-4c042d37-r7.json` is **invalid
+[`ac-s2-013-mac-motion-4c042d37-r7.json`](evidence/ac-s2-013-mac-motion-4c042d37-r7.json) is **invalid
 for live-preference acceptance**: `defaults write` made a new AppKit process
 see the changed value but did not update an already running AppKit process.
 That diagnostic prompted the fresh, bounded AppKit query in `799e8918`.
@@ -1692,10 +1707,10 @@ pixels in every phase. The guest receipt confirms the source unchanged,
 target empty and the original OS animation setting restored to on. Direct
 guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-013-win-motion-4c042d37-r6.json`;
-ignored host receipt/measurement:
-`E:\FileCat\.local-ac-s2-013-win-motion-4c042d37-r6.json` and
-`E:\FileCat\.local-ac-s2-013-win-motion-pixels-r6.json`; direct host frames:
-`E:\FileCat\.local-ac-s2-013-win-motion-r6-{moving,reduced,resumed}-{1,2}.png`.
+committed receipt/measurement:
+[`ac-s2-013-win-motion-4c042d37-r6.json`](evidence/ac-s2-013-win-motion-4c042d37-r6.json) and
+[`ac-s2-013-win-motion-pixels-r6.json`](evidence/ac-s2-013-win-motion-pixels-r6.json); direct host frames:
+`evidence/ac-s2-013-win-motion-r6-{moving,reduced,resumed}-{1,2}.png`.
 The [native runner](../../tests/FileCat.NativeAcceptance/win-ax-theme-motion.ps1)
 and [capture checker](../../tests/FileCat.NativeAcceptance/check-win-theme-motion-captures.py)
 accept only [AC-S2-013-WIN-MOTION](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-win-motion).
@@ -1717,10 +1732,10 @@ viewer body and toolbar. AT-SPI confirmed the hidden row, selected bytes
 0–47 and picture Fit control; the source hashes and empty target were
 unchanged and GNOME's original animation setting was restored. Direct guest
 receipt: `/home/benny/FileCatValidation/ac-s2-013-ubuntu-expressive-4c042d37-r3.json`;
-ignored host receipt/measurement:
-`E:\FileCat\.local-ac-s2-013-ubuntu-expressive-4c042d37-r3.json` and
-`E:\FileCat\.local-ac-s2-013-expressive-pixels-r3.json`. Direct VM frames:
-`E:\FileCat\.local-ac-s2-013-expressive-4c042d37-r3-{panel,danger,selection,search,picture-0,picture-1,picture-2,picture-3,picture-4,picture-5}.png`.
+committed receipt/measurement:
+[`ac-s2-013-ubuntu-expressive-4c042d37-r3.json`](evidence/ac-s2-013-ubuntu-expressive-4c042d37-r3.json) and
+[`ac-s2-013-expressive-pixels-r3.json`](evidence/ac-s2-013-expressive-pixels-r3.json). Direct VM frames:
+`evidence/ac-s2-013-expressive-4c042d37-r3-{panel,danger,selection,search,picture-0,picture-1,picture-2,picture-3,picture-4,picture-5}.png`.
 The tracked [native route](../../tests/FileCat.NativeAcceptance/linux-atspi-theme-contrast.py)
 and [capture checker](../../tests/FileCat.NativeAcceptance/check-theme-expressive-captures.py)
 accept only
@@ -1741,10 +1756,10 @@ animation clock. The picture-only diagnostic was deliberately stopped after
 that bounded result; its fixture was removed and GNOME's original motion
 setting `true` was restored. The direct guest partial diagnostic is
 `/home/benny/FileCatValidation/ac-s2-013-ubuntu-expressive-0553f746-r1.json`;
-ignored host receipt and VM frames are
-`E:\FileCat\.local-ac-s2-013-ubuntu-expressive-0553f746-r1.json`,
-`E:\FileCat\.local-ac-s2-013-expressive-r1-{panel,danger,selection,search}.png`
-and `E:\FileCat\.local-ac-s2-013-expressive-picture-r2-{0,1,2}.png`.
+committed receipt and VM frames are
+[`ac-s2-013-ubuntu-expressive-0553f746-r1.json`](evidence/ac-s2-013-ubuntu-expressive-0553f746-r1.json),
+`evidence/ac-s2-013-expressive-r1-{panel,danger,selection,search}.png`
+and `evidence/ac-s2-013-expressive-picture-r2-{0,1,2}.png`.
 The r1 picture step did not recognize a toggle-button accessibility role;
 the picture-only r2 reached the viewer without repeating the accepted
 panel/dialog/search steps. The product correction gives viewer, report and
@@ -1767,9 +1782,9 @@ hidden row, a closable Delete review, selected source bytes 0–47 and the
 Text Find controls. The review was cancelled; the source SHA-256 was unchanged
 and the target stayed empty. The direct guest receipt is
 `/home/benny/FileCatValidation/ac-s2-013-ubuntu-contrast-0553f746-r1.json`;
-the ignored host copy is
-`E:\FileCat\.local-ac-s2-013-ubuntu-contrast-0553f746-r1.json`, with
-`E:\FileCat\.local-ac-s2-013-contrast-r1-{panel,danger,selection,search}.png`
+the committed copy is
+[`ac-s2-013-ubuntu-contrast-0553f746-r1.json`](evidence/ac-s2-013-ubuntu-contrast-0553f746-r1.json), with
+`evidence/ac-s2-013-contrast-r1-{panel,danger,selection,search}.png`
 captures. This accepts the bounded
 [AC-S2-013-UBUNTU-CONTRAST](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-013-ubuntu-contrast)
 subcase. At this checkpoint expressive/transparent picture, complete cycle,
@@ -1790,9 +1805,9 @@ zero pixels in all phases; all 471 sampled bright menu glyph pixels stayed
 fixed. The source and empty target were unchanged, and the original GNOME
 setting `true` was restored. Direct guest receipt:
 `/home/benny/FileCatValidation/ac-s2-013-ubuntu-motion-0553f746-r3.json`;
-ignored host receipt and measurement:
-`E:\FileCat\.local-ac-s2-013-ubuntu-motion-0553f746-r3.json` and
-`E:\FileCat\.local-ac-s2-013-motion-pixels-r3.json`.
+committed receipt and measurement:
+[`ac-s2-013-ubuntu-motion-0553f746-r3.json`](evidence/ac-s2-013-ubuntu-motion-0553f746-r3.json) and
+[`ac-s2-013-motion-pixels-r3.json`](evidence/ac-s2-013-motion-pixels-r3.json).
 The preceding run did not inherit `XDG_CURRENT_DESKTOP` from SSH, so FileCat
 correctly treated GNOME's preference provider as unavailable; those reduced
 frames are invalid for native preference acceptance. The corrected runner
@@ -1817,8 +1832,8 @@ The original SHA-256
 remained unchanged, the target was empty, and one durable journal was present
 until test-owned cleanup. Direct receipt and syscall trace:
 `/home/benny/FileCatValidation/ac-s2-012-hex-editor-blocked-0553f746-r3.json`
-and its `.strace.log`; ignored host receipt:
-`E:\FileCat\.local-ac-s2-012-hex-editor-blocked-0553f746-r3.json`.
+and its `.strace.log`; committed receipt:
+[`ac-s2-012-hex-editor-blocked-0553f746-r3.json`](evidence/ac-s2-012-hex-editor-blocked-0553f746-r3.json).
 Earlier diagnostics hit an unrelated startup write, then counted writes per
 thread incorrectly; the path-scoped run is the accepted result. This accepts
 [AC-S2-012-EDIT-BLOCKED](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-edit-blocked)
@@ -1837,8 +1852,8 @@ than five repeated state phrases. The source SHA-256
 `fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108`
 remained unchanged and the target stayed empty. Direct receipt:
 `/home/benny/FileCatValidation/ac-s2-012-hex-editor-spoken-0553f746-r4.json`;
-ignored host copy:
-`E:\FileCat\.local-ac-s2-012-hex-editor-spoken-0553f746-r4.json`.
+committed copy:
+[`ac-s2-012-hex-editor-spoken-0553f746-r4.json`](evidence/ac-s2-012-hex-editor-spoken-0553f746-r4.json).
 One preceding same-build run stopped when a key arrived during Orca's initial
 full-row focus announcement; the bounded paced retry waited for that speech
 before editing. This accepts only
@@ -1867,7 +1882,7 @@ both held-source cases in 684 ms. One case released a delayed first page and
 required its current text and Value event; the other replaced that source
 before release and required only the new source's content. Repeated getter
 queries did not cause source reads. Exact local result:
-`E:\FileCat\.local-ac-s2-073-delayed-headless-c4e86a18.log`; the targeted
+[`ac-s2-073-delayed-headless-c4e86a18.log`](evidence/ac-s2-073-delayed-headless-c4e86a18.log); the targeted
 [`ViewerGeometryAndSemanticsTests`](../../tests/FileCat.App.Tests/ViewerGeometryAndSemanticsTests.cs)
 preserve the event/new-source assertions. Paired with the independent native
 AT-SPI payload/getter match on the same Git build, this accepts
@@ -1888,8 +1903,8 @@ that payload. No event returned the old viewport. The source SHA-256
 `73e88b29205d2c14413e21495821c9006af7a7206b34dd27d6ca6f107e08965a`
 was unchanged and the target remained empty. Direct guest receipt:
 `/home/benny/FileCatValidation/ac-s2-073-ubuntu-value-events-c4e86a18-r2.json`;
-ignored host copy:
-`E:\FileCat\.local-ac-s2-073-ubuntu-value-events-c4e86a18-r2.json`.
+committed copy:
+[`ac-s2-073-ubuntu-value-events-c4e86a18-r2.json`](evidence/ac-s2-073-ubuntu-value-events-c4e86a18-r2.json).
 The first run recorded the same current payload but did not assert payload
 equality in its runner; the ledger authorized one bounded rerun to add that
 required assertion. This accepts
@@ -1901,7 +1916,7 @@ page and Hex-editor spoken states remain untested native siblings.
 hid the shared text-size controls even though its report uses the same font.
 Git `c4e86a18` exposes smaller, current size and larger controls in Info;
 the focused Windows Release App regression passed 1/1 with zero build
-warnings (`E:\FileCat\.local-ac-s2-012-info-app-test.log`). A separate
+warnings ([`ac-s2-012-info-app-test.log`](evidence/ac-s2-012-info-app-test.log)). A separate
 test-owned 1 × 1 PNG carried a 186-character `Description` metadata path
 ending `INFO-PATH-END-9C4D`. The isolated Ubuntu Wayland guest built that Git
 head (app DLL SHA-256
@@ -1913,7 +1928,7 @@ then changed the read-only document status to wrapped. The source SHA-256
 `17c65fee2019f9a133cb2ea631bce6edb95117abe4a3e16ebed9d519bbd8471d`
 was unchanged and the target remained empty. Direct guest receipt:
 `/home/benny/FileCatValidation/ac-s2-012-info-ubuntu-c4e86a18-r2.json`;
-ignored host copy: `E:\FileCat\.local-ac-s2-012-info-ubuntu-c4e86a18-r2.json`.
+committed copy: [`ac-s2-012-info-ubuntu-c4e86a18-r2.json`](evidence/ac-s2-012-info-ubuntu-c4e86a18-r2.json).
 The first run stopped at the hidden font controls and is diagnostic. This
 accepts [AC-S2-012-INFO](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-info);
 native FCUX-073 event/editor spoken semantics remain open.
@@ -1930,15 +1945,15 @@ tree. `Stop` also throws after a ten-second exit deadline. This is a bounded
 test-harness correction, not evidence of a production transfer failure. The
 rebuilt Windows Release Remote project had zero warnings and errors; all nine
 focused FTP/FTPS disconnect Retry/Skip/Cancel cases passed in 1 minute 21
-seconds (`E:\FileCat\.local-ac-s2-012-ftp-focused-fixed.log`).
+seconds ([`ac-s2-012-ftp-focused-fixed.log`](evidence/ac-s2-012-ftp-focused-fixed.log)).
 Git `5e9a73e8` [five-lane CI run](https://github.com/benny-cz/FileCat/actions/runs/40430717302)
 completed green in producer, Windows, Windows ARM64, Ubuntu and macOS lanes.
 That confirms the fixture correction at that historical build; the final
 integration gate still needs the last implementation head.
 The [GitHub runs](https://github.com/benny-cz/FileCat/actions/runs/40424923552)
 and [second run](https://github.com/benny-cz/FileCat/actions/runs/40426220086)
-retain their historical results; diagnostic sequences were downloaded into
-ignored local `.local-ci-macos-*` directories.
+retain their historical results; diagnostic sequences were downloaded from
+them for this diagnosis, and the local copies were deleted on 28 October.
 
 <a id="evidence-viewer-copy-20261027"></a>
 **27 October 2026, native viewer Copy (FCUX-012/073/076):** A test-owned
@@ -1955,7 +1970,7 @@ selected bytes 181–190 through the same window sizes; Ctrl+C produced exactly
 `636166C3A920F09F8DA3`. The source hash was unchanged and the target empty.
 Direct guest receipt:
 `/home/benny/FileCatValidation/ac-s2-012-ubuntu-copy-0e85e9b3-r5.json`;
-ignored host copy: `E:\FileCat\.local-ac-s2-012-ubuntu-copy-0e85e9b3-r5.json`.
+committed copy: [`ac-s2-012-ubuntu-copy-0e85e9b3-r5.json`](evidence/ac-s2-012-ubuntu-copy-0e85e9b3-r5.json).
 The earlier Ubuntu r1–r4 runs diagnosed the clipboard runner, Find-versus-
 selection distinction and toolbar overflow; they are not passing evidence.
 
@@ -1970,7 +1985,7 @@ Both UIA Value patterns were read-only and supplied current selection status.
 The fixture hash and empty target were checked after both actions. Direct
 guest receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-012-win-copy-759ae044-r7.json`;
-ignored host copy: `E:\FileCat\.local-ac-s2-012-win-copy-759ae044-r7.json`.
+committed copy: [`ac-s2-012-win-copy-759ae044-r7.json`](evidence/ac-s2-012-win-copy-759ae044-r7.json).
 Earlier r1–r6 adjusted only the test runner for UIA row names, Win32 client
 geometry, PowerShell 5.1 and the Hex toggle. This accepts
 [AC-S2-012-COPY](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-012-copy). Native Info long-line
@@ -1987,9 +2002,9 @@ Cancel, disabled Next and 30 × 30 centered X were in bounds. Native Win32
 clicks on the X and backdrop separately closed the form; no input was
 submitted. Exact receipt:
 `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s2-011-registry-form-min-759ae044-r1.json`
-in the guest, with an ignored host copy at
-`E:\FileCat\.local-ac-s2-011-registry-form-min-759ae044-r1.json` and a
-matching frame capture. The preceding minimum chooser alone passed separately
+in the guest, with a committed copy at
+[`ac-s2-011-registry-form-min-759ae044-r1.json`](evidence/ac-s2-011-registry-form-min-759ae044-r1.json) and a
+matching [frame capture](evidence/ac-s2-011-registry-form-min-759ae044-r1.frame.png). The preceding minimum chooser alone passed separately
 as `ac-s2-011-registry-min-759ae044-r4.json`. Combined with the dated 200%
 long-path Undo and Find form routes and 150% Registry pointer result, this
 closes [AC-S2-011](UX_UI_ACCEPTANCE_LEDGER.md#ac-s2-011) by pairwise coverage.
@@ -2022,8 +2037,8 @@ forwarded 287,594 server bytes in 590 delayed chunks. All 2,000 source
 files retained their original bytes, the local source was unchanged and the
 target stayed empty. Exact receipt:
 `/home/benny/FileCatValidation/ac-s1-010-ubuntu-delayed-d2829324-r6.json`
-in the guest, with ignored host copy
-`E:\FileCat\.local-ac-s1-010-ubuntu-delayed-d2829324-r6.json`. This closes
+in the guest, with a committed copy
+[`ac-s1-010-ubuntu-delayed-d2829324-r6.json`](evidence/ac-s1-010-ubuntu-delayed-d2829324-r6.json). This closes
 [AC-S1-010-UBUNTU-DELAY](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010-ubuntu-delay)
 and, with the independent Windows archive and accepted Mac navigator routes,
 FCUX-010. Earlier r1/r2 lacked the isolated .NET runtime; r3–r5 corrected
@@ -2055,8 +2070,8 @@ items showed the first member and its complete `archive.zip` path. F3 opened
 the last member and exposed the expected text. The archive SHA-256 was
 unchanged, the target stayed empty, and the owned process and fixture were
 removed. Exact receipt: `C:\Users\Admin\AppData\Local\FileCatValidation\ac-s1-010-win-archive-d2829324-r3.json`
-in the guest, with an ignored host copy at
-`E:\FileCat\.local-ac-s1-010-win-archive-d2829324-r3.json`. This closes
+in the guest, with a committed copy at
+[`ac-s1-010-win-archive-d2829324-r3.json`](evidence/ac-s1-010-win-archive-d2829324-r3.json). This closes
 [AC-S1-010-WIN-ARCHIVE](UX_UI_ACCEPTANCE_LEDGER.md#ac-s1-010-win-archive);
 the delayed Ubuntu sibling has its separate acceptance above.
 
@@ -2767,7 +2782,7 @@ and a real successful worker completion on Unix; both must be ignored after
 replacement or closure, and the separate read-failure suite still tests
 errors. The 20-second guard remains. All six revised cases passed on the
 isolated Mac (`mac-checksum-generation-8508db4b.log`) and Windows VM
-(`.local-win-checksum-generation-r1.json`). The four separate Mac
+([`win-checksum-generation-r1.json`](evidence/win-checksum-generation-r1.json)). The four separate Mac
 `ChecksumDialogReadFailureTests` also passed
 (`mac-checksum-read-failure-8508db4b.log`). Full five-lane CI on the revised
 head is pending.
@@ -2781,7 +2796,7 @@ With the output muted, VoiceOver's actual last-phrase interface spoke
 `1 match`, then `"aaa" was not found after this position.` after a changed
 query in the Text viewer. The native route closed the viewer and preserved
 all three source hashes and the empty destination
-(`.local-mac-voiceover-viewer-find-8508db4b.json`). A separate AX focus
+([`mac-voiceover-viewer-find-8508db4b.json`](evidence/mac-voiceover-viewer-find-8508db4b.json)). A separate AX focus
 journey on the same app stopped before its Find step because a Tab briefly
 focused the target parent row then settled on Filter. That focus transition
 remains an independent native acceptance issue; it does not qualify the
@@ -2795,7 +2810,7 @@ with an absent term and requires Orca's actual `SPEECH OUTPUT` to contain
 the Git-built app DLL SHA-256
 `73307647c4b3511af942958d1d13bf7d7e575c1127dfff4961d454de3c7de0c9`.
 The build had zero warnings or errors; the report's source hashes and empty
-target remained exact (`.local-ubuntu-orca-search-outcome-r1.json`). Native
+target remained exact ([`ubuntu-orca-search-outcome-r1.json`](evidence/ubuntu-orca-search-outcome-r1.json)). Native
 Stop/error speech on Ubuntu and the remaining Mac outcomes remain open.
 
 **26 October 2026, native Windows spoken search Stop (FCUX-007):** The
@@ -2805,7 +2820,7 @@ portable NVDA 2026.2 spoke `Search canceled.` after the physical Stop click
 in a 2 GiB viewer search. The native runner independently required the Stop
 button to hide, the clipboard and source bytes to remain unchanged, and the
 target to remain empty. The report
-`.local-win-NvdaHexViewerStop-r2.json` passed the three editor match-count
+[`win-NvdaHexViewerStop-r2.json`](evidence/win-NvdaHexViewerStop-r2.json) passed the three editor match-count
 utterances, the new Stop utterance, both native routes and cleanup, with
 the Git-built App DLL SHA-256
 `D74B8708FFC089672545451C5801F59B83E28A0101EE4670AD82A4E43299C092`.
@@ -2821,12 +2836,12 @@ search and ordinary position updates remain silent. The visible status text
 supplies its changing accessible name, so the screen reader hears the actual
 outcome. Seven focused App cases passed in the isolated Windows VM: a complete
 miss and all six Text/Hex held-read Stop/failure combinations
-(`.local-win-search-outcome-r1.json`). The complete search-scope, Find-control
+([`win-search-outcome-r1.json`](evidence/win-search-outcome-r1.json)). The complete search-scope, Find-control
 and live-region naming classes then passed all 37 cases in the same VM
-(`.local-win-search-outcome-r2.json`). A native Windows journey using signed
+([`win-search-outcome-r2.json`](evidence/win-search-outcome-r2.json)). A native Windows journey using signed
 portable NVDA 2026.2 then heard the completed `"aaa" was not found after this
 position.` phrase from its speech log and passed the rest of its keyboard,
-filter, dialog and review checks (`.local-win-SearchOutcomeNvda-r1.json`).
+filter, dialog and review checks ([`win-SearchOutcomeNvda-r1.json`](evidence/win-SearchOutcomeNvda-r1.json)).
 Native Stop/error speech and the other desktop routes remain open.
 
 An earlier Ubuntu CI lane for `3ae11467` failed only the existing stalled
@@ -2835,7 +2850,7 @@ deadline on the loaded runner, even though the 500 ms process timeout had
 returned null. The regression now stalls its helper for 15 seconds and allows
 10 seconds of test wall time, retaining a clear failure margin for a genuine
 blocking wait and checking the helper process is gone. The focused Ubuntu VM
-test passed in 687 ms (`.local-ubuntu-theme-deadline-r1.log`). The final-head
+test passed in 687 ms ([`ubuntu-theme-deadline-r1.log`](evidence/ubuntu-theme-deadline-r1.log)). The final-head
 five-lane CI gate is pending.
 
 **26 October 2026, viewer Stop versus provider read failure (FCUX-007):**
@@ -3255,7 +3270,7 @@ theme. All six focused `PanelViewportLayoutTests` passed on Windows Release.
 The isolated Windows VM also launched the exact `2f1f43c9` Git app with
 Psychedelic settings, added the two extra panels by physical pointer input,
 and captured all four painted `*.*` masks in the screenshot-specific palette
-(`.local-vm-mask-psychedelic-four.png` in the host validation checkout).
+([`vm-mask-psychedelic-four.png`](evidence/vm-mask-psychedelic-four.png)).
 
 **25 October 2026, Ubuntu CI diagnosis:** On `7a5492fe` and `8042cd54`, the
 portable Ubuntu App test process aborted with exit code 134 after 625 and 334
@@ -3286,7 +3301,7 @@ is listed and requires no unrelated highlighted drive otherwise; it also
 checks the selected drive's actual destination. The adjusted case passed on
 both Windows and the same Ubuntu VM. The complete Ubuntu App rerun then passed
 2,414 cases with 126 platform skips, zero failures and no process abort
-(`ubuntu-app-full-orca-final.log`, 14 minutes 8 seconds). A green five-lane
+([`ubuntu-app-full-orca-final.log`](evidence/ubuntu-app-full-orca-final.log), 14 minutes 8 seconds). A green five-lane
 final-head CI gate is still required.
 The same updated guest app (DLL SHA-256
 `8c258e6c0078dc3c260d5c8f96df78964a890e9bd3b56ccff68b0909727bf664`)
@@ -4088,7 +4103,7 @@ and explicit Copy controls within that frame; Hex and Text each displayed
 Stop, canceled an in-progress search over an owned 2 GiB sparse file, retired
 Stop and preserved the source, target and clipboard. The reports are
 `scale150-9a500635-{find,checksum,stop-hex,stop-text}.json` in the guest and
-`.local-ubuntu-scale150-final-*-9a.json` in the host checkout. The suite
+`evidence/ubuntu-scale150-final-{find,checksum,stop-hex,stop-text}-9a.json` here. The suite
 exited zero and an independent display check confirmed restoration to
 1280 × 800 at 100%. Remote-provider cancellation and other spoken or scaled
 routes remain open.

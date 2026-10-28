@@ -1,0 +1,37 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "deliberate Mark reviewed",
+    "GitHead":  "3a4d7cba682595639a7ede109d0d1bac98a3b37c",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c",
+    "AppDllSha256":  "31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD",
+    "JournalSha256Before":  "D8EEB34BA5F6ADCBE768B1A8EF74D246F1CA2F896C92F69437DCC60083391D15",
+    "PhotoSha256Before":  "6F4E137E96A9A87F0AEBE42882A8B23BDBD07E535736F30AD94F6766094AC127",
+    "NoteSha256Before":  "26765C888D31B10ABEB2C14F93E0A7ABC2756821EDC8D24BBD402DE7F8EFDF2F",
+    "OperationsAction":  "already open at recovery startup",
+    "SelectedInterrupted":  "Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\destination (interrupted 27.10.2026 6:32)",
+    "ReportAction":  "Review retained recovery report for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\destination",
+    "CopiedReport":  {
+                         "FirstLine":  "FileCat interrupted-operation review",
+                         "SourcePath":  true,
+                         "DestinationPath":  true,
+                         "InspectionOnly":  true,
+                         "Length":  1225,
+                         "JsonEscapingExplained":  true
+                     },
+    "MarkAction":  "Mark interrupted recovery reviewed for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\destination",
+    "ReviewDisclosure":  {
+                             "ReportRetained":  true,
+                             "NoFileChange":  true
+                         },
+    "CancelAction":  "Cancel",
+    "CancelKeptJournalAndFiles":  true,
+    "MarkAgainAction":  "Mark interrupted recovery reviewed for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\destination",
+    "ApproveAction":  "Mark reviewed and stop reminders",
+    "SavedReview":  {
+                        "Path":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\data\\local\\journal\\reviewed\\review-289C31BD9FB3C08A33DFE3A817EDAC14CD2A0C01A89BDF1DCAE7918C5D86D7DC.json",
+                        "ClosureConfirmed":  true,
+                        "NoFileChange":  true,
+                        "DestinationPath":  true,
+                        "SourcePath":  true
+                    }
+}

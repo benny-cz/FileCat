@@ -1,0 +1,20 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "reopen",
+    "GitHead":  "3a4d7cba682595639a7ede109d0d1bac98a3b37c",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c",
+    "AppDllSha256":  "31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD",
+    "SavedReport":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\data\\local\\journal\\reviewed\\review-289C31BD9FB3C08A33DFE3A817EDAC14CD2A0C01A89BDF1DCAE7918C5D86D7DC.json",
+    "ClosureConfirmed":  true,
+    "DetailsAction":  "Operations",
+    "ReviewedListName":  "Reviewed recovery reports",
+    "OpenAction":  "Open reviewed recovery report for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\590a55abb6b348e08b2c47b243ab4b4c\\destination",
+    "CopiedReport":  {
+                         "ReviewedConsequence":  true,
+                         "SavedTextExact":  true,
+                         "DestinationPath":  true,
+                         "SourcePath":  true,
+                         "Length":  1219
+                     },
+    "FilesIntact":  true
+}

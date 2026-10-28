@@ -1,0 +1,153 @@
+﻿{
+    "Passed":  false,
+    "Stage":  "start ninth copy",
+    "GitHead":  "3a4d7cba682595639a7ede109d0d1bac98a3b37c",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff",
+    "AppDllSha256":  "31F26B28BEB67F4D9B756DADA3CDB45CEBBFEBCAF8824575A18F138EE6C075FD",
+    "LargeFileSha256":  "2DAEB1F36095B44B318410B3F4E8B5D989DCC7BB023D1426C492DAB0A3053E74",
+    "SeededFolders":  [
+                          "finished-01",
+                          "finished-02",
+                          "finished-03",
+                          "finished-04",
+                          "finished-05",
+                          "finished-06",
+                          "finished-07",
+                          "finished-08"
+                      ],
+    "Before":  {
+                   "Selected":  [
+                                    {
+                                        "Offscreen":  false,
+                                        "Bounds":  [
+                                                       322,
+                                                       780,
+                                                       510,
+                                                       63
+                                                   ],
+                                        "Text":  [
+                                                     "Create folder \"finished-08\"",
+                                                     "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                     "Completed  ·  "
+                                                 ]
+                                    }
+                                ],
+                   "Bounds":  [
+                                  322,
+                                  780,
+                                  510,
+                                  254
+                              ],
+                   "Items":  [
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-08\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-07\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-06\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-05\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-04\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 }
+                             ]
+               },
+    "ReviewDestination":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\target\\",
+    "AfterInitial":  {
+                         "Selected":  [
+                                          {
+                                              "Offscreen":  false,
+                                              "Bounds":  [
+                                                             322,
+                                                             780,
+                                                             510,
+                                                             63
+                                                         ],
+                                              "Text":  [
+                                                           "Create folder \"finished-08\"",
+                                                           "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                           "Completed  ·  "
+                                                       ]
+                                          }
+                                      ],
+                         "Bounds":  [
+                                        322,
+                                        780,
+                                        510,
+                                        254
+                                    ],
+                         "Items":  [
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-08\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-07\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-06\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-05\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-04\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\3618b86737544590bc27ce13dca536ff\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       }
+                                   ]
+                     },
+    "Error":  "Timed out waiting for running Copy selected in Details.",
+    "ErrorType":  "System.Management.Automation.RuntimeException"
+}

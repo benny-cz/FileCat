@@ -1,0 +1,20 @@
+﻿{
+    "Passed":  true,
+    "InputReceipt":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ac-s2-071-win-vanished-3a4d7cba-r1.json",
+    "GitHead":  "3a4d7cba682595639a7ede109d0d1bac98a3b37c",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "BD7AEE5C43570F456AC8AC9DD4A509273D05884F779FC8B0D21CDD6BC09EEBC3",
+                         "alpha-native-drag.txt":  "1DF2779B94B2FE79F8FC8244B390A22117F3DC593E3A006117DB403A77C76B8C"
+                     },
+    "SourcesUnchanged":  true,
+    "TargetStillAbsent":  true,
+    "ParentFiles":  [
+
+                    ],
+    "JournalFileCount":  0,
+    "ReviewFieldsAfterDrop":  [
+
+                              ],
+    "ChangedTargetNoticeDuringHover":  true,
+    "CursorHandleAfterRemoval":  65559
+}

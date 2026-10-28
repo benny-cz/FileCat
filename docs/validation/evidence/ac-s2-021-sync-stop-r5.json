@@ -1,0 +1,68 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "2a371b4c464c94ca3c7f0ff640d623568be9d432",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\SyncStop\\dbdbee1d1a0c42b8a720d917c0b6e13c",
+    "AppDllSha256":  "D891D98862D725F94E524879E11D0DD8AB00A6FF56156E934ABDDC82E21C1291",
+    "SmallHash":  "A7F268784944DF493AF1CC54C8448196A4BCBF45ABC3CB52E7A6FA6E90D21B56",
+    "LargeHash":  "49BC20DF15E412A64472421E13FE86FF1C5165E18B2AFCCF160D4DC19FE68A14",
+    "ExtraHash":  "23DB605148AFECF9251AFEE81596FD2BA83A0AF3DDD4E26EB986EAABAD14FC1E",
+    "PlanText":  [
+                     "Left → right",
+                     "Mirror: make the target like the source",
+                     "Source",
+                     "Target",
+                     "Will copy 2, remove 1. Nothing changes until you press Synchronize; Space includes or excludes the selected steps.",
+                     "remove",
+                     "z-extra.txt",
+                     "Only in the target: Mirror removes it"
+                 ],
+    "ReviewedAction":  "Synchronize from C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\SyncStop\\dbdbee1d1a0c42b8a720d917c0b6e13c\\source to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\SyncStop\\dbdbee1d1a0c42b8a720d917c0b6e13c\\target: copy 2, remove 1",
+    "BeforeStop":  [
+                       "Copy",
+                       "Synchronize: copy new items",
+                       "Copying  ·  639 MB of 1,0 GB · 1 of 2 items · 217 MB/s · a few seconds left",
+                       "Reviewed plan fa4a2c60: copy 2, remove 1; 2 steps",
+                       "Synchronization running. 0/2 steps finished; 1 done, 0 skipped, 0 failed.",
+                       "Synchronize: remove items only in the target",
+                       "Paused before start  ·  ",
+                       "Synchronize: copy new items",
+                       "Running  ·  639 MB of 1,0 GB · 1 of 2 items · 217 MB/s · a few seconds left",
+                       "Copying    62%",
+                       "Time left: a few seconds · running for 2 s",
+                       "Copy",
+                       "Synchronizing C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\SyncStop\\dbdbee1d1a0c42b8a720d917c0b6e13c\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\SyncStop\\dbdbee1d1a0c42b8a720d917c0b6e13c\\target: copy 2, remove 1. Ctrl+J shows the plan, its steps and Stop this synchronization."
+                   ],
+    "StopAcknowledgement":  "Synchronization stopped. Completed changes remain. 2/2 steps finished; 1 done, 0 skipped, 0 failed.",
+    "AfterStop":  [
+                      "Copy",
+                      "Synchronize: remove items only in the target",
+                      "Canceled  ·  0 done, 0 skipped, 0 failed · remaining scope not fully counted",
+                      "Reviewed plan fa4a2c60: copy 2, remove 1; 2 steps",
+                      "Synchronization stopped. Completed changes remain. 2/2 steps finished; 1 done, 0 skipped, 0 failed.",
+                      "Synchronize: remove items only in the target",
+                      "Canceled  ·  0 done, 0 skipped, 0 failed · remaining scope not fully counted",
+                      "Synchronize: copy new items",
+                      "Canceled  ·  1 done, 0 skipped, 0 failed · 1 not processed",
+                      "Canceled    ",
+                      "Copy",
+                      "Synchronize: copy new items: canceled. 1 done. Steps already completed were kept."
+                  ],
+    "SmallExact":  true,
+    "ExtraExact":  true,
+    "SourceExact":  true,
+    "OverrunFiles":  [
+
+                     ],
+    "CopyReport":  {
+                       "Canceled":  true,
+                       "OneDone":  true,
+                       "CorrectAction":  true,
+                       "TargetNamed":  true
+                   },
+    "RemovalReport":  {
+                          "Canceled":  true,
+                          "ZeroDone":  true,
+                          "CorrectAction":  true
+                      }
+}

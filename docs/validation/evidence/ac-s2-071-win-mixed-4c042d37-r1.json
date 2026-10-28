@@ -1,0 +1,60 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "4c042d374e8f69f103f8803ee6854d526fd56218",
+    "Scope":  "MixedRefusal",
+    "AppDllSha256":  "D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\9cb4a17947504391addd12fd147c2a01",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "48ABE1DE235BCD6B83A687BC44C38BA57855137FF180726751F99C773F3186E3",
+                         "alpha-native-drag.txt":  "3C879A2A642D0E994F27FE845E8B55BBAA89B220735C761CA07D8642FDC7480D"
+                     },
+    "SourceArchiveSha256":  "A3111F1BC783FACE9AB2F6624205033C7E8B5C338219563D257E9DF7FEBC3ECF",
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "Geometry":  {
+                     "From":  [
+                                  149,
+                                  370
+                              ],
+                     "To":  [
+                                1402,
+                                530
+                            ],
+                     "Explorer":  [
+                                      955,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      44,
+                                      359,
+                                      419,
+                                      22
+                                  ]
+                 },
+    "Refusal":  "No items were dragged from the 2 selected. The selection has 1 local and 1 non-file-system items. Copy or extract the complete selection to a folder with F5 first.",
+    "HoverCursor":  {
+                        "Y":  530,
+                        "Flags":  1,
+                        "Handle":  65539,
+                        "X":  1402
+                    },
+    "HoverWindow":  {
+                        "Expected":  656642,
+                        "Actual":  656642
+                    },
+    "TargetNames":  [
+
+                    ],
+    "TargetHashes":  {
+
+                     },
+    "ArchiveStillPresentSha256":  "A3111F1BC783FACE9AB2F6624205033C7E8B5C338219563D257E9DF7FEBC3ECF",
+    "SourceStillPresent":  {
+                               "alpha-native-drag.txt":  "3C879A2A642D0E994F27FE845E8B55BBAA89B220735C761CA07D8642FDC7480D"
+                           }
+}

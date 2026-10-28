@@ -1,0 +1,623 @@
+{
+  "passed": true,
+  "appSha256": "f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593",
+  "appDllSha256": "73307647c4b3511af942958d1d13bf7d7e575c1127dfff4961d454de3c7de0c9",
+  "orca": "Orca version 50.2, AT-SPI2 version: 2.60.4",
+  "fixture": "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159",
+  "input": "uinput keyboard and AT-SPI review actions",
+  "sourceSha256": {
+    "a.txt": "b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060",
+    "b.txt": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad",
+    "c.txt": "999d1d048ee9123272dd9b718680551c83e867935b47c2650e6906dc22674e47"
+  },
+  "steps": [
+    {
+      "step": "activate the new window",
+      "heard": [
+        "Desktop Icons 1",
+        "source \u2014 FileCat \u2014 benny",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "Go to parent location, parent navigation, 1 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "down to a.txt",
+      "heard": [
+        "a.txt, file, 6 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 2 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "down to b.txt",
+      "heard": [
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 3 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "down to c.txt",
+      "heard": [
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "up to b.txt",
+      "heard": [
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 3 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "home to parent",
+      "heard": [
+        "Go to parent location, parent navigation, 1 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "end to c.txt",
+      "heard": [
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F2 speaks the inline Rename field",
+      "heard": [
+        "F2",
+        "Rename selected item",
+        "entry",
+        "c.txt."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape returns from inline Rename",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "tab to the target panel",
+      "heard": [
+        "tab",
+        "Panel 2, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target",
+        "List with 1 item",
+        "Go to parent location, parent navigation, 1 of 1.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "tab back to the source panel",
+      "heard": [
+        "tab",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F7 opens Create folder",
+      "heard": [
+        "F7",
+        "Create folder dialog",
+        "panel",
+        "Folder name (use / for nested folders):",
+        "entry."
+      ],
+      "matching": 2,
+      "passed": true
+    },
+    {
+      "step": "Escape returns to the list",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F8 opens Delete review",
+      "heard": [
+        "F8",
+        "Delete dialog",
+        "panel",
+        "Delete",
+        "button."
+      ],
+      "matching": 2,
+      "passed": true
+    },
+    {
+      "step": "Escape cancels Delete review",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Ctrl+C announces the copy notice",
+      "heard": [
+        "left control",
+        "Copied 1 item to the clipboard."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "a repeated copy is announced again",
+      "heard": [
+        "left control",
+        "Copied 1 item to the clipboard."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Ctrl+S opens Quick filter",
+      "heard": [
+        "left control",
+        "Quick filter dialog",
+        "panel",
+        "Show only the files that match (folders show unless the mask names them, as in src/); empty shows all. Marks on hidden items are kept:",
+        "entry."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "typing an unclosed mask is announced",
+      "heard": [
+        "/",
+        "Unclosed regular expression in mask.",
+        "Show only the files that match (folders show unless the mask names them, as in src/); empty shows all. Marks on hidden items are kept:",
+        "entry",
+        "/"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Enter on the rejected mask explains it again",
+      "heard": [
+        "a",
+        "Show only the files that match (folders show unless the mask names them, as in src/); empty shows all. Marks on hidden items are kept:",
+        "entry",
+        "/a.",
+        "return",
+        "Unclosed regular expression in mask."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape closes Quick filter",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Ctrl+Shift+F focuses the active inline Filter field",
+      "heard": [
+        "left control",
+        "Filter",
+        "entry",
+        "*",
+        "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show.",
+        "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "the inline filter speaks its validation error on Enter",
+      "heard": [
+        "/",
+        "Filter",
+        "entry",
+        "/",
+        "return",
+        "Unclosed regular expression in mask."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape restores the inline filter and focused row",
+      "heard": [
+        "escape",
+        "Filter ready",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F3 opens the viewer",
+      "heard": [
+        "F3",
+        "c.txt \u2014 FileCat Viewer",
+        "frame",
+        "Text viewer",
+        "read only entry",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F7 opens the viewer search",
+      "heard": [
+        "F7",
+        "Find in file",
+        "entry",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "a viewer search speaks its match count",
+      "heard": [
+        "c",
+        "Find in file",
+        "entry",
+        "c.",
+        "h",
+        "a",
+        "r",
+        "return",
+        "1 match"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "a completed viewer miss speaks its outcome",
+      "heard": [
+        "left control",
+        "a",
+        "Find in file",
+        "entry",
+        "a.",
+        "a",
+        "a",
+        "Find in file",
+        "entry",
+        "aaa.",
+        "return",
+        "\"aaa\" was not found after this position.",
+        "0 matches"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape returns from the search to the text",
+      "heard": [
+        "escape",
+        "Text viewer",
+        "read only entry",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped."
+      ],
+      "matching": 2,
+      "passed": true
+    },
+    {
+      "step": "Escape closes the viewer",
+      "heard": [
+        "source \u2014 FileCat \u2014 benny",
+        "frame",
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F5 opens Copy",
+      "heard": [
+        "F5",
+        "Copy dialog",
+        "panel",
+        "Destination",
+        "entry",
+        "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target/",
+        "\u2192 into the folder /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target.",
+        "\u2192 into the folder /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "an empty destination is announced",
+      "heard": [
+        "left control",
+        "backspace",
+        "Destination",
+        "entry.",
+        "Destination: Enter a destination folder."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape cancels Copy",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "F6 opens Move",
+      "heard": [
+        "F6",
+        "Move dialog",
+        "panel",
+        "Destination",
+        "entry",
+        "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target/",
+        "\u2192 into the folder /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target.",
+        "\u2192 into the folder /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/target"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape cancels Move",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Ctrl+Shift+P opens command search",
+      "heard": [
+        "left control",
+        "Search commands",
+        "entry",
+        "Search commands (Ctrl+Shift+P)",
+        "Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.",
+        "Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere."
+      ],
+      "matching": 2,
+      "passed": true
+    },
+    {
+      "step": "resizing a boundary focuses it",
+      "heard": [
+        "s",
+        "Search commands",
+        "entry",
+        "s.",
+        "p",
+        "l",
+        "Search commands",
+        "entry",
+        "spl.",
+        "i",
+        "Search commands",
+        "entry",
+        "spli.",
+        "t",
+        "t",
+        "e",
+        "r",
+        "return",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected.",
+        "Vertical panel boundary, first side's share of panels 1 and 2",
+        "slider",
+        "50",
+        "50 percent.",
+        "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores.",
+        "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Right speaks only the new share",
+      "heard": [
+        "51"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Escape restores the boundary",
+      "heard": [
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected.",
+        "Panel boundary restored."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "switch away and back",
+      "heard": [
+        "source \u2014 FileCat \u2014 benny",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true,
+      "repeats": 1
+    },
+    {
+      "step": "home before marking rename sources",
+      "heard": [
+        "Go to parent location, parent navigation, 1 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "focus first rename source",
+      "heard": [
+        "a.txt, file, 6 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 2 of 4.",
+        "not selected."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "mark a.txt and focus b.txt",
+      "heard": [
+        "left shift",
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 3 of 4.",
+        "not selected.",
+        "4 visible rows, 3 items. 1 marked items, 0 hidden by filtering or Show hidden items. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.",
+        "a.txt, file, 6 bytes, modified 10/26/2026 10:28:13\u202fAM, marked, 2 of 4."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "mark b.txt and focus c.txt",
+      "heard": [
+        "left shift",
+        "c.txt, file, 8 bytes, modified 10/26/2026 10:28:13\u202fAM, not marked, 4 of 4.",
+        "not selected.",
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, marked, 3 of 4."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "open two-item rename review",
+      "heard": [
+        "left control",
+        "Bulk rename dialog 1 of 2 shown \u00b7 From: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt \u00b7 To: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt",
+        "panel",
+        "Name mask",
+        "entry",
+        "[N]",
+        "Checking names\u2026",
+        "0 of 2 names change",
+        "No rename mappings match the current preview filter.",
+        "1 of 2 shown \u00b7 From: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt \u00b7 To: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt"
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Next mapping speaks complete b.txt paths",
+      "heard": [
+        "2 of 2 shown \u00b7 From: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/b.txt \u00b7 To: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/b.txt"
+      ],
+      "passed": true,
+      "expectedPath": "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/b.txt"
+    },
+    {
+      "step": "Previous mapping speaks complete a.txt paths",
+      "heard": [
+        "1 of 2 shown \u00b7 From: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt \u00b7 To: /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt"
+      ],
+      "passed": true,
+      "expectedPath": "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source/a.txt"
+    },
+    {
+      "step": "cancel spoken rename review",
+      "heard": [
+        "FileCat.App.Views.BulkRenameReview+Row.",
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, marked, 3 of 4."
+      ],
+      "matching": 1,
+      "passed": true
+    },
+    {
+      "step": "Orca announces the newly marked b.txt after review",
+      "heard": [
+        "FileCat.App.Views.BulkRenameReview+Row.",
+        "escape",
+        "Panel 1, source, /home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/source",
+        "List with 4 items",
+        "b.txt, file, 5 bytes, modified 10/26/2026 10:28:13\u202fAM, marked, 3 of 4."
+      ],
+      "passed": true
+    }
+  ],
+  "rowHelpRepetitions": {
+    "a.txt": 0,
+    "b.txt": 0,
+    "c.txt": 0
+  },
+  "speechLog": "/home/benny/FileCatValidation/OrcaSpeechFixture/b9ad5bcfb4474a5890d8291b91b6f159/orca-debug.log"
+}

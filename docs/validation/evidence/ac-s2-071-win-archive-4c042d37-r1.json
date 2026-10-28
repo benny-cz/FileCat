@@ -1,0 +1,58 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "4c042d374e8f69f103f8803ee6854d526fd56218",
+    "Scope":  "Archive",
+    "AppDllSha256":  "D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\42f7ff9792a342fea0ded855cc841ce5",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "41C086BF364D98156CB9FE88D17174FADA361F2D4691B2A1A5E0D4CEC86D676E",
+                         "alpha-native-drag.txt":  "B8A52ACC902B4BE77F367FD4F4CAE53475B1219363B8E0D4A368CFCBB87FDCC9"
+                     },
+    "SourceArchiveSha256":  "CE53B9107EB389F8D2B5EA64082B535020F59A7A1BB3162BD8266AAC24079F7C",
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "Geometry":  {
+                     "From":  [
+                                  149,
+                                  317
+                              ],
+                     "To":  [
+                                1402,
+                                530
+                            ],
+                     "Explorer":  [
+                                      955,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      44,
+                                      306,
+                                      419,
+                                      22
+                                  ]
+                 },
+    "HoverCursor":  {
+                        "Y":  530,
+                        "Flags":  1,
+                        "Handle":  197895,
+                        "X":  1402
+                    },
+    "HoverWindow":  {
+                        "Expected":  460008,
+                        "Actual":  460008
+                    },
+    "TargetNames":  [
+                        "alpha-native-drag.txt",
+                        "beta-native-drag.txt"
+                    ],
+    "TargetHashes":  {
+                         "beta-native-drag.txt":  "41C086BF364D98156CB9FE88D17174FADA361F2D4691B2A1A5E0D4CEC86D676E",
+                         "alpha-native-drag.txt":  "B8A52ACC902B4BE77F367FD4F4CAE53475B1219363B8E0D4A368CFCBB87FDCC9"
+                     },
+    "ArchiveStillPresentSha256":  "CE53B9107EB389F8D2B5EA64082B535020F59A7A1BB3162BD8266AAC24079F7C"
+}

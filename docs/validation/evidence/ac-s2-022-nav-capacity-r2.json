@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/NavigationCapacity/1f3cb240f95a41658901faf7641a9d34",
+  "ramFixture": "/dev/shm/FileCatNavigation-54f6e172e34a4b5fa32576dece8726d1",
+  "remoteAddress": "sftp://benny@127.0.0.1:42297/home/benny/FileCatValidation/NavigationCapacity/1f3cb240f95a41658901faf7641a9d34/server/",
+  "ramFree": "3.6 GB free",
+  "ramDevice": 26,
+  "localDevice": 2050,
+  "matchedHostKeys": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "remotePending": "Panel 2, source, sftp://benny@127.0.0.1:42297/home/benny/FileCatValidation/NavigationCapacity/1f3cb240f95a41658901faf7641a9d34/server/",
+  "remoteCompleteBeforeNewIntent": false,
+  "finalList": "Panel 2, source, /home/benny/FileCatValidation/NavigationCapacity/1f3cb240f95a41658901faf7641a9d34/local",
+  "localFree": "115 GB free",
+  "delayedChunksBeforeDrop": 384,
+  "afterDisconnectList": "Panel 2, source, /home/benny/FileCatValidation/NavigationCapacity/1f3cb240f95a41658901faf7641a9d34/local",
+  "afterDisconnectFree": "115 GB free",
+  "visibleErrorNames": [],
+  "filesExact": true
+}

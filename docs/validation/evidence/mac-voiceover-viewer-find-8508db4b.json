@@ -1,0 +1,106 @@
+{
+  "passed": true,
+  "fixture": "/Users/benny/FileCatValidation/MacVoiceOverList/0aa68ad58571412aac33798af69cfdc8",
+  "appDllSha256": "8622f77cd3c8bb567df604cd19d4487bd70e56caa8cbddddd7d7fa0bbeb9104c",
+  "phrases": [
+    {
+      "step": "first file",
+      "expected": "a.txt",
+      "heard": [
+        "",
+        "FileCat source \u2014 FileCat \u2014 benny window a.txt table row (2 of 4) has keyboard focus"
+      ],
+      "matched": true,
+      "focused": {
+        "description": "",
+        "help": "file, 6 bytes, modified 26.10.2026 10:38:02, not marked, 2 of 4",
+        "pid": "84326",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "a.txt",
+        "value": ""
+      }
+    },
+    {
+      "step": "second file",
+      "expected": "b.txt",
+      "heard": [
+        "b.txt table row (3 of 4)"
+      ],
+      "matched": true,
+      "focused": {
+        "description": "",
+        "help": "file, 5 bytes, modified 26.10.2026 10:38:02, not marked, 3 of 4",
+        "pid": "84326",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "b.txt",
+        "value": ""
+      }
+    },
+    {
+      "step": "third file",
+      "expected": "c.txt",
+      "heard": [
+        "c.txt table row (4 of 4)"
+      ],
+      "matched": true,
+      "focused": {
+        "description": "",
+        "help": "file, 8 bytes, modified 26.10.2026 10:38:02, not marked, 4 of 4",
+        "pid": "84326",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "c.txt",
+        "value": ""
+      }
+    },
+    {
+      "step": "previous file",
+      "expected": "b.txt",
+      "heard": [
+        "b.txt table row (3 of 4)"
+      ],
+      "matched": true,
+      "focused": {
+        "description": "",
+        "help": "file, 5 bytes, modified 26.10.2026 10:38:02, not marked, 3 of 4",
+        "pid": "84326",
+        "role": "AXRow",
+        "subrole": "AXTableRow",
+        "title": "b.txt",
+        "value": ""
+      }
+    }
+  ],
+  "error": null,
+  "explicitMark": {
+    "marked": {
+      "description": "",
+      "help": "file, 5 bytes, modified 26.10.2026 10:38:02, marked, 3 of 4",
+      "pid": "84326",
+      "role": "AXRow",
+      "subrole": "AXTableRow",
+      "title": "b.txt",
+      "value": ""
+    },
+    "unmarked": {
+      "description": "",
+      "help": "file, 5 bytes, modified 26.10.2026 10:38:02, not marked, 3 of 4",
+      "pid": "84326",
+      "role": "AXRow",
+      "subrole": "AXTableRow",
+      "title": "b.txt",
+      "value": ""
+    }
+  },
+  "viewerFind": {
+    "countSpeech": [
+      "",
+      "1 match"
+    ],
+    "missSpeech": [
+      "\"aaa\" was not found after this position."
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+﻿{
+    "Passed":  true,
+    "GitHead":  "d2829324381733a4a0630bae8e1801b0c090db29",
+    "AppDllSha256":  "1F8C41A6AF4BACA33911187C76B61877360D08477F9319EC39CA402A7AC550B0",
+    "ArchiveSha256":  "30C8C5AF3967AEA07EC7E59BBA791AFF6E2834EEB06576359720482689388640",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ArchiveListUia\\417cfade163545f4847dd5df08dfc1ac",
+    "Stage":  "view actual archive member",
+    "ArchiveList":  "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ArchiveListUia\\417cfade163545f4847dd5df08dfc1ac\\source\\archive.zip",
+    "Loaded":  {
+                   "VisibleItems":  24,
+                   "NodeCount":  240
+               },
+    "FirstSelection":  {
+                           "RowContainerId":  [
+                                                  42,
+                                                  10027314,
+                                                  4,
+                                                  22372273
+                                              ],
+                           "Types":  [
+                                         "System.Windows.Automation.AutomationElement"
+                                     ],
+                           "ListStatus":  "2 001 visible rows, 2 000 items.",
+                           "RowContainer":  "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ArchiveListUia\\417cfade163545f4847dd5df08dfc1ac\\source\\archive.zip",
+                           "CanSelectMultiple":  true,
+                           "Count":  1,
+                           "ListId":  [
+                                          42,
+                                          10027314,
+                                          4,
+                                          22372273
+                                      ],
+                           "FirstStatus":  "Marked. Focused. 2 of 2001.",
+                           "SettleSeconds":  0.021,
+                           "Names":  [
+                                         "native-archive-0000.txt"
+                                     ],
+                           "FirstMarked":  true
+                       },
+    "AfterEnd":  {
+                     "NodeCount":  240,
+                     "VisibleItems":  24,
+                     "Selected":  "native-archive-0000.txt",
+                     "Focused":  "native-archive-1999.txt",
+                     "LastMarked":  false
+                 },
+    "MarkedDetails":  "native-archive-0000.txt, file\r\nLocation: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ArchiveListUia\\417cfade163545f4847dd5df08dfc1ac\\source\\archive.zip\r\nSize: 0 bytes\r\nModified: 27.10.2026 0:47:14",
+    "ViewerText":  "FileCat archive accessibility action 1999",
+    "SourceUnchanged":  true,
+    "TargetEmpty":  true
+}

@@ -1,0 +1,12 @@
+{
+  "passed": false,
+  "fixture": "/home/benny/FileCatValidation/ClearHistoryNarrow/5c33a1ff1d8441ad8fece91492123d4c",
+  "appDllSha256": "dd4a201c915bc45d6f2afc1d19cdffaf2810810dabe25896ee0569d6be61ab6f",
+  "displayScale": 2.0,
+  "source": "/home/benny/FileCatValidation/ClearHistoryNarrow/5c33a1ff1d8441ad8fece91492123d4c/source/owned-history-undo-file.txt",
+  "target": "/home/benny/FileCatValidation/ClearHistoryNarrow/5c33a1ff1d8441ad8fece91492123d4c/target/owned-history-undo-file.txt",
+  "orcaSpeechLog": "/home/benny/FileCatValidation/ClearHistoryNarrow/5c33a1ff1d8441ad8fece91492123d4c/orca-debug.log",
+  "unusedUndoBeforeReview": true,
+  "error": "Error: atspi_error: No handler registered for object '/net/avaloniaui/a11y/585'. (1)",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/benny/FileCatValidation/linux-atspi-clear-history.py\", line 153, in main\n    clear = wait_for(lambda: one(app, \"button\", \"Clear finished history\u2026\"),\n                     \"Clear finished history command\")\n  File \"/home/benny/FileCatValidation/linux-atspi-undo-narrow.py\", line 35, in wait_for\n    result = check()\n  File \"/home/benny/FileCatValidation/linux-atspi-clear-history.py\", line 153, in <lambda>\n    clear = wait_for(lambda: one(app, \"button\", \"Clear finished history\u2026\"),\n                             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/benny/FileCatValidation/linux-atspi-clear-history.py\", line 46, in one\n    return next((node for node in descendants(root)\n                 if node.get_role_name() == role and node.get_name() == name), None)\n  File \"/home/benny/FileCatValidation/linux-atspi-clear-history.py\", line 47, in <genexpr>\n    if node.get_role_name() == role and node.get_name() == name), None)\n       ~~~~~~~~~~~~~~~~~~^^\ngi.repository.GLib.GError: atspi_error: No handler registered for object '/net/avaloniaui/a11y/585'. (1)\n"
+}

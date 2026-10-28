@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "platform": "Ubuntu",
+  "mode": "Text",
+  "app": "/home/benny/FileCatValidation/Published-9a500635/FileCat",
+  "appSha256": "f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593",
+  "fixture": "/home/benny/FileCatValidation/SearchStopUbuntu/a943b3e6778f42fab9233ffde1672fde",
+  "sourceLength": 2147483648,
+  "displayScale": 1.5,
+  "modeActivation": "AT-SPI Text toggle",
+  "visibleStopActivated": true,
+  "canceledStatusVisible": true,
+  "stopRetired": true,
+  "orcaSpokeCancellation": null,
+  "orcaSpeech": null,
+  "clipboardPreserved": true,
+  "sourceAndTargetUnchanged": true
+}

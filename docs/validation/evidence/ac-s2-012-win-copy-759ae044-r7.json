@@ -1,0 +1,34 @@
+﻿{
+    "passed":  true,
+    "fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ViewerCopyReflow\\2f328819725c42848accc422cfeafecf",
+    "appDllSha256":  "6357B300E7C6508A6C521412B04B635B6F457495AD297D4AAD28595651B94E0A",
+    "sourceSha256":  "639B1FB1DF35C2A7A44DCA055F799C6CA28774AC22037BC0288E0299D84EA203",
+    "phraseOffset":  181,
+    "phraseByteCount":  10,
+    "textSizes":  {
+                      "narrow":  [
+                                     480,
+                                     300
+                                 ],
+                      "wide":  [
+                                   784,
+                                   511
+                               ]
+                  },
+    "textSelectionStatus":  "Selected source bytes 0 through 373, 374 bytes; utf-8; wrapped.",
+    "textClipboardExact":  true,
+    "hexSizes":  {
+                     "narrow":  [
+                                    480,
+                                    300
+                                ],
+                     "wide":  [
+                                  784,
+                                  511
+                              ]
+                 },
+    "hexSelectionStatus":  "Offset 190 of 374, byte A3 hex; row 000000B0: 41 41 41 41 20 63 61 66 C3 A9 20 F0 9F 8D A3 20. Selected bytes 181 through 190, 10 bytes; read-only byte inspection; Read-only inspection; viewport begins at byte 0, horizontal position 0.",
+    "hexClipboard":  "636166C3A920F09F8DA3",
+    "sourceUnchanged":  true,
+    "targetEmpty":  true
+}

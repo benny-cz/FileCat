@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "workspaceName": "Native race 103652df",
+  "fixture": "/home/benny/FileCatValidation/WorkspaceSaveRace/103652df59e949c88f6f00e118b3e325",
+  "bothPromptsOpen": true,
+  "firstWorkspaceHash": "ec731e35e569e88c9420e356ab20819cacb29dd605e36047f9b76ec45b4ccc46",
+  "firstWorkspacePath": "/home/benny/FileCatValidation/WorkspaceSaveRace/103652df59e949c88f6f00e118b3e325/first",
+  "replacementReview": [
+    "Replace \"Native race 103652df\"?"
+  ],
+  "targetUnchanged": true,
+  "noBackupCreated": true,
+  "sourceBytesExact": true
+}

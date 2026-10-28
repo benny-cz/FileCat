@@ -1,0 +1,87 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "sourceSha256": "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+  "appDllSha256": "fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe",
+  "speechLog": "/home/benny/FileCatValidation/ac-s2-012-hex-editor-spoken-0553f746-r4.orca.log",
+  "spokenSteps": [
+    {
+      "step": "pending hex nibble",
+      "key": "a",
+      "semantic": "Offset 0 of 64, byte 00 hex; row 00000000: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal posit",
+      "spoken": [
+        "a",
+        "Hex view",
+        "read only entry",
+        "Offset 0 of 64, byte 00 hex; row 00000000: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.",
+        "No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "unsaved hex byte",
+      "key": "c",
+      "semantic": "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "c",
+        "Typing: hex \u00b7 1 byte modified (unsaved) \u00b7 advisory lock; other programs may still write this file",
+        "No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "text typing column",
+      "key": "tab",
+      "semantic": "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: text (ASCII); Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "tab",
+        "Typing: text (ASCII) \u00b7 1 byte modified (unsaved) \u00b7 advisory lock; other programs may still write this file"
+      ]
+    },
+    {
+      "step": "unsaved text byte",
+      "key": "a",
+      "semantic": "Offset 2 of 64, byte 02 hex; row 00000000: AC 61 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "a",
+        "Typing: text (ASCII) \u00b7 2 bytes modified (unsaved) \u00b7 advisory lock; other programs may still write this file"
+      ]
+    },
+    {
+      "step": "selected source bytes",
+      "key": "shift+left",
+      "semantic": "Offset 1 of 64, byte 61 hex; row 00000000: AC 61 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "left shift",
+        "Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "focus returned after f6",
+      "spoken": [
+        "F6",
+        "Hex view",
+        "read only entry",
+        "Offset 1 of 64, byte 61 hex; row 00000000: AC 61 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "focus returned after ctrl+f",
+      "spoken": [
+        "Find in file",
+        "entry",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "escape",
+        "Hex view",
+        "read only entry",
+        "Offset 1 of 64, byte 61 hex; row 00000000: AC 61 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "Selected bytes 1 through 2, 2 bytes; active typing column: text (ASCII); Byte editing available; 2 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    }
+  ],
+  "sourceUnchanged": true,
+  "targetEmpty": true
+}

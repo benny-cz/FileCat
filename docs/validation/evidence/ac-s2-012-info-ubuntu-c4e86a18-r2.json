@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "sourceSha256": "17c65fee2019f9a133cb2ea631bce6edb95117abe4a3e16ebed9d519bbd8471d",
+  "appDllSha256": "61f8b95e4e7ff20118af59156f3a1bed3ef22edf6ccf0b0e31d441dcf91508b5",
+  "metadataSuffix": "INFO-PATH-END-9C4D",
+  "metadataLength": 186,
+  "narrowSize": [
+    480,
+    300
+  ],
+  "narrowStatus": "No selection; Copy visible source text copies the visible lines; utf-8; unwrapped, horizontal position 1445 of 1609.",
+  "wideSize": [
+    900,
+    650
+  ],
+  "wideStatus": "No selection; Copy visible source text copies the visible lines; utf-8; unwrapped, horizontal position 1189 of 1189.",
+  "wrappedStatus": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+  "sourceUnchanged": true,
+  "targetEmpty": true
+}

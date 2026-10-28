@@ -1,0 +1,125 @@
+{
+  "passed": true,
+  "theme": "Psychedelic",
+  "appDllSha256": "dd4a201c915bc45d6f2afc1d19cdffaf2810810dabe25896ee0569d6be61ab6f",
+  "sourceSha256": "b994fa2b734e1fa4f2dd03380b0455313edc9a45043c3de179f7c0d528b8bb67",
+  "phases": [
+    {
+      "name": "panel",
+      "appPid": 20637,
+      "accessibleNodes": 522
+    },
+    {
+      "name": "danger",
+      "appPid": 20637,
+      "accessibleNodes": 537
+    },
+    {
+      "name": "selection",
+      "appPid": 20637,
+      "accessibleNodes": 658
+    },
+    {
+      "name": "search",
+      "appPid": 20637,
+      "accessibleNodes": 707
+    },
+    {
+      "name": "picture-0",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    },
+    {
+      "name": "picture-1",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    },
+    {
+      "name": "picture-2",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    },
+    {
+      "name": "picture-3",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    },
+    {
+      "name": "picture-4",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    },
+    {
+      "name": "picture-5",
+      "appPid": 20637,
+      "accessibleNodes": 570
+    }
+  ],
+  "pictureSha256": "2d7b1b31aa90041d802d0200c55b9e36f3c3cb6652f1555969627acdec1654ea",
+  "originalGnomeAnimations": "true",
+  "hiddenAccessibleName": ".hidden.txt, file, 22 bytes, modified 10/27/2026 3:38:54\u202fAM, not marked, 2 of 4",
+  "deleteButtons": [
+    "Back",
+    "Forward",
+    "Go to parent",
+    "Reread",
+    "Copy\u2026",
+    "Move / rename\u2026",
+    "Create folder\u2026",
+    "Delete\u2026",
+    "Find files\u2026",
+    "Operations",
+    "More toolbar commands",
+    "source, Unlocked tab, /home/benny/FileCatValidation/ThemeExpressive/84961b97094247a68ec0d88e3b3aed0c/source",
+    "Sort files: Name, ascending",
+    "+",
+    "/",
+    "Working sets",
+    "Home",
+    "Connect to a server\u2026",
+    "Computer",
+    "Network",
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "More places",
+    "\u25be",
+    "target, Unlocked tab, /home/benny/FileCatValidation/ThemeExpressive/84961b97094247a68ec0d88e3b3aed0c/target",
+    "Sort files: Name, ascending",
+    "+",
+    "/",
+    "Working sets",
+    "Home",
+    "Connect to a server\u2026",
+    "Computer",
+    "Network",
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "More places",
+    "\u25be",
+    "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Help",
+    "Rename",
+    "View",
+    "Edit",
+    "Copy",
+    "Move",
+    "MkDir",
+    "Delete",
+    "User",
+    "Menu",
+    "Maximize",
+    "Panels",
+    "Close dialog",
+    "Cancel",
+    "Delete"
+  ],
+  "selectionStatus": "Selected source bytes 0 through 47, 48 bytes; utf-8; wrapped.",
+  "searchStatus": "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+  "pictureFitControlRole": "toggle button",
+  "pictureCycleSeconds": 374.98,
+  "sourceUnchanged": true,
+  "targetEmpty": true,
+  "restoredGnomeAnimations": "true"
+}

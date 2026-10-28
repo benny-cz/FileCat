@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "appDllSha256": "fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe",
+  "originalGnomeAnimations": "true",
+  "desktop": "ubuntu:GNOME",
+  "fixture": "/home/benny/FileCatValidation/ThemeMotion/a2b0a8b7e15d469da6af33fd14b72eac",
+  "phases": [
+    {
+      "name": "moving",
+      "gnomeAnimations": "true",
+      "windowId": "0x01600013"
+    },
+    {
+      "name": "reduced",
+      "gnomeAnimations": "false",
+      "windowId": "0x01600013"
+    },
+    {
+      "name": "resumed",
+      "gnomeAnimations": "true",
+      "windowId": "0x01600013"
+    }
+  ],
+  "sourceUnchanged": true,
+  "targetEmpty": true,
+  "restoredGnomeAnimations": "true"
+}

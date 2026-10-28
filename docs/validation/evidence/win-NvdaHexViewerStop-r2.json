@@ -1,0 +1,42 @@
+﻿{
+    "passed":  true,
+    "fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaHexSearch\\caf9ac0e792244f091e2109ab17227b2",
+    "appDllSha256":  "D74B8708FFC089672545451C5801F59B83E28A0101EE4670AD82A4E43299C092",
+    "nvdaVersion":  "2026.2",
+    "nativeReport":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaHexSearch\\caf9ac0e792244f091e2109ab17227b2\\hex-search.json",
+    "viewerStopReport":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaHexSearch\\caf9ac0e792244f091e2109ab17227b2\\viewer-stop.json",
+    "speechLog":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\NvdaHexSearch\\caf9ac0e792244f091e2109ab17227b2\\nvda.log",
+    "expectedSpeech":  [
+                           "1 distinct match visited",
+                           "2 distinct matches visited",
+                           "1 distinct match visited",
+                           "Search canceled."
+                       ],
+    "nativePassed":  true,
+    "nativeFirstPointerFocused":  true,
+    "nativeSourceIntact":  true,
+    "viewerStopPassed":  true,
+    "spokenMatches":  [
+                          {
+                              "expected":  "1 distinct match visited",
+                              "logIndex":  43,
+                              "spoken":  "Speaking [LangChangeCommand (\u0027en_US\u0027), \u00271 distinct match visited · total not counted\u0027]"
+                          },
+                          {
+                              "expected":  "2 distinct matches visited",
+                              "logIndex":  46,
+                              "spoken":  "Speaking [LangChangeCommand (\u0027en_US\u0027), \u00272 distinct matches visited · total not counted\u0027]"
+                          },
+                          {
+                              "expected":  "1 distinct match visited",
+                              "logIndex":  61,
+                              "spoken":  "Speaking [LangChangeCommand (\u0027en_US\u0027), \u00271 distinct match visited · total not counted\u0027]"
+                          },
+                          {
+                              "expected":  "Search canceled.",
+                              "logIndex":  96,
+                              "spoken":  "Speaking [LangChangeCommand (\u0027en_US\u0027), \u0027Search canceled.\u0027]"
+                          }
+                      ],
+    "stopExit":  0
+}

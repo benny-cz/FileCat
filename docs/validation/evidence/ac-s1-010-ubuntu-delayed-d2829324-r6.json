@@ -1,0 +1,128 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "address": "sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+  "appDllSha256": "57cde541c14955c1d0aa8ea4e8b5427159da1b852e6c3b13db0583c8eeff710a",
+  "delaySecondsPerServerChunk": 0.03,
+  "relayChunkBytes": 512,
+  "hostKeyMatched": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "pending": [
+    {
+      "listName": "Panel 2, source, sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+      "status": null,
+      "fileCount": null,
+      "rowCount": 1,
+      "visited": 521,
+      "querySeconds": 1.328,
+      "focused": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ],
+      "visibleNames": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ]
+    },
+    {
+      "listName": "Panel 2, source, sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+      "status": null,
+      "fileCount": null,
+      "rowCount": 1,
+      "visited": 539,
+      "querySeconds": 1.303,
+      "focused": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ],
+      "visibleNames": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ]
+    },
+    {
+      "listName": "Panel 2, source, sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+      "status": null,
+      "fileCount": null,
+      "rowCount": 1,
+      "visited": 539,
+      "querySeconds": 1.41,
+      "focused": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ],
+      "visibleNames": [
+        "Go to parent location, parent navigation, 1 of 1"
+      ]
+    }
+  ],
+  "complete": {
+    "listName": "Panel 2, source, sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+    "status": "0 folders, 2,000 files \u00b7 33 bytes",
+    "fileCount": 2000,
+    "rowCount": 21,
+    "visited": 558,
+    "querySeconds": 1.636,
+    "focused": [
+      "Go to parent location, parent navigation, 1 of 2001"
+    ],
+    "visibleNames": [
+      "Go to parent location, parent navigation, 1 of 2001",
+      "native-remote-0000.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 2 of 2001",
+      "native-remote-0001.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 3 of 2001",
+      "native-remote-0002.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 4 of 2001",
+      "native-remote-0003.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 5 of 2001",
+      "native-remote-0004.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 6 of 2001",
+      "native-remote-0005.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 7 of 2001",
+      "native-remote-0006.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 8 of 2001",
+      "native-remote-0007.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 9 of 2001",
+      "native-remote-0008.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 10 of 2001",
+      "native-remote-0009.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 11 of 2001",
+      "native-remote-0010.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 12 of 2001",
+      "native-remote-0011.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 13 of 2001",
+      "native-remote-0012.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 14 of 2001",
+      "native-remote-0013.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 15 of 2001",
+      "native-remote-0014.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 16 of 2001",
+      "native-remote-0015.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 17 of 2001",
+      "native-remote-0016.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 18 of 2001",
+      "native-remote-0017.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 19 of 2001",
+      "native-remote-0018.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 20 of 2001",
+      "native-remote-0019.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 21 of 2001"
+    ]
+  },
+  "afterEnd": {
+    "listName": "Panel 2, source, sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/",
+    "status": "Marked 1 of 2,000 files \u00b7 0 bytes",
+    "fileCount": 2000,
+    "rowCount": 20,
+    "visited": 540,
+    "querySeconds": 1.359,
+    "focused": [
+      "native-remote-1999.txt, file, 33 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 2001 of 2001"
+    ],
+    "visibleNames": [
+      "native-remote-1980.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1982 of 2001",
+      "native-remote-1981.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1983 of 2001",
+      "native-remote-1982.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1984 of 2001",
+      "native-remote-1983.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1985 of 2001",
+      "native-remote-1984.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1986 of 2001",
+      "native-remote-1985.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1987 of 2001",
+      "native-remote-1986.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1988 of 2001",
+      "native-remote-1987.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1989 of 2001",
+      "native-remote-1988.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1990 of 2001",
+      "native-remote-1989.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1991 of 2001",
+      "native-remote-1990.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1992 of 2001",
+      "native-remote-1991.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1993 of 2001",
+      "native-remote-1992.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1994 of 2001",
+      "native-remote-1993.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1995 of 2001",
+      "native-remote-1994.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1996 of 2001",
+      "native-remote-1995.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1997 of 2001",
+      "native-remote-1996.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1998 of 2001",
+      "native-remote-1997.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 1999 of 2001",
+      "native-remote-1998.txt, file, 0 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 2000 of 2001",
+      "native-remote-1999.txt, file, 33 bytes, modified 10/27/2026 1:04:41\u202fAM, not marked, 2001 of 2001"
+    ]
+  },
+  "reviewDetails": "native-remote-0000.txt, file\nLocation: sftp://benny@127.0.0.1:39401/home/benny/FileCatValidation/DelayedSftpAtSpiListing/3200bb8f4e8c4228b8b7dcc54164acbd/server/\nSize: 0 bytes\nModified: 10/27/2026 1:04:41\u202fAM",
+  "viewerTitle": "native-remote-1999.txt \u2014 FileCat Viewer",
+  "serverFilesUnchanged": true,
+  "targetEmpty": true,
+  "relayServerBytes": 287594,
+  "relayDelayedChunks": 590
+}

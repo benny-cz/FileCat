@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "sourceSha256": "639b1fb1df35c2a7a44dca055f799c6ca28774ac22037bc0288e0299d84ea203",
+  "appDllSha256": "cd2dd4216289c4fca0c4a95ca3671af4f1c877dbb6e9ab4ea1ad156c6c3c8608",
+  "phraseSourceByteOffset": 181,
+  "phraseByteCount": 10,
+  "textSizes": {
+    "narrow": [
+      480,
+      300
+    ],
+    "wide": [
+      900,
+      650
+    ]
+  },
+  "textSelectionStatus": "Selected source bytes 0 through 373, 374 bytes; utf-8; wrapped.",
+  "textClipboardUtf8": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA caf\u00e9 \ud83c\udf63 BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\r\n",
+  "hexSizes": {
+    "narrow": [
+      480,
+      300
+    ],
+    "wide": [
+      900,
+      650
+    ]
+  },
+  "hexSelectionStatus": "Offset 190 of 374, byte A3 hex; row 000000B4: 20 63 61 66 C3 A9 20 F0 9F 8D A3 20 42 42 42 42 42 42 42 42. Selected bytes 181 through 190, 10 bytes; read-only byte inspection; Read-only inspection; viewport begins at byte 0, horizontal position 0.",
+  "hexClipboard": "636166C3A920F09F8DA3",
+  "sourceUnchanged": true,
+  "targetEmpty": true
+}

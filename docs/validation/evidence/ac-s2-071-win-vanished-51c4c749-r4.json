@@ -1,0 +1,96 @@
+﻿{
+    "Passed":  false,
+    "Stage":  "external drop",
+    "GitHead":  "51c4c74989490712a98c2cb1b65310d53828a82b",
+    "Scope":  "ExternalIntoVanishedTarget",
+    "AppDllSha256":  "63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "23493C59F3D7E7F3CDE5DDA3D8AAB074D18752BB13294B372BE1C2A69947F7F6",
+                         "alpha-native-drag.txt":  "9C5C054B7BFF9B0E6AE185304C43E464048E881D965C98DCCD23081D5AB02A9C"
+                     },
+    "SourceArchiveSha256":  null,
+    "TargetArchiveSha256":  null,
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "TargetSentinelSha256":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C",
+    "TargetList":  "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropTarget-14e6dc92",
+    "Geometry":  {
+                     "From":  [
+                                  317,
+                                  239
+                              ],
+                     "To":  [
+                                1606,
+                                480
+                            ],
+                     "Explorer":  [
+                                      30,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      212,
+                                      227,
+                                      598,
+                                      24
+                                  ]
+                 },
+    "HoverCursor":  {
+                        "Y":  480,
+                        "Flags":  1,
+                        "Handle":  43779090,
+                        "X":  1606
+                    },
+    "HoverWindow":  {
+                        "Expected":  394830,
+                        "Actual":  394830
+                    },
+    "RemovedTargetBeforeDrop":  true,
+    "UiAfterRemoval":  {
+                           "Cursor":  {
+                                          "Y":  480,
+                                          "Flags":  1,
+                                          "Handle":  43779090,
+                                          "X":  1608
+                                      },
+                           "Text":  [
+                                        "FileCat — DropSource-2b2a104a — Admin (administrator, not elevated)",
+                                        "DropSource-2b2a104a, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropSource-2b2a104a",
+                                        "DropSource-2b2a104a",
+                                        "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropSource-2b2a104a",
+                                        "“DropTarget-14e6dc92” is no longer there: another program deleted or moved it. This is the nearest folder that still exists.",
+                                        "DropSource-2b2a104a",
+                                        "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropSource-2b2a104a\u003e"
+                                    ],
+                           "Lists":  [
+                                         "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67"
+                                     ]
+                       },
+    "UiAfterDrop":  {
+                        "Cursor":  {
+                                       "Y":  480,
+                                       "Flags":  1,
+                                       "Handle":  65539,
+                                       "X":  1608
+                                   },
+                        "Text":  [
+                                     "DropSource-2b2a104a, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropSource-2b2a104a",
+                                     "DropSource-2b2a104a",
+                                     "Panel 1, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67\\DropSource-2b2a104a",
+                                     "“DropTarget-14e6dc92” is no longer there: another program deleted or moved it. This is the nearest folder that still exists.",
+                                     "DropSource-2b2a104a",
+                                     "To (panel 2 (drop target)):",
+                                     "Destination",
+                                     "Enter starts now · Queue waits for other operations on the same drive · the destination is fixed once started"
+                                 ],
+                        "Lists":  [
+                                      "Panel 2, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\211ac40817aa4ff19defbd5d1669eb67"
+                                  ]
+                    },
+    "Error":  "Timed out waiting for vanished-target explanation.",
+    "ErrorType":  "System.Management.Automation.RuntimeException"
+}

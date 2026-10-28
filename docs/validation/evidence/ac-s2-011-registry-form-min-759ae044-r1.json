@@ -1,0 +1,21 @@
+﻿{
+    "BuildSha256":  "409E20BA8B2BD5F06C953389AA25BCF98E9C6EE8698C68E87B120E827AB9FCD6",
+    "WindowDpi":  96,
+    "MinimumOwner":  true,
+    "OwnerSizeDip":  "640x420",
+    "DialogKind":  "Registry",
+    "RegistryForm":  true,
+    "DialogTitle":  "Create key",
+    "DialogOpenedTwice":  true,
+    "NativeCloseX":  true,
+    "NativeBackdropClick":  true,
+    "CloseAccessibleName":  "Close dialog",
+    "CloseAccessibleHelp":  "Cancel this dialog without applying changes. Esc also closes it.",
+    "CloseBounds":  "30x30",
+    "CloseIconPixels":  72,
+    "CloseIconOffsetPixels":  "0,0",
+    "OutsidePoint":  "68,411",
+    "FixtureUnchanged":  true,
+    "SourceSha256":  null,
+    "TargetEmpty":  true
+}

@@ -1,0 +1,25 @@
+﻿{
+    "Passed":  true,
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\UndoClose-84fcf9957c604351876e0f1e5e5ac94e",
+    "App":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\GitMain-AC-S2-013-4c042d37\\src\\FileCat.App\\bin\\Release\\net10.0\\FileCat.exe",
+    "AppSha256":  "3A1321AC21FCC0E778E0149B1A48F6240C3162FF406D887DD67A2B69337F727F",
+    "FileCount":  5000,
+    "Action":  "ClearOriginalHistory",
+    "ClosePromptSeen":  false,
+    "Restarted":  false,
+    "Restored":  5000,
+    "NotAttempted":  0,
+    "OutcomeLines":  0,
+    "ObservedText":  [
+
+                     ],
+    "ObservedButtons":  [
+
+                        ],
+    "Error":  null,
+    "DrawerOpenBefore":  true,
+    "ClearReviewActive":  true,
+    "ActiveInverseAfterClear":  true,
+    "OriginalRowRemoved":  true,
+    "ReportAfter":  true
+}

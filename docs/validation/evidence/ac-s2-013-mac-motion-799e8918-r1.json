@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "head": "799e8918",
+  "appDllSha256": "4134da26bd8c950d4976c010192a1fa93009ac955e18a3dda5015f71394bf128",
+  "originalNativeReducedMotion": false,
+  "originalUiReducedMotion": false,
+  "phases": [
+    {
+      "name": "moving",
+      "nativeReducedMotion": false,
+      "appPid": 10701,
+      "geometry": [
+        80,
+        30,
+        1000,
+        660
+      ],
+      "captures": [
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.moving-1.png",
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.moving-2.png"
+      ]
+    },
+    {
+      "name": "reduced",
+      "nativeReducedMotion": true,
+      "appPid": 10701,
+      "geometry": [
+        100,
+        75,
+        1000,
+        660
+      ],
+      "captures": [
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.reduced-1.png",
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.reduced-2.png"
+      ]
+    },
+    {
+      "name": "resumed",
+      "nativeReducedMotion": false,
+      "appPid": 10701,
+      "geometry": [
+        100,
+        75,
+        1000,
+        660
+      ],
+      "captures": [
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.resumed-1.png",
+        "/Users/benny/FileCatValidation/ac-s2-013-mac-motion-799e8918-r1.resumed-2.png"
+      ]
+    }
+  ],
+  "fixture": "/Users/benny/FileCatValidation/ThemeMotion/880273c2f7464714bfc9285025e3ec70",
+  "systemAlertsDismissed": [
+    "absent",
+    "absent",
+    "absent",
+    "absent",
+    "absent",
+    "absent"
+  ],
+  "sourceUnchanged": true,
+  "targetEmpty": true,
+  "restoredNativeReducedMotion": false,
+  "restoredUiReducedMotion": false
+}

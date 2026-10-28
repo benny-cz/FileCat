@@ -1,0 +1,65 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "51c4c74989490712a98c2cb1b65310d53828a82b",
+    "Scope":  "ExternalIntoArchiveRefusal",
+    "AppDllSha256":  "63CEF4EBC8D86D943510EF54DAE79776A2C8787964DB2C543F9F8A6C458FFC87",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\1d3ebb39788941b58c60dff84b10b037",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "5F9FC9229893770076EEF6FC2407611A33D9AD0FFD2B01FA42A8E9717C0E384E",
+                         "alpha-native-drag.txt":  "3128729F2936D95A369001FDAC51A028CE7F59C7C0097B37283AB78491C33784"
+                     },
+    "SourceArchiveSha256":  null,
+    "TargetArchiveSha256":  "B36B1CD08F9B49827DAA0116883822D170ECD0FD6830BCDA399C260A596B7DE8",
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "TargetList":  "Panel 2, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\1d3ebb39788941b58c60dff84b10b037\\DropTarget-d5791ac1\\target.zip",
+    "Geometry":  {
+                     "From":  [
+                                  317,
+                                  239
+                              ],
+                     "To":  [
+                                1606,
+                                481
+                            ],
+                     "Explorer":  [
+                                      30,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      212,
+                                      227,
+                                      598,
+                                      24
+                                  ]
+                 },
+    "HoverCursor":  {
+                        "Y":  481,
+                        "Flags":  1,
+                        "Handle":  65559,
+                        "X":  1606
+                    },
+    "HoverWindow":  {
+                        "Expected":  460152,
+                        "Actual":  460152
+                    },
+    "HoverRefusal":  "This panel cannot receive dropped files. Open a local folder here, or use F5 to choose a supported destination.",
+    "Refusal":  "This panel cannot receive dropped files. Open a local folder here, or use F5 to choose a supported destination.",
+    "TargetNames":  [
+                        "target.zip"
+                    ],
+    "TargetHashes":  {
+                         "target.zip":  "B36B1CD08F9B49827DAA0116883822D170ECD0FD6830BCDA399C260A596B7DE8"
+                     },
+    "SourceStillPresent":  {
+                               "beta-native-drag.txt":  "5F9FC9229893770076EEF6FC2407611A33D9AD0FFD2B01FA42A8E9717C0E384E",
+                               "alpha-native-drag.txt":  "3128729F2936D95A369001FDAC51A028CE7F59C7C0097B37283AB78491C33784"
+                           },
+    "TargetArchiveStillPresentSha256":  "B36B1CD08F9B49827DAA0116883822D170ECD0FD6830BCDA399C260A596B7DE8",
+    "JournalFileCount":  0
+}

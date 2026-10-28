@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "guestReceipt": ".local-ac-s2-013-win-motion-4c042d37-r6.json",
+  "appDllSha256": "D4A4E64C10BCB6C41D0D37AA6516ABD22DDD4BD54D60FEC05B813974D6BD9952",
+  "regions": {
+    "menu": [
+      220,
+      138,
+      1320,
+      205
+    ],
+    "leftList": [
+      235,
+      315,
+      715,
+      740
+    ],
+    "rightList": [
+      785,
+      315,
+      1240,
+      740
+    ],
+    "footer": [
+      220,
+      785,
+      1320,
+      870
+    ]
+  },
+  "changedPixelsOver10PerChannel": {
+    "moving": {
+      "menu": 8670,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 9908
+    },
+    "reduced": {
+      "menu": 0,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 0
+    },
+    "resumed": {
+      "menu": 14679,
+      "leftList": 0,
+      "rightList": 0,
+      "footer": 10954
+    }
+  }
+}

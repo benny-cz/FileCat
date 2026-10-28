@@ -1,0 +1,375 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "e7b1dbdf6341c77e2c14e22f48d40b9d84b85173",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3",
+    "AppDllSha256":  "CC41DD6FE6933AEDB82D3BD23E319AA4A7A1F220503F550B18B1794C7B24C39A",
+    "LargeFileSha256":  "3B6A07D0D404FAB4E23B6D34BC6696A6A312DD92821332385E5AF7C01C421351",
+    "SeededFolders":  [
+                          "finished-01",
+                          "finished-02",
+                          "finished-03",
+                          "finished-04",
+                          "finished-05",
+                          "finished-06",
+                          "finished-07",
+                          "finished-08"
+                      ],
+    "Before":  {
+                   "Selected":  [
+                                    {
+                                        "Offscreen":  false,
+                                        "Bounds":  [
+                                                       322,
+                                                       780,
+                                                       510,
+                                                       63
+                                                   ],
+                                        "Text":  [
+                                                     "Create folder \"finished-08\"",
+                                                     "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                     "Completed  ·  "
+                                                 ]
+                                    }
+                                ],
+                   "Bounds":  [
+                                  322,
+                                  780,
+                                  510,
+                                  254
+                              ],
+                   "Items":  [
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-08\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-07\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-06\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-05\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 },
+                                 {
+                                     "Text":  [
+                                                  "Create folder \"finished-04\"",
+                                                  "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                  "Completed  ·  "
+                                              ],
+                                     "Offscreen":  false
+                                 }
+                             ]
+               },
+    "ReviewDestination":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target\\",
+    "BeforeCopyJournalCount":  8,
+    "CopyCandidates":  [
+                           749,
+                           1065,
+                           104,
+                           25,
+                           1277,
+                           889,
+                           46,
+                           29
+                       ],
+    "AfterCopyVisible":  [
+                             "D",
+                             "Y:",
+                             "Y",
+                             "Z:",
+                             "Z",
+                             "This PC",
+                             "This PC",
+                             "Network",
+                             "Network",
+                             "Phones and cameras",
+                             "Phones and cameras",
+                             "Registry (default view)",
+                             "Registry (default view)",
+                             "Desktop",
+                             "Desktop",
+                             "Documents",
+                             "Documents",
+                             "Downloads",
+                             "Downloads",
+                             "Recycle Bin",
+                             "Recycle Bin",
+                             "More places",
+                             "»",
+                             "2",
+                             "▾",
+                             "74,6 GB free",
+                             "Filter ready",
+                             "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+                             "TARGET",
+                             "0 folders, 1 file · 64,0 MB",
+                             "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                             "Copying  ·  1,0 MB of 64,0 MB · 0 of 1 items · 987 KB/s · estimating the time left… · limited to 65 536/s",
+                             "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                             "1%",
+                             "a-large.bin · 1,0 MB of 64,0 MB",
+                             "Pause",
+                             "Cancel",
+                             "Details (Ctrl+J)",
+                             "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source\u003e",
+                             "Help",
+                             "1",
+                             "Help",
+                             "Rename",
+                             "2",
+                             "Rename",
+                             "View",
+                             "3",
+                             "View",
+                             "Edit",
+                             "4",
+                             "Edit",
+                             "Copy",
+                             "5",
+                             "Copy",
+                             "Move",
+                             "6",
+                             "Move",
+                             "MkDir",
+                             "7",
+                             "MkDir",
+                             "Delete",
+                             "8",
+                             "Delete",
+                             "User",
+                             "9",
+                             "User",
+                             "Menu",
+                             "10",
+                             "Menu",
+                             "Maximize",
+                             "11",
+                             "Maximize",
+                             "Panels",
+                             "12",
+                             "Panels"
+                         ],
+    "AfterCopyJournalCount":  9,
+    "AfterSubmit":  [
+                        "Copy",
+                        "Move",
+                        "New folder",
+                        "Delete",
+                        "Find",
+                        "Jobs",
+                        "source",
+                        "C",
+                        "Working sets",
+                        "Home",
+                        "Connect…",
+                        "D",
+                        "Y",
+                        "Z",
+                        "This PC",
+                        "Network",
+                        "Phones and cameras",
+                        "Registry (default view)",
+                        "Desktop",
+                        "Documents",
+                        "Downloads",
+                        "Recycle Bin",
+                        "»",
+                        "1",
+                        "74,6 GB free",
+                        "Filter ready",
+                        "8 folders, 1 file · 64,0 MB",
+                        "a-large.bin · 67 108 864 bytes",
+                        "target",
+                        "C",
+                        "Working sets",
+                        "Home",
+                        "Connect…",
+                        "D",
+                        "Y",
+                        "Z",
+                        "This PC",
+                        "Network",
+                        "Phones and cameras",
+                        "Registry (default view)",
+                        "Desktop",
+                        "Documents",
+                        "Downloads",
+                        "Recycle Bin",
+                        "»",
+                        "2",
+                        "74,6 GB free",
+                        "Filter ready",
+                        "TARGET",
+                        "0 folders, 1 file · 64,0 MB",
+                        "",
+                        "",
+                        "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                        "Copying  ·  1,0 MB of 64,0 MB · 0 of 1 items · 606 219/s · estimating the time left… · limited to 65 536/s",
+                        "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                        "1%",
+                        "a-large.bin · 1,0 MB of 64,0 MB",
+                        "",
+                        "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source\u003e",
+                        "1",
+                        "Help",
+                        "2",
+                        "Rename",
+                        "3",
+                        "View",
+                        "4",
+                        "Edit",
+                        "5",
+                        "Copy",
+                        "6",
+                        "Move",
+                        "7",
+                        "MkDir",
+                        "8",
+                        "Delete",
+                        "9",
+                        "User",
+                        "10",
+                        "Menu",
+                        "11",
+                        "Maximize",
+                        "12",
+                        "Panels"
+                    ],
+    "AfterInitial":  {
+                         "Selected":  [
+                                          {
+                                              "Offscreen":  false,
+                                              "Bounds":  [
+                                                             322,
+                                                             780,
+                                                             510,
+                                                             67
+                                                         ],
+                                              "Text":  [
+                                                           "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                           "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                           "Running  ·  1,0 MB of 64,0 MB · 0 of 1 items · 218 239/s · estimating the time left… · limited to 65 536/s"
+                                                       ]
+                                          }
+                                      ],
+                         "Bounds":  [
+                                        322,
+                                        780,
+                                        510,
+                                        254
+                                    ],
+                         "Items":  [
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-08\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-07\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Create folder \"finished-06\"",
+                                                        "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                        "Completed  ·  "
+                                                    ],
+                                           "Offscreen":  false
+                                       },
+                                       {
+                                           "Text":  [
+                                                        "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                        "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                        "Running  ·  1,0 MB of 64,0 MB · 0 of 1 items · 218 239/s · estimating the time left… · limited to 65 536/s"
+                                                    ],
+                                           "Offscreen":  false
+                                       }
+                                   ]
+                     },
+    "After":  {
+                  "Selected":  [
+                                   {
+                                       "Offscreen":  false,
+                                       "Bounds":  [
+                                                      322,
+                                                      780,
+                                                      510,
+                                                      67
+                                                  ],
+                                       "Text":  [
+                                                    "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                    "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                    "Running  ·  1,0 MB of 64,0 MB · 0 of 1 items · 130 943/s · estimating the time left… · limited to 65 536/s"
+                                                ]
+                                   }
+                               ],
+                  "Bounds":  [
+                                 322,
+                                 780,
+                                 510,
+                                 254
+                             ],
+                  "Items":  [
+                                {
+                                    "Text":  [
+                                                 "Create folder \"finished-08\"",
+                                                 "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                 "Completed  ·  "
+                                             ],
+                                    "Offscreen":  false
+                                },
+                                {
+                                    "Text":  [
+                                                 "Create folder \"finished-07\"",
+                                                 "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                 "Completed  ·  "
+                                             ],
+                                    "Offscreen":  false
+                                },
+                                {
+                                    "Text":  [
+                                                 "Create folder \"finished-06\"",
+                                                 "→ C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source",
+                                                 "Completed  ·  "
+                                             ],
+                                    "Offscreen":  false
+                                },
+                                {
+                                    "Text":  [
+                                                 "Copy \"a-large.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                 "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\source → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OperationFocus\\a99b882207bb436ca96938fdccbb30f3\\target",
+                                                 "Running  ·  1,0 MB of 64,0 MB · 0 of 1 items · 130 943/s · estimating the time left… · limited to 65 536/s"
+                                             ],
+                                    "Offscreen":  false
+                                }
+                            ]
+              }
+}

@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "guestReceipt": ".local-ac-s2-013-ubuntu-expressive-4c042d37-r3.json",
+  "appDllSha256": "dd4a201c915bc45d6f2afc1d19cdffaf2810810dabe25896ee0569d6be61ab6f",
+  "pictureCycleSeconds": 374.98,
+  "regions": {
+    "picture": [
+      432,
+      283,
+      913,
+      604
+    ],
+    "viewerToolbar": [
+      183,
+      85,
+      1163,
+      124
+    ],
+    "viewerBody": [
+      184,
+      124,
+      1163,
+      765
+    ],
+    "exposedMain": [
+      100,
+      112,
+      182,
+      772
+    ]
+  },
+  "changedPixelsOver10PerChannel": [
+    {
+      "picture": 0,
+      "viewerToolbar": 0,
+      "viewerBody": 0,
+      "exposedMain": 3121
+    },
+    {
+      "picture": 0,
+      "viewerToolbar": 0,
+      "viewerBody": 0,
+      "exposedMain": 3118
+    },
+    {
+      "picture": 0,
+      "viewerToolbar": 0,
+      "viewerBody": 0,
+      "exposedMain": 3115
+    },
+    {
+      "picture": 0,
+      "viewerToolbar": 0,
+      "viewerBody": 0,
+      "exposedMain": 3116
+    },
+    {
+      "picture": 0,
+      "viewerToolbar": 0,
+      "viewerBody": 0,
+      "exposedMain": 2608
+    }
+  ]
+}

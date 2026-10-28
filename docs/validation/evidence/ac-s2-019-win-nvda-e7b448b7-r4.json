@@ -1,0 +1,39 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "e7b448b763fcfc0f4d75de2a82780ab1c9b57194",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ClearHistoryNarrow\\56219e6ac7c24975854029b1e8b9233e",
+    "AppDllSha256":  "19E179E5FFFFF35A64B463791E3A863381ACF71F1D957DC394497B02D4A621B3",
+    "NvdaVersion":  "2026.2",
+    "WindowSize":  "900x650",
+    "SourceHash":  "1827B7726C267BF6924106B32F009EB4580B7A45259CCE7C01203DC38560DBEE",
+    "UndoBefore":  true,
+    "ListHelp":  "Clearing history removes 1 unused Undo record and the selected operation reports; it does not change files. Keep history preserves the available Undo and reports.",
+    "KeepHelp":  "Clearing history removes 1 unused Undo record and the selected operation reports; it does not change files. Keep history preserves the available Undo and reports.",
+    "ReviewVisible":  [
+                          "Unused Undo: 1 eligible record removed if approved",
+                          "Reports: selected operation reports leave this session\u0027s history if approved",
+                          "File changes: none",
+                          "1 unused Undo record; 0 operations with retained results or problems. Removing these rows also removes their reports and unused Undo steps. It does not change files.",
+                          "Move \"owned-history.txt\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\ClearHistoryNarrow\\56219e6ac7c24975854029b1e8b9233e\\target — unused Undo available"
+                      ],
+    "KeepBounds":  [
+                       1488,
+                       644,
+                       91,
+                       29
+                   ],
+    "ListSpeech":  [
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Remove operation history dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Finished operations and records to remove\u0027, \u0027list\u0027, \u0027Clearing history removes 1 unused Undo record and the selected operation reports; it does not change files. Keep history preserves the available Undo and reports.\u0027, CancellableSpeech (still valid)]",
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Move \"owned-history.txt\" to C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\ClearHistoryNarrow\\\\56219e6ac7c24975854029b1e8b9233e\\\\target — unused Undo available\u0027, \u0027not selected\u0027, CancellableSpeech (still valid)]"
+                   ],
+    "KeepSpeech":  [
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Keep history\u0027, \u0027button\u0027, \u0027Clearing history removes 1 unused Undo record and the selected operation reports; it does not change files. Keep history preserves the available Undo and reports.\u0027, CancellableSpeech (still valid)]"
+                   ],
+    "SpokeUndoLoss":  true,
+    "SpokeNoFileChange":  true,
+    "UndoAfter":  true,
+    "ReportAfter":  true,
+    "FilesIntact":  true
+}

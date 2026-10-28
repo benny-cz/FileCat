@@ -1,0 +1,75 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "mode": "blocked",
+  "sourceSha256": "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+  "appDllSha256": "fed760124e53ebe2e2d3ebb7e2812ab789396bc336aaea95f9938580079918fe",
+  "speechLog": "/home/benny/FileCatValidation/ac-s2-012-hex-editor-blocked-0553f746-r3.orca.log",
+  "spokenSteps": [
+    {
+      "step": "pending setup byte",
+      "key": "a",
+      "semantic": "Offset 0 of 64, byte 00 hex; row 00000000: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal posit",
+      "spoken": [
+        "Hex view",
+        "read only entry",
+        "Offset 0 of 64, byte 00 hex; row 00000000: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.",
+        "a",
+        "Hex view",
+        "read only entry",
+        "Offset 0 of 64, byte 00 hex; row 00000000: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "unsaved setup byte",
+      "key": "c",
+      "semantic": "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "No byte selection; active typing column: hex; pending first nibble A, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.",
+        "c",
+        "Hex view",
+        "read only entry",
+        "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "blocked after failed save",
+      "semantic": "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+      "spoken": [
+        "Typing: hex \u00b7 1 byte modified (unsaved) \u00b7 advisory lock; other programs may still write this file",
+        "No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "left control",
+        "Save in place? dialog",
+        "panel",
+        "Save in place",
+        "button.",
+        "Typing: hex \u00b7 Saving\u2026",
+        "Hex view",
+        "read only entry",
+        "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    },
+    {
+      "step": "blocked focus return",
+      "spoken": [
+        "Finish saving",
+        "button.",
+        "Write the remaining new bytes, then verify them and remove the recovery journal.",
+        "Write the remaining new bytes, then verify them and remove the recovery journal",
+        "F6",
+        "Hex view",
+        "read only entry",
+        "Offset 1 of 64, byte 01 hex; row 00000000: AC 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F. No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.",
+        "No byte selection; active typing column: hex; Byte editing blocked: An interrupted save must be finished or restored; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0."
+      ]
+    }
+  ],
+  "appPid": 16212,
+  "sourceUnchanged": true,
+  "targetEmpty": true,
+  "journalRetainedBeforeCleanup": true,
+  "injectedSourceWrite": true,
+  "syscallTrace": "/home/benny/FileCatValidation/ac-s2-012-hex-editor-blocked-0553f746-r3.strace.log"
+}

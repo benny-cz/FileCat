@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "gitHead": "34fee315f33058783442256c258fe0da2673fded",
+  "appDllSha256": "b9d381a50aec838283fd22ad44b053ca76fd560d0fcc9aeb5ce78ee6ed2abefd",
+  "fixture": "/home/benny/FileCatValidation/CurrentNavigationError/d9877b17b243467b87f3d974d7848fcf",
+  "unreachableAddress": "sftp://benny@127.0.0.1:34409/unreachable/",
+  "initialPanel": "Panel 2, target, /home/benny/FileCatValidation/CurrentNavigationError/d9877b17b243467b87f3d974d7848fcf/local",
+  "listDescription": "Not available. Could not reach benny@127.0.0.1:34409: Connection refused Use Refresh to try again or edit Location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+  "speech": [
+    "Location",
+    "entry",
+    "sftp://benny@127.0.0.1:34409/unreachable/",
+    "Location",
+    "entry",
+    "sftp://benny@127.0.0.1:34409/unreachable/",
+    "return",
+    "Password dialog",
+    "panel",
+    "Password",
+    "entry.",
+    "Password",
+    "entry",
+    "a.",
+    "Panel 2, source, sftp://benny@127.0.0.1:34409/unreachable/",
+    "List with 1 item",
+    "Go to parent location, parent navigation, 1 of 1.",
+    "not selected.",
+    "Not available. Could not reach benny@127.0.0.1:34409: Connection refused Use Refresh to try again or edit Location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+  ],
+  "spokenError": true,
+  "panelAfterFailure": "Panel 2, source, sftp://benny@127.0.0.1:34409/unreachable/",
+  "panelRestored": "Panel 2, source, /home/benny/FileCatValidation/CurrentNavigationError/d9877b17b243467b87f3d974d7848fcf/local",
+  "restoredRows": [
+    "Go to parent location, parent navigation, 1 of 2",
+    "still-usable.txt, file, 46 bytes, modified 10/27/2026 9:09:07\u202fAM, not marked, 2 of 2"
+  ],
+  "sentinelRowVisible": true,
+  "sentinelExact": true
+}

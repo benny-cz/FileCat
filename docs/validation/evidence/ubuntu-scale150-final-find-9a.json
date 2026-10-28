@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "platform": "Ubuntu",
+  "mode": "Text",
+  "query": "alpha",
+  "visibleMatchStatus": "1 match",
+  "previousReportedNoEarlierMatch": true,
+  "sourceBytesUnchanged": true,
+  "viewerClosed": true,
+  "physicalF3AndShiftF3Verified": true,
+  "changedQueryRetiredOldCount": true,
+  "changedQueryVisibleMatchStatus": "0 matches",
+  "geometry": {
+    "displayScale": 1.5,
+    "requestedPhysicalSize": [
+      1080,
+      750
+    ],
+    "frame": [
+      150,
+      174,
+      1080,
+      750
+    ],
+    "controls": {
+      "Find": [
+        166,
+        383,
+        440,
+        59
+      ],
+      "Previous": [
+        929,
+        383,
+        141,
+        59
+      ],
+      "Next": [
+        1086,
+        383,
+        90,
+        59
+      ],
+      "Count": [
+        166,
+        450,
+        88,
+        32
+      ]
+    }
+  },
+  "app": "/home/benny/FileCatValidation/Published-9a500635/FileCat",
+  "appSha256": "f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593",
+  "fixture": "/home/benny/FileCatValidation/TextViewerKeyboard/fa64e88aa8c349eca04dfc076fce198f"
+}

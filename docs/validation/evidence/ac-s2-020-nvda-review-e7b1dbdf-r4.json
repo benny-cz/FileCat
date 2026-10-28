@@ -1,0 +1,150 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "narrow report line navigation",
+    "GitHead":  "e7b1dbdf6341c77e2c14e22f48d40b9d84b85173",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\019eceb2fa0544cfbbf55c50c719ba86",
+    "AppDllSha256":  "CC41DD6FE6933AEDB82D3BD23E319AA4A7A1F220503F550B18B1794C7B24C39A",
+    "NvdaVersion":  "2026.2",
+    "NvdaLog":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\019eceb2fa0544cfbbf55c50c719ba86\\nvda-recovery.log",
+    "WindowSize":  "900x650",
+    "SpeechSteps":  [
+
+                    ],
+    "ForegroundBeforeReview":  7484,
+    "MarkAction":  "Mark interrupted recovery reviewed for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\019eceb2fa0544cfbbf55c50c719ba86\\destination",
+    "ForegroundAtReview":  7484,
+    "ReviewAccessible":  {
+                             "CancelVisible":  true,
+                             "ApproveVisible":  true,
+                             "NoFileChange":  true,
+                             "RetainedReport":  true
+                         },
+    "DialogSpeech":  [
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Interrupted operations needing review\u0027, \u0027grouping\u0027, \u0027expanded\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Choose an interrupted operation\u0027, \u0027list\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Move \"photos\" to C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\Recovery\\\\019eceb2fa0544cfbbf55c50c719ba86\\\\destination (interrupted 27.10.2026 6:54)\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Awaiting approval to stop recovery reminders…\u0027]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Stop interrupted recovery reminders? dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                         "[LangChangeCommand (\u0027en_US\u0027), \u0027Mark reviewed and stop reminders\u0027, \u0027button\u0027, \u0027Key points: Action: stop offering recovery for this interrupted operation; File changes: none; existing files are not repaired or deleted; A bounded report remains in Operations for this session\u0027, CancellableSpeech (still valid)]"
+                     ],
+    "ApprovalFocusSpeech":  [
+                                "[LangChangeCommand (\u0027en_US\u0027), \u0027Mark reviewed and stop reminders\u0027, \u0027button\u0027, \u0027Key points: Action: stop offering recovery for this interrupted operation; File changes: none; existing files are not repaired or deleted; A bounded report remains in Operations for this session\u0027, CancellableSpeech (still valid)]"
+                            ],
+    "ReviewControls":  [
+                           {
+                               "Name":  "Action: stop offering recovery for this interrupted operation",
+                               "Offscreen":  false,
+                               "Role":  "ControlType.Text"
+                           },
+                           {
+                               "Name":  "File changes: none; existing files are not repaired or deleted",
+                               "Offscreen":  false,
+                               "Role":  "ControlType.Text"
+                           },
+                           {
+                               "Name":  "A bounded report remains in Operations for this session",
+                               "Offscreen":  false,
+                               "Role":  "ControlType.Text"
+                           }
+                       ],
+    "CancelAction":  "Cancel",
+    "ReportAction":  "Review retained recovery report for Move \"photos\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\Recovery\\019eceb2fa0544cfbbf55c50c719ba86\\destination",
+    "ForegroundAtReport":  7484,
+    "ReportSpeech":  [
+                         {
+                             "Line":  2,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Next report line\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 2 of 15. Title: \"Move \\\\u0022photos\\\\u0022 to C:\\\\\\\\Users\\\\\\\\Admin\\\\\\\\AppData\\\\\\\\Local\\\\\\\\FileCatValidation\\\\\\\\Recovery\\\\\\\\019eceb2fa0544cfbbf55c50c719ba86\\\\\\\\destination\"\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  3,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 3 of 15. Kind: Move\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  4,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 4 of 15. Action: Inspection only; no files or recovery tracking changed\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  5,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 5 of 15. Captured (UTC): 2026-10-27T06:07:32.5575874Z\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  6,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 6 of 15. Journal: \"C:\\\\\\\\Users\\\\\\\\Admin\\\\\\\\AppData\\\\\\\\Local\\\\\\\\FileCatValidation\\\\\\\\Recovery\\\\\\\\019eceb2fa0544cfbbf55c50c719ba86\\\\\\\\data\\\\\\\\local\\\\\\\\journal\\\\\\\\job-20261027055442-d7c1224c.fcj\"\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  7,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 7 of 15. Destination: \"{\\\\u0022s\\\\u0022:\\\\u0022fs\\\\u0022,\\\\u0022p\\\\u0022:\\\\u0022C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\Admin\\\\\\\\\\\\\\\\AppData\\\\\\\\\\\\\\\\Local\\\\\\\\\\\\\\\\FileCatValidation\\\\\\\\\\\\\\\\Recovery\\\\\\\\\\\\\\\\019eceb2fa0544cfbbf55c50c719ba86\\\\\\\\\\\\\\\\destination\\\\u0022}\"\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  8,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 8 of 15. Completed journal steps: 0; open intents: 0\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  9,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 9 of 15. Recorded source roots: 1 retained in this report of 1 declared; all declared roots are represented\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  10,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 10 of 15. Quoted paths use JSON escaping. Decoding the quoted value recovers its exact characters.\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  11,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 11 of 15. This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  12,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 12 of 15. (blank line)\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  13,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 13 of 15. Recorded source: \"C:\\\\\\\\Users\\\\\\\\Admin\\\\\\\\AppData\\\\\\\\Local\\\\\\\\FileCatValidation\\\\\\\\Recovery\\\\\\\\019eceb2fa0544cfbbf55c50c719ba86\\\\\\\\source\\\\\\\\photos\"\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  14,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 14 of 15. (blank line)\u0027]"
+                                       ]
+                         },
+                         {
+                             "Line":  15,
+                             "Heard":  [
+                                           "[LangChangeCommand (\u0027en_US\u0027), \"Line 15 of 15. Known detail rows: 1; retained here: 1; omitted by this report\u0027s limit: 0.\"]"
+                                       ]
+                         }
+                     ],
+    "SpokenConsequences":  {
+                               "ReportRetained":  true,
+                               "NoFileChange":  true
+                           },
+    "SpokenReport":  {
+                         "DestinationLine":  true,
+                         "SourceLine":  true
+                     },
+    "FilesIntact":  true,
+    "DiagnosticCompleted":  true
+}
