@@ -10,8 +10,8 @@ namespace FileCat.App.Services;
 /// of decoded output"). FileCat started with <see cref="Argument"/> reads one picture's bytes from standard input and
 /// writes it back decoded, turned the way its EXIF orientation says and scaled to fit a given size, or a reason. It never
 /// intentionally opens a content file or a window. Native codec loading and process authority follow the platform's
-/// worker launch rules in <see cref="PictureDecoder"/>; these stream-only entry-point operations are not a filesystem
-/// or network sandbox.
+/// worker launch rules in <see cref="PictureDecoder"/>. On Linux and macOS those launch rules establish the filesystem
+/// and network boundary before this stream-only entry point consumes input.
 /// </summary>
 internal static class PictureWorker
 {
@@ -39,8 +39,8 @@ internal static class PictureWorker
         try
         {
             using var lifetime = PictureWorkerLifetime.Start();
-            // Give up root before a hostile picture is read: the process-creation filter below bounds what the
-            // worker may start, not what it may read or rewrite.
+            // Give up root before a hostile picture is read. Linux already entered its filesystem/network domain in
+            // the pre-exec launcher; the process-creation filter below composes with that inherited boundary.
             var identity = FileCat.Core.FileSystem.UnixWorkerIdentity.Drop();
             if (identity.Refusal is { } refusal) return Fail(output, refusal);
             if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) && !identity.Unprivileged)
@@ -74,7 +74,7 @@ internal static class PictureWorker
         return new ArraySegment<byte>(buffer.GetBuffer(), 0, checked((int)buffer.Length));
     }
 
-    private static int Fail(Stream output, string reason)
+    internal static int Fail(Stream output, string reason)
     {
         var text = Encoding.UTF8.GetBytes(reason.Length > 400 ? reason[..400] : reason);
         Span<byte> header = stackalloc byte[8];

@@ -266,35 +266,42 @@ internal sealed partial class FtpChannel : ISftpChannel
         int lineLength = 0, wireBytes = 0, lines = 0;
         try
         {
-            using var stream = _client.OpenListingData(command);
-            void ParseLine()
+            using (var stream = _client.OpenListingData(command))
             {
-                if (lineLength > 0 && line[lineLength - 1] == '\r') lineLength--;
-                if (lineLength == 0) return;
-                if (++lines > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
-                string raw = _client.Encoding.GetString(line, 0, lineLength);
-                var item = parser.ParseSingleLine(path, raw, _client.Capabilities, machine);
-                if (item is null || item.Name is "." or "..") return;
-                budget.Add(item.Name);
-                items.Add(item);
-            }
-            int read;
-            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (read > RemoteListingBudget.MaxWireBytes - wireBytes) throw new RemoteListingLimitException();
-                wireBytes += read;
-                for (int i = 0; i < read; i++)
+                void ParseLine()
                 {
-                    if (chunk[i] == '\n') { ParseLine(); lineLength = 0; }
-                    else
+                    if (lineLength > 0 && line[lineLength - 1] == '\r') lineLength--;
+                    if (lineLength == 0) return;
+                    if (++lines > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
+                    string raw = _client.Encoding.GetString(line, 0, lineLength);
+                    var item = parser.ParseSingleLine(path, raw, _client.Capabilities, machine);
+                    if (item is null || item.Name is "." or "..") return;
+                    budget.Add(item.Name);
+                    items.Add(item);
+                }
+                int read;
+                while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (read > RemoteListingBudget.MaxWireBytes - wireBytes) throw new RemoteListingLimitException();
+                    wireBytes += read;
+                    for (int i = 0; i < read; i++)
                     {
-                        if (lineLength == line.Length) throw new RemoteListingLimitException();
-                        line[lineLength++] = chunk[i];
+                        if (chunk[i] == '\n') { ParseLine(); lineLength = 0; }
+                        else
+                        {
+                            if (lineLength == line.Length) throw new RemoteListingLimitException();
+                            line[lineLength++] = chunk[i];
+                        }
                     }
                 }
+                if (lineLength > 0) ParseLine();
             }
-            if (lineLength > 0) ParseLine();
+            // OpenDataStream returns only the data stream. Its 226 completion remains on the control channel after the
+            // data socket closes; consume and validate it before the next PASV/metadata command uses this connection.
+            var reply = _client.GetReply();
+            if (!reply.Success)
+                throw new IOException($"The server did not finish the listing: {reply.Message} ({reply.Code})");
             return items;
         }
         catch (RemoteListingLimitException)

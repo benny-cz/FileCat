@@ -29,15 +29,27 @@ internal static unsafe partial class LinuxPictureProcessPolicy
         Abi abi;
         try { abi = ForArchitecture(RuntimeInformation.ProcessArchitecture); }
         catch (PlatformNotSupportedException) { Refuse(); return; }
-        Filter[] code = BuildFilter(abi);
-        if (Prctl(38 /* PR_SET_NO_NEW_PRIVS */, 1, 0, 0, 0) != 0) Refuse();
+        SetNoNewPrivileges("process creation");
+        ApplyFilter(abi, BuildFilter(abi), synchronizeThreads: true,
+            "The picture decoder could not restrict process creation.");
+    }
+
+    internal static void SetNoNewPrivileges(string boundary)
+    {
+        if (Prctl(38 /* PR_SET_NO_NEW_PRIVS */, 1, 0, 0, 0) != 0)
+            throw new IOException($"The picture decoder could not restrict {boundary}.");
+    }
+
+    internal static void ApplyFilter(Abi abi, Filter[] code, bool synchronizeThreads, string refusal)
+    {
         fixed (Filter* filters = code)
         {
             var program = new FilterProgram { Count = (ushort)code.Length, Filters = filters };
-            // TSYNC covers runtime threads that existed before the worker entry point. Any nonzero result,
-            // including the ID of an unsynchronizable thread, refuses rather than decoding with a partial policy.
-            if (Syscall(abi.Seccomp, 1 /* SET_MODE_FILTER */, 1 /* TSYNC */, (nint)(&program), 0, 0, 0) != 0)
-                Refuse();
+            uint flags = synchronizeThreads ? 1U /* TSYNC */ : 0U;
+            // TSYNC covers runtime threads that existed before the worker entry point. The earlier launcher filter
+            // deliberately applies only to the thread which is about to exec; that thread becomes the whole worker.
+            if (Syscall(abi.Seccomp, 1 /* SET_MODE_FILTER */, (nint)flags, (nint)(&program), 0, 0, 0) != 0)
+                throw new IOException(refusal);
         }
     }
 

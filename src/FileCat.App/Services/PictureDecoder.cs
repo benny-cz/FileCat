@@ -24,10 +24,10 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// normally starts with low integrity and a job that caps its memory and child count. A failed low-integrity start
 /// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
 /// On Unix it verifies an ordinary identity and irreversibly gives up retained root rights before consuming input.
-/// Linux x64 restricts direct process creation on every worker thread; macOS applies an OS policy that denies process
-/// creation and network access. The worker retains the ordinary user's filesystem rights and has no job memory limit.
-/// The Unix decoder itself also ends when its launching parent dies. Other Unix architectures do not contain a
-/// decoder exploit that creates a detached descendant.
+/// Linux x64 and ARM64 enter a Landlock read allowlist and a seccomp network boundary before the worker runtime starts,
+/// then restrict direct process creation on every worker thread. macOS applies an OS policy that denies unlisted file
+/// reads, file writes, process creation and network access. Unix workers have no whole-process memory limit. The Unix
+/// decoder itself also ends when its launching parent dies.
 /// A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
@@ -215,6 +215,19 @@ public static class PictureDecoder
         return (launch.Executable, launch.Arguments);
     }
 
+    internal static ProcessStartInfo SandboxedWorkerStartInfo(int maxSide)
+    {
+        var launch = WorkerLaunchFor(maxSide);
+        return LinuxPictureSandbox.StartInfo(launch.Executable, launch.ArgumentList,
+            launch.Executable, launch.ArgumentList);
+    }
+
+    internal static ProcessStartInfo SandboxedProbeStartInfo(string executable, IReadOnlyList<string> arguments)
+    {
+        var helper = WorkerLaunchFor(PictureWorker.MinSide);
+        return LinuxPictureSandbox.StartInfo(helper.Executable, helper.ArgumentList, executable, arguments);
+    }
+
     private static WorkerLaunch WorkerLaunchFor(int maxSide)
     {
         string arguments = $"{PictureWorker.Argument} {maxSide}";
@@ -257,7 +270,9 @@ public static class PictureDecoder
                 return new Worker(Platform.Windows.Shell.SandboxedWorker.Start(launch.Executable, launch.Arguments, MemoryLimit), null);
             ProcessStartInfo psi = OperatingSystem.IsMacOS()
                 ? MacPictureSandbox.StartInfo(launch.Executable, launch.ArgumentList)
-                : StartInfo(launch.Executable, launch.ArgumentList);
+                : OperatingSystem.IsLinux()
+                    ? LinuxPictureSandbox.StartInfo(launch.Executable, launch.ArgumentList, launch.Executable, launch.ArgumentList)
+                    : StartInfo(launch.Executable, launch.ArgumentList);
             return StartUnix(psi);
         }
 
@@ -300,13 +315,17 @@ public static class PictureDecoder
             // Framework-dependent apphosts need the root of the runtime already loaded by this process.
             // GitHub's setup-dotnet installs outside the OS default; copying the parent's DOTNET_ROOT
             // would reintroduce an attacker-controlled loader override into the decoder.
-            var runtimeDirectory = new DirectoryInfo(RuntimeEnvironment.GetRuntimeDirectory());
-            var framework = runtimeDirectory.Parent;
-            var shared = framework?.Parent;
-            var root = shared?.Parent;
-            if (framework?.Name == "Microsoft.NETCore.App" && shared?.Name == "shared" && root is not null &&
-                File.Exists(Path.Combine(root.FullName, "dotnet")))
-                psi.Environment["DOTNET_ROOT"] = root.FullName;
+            if (OperatingSystem.IsLinux()) psi.Environment["DOTNET_ROOT"] = LinuxPictureSandbox.RuntimeRoot();
+            else
+            {
+                var runtimeDirectory = new DirectoryInfo(RuntimeEnvironment.GetRuntimeDirectory());
+                var framework = runtimeDirectory.Parent;
+                var shared = framework?.Parent;
+                var root = shared?.Parent;
+                if (framework?.Name == "Microsoft.NETCore.App" && shared?.Name == "shared" && root is not null &&
+                    File.Exists(Path.Combine(root.FullName, "dotnet")))
+                    psi.Environment["DOTNET_ROOT"] = root.FullName;
+            }
             var lifetime = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
             Process? process = null;
             try

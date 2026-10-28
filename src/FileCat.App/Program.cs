@@ -7,6 +7,9 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Linux enters a filesystem/network domain here, then replaces this trusted launcher with the worker below.
+        if (args.Length > 0 && args[0] == Services.LinuxPictureSandbox.Argument)
+            return Services.LinuxPictureSandbox.Run(args);
         // The picture decoder (a process of its own for each picture the viewer shows): no window, no instance check.
         if (args.Length > 0 && args[0] == Services.PictureWorker.Argument) return Services.PictureWorker.Run(args);
         if (args.Length > 0 && args[0] == Services.WindowsContextMenu.HostArgument)

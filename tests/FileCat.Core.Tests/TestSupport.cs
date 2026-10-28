@@ -1,7 +1,18 @@
 using System.Collections.Concurrent;
+using FileCat.Core.State;
 using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
+
+/// <summary>State persistence semantics run under the ordinary authority used by FileCat itself.</summary>
+public static class StateWriteTestAuthority
+{
+    public static void RequireOrdinaryProcess()
+    {
+        if (OperatingSystem.IsWindows() && WindowsTokenAuthority.IsHighIntegrity)
+            Assert.Skip("State-write semantics require an ordinary Windows token; the elevated lane verifies refusal separately.");
+    }
+}
 
 /// <summary>A dedicated "UI" thread for tests of UI-thread-affine models.</summary>
 public sealed class TestDispatcher : IUiDispatcher, IDisposable

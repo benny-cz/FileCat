@@ -24,12 +24,7 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             return;
         }
         var parentBefore = Status("/proc/thread-self/status");
-        var (executable, arguments) = PictureDecoder.WorkerCommand(64);
-        var start = new ProcessStartInfo(executable, arguments)
-        {
-            UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true,
-            RedirectStandardError = true, CreateNoWindow = true,
-        };
+        var start = PictureDecoder.SandboxedWorkerStartInfo(64);
         start.Environment["DOTNET_EnableDiagnostics"] = "0";
         using var worker = Process.Start(start)!;
         var error = worker.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
@@ -42,7 +37,10 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             while (!worker.HasExited && clock.Elapsed < TimeSpan.FromSeconds(10))
             {
                 observed = Status($"/proc/{worker.Id}/status");
-                if (observed["Seccomp_filters"] > parentBefore["Seccomp_filters"]) break;
+                // The trusted pre-exec launcher contributes the network filter; the worker then adds the
+                // process-creation filter with TSYNC after its runtime threads exist. Do not observe the handoff.
+                if (observed["Seccomp_filters"] >= parentBefore["Seccomp_filters"] + 2 &&
+                    Directory.GetDirectories($"/proc/{worker.Id}/task").Length > 1) break;
                 await Task.Delay(10, TestContext.Current.CancellationToken);
             }
             output.WriteLine(JsonSerializer.Serialize(new { kind, RuntimeInformation.ProcessArchitecture, ParentBefore = parentBefore, PID = worker.Id, WorkerBeforeInput = observed }));
@@ -50,7 +48,7 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             Assert.NotNull(observed);
             Assert.Equal(1, observed["NoNewPrivs"]);
             Assert.Equal(2, observed["Seccomp"]);
-            Assert.True(observed["Seccomp_filters"] > parentBefore["Seccomp_filters"]);
+            Assert.True(observed["Seccomp_filters"] >= parentBefore["Seccomp_filters"] + 2);
             var threads = Directory.GetDirectories($"/proc/{worker.Id}/task");
             Assert.True(threads.Length > 1);
             foreach (string thread in threads)
@@ -133,6 +131,70 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, architecture == Architecture.X64 ? 0U : 63U));
         Assert.Equal(killed, Evaluate(filter, architecture == Architecture.X64 ? 0xc00000b7U : 0xc000003eU, abi.ExecveSyscall));
         if (abi.RejectX32) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 0x40000000));
+    }
+
+    [Theory]
+    [InlineData(Architecture.X64, 41U)]
+    [InlineData(Architecture.Arm64, 198U)]
+    public void Linux_pre_exec_filter_denies_network_and_io_uring_but_keeps_ordinary_io(
+        Architecture architecture, uint socket)
+    {
+        var abi = LinuxPictureProcessPolicy.ForArchitecture(architecture);
+        var filter = LinuxPictureSandbox.BuildNetworkFilter(abi);
+        const uint denied = 0x00050001, allowed = 0x7fff0000, killed = 0x80000000;
+        Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, socket));
+        Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 425));
+        Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, architecture == Architecture.X64 ? 0U : 63U));
+        Assert.Equal(killed, Evaluate(filter,
+            architecture == Architecture.X64 ? 0xc00000b7U : 0xc000003eU, socket));
+        if (abi.RejectX32) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 0x40000000));
+    }
+
+    [Fact]
+    public async Task Linux_pre_exec_domain_denies_unlisted_files_writes_and_network_but_loads_the_worker()
+    {
+        if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.Arm64))
+        {
+            Assert.Skip("Linux x64/ARM64 Landlock and seccomp picture-worker boundary.");
+            return;
+        }
+        string root = Path.Combine(Path.GetTempPath(), "filecat-picture-domain-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string secret = Path.Combine(root, "secret.txt"), written = Path.Combine(root, "written.txt");
+        await File.WriteAllTextAsync(secret, "not available to the decoder", TestContext.Current.CancellationToken);
+        const string probe = """
+            import socket, sys
+            def denied(action, code):
+                try:
+                    action()
+                except OSError:
+                    return
+                raise SystemExit(code)
+            denied(lambda: open(sys.argv[1], 'rb').read(1), 31)
+            denied(lambda: open(sys.argv[2], 'wb').write(b'x'), 32)
+            denied(lambda: socket.socket(), 33)
+            with open(sys.argv[3], 'rb') as allowed:
+                if len(allowed.read(1)) != 1:
+                    raise SystemExit(34)
+            """;
+        var start = PictureDecoder.SandboxedProbeStartInfo("/usr/bin/python3",
+            ["-c", probe, secret, written, typeof(PictureDecoder).Assembly.Location]);
+        start.Environment.Clear();
+        start.Environment["DOTNET_EnableDiagnostics"] = "0";
+        start.Environment["DOTNET_ROOT"] = LinuxPictureSandbox.RuntimeRoot();
+        try
+        {
+            using var process = Process.Start(start)!;
+            string stdout = await process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            string stderr = await process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+            await process.WaitForExitAsync(TestContext.Current.CancellationToken)
+                .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            output.WriteLine(JsonSerializer.Serialize(new { process.ExitCode, stdout, stderr, secret, written }));
+            Assert.Equal(0, process.ExitCode);
+            Assert.False(File.Exists(written));
+            Assert.Equal("not available to the decoder", await File.ReadAllTextAsync(secret, TestContext.Current.CancellationToken));
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     [Fact]

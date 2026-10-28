@@ -13,7 +13,9 @@ public sealed class SchedulerCancellationOwnershipTests(ITestOutputHelper output
         public int Check()
         {
             Assert.Equal(32768, bytes.Length);
-            for (int i = 0; i < bytes.Length; i++) Assert.Equal((byte)(i * 31 + 7), bytes[i]);
+            for (int i = 0; i < bytes.Length; i++)
+                if (bytes[i] != (byte)(i * 31 + 7))
+                    throw new InvalidDataException($"Owned callback payload changed at byte {i}.");
             return bytes.Length;
         }
     }

@@ -42,6 +42,7 @@ public sealed class WorkingSetTests : IDisposable
     [Fact]
     public async Task A_working_set_keeps_references_across_sessions_and_never_touches_the_items()
     {
+        StateWriteTestAuthority.RequireOrdinaryProcess();
         var a = _dir.File(Path.Combine("one", "a.txt"), "alpha");
         var b = _dir.File(Path.Combine("two", "b.txt"), "beta");
         var (provider, sets) = Open();

@@ -214,6 +214,7 @@ public class PathAndStateTests
     [Fact]
     public void State_store_recovers_from_corruption_and_refuses_newer_schema()
     {
+        StateWriteTestAuthority.RequireOrdinaryProcess();
         using var dir = new TempDir();
         var path = Path.Combine(dir.Path, "settings.json");
         var s = new AppSettings { Theme = "Cyberpunk" };
@@ -291,6 +292,7 @@ public class PathAndStateTests
     [Fact]
     public void Save_refuses_a_state_record_that_the_next_launch_could_not_read()
     {
+        StateWriteTestAuthority.RequireOrdinaryProcess();
         using var dir = new TempDir();
         string path = Path.Combine(dir.Path, "settings.json");
         JsonFileStore.Save(path, new AppSettings { Theme = "retained" }, StateJsonContext.Default.AppSettings);
@@ -307,6 +309,7 @@ public class PathAndStateTests
     [Fact]
     public void Workspace_state_round_trips_locations()
     {
+        StateWriteTestAuthority.RequireOrdinaryProcess();
         using var dir = new TempDir();
         var path = Path.Combine(dir.Path, "ws.json");
         var ws = new WorkspaceState
