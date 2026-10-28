@@ -45,6 +45,17 @@ criteria dialog under a private NVDA configuration, reaches its resize grip by
 Tab, requires NVDA to speak the grip's name and arrow-key help, widens the
 dialog with three Right arrows and closes it with Escape.
 
+`win-nvda-places.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` requires FileCat at 144 DPI
+(set 150% first with `win-ax-display-scale.ps1`). It maximizes the window,
+makes four panels through command search, checks that each place is in the
+compact Places row or its More menu, pins and unpins a place by keyboard from
+More's “Pin places to bar” list (row membership and check state), opens
+Keyboard reference with F1 from a command search without a match and returns
+with the query, then makes six panels (below two different columns) and checks
+the narrowest panel's places again. NVDA must speak the list, the place and
+Keyboard reference; menus are steered by NVDA's last spoken item.
+
 `win-ax-find-exclusions.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` uses a private local folder and a separate private data
 profile with one ignored `cache` folder. It restores the Find window on-screen,

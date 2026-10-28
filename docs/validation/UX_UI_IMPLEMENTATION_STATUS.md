@@ -1,5 +1,31 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-places-150-20261028"></a>
+**28 October 2026, Places and command-search Help at 150% with NVDA
+(AC-S3-058 accepted):** The new
+[Places runner](../../tests/FileCat.NativeAcceptance/win-nvda-places.ps1) runs
+on the Win11 VM at 150% (FileCat's window at 144 DPI) with signed portable
+NVDA 2026.2 under a private configuration, against Git-built `46da223e` (DLL
+`CE36050B090D52A1E0067535B0F6101D8282E78E74D988CDDCA40C450714C229`). It
+maximizes the window, adds two panels to the right through command search and
+finds four Places rows; in panel 1 the compact row held C:, Working sets and
+Home and More held the other twelve places, so all fifteen in the pin list
+were reachable. By keyboard it opened More's “Pin places to bar” list (NVDA:
+“Pin places to bar, collapsed”) and pinned D: (“D:, not checked, No disc”):
+the row became C:, D:, Working sets and the list showed D: checked; unpinning
+it the same way (“D:, checked”) restored C:, Working sets, Home with D:
+unchecked. A command search for a word without a match named “Keyboard
+reference (F1)”; F1 opened it (“Keyboard reference dialog, grouping”, “Search
+keyboard reference, edit”), and Escape returned to the focused search with its
+query. A panel below panel 1 and another below panel 3 made six; the
+narrowest panel's row and More again reached every place. A third row in
+one column was refused, as FileCat keeps each panel at least its minimum size
+(“There is no room for another panel there…”), so six panels need different
+columns. The runner steers menus by NVDA's last spoken item: a list reopens
+on the item used last, Avalonia's menus are overlays inside the main window,
+and UI Automation's focus does not follow their highlight. The scale was
+restored to 100% afterwards ([receipt](evidence/ac-s3-058-win11-nvda-places-46da223e.json)).
+
 <a id="evidence-markdown-mac-20261028"></a>
 **28 October 2026, Mac Page focus return (AC-S2-MD accepted):** The new
 [Mac runner](../../tests/FileCat.NativeAcceptance/mac-ax-page-focus-return.py)
