@@ -389,13 +389,24 @@ public partial class OperationsView : UserControl
 
     private async void OnLimit(object? sender, RoutedEventArgs e)
     {
-        if (JobOf(sender) is not { } j || Main is not { } main) return;
+        if (JobOf(sender) is not { CanLimitSpeed: true } j || Main is not { } main) return;
+        string initial = RateLimitInput.Format(j.Job.RateLimit);
+        string? ValidateRate(string text) => text == initial ? null
+            : RateLimitInput.TryParse(text, out _, out var error) ? null : error;
         var r = await main.Dialogs.PromptAsync(new PromptOptions("Limit speed", "Maximum speed in MB/s (0 removes the limit):")
         {
-            Text = j.Job.RateLimit > 0 ? (j.Job.RateLimit / 1024.0 / 1024).ToString("0.#") : "0",
-            Validate = t => double.TryParse(t, out var v) && v >= 0 ? null : "Enter a number.",
+            Text = initial,
+            Validate = ValidateRate,
         });
-        if (r is not null && double.TryParse(r.Text, out var mb)) j.Job.RateLimit = (long)(mb * 1024 * 1024);
+        if (r is null) return;
+        if (j.Job.State.IsFinished())
+        {
+            main.Notify("This operation finished before its speed limit changed.");
+            return;
+        }
+        // A formatted MB/s decimal cannot represent every possible integer byte rate exactly.
+        if (r.Text == initial) return;
+        if (RateLimitInput.TryParse(r.Text, out var rate, out _)) j.Job.RateLimit = rate;
     }
 
     private async void OnCleanupInterrupted(object? sender, RoutedEventArgs e)

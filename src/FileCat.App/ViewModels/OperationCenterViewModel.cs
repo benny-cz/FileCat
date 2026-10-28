@@ -74,6 +74,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _isFinished;
     [ObservableProperty] private bool _isQueued;
     [ObservableProperty] private bool _canMoveUpInQueue;
+    [ObservableProperty] private bool _canLimitSpeed;
     [ObservableProperty] private string _moveUpReason = string.Empty;
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canResume;
@@ -121,6 +122,7 @@ public sealed partial class JobViewModel : ObservableObject
         IsFinished = j.State.IsFinished();
         IsQueued = j.State == JobState.Queued;
         IsActive = j.State.IsActive();
+        CanLimitSpeed = !IsFinished && JobExecutors.MayThrottle(j.Request);
         NeedsDecision = j.State == JobState.AwaitingDecision;
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
         CanResume = j.IsPaused || j.State is JobState.Paused or JobState.Pausing;
@@ -146,7 +148,7 @@ public sealed partial class JobViewModel : ObservableObject
         var estimate = _progress.Update(new ProgressSample(System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart),
             j.WorkBytesDone, j.WorkBytesTotal, id, it, j.TotalsFinal, j.State == JobState.Running && !j.IsPaused));
         Percent = j.State is JobState.Completed or JobState.CompletedWithIssues
-            ? 100 : Math.Min(99.9, 100 * estimate.Fraction);
+            ? 100 : Math.Min(99, 100 * estimate.Fraction);
         string state = j.State switch
         {
             JobState.Queued when j.WaitReason is not null => j.WaitReason,
@@ -250,7 +252,8 @@ public sealed partial class JobViewModel : ObservableObject
         {
             long copied = Math.Min(big.WorkDone, big.Size), read = Math.Max(0, big.WorkDone - big.Size);
             long toRead = big.WorkTotal - big.Size;
-            CurrentFilePercent = verifying && toRead > 0 ? Math.Min(99.9, 100.0 * read / toRead) : Math.Min(99.9, 100.0 * copied / Math.Max(1, big.Size));
+            // The 160-unit file bar needs a visible gap until the step itself ends.
+            CurrentFilePercent = verifying && toRead > 0 ? Math.Min(98, 100.0 * read / toRead) : Math.Min(98, 100.0 * copied / Math.Max(1, big.Size));
             CurrentFileText = verifying
                 ? $"{name} · verifying, {Math.Floor(CurrentFilePercent):0}%"
                 : $"{name} · {Formatters.SizeWithUnit(copied)} of {Formatters.SizeWithUnit(big.Size)}";

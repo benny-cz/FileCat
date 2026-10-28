@@ -208,7 +208,8 @@
                     ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
             <Button Content="Move earlier in queue" Click="OnMoveUp" IsVisible="{Binding IsQueued}"
                     IsEnabled="{Binding CanMoveUpInQueue}" ToolTip.Tip="{Binding MoveUpReason}" ToolTip.ShowOnDisabled="True" />
-            <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
+            <Button Content="Limit transfer speed…" Click="OnLimit" IsVisible="{Binding CanLimitSpeed}"
+                    ToolTip.Tip="Limits bytes copied or uploaded; a move that only renames has no data to pace" />
             <Button Content="Remove history row…" IsVisible="{Binding IsFinished}" Click="OnRemove"
                     ToolTip.Tip="Removes this report and its unused Undo steps from this session" />
           </WrapPanel>

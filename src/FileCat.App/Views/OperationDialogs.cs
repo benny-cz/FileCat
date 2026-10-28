@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using Avalonia;
 using Avalonia.Automation;
@@ -314,20 +313,11 @@ public static class OperationDialogs
             long rate = 0;
             if (!string.IsNullOrWhiteSpace(limit.Text))
             {
-                const double bytesPerMb = 1024d * 1024d;
-                bool parsed = double.TryParse(limit.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var mb)
-                    || double.TryParse(limit.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out mb);
-                if (!parsed || !double.IsFinite(mb) || mb < 0 || mb >= long.MaxValue / bytesPerMb)
+                if (!RateLimitInput.TryParse(limit.Text, out rate, out var speedError))
                 {
-                    ShowOptionError(limit, "Speed limit: enter a finite, nonnegative number of MB/s.");
+                    ShowOptionError(limit, speedError!);
                     return false;
                 }
-                if (mb > 0 && mb * bytesPerMb < 1)
-                {
-                    ShowOptionError(limit, "Speed limit: enter 0 for unlimited, or at least 1 byte per second.");
-                    return false;
-                }
-                if (mb > 0) rate = (long)(mb * bytesPerMb);
             }
             var options = new TransferOptions
             {

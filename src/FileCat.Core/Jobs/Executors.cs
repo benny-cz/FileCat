@@ -26,6 +26,23 @@ public interface IHonorsReadBackVerification;
 
 public static class JobExecutors
 {
+    /// <summary>
+    /// Whether this admitted route can copy bytes through Job.Throttle. A local Move may instead finish by
+    /// renaming on one volume; the UI describes the limit as applying to copied bytes only.
+    /// </summary>
+    public static bool MayThrottle(JobRequest request)
+    {
+        if (request.Sources.Count == 0 || request.Destination is not { } destination) return false;
+        bool fromFileSystem = request.Sources.All(source => source.Parent.IsFileSystem);
+        if (destination.IsFileSystem)
+            return request.Kind is JobKind.Copy or JobKind.Extract ||
+                request.Kind == JobKind.Move && (fromFileSystem ||
+                    request.Sources.All(source => source.Parent.Scheme == Schemes.Sftp));
+        if (destination.Scheme == Schemes.Sftp)
+            return request.Kind == JobKind.Copy || request.Kind == JobKind.Move && fromFileSystem;
+        return false;
+    }
+
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
     {

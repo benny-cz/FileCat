@@ -1,4 +1,5 @@
 using FileCat.App.ViewModels;
+using Avalonia.Headless.XUnit;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -9,6 +10,73 @@ namespace FileCat.App.Tests;
 public sealed class JobProgressViewTests
 {
     private static Job DisplayJob(JobKind kind = JobKind.Copy) => new(new JobRequest { Kind = kind }, kind.ToString(), "local", [], []);
+
+    [Theory]
+    [InlineData(JobState.Queued)]
+    [InlineData(JobState.Running)]
+    [InlineData(JobState.AwaitingDecision)]
+    [InlineData(JobState.Pausing)]
+    [InlineData(JobState.Paused)]
+    [InlineData(JobState.Stopping)]
+    [InlineData(JobState.Reconciliation)]
+    public void Every_pending_state_keeps_the_operation_bar_below_100_percent(JobState pending)
+    {
+        var job = DisplayJob();
+        job.AddTotals(1, 20L << 20);
+        job.TotalsFinal = true;
+        job.BeginItem(20L << 20, 0);
+        job.SetCurrent("last.bin");
+        job.AddBytes(20L << 20); // all measured bytes are accounted for, but the operation has not ended
+        job.ItemDone();
+        job.SetState(pending);
+
+        var view = new JobViewModel(job);
+        view.Refresh();
+        Assert.InRange(view.Percent, 0, 99);
+        Assert.NotEqual("100%", view.PercentText);
+        Assert.True(OperationCenterViewModel.TaskbarFor(view, view).Fraction < 1);
+    }
+
+    [Fact]
+    public void Current_file_bar_stays_below_100_until_the_file_step_ends()
+    {
+        var job = DisplayJob();
+        job.AddTotals(1, 20L << 20);
+        job.BeginItem(20L << 20, 0);
+        job.SetCurrent("last.bin");
+        job.AddBytes(20L << 20);
+        job.TotalsFinal = true;
+        job.SetState(JobState.Running);
+
+        var view = new JobViewModel(job);
+        view.Refresh();
+        Assert.True(view.ShowsFileProgress);
+        Assert.InRange(view.CurrentFilePercent, 0, 98);
+        Assert.InRange(view.Percent, 0, 99);
+        Assert.NotEqual("100%", view.PercentText);
+    }
+
+    [AvaloniaFact]
+    public void Compact_strip_prefers_pending_work_over_completed_history()
+    {
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.GetTempPath());
+        var center = new OperationCenterViewModel(manager);
+        var finished = DisplayJob();
+        finished.SetState(JobState.Completed);
+        var pending = DisplayJob();
+        pending.SetState(JobState.Running);
+        var finishedView = new JobViewModel(finished);
+        var pendingView = new JobViewModel(pending);
+        finishedView.Refresh();
+        pendingView.Refresh();
+        center.Jobs.Add(finishedView);
+        center.Jobs.Add(pendingView);
+
+        center.UpdateSummary();
+        Assert.Same(pending, center.Primary?.Job);
+        Assert.True(Assert.IsType<JobViewModel>(center.Primary).Percent < 100);
+        Assert.True(center.TaskbarFraction < 1);
+    }
 
     [Fact]
     public void Requested_pause_stays_pausing_until_the_worker_acknowledges_it()
