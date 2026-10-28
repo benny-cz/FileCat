@@ -46,16 +46,24 @@ public sealed class NetworkDiscoveryTests
             int start = template.IndexOf("<wsd:ProbeMatch>", StringComparison.Ordinal);
             int end = template.IndexOf("</wsd:ProbeMatch>", start, StringComparison.Ordinal) + "</wsd:ProbeMatch>".Length;
             string match = template[start..end];
-            for (int from = 0; from <= NetworkDiscovery.MaxHostsPerProbe; from += 100)
+            // macOS limits a local UDP datagram below the protocol's 65,507-byte payload maximum.
+            // Keep each synthetic reply portable while preserving the same MaxHostsPerProbe + 1
+            // distinct endpoints across the complete response flood.
+            const int endpointsPerReply = 10;
+            const int portableUdpPayloadBudget = 8 * 1024;
+            for (int from = 0; from <= NetworkDiscovery.MaxHostsPerProbe; from += endpointsPerReply)
             {
-                int count = Math.Min(100, NetworkDiscovery.MaxHostsPerProbe + 1 - from);
+                int count = Math.Min(endpointsPerReply, NetworkDiscovery.MaxHostsPerProbe + 1 - from);
                 var matches = new StringBuilder();
                 for (int i = from; i < from + count; i++)
                     matches.Append(match.Replace(Endpoint, $"urn:uuid:{i:00000000}-0000-4000-8000-000000000000", StringComparison.Ordinal));
                 byte[] reply = Encoding.UTF8.GetBytes(template[..start] + matches + template[end..]);
-                Assert.True(reply.Length < 65_507);
+                Assert.True(reply.Length < portableUdpPayloadBudget);
                 Assert.Equal(count, NetworkDiscovery.ParseProbeMatches(reply).Count);
                 await wsd.SendAsync(reply, probe.RemoteEndPoint, ct);
+                // Yield to the receiver between the greater number of portable-sized datagrams so the
+                // loopback socket queue, rather than the discovery budget, cannot become the test limit.
+                await Task.Delay(TimeSpan.FromMilliseconds(10), ct);
             }
         }, ct);
         var found = new List<NetworkHost>();
