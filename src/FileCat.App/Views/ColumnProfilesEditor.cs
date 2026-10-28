@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.Controls;
@@ -29,6 +30,9 @@ internal sealed class ColumnProfilesEditor
     private readonly Dictionary<string, Button> _profileActions = [];
     private readonly Dictionary<string, Button> _columnActions = [];
     private readonly Button _addButton = new() { Content = "Add" };
+    /// <summary>Why the action just used stopped being available, said where the keyboard went instead.</summary>
+    private readonly TextBlock _status = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private Button? _statusFor;
     private bool _updating;
 
     public ColumnProfilesEditor(ColumnProfileSet set)
@@ -40,6 +44,8 @@ internal sealed class ColumnProfilesEditor
         AutomationProperties.SetName(_name, "Profile name");
         AutomationProperties.SetName(_width, "Column width in pixels, 0 fills the remaining space");
         AutomationProperties.SetName(_add, "Column to add");
+        AutomationProperties.SetAutomationId(_status, "Column editor action status");
+        AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
 
         _profileList.SelectionChanged += (_, _) => { if (!_updating) ShowProfile(); };
         _columnList.SelectionChanged += (_, _) => { if (!_updating) ShowColumn(); };
@@ -95,7 +101,7 @@ internal sealed class ColumnProfilesEditor
                 Note("Dragging a column border in a panel also stores its width here. The Name column is always kept."),
             },
         };
-        View = new DialogColumns(left, right) { Margin = new Thickness(8) };
+        View = new StackPanel { Spacing = 6, Margin = new Thickness(8), Children = { new DialogColumns(left, right), _status } };
         RefreshProfiles(select: 0);
         UpdateActions();
     }
@@ -220,40 +226,75 @@ internal sealed class ColumnProfilesEditor
         int ci = _columnList.SelectedIndex;
         var profile = Selected;
         bool atLimit = _profiles.Count >= ColumnProfileSet.MaxProfiles;
-        ActionState(_profileActions["New"], !atLimit, "Maximum profiles reached (10).");
+        ActionState(_profileActions["New"], !atLimit, "Maximum profiles reached (10).", _profileList);
         ActionState(_profileActions["Duplicate"], profile is not null && !atLimit,
-            atLimit ? "Maximum profiles reached (10)." : "Select a profile to duplicate.");
+            atLimit ? "Maximum profiles reached (10)." : "Select a profile to duplicate.", _profileList);
         ActionState(_profileActions["Remove"], profile is not null && _profiles.Count > 1,
-            _profiles.Count <= 1 ? "At least one profile is required." : "Select a profile to remove.");
-        ActionState(_profileActions["Up"], pi > 0, "The first profile cannot move up.");
+            _profiles.Count <= 1 ? "At least one profile is required." : "Select a profile to remove.", _profileList);
+        ActionState(_profileActions["Up"], pi > 0, "The first profile cannot move up.", _profileList);
         ActionState(_profileActions["Down"], pi >= 0 && pi < _profiles.Count - 1,
-            "The last profile cannot move down.");
+            "The last profile cannot move down.", _profileList);
 
         bool choiceAvailable = profile is not null && _add.SelectedIndex >= 0 &&
             _add.SelectedIndex < ColumnProfileSet.Choices.Count;
         bool duplicate = choiceAvailable && profile!.Columns.Any(c => c.Key == ColumnProfileSet.Choices[_add.SelectedIndex].Key);
         ActionState(_addButton, choiceAvailable && !duplicate,
-            duplicate ? "This column is already in the profile." : "Choose a profile and column to add.");
+            duplicate ? "This column is already in the profile." : "Choose a profile and column to add.", _add);
         bool selectedColumn = profile is not null && ci >= 0 && ci < profile.Columns.Count;
         bool requiredName = selectedColumn && profile!.Columns[ci].Key == "name";
         ActionState(_columnActions["Remove"], selectedColumn && !requiredName,
-            requiredName ? "The Name column is required." : "Select a column to remove.");
+            requiredName ? "The Name column is required." : "Select a column to remove.", _columnList);
         ActionState(_columnActions["Up"], selectedColumn && ci > 0,
-            "The first column cannot move up.");
+            "The first column cannot move up.", _columnList);
         ActionState(_columnActions["Down"], selectedColumn && ci < profile!.Columns.Count - 1,
-            "The last column cannot move down.");
+            "The last column cannot move down.", _columnList);
         _name.IsEnabled = profile is not null;
         _width.IsEnabled = selectedColumn;
     }
 
-    /// <summary>An unavailable action says why, on hover and to a screen reader; an available one needs no note.</summary>
-    private static void ActionState(Button button, bool enabled, string unavailableReason)
+    /// <summary>
+    /// An unavailable action says why, on hover and to a screen reader; an available one needs no note. An action that
+    /// stops being available while it has the keyboard (New at the limit, Add once its column is in, Up at the top)
+    /// would drop focus out of the dialog: it goes to <paramref name="fallback"/>, the list or box the action works on,
+    /// and the reason is said.
+    /// </summary>
+    private void ActionState(Button button, bool enabled, string unavailableReason, Control fallback)
     {
+        if (!enabled && button.IsEnabled && button.IsFocused)
+        {
+            TakeKeyboard(fallback);
+            bool again = _status.IsVisible && _status.Text == unavailableReason;
+            _status.Text = unavailableReason;
+            _status.IsVisible = true;
+            if (again) LiveRegions.Repeat(_status);
+            _statusFor = button;
+        }
+        else if (enabled && ReferenceEquals(_statusFor, button))
+        {
+            _status.IsVisible = false;
+            _statusFor = null;
+        }
         button.IsEnabled = enabled;
         string? help = enabled ? null : unavailableReason;
         ToolTip.SetTip(button, help);
         ToolTip.SetShowOnDisabled(button, true);
         AutomationProperties.SetHelpText(button, help);
+    }
+
+    /// <summary>
+    /// The keyboard to a list's selected row (its rows were just rebuilt and it may be out of sight, so it is brought into
+    /// view and laid out first), or to the control.
+    /// </summary>
+    private static void TakeKeyboard(Control target)
+    {
+        if (target is ListBox list)
+        {
+            int index = Math.Max(0, list.SelectedIndex);
+            list.ScrollIntoView(index);
+            list.UpdateLayout();
+            if (list.ContainerFromIndex(index) is Control row && row.Focus(NavigationMethod.Tab)) return;
+        }
+        target.Focus(NavigationMethod.Tab);
     }
 
     private static WrapPanel Buttons(Dictionary<string, Button> actions, string noun,

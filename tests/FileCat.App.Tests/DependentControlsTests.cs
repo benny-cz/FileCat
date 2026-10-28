@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -174,6 +175,61 @@ public sealed class DependentControlsTests
             Action("New profile").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(Action("Remove profile").IsEnabled);
             Assert.Equal(1, set.Count);
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>
+    /// An action used by keyboard until it stops being available keeps the keyboard in the editor and says why: with
+    /// NVDA on Windows, New profile pressed up to the limit dropped focus to the main window without a word.
+    /// </summary>
+    [AvaloniaFact]
+    public void An_action_that_becomes_unavailable_under_the_keyboard_hands_focus_to_its_list_and_says_why()
+    {
+        var set = new ColumnProfileSet(null);
+        var editor = new ColumnProfilesEditor(set);
+        var window = new Window { Width = 900, Height = 700, Content = editor.View };
+        window.Show();
+        try
+        {
+            Button Action(string name) => editor.View.GetVisualDescendants().OfType<Button>()
+                .Single(b => AutomationProperties.GetName(b) == name);
+            TextBlock Status() => editor.View.GetVisualDescendants().OfType<TextBlock>()
+                .Single(t => AutomationProperties.GetAutomationId(t) == "Column editor action status");
+            var profileList = editor.View.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Column profiles");
+            var newProfile = Action("New profile");
+            Assert.True(newProfile.Focus());
+            while (newProfile.IsEnabled)
+            {
+                Assert.True(newProfile.IsFocused);
+                newProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }
+            var focused = window.FocusManager?.GetFocusedElement() as Visual;
+            Assert.NotNull(focused);
+            Assert.True(ReferenceEquals(focused, profileList) || profileList.IsVisualAncestorOf(focused!),
+                $"Focus went to {focused}");
+            Assert.True(Status().IsVisible);
+            Assert.Equal("Maximum profiles reached (10).", Status().Text);
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(Status()));
+
+            // Once it is available again the note goes.
+            Action("Remove profile").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(newProfile.IsEnabled);
+            Assert.False(Status().IsVisible);
+
+            // Add, once its column is in the profile, hands the keyboard to the column choice.
+            profileList.SelectedIndex = 0;
+            var choice = editor.View.GetVisualDescendants().OfType<ComboBox>()
+                .Single(c => AutomationProperties.GetName(c) == "Column to add");
+            choice.SelectedIndex = ColumnProfileSet.Choices.ToList().FindIndex(c => c.Key == "meta:dimensions");
+            var add = Action("Add column");
+            Assert.True(add.IsEnabled);
+            Assert.True(add.Focus());
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(add.IsEnabled);
+            Assert.True(choice.IsFocused || choice.IsKeyboardFocusWithin);
+            Assert.Equal("This column is already in the profile.", Status().Text);
         }
         finally { window.Close(); }
     }
