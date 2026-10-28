@@ -136,17 +136,19 @@ if [ -z "$TOOL" ]; then
   fi
   chmod +x "$TOOL"
 fi
-# The runtime, the start-up part every AppImage carries, pinned by checksum too: without --runtime-file appimagetool
-# takes whatever type2-runtime's "continuous" release holds when the package is built. This is the build of commit
-# 8f39b89 (2026-09-28, extraction directories made with mode 0700). When the release moves on, the check fails: review
-# the new runtime, then update the commit, checksum and reviewed notice snapshot together.
+# The runtime, the start-up part every AppImage carries, is selected by GitHub's immutable asset ID and pinned by
+# checksum too. Asset 657374641 is the x86_64 build of type2-runtime commit fedfad51 (2026-10-19). That commit is the
+# previously reviewed 0700-extraction source plus one reproducibility-only file-prefix-map change. A replacement asset
+# receives another ID; deletion, changed bytes or a wrong API response therefore fail closed. Update the asset ID,
+# source commit, checksum, signature review and reviewed notice snapshot together.
 RUNTIME="${APPIMAGE_RUNTIME:-}"
 if [ -z "$RUNTIME" ]; then
   RUNTIME="$OUT/runtime-$APPIMAGE_ARCH"
   if [ "$APPIMAGE_ARCH" = "x86_64" ]; then
-    RUNTIME_SUM=156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074
-    curl -fsSL -o "$RUNTIME" "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
-    echo "$RUNTIME_SUM  $RUNTIME" | sha256sum -c - || { echo "type2-runtime's continuous build is no longer the pinned one: review it, then update the pin." >&2; exit 2; }
+    RUNTIME_SUM=617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46
+    curl -fsSL --retry 3 -H 'Accept: application/octet-stream' -H 'X-GitHub-Api-Version: 2022-11-28' \
+      -o "$RUNTIME" "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/657374641"
+    echo "$RUNTIME_SUM  $RUNTIME" | sha256sum -c - || { echo "The selected type2-runtime asset differs from the reviewed bytes." >&2; exit 2; }
   else
     echo "Set APPIMAGE_RUNTIME to a type2-runtime for $APPIMAGE_ARCH." >&2
     exit 2

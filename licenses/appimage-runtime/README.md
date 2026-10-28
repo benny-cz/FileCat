@@ -2,8 +2,11 @@
 
 This frozen snapshot retains the original type2-runtime root LICENSE and available
 libfuse/squashfuse license texts from immutable declared sources. `index.json`
-records their original byte hashes and the exact runtime input SHA-256. The package
-tool verifies both before copying this directory into the AppImage payload.
+records their original byte hashes and the exact runtime input SHA-256. The runtime
+is retrieved through an immutable GitHub asset ID; the index also records the asset
+digest, pinned source revision, committed signing-key blob/fingerprint and detached
+signature asset. The package tool verifies the runtime and snapshot before copying
+this directory into the AppImage payload.
 
 The runtime recipe declares static squashfuse, zstd, zlib, libfuse, mimalloc and
 musl inputs. This snapshot does not establish their complete actual binary

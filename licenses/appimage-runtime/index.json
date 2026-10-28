@@ -4,9 +4,20 @@
   "RuntimeInput": {
     "Architecture": "x86_64",
     "Bytes": 944632,
-    "SHA256": "156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074",
-    "DeclaredSourceCommit": "8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa",
-    "OriginalURL": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+    "SHA256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+    "DeclaredSourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "GitHubReleaseID": 417724209,
+    "GitHubReleaseTagAtReview": "continuous",
+    "GitHubReleaseDeclaredImmutable": false,
+    "GitHubAssetID": 657374641,
+    "GitHubAssetDigest": "sha256:617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+    "AssetCreatedUTC": "2026-10-19T20:37:12Z",
+    "AssetAPIURL": "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/657374641",
+    "SigningKeyGitBlob": "5bdb7e4c0f145934aabaeaccb23b9df23e87f6a5",
+    "SigningKeySHA256": "db8b615eb5bbf5e8418d52906b4a492960926370e2c5041ad6acaccda56ef0c6",
+    "SigningKeyFingerprint": "570C77ACEA40C0F1B758902CBF96CCA56490F695",
+    "DetachedSignatureAssetID": 657374763,
+    "DetachedSignatureSHA256": "4c38bbfd3c8fe7b43cd37483544e5aa682b5932674d89e53fcccd2d3fc3a8f12"
   },
   "Files": [
     {
@@ -14,7 +25,7 @@
       "Bytes": 1678,
       "SHA256": "aa154fc9070614bbe7921f89db11efd1dba7a1f3a41685958110e2230f9c0ca1",
       "Origin": {
-        "DeclaredSourceCommit": "8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa",
+        "DeclaredSourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
         "GitBlob": "a9fd00b042f392357a84fd81b7789976a53f5b4e",
         "SourcePath": "LICENSE"
       }
