@@ -10,9 +10,9 @@ The Windows, Linux, and macOS packaging scripts produce the following. CI builds
 |---|---|---|
 | `FileCat-<ver>-win-<arch>-setup.exe` | Per-machine installer (Inno Setup) of the self-contained ReadyToRun build | Only through a new FileCat release |
 | `FileCat-<ver>-win-<arch>-portable.zip` | The same build plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
-| `FileCat-<ver>-win-<arch>-fdd.zip` | Framework-dependent build | Yes, through the installed .NET 10 Desktop Runtime |
+| `FileCat-<ver>-win-<arch>-fdd.zip` | Framework-dependent build without the administrator helper (administrator retry is part of the installed FileCat) | Yes, through the installed .NET 10 Desktop Runtime |
 | `FileCat-<ver>-linux-x64.tar.gz`, `.deb`, `.AppImage` | Self-contained Linux payloads in three package formats | Only through a new FileCat release |
-| `FileCat-<ver>-osx-arm64.zip` | Ad-hoc-signed Apple silicon app bundle | Only through a new FileCat release |
+| `FileCat-<ver>-osx-arm64.zip` | Ad-hoc-signed, non-notarized Apple silicon app bundle (preview) | Only through a new FileCat release |
 | `sbom-<ver>-<rid>-<payload>.spdx.json` | SPDX 2.3 inventory of the exact unpacked payload files, reviewed NuGet dependencies, runtime pack, and source commit | – |
 
 There is one SBOM for each distinct payload: setup, portable, and FDD on Windows; tar,
