@@ -88,6 +88,9 @@ internal sealed class RarMemberStream : Stream
         return new RarMemberStream(member, null, decoder, window, ct);
     }
 
+    /// <summary>True once decoding failed: the decoder and window state are no longer usable for a solid run.</summary>
+    public bool Broken { get; private set; }
+
     /// <summary>True once the whole member was produced and its checksum verified.</summary>
     public bool Finished => _finished;
 
@@ -149,7 +152,9 @@ internal sealed class RarMemberStream : Stream
         while (true)
         {
             _ct.ThrowIfCancellationRequested();
-            int n = window.ReadOutput(buffer, _end, _start);
+            int n;
+            try { n = window.ReadOutput(buffer, _end, _start); }
+            catch { Broken = true; throw; }
             if (n > 0) return n;
             if (window.Read >= _end && !window.HasFilteredOutput) return 0;
             if (_decoderDone)
@@ -158,7 +163,8 @@ internal sealed class RarMemberStream : Stream
                 return 0;
             }
             if (stoppedWithoutOutput) throw RarData.Corrupt("a filter block the window cannot complete");
-            _decoderDone = _decoder!.Decode(window);
+            try { _decoderDone = _decoder!.Decode(window); }
+            catch { Broken = true; throw; }
             if (_decoderDone)
             {
                 if (window.Written > _end) throw RarData.Corrupt("more data than the member's size");

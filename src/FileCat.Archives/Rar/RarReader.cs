@@ -97,7 +97,7 @@ internal sealed class RarReader : IMemberReader
         int runStart = index;
         while (runStart > 0 && (_archive.Members[runStart].SolidContinuation || !IsCompressedFile(_archive.Members[runStart])))
             runStart--;
-        bool continues = _decoder is not null && _decodedIndex >= runStart && _decodedIndex < index;
+        bool continues = _decoder is not null && _decoded is { Broken: false } && _decodedIndex >= runStart && _decodedIndex < index;
         if (continues)
         {
             _decoded!.Drain();
