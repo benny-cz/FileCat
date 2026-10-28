@@ -16,11 +16,11 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
     [InlineData("PNG")]
     [InlineData("invalid")]
     [InlineData("empty")]
-    public async Task Linux_x64_worker_restricts_every_thread_before_consuming_input(string kind)
+    public async Task Linux_worker_restricts_every_thread_before_consuming_input(string kind)
     {
-        if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
+        if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.Arm64))
         {
-            Assert.Skip("Linux x64 seccomp picture-worker boundary; other platforms retain their own worker policy.");
+            Assert.Skip("Linux x64/ARM64 seccomp picture-worker boundary; other platforms retain their own worker policy.");
             return;
         }
         var parentBefore = Status("/proc/thread-self/status");
@@ -45,7 +45,7 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
                 if (observed["Seccomp_filters"] > parentBefore["Seccomp_filters"]) break;
                 await Task.Delay(10, TestContext.Current.CancellationToken);
             }
-            output.WriteLine(JsonSerializer.Serialize(new { kind, ParentBefore = parentBefore, PID = worker.Id, WorkerBeforeInput = observed }));
+            output.WriteLine(JsonSerializer.Serialize(new { kind, RuntimeInformation.ProcessArchitecture, ParentBefore = parentBefore, PID = worker.Id, WorkerBeforeInput = observed }));
             Assert.False(worker.HasExited);
             Assert.NotNull(observed);
             Assert.Equal(1, observed["NoNewPrivs"]);
@@ -98,6 +98,75 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             await error.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             response.Dispose();
         }
+    }
+
+    [Theory]
+    [InlineData(Architecture.X64, 0xc000003eU, 317L, 56U, 59U, 322U, 57U, 58U, true, 21)]
+    [InlineData(Architecture.Arm64, 0xc00000b7U, 277L, 220U, 221U, 281U, null, null, false, 15)]
+    public void Linux_process_policy_uses_the_kernel_abi_for_each_supported_architecture(Architecture architecture,
+        uint audit, long seccomp, uint clone, uint execve, uint execveat, uint? fork, uint? vfork, bool rejectX32,
+        int filterLength)
+    {
+        var abi = LinuxPictureProcessPolicy.ForArchitecture(architecture);
+        Assert.Equal((audit, seccomp, clone, execve, execveat, fork, vfork, rejectX32),
+            (abi.AuditArchitecture, abi.Seccomp, abi.CloneSyscall, abi.ExecveSyscall, abi.ExecveAtSyscall,
+                abi.ForkSyscall, abi.VforkSyscall, abi.RejectX32));
+        Assert.Equal(filterLength, LinuxPictureProcessPolicy.BuildFilter(abi).Length);
+    }
+
+    [Theory]
+    [InlineData(Architecture.X64)]
+    [InlineData(Architecture.Arm64)]
+    public void Linux_process_policy_filter_denies_process_creation_but_keeps_thread_creation(Architecture architecture)
+    {
+        var abi = LinuxPictureProcessPolicy.ForArchitecture(architecture);
+        var filter = LinuxPictureProcessPolicy.BuildFilter(abi);
+        const uint denied = 0x00050001, noSystemCall = 0x00050026, allowed = 0x7fff0000, killed = 0x80000000;
+
+        Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, abi.ExecveSyscall));
+        Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, abi.ExecveAtSyscall));
+        if (abi.ForkSyscall is { } fork) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, fork));
+        if (abi.VforkSyscall is { } vfork) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, vfork));
+        Assert.Equal(noSystemCall, Evaluate(filter, abi.AuditArchitecture, 435));
+        Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, abi.CloneSyscall));
+        Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, abi.CloneSyscall, 0x10000));
+        Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, architecture == Architecture.X64 ? 0U : 63U));
+        Assert.Equal(killed, Evaluate(filter, architecture == Architecture.X64 ? 0xc00000b7U : 0xc000003eU, abi.ExecveSyscall));
+        if (abi.RejectX32) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 0x40000000));
+    }
+
+    [Fact]
+    public void Unsupported_Linux_architecture_is_not_silently_unrestricted() =>
+        Assert.Throws<PlatformNotSupportedException>(() => LinuxPictureProcessPolicy.ForArchitecture(Architecture.Arm));
+
+    private static uint Evaluate(LinuxPictureProcessPolicy.Filter[] filter, uint architecture, uint syscall, ulong firstArgument = 0)
+    {
+        uint accumulator = 0;
+        for (int index = 0; index < filter.Length; index++)
+        {
+            var instruction = filter[index];
+            switch (instruction.Code)
+            {
+                case 0x20:
+                    accumulator = instruction.Value switch
+                    {
+                        0 => syscall, 4 => architecture, 16 => (uint)firstArgument,
+                        _ => throw new InvalidOperationException($"Unexpected seccomp_data offset {instruction.Value}."),
+                    };
+                    break;
+                case 0x15:
+                    index += accumulator == instruction.Value ? instruction.Yes : instruction.No;
+                    break;
+                case 0x45:
+                    index += (accumulator & instruction.Value) != 0 ? instruction.Yes : instruction.No;
+                    break;
+                case 0x06:
+                    return instruction.Value;
+                default:
+                    throw new InvalidOperationException($"Unexpected BPF opcode {instruction.Code:x}.");
+            }
+        }
+        throw new InvalidOperationException("The seccomp program returned no decision.");
     }
 
     private static Dictionary<string, int> Status(string path) => File.ReadAllLines(path)
