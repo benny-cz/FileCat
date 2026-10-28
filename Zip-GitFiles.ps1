@@ -3,7 +3,7 @@ param(
     [string]$InputDirectory = (Get-Location).Path,
 
     [Parameter(Position = 1)]
-    [string]$OutputPath = "InterCat.zip"
+    [string]$OutputPath = "FileCat.zip"
 )
 
 $ErrorActionPreference = "Stop"
