@@ -116,14 +116,14 @@ def main() -> None:
     required_preserved = {
         "GATE-CI-FINAL", "REL-UX-AUDIT", "FCUX-GIT-001",
         "FCSEC-AC-01", "FCSEC-AC-02", "FCSEC-AC-03", "FCSEC-AC-04",
-        "V09-I495", "I542-LINE-BUDGET", "I543-MD-BUDGET",
+        "V09-I495", "I542-LINE-BUDGET", "I543-MD-BUDGET", "I524-ARM64-ACK",
     }
     missing = sorted(required_preserved.difference(case_ids))
     if missing:
         raise ValueError(f"Release ledger dropped accepted stable cases: {missing}")
     status_by_case = {row[0]: row[4] for row in rows}
-    if status_by_case.get("I524-ARM64-ACK") != "Failed":
-        raise ValueError("I524-ARM64-ACK must retain the failed Windows ARM64 result")
+    if status_by_case.get("I524-ARM64-ACK") != "Accepted":
+        raise ValueError("I524-ARM64-ACK must retain the accepted exact ARM64 pass and recurrence")
 
     dependency_ids = set(re.findall(r"\b(?:DEC|EXT|ENV|PPL)-\d+\b", BLOCKERS.read_text(encoding="utf-8-sig")))
     for row in rows:
