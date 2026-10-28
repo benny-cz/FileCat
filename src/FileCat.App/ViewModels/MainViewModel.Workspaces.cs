@@ -359,6 +359,7 @@ public sealed partial class MainViewModel
             await ShowUserMenuAsync(children);
             return;
         }
+        if (!AdmitConfiguredExternalTool(tool)) return;
         var tab = ActiveTab;
         var files = tab?.Listing.GetSelection().Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList() ?? [];
         var dir = tab?.Location is { IsFileSystem: true } l ? l.Path : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

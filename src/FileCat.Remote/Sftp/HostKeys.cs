@@ -15,6 +15,8 @@ public enum HostKeyStatus
     Changed,
     /// <summary>The key is marked @revoked in known_hosts.</summary>
     Revoked,
+    /// <summary>A configured trust file could not be inspected; no key may be silently trusted.</summary>
+    Unavailable,
 }
 
 /// <param name="Fingerprint">"SHA256:…" as OpenSSH prints it.</param>
@@ -62,19 +64,28 @@ public sealed class HostKeyTrust
     {
         string type = KeyTypeOf(keyBlob);
         string fingerprint = Fingerprint(keyBlob);
-        // FileCat's own decisions come first: a key the user replaced here overrides an old OpenSSH entry.
+        var sources = new List<(string File, List<KnownHostEntry> Matching)>();
         foreach (var file in new[] { _ownFile }.Concat(_seedFiles))
         {
-            var lines = ReadEntries(file).Where(e => e.Matches(host, port)).ToList();
+            if (!TryReadEntries(file, out var entries))
+                return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, file);
+            sources.Add((file, entries.Where(e => e.Matches(host, port)).ToList()));
+        }
+        // An exact revocation in any configured file vetoes earlier positive pins.
+        foreach (var (file, lines) in sources)
             if (lines.Any(e => e.Revoked && e.Key.AsSpan().SequenceEqual(keyBlob)))
                 return new HostKeyCheck(HostKeyStatus.Revoked, host, port, type, fingerprint, null, file);
+
+        // Without a revocation, FileCat's own decisions still take precedence over OpenSSH seeds.
+        foreach (var (file, lines) in sources)
+        {
             var sameType = lines.Where(e => !e.Revoked && e.KeyType == type).ToList();
             if (sameType.Any(e => e.Key.AsSpan().SequenceEqual(keyBlob)))
                 return new HostKeyCheck(HostKeyStatus.Trusted, host, port, type, fingerprint, null, file);
             if (sameType.Count > 0)
                 return new HostKeyCheck(HostKeyStatus.Changed, host, port, type, fingerprint, Fingerprint(sameType[0].Key), file);
         }
-        bool others = new[] { _ownFile }.Concat(_seedFiles).SelectMany(ReadEntries).Any(e => !e.Revoked && e.Matches(host, port));
+        bool others = sources.Any(source => source.Matching.Any(e => !e.Revoked));
         return new HostKeyCheck(HostKeyStatus.Unknown, host, port, type, fingerprint, null, null, others);
     }
 
@@ -109,21 +120,29 @@ public sealed class HostKeyTrust
         }
     }
 
-    private static IEnumerable<KnownHostEntry> ReadEntries(string file)
+    private static bool TryReadEntries(string file, out List<KnownHostEntry> entries)
     {
-        string[] lines;
+        entries = [];
         try
         {
-            if (!File.Exists(file)) yield break;
-            lines = BoundedTrustText.ReadLines(file, MaxKnownHostsBytes) ?? [];
+            var lines = BoundedTrustText.ReadLines(file, MaxKnownHostsBytes);
+            if (lines is null)
+            {
+                AppLog.Warn($"Trust file {AppLog.P(file)} exceeds its input budget; host-key trust was not granted.");
+                return false;
+            }
+            foreach (var line in lines)
+                if (KnownHostEntry.Parse(line) is { } entry) entries.Add(entry);
+            return true;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            yield break;
-        }
-        foreach (var line in lines)
-        {
-            if (KnownHostEntry.Parse(line) is { } entry) yield return entry;
+            AppLog.Warn($"Trust file {AppLog.P(file)} could not be read; host-key trust was not granted.");
+            return false;
         }
     }
 }

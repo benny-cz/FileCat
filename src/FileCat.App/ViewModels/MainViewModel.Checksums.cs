@@ -310,17 +310,22 @@ public sealed partial class MainViewModel
     /// <summary>
     /// Whatever the check found, its results open (D-57), once for all the jobs one Verify started: every file with its claims
     /// in full, and the failing files one step from a list in a panel. Only the rows of the files read are asked again:
-    /// nothing else changed. The chosen checksum files are checked once the files beside them are.
+    /// nothing else changed. Explicit results are shown on current visible rows until the next listing refresh.
+    /// The chosen checksum files are checked once the files beside them are.
     /// </summary>
     private async Task OnVerifyFinishedAsync(Job job)
     {
         try
         {
             var report = job.VerificationReport;
-            // The rows of the files read show what the job found (it kept its results and the hashes it read). A check past
+            // The rows of the files read show the explicit result until refresh; the dialog has its full claims. A check past
             // what the results list (a very long checksum file) has no list of every file: then every row asks again.
             if (report is null || report.Unlisted > 0) Services.Metadata.Invalidate();
-            else Services.Metadata.Forget("verified", [.. report.Files.Select(f => f.Path).OfType<string>()]);
+            else
+            {
+                Services.Metadata.Forget("verified", [.. report.Files.Select(f => f.Path).OfType<string>()]);
+                PublishFreshVerifiedRows(report);
+            }
             if (!_runningChecks.Remove(job, out var group))
             {
                 group = new VerifyGroup(null, null);
@@ -368,6 +373,35 @@ public sealed partial class MainViewModel
         {
             AppLog.Error("Showing verification results failed", ex);
             Notify($"{Formatters.SafeName(job.Title)}: {Formatters.SafeName(job.Summary)}. The results could not be shown: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>The explicit job's result is current at completion; a later listing refresh retires this row mark.</summary>
+    private void PublishFreshVerifiedRows(VerificationReport report)
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        foreach (var file in report.Files)
+        {
+            if (file.Path is not { } path || file.Outcome is VerifiedOutcome.Missing or VerifiedOutcome.NotChecked) continue;
+            var state = file.Outcome switch
+            {
+                VerifiedOutcome.Good => file.Authentic ? VerificationState.SignatureGood : VerificationState.Matches,
+                VerifiedOutcome.Failed => VerificationState.Differs,
+                VerifiedOutcome.Unreadable => VerificationState.Unreadable,
+                _ => VerificationState.SignatureUnchecked,
+            };
+            var result = new VerificationResult(state, file.Text, file.Notes);
+            foreach (var tab in Workspace.Panels.SelectMany(panel => panel.Tabs))
+            {
+                if (tab.Location is not { IsFileSystem: true } location ||
+                    !string.Equals(Path.GetDirectoryName(path), location.Path, comparison)) continue;
+                int index = tab.Listing.FindStoreIndex(file.Name);
+                if (index < 0) continue;
+                var entry = tab.Listing.Store[index];
+                if (!string.Equals(Path.Join(location.Path, entry.Name), path, comparison) ||
+                    VerificationService.Stamp(path) is not { } stamp || stamp.Size != entry.Size || stamp.Modified != entry.Modified) continue;
+                Services.Metadata.PublishFreshVerification(path, entry, result);
+            }
         }
     }
 

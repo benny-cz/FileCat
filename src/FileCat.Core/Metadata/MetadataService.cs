@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using FileCat.Core.Verification;
 using FileCat.Core.Threading;
 
 namespace FileCat.Core.Metadata;
@@ -282,15 +283,44 @@ public sealed class MetadataService
         // A checksum file may spell a name in another letter case than the folder does: forgetting a namesake too only asks again.
         var wanted = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
         string prefix = fieldId + "|";
-        // A key is the field, the item's time and size (numbers), and its path: the path follows the third separator.
-        static string? PathOf(string key)
+        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && KeyPath(key) is { } path && wanted.Contains(path));
+    }
+
+    /// <summary>Retire one folder's row claims when its listing is refreshed, even if size and mtime were restored.</summary>
+    public void ForgetFolder(string fieldId, string folder)
+    {
+        string prefix = fieldId + "|";
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) &&
+            KeyPath(key) is { } path && string.Equals(Path.GetDirectoryName(path), folder, comparison));
+    }
+
+    /// <summary>Show the result of an explicit completed check on a row until its next listing refresh.</summary>
+    public void PublishFreshVerification(string path, in EntryData entry, VerificationResult result)
+    {
+        string key = Key(path, entry, "verified");
+        lock (_publicationLock)
         {
-            int at = -1;
-            for (int i = 0; i < 3; i++)
-                if ((at = key.IndexOf('|', at + 1)) < 0) return null;
-            return key[(at + 1)..];
+            foreach (var production in _productions)
+                if (production.Key == key) production.Current = false;
+            if (_cache.TryAdd(key, new MetadataValue(MetadataState.Available, result))) _order.Enqueue(key);
+            else _cache[key] = new MetadataValue(MetadataState.Available, result);
+            _producedAt.TryRemove(key, out _);
+            while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+            {
+                _cache.TryRemove(old, out _);
+                _producedAt.TryRemove(old, out _);
+            }
         }
-        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && PathOf(key) is { } path && wanted.Contains(path));
+        Notify();
+    }
+
+    private static string? KeyPath(string key)
+    {
+        int at = -1;
+        for (int i = 0; i < 3; i++)
+            if ((at = key.IndexOf('|', at + 1)) < 0) return null;
+        return key[(at + 1)..];
     }
 
     private void Forget(Func<string, bool> matches)

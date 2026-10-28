@@ -1,0 +1,24 @@
+{
+    "Passed":  true,
+    "Mode":  "Copy",
+    "AppDllSha256":  "3DBCC06085E660461BA22B7B792D189C23BDCD0215AE15FEAD2492B2695D1904",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompliantDrag-18dc245f38314ad0baef0f5d68100cff",
+    "SourceBeforeSha256":  "54D59363AE5052E092283E728A7B707C4014CDB92F42379024E78C9527F9DD35",
+    "SentinelBeforeSha256":  "B128D1642B2148A4A467995E7CBD73EA64A6D1977ECE995AC0644DB77CF21EDB",
+    "Stage":  "complete",
+    "Geometry":  {
+                     "To":  [
+                                1606,
+                                485
+                            ],
+                     "From":  [
+                                  258,
+                                  251
+                              ]
+                 },
+    "ReturnedEffect":  "Copy",
+    "SourceAfterSha256":  "54D59363AE5052E092283E728A7B707C4014CDB92F42379024E78C9527F9DD35",
+    "TargetAfterSha256":  "54D59363AE5052E092283E728A7B707C4014CDB92F42379024E78C9527F9DD35",
+    "SentinelAfterSha256":  "B128D1642B2148A4A467995E7CBD73EA64A6D1977ECE995AC0644DB77CF21EDB",
+    "JournalFileCount":  1
+}

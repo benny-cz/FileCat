@@ -1,0 +1,24 @@
+{
+    "Passed":  true,
+    "Mode":  "Shift",
+    "AppDllSha256":  "3DBCC06085E660461BA22B7B792D189C23BDCD0215AE15FEAD2492B2695D1904",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\CompliantDrag-706b8fa96e634b4387a776d35d21c9c5",
+    "SourceBeforeSha256":  "705B5FFDD058A836EEB998FC292FD017F30FD0A40E37B0817BA206F09AD4613E",
+    "SentinelBeforeSha256":  "B128D1642B2148A4A467995E7CBD73EA64A6D1977ECE995AC0644DB77CF21EDB",
+    "Stage":  "complete",
+    "Geometry":  {
+                     "To":  [
+                                1606,
+                                485
+                            ],
+                     "From":  [
+                                  258,
+                                  251
+                              ]
+                 },
+    "ReturnedEffect":  "None",
+    "SourceAfterSha256":  "705B5FFDD058A836EEB998FC292FD017F30FD0A40E37B0817BA206F09AD4613E",
+    "TargetAfterSha256":  null,
+    "SentinelAfterSha256":  "B128D1642B2148A4A467995E7CBD73EA64A6D1977ECE995AC0644DB77CF21EDB",
+    "JournalFileCount":  0
+}

@@ -545,20 +545,20 @@ public sealed class VerificationTests : IDisposable
         Write("big.bin.sha256", Sha256("contents") + "\n");
         var first = Service(cacheFile: cacheFile);
         Assert.Equal(VerificationState.Matches, first.OnRequest(path, TestContext.Current.CancellationToken)!.State);
-        // A later run with a tiny threshold still shows the kept result instead of "not checked".
+        // A later run with a tiny threshold knows only that an earlier check matched.
         var later = Service(threshold: 1, cacheFile: cacheFile);
-        Assert.Equal(VerificationState.Matches, later.Automatic(path, TestContext.Current.CancellationToken)!.State);
-        // A changed sidecar is a new question, answered from the hash kept from the first read: the file is not read again.
+        Assert.StartsWith("previously checked ", later.Automatic(path, TestContext.Current.CancellationToken)!.Text, StringComparison.Ordinal);
+        // A changed sidecar cannot turn a remembered hash into a current-content claim.
         Write("big.bin.sha256", Sha256("something else") + "\n");
         File.SetLastWriteTimeUtc(Path.Combine(_dir, "big.bin.sha256"), DateTime.UtcNow.AddMinutes(1));
         var again = Service(threshold: 1, cacheFile: cacheFile);
-        Assert.Equal(VerificationState.Differs, again.Automatic(path, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.NotChecked, again.Automatic(path, TestContext.Current.CancellationToken)!.State);
         // One that needs an algorithm never read waits for a request, the file being large.
         Write("big.bin.md5", Convert.ToHexStringLower(MD5.HashData("contents"u8)) + "\n");
         var md5 = Service(threshold: 1, cacheFile: cacheFile);
         var waiting = md5.Automatic(path, TestContext.Current.CancellationToken)!;
         Assert.Equal(VerificationState.NotChecked, waiting.State);
-        Assert.StartsWith("not checked: ", waiting.Text, StringComparison.Ordinal);
+        Assert.Contains("verify current file", waiting.Text, StringComparison.Ordinal);
         var checkedNow = md5.OnRequest(path, TestContext.Current.CancellationToken)!;
         Assert.Equal((VerificationState.Differs, "✗ SHA-256 differs"), (checkedNow.State, checkedNow.Text));
         Assert.Contains("MD5 matches big.bin.md5, line 1.", checkedNow.Details);
@@ -598,9 +598,35 @@ public sealed class VerificationTests : IDisposable
         var time = File.GetLastWriteTimeUtc(path);
         File.WriteAllText(path, "tampered");
         File.SetLastWriteTimeUtc(path, time);
-        Assert.Equal(VerificationState.Matches, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // the row: kept
+        var historical = service.Automatic(path, TestContext.Current.CancellationToken)!;
+        Assert.Equal(VerificationState.NotChecked, historical.State);
+        Assert.StartsWith("previously checked ", historical.Text, StringComparison.Ordinal);
         Assert.Equal(VerificationState.Differs, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
-        Assert.Equal(VerificationState.Differs, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // and kept anew
+        Assert.Equal(VerificationState.NotChecked, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
+    }
+
+    [Fact]
+    public void A_signed_file_replaced_with_same_size_and_time_has_no_current_authentic_mark()
+    {
+        var signer = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), signer.PublicFile);
+        string path = Write("signed.zip", "genuine!");
+        Write("signed.zip.minisig", signer.Sign("genuine!"u8.ToArray(), "publisher"));
+        var service = Service(keys: [keys]);
+        Assert.Equal(VerificationState.SignatureGood, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.NotChecked, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
+        DateTime modified = File.GetLastWriteTimeUtc(path);
+        File.WriteAllText(path, "tampered");
+        File.SetLastWriteTimeUtc(path, modified);
+        var historical = service.Automatic(path, TestContext.Current.CancellationToken)!;
+        Assert.Equal(VerificationState.NotChecked, historical.State);
+        Assert.Contains("previously checked", historical.Text, StringComparison.Ordinal);
+        Assert.Equal(VerificationState.SignatureBad, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
+        File.WriteAllText(path, "genuine!");
+        File.SetLastWriteTimeUtc(path, modified);
+        Assert.Equal(VerificationState.SignatureGood, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.NotChecked, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
     }
 
     [Fact]
@@ -629,19 +655,20 @@ public sealed class VerificationTests : IDisposable
         Write("x.bin.md5", Convert.ToHexStringLower(MD5.HashData("x"u8)) + "\n");
         service.FolderChanged(_dir, TestContext.Current.CancellationToken);
         Assert.Equal(_dir, changed);
-        Assert.Equal("✓ SHA-256, MD5", service.Automatic(path, TestContext.Current.CancellationToken)!.Text);
+        Assert.Equal("previously hashed; verify current file", service.Automatic(path, TestContext.Current.CancellationToken)!.Text);
+        Assert.Equal("✓ SHA-256, MD5", service.OnRequest(path, TestContext.Current.CancellationToken)!.Text);
     }
     [Fact]
     public void Hashes_a_job_read_answer_for_a_large_file_until_it_changes()
     {
         string path = Write("large.iso", "contents");
-        // The checksum file says what a remembered value says, not what the contents are: a match proves the file was not read.
+        // A remembered hash cannot prove the current bytes still match.
         Write("large.iso.sha256", Sha256("remembered") + "\n");
         var service = Service(threshold: 1);
         Assert.Equal(VerificationState.NotChecked, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
         var stamp = VerificationService.Stamp(path)!.Value;
         service.Remember(path, stamp, new Dictionary<ChecksumKind, string> { [ChecksumKind.Sha256] = Sha256("remembered") });
-        Assert.Equal(VerificationState.Matches, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal("previously hashed; verify current file", service.Automatic(path, TestContext.Current.CancellationToken)!.Text);
 
         // Changed: the remembered value is for the old file, so the large file waits for a request again.
         File.AppendAllText(path, " and more");
@@ -708,8 +735,8 @@ public sealed class VerificationTests : IDisposable
             Assert.True(steps > 1, "progress moved only once");
             TestContext.Current.TestOutputHelper?.WriteLine($"1 GiB checked in {watch.Elapsed.TotalSeconds:0.00} s ({1024 / watch.Elapsed.TotalSeconds:0} MiB/s)");
 
-            // Kept: shown at once in this run and the next.
-            Assert.Equal(VerificationState.Matches, Service(threshold: 1, cacheFile: Path.Combine(_dir, "cache", "verification.jsonl")).Automatic(path, TestContext.Current.CancellationToken)!.State);
+            // Kept across runs as historical evidence, without claiming current integrity.
+            Assert.Equal(VerificationState.NotChecked, Service(threshold: 1, cacheFile: Path.Combine(_dir, "cache", "verification.jsonl")).Automatic(path, TestContext.Current.CancellationToken)!.State);
         }
         finally
         {
@@ -759,9 +786,9 @@ public sealed class VerificationTests : IDisposable
             Assert.Contains(job.Issues, i => i.Path == lonely && i.Message.StartsWith("Nothing beside it says what it should be", StringComparison.Ordinal));
             Assert.Equal(job.BytesTotal, job.BytesDone);
 
-            // Kept: the rows show it without reading, in this run and the next.
-            Assert.Equal(VerificationState.Matches, service.Automatic(good, TestContext.Current.CancellationToken)!.State);
-            Assert.Equal(VerificationState.Differs, Service(threshold: 1, cacheFile: cacheFile).Automatic(bad, TestContext.Current.CancellationToken)!.State);
+            // Kept results are historical until the current bytes are read again.
+            Assert.Equal(VerificationState.NotChecked, service.Automatic(good, TestContext.Current.CancellationToken)!.State);
+            Assert.Equal(VerificationState.NotChecked, Service(threshold: 1, cacheFile: cacheFile).Automatic(bad, TestContext.Current.CancellationToken)!.State);
 
             // A manifest verified as such leaves the hashes it read: a new checksum file's row needs no reading.
             string later = Write("later.bin", "later");
@@ -773,7 +800,7 @@ public sealed class VerificationTests : IDisposable
             Assert.Equal(VerificationState.NotChecked, service.Automatic(later, TestContext.Current.CancellationToken)!.State);
             File.Delete(Path.Combine(_dir, "later.bin.md5"));
             service.FolderChanged(_dir, TestContext.Current.CancellationToken);
-            Assert.Equal(VerificationState.Matches, service.Automatic(later, TestContext.Current.CancellationToken)!.State);
+            Assert.Equal(VerificationState.NotChecked, service.Automatic(later, TestContext.Current.CancellationToken)!.State);
         }
         finally
         {

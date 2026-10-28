@@ -10,15 +10,19 @@ internal static class DropTargetAdmission
 {
     internal sealed record Offer(TabViewModel Tab, Location Destination, DragDropEffects Effect);
     internal const string ChangedTargetMessage = "The drop target changed during the drag. Drop again onto the folder you want to use.";
+    internal const string ExternalMoveRefusal = "Moving files by dragging from another app is not available here. Release Shift to copy them, or use F5 in FileCat to choose a destination.";
 
     /// <summary>Keep the first offered destination for one native drag, even if the panel navigates under the pointer.</summary>
     internal sealed class DragIntent
     {
         internal Offer? Original { get; private set; }
         internal bool TargetChanged { get; private set; }
+        internal bool MoveRefused { get; private set; }
 
         internal (Offer? Accepted, string? Refusal) Hover(Offer? current, string? refusal)
         {
+            if (refusal == ExternalMoveRefusal) MoveRefused = true;
+            else if (current is not null) MoveRefused = false;
             if (TargetChanged) return (null, ChangedTargetMessage);
             if (Original is not null && current is not null && !SameTarget(Original, current))
             {
@@ -33,6 +37,7 @@ internal static class DropTargetAdmission
         {
             Original = null;
             TargetChanged = false;
+            MoveRefused = false;
         }
     }
 
@@ -40,6 +45,9 @@ internal static class DropTargetAdmission
     {
         if (!hasFilePayload)
             return (null, "This drop contains no files or folders. Select files and drop them onto a local folder.");
+        // Drop returns a native performed effect before the asynchronous transfer review/job can complete.
+        // Never report Move to a source that may delete its originals on that result.
+        if (move) return (null, ExternalMoveRefusal);
         var tab = panel.ActiveTab;
         if (tab is null || tab.Listing.IsDisposed || tab.Location is not { } location)
             return (null, "This panel has no available destination. Open a local folder and try again.");
@@ -50,7 +58,7 @@ internal static class DropTargetAdmission
         var provider = panel.Services.Providers.For(location);
         if ((provider.GetCapabilities(location) & LocationCapabilities.TransferTarget) == 0)
             return (null, provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget) + " Choose a local folder with F5 instead.");
-        return (new Offer(tab, location, move ? DragDropEffects.Move : DragDropEffects.Copy), null);
+        return (new Offer(tab, location, DragDropEffects.Copy), null);
     }
 
     internal static bool SameTarget(Offer offered, Offer current) =>

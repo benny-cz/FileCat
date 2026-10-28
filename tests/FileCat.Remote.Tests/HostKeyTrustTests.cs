@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using FileCat.Core.State;
 using FileCat.Remote.Sftp;
 
 namespace FileCat.Remote.Tests;
@@ -57,7 +58,7 @@ public sealed class HostKeyTrustTests : IDisposable
                 Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
             }
         }
-        Assert.Equal(HostKeyStatus.Unknown,
+        Assert.Equal(HostKeyStatus.Unavailable,
             new HostKeyTrust(Path.Combine(_dir, "own"), [seed]).Check("large.example", 22, Ed).Status);
     }
 
@@ -123,5 +124,42 @@ public sealed class HostKeyTrustTests : IDisposable
         trust.Remember("server.example", 2200, Ed);
         Assert.Equal(2, File.ReadAllLines(own).Length);
         Assert.Contains(File.ReadAllLines(own), l => l.StartsWith("[server.example]:2200 ssh-ed25519 ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Exact_OpenSSH_revocation_vetoes_a_FileCat_pin_before_connection_or_credentials()
+    {
+        const string host = "revoked-after-pinning.example";
+        string own = Path.Combine(_dir, "own-known-hosts");
+        File.WriteAllLines(own, [Line(host, Ed)]);
+        string seed = Seed(Line(host, Ed, "@revoked"));
+        var trust = new HostKeyTrust(own, [seed]);
+        var check = trust.Check(host, 22, Ed);
+        Assert.Equal(HostKeyStatus.Revoked, check.Status);
+        Assert.Equal(seed, check.Source);
+
+        var server = new FakeSftpServer { HostKey = Ed };
+        var profile = new RemoteProfile { Name = "revoked", Host = host, User = "user" };
+        var ui = new ScriptedInteraction();
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new FakeConnector(server), trust, new SessionSecretStore(), ui);
+        Assert.Throws<HostKeyRejectedException>(() => connections.Lease(profile.Id, CancellationToken.None));
+        Assert.Empty(ui.HostKeyQuestions);
+        Assert.Empty(ui.SecretQuestions);
+
+        File.WriteAllLines(seed, [Line(host, EdOther, "@revoked"), Line(host, EdOther)]);
+        Assert.Equal(HostKeyStatus.Trusted, trust.Check(host, 22, Ed).Status);
+        Assert.Equal(HostKeyStatus.Unknown, trust.Check("first-contact.example", 22, Ed).Status);
+    }
+
+    [Fact]
+    public void Unreadable_seed_cannot_silently_trust_an_earlier_pin()
+    {
+        string own = Path.Combine(_dir, "own-known-hosts");
+        File.WriteAllLines(own, [Line("unreadable.example", Ed)]);
+        string seed = Path.Combine(_dir, "seed-is-a-directory");
+        Directory.CreateDirectory(seed);
+        Assert.Equal(HostKeyStatus.Unavailable,
+            new HostKeyTrust(own, [seed]).Check("unreadable.example", 22, Ed).Status);
     }
 }

@@ -64,10 +64,13 @@ public sealed class VerificationUiTests
             }
 
             // Drawn rows ask; the answers come from the background.
-            await Until(() => Result("a.txt")?.State == VerificationState.Matches && Result("b.txt")?.State == VerificationState.Differs
+            await Until(() => Result("a.txt") is { Settling: false } a && string.Join(" ", a.Details.Prepend(a.Text)).Contains("SHA-256", StringComparison.Ordinal)
+                              && Result("b.txt") is { Settling: false } b && string.Join(" ", b.Details.Prepend(b.Text)).Contains("SHA-256", StringComparison.Ordinal)
                               && Result("big.bin")?.State == VerificationState.NotChecked && Result("SHA256SUMS") is not null, "the results arrive");
-            Assert.Equal("✓ SHA-256", Result("a.txt")!.Text);
-            Assert.Equal("✗ SHA-256 differs", Result("b.txt")!.Text);
+            Assert.Contains(Result("a.txt")!.State, new[] { VerificationState.Matches, VerificationState.NotChecked });
+            Assert.Contains(Result("b.txt")!.State, new[] { VerificationState.Differs, VerificationState.NotChecked });
+            Assert.Contains("SHA-256", string.Join(" ", Result("a.txt")!.Details.Prepend(Result("a.txt")!.Text)));
+            Assert.Contains("SHA-256 differs", string.Join(" ", Result("b.txt")!.Details.Prepend(Result("b.txt")!.Text)));
             Assert.StartsWith("not checked: 3 MiB", Result("big.bin")!.Text, StringComparison.Ordinal);
             Assert.Contains("File → Verify checksums and signatures", Result("big.bin")!.Details.Single(), StringComparison.Ordinal);
             var sums = Result("SHA256SUMS")!;
@@ -80,8 +83,8 @@ public sealed class VerificationUiTests
 
             // The status line: the focused file's result, and the folder's sum.
             listing.SetFocus(Row("a.txt").Row);
-            await Until(() => tab.StatusRight.EndsWith(" · ✓ SHA-256", StringComparison.Ordinal), "the focused file's result is in the status line");
-            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 1 verified, 1 not checked", StringComparison.Ordinal),
+            await Until(() => tab.StatusRight.EndsWith(" · " + Result("a.txt")!.Text, StringComparison.Ordinal), "the focused file's result is in the status line");
+            await Until(() => tab.StatusLeft.Contains("checksums: 2 previously checked, 1 not checked", StringComparison.Ordinal),
                 $"the folder's sum is in the status line ({tab.StatusLeft}; the service says {VerificationService.Current!.Summary(folder, ["a.txt", "b.txt", "big.bin", "SHA256SUMS"])})");
 
             // Verifying only reads: the folder is not listed again, and values of other rows stay (a probe stands for them).
@@ -108,8 +111,19 @@ public sealed class VerificationUiTests
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await Until(() => !dialogs.IsOpen, "the results close");
 
-            await Until(() => Result("big.bin")?.State == VerificationState.Matches, "the large file's row shows its result");
-            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 2 verified", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
+            await Until(() => Result("big.bin")?.State == VerificationState.Matches, "the freshly checked file has a good row badge");
+            await Until(() => tab.StatusLeft.Contains("checksums: 3 previously checked", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
+
+            // Even a same-size rewrite with its mtime restored loses that good row badge on refresh.
+            string bigPath = Path.Combine(folder, "big.bin");
+            DateTime originalTime = File.GetLastWriteTimeUtc(bigPath);
+            big[0] ^= 1;
+            File.WriteAllBytes(bigPath, big);
+            File.SetLastWriteTimeUtc(bigPath, originalTime);
+            tab.Refresh();
+            await Until(() => listing.State == ListingState.Complete && Result("big.bin")?.Text.StartsWith("previously checked ", StringComparison.Ordinal) == true,
+                "refreshed substituted bytes have only a historical neutral mark");
+            Assert.Equal(VerificationState.NotChecked, Result("big.bin")!.State);
         }
         finally
         {

@@ -46,7 +46,7 @@ public sealed class AccessibilityTests
 
     internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow(
         Remote.Sftp.ISftpConnector? sftp = null, bool nativeWindowsOriginMarks = false,
-        int width = 1200, int height = 800, double? fontSize = null)
+        int width = 1200, int height = 800, double? fontSize = null, AppPaths? statePaths = null)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
         var folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
@@ -60,7 +60,7 @@ public sealed class AccessibilityTests
         {
             if (nativeWindowsOriginMarks && OperatingSystem.IsWindows())
                 PlatformFactory.WindowsFactory = () => new WindowsMarkPlatform();
-            services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root), sftp);
+            services = AppServices.CreateForPaths(statePaths ?? AppPaths.Resolve(overrideRoot: root), sftp);
         }
         finally { PlatformFactory.WindowsFactory = previousFactory; }
         var vm = new MainViewModel(services);

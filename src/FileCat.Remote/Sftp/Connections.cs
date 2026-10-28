@@ -382,7 +382,7 @@ public sealed class SftpConnections : IDisposable
         {
             case HostKeyStatus.Trusted:
                 return true;
-            case HostKeyStatus.Revoked:
+            case HostKeyStatus.Revoked or HostKeyStatus.Unavailable:
                 return false;
         }
         var decision = Interaction.DecideHostKey(profile, check);

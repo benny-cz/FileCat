@@ -1,0 +1,85 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "working-tree-build",
+    "Scope":  "ExternalIntoLocalShiftRefusal",
+    "AppDllSha256":  "3DBCC06085E660461BA22B7B792D189C23BDCD0215AE15FEAD2492B2695D1904",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0",
+    "SourceHashes":  {
+                         "beta-native-drag.txt":  "A07F7189B3594CD3F39362DDC4614B4017928985C5F472EFA691C38823FFEFA3",
+                         "alpha-native-drag.txt":  "4A285744C95757C97952DA10F6019DEEBF78D4B4E00EE58D25E4FF3740B0F296"
+                     },
+    "SourceArchiveSha256":  null,
+    "TargetArchiveSha256":  null,
+    "RequestedNames":  [
+                           "alpha-native-drag.txt",
+                           "beta-native-drag.txt"
+                       ],
+    "TargetSentinelSha256":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C",
+    "TargetList":  "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropTarget-018930c4",
+    "Geometry":  {
+                     "From":  [
+                                  317,
+                                  239
+                              ],
+                     "To":  [
+                                1606,
+                                480
+                            ],
+                     "Explorer":  [
+                                      30,
+                                      60,
+                                      895,
+                                      910
+                                  ],
+                     "FirstRow":  [
+                                      212,
+                                      227,
+                                      598,
+                                      24
+                                  ]
+                 },
+    "HoverCursor":  {
+                        "Y":  480,
+                        "Flags":  1,
+                        "Handle":  65559,
+                        "X":  1606
+                    },
+    "HoverWindow":  {
+                        "Expected":  3213246,
+                        "Actual":  3213246
+                    },
+    "HoverRefusal":  "Moving files by dragging from another app is not available here. Release Shift to copy them, or use F5 in FileCat to choose a destination.",
+    "UiAfterDrop":  {
+                        "Cursor":  {
+                                       "Y":  480,
+                                       "Flags":  1,
+                                       "Handle":  65539,
+                                       "X":  1606
+                                   },
+                        "Text":  [
+                                     "FileCat — DropSource-761b7944 — Admin (administrator, not elevated)",
+                                     "DropSource-761b7944, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropSource-761b7944",
+                                     "DropSource-761b7944",
+                                     "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropSource-761b7944",
+                                     "DropTarget-018930c4, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropTarget-018930c4",
+                                     "DropTarget-018930c4",
+                                     "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropTarget-018930c4",
+                                     "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropSource-761b7944\u003e",
+                                     "Moving files by dragging from another app is not available here. Release Shift to copy them, or use F5 in FileCat to choose a destination."
+                                 ],
+                        "Lists":  [
+                                      "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DragExternal\\f7d5007a7b22433494901d00480ccfa0\\DropTarget-018930c4"
+                                  ]
+                    },
+    "TargetNames":  "unchanged-sentinel.txt",
+    "TargetHashes":  {
+                         "unchanged-sentinel.txt":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C"
+                     },
+    "SourceStillPresent":  {
+                               "beta-native-drag.txt":  "A07F7189B3594CD3F39362DDC4614B4017928985C5F472EFA691C38823FFEFA3",
+                               "alpha-native-drag.txt":  "4A285744C95757C97952DA10F6019DEEBF78D4B4E00EE58D25E4FF3740B0F296"
+                           },
+    "TargetSentinelStillPresentSha256":  "8C6BCD59FE51F65FD47D0342A170D4DAA9B1F79EEBFFC1717B36331BA08FA19C",
+    "JournalFileCount":  0
+}

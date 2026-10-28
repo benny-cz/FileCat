@@ -1,0 +1,3 @@
+Identity=DESKTOP-A60F1NE\Admin
+Integrity=S-1-16-8192
+AdminRole=False

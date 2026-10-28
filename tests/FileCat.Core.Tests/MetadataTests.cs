@@ -9,6 +9,31 @@ namespace FileCat.Core.Tests;
 public class MetadataTests
 {
     [Fact]
+    public void Refreshed_folder_retires_a_same_size_restored_time_row_claim_only_there()
+    {
+        using var dir = new TempDir();
+        string firstFolder = dir.Dir("first"), secondFolder = dir.Dir("second");
+        string first = Path.Combine(firstFolder, "claim.txt"), second = Path.Combine(secondFolder, "claim.txt");
+        File.WriteAllText(first, "good");
+        File.WriteAllText(second, "keep");
+        using var io = new DeviceIoScheduler();
+        var metadata = new MetadataService(io);
+        metadata.Register(new MetadataField("claim", "Claim", MetadataCost.Cheap, _ => true,
+            (path, _) => File.ReadAllText(path), value => (string)value!));
+        var firstEntry = new EntryData("claim.txt", EntryKind.File, 4, File.GetLastWriteTimeUtc(first).Ticks);
+        var secondEntry = new EntryData("claim.txt", EntryKind.File, 4, File.GetLastWriteTimeUtc(second).Ticks);
+        Assert.Equal("good", metadata.Compute("claim", first, firstEntry, TestContext.Current.CancellationToken).Value);
+        Assert.Equal("keep", metadata.Compute("claim", second, secondEntry, TestContext.Current.CancellationToken).Value);
+        DateTime stamp = File.GetLastWriteTimeUtc(first);
+        File.WriteAllText(first, "evil");
+        File.SetLastWriteTimeUtc(first, stamp);
+        Assert.Equal("good", metadata.Compute("claim", first, firstEntry, TestContext.Current.CancellationToken).Value);
+        metadata.ForgetFolder("claim", firstFolder);
+        Assert.Equal("evil", metadata.Compute("claim", first, firstEntry, TestContext.Current.CancellationToken).Value);
+        Assert.Equal("keep", metadata.Peek("claim", second, secondEntry).Value);
+    }
+
+    [Fact]
     public void Image_headers_are_parsed_without_decoding()
     {
         var png = new byte[32];

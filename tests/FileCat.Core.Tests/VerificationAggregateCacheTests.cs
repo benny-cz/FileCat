@@ -35,13 +35,13 @@ public sealed class VerificationAggregateCacheTests(ITestOutputHelper output)
             var newest = service.Summary(paths[^1], ["x.bin"]);
             output.WriteLine(JsonSerializer.Serialize(new { Case = "aggregate-claims", Folders = folders, ClaimsPerFolder = claimsPerFolder,
                 ManifestBytes = line.Length * claimsPerFolder, Oldest = oldest, Newest = newest, Root = root }));
-            Assert.Equal((0, 0, 0, 0), oldest); // the large first scan must have retired
-            Assert.Equal((0, 0, 0, 1), newest); // the most recent scan remains useful
+            Assert.Equal((0, 0, 0, 0, 0), oldest); // the large first scan must have retired
+            Assert.Equal((0, 0, 0, 1, 0), newest); // the most recent scan remains useful
 
             service.FolderChanged(paths[0], TestContext.Current.CancellationToken);
             Assert.Equal(paths[0], changed); // an evicted folder conservatively invalidates its visible rows
             Assert.Equal(claimsPerFolder, service.SidecarsOf(paths[0], TestContext.Current.CancellationToken).Checksums("x.bin").Count);
-            Assert.Equal((0, 0, 0, 1), service.Summary(paths[0], ["x.bin"]));
+            Assert.Equal((0, 0, 0, 1, 0), service.Summary(paths[0], ["x.bin"]));
         }
         finally
         {

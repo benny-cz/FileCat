@@ -341,6 +341,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             var previous = dragIntent.Original;
             bool targetChanged = dragIntent.TargetChanged;
+            bool moveRefused = dragIntent.MoveRefused;
             dragIntent.Reset();
             reportedRefusal = null;
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
@@ -350,6 +351,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             if (targetChanged)
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
+                return;
+            }
+            // Some native sources release Shift immediately after mouse-up, before this
+            // callback reads modifiers. A refused Move remains refused until a later Copy hover.
+            if (moveRefused)
+            {
+                _vm.Notify(DropTargetAdmission.ExternalMoveRefusal, true);
                 return;
             }
             if (current is null)

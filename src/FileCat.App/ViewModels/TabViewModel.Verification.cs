@@ -31,6 +31,9 @@ public sealed partial class TabViewModel
         }
         if (!_hasSidecars || VerificationService.Current is not { } service) return;
         string folder = location.Path;
+        // The metadata key uses size and mtime. A writer can restore both, so a refreshed
+        // listing must retire its prior good mark before the service returns historical status.
+        Services.Metadata.ForgetFolder("verified", folder);
         // A refresh may be about a changed checksum file: the service reads them again, and a change makes the shown results stale.
         if (had) _ = Task.Run(() =>
         {
@@ -108,12 +111,13 @@ public sealed partial class TabViewModel
             string? text = null;
             try
             {
-                var (good, bad, unknown, notChecked) = service.Summary(folder, names);
+                var (good, bad, unknown, notChecked, historical) = service.Summary(folder, names);
                 // Worst first.
                 var parts = new List<string>();
                 if (bad > 0) parts.Add($"{bad} failed");
                 if (unknown > 0) parts.Add($"{unknown} unsure");
                 if (good > 0) parts.Add($"{good} verified");
+                if (historical > 0) parts.Add($"{historical} previously checked");
                 if (notChecked > 0) parts.Add($"{notChecked} not checked");
                 text = parts.Count > 0 ? "checksums: " + string.Join(", ", parts) : null;
             }

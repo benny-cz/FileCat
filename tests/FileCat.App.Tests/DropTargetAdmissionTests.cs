@@ -36,7 +36,7 @@ public sealed class DropTargetAdmissionTests
     }
 
     [AvaloniaFact]
-    public async Task Local_target_offers_exact_copy_or_move_while_nonfilesystem_targets_offer_no_effect()
+    public async Task Local_target_offers_copy_but_refuses_native_shift_move_before_review()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -44,10 +44,21 @@ public sealed class DropTargetAdmissionTests
             var panel = vm.Workspace.Panels[1];
             await Listed(panel.ActiveTab!.Listing);
             var (copy, _) = DropTargetAdmission.Check(panel, true, false);
-            var (move, _) = DropTargetAdmission.Check(panel, true, true);
+            var (move, moveRefusal) = DropTargetAdmission.Check(panel, true, true);
             Assert.Equal(DragDropEffects.Copy, copy!.Effect);
-            Assert.Equal(DragDropEffects.Move, move!.Effect);
-            Assert.True(DropTargetAdmission.SameTarget(copy, move));
+            Assert.Null(move);
+            Assert.Equal(DropTargetAdmission.ExternalMoveRefusal, moveRefusal);
+            var drag = new DropTargetAdmission.DragIntent();
+            Assert.Null(drag.Hover(move, moveRefusal).Accepted);
+            Assert.True(drag.MoveRefused);
+            // A source may release Shift after mouse-up, before Drop reads the modifiers.
+            // Only a later actual Copy hover clears the refused Move intent.
+            Assert.Equal(copy, drag.Hover(copy, null).Accepted);
+            Assert.False(drag.MoveRefused);
+            drag.Hover(move, moveRefusal);
+            drag.Reset();
+            Assert.False(drag.MoveRefused);
+            Assert.Empty(services.Jobs.Jobs);
             Assert.Null(DropTargetAdmission.Check(panel, false, false).Accepted);
 
             string zipPath = Path.Combine(root, "drop-target.zip");

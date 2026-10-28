@@ -21,7 +21,7 @@ public sealed record VerificationCacheEntry(string Key, VerificationState State,
 internal sealed partial class VerificationJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// Results and hashes kept between runs (D-57), so a 40 GB image is read once, not on every visit: one JSON line each in
+/// Results and hashes kept between runs (D-57) as historical evidence, so a 40 GB image need not be read on every visit: one JSON line each in
 /// FileCat's cache folder. A result is keyed by the file's path, size, and modification time and the metadata/content
 /// fingerprints of the sidecars that cover it; a changed sidecar makes a new key after a fresh scan. Hashes are keyed by the file alone:
 /// any job that reads a file (verifying a manifest, calculating checksums) leaves them, and a later check uses them
@@ -81,7 +81,7 @@ public sealed class VerificationCache(string? file)
     public void Put(string key, VerificationResult result) =>
         Append(new VerificationCacheEntry(key, result.State, result.Text, [.. result.Details]) { CheckedUtc = result.CheckedUtc });
 
-    /// <summary>The hashes known for the file as it is now (its size and modification time), by algorithm.</summary>
+    /// <summary>Historical hashes for a path, size and modification time; these do not bind the current bytes.</summary>
     public IReadOnlyDictionary<ChecksumKind, string> HashesOf(string path, long size, long modified)
     {
         lock (_lock)
@@ -441,8 +441,13 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         var signatures = sidecars.Signatures(name);
         var trust = TrustOf(sidecars, name, ct, scope);
         string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(trust));
-        if (automatic && cache.Get(key) is { } cached) return cached;
-        var known = automatic ? cache.HashesOf(path, stamp.Size, stamp.Modified) : new Dictionary<ChecksumKind, string>();
+        if (automatic && cache.Get(key) is { } cached) return Historical(cached);
+        // A remembered hash is bound only to path, size and mtime. Those can be restored after
+        // replacing the bytes, so it cannot establish a current match for a new sidecar.
+        if (automatic && cache.HashesOf(path, stamp.Size, stamp.Modified).Count > 0)
+            return new VerificationResult(VerificationState.NotChecked, "previously hashed; verify current file",
+                ["File → Verify checksums and signatures reads the current bytes."]);
+        IReadOnlyDictionary<ChecksumKind, string> known = new Dictionary<ChecksumKind, string>();
         // Signatures over the file read all of it; checksums only when their hashes are not known yet.
         bool reads = signatures.Count > 0 || checksums.Any(c => !known.ContainsKey(c.Kind));
         if (automatic && reads)
@@ -471,10 +476,18 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         var checker = new SignatureChecker(this, folder, progress, sidecars, scope, trust, recall: automatic);
         var result = Verifier.Check(checksums, signatures, Hash, checker.Check, sidecars.Signatures, ct);
         if (result.State == VerificationState.Unreadable) return result;
-        // Shown from now on without reading the file again: the row says when it was checked. A check held off is not kept.
+        // Kept as historical evidence without a current-content badge. A check held off is not kept.
         result = result with { CheckedUtc = DateTime.UtcNow };
         if (!checker.HeldOff) cache.Put(key, result);
         return result;
+    }
+
+    private static VerificationResult Historical(VerificationResult cached)
+    {
+        string when = cached.CheckedUtc?.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture) ?? "an earlier check";
+        return new VerificationResult(VerificationState.NotChecked, $"previously checked {when}; verify current file",
+            ["Previous result: " + cached.Text, .. cached.Details, "File → Verify checksums and signatures reads the current bytes."])
+        { CheckedUtc = cached.CheckedUtc };
     }
 
     /// <summary>
@@ -609,7 +622,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     }
 
     /// <summary>The folder's results so far, from the cache only (the status line): nothing is hashed for it.</summary>
-    public (int Good, int Bad, int Unknown, int NotChecked) Summary(string folder, IEnumerable<string> names)
+    public (int Good, int Bad, int Unknown, int NotChecked, int Historical) Summary(string folder, IEnumerable<string> names)
     {
         FolderSidecars sidecars;
         lock (_folderLock)
@@ -617,19 +630,18 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             if (!_folders.TryGetValue(folder, out var known)) return default;
             sidecars = known.Sidecars;
         }
-        int good = 0, bad = 0, unknown = 0, notChecked = 0;
+        int notChecked = 0, historical = 0;
         foreach (string name in names)
         {
             if (!sidecars.Covers(name)) continue;
             string path = Path.Combine(folder, name);
             if (Stamp(path) is not { } stamp) continue;
             var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name, CancellationToken.None))));
+            // The summary uses only remembered results. It cannot claim that current bytes are verified.
             if (result is null) notChecked++;
-            else if (result.IsGood) good++;
-            else if (result.IsBad) bad++;
-            else unknown++;
+            else historical++;
         }
-        return (good, bad, unknown, notChecked);
+        return (0, 0, 0, notChecked, historical);
     }
 
     /// <summary>The sidecars a file's result depends on: its checksum files and signatures, and the signatures of those manifests.</summary>

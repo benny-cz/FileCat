@@ -10,6 +10,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
+using FileCat.Core.State;
 using FileCat.Core.Tools;
 using FileCat.Core.Threading;
 
@@ -850,9 +851,10 @@ public sealed partial class MainViewModel
         var configured = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor;
         if (configured is null && OperatingSystem.IsWindows() && Services.Shell.IsElevated)
         {
-            Notify("FileCat is running as administrator, so it will not choose an external editor automatically. Configure an editor in Settings → Tools to edit this file.", true);
+            Notify("FileCat is running as administrator, so it will not choose an external editor automatically. Reopen FileCat without elevation to edit this file.", true);
             return;
         }
+        if (configured is not null && !AdmitConfiguredExternalTool(configured)) return;
         var tool = configured ?? ToolLauncher.DetectEditor();
         try
         {
@@ -867,10 +869,19 @@ public sealed partial class MainViewModel
 
     private Location? ActiveTarget() => Workspace.ActiveTarget?.ActiveTab?.Location;
 
+    /// <summary>User settings are writable by the ordinary account, so a high-token process cannot infer who chose a tool.</summary>
+    private bool AdmitConfiguredExternalTool(ToolDefinition tool)
+    {
+        if (!OperatingSystem.IsWindows() || !Services.Shell.IsElevated) return true;
+        Notify($"FileCat is running as administrator and will not launch the configured external tool \"{Formatters.SafeName(tool.Name)}\" from user settings. Reopen FileCat without elevation to use it.", true);
+        return false;
+    }
+
     /// <summary>Runs the per-type association for an intent when one matches the file name; false otherwise.</summary>
     internal bool TryLaunchAssociation(string intent, string path)
     {
         if (Associations.Find(Services.Settings.Associations, intent, Path.GetFileName(path)) is not { } tool) return false;
+        if (!AdmitConfiguredExternalTool(tool)) return true;
         try
         {
             var result = ToolLauncher.Launch(tool, new ToolContext([path], Path.GetDirectoryName(path)!, ActiveTarget()?.Path), Services.Paths.TempDirectory);
