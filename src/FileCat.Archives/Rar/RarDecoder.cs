@@ -10,6 +10,13 @@ internal abstract class RarDecoder
     public abstract void StartMember(RarBitReader input, bool solid);
 
     /// <summary>
+    /// Starts a member as <see cref="StartMember(RarBitReader, bool)"/> does, given its unpacked size from the header
+    /// (negative when the archive does not record it). Data that marks its own end ignores the size; RAR 2.0 data has
+    /// no end marker, so its decoder stops after exactly this many bytes.
+    /// </summary>
+    public virtual void StartMember(RarBitReader input, bool solid, long unpackedSize) => StartMember(input, solid);
+
+    /// <summary>
     /// Decodes until the window has no room for another symbol (returns false) or the member's data ends (returns true).
     /// </summary>
     public abstract bool Decode(RarWindow window);
