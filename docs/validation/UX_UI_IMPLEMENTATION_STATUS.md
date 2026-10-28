@@ -1,5 +1,30 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-queue-order-20261028"></a>
+**28 October 2026, moving a queued operation earlier with NVDA (AC-S3-068
+accepted):** The new
+[queue order runner](../../tests/FileCat.NativeAcceptance/win-nvda-queue-order.ps1)
+runs on the Win11 VM at 100% with signed portable NVDA 2026.2, reporting
+tooltips, against Git-built `56fa2598` (DLL `149E45C8…A5C28914`). A copy of
+64 MB ran held to 1 MB/s by the Copy dialog's speed limit, and three 6 MB
+copies (b, c, d, each held to 4 MB/s so their order can be seen) went into
+the drive's queue from the dialog's Queue button, “Queued behind … on the
+same device”. On `fc5118ea` NVDA read every Operations history row as
+“FileCat.App.ViewModels.JobViewModel”; since `56fa2598` a row is its
+operation and state. d was moved earlier once through UI Automation (its row
+selected and Move earlier in queue invoked) and once by pointer (its row and
+then the button clicked), and each time NVDA heard “Moved Copy “d.bin” …
+earlier in the queue.” d, then first in the queue, showed Move earlier
+unavailable, and with the pointer on it NVDA read “This is the first queued
+operation.”, the tooltip that `b57daf85` made readable. When the held copy
+ended the queue ran d, b, c: the copies appeared in that order, NVDA
+announced them done in that order, and all four matched their sources
+([receipt](evidence/ac-s3-068-win11-nvda-queue-order-56fa2598.json)). An
+earlier attempt read the order from three 6 MB copies that finished inside
+one 50 ms poll and so recorded the poll's own order; the queued copies are
+now held to a speed the poll can follow. The fixed order of synchronization
+steps is covered by the job-engine and operation-center tests.
+
 <a id="evidence-dependent-controls-20261028"></a>
 **28 October 2026, dependent Settings options and column-editor limits with
 NVDA (AC-S3-063 accepted):** The new

@@ -15,7 +15,7 @@ None: every S2 scenario is accepted and no queued defect is open.
 ## S3 and final gate
 
 - [S3 focused usability scenarios](UX_UI_ACCEPTANCE_LEDGER.md#s3--focused-usability-routes):
-  window restoration and queue movement.
+  window restoration on Windows and one Unix window manager.
 - [GATE-CI-FINAL](UX_UI_ACCEPTANCE_LEDGER.md#gate-ci-final): green producer,
   Windows, Windows ARM64, Ubuntu and macOS CI on the final implementation head.
 

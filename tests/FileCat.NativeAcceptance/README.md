@@ -89,6 +89,16 @@ New profile pressed by keyboard up to the limit must leave the keyboard on
 the new profile's row with the limit heard. Cancel must keep the saved
 profiles and `settings.json`.
 
+`win-nvda-queue-order.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` runs one test-owned copy
+held to 1 MB/s and queues three more behind it from the Copy dialog's Queue
+button, each held to 4 MB/s. In Operations it moves the last queued copy
+earlier by UI Automation and again by pointer, requires each move and the
+row's name to be heard and, with the pointer on that copy's now unavailable
+button, the reason. When the held copy ends the queue must run in its new
+order, as seen in the destination and heard as each copy finishes, and every
+copy must match its source.
+
 `win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
 and a 24-unit content size in Settings and checks `settings.json`, then opens

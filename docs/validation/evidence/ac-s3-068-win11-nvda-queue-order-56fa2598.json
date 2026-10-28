@@ -1,0 +1,62 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1",
+    "Dpi":  96,
+    "Rows":  [
+                 "Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                 "Copy \"c.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"c.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                 "Copy \"b.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"b.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                 "Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Running || Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Running  ·  23,0 MB of 64,0 MB · 0 of 1 items · 0,99 MB/s · about 35 s left · limited to 1,0 MB/s"
+             ],
+    "Moves":  {
+                  "ByAutomation":  {
+                                       "Help":  "Move this operation ahead of the previous queued operation.",
+                                       "Heard":  [
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Operations history\u0027, \u0027list\u0027, CancellableSpeech (still valid)]",
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device\u0027, CancellableSpeech (still valid)]",
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Move earlier in queue\u0027, \u0027button\u0027, \u0027Move this operation ahead of the previous queued operation.\u0027, CancellableSpeech (still valid)]",
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Moved Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right earlier in the queue.\u0027]"
+                                                 ]
+                                   },
+                  "ByPointer":  {
+                                    "Heard":  [
+                                                  "[LangChangeCommand (\u0027en_US\u0027), \u0027Operations history\u0027, \u0027list\u0027, CancellableSpeech (still valid)]",
+                                                  "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device\u0027, CancellableSpeech (still valid)]",
+                                                  "[LangChangeCommand (\u0027en_US\u0027), \u0027Move earlier in queue\u0027, \u0027button\u0027, \u0027unavailable\u0027, \u0027This is the first queued operation.\u0027, CancellableSpeech (still valid)]",
+                                                  "[LangChangeCommand (\u0027en_US\u0027), \u0027Moved Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right earlier in the queue.\u0027]"
+                                              ]
+                                },
+                  "First":  {
+                                "Help":  "This is the first queued operation.",
+                                "Heard":  [
+                                              "[LangChangeCommand (\u0027en_US\u0027), \u0027This is the first queued operation.\u0027, \u0027tool tip\u0027, CancellableSpeech (still valid)]"
+                                          ]
+                            }
+              },
+    "Order":  [
+                  "d.bin",
+                  "b.bin",
+                  "c.bin"
+              ],
+    "AppDllSha256":  "149E45C8DEEBDF3E6F27180A58B174954472018E93D73AB738C8F2A5A5C28914",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "ReleasedBefore":  [
+
+                       ],
+    "RowsAfterMoves":  [
+                           "Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"d.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                           "Copy \"c.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"c.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                           "Copy \"b.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device || Copy \"b.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Queued behind \"Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right\" on the same device  ·  ",
+                           "Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right, Running || Copy \"big.bin\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\left → C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\QueueFixture\\e272bba1cca64a9a90075bc6825f1dd1\\right | Running  ·  31,0 MB of 64,0 MB · 0 of 1 items · 0,98 MB/s · about 30 s left · limited to 1,0 MB/s"
+                       ],
+    "CompletionHeard":  [
+                            "d.bin",
+                            "b.bin",
+                            "c.bin"
+                        ],
+    "ReleasedAfter":  [
+
+                      ]
+}
