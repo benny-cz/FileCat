@@ -6,23 +6,39 @@
     publish/<rid>/                      self-contained ReadyToRun build (input for the installer)
     FileCat-<ver>-<rid>-portable.zip    same build plus the FileCat.portable marker (state beside the exe)
     FileCat-<ver>-<rid>-fdd.zip         framework-dependent build (receives .NET servicing independently)
-    sbom-<ver>-<rid>.json               package inventory (dotnet list --include-transitive)
+    sbom-<ver>-<rid>-setup-payload.spdx.json  exact self-contained payload + reviewed dependency identities
+    sbom-<ver>-<rid>-portable.spdx.json       exact portable payload + reviewed dependency identities
+    sbom-<ver>-<rid>-fdd.spdx.json            exact framework-dependent payload + reviewed dependency identities
   Signing is a release-infrastructure step (SignPath Foundation, ADR-15) applied to these outputs in CI.
 #>
 param(
     [string]$Version = "0.1.0-preview",
     [string]$Runtime = "win-x64",
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [string]$ArtifactDirectory
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
-$artifacts = Join-Path $root "artifacts"
+$artifacts = if ([string]::IsNullOrWhiteSpace($ArtifactDirectory)) {
+    Join-Path $root "artifacts"
+} else {
+    [IO.Path]::GetFullPath($ArtifactDirectory)
+}
 $project = Join-Path $root "src/FileCat.App/FileCat.App.csproj"
 $publish = Join-Path $artifacts "publish/$Runtime"
 $fdd = Join-Path $artifacts "publish/$Runtime-fdd"
 $versionPrefix = ($Version -split '-')[0]
+$sourceCommit = @(& git -C $root rev-parse HEAD)[0].Trim()
+$createdUtc = @(& git -C $root show -s --format=%cI $sourceCommit)[0].Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$' -or [string]::IsNullOrWhiteSpace($createdUtc)) {
+    throw 'Cannot establish the exact source identity for artifact SBOMs.'
+}
+$sbomSetup = Join-Path $artifacts "sbom-$Version-$Runtime-setup-payload.spdx.json"
+$sbomPortable = Join-Path $artifacts "sbom-$Version-$Runtime-portable.spdx.json"
+$sbomFdd = Join-Path $artifacts "sbom-$Version-$Runtime-fdd.spdx.json"
 
 Remove-Item -Recurse -Force $publish, $fdd -ErrorAction SilentlyContinue
+Remove-Item -Force $sbomSetup, $sbomPortable, $sbomFdd, (Join-Path $artifacts "sbom-$Version-$Runtime.json") -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
 Write-Host "Publishing self-contained $Runtime ($Version)"
@@ -61,10 +77,17 @@ foreach ($dir in @($publish, $fdd)) {
     if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
 }
 
-# This App package list contributes to provenance; it is not a complete artifact SBOM.
-# Validate the command, JSON and frozen graph before creating either archive.
-$sbom = Join-Path $artifacts "sbom-$Version-$Runtime.json"
-& (Join-Path $PSScriptRoot 'Write-PackageInventory.ps1') -Project $project -OutputPath $sbom
+function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output) {
+    & dotnet run --project (Join-Path $root 'eng/ArtifactSbom') -c Release -- `
+        $Payload (Join-Path $root 'licenses/dependencies/index.json') $Version $Runtime $Kind `
+        $sourceCommit $createdUtc $Output
+    if ($LASTEXITCODE -ne 0) { throw "artifact SBOM failed: $Kind" }
+}
+
+# These describe exact unpacked payload trees and reviewed dependency/runtime identities. The final package
+# manifest separately pins the outer archive/installer bytes; signing and candidate qualification remain later gates.
+Write-ArtifactSbom $publish 'setup-payload' $sbomSetup
+Write-ArtifactSbom $fdd 'fdd' $sbomFdd
 
 # Portable ZIP: same binaries plus the marker that keeps settings and data beside the executable.
 $portableStage = Join-Path $artifacts "stage-portable"
@@ -73,6 +96,7 @@ Copy-Item -Recurse $publish $portableStage
 New-Item -ItemType File -Path (Join-Path $portableStage "FileCat.portable") -Force | Out-Null
 # Portable mode has no administrator retry: a helper in a user-writable folder could be replaced (ADR-14).
 Remove-Item (Join-Path $portableStage "FileCat.PrivilegedHost.*") -Force
+Write-ArtifactSbom $portableStage 'portable' $sbomPortable
 $portableZip = Join-Path $artifacts "FileCat-$Version-$Runtime-portable.zip"
 Remove-Item $portableZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $portableStage "*") -DestinationPath $portableZip

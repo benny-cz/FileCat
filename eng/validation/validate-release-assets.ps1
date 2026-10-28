@@ -2,17 +2,17 @@ param([string]$EvidenceDirectory)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Selector = Join-Path (Split-Path $PSScriptRoot -Parent) 'Select-ReleaseAssets.ps1'
-$TemporaryParent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts'))
+$TemporaryParent = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($TemporaryParent)
 $TestRoot = Join-Path $TemporaryParent ('filecat-release-assets-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($TestRoot)
 $Commit = '0123456789abcdef0123456789abcdef01234567'
 $Version = '1.0.0-rc.1-extra'
 $Contract = @{
-    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-extra-win-x64-portable.zip','FileCat-1.0.0-rc.1-extra-win-x64-fdd.zip','sbom-1.0.0-rc.1-extra-win-x64.json',
-        'FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-extra-win-arm64-portable.zip','FileCat-1.0.0-rc.1-extra-win-arm64-fdd.zip','sbom-1.0.0-rc.1-extra-win-arm64.json')
-    linux=@('FileCat-1.0.0-rc.1-extra-linux-x64.tar.gz','filecat_1.0.0~rc.1-extra_amd64.deb','FileCat-1.0.0-rc.1-extra-x86_64.AppImage')
-    macos=@('FileCat-1.0.0-rc.1-extra-osx-arm64.zip')
+    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-extra-win-x64-portable.zip','FileCat-1.0.0-rc.1-extra-win-x64-fdd.zip','sbom-1.0.0-rc.1-extra-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-fdd.spdx.json',
+        'FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-extra-win-arm64-portable.zip','FileCat-1.0.0-rc.1-extra-win-arm64-fdd.zip','sbom-1.0.0-rc.1-extra-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-fdd.spdx.json')
+    linux=@('FileCat-1.0.0-rc.1-extra-linux-x64.tar.gz','filecat_1.0.0~rc.1-extra_amd64.deb','FileCat-1.0.0-rc.1-extra-x86_64.AppImage','sbom-1.0.0-rc.1-extra-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-appimage.spdx.json')
+    macos=@('FileCat-1.0.0-rc.1-extra-osx-arm64.zip','sbom-1.0.0-rc.1-extra-osx-arm64-macos-app.spdx.json')
 }
 $Observations = [Collections.Generic.List[object]]::new()
 try {

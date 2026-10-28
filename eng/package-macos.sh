@@ -11,6 +11,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/artifacts"
 PUB="$OUT/publish/$RID"
 PREFIX="${VERSION%%-*}"
+SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+CREATED_UTC="$(git -C "$ROOT" show -s --format=%cI "$SOURCE_COMMIT")"
+if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ || -z "$CREATED_UTC" ]]; then
+  echo "Cannot establish exact source identity for artifact SBOM." >&2
+  exit 2
+fi
 
 rm -rf "$PUB"
 mkdir -p "$OUT"
@@ -71,8 +77,12 @@ codesign --force --deep --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP"
 
 ZIP="$OUT/FileCat-$VERSION-$RID.zip"
+SBOM="$OUT/sbom-$VERSION-$RID-macos-app.spdx.json"
 rm -f "$ZIP"
+rm -f "$SBOM"
+dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
+  "$APP" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" macos-app "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM"
 ditto -c -k --keepParent "$APP" "$ZIP"
 rm -rf "$APP"
 echo "Done:"
-ls -la "$ZIP"
+ls -la "$ZIP" "$SBOM"

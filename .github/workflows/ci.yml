@@ -80,6 +80,7 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
@@ -88,6 +89,7 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/draft-package-set-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest/**
+            ${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom/**
           if-no-files-found: error
       - name: Native bootstrap cleanup lock regression
         shell: pwsh
@@ -195,6 +197,7 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
@@ -203,6 +206,7 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/draft-package-set-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest/**
+            ${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom/**
           if-no-files-found: error
       - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --logger "trx;LogFileName=platform-results.trx"
       # Use published ARM64 wheels for native TLS dependencies; pyftpdlib is pure Python.
@@ -315,6 +319,7 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
@@ -323,6 +328,7 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/draft-package-set-controls.json
             ${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest/**
+            ${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom/**
           if-no-files-found: error
       # D-47: a drive read the way FileCat reads one, from the FAT16 fixture attached as a loop device (Linux) or a raw
       # disk image (macOS) that this user may read.

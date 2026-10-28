@@ -12,6 +12,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/artifacts"
 PUB="$OUT/publish/$RID"
 PREFIX="${VERSION%%-*}"
+SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+CREATED_UTC="$(git -C "$ROOT" show -s --format=%cI "$SOURCE_COMMIT")"
+if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ || -z "$CREATED_UTC" ]]; then
+  echo "Cannot establish exact source identity for artifact SBOMs." >&2
+  exit 2
+fi
 case "$RID" in
   linux-x64) DEB_ARCH=amd64; APPIMAGE_ARCH=x86_64 ;;
   linux-arm64) DEB_ARCH=arm64; APPIMAGE_ARCH=aarch64 ;;
@@ -56,7 +62,11 @@ EOF
 desktop_entry filecat filecat > "$PUB/filecat.desktop"
 install -m 755 "$ROOT/eng/install-linux-desktop-entry.sh" "$PUB/install-desktop-entry.sh"
 TARBALL="$OUT/FileCat-$VERSION-$RID.tar.gz"
+SBOM_TAR="$OUT/sbom-$VERSION-$RID-tar.spdx.json"
 rm -f "$TARBALL"
+rm -f "$SBOM_TAR"
+dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
+  "$PUB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" tar "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_TAR"
 tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$RID"
 
 # 2) Debian package (Ubuntu, Debian): the runtime libraries a self-contained .NET and Avalonia app loads.
@@ -89,7 +99,11 @@ Description: Keyboard-first two-panel file manager
  FTP servers, and phones, with previews and guarded operations.
 EOF
 DEB_FILE="$OUT/filecat_${DEB_VERSION}_${DEB_ARCH}.deb"
+SBOM_DEB="$OUT/sbom-$VERSION-$RID-deb.spdx.json"
 rm -f "$DEB_FILE"
+rm -f "$SBOM_DEB"
+dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
+  "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_DEB"
 dpkg-deb --root-owner-group --build "$DEB" "$DEB_FILE"
 
 # 3) AppImage: one file that runs on most distributions (appimagetool 1.9.1, pinned by checksum; build tool only).
@@ -141,10 +155,15 @@ fi
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- --appimage-runtime \
   "$ROOT/licenses/appimage-runtime" "$RUNTIME" "$APPDIR/usr/lib/filecat/licenses/appimage-runtime"
 APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
+SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
 rm -f "$APPIMAGE"
+rm -f "$SBOM_APPIMAGE"
+dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
+  "$APPDIR" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_APPIMAGE" \
+  ".appimage/runtime=$RUNTIME"
 # Runs without FUSE (CI containers).
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 
 echo "Done:"
-ls -la "$TARBALL" "$DEB_FILE" "$APPIMAGE"
+ls -la "$TARBALL" "$DEB_FILE" "$APPIMAGE" "$SBOM_TAR" "$SBOM_DEB" "$SBOM_APPIMAGE"

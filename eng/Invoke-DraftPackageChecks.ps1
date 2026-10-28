@@ -28,7 +28,7 @@ $Specifications=@(
 $Uploaded=$null
 if($VerifyUpload){
     $Uploaded=ConvertFrom-Json -InputObject $UploadedAssetsJson -NoEnumerate
-    if($Uploaded -isnot [Array] -or $Uploaded.Count -ne 15){throw 'Combined action upload is incomplete or contains unexpected assets.'}
+    if($Uploaded -isnot [Array] -or $Uploaded.Count -ne 23){throw 'Combined action upload is incomplete or contains unexpected assets.'}
     $IDs=[Collections.Generic.HashSet[long]]::new()
     $UploadNames=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($Asset in $Uploaded){
@@ -62,7 +62,7 @@ foreach($Specification in $Specifications){
     }
     $Results.Add($Result)
 }
-if($Paths.Count -ne 15){throw 'Combined selected upload differs from the three-platform contract.'}
+if($Paths.Count -ne 23){throw 'Combined selected upload differs from the three-platform contract.'}
 if($VerifyUpload -and -not $UploadNames.SetEquals($Names)){throw 'Combined uploaded names differ from the selected package set.'}
 if($GitHubOutputPath){
     if($VerifyUpload){throw 'Post-upload verification cannot emit an upload file list.'}

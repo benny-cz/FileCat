@@ -2,15 +2,15 @@ param([string]$EvidenceDirectory)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $Eng=Split-Path $PSScriptRoot -Parent
-$Parent=[IO.Path]::GetFullPath((Join-Path $Eng '../artifacts'))
+$Parent=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($Parent)
 $Root=Join-Path $Parent ('filecat-draft-set-'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($Root)
 $Source='0123456789abcdef0123456789abcdef01234567';$Version='1.0.0-rc.1'
 $Contract=@{
-    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64.json')
-    linux=@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0~rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage')
-    macos=@('FileCat-1.0.0-rc.1-osx-arm64.zip')
+    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-win-arm64-fdd.spdx.json')
+    linux=@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0~rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage','sbom-1.0.0-rc.1-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-linux-x64-appimage.spdx.json')
+    macos=@('FileCat-1.0.0-rc.1-osx-arm64.zip','sbom-1.0.0-rc.1-osx-arm64-macos-app.spdx.json')
 }
 $Cases=@(
     @{Name='preflight-complete'},@{Name='upload-complete';Verify=$true},
@@ -62,9 +62,9 @@ try{
         if($Case.Name -eq 'changed-last-platform'){[IO.File]::AppendAllText((Join-Path $Directory "macos/FileCat-$Version-osx-arm64.zip"),'changed')}
         if($Case.Name -eq 'upload-missing'){$Uploaded.RemoveAt($Uploaded.Count-1)}
         if($Case.Name -eq 'upload-extra'){$Uploaded.Add([pscustomobject]@{id=999;name='extra.zip';label=$null;size=1;digest=$null})}
-        if($Case.Name -eq 'upload-reused-cross-platform-id'){$Uploaded[9].id=$Uploaded[0].id}
-        if($Case.Name -eq 'upload-cross-platform-name'){$Uploaded[9].name=$Uploaded[0].name}
-        if($Case.Name -eq 'upload-wrong-platform'){$Uploaded[9].name='wrong-platform.zip'}
+        if($Case.Name -eq 'upload-reused-cross-platform-id'){$Uploaded[13].id=$Uploaded[0].id}
+        if($Case.Name -eq 'upload-cross-platform-name'){$Uploaded[13].name=$Uploaded[0].name}
+        if($Case.Name -eq 'upload-wrong-platform'){$Uploaded[13].name='wrong-platform.zip'}
         if($Case.Name -eq 'upload-remote-last-platform-hash'){$Remote[-1].digest='sha256:'+('0'*64)}
         $Arguments=@{ArtifactDirectory=$Directory;SourceCommit=$Source;Reference=$(if($Case.Name -eq 'stable-ref'){'refs/tags/v1.0.0'}else{"refs/tags/v$Version"});Repository='owned/fixture';WindowsManifestSHA256=$Hashes.windows;LinuxManifestSHA256=$Hashes.linux;MacOSManifestSHA256=$Hashes.macos;ReceiptDirectory=(Join-Path $Directory 'receipts')}
         $Output=Join-Path $Directory 'github-output.txt'
@@ -77,10 +77,10 @@ try{
             if($null -ne $Result -or $null -eq $ErrorText -or -not $ErrorText.StartsWith($Case.Error) -or (Test-Path -LiteralPath $Output)){throw "Package set refusal $($Case.Name) failed: $ErrorText"}
         }
         else{
-            if($null -ne $ErrorText -or $Result.Files.Count -ne 15 -or ($Result.Files -join "`n") -cne ($ExpectedPaths -join "`n") -or $Result.PlatformReceipts.Count -ne 3 -or $Result.StablePromotionAuthorized -or $Result.CandidateQualified){throw "Complete package set failed: $ErrorText"}
+            if($null -ne $ErrorText -or $Result.Files.Count -ne 23 -or ($Result.Files -join "`n") -cne ($ExpectedPaths -join "`n") -or $Result.PlatformReceipts.Count -ne 3 -or $Result.StablePromotionAuthorized -or $Result.CandidateQualified){throw "Complete package set failed: $ErrorText"}
             if(-not $Case.ContainsKey('Verify')){
                 $Lines=Get-Content -LiteralPath $Output
-                if($Lines.Count -ne 17 -or $Lines[0] -cne ('files<<'+$Lines[-1]) -or ($Lines[1..15] -join "`n") -cne ($ExpectedPaths -join "`n")){throw 'Combined action list differs from exact package set.'}
+                if($Lines.Count -ne 25 -or $Lines[0] -cne ('files<<'+$Lines[-1]) -or ($Lines[1..23] -join "`n") -cne ($ExpectedPaths -join "`n")){throw 'Combined action list differs from exact package set.'}
             }
         }
         $Observations.Add([ordered]@{Case=$Case.Name;Expected=$(if($Case.ContainsKey('Error')){'refused'}else{'allowed'});Error=$ErrorText;Result=$Result;ReadOnlySubstitutedAPIPaths=@($Calls.ToArray());NoUploadOrRebuild=$true;Passed=$true})

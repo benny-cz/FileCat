@@ -4,14 +4,21 @@ FileCat has no updater (plan §19.3, ADR-15), so servicing is an explicit mainta
 
 ## Release artifacts
 
-`eng/publish.ps1` produces the following. CI builds them on tags and signs them through SignPath once the Foundation project exists.
+The Windows, Linux, and macOS packaging scripts produce the following. CI builds them on tags and signs them through SignPath once the Foundation project exists.
 
 | Artifact | Contents | Receives .NET security fixes |
 |---|---|---|
-| `FileCat-<ver>-win-x64-setup.exe` | Per-machine installer (Inno Setup) of the self-contained ReadyToRun build | Only through a new FileCat release |
-| `FileCat-<ver>-win-x64-portable.zip` | The same build plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
-| `FileCat-<ver>-win-x64-fdd.zip` | Framework-dependent build | Yes, through the installed .NET 10 Desktop Runtime |
-| `sbom-<ver>-<rid>.json` | Package inventory per Windows RID (not a complete artifact SBOM) | – |
+| `FileCat-<ver>-win-<arch>-setup.exe` | Per-machine installer (Inno Setup) of the self-contained ReadyToRun build | Only through a new FileCat release |
+| `FileCat-<ver>-win-<arch>-portable.zip` | The same build plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
+| `FileCat-<ver>-win-<arch>-fdd.zip` | Framework-dependent build | Yes, through the installed .NET 10 Desktop Runtime |
+| `FileCat-<ver>-linux-x64.tar.gz`, `.deb`, `.AppImage` | Self-contained Linux payloads in three package formats | Only through a new FileCat release |
+| `FileCat-<ver>-osx-arm64.zip` | Ad-hoc-signed Apple silicon app bundle | Only through a new FileCat release |
+| `sbom-<ver>-<rid>-<payload>.spdx.json` | SPDX 2.3 inventory of the exact unpacked payload files, reviewed NuGet dependencies, runtime pack, and source commit | – |
+
+There is one SBOM for each distinct payload: setup, portable, and FDD on Windows; tar,
+Debian, and AppImage on Linux; and the app bundle on macOS. The platform asset manifest
+separately pins each outer archive or installer byte stream. An SBOM is composition
+evidence, not a signature, notarization receipt, legal determination, or candidate approval.
 
 ## Security releases
 

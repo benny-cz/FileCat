@@ -135,6 +135,9 @@ static-library composition and source obligations remain release audit gates.
 
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.
+Each distinct release payload receives an SPDX 2.3 SBOM with exact file hashes and the
+reviewed NuGet/runtime identities. The platform asset manifest separately pins the outer
+archive or installer bytes.
 A portable copy keeps its settings in `Data/` next to the executable (marker file `FileCat.portable`).
 `--data FOLDER` keeps everything FileCat writes (settings, history, logs, journals, caches, scratch) in that one
 folder. FileCat does not scan a disk for deleted files while it keeps files of its own there: to recover from that

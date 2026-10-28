@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Eng = Split-Path $PSScriptRoot -Parent
 $Guard = Join-Path $Eng 'Assert-DraftReleaseAssets.ps1'
-$Parent = [IO.Path]::GetFullPath((Join-Path $Eng '../artifacts'))
+$Parent = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($Parent)
 $Root = Join-Path $Parent ('filecat-draft-controls-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($Root)
@@ -82,9 +82,9 @@ try {
         [void][IO.Directory]::CreateDirectory($Directory)
         $Platform = if ($Case.ContainsKey('Platform')) {$Case.Platform} else {'macos'}
         $Names = switch ($Platform) {
-            windows {@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64.json')}
-            linux {@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0~rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage')}
-            macos {@('FileCat-1.0.0-rc.1-osx-arm64.zip')}
+            windows {@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-win-arm64-fdd.spdx.json')}
+            linux {@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0~rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage','sbom-1.0.0-rc.1-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-linux-x64-appimage.spdx.json')}
+            macos {@('FileCat-1.0.0-rc.1-osx-arm64.zip','sbom-1.0.0-rc.1-osx-arm64-macos-app.spdx.json')}
         }
         foreach ($Name in $Names) { [IO.File]::WriteAllText((Join-Path $Directory $Name),"external owned contract: $Name") }
         $Selection = & (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $Version -SourceCommit $Source -ArtifactDirectory $Directory

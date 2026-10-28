@@ -23,15 +23,20 @@ $Names = @(switch ($Platform) {
             "FileCat-$NumericVersion-win-$Architecture-setup.exe"
             "FileCat-$Version-win-$Architecture-portable.zip"
             "FileCat-$Version-win-$Architecture-fdd.zip"
-            "sbom-$Version-win-$Architecture.json"
+            "sbom-$Version-win-$Architecture-setup-payload.spdx.json"
+            "sbom-$Version-win-$Architecture-portable.spdx.json"
+            "sbom-$Version-win-$Architecture-fdd.spdx.json"
         }
     }
     linux {
         "FileCat-$Version-linux-x64.tar.gz"
         "filecat_$($Version -replace '^(\d+\.\d+\.\d+)-', '$1~')_amd64.deb"
         "FileCat-$Version-x86_64.AppImage"
+        "sbom-$Version-linux-x64-tar.spdx.json"
+        "sbom-$Version-linux-x64-deb.spdx.json"
+        "sbom-$Version-linux-x64-appimage.spdx.json"
     }
-    macos { "FileCat-$Version-osx-arm64.zip" }
+    macos { "FileCat-$Version-osx-arm64.zip"; "sbom-$Version-osx-arm64-macos-app.spdx.json" }
 })
 $Files = foreach ($Name in $Names) {
     $Path = Join-Path $Root $Name
