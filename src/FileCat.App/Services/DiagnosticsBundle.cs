@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.State;
 
 namespace FileCat.App.Services;
 
@@ -18,9 +19,11 @@ public static class DiagnosticsBundle
         var sb = new StringBuilder();
         sb.AppendLine("The bundle contains:");
         sb.AppendLine("• FileCat version, OS, runtime, and platform adapter");
-        sb.AppendLine("• the diagnostics log (paths are hashed" + (AppLog.DiagnosticMode ? "; diagnostic mode is ON, so selected paths are included" : "") + ")");
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            sb.AppendLine("• persisted diagnostics logs are omitted while FileCat runs as administrator");
+        else sb.AppendLine("• the diagnostics log (paths are hashed" + (AppLog.DiagnosticMode ? "; diagnostic mode is ON, so selected paths are included" : "") + ")");
         sb.AppendLine("• settings (tool paths included; no passwords or keys are ever stored there)");
-        sb.AppendLine("• crash reports, if any");
+        if (!WindowsTokenAuthority.IsHighIntegrity) sb.AppendLine("• crash reports, if any");
         sb.AppendLine("It never contains file contents, Registry data, or credentials.");
         return new Summary(sb.ToString());
     }
@@ -42,7 +45,7 @@ public static class DiagnosticsBundle
         env.AppendLine(UiStallMonitor.Describe());
         AddText(zip, "environment.txt", env.ToString());
         AddText(zip, "settings.json", JsonSerializer.Serialize(s.Settings, Core.State.StateJsonContext.Default.AppSettings));
-        foreach (var file in new[] { "filecat.log", "filecat.log.1", "crash.log" })
+        foreach (var file in WindowsTokenAuthority.IsHighIntegrity ? [] : new[] { "filecat.log", "filecat.log.1", "crash.log" })
         {
             var p = Path.Combine(s.Paths.LogDirectory, file);
             if (File.Exists(p))

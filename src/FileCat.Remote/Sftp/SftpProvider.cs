@@ -138,11 +138,14 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
         {
             string path = Resolve(location, lease.Channel);
             var list = lease.Channel.List(path, ct);
+            if (list.Count > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
+            var budget = new RemoteListingBudget();
             var batch = new List<EntryData>(list.Count);
             int links = 0;
             foreach (var e in list)
             {
                 ct.ThrowIfCancellationRequested();
+                budget.Add(e.Name);
                 if (RemotePath.ProblemWithName(e.Name) is { } problem)
                 {
                     sink.ReportIssue($"{problem} It is not shown.");

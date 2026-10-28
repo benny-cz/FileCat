@@ -30,6 +30,7 @@ public static class NetworkDiscovery
     private static readonly IPEndPoint WsDiscovery = new(IPAddress.Parse("239.255.255.250"), 3702);
     private static readonly IPEndPoint MulticastDns = new(IPAddress.Parse("224.0.0.251"), 5353);
     private const int MaxDatagram = 65_507;
+    internal const int MaxHostsPerProbe = 256;
 
     /// <summary>
     /// Probes for <paramref name="wait"/> and reports each host once as it answers (a WS-Discovery answer after its
@@ -56,17 +57,20 @@ public static class NetworkDiscovery
         var servers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var addresses = new HashSet<IPAddress>();
         var nameless = new List<NetworkHost>();
+        int reported = 0;
         void Report(NetworkHost host)
         {
             lock (servers)
             {
+                if (reported >= MaxHostsPerProbe) return;
                 if (host.Address is { } address && host.Server == address.ToString())
                 {
-                    nameless.Add(host);
+                    if (nameless.Count < MaxHostsPerProbe) nameless.Add(host);
                     return;
                 }
                 if (host.Address is { } known && addresses.Contains(known) || !servers.Add(host.Server)) return;
                 if (host.Address is { } a) addresses.Add(a);
+                reported++;
             }
             found(host);
         }
@@ -83,8 +87,9 @@ public static class NetworkDiscovery
         {
             lock (servers)
             {
-                if (addresses.Contains(host.Address!) || !servers.Add(host.Server)) continue;
+                if (reported >= MaxHostsPerProbe || addresses.Contains(host.Address!) || !servers.Add(host.Server)) continue;
                 addresses.Add(host.Address!);
+                reported++;
             }
             found(host);
         }
@@ -130,7 +135,9 @@ public static class NetworkDiscovery
                 if (received.RemoteEndPoint is not IPEndPoint from) continue;
                 foreach (var match in ParseProbeMatches(buffer.AsSpan(0, received.ReceivedBytes)))
                 {
-                    if (!answered.Add(match.Endpoint)) continue;
+                    if (answered.Contains(match.Endpoint)) continue;
+                    if (answered.Count >= MaxHostsPerProbe) break;
+                    answered.Add(match.Endpoint);
                     // The name is asked only of the device that answered, never of an address it named elsewhere.
                     string? metadata = match.Addresses.FirstOrDefault(a => IsAt(a, from.Address));
                     names.Add(NameAsync(match.Endpoint, metadata, from.Address, report, naming));
@@ -207,7 +214,7 @@ public static class NetworkDiscovery
                     addresses.AddRange(reader.ReadElementContentAsString().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
                 if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "ProbeMatch" && addresses is not null)
                 {
-                    if (!string.IsNullOrEmpty(endpoint)) result.Add((endpoint, addresses));
+                    if (!string.IsNullOrEmpty(endpoint) && result.Count < MaxHostsPerProbe) result.Add((endpoint, addresses));
                     addresses = null;
                 }
             }
@@ -267,11 +274,17 @@ public static class NetworkDiscovery
             await socket.SendToAsync(query, SocketFlags.None, target, ct).ConfigureAwait(false);
             await socket.SendToAsync(query, SocketFlags.None, target, ct).ConfigureAwait(false);
             var buffer = new byte[MaxDatagram];
+            int reported = 0;
             while (!ct.IsCancellationRequested)
             {
                 var received = await socket.ReceiveFromAsync(buffer, SocketFlags.None, new IPEndPoint(IPAddress.Any, 0), ct).ConfigureAwait(false);
                 if (received.RemoteEndPoint is not IPEndPoint from) continue;
-                foreach (var host in ParseMdnsAnswer(buffer.AsSpan(0, received.ReceivedBytes), from.Address)) report(host);
+                foreach (var host in ParseMdnsAnswer(buffer.AsSpan(0, received.ReceivedBytes), from.Address))
+                {
+                    if (reported >= MaxHostsPerProbe) return;
+                    report(host);
+                    reported++;
+                }
             }
         }
         catch (OperationCanceledException) { }
@@ -325,14 +338,14 @@ public static class NetworkDiscovery
                 {
                     case 12 when owner.Equals("_smb._tcp.local", StringComparison.OrdinalIgnoreCase): // PTR
                         int p = data;
-                        instances.Add(ReadName(message, ref p));
+                        if (instances.Count < MaxHostsPerProbe) instances.Add(ReadName(message, ref p));
                         break;
                     case 33 when length >= 7: // SRV: priority, weight, port, target
                         int s = data + 6;
-                        targets[owner] = ReadName(message, ref s);
+                        if (targets.Count < MaxHostsPerProbe || targets.ContainsKey(owner)) targets[owner] = ReadName(message, ref s);
                         break;
                     case 1 when length == 4: // A
-                        addresses[owner] = new IPAddress(message.Slice(data, 4));
+                        if (addresses.Count < MaxHostsPerProbe || addresses.ContainsKey(owner)) addresses[owner] = new IPAddress(message.Slice(data, 4));
                         break;
                 }
                 at = data + length;

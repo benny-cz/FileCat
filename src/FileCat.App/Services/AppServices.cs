@@ -291,7 +291,9 @@ public sealed class AppServices : IDisposable
         AppLog.Error($"Saving {what} failed", ex);
         lock (_saveFailuresReported)
             if (!_saveFailuresReported.Add(what)) return;
-        StateSaveFailed?.Invoke($"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
+        StateSaveFailed?.Invoke(OperatingSystem.IsWindows() && Core.State.WindowsTokenAuthority.IsHighIntegrity
+            ? $"FileCat did not save its {what} while running as administrator. Reopen it without elevation to save changes."
+            : $"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
     }
 
     public void SaveSettings()

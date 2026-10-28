@@ -15,7 +15,7 @@
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="FluentFTP" Version="55.0.0" />
     <!-- Read-only archive formats (ADR-07, P8): managed code under FileCat's limits. -->
-    <PackageVersion Include="SharpCompress" Version="0.50.4" />
+    <PackageVersion Include="SharpCompress" Version="0.50.5" />
     <PackageVersion Include="LTRData.DiscUtils.Iso9660" Version="1.0.89" />
     <PackageVersion Include="LTRData.DiscUtils.Udf" Version="1.0.89" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />

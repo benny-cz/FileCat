@@ -7,6 +7,7 @@ using FileCat.Core.State;
 using FileCat.Remote.Sftp;
 using FluentFTP;
 using FluentFTP.Exceptions;
+using FluentFTP.Helpers;
 
 namespace FileCat.Remote.Ftp;
 
@@ -29,7 +30,7 @@ public sealed class FluentFtpConnector : ISftpConnector
     {
         bool anonymous = profile.User is "anonymous" or "ftp";
         string password = anonymous ? "filecat@" : context.GetSecret(false) ?? throw new ConnectCanceledException();
-        var client = new FtpClient(profile.Host, profile.User.Length > 0 ? profile.User : "anonymous", password, profile.Port);
+        var client = new BoundedFtpClient(profile.Host, profile.User.Length > 0 ? profile.User : "anonymous", password, profile.Port);
         var config = client.Config;
         config.EncryptionMode = profile.Protocol switch
         {
@@ -135,11 +136,21 @@ public sealed record CertificateInfo(string Subject, string Issuer, DateTime Not
 /// <summary>The user or FileCat's trust store did not accept an FTPS server's certificate.</summary>
 public sealed class CertificateRejectedException(string message, Exception? inner = null) : IOException(message, inner);
 
+/// <summary>Expose FluentFTP's protected data stream so listing bytes can be capped before its array parser.</summary>
+internal sealed class BoundedFtpClient(string host, string user, string password, int port) : FtpClient(host, user, password, port)
+{
+    internal Stream OpenListingData(string command)
+    {
+        SetDataType(Config.ListingDataType);
+        return OpenDataStream(command, 0);
+    }
+}
+
 internal sealed partial class FtpChannel : ISftpChannel
 {
-    private readonly FtpClient _client;
+    private readonly BoundedFtpClient _client;
 
-    public FtpChannel(FtpClient client)
+    public FtpChannel(BoundedFtpClient client)
     {
         _client = client;
         HomeDirectory = Run(() => client.GetWorkingDirectory()) is { Length: > 0 } pwd ? pwd : "/";
@@ -166,6 +177,7 @@ internal sealed partial class FtpChannel : ISftpChannel
     internal T Run<T>(Func<T> action)
     {
         try { return action(); }
+        catch (RemoteListingLimitException) { throw; }
         catch (FtpCommandException ex) when (ex.CompletionCode is "550" or "450" && ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
             throw new FileNotFoundException(ex.Message, ex);
@@ -209,23 +221,25 @@ internal sealed partial class FtpChannel : ISftpChannel
 
     public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => Run(() =>
     {
-        var items = _client.GetListing(Safe(path), FtpListOption.AllFiles);
+        string safePath = Safe(path);
+        bool machine = _client.HasFeature(FtpCapability.MLST);
+        var items = ReadBoundedListing(machine ? "MLSD " + safePath : "LIST -a " + safePath, safePath, machine, ct);
         // Some FTP servers report a link to a directory as type=dir in MLSD. Keep MLSD's
         // complete names and precise metadata, but corroborate its types with LIST before a
         // job can recurse. An item absent from LIST is opaque: treating it as a link prevents
         // descent through an unverified directory (including a hidden one).
         Dictionary<string, FtpListItem>? listByName = null;
-        if (_client.HasFeature(FtpCapability.MLST))
+        if (machine)
         {
             listByName = new Dictionary<string, FtpListItem>(StringComparer.Ordinal);
-            foreach (var listed in _client.GetListing(Safe(path), FtpListOption.ForceList))
+            foreach (var listed in ReadBoundedListing("LIST " + safePath, safePath, machine: false, ct))
             {
                 ct.ThrowIfCancellationRequested();
                 string listedName = ExactName(listed.Name, listed.Input, listed.Type == FtpObjectType.Link ? listed.LinkTarget : null);
                 if (listedName is not ("." or ".." or "")) listByName.TryAdd(listedName, listed);
             }
         }
-        var list = new List<IRemoteEntry>(items.Length);
+        var list = new List<IRemoteEntry>(items.Count);
         foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
@@ -239,6 +253,57 @@ internal sealed partial class FtpChannel : ISftpChannel
         }
         return (IReadOnlyList<IRemoteEntry>)list;
     });
+
+    /// <summary>Read and parse bounded wire lines without FluentFTP's unbounded GetListingInternal array.</summary>
+    private List<FtpListItem> ReadBoundedListing(string command, string path, bool machine, CancellationToken ct)
+    {
+        var items = new List<FtpListItem>();
+        var budget = new RemoteListingBudget();
+        var parser = new FtpListParser(_client);
+        parser.Init(_client.ServerOS, _client.Config.ListingParser);
+        byte[] chunk = new byte[8192];
+        byte[] line = new byte[RemoteListingBudget.MaxLineBytes];
+        int lineLength = 0, wireBytes = 0, lines = 0;
+        try
+        {
+            using var stream = _client.OpenListingData(command);
+            void ParseLine()
+            {
+                if (lineLength > 0 && line[lineLength - 1] == '\r') lineLength--;
+                if (lineLength == 0) return;
+                if (++lines > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
+                string raw = _client.Encoding.GetString(line, 0, lineLength);
+                var item = parser.ParseSingleLine(path, raw, _client.Capabilities, machine);
+                if (item is null || item.Name is "." or "..") return;
+                budget.Add(item.Name);
+                items.Add(item);
+            }
+            int read;
+            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (read > RemoteListingBudget.MaxWireBytes - wireBytes) throw new RemoteListingLimitException();
+                wireBytes += read;
+                for (int i = 0; i < read; i++)
+                {
+                    if (chunk[i] == '\n') { ParseLine(); lineLength = 0; }
+                    else
+                    {
+                        if (lineLength == line.Length) throw new RemoteListingLimitException();
+                        line[lineLength++] = chunk[i];
+                    }
+                }
+            }
+            if (lineLength > 0) ParseLine();
+            return items;
+        }
+        catch (RemoteListingLimitException)
+        {
+            // A deliberately truncated data transfer must not return this channel to the connection pool.
+            _client.Dispose();
+            throw;
+        }
+    }
 
     /// <summary>The fields of a Unix-style listing line before the name, up to the one space that precedes it.</summary>
     [System.Text.RegularExpressions.GeneratedRegex(@"^[-bcdlps][-rwxsStTlL]{9}[+@.]?\s+\d+\s+(?:\S+\s+){1,2}\d+\s+\S{3,4}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4}) ")]

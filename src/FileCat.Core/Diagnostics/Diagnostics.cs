@@ -1,6 +1,7 @@
 using System.Diagnostics.Tracing;
 using System.Security.Cryptography;
 using System.Text;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Diagnostics;
 
@@ -51,6 +52,11 @@ public static class AppLog
 
     public static void Initialize(string directory)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+        {
+            _file = null;
+            return;
+        }
         Directory.CreateDirectory(directory);
         _file = Path.Combine(directory, "filecat.log");
         try
@@ -83,6 +89,13 @@ public static class AppLog
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    /// <summary>Persist a crash only when the log path is not lower-token writable state.</summary>
+    public static void AppendCrash(string directory, string text)
+    {
+        if (WindowsTokenAuthority.IsHighIntegrity) return;
+        File.AppendAllText(Path.Combine(directory, "crash.log"), text);
     }
 
     /// <summary>

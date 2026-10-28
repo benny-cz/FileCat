@@ -1,6 +1,7 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using System.Security.Cryptography;
 
 namespace FileCat.Platform.Windows.Mtp;
 
@@ -210,13 +211,19 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         Job.SetCurrent(target);
         int step = Journal.Intent(Moving ? "device-upload-move" : "device-upload", source, target);
         bool ok = replacing is null ? Send(source, folder, name, target) : Replace(source, folder, name, target, replacing);
+        if (ok && Moving)
+            ok = TryIo(target, "verify the final device file", () =>
+            {
+                var session = Mtp.Session(folder.Session!);
+                MtpUploadEvidence.Verify(_createdId, name, _sentSize, _sentHash!, session.Get, session.OpenRead, Job.Checkpoint);
+            });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
             Job.ItemFailed();
             return false;
         }
-        if (Moving && !TryIo(source, "remove the moved file", () => Fs.DeleteFile(source)))
+        if (Moving && !TryIo(source, "remove the moved file", () => MtpMoveSafety.RetireVerifiedSource(source, _sentHash ?? throw new IOException("The uploaded source has no byte digest."), _sourceIdentity ?? throw new IOException("The uploaded source has no file identity."))))
         {
             Issue(IssueSeverity.Warning, source, "Copied to the device, but the original could not be removed.", StepOutcome.PartiallyApplied);
         }
@@ -225,6 +232,10 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
     }
 
     private long _sent;
+    private byte[]? _sentHash;
+    private long _sentSize;
+    private string? _createdId;
+    private FileIdentity? _sourceIdentity;
 
     /// <summary>
     /// Writes the file under <paramref name="name"/> and checks that the device holds all of it. A cancel or a failure part
@@ -236,11 +247,18 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         {
             Job.AddBytes(-_sent);
             _sent = 0;
+            _sentHash = null;
+            _sentSize = 0;
+            _createdId = null;
+            _sourceIdentity = null;
+            Stream? output = null;
             try
             {
                 using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
+                if (Moving) _sourceIdentity = ProtectedHexFile.Identity(input.SafeFileHandle);
                 var session = Mtp.Session(folder.Session!);
-                var output = session.CreateFile(Mtp.Resolve(folder), name, input.Length);
+                output = session.CreateFile(Mtp.Resolve(folder), name, input.Length);
+                using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 using (output)
                 {
                     var buffer = new byte[BufferSize];
@@ -249,21 +267,25 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
                     {
                         Job.Checkpoint();
                         output.Write(buffer, 0, n);
+                        digest.AppendData(buffer, 0, n);
                         _sent += n;
                         Job.AddBytes(n);
                     }
                 }
+                byte[] expected = digest.GetHashAndReset();
+                _createdId = (output as ICreatedObject)?.CreatedObjectId;
                 Mtp.Changed(folder);
-                // The device reports what it stored; a short copy is an error, never a success. The new object is read by
-                // its ID where the device tells it, and looked up by name otherwise.
-                var stored = (output as ICreatedObject)?.CreatedObjectId is { } id ? session.Get(id) : null;
-                if (stored is null || stored.Name != name) stored = Mtp.Find(folder, name);
-                if (stored is null || stored.Size != _sent) throw new IOException($"The device holds {(stored?.Size ?? 0):N0} of {_sent:N0} bytes, so the copy is incomplete.");
+                // A name alone does not bind this attempt to an object. Without an ID and full readback,
+                // retain the local source and report the transfer as unverified.
+                var stored = MtpUploadEvidence.Verify(_createdId, name, _sent, expected, session.Get, session.OpenRead, Job.Checkpoint);
+                _sentHash = expected;
+                _sentSize = _sent;
                 Added(folder, stored);
             }
             catch
             {
-                RemoveUnfinished(folder, name);
+                _createdId ??= (output as ICreatedObject)?.CreatedObjectId;
+                RemoveUnfinished(folder, _createdId);
                 throw;
             }
         });
@@ -271,17 +293,19 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         return ok;
     }
 
-    /// <summary>After a cancel or failure: a file the device kept under a name this step created is removed.</summary>
-    private void RemoveUnfinished(Location folder, string name)
+    /// <summary>After a cancel or failure, remove only the object ID returned for this attempt.</summary>
+    private void RemoveUnfinished(Location folder, string? createdId)
     {
+        if (createdId is null) return;
         try
         {
             Mtp.Changed(folder);
-            if (Mtp.Find(folder, name) is { IsFolder: false } leftover)
+            var session = Mtp.Session(folder.Session!);
+            MtpUploadEvidence.CleanupCreated(createdId, session.Get, id =>
             {
-                Mtp.Session(folder.Session!).Delete(leftover.Id, recursive: false);
-                Removed(folder, leftover.Id);
-            }
+                session.Delete(id, recursive: false);
+                Removed(folder, id);
+            });
             Mtp.Changed(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -296,9 +320,10 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
     {
         string temporary = "~filecat-" + Guid.NewGuid().ToString("N")[..8] + ".part";
         if (!Send(source, folder, temporary, Display(folder, temporary))) return false;
+        string? temporaryId = _createdId;
         if (!TryIo(target, "remove the old copy", () => Mtp.Session(folder.Session!).Delete(old.Id, recursive: false)))
         {
-            RemoveUnfinished(folder, temporary);
+            RemoveUnfinished(folder, temporaryId);
             return false;
         }
         Removed(folder, old.Id);
@@ -326,7 +351,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             Issue(IssueSeverity.Error, target, $"The device does not allow renaming, and writing the new copy under its own name failed: it is on the device as \"{temporary}\".", StepOutcome.PartiallyApplied);
             return false;
         }
-        RemoveUnfinished(folder, temporary);
+        RemoveUnfinished(folder, temporaryId);
         return true;
     }
 

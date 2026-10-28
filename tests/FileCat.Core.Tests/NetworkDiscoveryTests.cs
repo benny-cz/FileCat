@@ -10,6 +10,92 @@ public sealed class NetworkDiscoveryTests
 {
     private const string Endpoint = "urn:uuid:1f7b8c3a-0000-4000-8000-00155d000001";
 
+    [Fact]
+    public async Task Owned_loopback_probe_flood_has_a_finite_endpoint_budget()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var mdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var cutoff = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cutoff.CancelAfter(TimeSpan.FromSeconds(2));
+        using var metadata = new TcpListener(IPAddress.Loopback, 0);
+        metadata.Start(512);
+        int metadataPort = ((IPEndPoint)metadata.LocalEndpoint).Port;
+        int metadataRequests = 0;
+        using var httpStop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var http = Task.Run(async () =>
+        {
+            while (!httpStop.IsCancellationRequested)
+            {
+                TcpClient client;
+                try { client = await metadata.AcceptTcpClientAsync(httpStop.Token); }
+                catch (OperationCanceledException) { break; }
+                using (client)
+                {
+                    Interlocked.Increment(ref metadataRequests);
+                    byte[] answer = Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                    try { await client.GetStream().WriteAsync(answer, httpStop.Token); }
+                    catch (Exception ex) when (ex is IOException or OperationCanceledException) { }
+                }
+            }
+        }, ct);
+        var responder = Task.Run(async () =>
+        {
+            var probe = await wsd.ReceiveAsync(ct);
+            string template = ProbeMatches($"http://127.0.0.1:{metadataPort}/metadata/");
+            int start = template.IndexOf("<wsd:ProbeMatch>", StringComparison.Ordinal);
+            int end = template.IndexOf("</wsd:ProbeMatch>", start, StringComparison.Ordinal) + "</wsd:ProbeMatch>".Length;
+            string match = template[start..end];
+            for (int from = 0; from <= NetworkDiscovery.MaxHostsPerProbe; from += 100)
+            {
+                int count = Math.Min(100, NetworkDiscovery.MaxHostsPerProbe + 1 - from);
+                var matches = new StringBuilder();
+                for (int i = from; i < from + count; i++)
+                    matches.Append(match.Replace(Endpoint, $"urn:uuid:{i:00000000}-0000-4000-8000-000000000000", StringComparison.Ordinal));
+                byte[] reply = Encoding.UTF8.GetBytes(template[..start] + matches + template[end..]);
+                Assert.True(reply.Length < 65_507);
+                Assert.Equal(count, NetworkDiscovery.ParseProbeMatches(reply).Count);
+                await wsd.SendAsync(reply, probe.RemoteEndPoint, ct);
+            }
+        }, ct);
+        var found = new List<NetworkHost>();
+        long before = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
+        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, cutoff.Token, ct,
+            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)mdns.Client.LocalEndPoint!, [IPAddress.Loopback]);
+        await responder.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        httpStop.Cancel();
+        await http.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.InRange(found.Count, 1, 1); // one replying address, even with many endpoint identities
+        Assert.Equal(NetworkDiscovery.MaxHostsPerProbe, metadataRequests);
+        TestContext.Current.TestOutputHelper?.WriteLine($"WS-Discovery: cap={NetworkDiscovery.MaxHostsPerProbe}, replies={NetworkDiscovery.MaxHostsPerProbe + 1}, metadata-requests={metadataRequests}, working-set-before={before}, process-peak={System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64}");
+    }
+
+    [Fact]
+    public async Task Owned_loopback_mdns_distinct_names_have_a_finite_retention_budget()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var mdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var cutoff = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cutoff.CancelAfter(TimeSpan.FromSeconds(2));
+        var responder = Task.Run(async () =>
+        {
+            var query = await mdns.ReceiveAsync(ct);
+            for (int i = 0; i <= NetworkDiscovery.MaxHostsPerProbe; i++)
+            {
+                byte[] reply = MdnsAnswer(IPAddress.Parse($"10.0.{i / 256}.{i % 256}"), i.ToString("X3"));
+                await mdns.SendAsync(reply, query.RemoteEndPoint, ct);
+            }
+        }, ct);
+        var found = new List<NetworkHost>();
+        long before = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
+        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, cutoff.Token, ct,
+            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)mdns.Client.LocalEndPoint!, [IPAddress.Loopback]);
+        await responder.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.InRange(found.Count, 1, NetworkDiscovery.MaxHostsPerProbe);
+        TestContext.Current.TestOutputHelper?.WriteLine($"mDNS: cap={NetworkDiscovery.MaxHostsPerProbe}, replies={NetworkDiscovery.MaxHostsPerProbe + 1}, retained={found.Count}, working-set-before={before}, process-peak={System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64}");
+    }
+
     internal static string ProbeMatches(string xaddrs) => $"""
         <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:wsd="http://schemas.xmlsoap.org/ws/2005/04/discovery" xmlns:wsdp="http://schemas.xmlsoap.org/ws/2006/02/devprof" xmlns:pub="http://schemas.microsoft.com/windows/pub/2005/07"><soap:Header><wsa:To>http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</wsa:To><wsa:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/ProbeMatches</wsa:Action><wsa:MessageID>urn:uuid:5d2c1a4e-1111-4222-8333-444455556666</wsa:MessageID><wsa:RelatesTo>urn:uuid:0e9e8f7a-1111-4222-8333-444455556666</wsa:RelatesTo><wsd:AppSequence InstanceId="3" MessageNumber="1"></wsd:AppSequence></soap:Header><soap:Body><wsd:ProbeMatches><wsd:ProbeMatch><wsa:EndpointReference><wsa:Address>{Endpoint}</wsa:Address></wsa:EndpointReference><wsd:Types>wsdp:Device pub:Computer</wsd:Types><wsd:XAddrs>{xaddrs}</wsd:XAddrs><wsd:MetadataVersion>2</wsd:MetadataVersion></wsd:ProbeMatch></wsd:ProbeMatches></soap:Body></soap:Envelope>
         """;
@@ -20,8 +106,10 @@ public sealed class NetworkDiscoveryTests
         """;
 
     /// <summary>An mDNS answer: a PTR to "NAS._smb._tcp.local", its SRV naming nas.local, and nas.local's address.</summary>
-    internal static byte[] MdnsAnswer(IPAddress address)
+    internal static byte[] MdnsAnswer(IPAddress address, string code = "NAS")
     {
+        if (code.Length != 3) throw new ArgumentException("The synthetic DNS name must be three ASCII characters.", nameof(code));
+        string lower = code.ToLowerInvariant();
         var bytes = new List<byte> { 0, 0, 0x84, 0, 0, 0, 0, 1, 0, 0, 0, 2 };
         void Name(params string[] labels)
         {
@@ -40,13 +128,13 @@ public sealed class NetworkDiscoveryTests
         int service = bytes.Count;
         Name("_smb", "_tcp", "local");
         // PTR: "NAS" followed by a pointer to "_smb._tcp.local".
-        Record(12, [3, (byte)'N', (byte)'A', (byte)'S', (byte)(0xC0 | service >> 8), (byte)service]);
+        Record(12, [3, (byte)code[0], (byte)code[1], (byte)code[2], (byte)(0xC0 | service >> 8), (byte)service]);
         int instance = bytes.Count;
-        bytes.AddRange(new byte[] { 3, (byte)'N', (byte)'A', (byte)'S', (byte)(0xC0 | service >> 8), (byte)service });
+        bytes.AddRange(new byte[] { 3, (byte)code[0], (byte)code[1], (byte)code[2], (byte)(0xC0 | service >> 8), (byte)service });
         var srv = new List<byte> { 0, 0, 0, 0, 0x01, 0xBD };
-        srv.AddRange(new byte[] { 3, (byte)'n', (byte)'a', (byte)'s', 5, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0 });
+        srv.AddRange(new byte[] { 3, (byte)lower[0], (byte)lower[1], (byte)lower[2], 5, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0 });
         Record(33, srv);
-        Name("nas", "local");
+        Name(lower, "local");
         Record(1, address.GetAddressBytes());
         return [.. bytes];
     }

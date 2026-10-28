@@ -102,6 +102,16 @@ internal sealed class TestFtpServer : IDisposable
                         self.respond("451 Backup cleanup result cannot be confirmed.")
                         return path
                     return super().ftp_DELE(path)
+        listing_count = int(os.environ.get("FILECAT_FTP_VIRTUAL_LISTING", "0"))
+        if listing_count:
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                def ftp_MLSD(self, path):
+                    data = b"".join(f"type=file;size=1;modify=20260101000000; item{i:05}.txt\r\n".encode() for i in range(listing_count))
+                    self.push_dtp_data(data, isproducer=False, cmd="MLSD")
+                def ftp_LIST(self, path):
+                    data = b"".join(f"-rw-r--r-- 1 user group 1 Jan 01 2026 item{i:05}.txt\r\n".encode() for i in range(listing_count))
+                    self.push_dtp_data(data, isproducer=False, cmd="LIST")
         Handler.authorizer = auth
         Handler.use_gmt_times = True
         # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
@@ -136,7 +146,7 @@ internal sealed class TestFtpServer : IDisposable
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
-        string? failAfterBackupCleanup = null)
+        string? failAfterBackupCleanup = null, int virtualListingCount = 0)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
@@ -170,6 +180,7 @@ internal sealed class TestFtpServer : IDisposable
         if (failAfterBackupRename is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_BACKUP_RNTO"] = failAfterBackupRename;
         if (failAfterStagePublish is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_STAGE_RNTO"] = failAfterStagePublish;
         if (failAfterBackupCleanup is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_BACKUP_DELE"] = failAfterBackupCleanup;
+        if (virtualListingCount > 0) start.Environment["FILECAT_FTP_VIRTUAL_LISTING"] = virtualListingCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
@@ -277,6 +288,36 @@ internal sealed class FtpInteraction : IRemoteInteraction
 public sealed class FtpIntegrationTests : IDisposable
 {
     private readonly string _state = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-ftp-state", Guid.NewGuid().ToString("N")[..8])).FullName;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Owned_FTP_and_FTPS_listings_stop_at_the_protocol_budget(bool tls)
+    {
+        string? pem = tls ? TestFtpServer.SelfSigned("FileCat listing budget").Pem : null;
+        string protocol = tls ? RemoteProtocols.FtpExplicitTls : RemoteProtocols.Ftp;
+        var interaction = new FtpInteraction { AllowPlain = true, CertificateAnswer = HostKeyDecision.AcceptOnce };
+        var ct = TestContext.Current.CancellationToken;
+        using (var normal = TestFtpServer.TryStart(pem, virtualListingCount: 3))
+        {
+            if (normal is null) Assert.Skip("The owned FTP/FTPS test server is unavailable.");
+            var profile = normal.Profile(protocol);
+            using var connections = Connections(profile, interaction);
+            using var lease = connections.Lease(profile.Id, ct);
+            Assert.Equal(3, lease.Channel.List("/", ct).Count);
+        }
+        using (var flood = TestFtpServer.TryStart(pem, virtualListingCount: RemoteListingBudget.MaxEntries + 1))
+        {
+            if (flood is null) Assert.Skip("The owned FTP/FTPS test server is unavailable.");
+            var profile = flood.Profile(protocol);
+            using var connections = Connections(profile, interaction);
+            using var lease = connections.Lease(profile.Id, ct);
+            long before = Process.GetCurrentProcess().WorkingSet64;
+            Assert.Throws<RemoteListingLimitException>(() => lease.Channel.List("/", ct));
+            long peak = Process.GetCurrentProcess().PeakWorkingSet64;
+            TestContext.Current.TestOutputHelper?.WriteLine($"{protocol}: limit={RemoteListingBudget.MaxEntries}, working-set-before={before}, process-peak={peak}");
+        }
+    }
 
     [Fact]
     public void An_MLSD_server_cannot_hide_a_directory_link_from_the_delete_listing()

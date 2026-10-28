@@ -63,6 +63,25 @@ public sealed class SftpProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task Synthetic_SFTP_listing_refuses_one_entry_over_budget_before_publication()
+    {
+        _ui.HostKeyAnswer = HostKeyDecision.AcceptOnce;
+        _ui.Secrets.Enqueue("secret");
+        var home = _server.Dir(_server.Home);
+        for (int i = 0; i <= RemoteListingBudget.MaxEntries; i++)
+        {
+            string name = $"item{i:00000}.txt";
+            home.Children[name] = new FakeSftpServer.Node { Name = name };
+        }
+        var sink = new Sink();
+        long before = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
+        await Assert.ThrowsAsync<RemoteListingLimitException>(() =>
+            _provider.EnumerateAsync(SftpProvider.At(_profile), sink, TestContext.Current.CancellationToken));
+        Assert.Empty(sink.Entries);
+        TestContext.Current.TestOutputHelper?.WriteLine($"SFTP fake: limit={RemoteListingBudget.MaxEntries}, working-set-before={before}, process-peak={System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64}");
+    }
+
+    [Fact]
     public async Task First_contact_asks_about_the_host_key_and_the_password_once()
     {
         _ui.Secrets.Enqueue("wrong");

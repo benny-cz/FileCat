@@ -103,7 +103,7 @@ public partial class App : Application
     }
 
     internal static void NotifyAdministratorNotice(MainViewModel vm) =>
-        vm.Notify("FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.");
+        vm.Notify("FileCat is running as administrator: every operation has full rights, Windows blocks drag and drop from other programs, and changes to its user-profile state are not saved. Start it normally for everyday work.");
 
     /// <summary>
     /// A UI exception is logged with its stack and reported instead of terminating FileCat; jobs keep their
@@ -120,18 +120,21 @@ public partial class App : Application
             AppLog.Error("Unhandled UI exception", e.Exception);
             try
             {
-                File.AppendAllText(Path.Combine(services.Paths.LogDirectory, "crash.log"), $"{now:O}\n{e.Exception}\n\n");
+                AppLog.AppendCrash(services.Paths.LogDirectory, $"{now:O}\n{e.Exception}\n\n");
             }
             catch (IOException) { }
             if (recent.Count > 5) return; // repeated failures: let the process end rather than loop
             e.Handled = true;
-            vm.Notify("Something went wrong: " + e.Exception.Message + " FileCat kept running; details are in the diagnostics log.", true);
+            vm.Notify("Something went wrong: " + e.Exception.Message +
+                (Core.State.WindowsTokenAuthority.IsHighIntegrity
+                    ? " FileCat kept running; persisted diagnostics are omitted while it runs as administrator."
+                    : " FileCat kept running; details are in the diagnostics log."), true);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             try
             {
-                File.AppendAllText(Path.Combine(services.Paths.LogDirectory, "crash.log"), $"{DateTime.UtcNow:O} (fatal)\n{e.ExceptionObject}\n\n");
+                AppLog.AppendCrash(services.Paths.LogDirectory, $"{DateTime.UtcNow:O} (fatal)\n{e.ExceptionObject}\n\n");
                 vm.SaveWorkspace(null);
             }
             catch (Exception) { }

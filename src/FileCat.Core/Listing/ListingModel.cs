@@ -480,7 +480,7 @@ public sealed class ListingModel : IDisposable
     }
 
     private EntryStore CreateStore(Location location) =>
-        location.IsFileSystem && _scratchDirectory is not null
+        _scratchDirectory is not null
             ? new EntryStore(_scratchDirectory, _listingMemoryBudgetBytes)
             : new EntryStore();
 

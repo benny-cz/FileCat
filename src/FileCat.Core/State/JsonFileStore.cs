@@ -123,6 +123,8 @@ public static class JsonFileStore
 
     private static void SaveCore<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool createNew, Func<bool>? mayReplace)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("FileCat does not save user-profile state while running as administrator. Reopen it without elevation to save changes.");
         var dir = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(dir);
         if (!OperatingSystem.IsWindows())

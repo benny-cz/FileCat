@@ -595,8 +595,32 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 /// </summary>
 internal sealed class SharpArchiveReader : IMemberReader
 {
-    // SharpCompress 0.50.4 reports a missing 7z compression folder as encrypted. Its public entry API does
+    // SharpCompress reports a missing 7z compression folder as encrypted. Its public entry API does
     // not expose HasStream. Read that pinned header metadata only; missing metadata keeps the original refusal.
+    internal const int MaxSevenZipNextHeaderBytes = 16 << 20;
+
+    /// <summary>Bound the 7z header on the same opened source before SharpCompress parses and allocates it.</summary>
+    internal static void AdmitSevenZipHeader(FileStream stream)
+    {
+        Span<byte> header = stackalloc byte[32];
+        long original = stream.Position;
+        try
+        {
+            stream.Position = 0;
+            if (stream.Length < header.Length) throw new InvalidDataException("The 7z start header is incomplete.");
+            stream.ReadExactly(header);
+            if (!header[..6].SequenceEqual((ReadOnlySpan<byte>)[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C]))
+                throw new InvalidDataException("The 7z start signature is invalid.");
+            ulong offset = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(header[12..20]);
+            ulong size = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(header[20..28]);
+            if (size > MaxSevenZipNextHeaderBytes)
+                throw new InvalidDataException($"The 7z metadata header exceeds FileCat's {MaxSevenZipNextHeaderBytes >> 20} MiB limit.");
+            ulong remaining = (ulong)(stream.Length - header.Length);
+            if (offset > remaining || size > remaining - offset)
+                throw new InvalidDataException("The 7z metadata header extends beyond the archive.");
+        }
+        finally { stream.Position = original; }
+    }
     private static readonly PropertyInfo? s_sevenZipFilePart = typeof(SevenZipArchiveEntry).BaseType?
         .GetProperty("FilePart", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly PropertyInfo? s_sevenZipHeader = s_sevenZipFilePart?.PropertyType
@@ -672,6 +696,7 @@ internal sealed class SharpArchiveReader : IMemberReader
         }
         try
         {
+            if (!rar) AdmitSevenZipHeader(volumes[0]);
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };
             IArchive archive = rar
                 ? volumes.Count > 1 ? RarArchive.OpenArchive(volumes.Cast<Stream>().ToList(), options) : RarArchive.OpenArchive(volumes[0], options)
