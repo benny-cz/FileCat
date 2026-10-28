@@ -1,0 +1,12 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "Repo":  "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\GitMain-663b6fdd",
+    "Expected":  "44107b0fb1e7d0a6a3156bd5057ff05dab9fbd66",
+    "Head":  "44107b0fb1e7d0a6a3156bd5057ff05dab9fbd66",
+    "Sdk":  [
+                "10.0.201"
+            ],
+    "AppPath":  "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\GitMain-663b6fdd\\src\\FileCat.App\\bin\\Release\\net10.0\\FileCat.exe",
+    "AppDllSha256":  "2D0F4CF2682ED2B3360B6B41295CA2E8E9E87A3A936C8C5E969AD7EDCE481E06"
+}

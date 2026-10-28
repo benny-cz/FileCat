@@ -1,0 +1,26 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "44107b0fb1e7d0a6a3156bd5057ff05dab9fbd66",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\LiveRateProgress\\76c61b49f5cd4a149f56efd6e81a63fa",
+    "AppDllSha256":  "2D0F4CF2682ED2B3360B6B41295CA2E8E9E87A3A936C8C5E969AD7EDCE481E06",
+    "SourceSha256":  "3B6A07D0D404FAB4E23B6D34BC6696A6A312DD92821332385E5AF7C01C421351",
+    "Dpi":  96,
+    "WindowBoundsPixels":  [
+                               322,
+                               293,
+                               1280,
+                               800
+                           ],
+    "ReviewDestination":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\LiveRateProgress\\76c61b49f5cd4a149f56efd6e81a63fa\\target\\",
+    "Progress":  {
+                     "Overall":  1.5625,
+                     "CurrentFile":  1.5625
+                 },
+    "InitialPromptValue":  "0,0625",
+    "ReopenedPromptValue":  "0,0625",
+    "InvalidHelp":  "Speed limit: enter a finite, nonnegative number of MB/s.",
+    "EditedPromptValue":  "0,125",
+    "AfterCancelValue":  "0,125",
+    "SourceUnchanged":  true
+}

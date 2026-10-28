@@ -1,0 +1,130 @@
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:18.54
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.App.Tests
+  Discovered:  FileCat.App.Tests
+  Starting:    FileCat.App.Tests
+    FileCat.App.Tests.HexEditorPosixTests.Save_as_keeps_no_copy_of_a_file_another_program_wrote_meanwhile [SKIP]
+      Windows keeps other writers out while the file is open here.
+    FileCat.App.Tests.HexEditorPosixTests.A_link_is_refused_and_a_byte_another_program_changed_blocks_the_save [SKIP]
+      Windows keeps other writers out instead (HexEditorSmokeTests).
+    FileCat.App.Tests.RecoverySafetyTests.A_running_usual_instances_connection_is_guarded_and_an_unknown_location_is_refused [SKIP]
+      Unix profile-local socket metadata and recovery guard.
+    FileCat.App.Tests.RecoverySafetyTests.An_instance_connection_outside_the_temporary_folder_is_guarded_before_scanning [SKIP]
+      Run with a Unix TMPDIR too long for a socket to require the private IPC fallback.
+    FileCat.App.Tests.BulkRenameDialogTests.Editor_round_trip_refuses_a_Unix_fifo_without_waiting_for_a_writer [SKIP]
+      Unix regular-file admission only.
+    FileCat.App.Tests.RecoverySafetyTests.The_runtime_temporary_folder_is_guarded_before_scanning [SKIP]
+      Unix runtime filesystem endpoints.
+    FileCat.App.Tests.ClipboardIntentTests.Distinct_case_resources_remain_distinct_in_a_cut_publication [SKIP]
+      This fixture requires a case-sensitive file system.
+    FileCat.App.Tests.SftpNativeEditAckTests.F4_commit_to_real_sftp_persists_the_acknowledged_session [SKIP]
+      No user-mode OpenSSH sshd is available for this native SFTP case.
+    FileCat.App.Tests.IconResourceTests.Icons_named_on_a_share_are_never_contacted_while_a_folder_is_listed [SKIP]
+      Set FILECAT_V24_SHARE to a host under capture.
+    FileCat.App.Tests.LiveDriveScanTests.The_drive_of_the_current_folder_is_scanned_in_a_new_tab [SKIP]
+      Set FILECAT_RECOVERY_LIVE, FILECAT_RECOVERY_LIVE_SERIAL, FILECAT_RECOVERY_LIVE_BYTES and FILECAT_RECOVERY_LIVE_EVIDENCE (an owned evidence folder on another disk).
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_new_instance_lock_is_owner_readable_for_a_second_process(method: "OpenUnixLock") [SKIP]
+      Unix lock creation-mode control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_new_instance_lock_is_owner_readable_for_a_second_process(method: "OpenIndependentLock") [SKIP]
+      Unix lock creation-mode control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_fifo_at_an_instance_lock_keeps_recovery_safety_unknown(independent: False) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_fifo_at_an_instance_lock_keeps_recovery_safety_unknown(independent: True) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_active_instance_with_fifo_metadata_remains_unknown_to_recovery_safety [SKIP]
+      Unix instance-metadata FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_creation_refuses_an_existing_fifo_without_waiting(method: "OpenUnixLock") [SKIP]
+      Unix lock creation FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_creation_refuses_an_existing_fifo_without_waiting(method: "OpenIndependentLock") [SKIP]
+      Unix lock creation FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_locks_refuse_a_fifo_without_waiting(method: "OpenUnixLock", linked: False) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_locks_refuse_a_fifo_without_waiting(method: "OpenUnixLock", linked: True) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_locks_refuse_a_fifo_without_waiting(method: "OpenIndependentLock", linked: False) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_locks_refuse_a_fifo_without_waiting(method: "OpenIndependentLock", linked: True) [SKIP]
+      Unix instance-lock FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_metadata_refuses_an_unwritten_fifo_before_reading(linked: False) [SKIP]
+      Unix instance-metadata FIFO control.
+    FileCat.App.Tests.SingleInstanceMetadataTests.Unix_instance_metadata_refuses_an_unwritten_fifo_before_reading(linked: True) [SKIP]
+      Unix instance-metadata FIFO control.
+    FileCat.App.Tests.PictureWorkerProcessLifetimeTests.Unix_decoder_does_not_inherit_parent_environment [SKIP]
+      Unix picture-worker process environment.
+    FileCat.App.Tests.PictureWorkerProcessLifetimeTests.Stopping_a_Unix_worker_stops_its_live_child(dispose: False) [SKIP]
+      Unix worker process-tree lifetime; Windows uses a one-process job.
+    FileCat.App.Tests.PictureWorkerProcessLifetimeTests.Stopping_a_Unix_worker_stops_its_live_child(dispose: True) [SKIP]
+      Unix worker process-tree lifetime; Windows uses a one-process job.
+    FileCat.App.Tests.SecretLeakTests.Passwords_reach_neither_the_log_nor_any_file_FileCat_writes [SKIP]
+      Set FILECAT_REMOTE_LAB, FILECAT_REMOTE_LAB_USER and FILECAT_REMOTE_LAB_PASSWORD to a disposable test server.
+    FileCat.App.Tests.InterruptedCopyCleanupTests.Real_POSIX_unlink_refusal_across_approval_keeps_partial_bytes_and_restores_mode(flow: "cleanup") [SKIP]
+      Actual ordinary-user POSIX unlink approval refusal requires POSIX.
+    FileCat.App.Tests.InterruptedCopyCleanupTests.Real_POSIX_unlink_refusal_across_approval_keeps_partial_bytes_and_restores_mode(flow: "run-again") [SKIP]
+      Actual ordinary-user POSIX unlink approval refusal requires POSIX.
+    FileCat.App.Tests.BrowsingProcessTests.Browsing_a_hostile_folder_reads_only_what_it_may [SKIP]
+      Set FILECAT_V24_BROWSE=1 to run this under a process trace.
+    FileCat.App.Tests.CloudBrowsingTests.Looking_at_a_cloud_folder_downloads_nothing [SKIP]
+      Set FILECAT_CLOUD_FOLDER to a cloud provider's folder of online-only files.
+    FileCat.App.Tests.GitMetadataReadBudgetTests.A_short_metadata_link_does_not_read_an_oversized_target(kind: "gitfile") [SKIP]
+      The metadata-link control requires a Unix symlink.
+    FileCat.App.Tests.GitMetadataReadBudgetTests.A_short_metadata_link_does_not_read_an_oversized_target(kind: "commondir") [SKIP]
+      The metadata-link control requires a Unix symlink.
+    FileCat.App.Tests.GitMetadataReadBudgetTests.A_short_metadata_link_does_not_read_an_oversized_target(kind: "config") [SKIP]
+      The metadata-link control requires a Unix symlink.
+    FileCat.App.Tests.GitStatusTests.A_repository_that_points_Git_at_a_share_is_never_run_in [SKIP]
+      Set FILECAT_V24_SHARE to a host under capture (and FILECAT_V24_RUN_GIT=1 to show the contact).
+    FileCat.App.Tests.LinuxPageEngineTests.WebKitGTK_draws_the_page_with_its_scripts_off_and_refuses_the_web [SKIP]
+      WebKitGTK is Linux's.
+    FileCat.App.Tests.LinuxPageEngineTests.WebKitGTK_draws_a_markdown_file_and_asks_the_web_for_nothing [SKIP]
+      WebKitGTK is Linux's.
+    FileCat.App.Tests.LinuxPageEngineTests.WebKitGTK_finds_rendered_markdown_text_without_enabling_page_scripts [SKIP]
+      WebKitGTK is Linux's.
+    FileCat.App.Tests.PermissionsDialogTests.Boxes_and_octal_agree_and_only_the_chosen_permissions_change [SKIP]
+      POSIX permissions are a Linux and macOS feature.
+    FileCat.App.Tests.StartupArgumentsTests.A_list_file_opens_as_a_result_set_without_contacting_the_servers_it_names [FAIL]
+      Assert.Equal() Failure: Strings differ
+                            Γåô (pos 9)
+      Expected: "C:\\Users\\Admin\\AppData\\Local\\Temp\\filecat-app-test"┬╖┬╖┬╖
+      Actual:   "C:\\Users\\admin\\AppData\\Local\\Temp\\filecat-app-test"┬╖┬╖┬╖
+                            Γåæ (pos 9)
+      Stack Trace:
+        C:\Users\admin\AppData\Local\FileCatValidation\GitMain-663b6fdd\tests\FileCat.App.Tests\StartupArgumentsTests.cs(44,0): at FileCat.App.Tests.StartupArgumentsTests.A_list_file_opens_as_a_result_set_without_contacting_the_servers_it_names()
+        --- End of stack trace from previous location ---
+    FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: "BMP") [SKIP]
+      Linux x64 seccomp picture-worker boundary; other platforms retain their own worker policy.
+    FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: "PNG") [SKIP]
+      Linux x64 seccomp picture-worker boundary; other platforms retain their own worker policy.
+    FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: "invalid") [SKIP]
+      Linux x64 seccomp picture-worker boundary; other platforms retain their own worker policy.
+    FileCat.App.Tests.LinuxPicturePolicyTests.Linux_x64_worker_restricts_every_thread_before_consuming_input(kind: "empty") [SKIP]
+      Linux x64 seccomp picture-worker boundary; other platforms retain their own worker policy.
+    FileCat.App.Tests.RecoveryWriteTraceTests.A_recovery_session_writes_only_where_it_should [SKIP]
+      Set FILECAT_V09_DISK or FILECAT_V09_DRIVE (Windows) or FILECAT_V09_UNIX_DEVICE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse, denied); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.
+    FileCat.App.Tests.PictureWorkerExitedRootTests.Exited_root_disposal_does_not_wait_for_child_stderr(retainError: False, killFirst: False) [SKIP]
+      Unix stderr EOF lifetime; Windows uses job-owned pipes.
+    FileCat.App.Tests.PictureWorkerExitedRootTests.Exited_root_disposal_does_not_wait_for_child_stderr(retainError: False, killFirst: True) [SKIP]
+      Unix stderr EOF lifetime; Windows uses job-owned pipes.
+    FileCat.App.Tests.PictureWorkerExitedRootTests.Exited_root_disposal_does_not_wait_for_child_stderr(retainError: True, killFirst: False) [SKIP]
+      Unix stderr EOF lifetime; Windows uses job-owned pipes.
+    FileCat.App.Tests.PictureWorkerExitedRootTests.Exited_root_disposal_does_not_wait_for_child_stderr(retainError: True, killFirst: True) [SKIP]
+      Unix stderr EOF lifetime; Windows uses job-owned pipes.
+    FileCat.App.Tests.UndoLifecycleUiTests.Show_affected_keeps_distinct_case_resources_in_the_inventory [SKIP]
+      This fixture requires a case-sensitive filesystem.
+    FileCat.App.Tests.MacProcessCensusTests.The_Mac_kernel_is_excluded_while_a_live_process_keeps_its_identity_check [SKIP]
+      Darwin's native process inventory requires macOS.
+    FileCat.App.Tests.MacProcessCensusTests.An_unavailable_native_Mac_process_record_remains_unknown [SKIP]
+      Darwin's native process inventory requires macOS.
+    FileCat.App.Tests.SettingsPreservationTests.Protected_profiles_remain_inspectable_with_the_correct_reason_and_no_edit_actions(status: UnavailableReadOnly, reason: "could not be read safely") [SKIP]
+      Unix non-regular settings input fixture; Windows profile permission validation is a native gate.
+    FileCat.App.Tests.GitAlternateTests.Unix_fifo_alternate_is_refused_without_waiting_for_a_writer [SKIP]
+      Unix FIFO admission only.
+    FileCat.App.Tests.PictureWorkerStderrBudgetTests.Unix_worker_discards_a_newline_free_stderr_stream_without_retaining_it [SKIP]
+      Windows picture workers use sandbox-owned pipes.
+  Finished:    FileCat.App.Tests (ID = 'c18cd0754c8ef893fb4dddab6dac5653ac156045e68ab34e402618d66fda68a2')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.App.Tests  Total: 2608, Errors: 0, Failed: 1, Skipped: 54, Not Run: 0, Time: 1002,448s

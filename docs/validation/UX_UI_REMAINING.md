@@ -10,14 +10,18 @@ accepted equivalent routes stay in
 
 ## Highest priority — S2 and queued defects
 
-None: every S2 scenario is accepted and no queued defect is open.
+None: every original S2 scenario and the new
+[FCUX-NEXT-001](UX_UI_ACCEPTANCE_LEDGER.md#fcux-next-001) are accepted.
+The latter passed focused automated checks, isolated Win11 native
+prompt/progress validation and five-lane CI on `44107b0f`.
 
 ## S3 and final gate
 
 None: every S3 scenario is accepted, and
 [GATE-CI-FINAL](UX_UI_ACCEPTANCE_LEDGER.md#gate-ci-final) passed on the final
-implementation head `42b23e2e` on 28 October. A later implementation change
-needs that gate again on its own head.
+original-audit implementation head `42b23e2e` and the later
+FCUX-NEXT-001 implementation head `44107b0f` on 28 October. A later
+implementation change needs that gate again on its own head.
 
 Optional refinements and a documented repeat rule are in the ledger; they do
 not silently extend required completion scope.

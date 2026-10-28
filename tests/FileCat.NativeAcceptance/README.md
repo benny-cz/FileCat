@@ -916,6 +916,16 @@ distinct route that deliberately selects completed `finished-08` after the
 ninth Copy is Running and requires that selection to survive a later live
 Copy status refresh with the exact source hash intact. The dated `e7b448b7`
 receipt accepts that scope.
+`win-ax-live-rate-progress.ps1 -AppPath GIT_BUILT_FILECAT_EXE -ReportPath FRESH_JSON -ExpectedHead CODE_HEAD`
+runs the FCUX-NEXT-001 native boundary on the logged-in Win11 VMware guest.
+It starts an owned 64 MiB Copy with a `0.0625 MB/s` cap, reads both pending
+progress bars through UI Automation, opens the live speed prompt and checks
+the exact fractional value after untouched confirmation. An invalid edit
+must expose a visible field-associated error and disable OK; a valid edit
+must survive reopening, while Cancel preserves it. The runner records the
+Git head, app DLL hash, exact source and target, progress values and unchanged
+source hash. The focused component tests cover arbitrary integer byte caps,
+unsupported-job action visibility and all pending progress states.
 `win-nvda-operation-issues.ps1 -AppPath GIT_BUILT_FILECAT_EXE -NvdaPath SIGNED_NVDA_EXE -ReportPath FRESH_JSON`
 tests the separate live-issue route in the Windows VM. It selects three
 test-owned source files with two existing target names, uses a rate-limited

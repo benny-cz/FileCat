@@ -1,5 +1,48 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-fcux-next-001-local-20261028"></a>
+**28 October 2026, FCUX-NEXT-001 accepted on `main`:**
+The live Operations control now displays a fractional MB/s cap without
+one-decimal rounding and leaves the exact byte/s value untouched on an
+unchanged confirmation. Edited values use the transfer form's finite,
+nonnegative, byte-range validation; invalid edits keep the prompt and its
+field-associated error. The action appears only on unfinished routes with a
+paced copy/upload phase. A rename-only Move is described as unpaced. At the
+user's request, an unfinished operation's overall progress is capped at 99%
+and its narrow current-file bar at 98%, leaving visible space before actual
+completion. The compact strip and Windows taskbar derive from that capped
+operation value.
+
+The implementation commit is `44107b0f` on `main`. On the host's pinned
+.NET 10.0.101 SDK, the focused App runner passed 36/36 cases
+(`LiveRateLimitUiTests`, `JobProgressViewTests`,
+`TransferDestinationValidationTests`), and `JobRateLimitTests` passed 3/3.
+The host's broader App attempt could not count as a gate: sandbox junction
+fixtures reported `Access is denied`, network-place fixtures could not find
+the test `C$` share, and the run was stopped after those unrelated failures.
+
+The isolated Win11 VMware guest built the exact `44107b0f` source with
+.NET SDK 10.0.201 because its installed SDK does not include the repository's
+pinned 10.0.101; `global.json` was restored and the Git checkout was clean
+after the build. The app DLL was SHA-256
+`2D0F4CF2…EDCE481E06` ([build receipt](evidence/fcux-next-001-win-build.json)).
+The [native UIA runner](../../tests/FileCat.NativeAcceptance/win-ax-live-rate-progress.ps1)
+passed on that binary: both pending bars were 1.5625%, the live prompt showed
+`0,0625` before and after untouched OK, `-1` exposed a visible field help
+error and disabled OK, `0,125` survived a valid edit and Cancel, and the
+64 MiB source hash stayed exact. The guest measured 96 DPI and a 1,280 × 800
+pixel FileCat window ([direct receipt](evidence/fcux-next-001-win-native.json)).
+The guest's complete App runner completed 2,608 cases with one unrelated
+path-case failure (`Admin` versus `admin` in `StartupArgumentsTests`); with
+the canonical working-directory spelling that class passed 2/2
+([suite log](evidence/fcux-next-001-win-app-suite.log),
+[bounded rerun](evidence/fcux-next-001-win-path-case-rerun.log)).
+The [five-lane CI run](https://github.com/benny-cz/FileCat/actions/runs/40677863419)
+on exact `44107b0f` finished green: producer reference policy, Windows build
+and all tests, Windows ARM64 build/tests/package start, Ubuntu 24.04 and
+macOS 26 build/portable tests. The [ledger row](UX_UI_ACCEPTANCE_LEDGER.md#fcux-next-001)
+is accepted for its bounded scope; no unrelated native routes were reopened.
+
 <a id="evidence-ledger-checker-20261028"></a>
 **28 October 2026, ledger checker and accepted-findings inventory:** The
 [ledger checker](../../tests/FileCat.NativeAcceptance/check-ux-acceptance-ledger.py)

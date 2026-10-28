@@ -1,0 +1,7 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.App.Tests
+  Discovered:  FileCat.App.Tests
+  Starting:    FileCat.App.Tests
+  Finished:    FileCat.App.Tests (ID = 'c1161267ef8e191fb87c49b16cd6c6c58b80f37d3ab79cd25864f0a75627a139')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.App.Tests  Total: 2, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 2,517s
