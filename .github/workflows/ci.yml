@@ -80,7 +80,9 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
@@ -197,7 +199,9 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
@@ -319,7 +323,9 @@ jobs:
           ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           ./eng/validation/validate-draft-package-set.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
           python eng/validation/validate-dependency-notice-manifest.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python eng/validation/validate-artifact-sbom.py --evidence-dir "${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}

@@ -16,6 +16,7 @@ fixtureRoot=repo/'eng/validation/fixtures/dependency-notices';fixtureIndex=json.
 assert fixtureIndex['SchemaVersion']==1 and len(fixtureIndex['Manifests'])==7
 appLock=json.loads((repo/'src/FileCat.App/packages.lock.json').read_text())
 avaloniaVersion=appLock['dependencies']['net10.0']['Avalonia']['resolved']
+lockPackages={name:entry for name,entry in appLock['dependencies']['net10.0'].items() if entry.get('type')!='Project'}
 targetsText=(repo/'Directory.Build.targets').read_text()
 runtimeMarker='<FileCatServicedRuntimeVersion>'
 runtimeVersion=targetsText.split(runtimeMarker,1)[1].split('</FileCatServicedRuntimeVersion>',1)[0]
@@ -97,21 +98,32 @@ behaviors=['unchanged','unknown-package','wrong-package-version','wrong-package-
 for fixture in fixtureIndex['Manifests']:
     original=fixtureRoot/fixture['Path'];assert sha(original)==fixture['SHA256']
     data=json.loads(original.read_text())
-    # The retained publish manifests are historical 12.1.1/runtime-10.0.12 fixtures.
-    # Adapt only their dependency identities in memory to test the current frozen
-    # notice snapshot; the original fixture bytes and SHA pins remain intact.
-    if avaloniaVersion!='12.1.1':
-        def currentAvalonia(value):
-            if isinstance(value,dict):
-                return {(name.replace('/12.1.1','/'+avaloniaVersion) if name.startswith('Avalonia') else name):currentAvalonia(item)
-                        for name,item in value.items()}
-            if isinstance(value,list):return [currentAvalonia(item) for item in value]
-            return avaloniaVersion if value=='12.1.1' else value
-        data=currentAvalonia(data)
-        for package,entry in appLock['dependencies']['net10.0'].items():
-            key=package+'/'+avaloniaVersion
-            if package.startswith('Avalonia') and key in data['libraries']:
-                data['libraries'][key]['sha512']='sha512-'+entry['contentHash']
+    # The retained publish manifests are historical fixtures (Avalonia 12.1.1, runtime 10.0.12,
+    # SharpCompress 0.50.4, ...). Adapt every package identity the App lock has since moved, in
+    # memory only, to test the current frozen notice snapshot; the original fixture bytes and SHA
+    # pins remain intact.
+    moved={}
+    for key,library in data['libraries'].items():
+        name,_,version=key.rpartition('/')
+        entry=lockPackages.get(name)
+        if library.get('type')=='package' and entry and entry['resolved']!=version:moved[name]=(version,entry)
+    def currentPackages(value):
+        if isinstance(value,dict):
+            adapted={}
+            for name,item in value.items():
+                package,_,version=name.rpartition('/')
+                if package in moved and moved[package][0]==version:name=package+'/'+moved[package][1]['resolved']
+                elif name in moved and item==moved[name][0]:item=moved[name][1]['resolved']  # a dependency map entry
+                adapted[name]=currentPackages(item)
+            return adapted
+        if isinstance(value,list):return [currentPackages(item) for item in value]
+        return value
+    data=currentPackages(data)
+    for package,(old,entry) in moved.items():
+        library=data['libraries'][package+'/'+entry['resolved']]
+        library['sha512']='sha512-'+entry['contentHash']
+        if 'path' in library:library['path']=package.lower()+'/'+entry['resolved']
+        if 'hashPath' in library:library['hashPath']=package.lower()+'.'+entry['resolved']+'.nupkg.sha512'
     if runtimeVersion!='10.0.12':
         def currentRuntime(value):
             if isinstance(value,dict):
