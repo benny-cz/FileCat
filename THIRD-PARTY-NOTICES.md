@@ -3,7 +3,7 @@
 FileCat is MIT-licensed (see `LICENSE`). The table records its dependency license declarations.
 Full license and notice texts retained from pinned packages and their declared source revisions
 are in `licenses/dependencies`, with exact source identities and hashes in `index.json`.
-The snapshot includes the pinned .NET 10.0.12 runtime pack texts, build-only packages and RID
+The snapshot includes the pinned .NET 10.0.14 runtime pack texts, build-only packages and RID
 alternatives; it does not establish which components ship in each artifact or complete native
 license eligibility. LTRData.Extensions full-text provenance, SharpCompress's RAR provenance and
 AppImage/native obligations remain under review before stable release. Regenerate the package
@@ -16,7 +16,7 @@ versions and source obligations remain under review.
 
 | Component | Version | License | Notes |
 |---|---|---|---|
-| .NET runtime and libraries | 10.0.12 | MIT | Self-contained builds include the pinned runtime; framework-dependent builds use the separately serviced runtime |
+| .NET runtime and libraries | 10.0.14 | MIT | Self-contained builds include the pinned runtime; framework-dependent builds use the separately serviced runtime |
 | Avalonia (Avalonia, Desktop, Skia, HarfBuzz, Win32, X11, Native, FreeDesktop, AtSpi, Remote.Protocol, Themes.Fluent) | 12.1.4 | MIT | UI framework |
 | Avalonia.Angle.Windows.Natives | 2.1.27548.20260419 | BSD-3-Clause (ANGLE) | Native OpenGL ES over Direct3D on Windows |
 | SkiaSharp (+ native assets) | 3.119.4 | MIT; native Skia BSD-3-Clause | 2D graphics |

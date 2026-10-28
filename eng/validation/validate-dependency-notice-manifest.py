@@ -20,7 +20,14 @@ targetsText=(repo/'Directory.Build.targets').read_text()
 runtimeMarker='<FileCatServicedRuntimeVersion>'
 runtimeVersion=targetsText.split(runtimeMarker,1)[1].split('</FileCatServicedRuntimeVersion>',1)[0]
 assert runtimeVersion and runtimeVersion.count('.')==2
-inputs=[repo/'eng/DependencyNotices/Program.cs',repo/'eng/DependencyNotices/DependencyNotices.csproj',repo/'eng/DependencyNotices/packages.lock.json',repo/'src/FileCat.App/packages.lock.json',repo/'Directory.Build.props',repo/'Directory.Build.targets',repo/'Directory.Packages.props',repo/'global.json',fixtureRoot/'index.json']
+publicNotices=repo/'THIRD-PARTY-NOTICES.md'
+publicNoticeText=publicNotices.read_text()
+def publicRuntimeMatches(text):
+    return (text.count(f'pinned .NET {runtimeVersion} runtime pack texts')==1 and
+            text.count(f'| .NET runtime and libraries | {runtimeVersion} | MIT |')==1)
+assert publicRuntimeMatches(publicNoticeText)
+assert not publicRuntimeMatches(publicNoticeText.replace(runtimeVersion,'0.0.0'))
+inputs=[repo/'eng/DependencyNotices/Program.cs',repo/'eng/DependencyNotices/DependencyNotices.csproj',repo/'eng/DependencyNotices/packages.lock.json',repo/'src/FileCat.App/packages.lock.json',repo/'Directory.Build.props',repo/'Directory.Build.targets',repo/'Directory.Packages.props',repo/'global.json',repo/'THIRD-PARTY-NOTICES.md',fixtureRoot/'index.json']
 inputs += sorted(p for p in (repo/'licenses/dependencies').rglob('*') if p.is_file())
 inputs += [fixtureRoot/v['Path'] for v in fixtureIndex['Manifests']]
 inputPins=[dict(Path=p.relative_to(repo).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in inputs]
@@ -80,7 +87,7 @@ for fixture in fixtureIndex['Manifests']:
         cases.append(dict(Name=name,Fixture=fixture['Name'],Behavior=behavior,ExpectedAllowed=expected,ControlPassed=passed,ExitCode=code,DestinationCreated=output.exists(),ActualOutputPins=outputs,ExpectedOutputPins=snapshot,ManifestSHA256=sha(manifest),OriginalManifestSHA256=fixture['SHA256'],Command=command,StdoutSHA256=sha(folder/'stdout.txt'),StderrSHA256=sha(folder/'stderr.txt')))
 assert len(cases)==63 and all(sha(repo/p['Path'])==p['SHA256'] for p in inputPins)
 payloadPins=[dict(Path=p.relative_to(root).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in sorted((root/'artifacts/bin/DependencyNotices/release').rglob('*')) if p.is_file()]
-proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
+proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
 with (root/'dependency-notice-manifest-controls.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(proof,f,indent=2)
-print(json.dumps(dict(Controls=63,Allowed=7,Refused=56,Passed=sum(c['ControlPassed'] for c in cases),SourceCommit=head,SourceTreeDirty=dirty)))
+print(json.dumps(dict(Controls=65,Allowed=8,Refused=57,Passed=sum(c['ControlPassed'] for c in cases)+2,SourceCommit=head,SourceTreeDirty=dirty)))
 if not all(c['ControlPassed'] for c in cases):raise SystemExit(1)
