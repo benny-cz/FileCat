@@ -1,5 +1,34 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-one-panel-20261028"></a>
+**28 October 2026, a restored one-panel workspace, F5/F6 and the last tab with
+NVDA (AC-S3-065 accepted):** The new
+[one-panel runner](../../tests/FileCat.NativeAcceptance/win-nvda-one-panel.ps1)
+runs on the Win11 VM at 100% with signed portable NVDA 2026.2 against
+Git-built `62bbf095` (DLL `5913D8E4…DE68B4AA`). It made panel 2 the source by
+a click, ran Close panel from command search and confirmed its question
+(“Close panel 2 and its 1 tab? Closed tabs can be reopened with
+Ctrl+Shift+T.”), then closed the window, which saved a `workspace.json` with
+one panel. The next launch, with only the same `--data` folder, restored
+exactly that panel; its list is named a source, and nothing is its target. On
+`bf069986` F5 and F6 there opened with an empty destination and NVDA heard
+only “Enter a destination folder.”, and a real middle click on the panel's
+only tab did nothing audible while Ctrl+W said “A panel always keeps one
+tab.” Since `62bbf095` the dialogs say “There is no target panel. Type the
+folder to copy to.” (“… move to.” for F6), which NVDA heard as the
+destination box's help and again as its live message, and the middle click
+gives the same notice as Ctrl+W; the tab menu's disabled Close tab carries it
+as tooltip and help. A folder typed into the F5 box took the copy, which NVDA
+reported done, and Escape from F6 left the item where it was. In a subfolder,
+the middle click and Ctrl+W each left the only tab open with NVDA hearing why,
+Ctrl+Shift+T said “No recently closed tabs.”, so neither attempt was recorded
+as a closed tab, and Alt+Left went back to the parent folder
+([receipt](evidence/ac-s3-065-win11-nvda-one-panel-62bbf095.json)). Runner
+note: after a run whose last chord was Alt+Left, Alt stayed down in the VM
+once NVDA was stopped and turned the next run's typing into shortcuts; the
+runner now releases any modifier left down before and after its journey, and
+closes the first window through UI Automation rather than Alt+F4.
+
 <a id="evidence-about-20261028"></a>
 **28 October 2026, About's support actions by keyboard with NVDA (AC-S3-067
 accepted):** The new

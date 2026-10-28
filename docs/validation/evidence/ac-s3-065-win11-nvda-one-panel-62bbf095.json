@@ -1,0 +1,97 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288",
+    "Dpi":  96,
+    "SavedPanels":  1,
+    "Restored":  [
+                     "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left"
+                 ],
+    "AppDllSha256":  "5913D8E43C7D411ADAD6E60937B71E916326BC7A17A75E9DE3381371DE68B4AA",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "ReleasedBefore":  [
+
+                       ],
+    "ListsBefore":  [
+                        "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left",
+                        "Panel 2, target, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\right"
+                    ],
+    "ClosePanel":  {
+                       "Speech":  [
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Close panel dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Close panel\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                  ],
+                       "Focused":  "Close panel",
+                       "Texts":  [
+                                     "Close panel",
+                                     "Close panel 2 and its 1 tab? Closed tabs can be reopened with Ctrl+Shift+T."
+                                 ]
+                   },
+    "ListsAfterClose":  [
+                            "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left"
+                        ],
+    "RestoreSpeech":  [
+                          "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                          "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                          "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 4\u0027, CancellableSpeech (still valid)]"
+                      ],
+    "CopyDialog":  {
+                       "Destination":  "",
+                       "Help":  "There is no target panel. Type the folder to copy to.",
+                       "Texts":  [
+                                     "Copy",
+                                     "Copy \"a.txt\" (25 bytes)",
+                                     "To:",
+                                     "",
+                                     "There is no target panel. Type the folder to copy to.",
+                                     "Options",
+                                     "Enter starts now · Queue waits for other operations on the same drive · the destination is fixed once started"
+                                 ],
+                       "Speech":  [
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Destination\u0027, \u0027edit\u0027, \u0027There is no target panel. Type the folder to copy to.\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027There is no target panel. Type the folder to copy to.\u0027]"
+                                  ],
+                       "TypedHelp":  "→ into the folder C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\right"
+                   },
+    "CopySpeech":  [
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left\u0027, \u0027list\u0027, \u00274 visible rows, 3 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027a.txt\u0027, \u0027not selected\u0027, \u0027file, 25 bytes, modified 28.10.2026 3:05:44, not marked, 3 of 4\u0027, CancellableSpeech (still valid)]",
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy \"a.txt\" to C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\right: done (25 bytes).\u0027]"
+                   ],
+    "MoveDialog":  {
+                       "Destination":  "",
+                       "Help":  "There is no target panel. Type the folder to move to.",
+                       "Speech":  [
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Move dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Destination\u0027, \u0027edit\u0027, \u0027There is no target panel. Type the folder to move to.\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027There is no target panel. Type the folder to move to.\u0027]"
+                                  ]
+                   },
+    "MiddleClick":  {
+                        "Speech":  [
+                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027A panel always keeps one tab.\u0027]"
+                                   ],
+                        "Tabs":  [
+                                     "sub, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left\\sub"
+                                 ]
+                    },
+    "CtrlW":  {
+                  "Speech":  [
+                                 "[LangChangeCommand (\u0027en_US\u0027), \u0027A panel always keeps one tab.\u0027]"
+                             ],
+                  "Tabs":  [
+                               "sub, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left\\sub"
+                           ]
+              },
+    "Reopen":  [
+                   "[LangChangeCommand (\u0027en_US\u0027), \u0027No recently closed tabs.\u0027]"
+               ],
+    "AfterBack":  [
+                      "Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\OnePanelFixture\\8167a5bbb7374702ae7918bfd40e4288\\left"
+                  ],
+    "ReleasedAfter":  [
+                          164
+                      ]
+}

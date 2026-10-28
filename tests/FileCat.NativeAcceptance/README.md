@@ -66,6 +66,17 @@ button must open that folder in a new tab, be heard and keep the working
 tabs. About must stay open until Enter on Close. The runner restores the
 clipboard it found.
 
+`win-nvda-one-panel.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` closes panel 2 from command
+search in a test-owned `--data` folder, closes the window and requires the
+saved workspace to hold one panel. The second launch must restore that panel
+with no target; F5 and F6 must open with an empty destination whose spoken
+help says there is no target panel, a typed folder must take the copy, and
+Escape must leave the F6 item in place. A real middle click and Ctrl+W on the
+panel's only tab must leave it open with NVDA hearing why, Ctrl+Shift+T must
+report no closed tabs, and Alt+Left must go back. It releases any modifier
+key left down before and after the journey.
+
 `win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
 and a 24-unit content size in Settings and checks `settings.json`, then opens
