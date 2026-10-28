@@ -49,6 +49,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private readonly CommandSearchBar _commandSearch;
     private readonly WindowPlacement? _savedPlacement;
     private WindowPlacement? _normalPlacement;
+    /// <summary>
+    /// A window opened maximized has never stood in its saved normal bounds, so a window manager may unmaximize it to a
+    /// place of its own (GNOME puts it in the work area's corner): the first time it leaves maximized it goes there.
+    /// </summary>
+    private WindowPlacement? _unmaximizeTo;
     private readonly DispatcherTimer _normalPlacementTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private bool _placementTrackingReady;
     private bool _toolbarRefreshPending;
@@ -157,6 +162,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         PropertyChanged += (_, change) =>
         {
             if (change.Property != WindowStateProperty) return;
+            if (WindowState == WindowState.Normal && _unmaximizeTo is { } normal &&
+                change.OldValue is WindowState.Maximized)
+            {
+                _unmaximizeTo = null;
+                // After the window manager's own unmaximize, which the state change reports.
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (WindowState != WindowState.Normal) return;
+                    Position = new PixelPoint((int)normal.X, (int)normal.Y);
+                    Width = normal.Width;
+                    Height = normal.Height;
+                }, DispatcherPriority.Background);
+            }
             if (WindowState == WindowState.Normal) QueueNormalPlacement();
             else _normalPlacementTimer.Stop();
         };
@@ -1253,7 +1271,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         Height = restored.Height;
         WindowStartupLocation = WindowStartupLocation.Manual;
         Position = new PixelPoint((int)restored.X, (int)restored.Y);
-        if (restored.Maximized) WindowState = WindowState.Maximized;
+        if (restored.Maximized)
+        {
+            _unmaximizeTo = _normalPlacement;
+            WindowState = WindowState.Maximized;
+        }
     }
 
     private IReadOnlyList<DisplayWorkArea> DisplayAreas()

@@ -81,6 +81,9 @@ public sealed class WindowPlacementTests
             Assert.Equal(WindowStartupLocation.Manual, reopened.WindowStartupLocation);
             Assert.Equal(WindowState.Maximized, reopened.WindowState);
             reopened.WindowState = WindowState.Normal;
+            // A window manager may unmaximize a window that opened maximized to a place of its own (GNOME's mutter
+            // put it in the work area's corner); it still comes back to its saved normal bounds.
+            reopened.Position = new PixelPoint(work.Value.X, work.Value.Y);
             await Task.Delay(180, TestContext.Current.CancellationToken);
             Dispatcher.UIThread.RunJobs();
             Assert.InRange(reopened.Bounds.Width, 925, 935);
