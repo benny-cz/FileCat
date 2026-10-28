@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Input.Platform;
@@ -143,9 +144,10 @@ internal static class AboutDialog
         {
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             var label = new TextBlock { Text = facts[i].Label, Classes = { "muted" } };
+            // The value says what it is to a screen reader, so the label alone would be read twice.
+            AutomationProperties.SetAccessibilityView(label, AccessibilityView.Raw);
             // Selectable, so a path can be copied as it is.
-            var value = new SelectableTextBlock { Text = facts[i].Value, TextWrapping = TextWrapping.Wrap };
-            Avalonia.Automation.AutomationProperties.SetName(value, facts[i].Label);
+            var value = new FactValue(facts[i].Label) { Text = facts[i].Value, TextWrapping = TextWrapping.Wrap };
             Grid.SetRow(label, i);
             Grid.SetRow(value, i);
             Grid.SetColumn(value, 1);
@@ -153,6 +155,24 @@ internal static class AboutDialog
             grid.Children.Add(value);
         }
         return grid;
+    }
+
+    /// <summary>
+    /// A fact's value, which a screen reader names with its label ("Theme: Classic", not "Classic"): a text block's own
+    /// automation name is its text, whatever name it is given.
+    /// </summary>
+    private sealed class FactValue(string label) : SelectableTextBlock
+    {
+        protected override Type StyleKeyOverride => typeof(SelectableTextBlock);
+
+        protected override AutomationPeer OnCreateAutomationPeer() => new FactValuePeer(this, label);
+
+        private sealed class FactValuePeer(FactValue owner, string label) : ControlAutomationPeer(owner)
+        {
+            protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Text;
+            protected override string GetClassNameCore() => nameof(SelectableTextBlock);
+            protected override string GetNameCore() => $"{label}: {owner.Text}";
+        }
     }
 
     // ---- The header, in the theme's own dress --------------------------------------------------------------------

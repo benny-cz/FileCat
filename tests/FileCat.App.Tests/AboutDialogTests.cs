@@ -33,6 +33,16 @@ public sealed class AboutDialogTests
             Assert.Equal(new Uri("mailto:marek.strihavka@gmail.com"), mail.NavigateUri);
             var problems = AccessibilityTests.Unnamed(window);
             Assert.True(problems.Count == 0, string.Join("; ", problems));
+            // A screen reader reaching a value (each is a Tab stop) hears what it is, "Theme: Classic", not "Classic";
+            // the label beside it is not read again (found with NVDA on Windows).
+            var spoken = window.GetVisualDescendants().OfType<SelectableTextBlock>()
+                .Select(t => Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(t).GetName()).ToList();
+            foreach (var (label, value) in AboutDialog.Facts(vm))
+            {
+                Assert.Contains($"{label}: {value}", spoken);
+                Assert.All(window.GetVisualDescendants().OfType<TextBlock>().Where(t => t is not SelectableTextBlock && t.Text == label),
+                    t => Assert.Equal(AccessibilityView.Raw, AutomationProperties.GetAccessibilityView(t)));
+            }
 
             // Copy details: the whole of it as text, for a bug report.
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Copy details").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
