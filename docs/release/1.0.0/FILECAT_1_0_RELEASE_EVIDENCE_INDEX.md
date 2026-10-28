@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**865 evidence entries; none is final candidate qualification.** No candidate exists.
+**868 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -876,6 +876,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I436-FAILED | Exact pushed-source manifest-input CI cancelled on Windows aggregate limit | bec7cb77/38475513546 | Four required jobs pass, Windows x64 cancelled, four conditional skips. All 27 server-digested ZIPs/2,762 members/fourteen TRX give 33,189P/1,167S/0F and all 34,344 prior test rows unchanged; the FAT32 job step is unqualified. Official failed-run and independent comparison archives rehash; no candidate. | [Cancelled-run audit](evidence/E-CI-I436-cancelled-windows-budget.md) | I436/I439/ENV-06 |
 | E-CI-I437 | Exact pushed-source checksum-line CI and predecessor comparison | fe57e7ab/38478761744 | Five required jobs pass/four conditional skips; 27 server-digested ZIPs/2,762 members/fourteen TRX yield 33,197P/1,167S/0F. All 34,344 I435 predecessor rows persist; only twenty I436/I437 Core rows are added. Official/comparison archives rehash; no candidate. | [Exact hosted audit](evidence/E-CI-I437-manifest-line-allocation.md) | I436/I437/I439/ENV-06 |
 | E-CI-PREOPEN-SELECTION | Original I106/I368/I369 CI at separate source commits | cd19d7c/38180903387, c6c7f30/38181890980 and cc93071/38183808053, attempt 1 each | Four lanes each; 27 archives/2,762 members/14 TRX each; I369 preserves every I368 case outcome/message; no candidate | [Record](evidence/E-CI-preopen-disk-selection.md) | I106/I368/I369/V09 |
+
+| E-FCSEC-20261028 | Bounded security remediation and acceptance AC-01–AC-04 | Current checkout through `67b3d66a`; dated Windows/Ubuntu and locked-graph routes | Remote Move binding, elevated editor fallback, default diagnostic path redaction and bounded dependency applicability cases pass at their stated scope. Parent I03/I16 and candidate gates remain. | [Security plan and ledger](../../security/FILECAT_SECURITY_REVIEW_AND_PLAN.md), [evidence record](../../security/evidence/E-FCSEC-20261028-bounded-remediation.md) | I03/I16/I49/V08/V11/V20/V23 |
+| E-UX-20261028 | Completed 76-finding UX audit, queued defects and final integration gate | Product heads through `47f09505`; dated Windows/Ubuntu/Mac routes and five-lane CI | Every required stable UX case and GATE-CI-FINAL is Accepted. Child IDs, producers, exact routes and reopen rules remain in the campaign ledger; optional refinements do not extend release scope. | [UX acceptance ledger](../../validation/UX_UI_ACCEPTANCE_LEDGER.md), [remaining-work index](../../validation/UX_UI_REMAINING.md) | I10/I11/I13/V17/V18/V22 |
+| E-GIT-BADGE-20261028 | Git badge refresh and portable icon/tooltip explanation | `47f09505`; Win11 VMware and GitHub run 40696681900 | Completed-reread refresh, exact Windows clean/changed pixels and shared App path pass; five required CI lanes pass. Native Linux/macOS pixels and speech were not measured and are optional absent regression. | [Focused check](../../validation/GIT_BADGE_UX_CHECK_20261028.md), [ledger case](../../validation/UX_UI_ACCEPTANCE_LEDGER.md#fcux-git-001) | I108/V12/V22 |
 
 <a id="commits-made-by-the-campaign"></a>
 

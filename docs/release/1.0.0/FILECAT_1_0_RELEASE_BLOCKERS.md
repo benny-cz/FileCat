@@ -1,9 +1,9 @@
 # FileCat 1.0.0 — current gates and dependencies
 
-Updated 2026-10-15. **NO-GO. No candidate and no stable publication approval.**
+Reconciled 2026-10-28. **NO-GO. No candidate and no stable publication approval.** External observations retain their recorded dates unless a row says otherwise.
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) follows runnable Critical gaps first, then High, Medium and lower release-impact priority (latest owner direction, 2026-10-10). [Combined native main-window/QuickView/F3 cases](evidence/E-I06-native-combined-accounting.md) pass, with wider ownership/native allocation/input/platform/reference/human/candidate scope remaining. [I333 source-container publication](evidence/E-I333-source-container-publication.md) now passes 63 native fixed controls with complete bytes and independent cleanup; broader aliases/atomic/physical/candidate scope remains. The former physical-source attribution hold was resolved by I495 on the authorized USB; other media, installed-app consent, owner/people and publication gates remain.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) is authoritative for remaining acceptance. Every Blocked ledger row cites a DEC, EXT, ENV or PPL dependency from this register and becomes executable only when that dependency changes. Do not repeatedly probe an unavailable prerequisite. The former physical-source attribution hold was resolved by I495 on the authorized USB; other media, installed-app consent, owner/people and publication gates remain.
 
 ## Safety and publication holds
 

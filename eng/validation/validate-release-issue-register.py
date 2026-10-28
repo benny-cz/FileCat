@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that issue rows remain in Markdown tables and summary counts match."""
+"""Check the release register, evidence index and acceptance ledger."""
 
 from pathlib import Path
 import re
@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTER = ROOT / "docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md"
 EVIDENCE = ROOT / "docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md"
 DASHBOARD = ROOT / "docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md"
+BLOCKERS = ROOT / "docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md"
 ISSUE = re.compile(r"^\| I(\d+) \|")
 SUMMARY = re.compile(
     r"\*\*(\d+) Remediated preliminarily, (two|\d+) Closed for preliminary scope, "
@@ -83,6 +84,67 @@ def main() -> None:
     if dashboard_count is None or int(dashboard_count.group(1)) != len(evidence_ids):
         raise ValueError("Evidence dashboard disagrees with the index")
     print(f"Release evidence index: {len(evidence_ids)} unique entries; dashboard agrees")
+
+    start = "<!-- RELEASE-LEDGER-BEGIN -->"
+    end = "<!-- RELEASE-LEDGER-END -->"
+    if dashboard.count(start) != 1 or dashboard.count(end) != 1:
+        raise ValueError("Release ledger markers are missing or duplicated")
+    ledger = dashboard.split(start, 1)[1].split(end, 1)[0]
+    rows = []
+    for line in ledger.splitlines():
+        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Stable case ID"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 8:
+            raise ValueError(f"Release ledger row has {len(cells)} columns instead of 8: {line[:100]}")
+        rows.append(cells)
+    if not rows:
+        raise ValueError("Release acceptance ledger is empty")
+
+    case_ids = [row[0] for row in rows]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("Release acceptance ledger contains duplicate case IDs")
+    allowed_statuses = {"Open", "Failed", "Blocked", "Accepted", "Optional"}
+    for case_id, _campaign, requirement, priority, status, tested, evidence, gap in rows:
+        if status not in allowed_statuses:
+            raise ValueError(f"{case_id} has unsupported status {status!r}")
+        if priority not in {"P0", "P1", "P2", "P3"}:
+            raise ValueError(f"{case_id} has unsupported priority {priority!r}")
+        if not requirement or not tested or not evidence or not gap:
+            raise ValueError(f"{case_id} is missing required acceptance-ledger detail")
+
+    required_preserved = {
+        "GATE-CI-FINAL", "REL-UX-AUDIT", "FCUX-GIT-001",
+        "FCSEC-AC-01", "FCSEC-AC-02", "FCSEC-AC-03", "FCSEC-AC-04",
+        "V09-I495", "I542-LINE-BUDGET", "I543-MD-BUDGET",
+    }
+    missing = sorted(required_preserved.difference(case_ids))
+    if missing:
+        raise ValueError(f"Release ledger dropped accepted stable cases: {missing}")
+    status_by_case = {row[0]: row[4] for row in rows}
+    if status_by_case.get("I524-ARM64-ACK") != "Failed":
+        raise ValueError("I524-ARM64-ACK must retain the failed Windows ARM64 result")
+
+    dependency_ids = set(re.findall(r"\b(?:DEC|EXT|ENV|PPL)-\d+\b", BLOCKERS.read_text(encoding="utf-8-sig")))
+    for row in rows:
+        if row[4] != "Blocked":
+            continue
+        references = set(re.findall(r"\b(?:DEC|EXT|ENV|PPL)-\d+\b", " ".join(row)))
+        unknown = references.difference(dependency_ids)
+        if unknown:
+            raise ValueError(f"{row[0]} cites unknown blocker dependencies: {sorted(unknown)}")
+        if not references and "REL-" not in " ".join(row):
+            raise ValueError(f"{row[0]} is Blocked without a named dependency")
+
+    retired_headings = {
+        "## Progress", "## Remaining issue work — 23 entries",
+        "## Remaining campaign tests", "## Next executable slices",
+    }
+    present = sorted(heading for heading in retired_headings if heading in dashboard)
+    if present:
+        raise ValueError(f"Dashboard retains superseded parallel backlog sections: {present}")
+    counts = {status: sum(row[4] == status for row in rows) for status in sorted(allowed_statuses)}
+    print(f"Release acceptance ledger: {len(rows)} unique cases; statuses {counts}; named blockers verified")
 
 
 if __name__ == "__main__":
