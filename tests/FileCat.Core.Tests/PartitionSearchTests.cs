@@ -212,4 +212,36 @@ public sealed class PartitionSearchTests : IDisposable
             }
         }
     }
+
+    [Fact]
+    public void Canceling_the_deep_search_stops_before_another_source_read()
+    {
+        using var source = new CancellationSource(2L * 1024 * MiB);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        Assert.Throws<OperationCanceledException>(() => PartitionSearch.Deep(source, [], [], (_, _) =>
+        {
+            source.Canceled = true;
+            cancellation.Cancel();
+        }, cancellation.Token));
+
+        Assert.Equal(0, source.ReadsAfterCancel);
+    }
+
+    private sealed class CancellationSource(long length) : IBlockSource
+    {
+        public string Description => "cancellation source";
+        public long Length { get; } = length;
+        public bool Canceled { get; set; }
+        public int ReadsAfterCancel { get; private set; }
+
+        public int Read(long offset, Span<byte> buffer)
+        {
+            if (Canceled) ReadsAfterCancel++;
+            buffer.Clear();
+            return buffer.Length;
+        }
+
+        public void Dispose() { }
+    }
 }

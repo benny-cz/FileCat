@@ -104,10 +104,11 @@ public static class PartitionSearch
             long p = AlignUp(from, Sector);
             while (p < gap.End)
             {
+                ct.ThrowIfCancellationRequested();
                 if ((++probes & 63) == 0)
                 {
-                    ct.ThrowIfCancellationRequested();
                     progress?.Invoke(done + (p - gap.Offset), total);
+                    ct.ThrowIfCancellationRequested();
                 }
                 if (Probe(disk, p, from, gap.End) is { } hit)
                 {
@@ -117,7 +118,11 @@ public static class PartitionSearch
                 }
                 p = Next(p);
             }
-            if (from < gap.End && Probe(disk, gap.End, from, gap.End) is { } last) found.Add(last);
+            if (from < gap.End)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (Probe(disk, gap.End, from, gap.End) is { } last) found.Add(last);
+            }
             done += gap.Length;
             progress?.Invoke(done, total);
         }
