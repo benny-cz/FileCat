@@ -103,4 +103,65 @@ public sealed class TabOrderTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    /// <summary>
+    /// Tabs that do not all fit scroll their strip, so some places among them are hidden: a tab held at either end of
+    /// the strip scrolls it that way, and dropped there it goes first or last (found on Ubuntu, where three long tab
+    /// names hid most of the first tab and a dragged tab could not get before it).
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_tab_held_at_an_end_of_an_overflowing_strip_scrolls_it_to_the_hidden_places()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var left = vm.Workspace.Panels[0];
+            var names = Enumerable.Range(0, 10).Select(i => $"folder-with-a-long-name-{i:00}").ToArray();
+            foreach (var name in names) Directory.CreateDirectory(Path.Combine(root, name));
+            left.ActiveTab!.Navigate(Location.FileSystem(Path.Combine(root, names[0])));
+            foreach (var name in names.Skip(1)) left.OpenTab(Location.FileSystem(Path.Combine(root, name)));
+            vm.Workspace.Activate(left);
+            var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, left));
+            var scroller = view.GetVisualDescendants().OfType<ScrollViewer>().First(s => s.Name == "TabScroller");
+            for (int i = 0; i < 250 && !(Order(left).SequenceEqual(names) && view.TabStripState() == (true, true)); i++)
+                await Task.Delay(20, ct);
+            Assert.Equal(names, Order(left));
+            Assert.Equal((true, true), view.TabStripState()); // the last tab, active, is in sight; the first is not
+            Assert.True(scroller.Offset.X > 0);
+
+            // Held at the strip's left end, the last tab scrolls it all the way back and, dropped, goes first.
+            var last = left.Tabs[^1];
+            var strip = scroller.TranslatePoint(default, window)!.Value;
+            var leftEnd = new Point(strip.X + 4, On(window, last, 0.5).Y);
+            window.MouseMove(On(window, last, 0.5));
+            window.MouseDown(On(window, last, 0.5), MouseButton.Left);
+            window.MouseMove(new Point(On(window, last, 0.5).X - 12, leftEnd.Y));
+            window.MouseMove(leftEnd);
+            for (int i = 0; i < 250 && scroller.Offset.X > 0.5; i++) await Task.Delay(20, ct);
+            Assert.True(scroller.Offset.X <= 0.5, $"The strip stayed scrolled to {scroller.Offset.X}");
+            window.MouseUp(leftEnd, MouseButton.Left);
+            Assert.Same(last, left.Tabs[0]);
+            Assert.Same(last, left.ActiveTab);
+            await Task.Delay(50, ct);
+
+            // Held just past the right end, a tab scrolls the strip to its end and, dropped, goes last.
+            var second = left.Tabs[1];
+            double max = scroller.Extent.Width - scroller.Viewport.Width;
+            var rightEnd = new Point(strip.X + scroller.Bounds.Width + 8, leftEnd.Y);
+            window.MouseMove(On(window, second, 0.5));
+            window.MouseDown(On(window, second, 0.5), MouseButton.Left);
+            window.MouseMove(new Point(On(window, second, 0.5).X + 12, leftEnd.Y));
+            window.MouseMove(rightEnd);
+            for (int i = 0; i < 250 && scroller.Offset.X < max - 0.5; i++) await Task.Delay(20, ct);
+            Assert.True(scroller.Offset.X >= max - 0.5, $"The strip stopped at {scroller.Offset.X} of {max}");
+            window.MouseUp(rightEnd, MouseButton.Left);
+            Assert.Same(second, left.Tabs[^1]);
+            Assert.Equal(names.Length, left.Tabs.Count);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

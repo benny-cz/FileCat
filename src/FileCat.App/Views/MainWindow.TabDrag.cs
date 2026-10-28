@@ -2,13 +2,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using FileCat.App.ViewModels;
 
 namespace FileCat.App.Views;
 
 /// <summary>
 /// Dragging a tab: along its panel's tab strip to another place, or onto another panel's strip, where it moves to. A
-/// line marks where it goes; Esc, or letting go off the strips, leaves it where it was.
+/// line marks where it goes; held at either end of a strip whose tabs do not all fit, it scrolls that strip. Esc, or
+/// letting go off the strips, leaves it where it was.
 /// </summary>
 public partial class MainWindow
 {
@@ -23,9 +25,14 @@ public partial class MainWindow
         /// <summary>The panel whose tab strip is under the pointer, and where among its tabs the tab goes.</summary>
         public PanelViewModel? Target;
         public int Index;
+        /// <summary>Where the pointer last was, in the drag layer's coordinates.</summary>
+        public Point At;
     }
 
     private TabDrag? _tabDrag;
+    /// <summary>Keeps scrolling a tab strip while a dragged tab is held at either of its ends.</summary>
+    private DispatcherTimer? _tabScroll;
+    private const double TabScrollStep = 16;
 
     private void AttachTabDrag()
     {
@@ -56,7 +63,31 @@ public partial class MainWindow
             Cursor = new Cursor(StandardCursorType.DragMove);
         }
         e.Handled = true;
-        ShowTabDrop(drag, e.GetPosition(DockLayer));
+        drag.At = e.GetPosition(DockLayer);
+        ShowTabDrop(drag, drag.At);
+        if (_tabScroll is not { IsEnabled: true } && ScrollTabStrip(drag))
+        {
+            _tabScroll ??= new DispatcherTimer(TimeSpan.FromMilliseconds(40), DispatcherPriority.Input, (_, _) =>
+            {
+                if (_tabDrag is not { Moving: true } held || !ScrollTabStrip(held)) _tabScroll!.Stop();
+            });
+            _tabScroll.Start();
+        }
+    }
+
+    /// <summary>
+    /// A tab dragged to either end of a strip whose tabs do not all fit scrolls it a step that way (and the drop place
+    /// follows); whether it scrolled.
+    /// </summary>
+    private bool ScrollTabStrip(TabDrag drag)
+    {
+        foreach (var (_, view) in _panelViews)
+        {
+            if (!view.IsEffectivelyVisible || !view.ScrollTabsToward(drag.At, DockLayer, TabScrollStep)) continue;
+            ShowTabDrop(drag, drag.At);
+            return true;
+        }
+        return false;
     }
 
     private void OnTabDragReleased(object? sender, PointerReleasedEventArgs e)
@@ -74,6 +105,7 @@ public partial class MainWindow
     {
         if (_tabDrag is not { } drag) return;
         _tabDrag = null;
+        _tabScroll?.Stop();
         drag.Handle.Opacity = 1;
         Cursor = null;
         TabDropMarker.IsVisible = false;

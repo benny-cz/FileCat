@@ -849,8 +849,8 @@ public partial class PanelView : UserControl
     internal (int Index, Rect Gap)? TabDropAt(Point point, Visual relativeTo, TabViewModel dragged)
     {
         if (Panel is not { } panel || !TabHeader.IsEffectivelyVisible || TabScroller.TranslatePoint(default, relativeTo) is not { } origin) return null;
-        // Forgiving above and below the strip: a drag rarely stays within its few pixels of height.
-        var strip = new Rect(origin, TabScroller.Bounds.Size).Inflate(new Thickness(0, 10));
+        // Forgiving around the strip: a drag rarely stays within its few pixels of height, or stops exactly at an end.
+        var strip = new Rect(origin, TabScroller.Bounds.Size).Inflate(new Thickness(TabStripEnd, 10));
         if (!strip.Contains(point)) return null;
         int index = 0;
         double gap = origin.X;
@@ -868,6 +868,27 @@ public partial class PanelView : UserControl
         }
         gap = Math.Clamp(gap, origin.X + 1, origin.X + TabScroller.Bounds.Width - 1);
         return (index, new Rect(gap - 1.5, origin.Y + 2, 3, Math.Max(8, TabScroller.Bounds.Height - 4)));
+    }
+
+    /// <summary>How near either end of the tab strip (inside it or just past it) a dragged tab is at that end.</summary>
+    private const double TabStripEnd = 24;
+
+    /// <summary>
+    /// A tab dragged to either end of a strip whose tabs do not all fit scrolls it that way by <paramref name="step"/>,
+    /// so every place among its tabs can be reached, the hidden ones too; whether it scrolled.
+    /// </summary>
+    internal bool ScrollTabsToward(Point point, Visual relativeTo, double step)
+    {
+        if (!TabHeader.IsEffectivelyVisible || TabScroller.TranslatePoint(default, relativeTo) is not { } origin) return false;
+        var strip = new Rect(origin, TabScroller.Bounds.Size);
+        if (!strip.Inflate(new Thickness(TabStripEnd, 10)).Contains(point)) return false;
+        double direction = point.X < strip.Left + TabStripEnd ? -1 : point.X > strip.Right - TabStripEnd ? 1 : 0;
+        double offset = Math.Clamp(TabScroller.Offset.X + direction * step, 0,
+                                   Math.Max(0, TabScroller.Extent.Width - TabScroller.Viewport.Width));
+        if (Math.Abs(offset - TabScroller.Offset.X) < 0.5) return false;
+        TabScroller.Offset = TabScroller.Offset.WithX(offset);
+        TabScroller.UpdateLayout(); // the tabs' new places, for the drop that follows
+        return true;
     }
 
     private void OnTabPointerReleased(object? sender, PointerReleasedEventArgs e)
