@@ -28,8 +28,13 @@ try
         throw new InvalidDataException("Notice index must be an existing non-linked file.");
     if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$", RegexOptions.CultureInvariant)
         || !supportedRids.Contains(rid) || !supportedKinds.Contains(kind)
-        || !Regex.IsMatch(sourceCommit, "^[0-9a-f]{40}$", RegexOptions.CultureInvariant))
+        || !Regex.IsMatch(sourceCommit, @"^[0-9a-f]{40}(\+dirty\.[0-9a-f]{64})?$", RegexOptions.CultureInvariant))
         throw new InvalidDataException("Version, RID, kind or source commit is invalid.");
+    // "<commit>+dirty.<sha256>": built from uncommitted changes to the build inputs; the hash names that state.
+    string commitOnly = sourceCommit[..40];
+    string sourceStatement = sourceCommit.Length == 40
+        ? $"Source commit {sourceCommit}"
+        : $"Source commit {commitOnly} plus uncommitted changes (state SHA-256 {sourceCommit[47..]}); not a reproducible source identity";
     if (!DateTimeOffset.TryParse(args[6], out var created)) throw new InvalidDataException("Creation time is invalid.");
     created = created.ToUniversalTime();
     if (File.Exists(output) || Directory.Exists(output)) throw new InvalidDataException("SBOM output must be new.");
@@ -171,14 +176,14 @@ try
             ["licenseConcluded"] = "NOASSERTION",
             ["licenseDeclared"] = "MIT",
             ["copyrightText"] = "Copyright (c) 2026 Benny and FileCat contributors",
-            ["sourceInfo"] = $"Source commit {sourceCommit}",
+            ["sourceInfo"] = sourceStatement,
             ["comment"] = $"Exact {kind} payload tree for {rid}; tree SHA-256 {treeIdentity}. Preliminary composition evidence, not signing or candidate qualification.",
             ["hasFiles"] = new JsonArray(files.Select(file => (JsonNode?)file.SpdxId).ToArray()),
             ["externalRefs"] = new JsonArray(new JsonObject
             {
                 ["referenceCategory"] = "OTHER",
                 ["referenceType"] = "vcs",
-                ["referenceLocator"] = $"https://github.com/benny-cz/FileCat@{sourceCommit}"
+                ["referenceLocator"] = $"https://github.com/benny-cz/FileCat@{commitOnly}"
             })
         }
     };
@@ -257,7 +262,7 @@ try
             ["downloadLocation"] = "NOASSERTION", ["filesAnalyzed"] = false,
             ["licenseConcluded"] = "NOASSERTION", ["licenseDeclared"] = "MIT",
             ["copyrightText"] = "Copyright (c) 2026 Benny and FileCat contributors",
-            ["sourceInfo"] = $"Built from FileCat source commit {sourceCommit}"
+            ["sourceInfo"] = "Built from FileCat " + sourceStatement[0..1].ToLowerInvariant() + sourceStatement[1..]
         });
     }
     var relationships = new JsonArray(new JsonObject
@@ -276,7 +281,7 @@ try
         ["dataLicense"] = "CC0-1.0",
         ["SPDXID"] = "SPDXRef-DOCUMENT",
         ["name"] = $"FileCat-{version}-{rid}-{kind}",
-        ["documentNamespace"] = $"https://github.com/benny-cz/FileCat/spdx/{sourceCommit}/{Uri.EscapeDataString(version)}/{rid}/{kind}/{treeIdentity}",
+        ["documentNamespace"] = $"https://github.com/benny-cz/FileCat/spdx/{Uri.EscapeDataString(sourceCommit)}/{Uri.EscapeDataString(version)}/{rid}/{kind}/{treeIdentity}",
         ["creationInfo"] = new JsonObject
         {
             ["created"] = created.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),

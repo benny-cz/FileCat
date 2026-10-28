@@ -33,6 +33,22 @@ $createdUtc = @(& git -C $root show -s --format=%cI $sourceCommit)[0].Trim()
 if ($LASTEXITCODE -ne 0 -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$' -or [string]::IsNullOrWhiteSpace($createdUtc)) {
     throw 'Cannot establish the exact source identity for artifact SBOMs.'
 }
+# The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
+# so an SBOM never claims a clean commit it was not built from.
+$buildInputs = @('src', 'eng', 'licenses', 'Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'global.json', 'THIRD-PARTY-NOTICES.md', 'LICENSE', 'FileCat.slnx')
+$changedInputs = @(& git -C $root status --porcelain=v1 --untracked-files=all -- $buildInputs)
+$sourceIdentity = $sourceCommit
+if ($changedInputs.Count -gt 0) {
+    if ($env:GITHUB_ACTIONS -eq 'true') { throw 'Release packaging needs a clean checkout of every build input: ' + ($changedInputs -join '; ') }
+    $state = [Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
+    $state.AppendData([Text.Encoding]::UTF8.GetBytes((& git -C $root diff HEAD --binary -- $buildInputs | Out-String)))
+    foreach ($path in @(& git -C $root ls-files --others --exclude-standard -- $buildInputs | Sort-Object)) {
+        $state.AppendData([Text.Encoding]::UTF8.GetBytes($path + "`n"))
+        $state.AppendData([IO.File]::ReadAllBytes((Join-Path $root $path)))
+    }
+    $sourceIdentity = "$sourceCommit+dirty." + [Convert]::ToHexString($state.GetHashAndReset()).ToLowerInvariant()
+    Write-Warning "Packaging uncommitted changes; the SBOMs record source $sourceIdentity."
+}
 $sbomSetup = Join-Path $artifacts "sbom-$Version-$Runtime-setup-payload.spdx.json"
 $sbomPortable = Join-Path $artifacts "sbom-$Version-$Runtime-portable.spdx.json"
 $sbomFdd = Join-Path $artifacts "sbom-$Version-$Runtime-fdd.spdx.json"
@@ -79,7 +95,7 @@ foreach ($dir in @($publish, $fdd)) {
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output) {
     & dotnet run --project (Join-Path $root 'eng/ArtifactSbom') -c Release -- `
         $Payload (Join-Path $root 'licenses/dependencies/index.json') $Version $Runtime $Kind `
-        $sourceCommit $createdUtc $Output
+        $sourceIdentity $createdUtc $Output
     if ($LASTEXITCODE -ne 0) { throw "artifact SBOM failed: $Kind" }
 }
 

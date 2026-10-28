@@ -17,6 +17,16 @@ if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ || -z "$CREATED_UTC" ]]; then
   echo "Cannot establish exact source identity for artifact SBOM." >&2
   exit 2
 fi
+# The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
+# so an SBOM never claims a clean commit it was not built from.
+BUILD_INPUTS=(src eng licenses Directory.Build.props Directory.Build.targets Directory.Packages.props global.json THIRD-PARTY-NOTICES.md LICENSE FileCat.slnx)
+SOURCE_IDENTITY="$SOURCE_COMMIT"
+if [ -n "$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all -- "${BUILD_INPUTS[@]}")" ]; then
+  if [ "${GITHUB_ACTIONS:-}" = "true" ]; then echo "Release packaging needs a clean checkout of every build input." >&2; exit 1; fi
+  STATE_HASH="$( { git -C "$ROOT" diff HEAD --binary -- "${BUILD_INPUTS[@]}"; git -C "$ROOT" ls-files --others --exclude-standard -- "${BUILD_INPUTS[@]}" | LC_ALL=C sort | while IFS= read -r p; do printf '%s\n' "$p"; cat "$ROOT/$p"; done; } | { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi; } | cut -d" " -f1)"
+  SOURCE_IDENTITY="$SOURCE_COMMIT+dirty.$STATE_HASH"
+  echo "warning: packaging uncommitted changes; the SBOMs record source $SOURCE_IDENTITY" >&2
+fi
 
 rm -rf "$PUB"
 mkdir -p "$OUT"
@@ -81,7 +91,7 @@ SBOM="$OUT/sbom-$VERSION-$RID-macos-app.spdx.json"
 rm -f "$ZIP"
 rm -f "$SBOM"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
-  "$APP" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" macos-app "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM"
+  "$APP" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" macos-app "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM"
 ditto -c -k --keepParent "$APP" "$ZIP"
 rm -rf "$APP"
 echo "Done:"

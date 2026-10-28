@@ -18,6 +18,16 @@ if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ || -z "$CREATED_UTC" ]]; then
   echo "Cannot establish exact source identity for artifact SBOMs." >&2
   exit 2
 fi
+# The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
+# so an SBOM never claims a clean commit it was not built from.
+BUILD_INPUTS=(src eng licenses Directory.Build.props Directory.Build.targets Directory.Packages.props global.json THIRD-PARTY-NOTICES.md LICENSE FileCat.slnx)
+SOURCE_IDENTITY="$SOURCE_COMMIT"
+if [ -n "$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all -- "${BUILD_INPUTS[@]}")" ]; then
+  if [ "${GITHUB_ACTIONS:-}" = "true" ]; then echo "Release packaging needs a clean checkout of every build input." >&2; exit 1; fi
+  STATE_HASH="$( { git -C "$ROOT" diff HEAD --binary -- "${BUILD_INPUTS[@]}"; git -C "$ROOT" ls-files --others --exclude-standard -- "${BUILD_INPUTS[@]}" | LC_ALL=C sort | while IFS= read -r p; do printf '%s\n' "$p"; cat "$ROOT/$p"; done; } | { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi; } | cut -d" " -f1)"
+  SOURCE_IDENTITY="$SOURCE_COMMIT+dirty.$STATE_HASH"
+  echo "warning: packaging uncommitted changes; the SBOMs record source $SOURCE_IDENTITY" >&2
+fi
 case "$RID" in
   linux-x64) DEB_ARCH=amd64; APPIMAGE_ARCH=x86_64 ;;
   linux-arm64) DEB_ARCH=arm64; APPIMAGE_ARCH=aarch64 ;;
@@ -66,7 +76,7 @@ SBOM_TAR="$OUT/sbom-$VERSION-$RID-tar.spdx.json"
 rm -f "$TARBALL"
 rm -f "$SBOM_TAR"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
-  "$PUB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" tar "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_TAR"
+  "$PUB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" tar "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_TAR"
 tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$RID"
 
 # 2) Debian package (Ubuntu, Debian): the runtime libraries a self-contained .NET and Avalonia app loads.
@@ -139,7 +149,7 @@ SBOM_DEB="$OUT/sbom-$VERSION-$RID-deb.spdx.json"
 rm -f "$DEB_FILE"
 rm -f "$SBOM_DEB"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
-  "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_DEB"
+  "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_DEB"
 dpkg-deb --root-owner-group --build "$DEB" "$DEB_FILE"
 
 # 3) AppImage: one file that runs on most distributions (appimagetool 1.9.1, pinned by checksum; build tool only).
@@ -197,7 +207,7 @@ SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
 rm -f "$APPIMAGE"
 rm -f "$SBOM_APPIMAGE"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
-  "$APPDIR" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_COMMIT" "$CREATED_UTC" "$SBOM_APPIMAGE" \
+  "$APPDIR" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_APPIMAGE" \
   ".appimage/runtime=$RUNTIME"
 # Runs without FUSE (CI containers).
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
