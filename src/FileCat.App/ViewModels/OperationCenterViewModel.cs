@@ -21,6 +21,13 @@ public sealed partial class JobViewModel : ObservableObject
 
     public Job Job { get; }
     public SyncGroup? SyncGroup { get; }
+
+    /// <summary>
+    /// What a screen reader says for the job's row in Operations: the operation and where it stands ("Copy "d.bin" to
+    /// C:\…, Waiting for other operations on C:"). A row takes its name from this, and was read out as its class name.
+    /// </summary>
+    public override string ToString() => string.IsNullOrEmpty(StateText) ? Title : $"{Title}, {StateText}";
+
     public string CancelLabel => SyncGroup is null ? "Cancel" : "Cancel this step";
     public string CancelTooltip => SyncGroup is null
         ? "Stops at the next safe step; completed steps are kept"

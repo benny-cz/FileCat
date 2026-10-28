@@ -162,6 +162,11 @@ public sealed class OperationCenterTests
             Assert.Same(center.Selected, history.SelectedItem);
             Assert.Equal(0, history.SelectedIndex);
             var activeRow = history.ContainerFromIndex(0);
+            // A screen reader hears the row as the operation and where it stands, not as its class name (NVDA said
+            // "FileCat.App.ViewModels.JobViewModel" on Windows).
+            string rowName = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(activeRow!).GetName();
+            Assert.Equal($"{center.Selected!.Title}, {center.Selected.StateText}", rowName);
+            Assert.DoesNotContain(nameof(JobViewModel), rowName);
             var rowPosition = activeRow?.TranslatePoint(new Avalonia.Point(0, 0), history);
             Assert.True(rowPosition is { } pos && pos.Y < history.Bounds.Height &&
                         pos.Y + activeRow!.Bounds.Height > 0,
