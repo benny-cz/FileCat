@@ -77,6 +77,18 @@ panel's only tab must leave it open with NVDA hearing why, Ctrl+Shift+T must
 report no closed tabs, and Alt+Left must go back. It releases any modifier
 key left down before and after the journey.
 
+`win-nvda-dependent-controls.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath
+<signed portable nvda.exe> -ReportPath <fresh guest JSON>` runs NVDA with
+mouse tracking and tooltip reporting on. In Settings › Behavior it changes
+the folder-sizing subordinate option by keyboard as a draft, turns its
+parent off and requires the option to be unavailable with its draft kept,
+its reason heard when the pointer rests on it, and the draft back when the
+parent is on again; Cancel must keep the saved choices. In Settings › Columns
+the Name column's Remove and Up must be unavailable with their reasons, and
+New profile pressed by keyboard up to the limit must leave the keyboard on
+the new profile's row with the limit heard. Cancel must keep the saved
+profiles and `settings.json`.
+
 `win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
 and a 24-unit content size in Settings and checks `settings.json`, then opens

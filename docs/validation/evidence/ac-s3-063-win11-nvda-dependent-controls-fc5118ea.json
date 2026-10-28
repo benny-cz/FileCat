@@ -1,0 +1,147 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DependentFixture\\933a1aa28bd74e46b1c4650c4476e87e",
+    "Dpi":  96,
+    "Behavior":  {
+                     "Initial":  {
+                                     "Parent":  {
+                                                    "Name":  "Space computes the size of a marked folder",
+                                                    "Enabled":  true,
+                                                    "Help":  "",
+                                                    "Toggle":  "On"
+                                                },
+                                     "Child":  {
+                                                   "Name":  "…also on network, removable, and cloud locations",
+                                                   "Enabled":  true,
+                                                   "Help":  "Additional option for Space computes the size of a marked folder",
+                                                   "Toggle":  "Off"
+                                               }
+                                 },
+                     "ChildByTab":  {
+                                        "Focused":  "…also on network, removable, and cloud locations",
+                                        "Spoken":  [
+                                                       "[LangChangeCommand (\u0027en_US\u0027), \u0027…also on network, removable, and cloud locations\u0027, \u0027check box\u0027, \u0027not checked\u0027, \u0027Additional option for Space computes the size of a marked folder\u0027, CancellableSpeech (still valid)]"
+                                                   ]
+                                    },
+                     "ParentOff":  {
+                                       "Spoken":  [
+                                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027not checked\u0027]"
+                                                  ],
+                                       "Child":  {
+                                                     "Name":  "…also on network, removable, and cloud locations",
+                                                     "Enabled":  false,
+                                                     "Help":  "Turn on folder sizing with Space to use this option.",
+                                                     "Toggle":  "On"
+                                                 }
+                                   },
+                     "TabPastUnavailable":  {
+                                                "Focused":  "Quick search matches anywhere in the name (instead of the beginning)",
+                                                "Spoken":  [
+                                                               "[LangChangeCommand (\u0027en_US\u0027), \u0027Quick search matches anywhere in the name (instead of the beginning)\u0027, \u0027check box\u0027, \u0027not checked\u0027, CancellableSpeech (still valid)]"
+                                                           ]
+                                            },
+                     "Hover":  {
+                                   "Control":  "…also on network, removable, and cloud locations",
+                                   "Heard":  [
+                                                 "[LangChangeCommand (\u0027en_US\u0027), \u0027Turn on folder sizing with Space to use this option.\u0027, \u0027tool tip\u0027, CancellableSpeech (still valid)]"
+                                             ],
+                                   "ToolTips":  [
+                                                    "Turn on folder sizing with Space to use this option."
+                                                ]
+                               },
+                     "ParentOn":  {
+                                      "Spoken":  [
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Space computes the size of a marked folder\u0027, \u0027check box\u0027, \u0027not checked\u0027, CancellableSpeech (still valid)]",
+                                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027checked\u0027]"
+                                                 ],
+                                      "Child":  {
+                                                    "Name":  "…also on network, removable, and cloud locations",
+                                                    "Enabled":  true,
+                                                    "Help":  "Additional option for Space computes the size of a marked folder",
+                                                    "Toggle":  "On"
+                                                }
+                                  },
+                     "AfterCancel":  {
+                                         "Parent":  {
+                                                        "Name":  "Space computes the size of a marked folder",
+                                                        "Enabled":  true,
+                                                        "Help":  "",
+                                                        "Toggle":  "On"
+                                                    },
+                                         "Child":  {
+                                                       "Name":  "…also on network, removable, and cloud locations",
+                                                       "Enabled":  true,
+                                                       "Help":  "Additional option for Space computes the size of a marked folder",
+                                                       "Toggle":  "Off"
+                                                   }
+                                     }
+                 },
+    "Columns":  {
+                    "Profiles":  5,
+                    "NameSelected":  {
+                                         "Remove":  {
+                                                        "Name":  "Remove column",
+                                                        "Enabled":  false,
+                                                        "Help":  "The Name column is required.",
+                                                        "Toggle":  null
+                                                    },
+                                         "Up":  {
+                                                    "Name":  "Up column",
+                                                    "Enabled":  false,
+                                                    "Help":  "The first column cannot move up.",
+                                                    "Toggle":  null
+                                                }
+                                     },
+                    "RemoveHover":  {
+                                        "Control":  "Remove column",
+                                        "Heard":  [
+                                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027The Name column is required.\u0027, \u0027tool tip\u0027, CancellableSpeech (still valid)]"
+                                                  ],
+                                        "ToolTips":  [
+                                                         "The Name column is required."
+                                                     ]
+                                    },
+                    "Limit":  {
+                                  "Presses":  5,
+                                  "Profiles":  10,
+                                  "New":  {
+                                              "Name":  "New profile",
+                                              "Enabled":  false,
+                                              "Help":  "Maximum profiles reached (10).",
+                                              "Toggle":  null
+                                          },
+                                  "Duplicate":  {
+                                                    "Name":  "Duplicate profile",
+                                                    "Enabled":  false,
+                                                    "Help":  "Maximum profiles reached (10).",
+                                                    "Toggle":  null
+                                                },
+                                  "Focused":  "Alt+9   New profile",
+                                  "Spoken":  [
+                                                 "[LangChangeCommand (\u0027en_US\u0027), \u0027Column profiles\u0027, \u0027list\u0027, CancellableSpeech (still valid)]",
+                                                 "[LangChangeCommand (\u0027en_US\u0027), \u0027Alt+9   New profile\u0027, CancellableSpeech (still valid)]",
+                                                 "[LangChangeCommand (\u0027en_US\u0027), \u0027Maximum profiles reached (10).\u0027]"
+                                             ]
+                              },
+                    "NewHover":  {
+                                     "Control":  "New profile",
+                                     "Heard":  [
+                                                   "[LangChangeCommand (\u0027en_US\u0027), \u0027Maximum profiles reached (10).\u0027, \u0027tool tip\u0027, CancellableSpeech (still valid)]"
+                                               ],
+                                     "ToolTips":  [
+                                                      "Maximum profiles reached (10)."
+                                                  ]
+                                 },
+                    "AfterCancel":  5
+                },
+    "AppDllSha256":  "F21C5A8FA4967B691E27CF27D53B4C0EF5E97C3EB58390C70C6B885A69F3DED6",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "ReleasedBefore":  [
+
+                       ],
+    "ReleasedAfter":  [
+
+                      ]
+}

@@ -1,5 +1,36 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-dependent-controls-20261028"></a>
+**28 October 2026, dependent Settings options and column-editor limits with
+NVDA (AC-S3-063 accepted):** The new
+[dependent controls runner](../../tests/FileCat.NativeAcceptance/win-nvda-dependent-controls.ps1)
+runs on the Win11 VM at 100% with signed portable NVDA 2026.2, with mouse
+tracking and tooltip reporting on, against Git-built `fc5118ea` (DLL
+`F21C5A8F…69F3DED6`). In Settings › Behavior, Tab from “Space computes the
+size of a marked folder” reached “…also on network, removable, and cloud
+locations”, which NVDA spoke with its help “Additional option for …”. Space
+turned it on as a draft; Shift+Tab and Space turned the parent off, and the
+subordinate option became unavailable, kept its draft value, and was passed
+over by Tab. On `62bbf095` hovering it NVDA said only “tool tip”: Avalonia's
+tooltip pop-up has no accessible name. Since `b57daf85` every tooltip names
+itself with its text, and NVDA read “Turn on folder sizing with Space to use
+this option.” The parent on again brought the option back with its draft
+value, and Cancel kept the saved choices. In Settings › Columns, with the
+Name column selected, Remove and Up were unavailable and said “The Name
+column is required.” and “The first column cannot move up.”; hovering Remove
+was heard. New profile pressed by keyboard up to the limit of ten disabled
+itself while focused, and on `b57daf85` focus fell to the main window
+without a word; since `fc5118ea` an editor action that runs out under the
+keyboard hands it to what it works on, here the new profile's row, brought
+into view, and a polite line says why: NVDA heard “Column profiles list”,
+“Alt+9 New profile” and “Maximum profiles reached (10).” Hovering New read
+the same reason. Available actions also no longer carry the note
+“Available”, which NVDA read after every button. Cancel kept the five saved
+profiles, and `settings.json` was unchanged
+([receipt](evidence/ac-s3-063-win11-nvda-dependent-controls-fc5118ea.json)).
+Limit: by keyboard alone an unavailable control is not a Tab stop, so its
+reason is reached by hovering it or by the screen reader's object review.
+
 <a id="evidence-one-panel-20261028"></a>
 **28 October 2026, a restored one-panel workspace, F5/F6 and the last tab with
 NVDA (AC-S3-065 accepted):** The new
