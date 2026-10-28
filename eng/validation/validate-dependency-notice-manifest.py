@@ -52,8 +52,36 @@ def ltrFullTextResolved(index):
 assert ltrFullTextResolved(noticeIndex)
 changedIndex=json.loads(json.dumps(noticeIndex));changedIndex['Packages'][next(i for i,p in enumerate(changedIndex['Packages']) if p['ID']=='LTRData.Extensions')]['LicenseReference']['SHA256']='0'*64
 assert not ltrFullTextResolved(changedIndex)
+appImageRoot=repo/'licenses/appimage-runtime'
+appImageIndex=json.loads((appImageRoot/'index.json').read_text())
+def appImageFullTextsResolved(index):
+    expectedVersions={
+        'musl-dev':'1.2.5-r11','mimalloc2':'2.1.7-r0','mimalloc2-dev':'2.1.7-r0',
+        'zlib-dev':'1.3.2-r1','zlib-static':'1.3.2-r1','zstd':'1.5.6-r2',
+        'zstd-dev':'1.5.6-r2','zstd-static':'1.5.6-r2',
+    }
+    expectedFiles={
+        'musl/1.2.5/COPYRIGHT':('musl-dev 1.2.5-r11','f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af'),
+        'zstd/1.5.6/LICENSE':('zstd-static 1.5.6-r2','7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8'),
+        'zlib/1.3.2/LICENSE':('zlib-static 1.3.2-r1','e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2'),
+        'mimalloc/2.1.7/LICENSE':('mimalloc2-dev 2.1.7-r0','19c99805e7a44a34b297a75d1edea9985e300066dfc024d5c99d4236d4573b5d'),
+    }
+    producer=index.get('ProducerEnvironment',{})
+    files={entry.get('Path'):entry for entry in index.get('Files',[])}
+    return (producer.get('WorkflowRunID')==39320578745 and producer.get('JobID')==118293253809 and
+            producer.get('BaseImage')=='docker.io/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507' and
+            producer.get('PackageVersionsFromProducerLog')==expectedVersions and
+            all(path in files and files[path].get('SHA256')==identity[1] and
+                files[path].get('Origin',{}).get('ProducerPackageVersion')==identity[0] and
+                (appImageRoot/path).is_file() and sha(appImageRoot/path)==identity[1]
+                for path,identity in expectedFiles.items()) and
+            not any('musl/zstd/zlib/mimalloc' in gap for gap in index.get('Unresolved',[])))
+assert appImageFullTextsResolved(appImageIndex)
+changedAppImageIndex=json.loads(json.dumps(appImageIndex));changedAppImageIndex['ProducerEnvironment']['PackageVersionsFromProducerLog']['zstd']='0.0.0-r0'
+assert not appImageFullTextsResolved(changedAppImageIndex)
 inputs=[repo/'eng/DependencyNotices/Program.cs',repo/'eng/DependencyNotices/DependencyNotices.csproj',repo/'eng/DependencyNotices/packages.lock.json',repo/'src/FileCat.App/packages.lock.json',repo/'Directory.Build.props',repo/'Directory.Build.targets',repo/'Directory.Packages.props',repo/'global.json',repo/'THIRD-PARTY-NOTICES.md',fixtureRoot/'index.json']
 inputs += sorted(p for p in (repo/'licenses/dependencies').rglob('*') if p.is_file())
+inputs += sorted(p for p in appImageRoot.rglob('*') if p.is_file())
 inputs += [fixtureRoot/v['Path'] for v in fixtureIndex['Manifests']]
 inputPins=[dict(Path=p.relative_to(repo).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in inputs]
 head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
@@ -112,7 +140,7 @@ for fixture in fixtureIndex['Manifests']:
         cases.append(dict(Name=name,Fixture=fixture['Name'],Behavior=behavior,ExpectedAllowed=expected,ControlPassed=passed,ExitCode=code,DestinationCreated=output.exists(),ActualOutputPins=outputs,ExpectedOutputPins=snapshot,ManifestSHA256=sha(manifest),OriginalManifestSHA256=fixture['SHA256'],Command=command,StdoutSHA256=sha(folder/'stdout.txt'),StderrSHA256=sha(folder/'stderr.txt')))
 assert len(cases)==63 and all(sha(repo/p['Path'])==p['SHA256'] for p in inputPins)
 payloadPins=[dict(Path=p.relative_to(root).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in sorted((root/'artifacts/bin/DependencyNotices/release').rglob('*')) if p.is_file()]
-proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
+proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,AppImageProducerVersionsAndFullTextsResolved=True,ChangedAppImageProducerVersionRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
 with (root/'dependency-notice-manifest-controls.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(proof,f,indent=2)
-print(json.dumps(dict(Controls=69,Allowed=10,Refused=59,Passed=sum(c['ControlPassed'] for c in cases)+6,SourceCommit=head,SourceTreeDirty=dirty)))
+print(json.dumps(dict(Controls=71,Allowed=11,Refused=60,Passed=sum(c['ControlPassed'] for c in cases)+8,SourceCommit=head,SourceTreeDirty=dirty)))
 if not all(c['ControlPassed'] for c in cases):raise SystemExit(1)

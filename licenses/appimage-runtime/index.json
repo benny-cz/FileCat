@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "Scope": "AppImage wrapper original runtime input and available immutable source notices",
+  "Scope": "AppImage wrapper runtime input, exact producer versions and original source license notices",
   "RuntimeInput": {
     "Architecture": "x86_64",
     "Bytes": 944632,
@@ -18,6 +18,23 @@
     "SigningKeyFingerprint": "570C77ACEA40C0F1B758902CBF96CCA56490F695",
     "DetachedSignatureAssetID": 657374763,
     "DetachedSignatureSHA256": "4c38bbfd3c8fe7b43cd37483544e5aa682b5932674d89e53fcccd2d3fc3a8f12"
+  },
+  "ProducerEnvironment": {
+    "WorkflowRunID": 39320578745,
+    "JobID": 118293253809,
+    "BuildPlatform": "x86_64",
+    "BaseImage": "docker.io/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507",
+    "PackageVersionsFromProducerLog": {
+      "musl-dev": "1.2.5-r11",
+      "mimalloc2": "2.1.7-r0",
+      "mimalloc2-dev": "2.1.7-r0",
+      "zlib-dev": "1.3.2-r1",
+      "zlib-static": "1.3.2-r1",
+      "zstd": "1.5.6-r2",
+      "zstd-dev": "1.5.6-r2",
+      "zstd-static": "1.5.6-r2"
+    },
+    "Qualification": "Exact versions observed in the retained official producer job log; this is not a reproducible-build or complete static-composition claim."
   },
   "Files": [
     {
@@ -73,6 +90,58 @@
         "ArchiveSHA256": "db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3",
         "ArchiveMember": "squashfuse-0.5.2/LICENSE"
       }
+    },
+    {
+      "Path": "musl/1.2.5/COPYRIGHT",
+      "Bytes": 6204,
+      "SHA256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
+      "Origin": {
+        "ProducerPackageVersion": "musl-dev 1.2.5-r11",
+        "DeclaredSourceVersion": "1.2.5",
+        "ArchiveURL": "https://musl.libc.org/releases/musl-1.2.5.tar.gz",
+        "ArchiveBytes": 1080786,
+        "ArchiveSHA256": "a9a118bbe84d8764da0ea0d28b3ab3fae8477fc7e4085d90102b8596fc7c75e4",
+        "ArchiveMember": "musl-1.2.5/COPYRIGHT"
+      }
+    },
+    {
+      "Path": "zstd/1.5.6/LICENSE",
+      "Bytes": 1549,
+      "SHA256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8",
+      "Origin": {
+        "ProducerPackageVersion": "zstd-static 1.5.6-r2",
+        "DeclaredSourceVersion": "1.5.6",
+        "ArchiveURL": "https://github.com/facebook/zstd/archive/refs/tags/v1.5.6.tar.gz",
+        "ArchiveBytes": 2425452,
+        "ArchiveSHA256": "30f35f71c1203369dc979ecde0400ffea93c27391bfd2ac5a9715d2173d92ff7",
+        "ArchiveMember": "zstd-1.5.6/LICENSE"
+      }
+    },
+    {
+      "Path": "zlib/1.3.2/LICENSE",
+      "Bytes": 1002,
+      "SHA256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
+      "Origin": {
+        "ProducerPackageVersion": "zlib-static 1.3.2-r1",
+        "DeclaredSourceVersion": "1.3.2",
+        "ArchiveURL": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+        "ArchiveBytes": 1502830,
+        "ArchiveSHA256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+        "ArchiveMember": "zlib-1.3.2/LICENSE"
+      }
+    },
+    {
+      "Path": "mimalloc/2.1.7/LICENSE",
+      "Bytes": 1096,
+      "SHA256": "19c99805e7a44a34b297a75d1edea9985e300066dfc024d5c99d4236d4573b5d",
+      "Origin": {
+        "ProducerPackageVersion": "mimalloc2-dev 2.1.7-r0",
+        "DeclaredSourceVersion": "2.1.7",
+        "ArchiveURL": "https://github.com/microsoft/mimalloc/archive/refs/tags/v2.1.7.tar.gz",
+        "ArchiveBytes": 1181422,
+        "ArchiveSHA256": "0eed39319f139afde8515010ff59baf24de9e47ea316a315398e8027d198202d",
+        "ArchiveMember": "mimalloc-2.1.7/LICENSE"
+      }
     }
   ],
   "DeclaredStaticLibraries": [
@@ -88,7 +157,6 @@
   "CompleteNativeLicenseAndSourceObligationsQualified": false,
   "AllReferencedSourcesProvenToShip": false,
   "Unresolved": [
-    "Exact musl/zstd/zlib/mimalloc binary versions and full notices",
     "Complete static-link/source obligations and distribution eligibility",
     "Downloaded runtime source reproducibility",
     "Independent embedded checksum semantics"
