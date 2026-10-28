@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**868 evidence entries; none is final candidate qualification.** No candidate exists.
+**869 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -880,6 +880,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-FCSEC-20261028 | Bounded security remediation and acceptance AC-01–AC-04 | Current checkout through `67b3d66a`; dated Windows/Ubuntu and locked-graph routes | Remote Move binding, elevated editor fallback, default diagnostic path redaction and bounded dependency applicability cases pass at their stated scope. Parent I03/I16 and candidate gates remain. | [Security plan and ledger](../../security/FILECAT_SECURITY_REVIEW_AND_PLAN.md), [evidence record](../../security/evidence/E-FCSEC-20261028-bounded-remediation.md) | I03/I16/I49/V08/V11/V20/V23 |
 | E-UX-20261028 | Completed 76-finding UX audit, queued defects and final integration gate | Product heads through `47f09505`; dated Windows/Ubuntu/Mac routes and five-lane CI | Every required stable UX case and GATE-CI-FINAL is Accepted. Child IDs, producers, exact routes and reopen rules remain in the campaign ledger; optional refinements do not extend release scope. | [UX acceptance ledger](../../validation/UX_UI_ACCEPTANCE_LEDGER.md), [remaining-work index](../../validation/UX_UI_REMAINING.md) | I10/I11/I13/V17/V18/V22 |
 | E-GIT-BADGE-20261028 | Git badge refresh and portable icon/tooltip explanation | `47f09505`; Win11 VMware and GitHub run 40696681900 | Completed-reread refresh, exact Windows clean/changed pixels and shared App path pass; five required CI lanes pass. Native Linux/macOS pixels and speech were not measured and are optional absent regression. | [Focused check](../../validation/GIT_BADGE_UX_CHECK_20261028.md), [ledger case](../../validation/UX_UI_ACCEPTANCE_LEDGER.md#fcux-git-001) | I108/V12/V22 |
+| E-I524-OWNER-REG | Edit-commit owner registration before job callbacks | `ecfedb5a`; Windows x64 deterministic old/final pair and complete headless App suite | ZIP and synthetic-SFTP owner boundary 0P/2F→2P/0F; affected class 41P, strict synthetic persisted-session case passes, full App 2,549P/64S/0F. Historical ARM64 failures remain failed; exact pushed ARM64 qualification is pending. | [Owner-registration boundary](evidence/E-I524-edit-owner-registration.md) | I524/V08/ENV-06 |
 
 <a id="commits-made-by-the-campaign"></a>
 
