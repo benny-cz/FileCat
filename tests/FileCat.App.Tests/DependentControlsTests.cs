@@ -40,6 +40,25 @@ public sealed class DependentControlsTests
         Assert.Equal("Helper unavailable.", ToolTip.GetTip(unsupported));
     }
 
+    /// <summary>
+    /// The reason a disabled option gives is in its tooltip, so the tooltip's pop-up must say it to a screen reader too:
+    /// NVDA, reporting tooltips, said only "tool tip" over the disabled folder-sizing option on Windows.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_tooltip_names_itself_with_its_text_for_screen_readers()
+    {
+        ToolTipNames.Install();
+        var tip = new ToolTip { Content = "Turn on folder sizing with Space to use this option." };
+        Assert.Equal("Turn on folder sizing with Space to use this option.",
+            Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(tip).GetName());
+        tip.Content = new RichTip("Copy", "F5", "Copies the marked items.", ["Shift+F5 copies in place."]);
+        Assert.Equal("Copy (F5)\nCopies the marked items.\nShift+F5 copies in place.", AutomationProperties.GetName(tip));
+        tip.Content = new TextBlock { Text = "Maximum profiles reached (10)." };
+        Assert.Equal("Maximum profiles reached (10).", AutomationProperties.GetName(tip));
+        tip.Content = new Border();
+        Assert.Null(AutomationProperties.GetName(tip));
+    }
+
     [AvaloniaFact]
     public async Task Behavior_page_disables_its_child_immediately_and_Cancel_discards_the_draft()
     {
@@ -109,6 +128,9 @@ public sealed class DependentControlsTests
             Assert.Contains("Maximum profiles", AutomationProperties.GetHelpText(Action("New profile")));
             Action("Remove profile").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(Action("New profile").IsEnabled);
+            // An available action carries no note (a screen reader read "Available" after each one).
+            Assert.Null(AutomationProperties.GetHelpText(Action("New profile")));
+            Assert.Null(ToolTip.GetTip(Action("New profile")));
 
             profileList.SelectedIndex = 0;
             columnList.SelectedIndex = 0;

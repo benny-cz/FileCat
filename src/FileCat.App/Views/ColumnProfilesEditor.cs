@@ -246,10 +246,11 @@ internal sealed class ColumnProfilesEditor
         _width.IsEnabled = selectedColumn;
     }
 
+    /// <summary>An unavailable action says why, on hover and to a screen reader; an available one needs no note.</summary>
     private static void ActionState(Button button, bool enabled, string unavailableReason)
     {
         button.IsEnabled = enabled;
-        string help = enabled ? "Available" : unavailableReason;
+        string? help = enabled ? null : unavailableReason;
         ToolTip.SetTip(button, help);
         ToolTip.SetShowOnDisabled(button, true);
         AutomationProperties.SetHelpText(button, help);
