@@ -1,0 +1,15 @@
+{
+    "Passed":  true,
+    "Stage":  "complete",
+    "GitHead":  "47f095059cf6ea2fa90b4b5f478dba974c1b79e8",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\GitBadgeUx\\9a7f50b45fe34f3d814df0143a7af0ee",
+    "DllSha256":  "D14DED9559FF8BE1B7F3735BAB792479B5CCD9974BAB973B99D249B589546C6E",
+    "InitialSourceSha256":  "B640E840B19D378660B32FB51AE18D67DCCB4A8596A29E7BD72C1B2AE5928F41",
+    "Dpi":  96,
+    "CleanHelpText":  "file, 6 bytes, modified 28.10.2026 14:32:04, not marked, Git clean, 3 of 3",
+    "ChangedHelpText":  "file, 13 bytes, modified 28.10.2026 14:32:08, not marked, Git changed, 3 of 3",
+    "DifferentIconChannels":  206,
+    "ChangedSourceSha256":  "DBEA9325179EFE46EA2ADD94F7B6B745CA983FABB208DC6D34AA064623D7EE23",
+    "CleanIconPng":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\git-badge-win11-clean.png",
+    "ChangedIconPng":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\git-badge-win11-changed.png"
+}

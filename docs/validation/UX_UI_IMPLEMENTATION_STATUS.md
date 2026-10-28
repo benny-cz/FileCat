@@ -10,8 +10,20 @@ passed without warnings; the new real-repository panel regression passed 1/1,
 and `GitStatusTests` passed 13 cases with one external share-capture test
 skipped. The check retains bounded background reads, the portable vector
 glyphs, Windows Shell-helper isolation and explicit plain-icon fallbacks.
-Cross-platform CI and any native desktop evidence are recorded below when
-available; the host result alone is not an all-platform native visual claim.
+The isolated Win11 VMware guest built exact `47f09505` with SDK 10.0.201
+([build receipt](evidence/git-badge-win11-build.json), DLL SHA-256
+`D14DED95…546C6E`). Its [native UIA and icon runner](../../tests/FileCat.NativeAcceptance/win-ax-git-badges.ps1)
+observed the same row change from **Git clean** to **Git changed** after a
+test-owned file edit and watcher reread, with no navigation or activation.
+At 96 DPI the captured 16-pixel icon changed in 206 color channels
+([receipt](evidence/git-badge-win11-native.json),
+[clean icon](evidence/git-badge-win11-clean.png),
+[changed icon](evidence/git-badge-win11-changed.png)). The exact implementation
+[CI run](https://github.com/benny-cz/FileCat/actions/runs/40696681900) passed
+all five lanes: producer policy, full Windows tests, Windows ARM64 tests and
+package start, Ubuntu 24.04 portable tests, and macOS 26 portable tests. The
+new real-repository App regression is included in those platform test suites.
+Native Linux/macOS pixels and speech were not measured in this check.
 
 <a id="evidence-fcux-next-001-local-20261028"></a>
 **28 October 2026, FCUX-NEXT-001 accepted on `main`:**
