@@ -7,7 +7,7 @@ namespace FileCat.Archives.Rar;
 /// </summary>
 internal sealed class RarReader : IMemberReader
 {
-    private readonly List<FileStream> _volumes;
+    private readonly List<Stream> _volumes;
     private readonly RarArchive _archive;
     private readonly bool _numberedVolumeGap;
     private RarBitReader _bits = new();
@@ -17,7 +17,7 @@ internal sealed class RarReader : IMemberReader
     private RarWindow? _window;
     private bool _disposed;
 
-    private RarReader(List<FileStream> volumes, RarArchive archive, bool numberedVolumeGap)
+    private RarReader(List<Stream> volumes, RarArchive archive, bool numberedVolumeGap)
     {
         _volumes = volumes;
         _archive = archive;
@@ -28,10 +28,13 @@ internal sealed class RarReader : IMemberReader
 
     public bool SharesCursor => _archive.Solid;
 
-    internal IReadOnlyList<FileStream> VolumeStreams => _volumes;
+    internal IReadOnlyList<FileStream> VolumeStreams => _volumes.OfType<FileStream>().ToList();
 
     /// <summary>Reads the headers of <paramref name="volumes"/> (in order); the reader owns the streams from here on.</summary>
-    public static RarReader Open(List<FileStream> volumes, bool numberedVolumeGap, CancellationToken ct = default)
+    public static RarReader Open(List<FileStream> volumes, bool numberedVolumeGap, CancellationToken ct = default) => Open(volumes.Cast<Stream>().ToList(), numberedVolumeGap, ct);
+
+    /// <summary>The same over any seekable streams (in-memory volumes for fuzzing).</summary>
+    internal static RarReader Open(List<Stream> volumes, bool numberedVolumeGap, CancellationToken ct = default)
     {
         try
         {
