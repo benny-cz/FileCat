@@ -1,8 +1,7 @@
 # Severity-ordered UX/UI audit implementation
 
 <a id="evidence-markdown-mac-20261028"></a>
-**28 October 2026, Mac Page focus return (AC-S2-MD; failing with VoiceOver,
-passing without it):** The new
+**28 October 2026, Mac Page focus return (AC-S2-MD accepted):** The new
 [Mac runner](../../tests/FileCat.NativeAcceptance/mac-ax-page-focus-return.py)
 opens a wide-table Markdown file in Page mode in a signed, isolated bundle,
 narrows the viewer to 520 × 520 points, and judges where the keys go by what
@@ -27,9 +26,22 @@ copied, a second F7 and Escape, and F4 to the text
 ([receipt](evidence/ac-s2-md-mac-focus-no-voiceover-5b753f4e.json)). With
 VoiceOver running, the second F7 failed: a trace showed
 `AvnAutomationPeer.SetFocus()` from VoiceOver putting focus back on the host
-under its cursor ([receipt](evidence/ac-s2-md-mac-focus-voiceover-5b753f4e.json)).
-That remains open. The page's own text now appears in the Mac AX tree under
-the host; whether VoiceOver reads it is part of the remaining route.
+57 ms after Find took it, once the web view had handed the keyboard over
+([receipt](evidence/ac-s2-md-mac-focus-voiceover-5b753f4e.json)); it did so
+without the page Command+A/C before it too. Handing the first responder over
+after Avalonia's focus change (`c02f3b97`) removed a stale host announcement
+but not the bounce; `115fa8f6` sends a focus on the host without a key, click
+or viewer request, within half a second of a control taking the keyboard,
+back to that control. On `115fa8f6` (DLL `542d8f15…3dd9bc3e`) with VoiceOver
+running and output muted, all eight steps passed and VoiceOver's last phrase
+was “Find in file Find (Ctrl+F) edit text” after F7, the host's hint “Tab
+moves into the page. F4 shows the same file as text.” after Escape, and
+“marker Find in file edit text” after the second F7
+([receipt](evidence/ac-s2-md-mac-focus-voiceover-115fa8f6.json)). The
+focus notifications still show the host for a moment before Find on that
+second F7. The page's own text now appears in the Mac AX tree under the host.
+The page-viewer tests passed on Windows after each change; the macOS and
+Ubuntu CI lanes run their host-focus assertions.
 
 <a id="evidence-markdown-ubuntu-20261028"></a>
 **28 October 2026, Markdown at Ubuntu 200% with Orca, keyboard and pointer

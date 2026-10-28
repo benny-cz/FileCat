@@ -7,7 +7,8 @@ mac-ax-focus-observer.swift beside this runner and no other FileCat running. Voi
 each AXFocusedUIElementChanged notification and by the application's AXFocusedUIElement; this records both through a
 read-only AXObserver. Keys come from System Events; requires Accessibility access for osascript and the observer.
 Where the keys go is judged from what Command+A and Command+C copy (pbpaste): the page's text while the page has the
-keyboard, the Find field's text while Find has it. The general pasteboard is overwritten.
+keyboard, the Find field's text while Find has it. The general pasteboard is overwritten. With VoiceOver running (Mac
+output muted), its last phrase must name Find after each F7 and the page's host (or speak its hint) after Escape.
 
 1. F3 on wide.md opens the viewer in Page mode with the page's host ("Web page") as the focused element; the viewer
    narrows to 520 by 520 points.
@@ -72,6 +73,13 @@ def is_host(record):
     return record.get("title") == "Web page" and "Tab moves into the page" in record.get("help", "")
 
 
+def voiceover_last():
+    """VoiceOver's last spoken phrase, or None when VoiceOver is not running or not scriptable."""
+    done = subprocess.run(["/usr/bin/osascript", "-e", 'tell application "VoiceOver" to get content of last phrase'],
+                          capture_output=True, text=True, timeout=12)
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
 def clipboard():
     return subprocess.run(["/usr/bin/pbpaste"], capture_output=True, text=True, timeout=5).stdout
 
@@ -106,6 +114,10 @@ def run(bundle, report_path):
               "appDllSha256": hashlib.sha256((executable.parent / "FileCat.dll").read_bytes()).hexdigest(), "steps": []}
     process = watcher = None
     offset = 0
+    voiceover = subprocess.run(["/usr/bin/pgrep", "-x", "VoiceOver"], capture_output=True, timeout=5).returncode == 0
+    result.update(voiceOver=voiceover, voiceOverPhrases=[])
+    if voiceover and "output muted:true" not in osa("get volume settings"):
+        raise AssertionError("Mute the Mac output before running with VoiceOver")
 
     def records():
         nonlocal offset
@@ -121,6 +133,16 @@ def run(bundle, report_path):
     def focused():
         done = subprocess.run([str(observer), "focused", str(process)], capture_output=True, text=True, timeout=10)
         return json.loads(done.stdout or "{}")
+
+    def heard(label, *expect):
+        """With VoiceOver running, its last phrase must contain one of expect (a name, or the hint spoken after it)."""
+        if not result["voiceOver"]:
+            return
+        time.sleep(1.2)
+        phrase = voiceover_last() or ""
+        result["voiceOverPhrases"].append({"after": label, "phrase": phrase, "expect": expect})
+        if not any(text in phrase for text in expect):
+            raise AssertionError(f"After {label} VoiceOver said {phrase!r}")
 
     def step(label, keys, expect, description):
         """After the keys, the focused element (and a focus notification) must satisfy expect."""
@@ -211,6 +233,7 @@ end tell''')
     end repeat
 end tell''')
         step("F7 focuses Find", ["f7"], lambda entry: "Find in file" in spoken(entry), "the Find field")
+        heard("F7", "Find in file")
         press(["marker", "return"])
         time.sleep(1.0)
         still = focused()
@@ -229,9 +252,11 @@ end tell''')
             raise AssertionError("Escape in Find closed the viewer")
         if not is_host(result["afterEscape"]["focused"]):
             raise AssertionError(f"After Escape the focused element was {result['afterEscape']['focused']!r}")
+        heard("Escape", "Web page", "Tab moves into the page")
         copied("Escape gives the keyboard back to the page", lambda text: "Wide table check" in text and
                "Rightmost marker cell" in text, "the page's text")
         step("F7 focuses Find again", ["f7"], lambda entry: "Find in file" in spoken(entry), "the Find field")
+        heard("the second F7", "Find in file")
         press(["escape"])
         time.sleep(1.0)
         copied("Escape returns to the page again", lambda text: "Wide table check" in text, "the page's text")
