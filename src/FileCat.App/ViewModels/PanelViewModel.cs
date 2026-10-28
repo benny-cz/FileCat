@@ -149,6 +149,9 @@ public sealed partial class PanelViewModel : ObservableObject
     /// <summary>A panel always keeps its last tab, regardless of how a close is requested.</summary>
     public bool CanCloseTab(TabViewModel tab) => Tabs.Count > 1 && Tabs.Contains(tab);
 
+    /// <summary>Why a panel's last tab does not close, however that was asked.</summary>
+    public const string KeepsOneTab = "A panel always keeps one tab.";
+
     /// <summary>Closes an eligible tab and records it for reopening.</summary>
     public void CloseTab(TabViewModel tab)
     {

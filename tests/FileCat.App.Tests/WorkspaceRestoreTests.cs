@@ -49,6 +49,10 @@ public sealed class WorkspaceRestoreTests
             var destination = window.GetVisualDescendants().OfType<TextBox>()
                 .Single(box => AutomationProperties.GetName(box) == "Destination");
             Assert.Equal(string.Empty, destination.Text); // F5 asks for a destination instead of choosing one.
+            // And says why none is filled in (found with NVDA on Windows, where it said only to enter one).
+            await FileListFixture.Wait(() => window.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.IsEffectivelyVisible && t.Text == "There is no target panel. Type the folder to copy to."));
+            Assert.Equal("There is no target panel. Type the folder to copy to.", AutomationProperties.GetHelpText(destination));
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(),
                 button => AutomationProperties.GetName(button)?.StartsWith("To panel ", StringComparison.Ordinal) == true);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
@@ -59,6 +63,8 @@ public sealed class WorkspaceRestoreTests
             var moveDestination = window.GetVisualDescendants().OfType<TextBox>()
                 .Single(box => AutomationProperties.GetName(box) == "Destination");
             Assert.Equal(string.Empty, moveDestination.Text); // F6 has the same deliberate destination step.
+            await FileListFixture.Wait(() => window.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.IsEffectivelyVisible && t.Text == "There is no target panel. Type the folder to move to."));
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await FileListFixture.Wait(() => !vm.Dialogs.IsOpen);
 

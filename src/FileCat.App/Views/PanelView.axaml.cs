@@ -896,7 +896,9 @@ public partial class PanelView : UserControl
         if (sender is not Button { Tag: TabViewModel tab } button || Panel is not { } p) return;
         if (e.InitialPressMouseButton == MouseButton.Middle)
         {
-            p.CloseTab(tab);
+            // A panel's last tab stays; say so, as Ctrl+W does, rather than ignore the click.
+            if (p.CanCloseTab(tab)) p.CloseTab(tab);
+            else _main?.Notify(PanelViewModel.KeepsOneTab);
             e.Handled = true;
         }
         else if (e.InitialPressMouseButton == MouseButton.Right)
@@ -911,10 +913,16 @@ public partial class PanelView : UserControl
     {
         var ws = panel.Workspace;
         var items = new List<Control>();
-        void Add(string header, string icon, Action action, bool enabled = true, string? gesture = null)
+        void Add(string header, string icon, Action action, bool enabled = true, string? gesture = null, string? reason = null)
         {
             var mi = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon), IsEnabled = enabled };
             if (gesture is not null) mi.InputGesture = KeyGesture.Parse(gesture);
+            if (!enabled && reason is not null)
+            {
+                ToolTip.SetTip(mi, reason);
+                ToolTip.SetShowOnDisabled(mi, true);
+                AutomationProperties.SetHelpText(mi, reason);
+            }
             mi.Click += (_, _) =>
             {
                 action();
@@ -922,7 +930,7 @@ public partial class PanelView : UserControl
             };
             items.Add(mi);
         }
-        Add("Close tab", "tab.close", () => panel.CloseTab(tab), panel.CanCloseTab(tab));
+        Add("Close tab", "tab.close", () => panel.CloseTab(tab), panel.CanCloseTab(tab), reason: PanelViewModel.KeepsOneTab);
         Add("Close other tabs", "tab.closeOthers", () =>
         {
             foreach (var t in panel.Tabs.Where(t => !ReferenceEquals(t, tab) && !t.IsLocked).ToList()) panel.CloseTab(t);

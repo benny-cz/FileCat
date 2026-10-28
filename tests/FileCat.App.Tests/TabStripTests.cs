@@ -70,9 +70,13 @@ public sealed class TabStripTests
             Assert.Single(panel.Tabs);
             Assert.Same(only, panel.ActiveTab);
             Assert.Equal(history, vm.Workspace.RecentlyClosed);
+            // The click is not ignored silently: it says why, as Ctrl+W does (found with NVDA on Windows).
+            Assert.Equal(PanelViewModel.KeepsOneTab, vm.CurrentNotification?.Message);
             Assert.False(vm.GetAvailability(CommandIds.CloseTab).Enabled);
-            Assert.False(view.BuildTabMenu(panel, only).Items.OfType<MenuItem>()
-                .Single(item => item.Header as string == "Close tab").IsEnabled);
+            var closeItem = view.BuildTabMenu(panel, only).Items.OfType<MenuItem>().Single(item => item.Header as string == "Close tab");
+            Assert.False(closeItem.IsEnabled);
+            Assert.Equal(PanelViewModel.KeepsOneTab, AutomationProperties.GetHelpText(closeItem));
+            Assert.Equal(PanelViewModel.KeepsOneTab, ToolTip.GetTip(closeItem));
             vm.Execute(CommandIds.CloseTab);
             Assert.Equal(history, vm.Workspace.RecentlyClosed);
 

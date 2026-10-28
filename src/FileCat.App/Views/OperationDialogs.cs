@@ -79,6 +79,10 @@ public static class OperationDialogs
         body.Children.Add(Text($"{verb} {what}", bold: true));
         if (single is null) body.Children.Add(Muted(NameList(input.Items)));
         var toLabel = new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+        // With no target panel (one panel, or none chosen) nothing fills the box in: say why, not only that it is empty.
+        string emptyDestination = input.TargetLabel is null
+            ? $"There is no target panel. Type the folder to {verb.ToLowerInvariant()} to."
+            : "Enter a destination folder.";
         body.Children.Add(toLabel);
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
@@ -246,7 +250,8 @@ public static class OperationDialogs
             validatedText = text.Trim();
             UpdateRemoteReplacementWarning();
             interpretation.Text = result.Description;
-            destinationError.Text = result.Error is null ? null : "Destination: " + result.Error;
+            destinationError.Text = result.Error is null ? null
+                : string.IsNullOrWhiteSpace(text) ? emptyDestination : "Destination: " + result.Error;
             destinationError.IsVisible = result.Error is not null;
             AutomationProperties.SetHelpText(dest, destinationError.Text ?? result.Description);
         }
@@ -267,7 +272,7 @@ public static class OperationDialogs
             validatedText = null;
             UpdateRemoteReplacementWarning();
             destinationError.IsVisible = false;
-            interpretation.Text = string.IsNullOrWhiteSpace(dest.Text) ? "Enter a destination folder." : "Checking destination…";
+            interpretation.Text = string.IsNullOrWhiteSpace(dest.Text) ? emptyDestination : "Checking destination…";
             AutomationProperties.SetHelpText(dest, interpretation.Text);
             destinationDebounce.Start();
         }
