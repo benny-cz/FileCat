@@ -1,0 +1,306 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\WindowRestoreFixture\\fa7a3685e83746dc8e57ba0e7b8c6cc3",
+    "OriginalScale":  100,
+    "Looks":  [
+                  {
+                      "Label":  "normal at 100%",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  157,
+                                    "Y":  100,
+                                    "W":  1086,
+                                    "H":  713
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "maximized at 100%",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  true,
+                      "Frame":  {
+                                    "X":  0,
+                                    "Y":  0,
+                                    "W":  1925,
+                                    "H":  1363
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "restored at 100%",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  157,
+                                    "Y":  100,
+                                    "W":  1086,
+                                    "H":  713
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "reopened maximized",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  true,
+                      "Frame":  {
+                                    "X":  0,
+                                    "Y":  0,
+                                    "W":  1925,
+                                    "H":  1363
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "restored after reopening",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  157,
+                                    "Y":  100,
+                                    "W":  1086,
+                                    "H":  713
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "reopened after the monitor went",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  427,
+                                    "Y":  341,
+                                    "W":  1086,
+                                    "H":  713
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "after the change to 150%",
+                      "Scale":  150,
+                      "Dpi":  144,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  293,
+                                    "Y":  268,
+                                    "W":  1632,
+                                    "H":  1071
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1339
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "maximized at 150%",
+                      "Scale":  150,
+                      "Dpi":  144,
+                      "Maximized":  true,
+                      "Frame":  {
+                                    "X":  0,
+                                    "Y":  0,
+                                    "W":  1925,
+                                    "H":  1339
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1339
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "restored at 150%",
+                      "Scale":  150,
+                      "Dpi":  144,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  293,
+                                    "Y":  268,
+                                    "W":  1632,
+                                    "H":  1071
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1339
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "reopened at 150%",
+                      "Scale":  150,
+                      "Dpi":  144,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  293,
+                                    "Y":  268,
+                                    "W":  1632,
+                                    "H":  1071
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1339
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  },
+                  {
+                      "Label":  "reopened at 100% after 150%",
+                      "Scale":  100,
+                      "Dpi":  96,
+                      "Maximized":  false,
+                      "Frame":  {
+                                    "X":  291,
+                                    "Y":  268,
+                                    "W":  1087,
+                                    "H":  714
+                                },
+                      "Work":  {
+                                   "X":  0,
+                                   "Y":  0,
+                                   "W":  1925,
+                                   "H":  1363
+                               },
+                      "Controls":  18,
+                      "KeyBarButtons":  12,
+                      "Outside":  [
+
+                                  ]
+                  }
+              ],
+    "Saved":  [
+                  {
+                      "Label":  "closed maximized",
+                      "Window":  {
+                                     "X":  150,
+                                     "Y":  100,
+                                     "Width":  1084,
+                                     "Height":  681,
+                                     "Maximized":  true
+                                 }
+                  },
+                  {
+                      "Label":  "closed beyond the display",
+                      "Window":  {
+                                     "X":  2225,
+                                     "Y":  120,
+                                     "Width":  1084,
+                                     "Height":  681,
+                                     "Maximized":  false
+                                 }
+                  },
+                  {
+                      "Label":  "closed at 150%",
+                      "Window":  {
+                                     "X":  284,
+                                     "Y":  268,
+                                     "Width":  1085.3333333333333,
+                                     "Height":  682.6666666666666,
+                                     "Maximized":  false
+                                 }
+                  },
+                  {
+                      "Label":  "closed again at 150%",
+                      "Window":  {
+                                     "X":  284,
+                                     "Y":  268,
+                                     "Width":  1085.3333333333333,
+                                     "Height":  682.6666666666666,
+                                     "Maximized":  false
+                                 }
+                  }
+              ],
+    "AppDllSha256":  "A29F4EAF670513820408DEB511282452121CE6082876E21FB60623B43A9EB14E",
+    "Error":  null,
+    "FinalScale":  100
+}

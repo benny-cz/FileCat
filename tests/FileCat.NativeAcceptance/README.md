@@ -99,6 +99,20 @@ button, the reason. When the held copy ends the queue must run in its new
 order, as seen in the destination and heard as each copy finishes, and every
 copy must match its source.
 
+`win-ax-window-restore.ps1 -AppPath <Git-built FileCat.exe> -ReportPath <fresh
+guest JSON>` runs only on the interactive VMware guest. With a per-monitor
+DPI-aware thread it gives the main window normal bounds, maximizes and
+restores it through UI Automation's window pattern, closes it maximized and
+reopens it, saves it past the display's right edge and reopens it, then
+switches the display from 100% to 150% while FileCat runs and back while it
+is closed. Each reopening must lie inside the work area with the menu,
+command search, both panels, the command line and the twelve keys inside the
+window. It restores the display's original scale in every case.
+`linux-atspi-window-restore.py APP_PATH REPORT.json` does the same under
+GNOME through wmctrl's EWMH requests, and represents a monitor that went
+away by saving a position beyond the screen's edge (mutter itself keeps a
+window it is asked to move off the screen on it).
+
 `win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
 and a 24-unit content size in Settings and checks `settings.json`, then opens

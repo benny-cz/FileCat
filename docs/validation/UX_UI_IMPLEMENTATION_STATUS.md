@@ -1,5 +1,38 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-window-restore-20261028"></a>
+**28 October 2026, main-window restoration on Windows and GNOME (AC-S3-064
+accepted):** Two new runners drive Git-built `42b23e2e` through the window
+manager's own requests. The
+[Windows runner](../../tests/FileCat.NativeAcceptance/win-ax-window-restore.ps1)
+runs on the Win11 VM (DLL `A29F4EAF…3A9EB14E`), reading every rectangle as
+physical pixels: given normal bounds of 1,086 × 713, the window maximized
+to exactly the 1,925 × 1,363 work area through UI Automation's window
+pattern and restored to them; closed maximized, it reopened maximized and
+restored to the same bounds; moved past the display's right edge, where a
+second monitor would be, and closed there (saved X 2,225), it reopened
+centred. With the display switched from 100% to 150% while FileCat ran, the
+window kept its size in units (1,632 × 1,071 pixels) inside the work area,
+maximized and restored there, and reopened there; with the display back at
+100% it reopened inside the work area at 1,087 × 714. The runner put the
+display back to its original 100%. The
+[GNOME runner](../../tests/FileCat.NativeAcceptance/linux-atspi-window-restore.py)
+runs on the Ubuntu 26.04.1 VM at 200% (DLL `E5E931DF…1D8DCA07`) through
+wmctrl's EWMH requests. The window maximized and unmaximized to its bounds
+and reopened maximized; on `56fa2598` unmaximizing it then put it in the
+work area's corner, since a window mapped maximized has never stood in its
+normal bounds and mutter chose its own place. Since `42b23e2e` the first
+unmaximize of such a window goes to its saved bounds, and it went back to
+(254, 228). Mutter keeps a window it is asked to move off the screen on it,
+so the runner then saved a position beyond the screen's edge, as a monitor
+that went away leaves it; the window reopened on the screen at full size.
+Each time the menu, command search, both panels, the command line and the
+twelve keys of the key bar lay inside the window
+([Windows receipt](evidence/ac-s3-064-win11-window-restore-42b23e2e.json),
+[GNOME receipt](evidence/ac-s3-064-ubuntu-window-restore-42b23e2e.json)).
+Limit: each guest has one display, so a live move between two monitors was
+not run.
+
 <a id="evidence-queue-order-20261028"></a>
 **28 October 2026, moving a queued operation earlier with NVDA (AC-S3-068
 accepted):** The new

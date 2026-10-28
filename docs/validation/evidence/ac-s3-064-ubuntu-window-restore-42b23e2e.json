@@ -1,0 +1,207 @@
+{
+  "passed": true,
+  "stage": "done",
+  "fixture": "/home/benny/FileCatValidation/WindowRestoreFixture/df66ea2568a4451f8c34353b1a7444d4",
+  "looks": [
+    {
+      "label": "normal",
+      "frame": {
+        "x": 254,
+        "y": 228,
+        "w": 1486,
+        "h": 916
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": false,
+      "frames": [
+        {
+          "x": 254,
+          "y": 228,
+          "w": 1486,
+          "h": 916
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    },
+    {
+      "label": "maximized",
+      "frame": {
+        "x": 134,
+        "y": 138,
+        "w": 1786,
+        "h": 1062
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": true,
+      "frames": [
+        {
+          "x": 134,
+          "y": 138,
+          "w": 1786,
+          "h": 1062
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    },
+    {
+      "label": "unmaximized",
+      "frame": {
+        "x": 254,
+        "y": 228,
+        "w": 1486,
+        "h": 916
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": false,
+      "frames": [
+        {
+          "x": 254,
+          "y": 228,
+          "w": 1486,
+          "h": 916
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    },
+    {
+      "label": "reopened maximized",
+      "frame": {
+        "x": 134,
+        "y": 138,
+        "w": 1786,
+        "h": 1062
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": true,
+      "frames": [
+        {
+          "x": 134,
+          "y": 138,
+          "w": 1786,
+          "h": 1062
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    },
+    {
+      "label": "unmaximized after reopening",
+      "frame": {
+        "x": 254,
+        "y": 228,
+        "w": 1486,
+        "h": 916
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": false,
+      "frames": [
+        {
+          "x": 254,
+          "y": 228,
+          "w": 1486,
+          "h": 916
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    },
+    {
+      "label": "reopened after its monitor went",
+      "frame": {
+        "x": 284,
+        "y": 248,
+        "w": 1486,
+        "h": 916
+      },
+      "work": {
+        "x": 134,
+        "y": 64,
+        "w": 1786,
+        "h": 1136
+      },
+      "maximized": false,
+      "frames": [
+        {
+          "x": 284,
+          "y": 248,
+          "w": 1486,
+          "h": 916
+        }
+      ],
+      "controls": 18,
+      "keys": 12,
+      "outside": []
+    }
+  ],
+  "saved": [
+    {
+      "X": 254,
+      "Y": 154,
+      "Width": 743,
+      "Height": 458,
+      "Maximized": true
+    },
+    {
+      "X": 434,
+      "Y": 154,
+      "Width": 743,
+      "Height": 458,
+      "Maximized": false
+    },
+    {
+      "X": 284,
+      "Y": 174,
+      "Width": 743,
+      "Height": 458,
+      "Maximized": false
+    }
+  ],
+  "xftDpi": "*customization:\t-color\nXcursor.size:\t48\nXcursor.theme:\tYaru\nXft.antialias:\t1\nXft.dpi:\t192\nXft.hinting:\t1\nXft.hintstyle:\thintslight\nXft.rgba:\trgb",
+  "error": null,
+  "moveOffScreen": {
+    "x": 434,
+    "y": 228,
+    "w": 1486,
+    "h": 916
+  },
+  "strandedSaved": {
+    "X": 2220,
+    "Y": 154,
+    "Width": 743,
+    "Height": 458,
+    "Maximized": false
+  }
+}
