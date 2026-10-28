@@ -6,9 +6,12 @@ are in `licenses/dependencies`, with exact source identities and hashes in `inde
 The snapshot includes the pinned .NET 10.0.14 runtime pack texts, build-only packages and RID
 alternatives; it does not establish which components ship in each artifact or complete native
 license eligibility. LTRData.Extensions full-text provenance, SharpCompress's RAR provenance and
-AppImage/native obligations remain under review before stable release. Regenerate the package
-inventory with `eng/publish.ps1` (writes `artifacts/sbom-<version>-<rid>.json`) and review the
-snapshot whenever dependencies or the SDK change.
+AppImage/native obligations remain under review before stable release. Regenerate the exact
+SPDX inventory whenever dependencies or the SDK change: `eng/publish.ps1` writes the Windows
+`portable`, `fdd`, and `setup-payload` manifests; `eng/package-linux.sh` writes the Linux `tar`,
+`deb`, and `appimage` manifests; and `eng/package-macos.sh` writes the macOS `macos-app` manifest.
+Their filenames are `artifacts/sbom-<version>-<rid>-<artifact-kind>.spdx.json`. Review every
+manifest together with the retained notice snapshot.
 The Linux AppImage also includes available wrapper texts in
 `licenses/appimage-runtime`. Its index pins the original runtime input and the
 declared source archives for these texts; complete static-library composition,
