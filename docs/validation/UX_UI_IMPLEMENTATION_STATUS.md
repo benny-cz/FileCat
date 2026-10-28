@@ -1,5 +1,20 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-ci-final-20261028"></a>
+**28 October 2026, the final integration gate (GATE-CI-FINAL accepted):**
+With AC-S3-064 accepted, every scenario in the ledger was accepted and
+`42b23e2e`, which made the window that opened maximized unmaximize to its
+saved bounds, was the last implementation change. Its
+[CI run](https://github.com/benny-cz/FileCat/actions/runs/40622979050)
+completed green in all five lanes: the producer reference policy, Windows
+(build, all tests), Windows ARM64 (build, tests, package start), Ubuntu 24.04
+and macOS 26 (build, portable tests). The packaging and draft-preview jobs run
+only for tags and manual runs and were skipped. The intermediate heads of the
+day (`7be08a3d`, `f8cce1a8`, `bf069986`, `e3f5ddef`, `62bbf095`, `2e4470ad`)
+had completed green as well. The commits after `42b23e2e` change
+documentation, evidence and the native runner scripts only; the one runner
+test CI executes (`test_win_ftp_owned_stage.py`) passed locally against them.
+
 <a id="evidence-window-restore-20261028"></a>
 **28 October 2026, main-window restoration on Windows and GNOME (AC-S3-064
 accepted):** Two new runners drive Git-built `42b23e2e` through the window

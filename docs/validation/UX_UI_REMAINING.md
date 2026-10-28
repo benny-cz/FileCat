@@ -12,12 +12,12 @@ accepted equivalent routes stay in
 
 None: every S2 scenario is accepted and no queued defect is open.
 
-## Final gate
+## S3 and final gate
 
-Every S3 scenario is accepted.
-
-- [GATE-CI-FINAL](UX_UI_ACCEPTANCE_LEDGER.md#gate-ci-final): green producer,
-  Windows, Windows ARM64, Ubuntu and macOS CI on the final implementation head.
+None: every S3 scenario is accepted, and
+[GATE-CI-FINAL](UX_UI_ACCEPTANCE_LEDGER.md#gate-ci-final) passed on the final
+implementation head `42b23e2e` on 28 October. A later implementation change
+needs that gate again on its own head.
 
 Optional refinements and a documented repeat rule are in the ledger; they do
 not silently extend required completion scope.
