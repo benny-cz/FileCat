@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "stage": "done",
+  "fixture": "/home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b",
+  "screen": [
+    1920,
+    1200
+  ],
+  "steps": [
+    {
+      "step": "three same-named tabs",
+      "value": [
+        "reports · local, Unlocked tab, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/reports",
+        "reports · bundle.zip, Unlocked tab, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/bundle.zip/reports",
+        "reports · server, Unlocked tab, sftp://benny@127.0.0.1/home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/server/reports"
+      ],
+      "heard": null
+    },
+    {
+      "step": "locked tab names",
+      "value": [
+        "🔒 reports · local, Navigation lock: opening another location creates a new tab, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/reports",
+        "⌂ reports · bundle.zip, Root lock: revisiting returns to reports, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/bundle.zip/reports",
+        "reports · server, Unlocked tab, sftp://benny@127.0.0.1/home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/server/reports"
+      ],
+      "heard": null
+    },
+    {
+      "step": "Ctrl+Tab through the tabs",
+      "value": null,
+      "heard": [
+        "left control",
+        "Tab 1 of 3: 🔒 reports · local, Navigation lock: opening another location creates a new tab, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/reports",
+        "reports — FileCat — benny",
+        "Panel 1, source, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/reports",
+        "List with 3 items",
+        "Go to parent location, parent navigation, 1 of 3.",
+        "not selected.",
+        "3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+        "left control",
+        "Tab 2 of 3: ⌂ reports · bundle.zip, Root lock: revisiting returns to reports, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/bundle.zip/reports",
+        "Go to parent location, parent navigation, 1 of 2.",
+        "not selected.",
+        "2 visible rows, 1 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.",
+        "left control",
+        "Tab 3 of 3: reports · server, Unlocked tab, sftp://benny@127.0.0.1/home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/server/reports",
+        "Go to parent location, parent navigation, 1 of 2.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "tab order after the drag",
+      "value": [
+        "reports · server, Unlocked tab, sftp://benny@127.0.0.1/home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/server/reports",
+        "🔒 reports · local, Navigation lock: opening another location creates a new tab, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/reports",
+        "⌂ reports · bundle.zip, Root lock: revisiting returns to reports, /home/benny/FileCatValidation/TabIdentityFixture/0f2bd7e39359424db373b6d30a6a7b6b/local/bundle.zip/reports"
+      ],
+      "heard": null
+    },
+    {
+      "step": "hover tooltip",
+      "value": [
+        "Full name: quarterly-report-with-a-name-long-enough-to-be-clipped-in-any-narrow-name-column-of-a-panel-kept-for-inspection.txt"
+      ],
+      "heard": null
+    },
+    {
+      "step": "Ctrl+Shift+I full values",
+      "value": [
+        "quarterly-report-with-a-name-long-enough-to-be-clipped-in-any-narrow-name-column-of-a-panel-kept-for-inspection.txt · 13 bytes",
+        "quarterly-report-with-a-name-long-enough-to-be-clipped-in-any-narrow-name-column-of-a-panel-kept-for-inspection.txt, file, 13 bytes, modified 10/28/2026 2:33:51 AM, not marked, 2 of 3"
+      ],
+      "heard": [
+        "left control",
+        "Inspect focused item dialog",
+        "panel",
+        "Full values of focused item",
+        "read only entry",
+        "Focused item: quarterly-report-with-a-name-long-enough-to-be-clipped-in-any-narrow-name-column-of-a-panel-kept-for-inspection.txt\nName: quarterly-report-with-a-name-long-enough-to-be-clipped-in-any-narrow-name-column-of-a-panel-kept-for-inspection.txt\nExt: txt\nSize: 13\nModified: 10/28/2026 2:33:51 AM\nPermissions: (not yet displayed)\n"
+      ]
+    }
+  ],
+  "appDllSha256": "556ace1fc5ba766b050dcd1bc289e327f08ddad8cbcf9288d4d3c3e69649de35",
+  "hostKeyMatched": [
+    "SHA256:tDaZHTtiFamWofpGkMBgXgaeG2LP+bNKfaTr5lOa/ao"
+  ],
+  "drag": {
+    "from": [
+      684,
+      314
+    ],
+    "to": [
+      154,
+      314
+    ],
+    "strip": [
+      146,
+      283,
+      667,
+      64
+    ],
+    "firstTab": [
+      -12,
+      283,
+      244,
+      64
+    ],
+    "firstTabPartlyHidden": true
+  }
+}

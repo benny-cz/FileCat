@@ -28,6 +28,10 @@ from uuid import uuid4
 
 
 SPEECH = re.compile(r" - SPEECH OUTPUT: '(.*)'(?: \{.*\})?$")
+# A phrase with line breaks goes on over lines Orca indents to its timestamp's width, up to the closing quote.
+SPEECH_START = re.compile(r" - SPEECH OUTPUT: '(.*)$")
+SPEECH_GOES_ON = re.compile(r"^ {18}(.*)$")
+SPEECH_END = re.compile(r"^ {18}(.*)'(?: \{.*\})?$")
 # Orca block-buffers its debug file. This starts the unmodified installed Orca with only that file line-buffered,
 # so each phrase can be read as soon as Orca sends it to speech.
 ORCA_WRAPPER = r'''
@@ -68,7 +72,7 @@ class SpeechLog:
         self.partial = b""
 
     def take(self):
-        """Phrases from lines Orca finished writing since the previous call."""
+        """Phrases Orca finished writing since the previous call (one can span lines: a text with line breaks)."""
         if not self.path.is_file():
             return []
         with self.path.open("rb") as log:
@@ -76,8 +80,26 @@ class SpeechLog:
             data = self.partial + log.read()
             self.offset = log.tell()
         complete, _, self.partial = data.rpartition(b"\n")
-        return [match.group(1) for line in complete.decode("utf-8", errors="replace").splitlines()
-                if (match := SPEECH.search(line))]
+        raw = complete.split(b"\n") if complete else []
+        lines = [line.decode("utf-8", errors="replace").rstrip("\r") for line in raw]
+        phrases, index = [], 0
+        while index < len(lines):
+            first, line = index, lines[index]
+            index += 1
+            if match := SPEECH.search(line):
+                phrases.append(match.group(1))
+            elif start := SPEECH_START.search(line):
+                parts = [start.group(1)]
+                while index < len(lines) and (more := SPEECH_GOES_ON.match(lines[index])):
+                    index += 1
+                    if end := SPEECH_END.match(lines[index - 1]):
+                        phrases.append("\n".join(parts + [end.group(1)]))
+                        break
+                    parts.append(more.group(1))
+                else:
+                    if index == len(lines):  # Orca is still writing it: read it again with the rest
+                        self.partial = b"\n".join(raw[first:]) + b"\n" + self.partial
+        return phrases
 
 
 def main():

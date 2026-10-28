@@ -1,5 +1,37 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-tab-identity-20261028"></a>
+**28 October 2026, same-named local, archive and remote tabs with Orca
+(AC-S3-061 accepted):** The new
+[tab identity runner](../../tests/FileCat.NativeAcceptance/linux-orca-tab-identity.py)
+runs on the Ubuntu 26.04.1 VM (GNOME 50.1 at 200%, Xft.dpi 192) with a
+test-owned Orca 50.2 against Git-built `7be08a3d` (DLL `556ACE1F…9649DE35`).
+Panel 1 opened three tabs all named “reports”: a local folder, the folder of
+that name inside `bundle.zip`, and the same name on the VM's loopback SFTP
+account, whose host key matched the server's own public keys before “Connect
+once”. The headers read “reports · local”, “reports · bundle.zip” and
+“reports · server”, and each tab's accessible name ends with its full
+location, `sftp://benny@127.0.0.1/…` for the remote one. Real right clicks on
+the first two tabs set a navigation lock and a root lock from the tab menu;
+their names gained 🔒 and ⌂ with the meanings (“Navigation lock: opening
+another location creates a new tab”, “Root lock: revisiting returns to
+reports”). Physical Ctrl+Tab said nothing about the tab it reached until
+`0e804d29`; now Orca speaks “Tab 1 of 3: 🔒 reports · local, Navigation lock:
+…” with the location, and so on for each tab. The three names are too wide for
+the panel's strip, which stays scrolled to show the active remote tab and
+hides most of the first, and a dragged tab could not reach that place: the
+strip never scrolled during a drag. Since `7be08a3d` a dragged tab held at
+either end of an overflowing strip scrolls it, and a drop just past an end
+still lands there; a real uinput drag of the remote tab held two seconds at
+the strip's left end scrolled it back and dropped the remote tab first. In
+the local tab, hovering the clipped long file name showed its “Full name: …”
+tooltip, and Ctrl+Shift+I opened “Inspect focused item”, where Orca read the
+read-only box in full: focused item, Name, Ext, Size and Modified. The
+fixture's files kept their SHA-256
+([receipt](evidence/ac-s3-061-ubuntu-orca-tab-identity-7be08a3d.json)). The
+shared Orca log reader now keeps a phrase that spans lines, as that box's text
+does, instead of dropping it.
+
 <a id="evidence-density-20261028"></a>
 **28 October 2026, Comfortable density and enlarged content in the viewer and
 hex editor with NVDA (AC-S3-059 accepted):** The new

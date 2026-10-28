@@ -61,7 +61,9 @@ def tree(root):
         children = node.get_child_count()
         if children > LIMIT:
             raise AssertionError(f"One AT-SPI node exposed {children} children")
-        pending.extend(node.get_child_at_index(i) for i in range(children - 1, -1, -1))
+        # A child can go between the count and the fetch while the window changes (a dialog opens): skip it.
+        pending.extend(child for child in (node.get_child_at_index(i) for i in range(children - 1, -1, -1))
+                       if child is not None)
 
 
 def matching(root, role, name):

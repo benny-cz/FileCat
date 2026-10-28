@@ -167,7 +167,21 @@ the page's last item to reach the Page button and Shift+Tab to return; a real
 click in the page to take focus; and, with Find open, the plug to keep its
 native host's size. `linux-uinput-click.py X Y SCREEN_WIDTH SCREEN_HEIGHT`
 clicks once through an absolute uinput pointer, since XTEST clicks do not
-reach X11 windows under GNOME's Xwayland.
+reach X11 windows under GNOME's Xwayland; `right` right-clicks, `move [HOLD]`
+only hovers there, and `drag X2 Y2 [HOLD]` presses, moves in steps and holds
+at the end (0.3 s by default) before it lets go.
+`linux-orca-tab-identity.py APP_PATH REPORT.json KEY_HELPER CLICK_HELPER`
+opens three tabs all named “reports” in panel 1: a local folder, that folder
+inside a ZIP, and the same name on the VM's loopback SFTP account
+(`FILECAT_NATIVE_SFTP_PASSWORD`, removed before Orca or FileCat starts; the
+host key must match the server's own keys). It requires distinct headers and
+full locations in their accessible names, sets a navigation lock and a root
+lock by real right clicks on the tab menu, and has a test-owned Orca speak
+each tab's “Tab N of 3”, lock meaning and location on Ctrl+Tab. It then drags
+the remote tab first through the scrolled strip with a held uinput drag,
+hovers a clipped file name for its tooltip and has Orca read the full values
+Ctrl+Shift+I shows. It refuses a running Orca, `FileCat` or `filecat`, keeps
+the fixture's bytes and kills only its own app.
 `linux-atspi-keybar-popup.py` checks the twelve visible key-bar labels after
 physical Shift+F10 context-menu and Alt+F7 focus transitions in a logged-in
 Ubuntu session. Pass an isolated Git-built `FileCat`, a JSON report directly
@@ -1393,7 +1407,8 @@ native report for diagnosis.
 isolated Git-built FileCat through Orca in the logged-in GNOME session. It
 refuses to run beside another Orca, starts the installed Orca with only its
 debug file line-buffered (Orca block-buffers it otherwise) and judges only the
-`SPEECH OUTPUT` lines Orca sent to speech. The runner never reads FileCat's
+`SPEECH OUTPUT` lines Orca sent to speech; a phrase with line breaks, which
+Orca writes over indented lines, is kept whole. The runner never reads FileCat's
 AT-SPI tree, because enumerating it would create the nodes whose focus
 announcements are under test. Physical uinput keys perform the same journey as
 the NVDA runner, including both copy notices and the rejected Quick filter
