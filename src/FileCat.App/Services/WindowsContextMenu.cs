@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.State;
 
 namespace FileCat.App.Services;
 
@@ -14,7 +15,12 @@ namespace FileCat.App.Services;
 internal static class WindowsContextMenu
 {
     internal const string HostArgument = "--native-context-menu";
+    internal const string ReadyMessage = "FILECAT_CONTEXT_READY";
+    internal const string InvokeMessage = "FILECAT_CONTEXT_INVOKE";
     internal const int MaxItems = 128;
+    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan InteractiveTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan InvokeTimeout = TimeSpan.FromSeconds(20);
     internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage }
     private static int _openHosts;
     private static long _lastHostClosedAt;
@@ -42,11 +48,17 @@ internal static class WindowsContextMenu
     internal static async Task<Result> ShowAsync(IReadOnlyList<string?> paths, int x, int y)
     {
         if (!CanShow(paths)) return Result.Failed;
+        if (!CanStartHost())
+        {
+            AppLog.Warn("The Windows context menu was not opened because FileCat has a high-integrity token.");
+            return Result.Failed;
+        }
         Interlocked.Increment(ref _openHosts);
         try
         {
             var start = HostStartInfo();
             if (start is null) return Result.Failed;
+            start.RedirectStandardOutput = true;
             start.RedirectStandardError = true;
             start.ArgumentList.Add(HostArgument);
             start.ArgumentList.Add(x.ToString(CultureInfo.InvariantCulture));
@@ -55,8 +67,16 @@ internal static class WindowsContextMenu
             using var child = Process.Start(start);
             if (child is null) return Result.Failed;
             Task<string> readErrors = ReadErrorPrefixAsync(child.StandardError);
-            await child.WaitForExitAsync();
-            string details = await readErrors;
+            bool completed = await MonitorHostAsync(child, StartupTimeout, InteractiveTimeout, InvokeTimeout);
+            string details;
+            try { details = await readErrors.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (TimeoutException) { details = "The helper's error stream did not close."; }
+            if (!completed)
+            {
+                AppLog.Warn("Windows context menu helper was ended after its lifecycle deadline" +
+                    (details.Length == 0 ? "." : ": " + details[..Math.Min(240, details.Length)].Trim()));
+                return Result.Failed;
+            }
             if (child.ExitCode is not (0 or 10 or 11 or 12))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
@@ -73,6 +93,81 @@ internal static class WindowsContextMenu
             Interlocked.Decrement(ref _openHosts);
         }
     }
+
+    internal static bool CanStartHost() => OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity;
+
+    /// <summary>
+    /// Bounds the two parts controlled by Shell code without treating the user's time choosing a command as a short
+    /// handler timeout. The complete popup still has a finite lifetime so an abandoned or wedged host cannot persist
+    /// forever. Only the root host is ended after a deadline: a program that an explicitly chosen verb already
+    /// launched is not mistaken for hostile parser work and killed with it.
+    /// </summary>
+    internal static async Task<bool> MonitorHostAsync(Process child, TimeSpan startupTimeout,
+        TimeSpan interactiveTimeout, TimeSpan invokeTimeout)
+    {
+        Task exited = child.WaitForExitAsync();
+        Task<string?> signal = child.StandardOutput.ReadLineAsync();
+        HostPhase phase = HostPhase.Starting;
+        while (true)
+        {
+            TimeSpan limit = phase switch
+            {
+                HostPhase.Starting => startupTimeout,
+                HostPhase.Interactive => interactiveTimeout,
+                _ => invokeTimeout,
+            };
+            Task deadline = Task.Delay(limit);
+            await Task.WhenAny(exited, signal, deadline);
+
+            // A final signal and process exit can become observable together. Consume the signal first so a healthy
+            // probe or cancelled popup is not classified as an exit before readiness.
+            if (signal.IsCompleted)
+            {
+                string? message;
+                try { message = await signal; }
+                catch (IOException) { message = null; }
+                if (message is null)
+                {
+                    // Standard output normally closes just before the process-exit wait is signalled.
+                    if (await Task.WhenAny(exited, Task.Delay(TimeSpan.FromSeconds(5))) == exited)
+                    {
+                        await exited;
+                        return phase is not HostPhase.Starting;
+                    }
+                    await EndHostAsync(child);
+                    return false;
+                }
+                if (phase == HostPhase.Starting && message == ReadyMessage)
+                    phase = HostPhase.Interactive;
+                else if (phase == HostPhase.Interactive && message == InvokeMessage)
+                    phase = HostPhase.Invoking;
+                else
+                {
+                    await EndHostAsync(child);
+                    return false;
+                }
+                signal = child.StandardOutput.ReadLineAsync();
+                continue;
+            }
+            if (exited.IsCompleted)
+            {
+                await exited;
+                return phase is not HostPhase.Starting;
+            }
+            await EndHostAsync(child);
+            return false;
+        }
+    }
+
+    private static async Task EndHostAsync(Process child)
+    {
+        try { if (!child.HasExited) child.Kill(); }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception) { }
+        try { await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException) { }
+    }
+
+    private enum HostPhase { Starting, Interactive, Invoking }
 
     internal static async Task<string> ReadErrorPrefixAsync(StreamReader reader)
     {
@@ -110,7 +205,7 @@ internal static class WindowsContextMenu
     // Test/probe mode constructs the real menu without displaying it or invoking a verb.
     internal static int RunHost(string[] args)
     {
-        if (!OperatingSystem.IsWindows()) return 1;
+        if (!CanStartHost()) return 1;
         bool probe = args.Length >= 3 && args[1] == "--probe";
         int start = probe ? 2 : 3;
         if (args.Length <= start || !probe && (!int.TryParse(args[1], CultureInfo.InvariantCulture, out _) ||
@@ -179,6 +274,8 @@ internal static class WindowsContextMenu
             if (RegisterClassExW(ref wc) == 0) { Console.Error.WriteLine("RegisterClassEx failed"); return 1; }
             owner = CreateWindowExW(0x80, windowClass, "", 0x80000000, x, y, 1, 1, 0, 0, wc.hInstance, 0);
             if (owner == 0) { Console.Error.WriteLine("CreateWindowEx failed"); return 1; }
+            Console.Out.WriteLine(ReadyMessage);
+            Console.Out.Flush();
             if (probe) return 0; // Validate the popup owner too, without taking focus or showing a menu.
             _menu3 = menu as IContextMenu3;
             _menu2 = menu as IContextMenu2;
@@ -190,6 +287,8 @@ internal static class WindowsContextMenu
             if (selected == FileCatCommand) return 10;
             if (selected == RecoverCommand) return 12;
             if (selected < ShellFirst || selected > ShellLast) return 11;
+            Console.Out.WriteLine(InvokeMessage);
+            Console.Out.Flush();
             var invoke = new InvokeCommandInfoEx
             {
                 cbSize = (uint)Marshal.SizeOf<InvokeCommandInfoEx>(),
