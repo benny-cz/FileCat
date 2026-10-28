@@ -31,8 +31,13 @@ public sealed class VerificationResultRetentionTests
             Assert.Contains(result.Details, d => d.Contains("differs", StringComparison.Ordinal) && d.Contains("line 128", StringComparison.Ordinal));
 
         var cached = service.Automatic(target, TestContext.Current.CancellationToken)!;
-        Assert.Equal(result.State, cached.State);
-        Assert.Equal(result.Details, cached.Details);
+        Assert.Equal(VerificationState.NotChecked, cached.State);
+        Assert.Contains("previously checked", cached.Text, StringComparison.Ordinal);
+        Assert.InRange(cached.Details.Count, 1, 64);
+        Assert.Contains(cached.Details, d => d.Contains("more claims", StringComparison.Ordinal));
+        if (lateMismatch)
+            Assert.Contains(cached.Details, d => d.Contains("differs", StringComparison.Ordinal) && d.Contains("line 128", StringComparison.Ordinal));
+        Assert.Equal(result.State, service.OnRequest(target, TestContext.Current.CancellationToken)!.State);
         Assert.Equal(payload, File.ReadAllText(target));
     }
 

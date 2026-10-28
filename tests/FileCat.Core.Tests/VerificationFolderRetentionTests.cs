@@ -53,7 +53,8 @@ public sealed class VerificationFolderRetentionTests
         File.SetLastWriteTimeUtc(sidecar, DateTime.UtcNow.AddMinutes(1));
         service.FolderChanged(first, TestContext.Current.CancellationToken);
         Assert.Equal(1, notifications);
-        Assert.Equal(VerificationState.Differs, service.Automatic(file, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.NotChecked, service.Automatic(file, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.Differs, service.OnRequest(file, TestContext.Current.CancellationToken)!.State);
         Assert.Equal("owned bytes", File.ReadAllText(file));
     }
 }

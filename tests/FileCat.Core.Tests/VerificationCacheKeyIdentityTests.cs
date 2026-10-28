@@ -54,7 +54,7 @@ public sealed class VerificationCacheKeyIdentityTests
         Assert.Equal((size, secondTime.Ticks), (new FileInfo(second).Length, File.GetLastWriteTimeUtc(second).Ticks));
         service.FolderChanged(root.Path, TestContext.Current.CancellationToken);
         Assert.Equal(2, service.SidecarsOf(root.Path, TestContext.Current.CancellationToken).Checksums("item.bin").Count);
-        Assert.Equal(VerificationState.Differs, service.Automatic(target, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.NotChecked, service.Automatic(target, TestContext.Current.CancellationToken)!.State);
         Assert.Equal(VerificationState.Differs, service.OnRequest(target, TestContext.Current.CancellationToken)!.State);
         Assert.Equal("owned-good-payload", File.ReadAllText(target));
     }

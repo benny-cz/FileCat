@@ -41,7 +41,8 @@ public sealed class VerificationExplicitSidecarRefreshTests(ITestOutputHelper ou
             Assert.Equal(folderTime, Directory.GetLastWriteTimeUtc(root));
             Assert.Equal(bytes, File.ReadAllBytes(target));
             Assert.Equal(1, changed);
-            Assert.Equal(VerificationState.Differs, second?.State);
+            Assert.Equal(VerificationState.NotChecked, second?.State);
+            Assert.Equal(VerificationState.Differs, service.OnRequest(target, TestContext.Current.CancellationToken)?.State);
         }
         finally
         {

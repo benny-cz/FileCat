@@ -485,8 +485,12 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     private static VerificationResult Historical(VerificationResult cached)
     {
         string when = cached.CheckedUtc?.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture) ?? "an earlier check";
+        // Keep the original bounded detail set intact; a late mismatch may occupy its final slot.
+        IReadOnlyList<string> details = cached.Details.Count >= 64
+            ? cached.Details
+            : ["Previous result: " + cached.Text, .. cached.Details];
         return new VerificationResult(VerificationState.NotChecked, $"previously checked {when}; verify current file",
-            ["Previous result: " + cached.Text, .. cached.Details, "File → Verify checksums and signatures reads the current bytes."])
+            details)
         { CheckedUtc = cached.CheckedUtc };
     }
 

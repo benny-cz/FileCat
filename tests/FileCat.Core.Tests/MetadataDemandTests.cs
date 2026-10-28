@@ -79,7 +79,8 @@ public sealed class MetadataDemandTests
             File.WriteAllText(sum, Convert.ToHexStringLower(SHA256.HashData("different bytes"u8)) + "\n");
             verification.FolderChanged(dir.Path, TestContext.Current.CancellationToken);
             Assert.Equal(1, Volatile.Read(ref invalidations));
-            Assert.Equal(VerificationState.Differs, verification.Automatic(path, TestContext.Current.CancellationToken)!.State);
+            Assert.Equal(VerificationState.NotChecked, verification.Automatic(path, TestContext.Current.CancellationToken)!.State);
+            Assert.Equal(VerificationState.Differs, verification.OnRequest(path, TestContext.Current.CancellationToken)!.State);
             // Let the invalidation redraw happen while the old producer is held. Once it ends, the real UI needs
             // another notification to ask again; no polling Get calls may manufacture that wakeup for this test.
             await invalidationShown.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -89,13 +90,13 @@ public sealed class MetadataDemandTests
             await retryShown.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             MetadataValue current = default;
             await WaitFor(() => (current = metadata.Get("verified", path, entry, "owned", false)).State == MetadataState.Available);
-            Assert.Equal(VerificationState.Differs, Assert.IsType<VerificationResult>(current.Value).State);
+            Assert.Equal(VerificationState.NotChecked, Assert.IsType<VerificationResult>(current.Value).State);
             await WaitFor(() => Volatile.Read(ref active) == 0);
             // A redraw may request another current producer after the obsolete one completes.
             // The invariant is that no retry publishes or computes the old sidecar result.
             Assert.True(Volatile.Read(ref calls) >= 2);
             Assert.Equal(VerificationState.Matches, producedStates.First());
-            Assert.All(producedStates.Skip(1), state => Assert.Equal(VerificationState.Differs, state));
+            Assert.All(producedStates.Skip(1), state => Assert.Equal(VerificationState.NotChecked, state));
             Assert.Equal(bytes, File.ReadAllBytes(path));
             Assert.Equal(modified, File.GetLastWriteTimeUtc(path).Ticks);
         }
