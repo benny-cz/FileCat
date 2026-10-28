@@ -442,14 +442,20 @@ public partial class OperationsView : UserControl
     internal void RevealRecoveryReview(InterruptedJobViewModel item)
     {
         // The bounded recovery viewport can hide the action row at a high
-        // display scale. Reveal the current Stop control after its busy phase
-        // has been measured, without changing the user's saved drawer size.
-        Dispatcher.UIThread.Post(() =>
+        // display scale. Reveal the current Stop control immediately when the
+        // caller has already measured the busy row, then repeat after layout
+        // settles for the production path that starts the review and reveals
+        // it in the same dispatcher turn. This does not change the user's
+        // saved drawer size.
+        void Reveal()
         {
             if (Center is { IsOpen: true } center &&
                 ReferenceEquals(center.SelectedInterrupted, item) && item.CanStopReview)
                 RecoveryScroll.ScrollToEnd();
-        }, DispatcherPriority.Loaded);
+        }
+
+        Reveal();
+        Dispatcher.UIThread.Post(Reveal, DispatcherPriority.Loaded);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
