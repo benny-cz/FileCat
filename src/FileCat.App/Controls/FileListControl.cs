@@ -744,6 +744,12 @@ public sealed class FileListControl : Control
             _loadingHintTimer.Stop();
             _loadingHintTimer.Start();
         }
+        else if ((change & ListingChange.RefreshComplete) != 0)
+        {
+            // Watcher/manual rereads replace rows without Reset. Recheck Git after the
+            // completed listing so a retained badge cannot describe an older work tree.
+            RefreshGitStatuses();
+        }
         EnsureCacheStore();
         if ((change & (ListingChange.Rows | ListingChange.Marks)) != 0 && _textCache.Count > 4000) ClearTextCache();
         if ((change & ListingChange.Marks) != 0) ClearTextCache();
@@ -821,6 +827,7 @@ public sealed class FileListControl : Control
                 {
                     if (generation != _gitStatusGeneration || Tab?.Location?.Path != folder) return;
                     _gitStatuses = snapshot;
+                    ClearTip();
                     InvalidateVisual();
                     _automationPeer?.QueueUpdate(ListingChange.State);
                 }, DispatcherPriority.Background);
@@ -1522,6 +1529,8 @@ public sealed class FileListControl : Control
             var entry = listing.GetVisible(row);
             if ((overIcon || overCell) && entry.Kind == EntryKind.File && Tab is { HasSidecars: true } tab)
                 tip = tab.VerificationTip(entry, listing.GetStoreIndex(row));
+            if (overIcon && GitStatusLabel(_gitStatuses?.ForName(entry.Name) ?? GitStatusKind.None) is { } gitLabel)
+                tip = tip is null ? gitLabel : tip + "\n" + gitLabel;
             if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
                 cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
                 cell.Clipped)
@@ -1825,6 +1834,16 @@ public sealed class FileListControl : Control
         return details;
     }
 
+    internal static string? GitStatusLabel(GitStatusKind status) => status switch
+    {
+        GitStatusKind.Clean => "Git clean",
+        GitStatusKind.Untracked => "Git untracked",
+        GitStatusKind.Added => "Git added",
+        GitStatusKind.Modified => "Git changed",
+        GitStatusKind.Conflict => "Git conflict",
+        _ => null,
+    };
+
     /// <summary>The item's spoken details. A row's own description omits the name its accessible name already says.</summary>
     internal string DescribeItem(int storeIndex, bool includeName = true)
     {
@@ -1836,15 +1855,8 @@ public sealed class FileListControl : Control
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e);
         // Parent navigation can never be marked, so its mark state is not described.
         var marked = e.Kind == EntryKind.Parent ? string.Empty : listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
-        var git = _gitStatuses?.ForName(e.Name) switch
-        {
-            GitStatusKind.Clean => ", Git clean",
-            GitStatusKind.Untracked => ", Git untracked",
-            GitStatusKind.Added => ", Git added",
-            GitStatusKind.Modified => ", Git changed",
-            GitStatusKind.Conflict => ", Git conflict",
-            _ => string.Empty,
-        };
+        var git = GitStatusLabel(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitLabel
+            ? ", " + gitLabel : string.Empty;
         details += ItemWarnings(e);
         if (Tab is { } owner && e.Tag is ResultTag) details += ", location: " + ItemLocation(owner, e);
         // Inspection may only read cached verification; asking an offscreen peer must not start file reads.

@@ -1,5 +1,18 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-git-badge-check-20261028"></a>
+**28 October 2026, Git panel badge follow-up:** The [focused check](GIT_BADGE_UX_CHECK_20261028.md)
+found that watcher and manual folder rereads completed with `RefreshComplete`
+while the panel restarted Git only on `Reset`. The panel now refreshes the badge
+snapshot on completed rereads, and an icon hover names the Git state using the
+same words as the accessible row description. The Windows host's Release build
+passed without warnings; the new real-repository panel regression passed 1/1,
+and `GitStatusTests` passed 13 cases with one external share-capture test
+skipped. The check retains bounded background reads, the portable vector
+glyphs, Windows Shell-helper isolation and explicit plain-icon fallbacks.
+Cross-platform CI and any native desktop evidence are recorded below when
+available; the host result alone is not an all-platform native visual claim.
+
 <a id="evidence-fcux-next-001-local-20261028"></a>
 **28 October 2026, FCUX-NEXT-001 accepted on `main`:**
 The live Operations control now displays a fractional MB/s cap without
