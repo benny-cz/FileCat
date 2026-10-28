@@ -233,8 +233,17 @@ public sealed partial class MainViewModel
                 try { found = service.SidecarsOf(folder, CancellationToken.None); }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    AppLog.Warn($"The checksum files in {folder} could not be read", ex);
-                    unread ??= ex.Message;
+                    string reason = ex switch
+                    {
+                        DirectoryNotFoundException => "the folder is no longer available",
+                        UnauthorizedAccessException => "access was denied",
+                        IOException => "an I/O error occurred",
+                        _ => "the folder could not be read",
+                    };
+                    AppLog.Warn($"The checksum files in {AppLog.P(folder)} could not be read: {reason}",
+                        AppLog.DiagnosticMode ? ex : null);
+                    // Notify logs error text too, so never pass path-bearing exception messages through the plan.
+                    unread ??= reason;
                     found = null;
                 }
                 return folders[folder] = found;

@@ -25,9 +25,9 @@ public static class DiagnosticsBundle
         return new Summary(sb.ToString());
     }
 
-    public static string Write(AppServices s)
+    public static string Write(AppServices s, string? destinationDirectory = null)
     {
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var desktop = destinationDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop)) desktop = s.Paths.LocalDirectory;
         var path = Path.Combine(desktop, $"FileCat-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);

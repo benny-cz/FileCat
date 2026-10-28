@@ -58,6 +58,8 @@ internal sealed class FakeSftpServer
 
     /// <summary>Called once, on the first write of an upload (outside the server's lock), then cleared.</summary>
     public Action? DuringUpload { get; set; }
+    /// <summary>One synchronization point after an uploaded stage takes its public name.</summary>
+    public Action? AfterRename { get; set; }
 
     public FakeSftpServer() => Dir(Home);
 
@@ -265,6 +267,11 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
             from.Children.Remove(fromName);
             node.Name = toName;
             to.Children[toName] = node;
+        }
+        if (server.AfterRename is { } after)
+        {
+            server.AfterRename = null;
+            after();
         }
     }
 

@@ -23,6 +23,7 @@ public sealed class FtpJobTests : IDisposable
     private sealed class MarkingOps : PortableFileOperations
     {
         public Dictionary<string, string> Marks { get; } = [];
+        public Action<string, string>? AfterMove { get; set; }
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
 
         public override bool WriteOriginMark(string path, string mark)
@@ -35,7 +36,52 @@ public sealed class FtpJobTests : IDisposable
         {
             base.Move(source, destination, replaceExisting, writeThrough);
             if (Marks.Remove(source, out var m)) Marks[destination] = m;
+            AfterMove?.Invoke(source, destination);
         }
+    }
+
+    [Fact]
+    public async Task FTP_move_keeps_a_replacement_at_the_original_local_name()
+    {
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        profile.PlainTextAccepted = true;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "move-known-hosts")), new SessionSecretStore(), new FtpInteraction());
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        var ops = new MarkingOps();
+        var jobs = new JobManager(ops, providers, Path.Combine(_dir, "move-journal"));
+        var local = Directory.CreateDirectory(Path.Combine(_dir, "move-local")).FullName;
+        var source = Path.Combine(local, "move.txt");
+        File.WriteAllText(source, "source-A");
+        DateTime stamp = File.GetLastWriteTimeUtc(source);
+        ops.AfterMove = (from, to) =>
+        {
+            if (from != source || !Path.GetFileName(to).StartsWith(".FileCat-move-hold-", StringComparison.Ordinal)) return;
+            ops.AfterMove = null;
+            File.WriteAllText(source, "source-B");
+            File.SetLastWriteTimeUtc(source, stamp);
+        };
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = SftpProvider.At(profile, "/"),
+        });
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal("source-A", File.ReadAllText(Path.Combine(server.Root, "move.txt")));
+        Assert.Equal("source-B", File.ReadAllText(source));
+        Assert.DoesNotContain(Directory.GetFiles(local), p => Path.GetFileName(p).StartsWith(".FileCat-move-hold-", StringComparison.Ordinal));
     }
 
     [Fact]

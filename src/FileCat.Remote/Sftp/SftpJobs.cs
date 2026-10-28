@@ -428,20 +428,84 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             refreshSource: () => info = Fs.TryGetInfo(local) ?? throw new FileNotFoundException("The upload source no longer exists.", local));
         if (ok && Moving)
         {
-            // The copy is published and its size checked: only now may the source go, and only if it is still the file that
-            // was read — an edit made during the upload would go with it (release plan DPI P01, as local moves do).
-            if (Fs.TryGetInfo(local) is not { } now || now.Size != info.Size || now.ModifiedUtc != info.ModifiedUtc)
-            {
-                Issue(IssueSeverity.Warning, local, "Copied to the server, but the file changed here during the copy, so it was not deleted. Both versions now exist.", StepOutcome.PartiallyApplied);
-                return ok;
-            }
-            try { Fs.DeleteFile(local); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Issue(IssueSeverity.Warning, local, "The file was copied to the server, but it could not be deleted here, so it exists in both places: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
-            }
+            DeletePublishedLocalSource(local, destFolder, name, info);
         }
         return ok;
+    }
+
+    /// <summary>
+    /// Move the pathname out of the way before the final byte check. A concurrent replacement of the original name
+    /// then cannot become the object deleted by this job. An interrupted hold is named in the durable journal and is
+    /// never removed by generic staging cleanup.
+    /// </summary>
+    private void DeletePublishedLocalSource(string local, string destFolder, string name, FileSystemItemInfo uploaded)
+    {
+        string held = Path.Combine(Path.GetDirectoryName(local)!, ".FileCat-move-hold-" + Guid.NewGuid().ToString("N"));
+        int step = Journal.Intent("hold-moved-local-source", local, staged: held);
+        bool moved = false;
+        try
+        {
+            var current = Fs.TryGetInfo(local);
+            if (current is null || current.IsDirectory || current.IsLink ||
+                current.Size != uploaded.Size || current.ModifiedUtc != uploaded.ModifiedUtc)
+                throw new IOException("The local source changed before it could be removed.");
+            string? identity = Fs.GetFileIdentity(local);
+            Fs.Move(local, held, replaceExisting: false, writeThrough: true);
+            moved = true;
+            var heldInfo = Fs.TryGetInfo(held);
+            if (heldInfo is null || heldInfo.IsDirectory || heldInfo.IsLink || heldInfo.Size != uploaded.Size ||
+                heldInfo.ModifiedUtc != uploaded.ModifiedUtc ||
+                identity is not null && Fs.GetFileIdentity(held) != identity)
+                throw new IOException("The held local source is not the selected file.");
+
+            string remote = RemotePath.Combine(destFolder, name);
+            var published = FreshEntry(destFolder, name);
+            if (published is null || published.IsDirectory || published.IsLink || published.Size != uploaded.Size)
+                throw new IOException("The published server file is no longer the complete expected file.");
+            if (!HeldSourceMatchesRemote(held, remote, uploaded.Size))
+                throw new IOException("The held local bytes differ from the published server bytes.");
+            // The held name is private to this job. A replacement of the original pathname is left untouched.
+            if (Fs.TryGetInfo(held) is not { IsDirectory: false, IsLink: false } after || after.Size != uploaded.Size ||
+                identity is not null && Fs.GetFileIdentity(held) != identity)
+                throw new IOException("The held local source changed during verification.");
+            Fs.DeleteFile(held);
+            Journal.Done(step, StepOutcome.Committed);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or OperationCanceledException)
+        {
+            bool restored = !moved;
+            if (moved)
+            {
+                try
+                {
+                    Fs.Move(held, local, replaceExisting: false, writeThrough: true);
+                    restored = true;
+                }
+                catch (Exception restore) when (restore is IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    Journal.RequireRecovery();
+                    Journal.Note($"The published remote copy needs review; local source retained at {held}: {ErrorText.Describe(restore)}");
+                }
+            }
+            Journal.Done(step, restored ? StepOutcome.PartiallyApplied : StepOutcome.Uncertain);
+            Issue(IssueSeverity.Warning, local, restored
+                ? "Copied to the server, but the local source could not be proven identical to the published copy or safely removed. It was kept here; both versions may exist. " + ErrorText.Describe(ex)
+                : $"Copied to the server, but the local source could not be restored to its original name. It is retained at {held}; review both locations before retrying. " + ErrorText.Describe(ex),
+                restored ? StepOutcome.PartiallyApplied : StepOutcome.Uncertain);
+            if (ex is OperationCanceledException) throw;
+        }
+    }
+
+    private bool HeldSourceMatchesRemote(string held, string remote, long length)
+    {
+        Job.SetCurrent(held + " (verifying moved source)");
+        using var theirStream = Channel.OpenRead(remote, length);
+        byte[] theirHash = PortableFileOperations.HashStream(theirStream,
+            System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, expectedLength: length);
+        using var ourStream = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
+        byte[] ourHash = PortableFileOperations.HashStream(ourStream,
+            System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, expectedLength: length);
+        return ourHash.AsSpan().SequenceEqual(theirHash);
     }
 
     private bool UploadProviderItem(ItemRef item, string destFolder, string name)

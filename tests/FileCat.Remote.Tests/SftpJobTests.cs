@@ -23,6 +23,7 @@ public sealed class SftpJobTests : IDisposable
     private sealed class MarkingOps : PortableFileOperations
     {
         public Dictionary<string, string> Marks { get; } = [];
+        public Action<string, string>? AfterMove { get; set; }
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
         public override bool WriteOriginMark(string path, string mark)
         {
@@ -35,6 +36,7 @@ public sealed class SftpJobTests : IDisposable
         {
             base.Move(source, destination, replaceExisting, writeThrough);
             if (Marks.Remove(source, out var m)) Marks[destination] = m;
+            AfterMove?.Invoke(source, destination);
         }
     }
 
@@ -279,6 +281,49 @@ public sealed class SftpJobTests : IDisposable
         Assert.False(_server.Exists("/up/draft.txt"));
         Assert.Empty(Names("/up"));
         Assert.Contains(job.Issues, i => i.Message.Contains("source changed during uploading", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("replacement-before-hold")]
+    [InlineData("rewrite-before-hold")]
+    [InlineData("replacement-after-hold")]
+    public async Task A_local_move_never_deletes_bytes_that_were_not_published(string change)
+    {
+        const string original = "source-A";
+        const string replacement = "source-B";
+        string file = LocalFile("local-move.txt", original);
+        DateTime stamp = File.GetLastWriteTimeUtc(file);
+        _server.Dir("/up");
+        if (change == "replacement-after-hold")
+        {
+            _ops.AfterMove = (source, held) =>
+            {
+                if (source != file || !Path.GetFileName(held).StartsWith(".FileCat-move-hold-", StringComparison.Ordinal)) return;
+                _ops.AfterMove = null;
+                File.WriteAllText(file, replacement);
+                File.SetLastWriteTimeUtc(file, stamp);
+            };
+        }
+        else
+        {
+            _server.AfterRename = () =>
+            {
+                if (change == "replacement-before-hold")
+                {
+                    File.Move(file, file + ".saved");
+                    File.WriteAllText(file, replacement);
+                }
+                else File.WriteAllText(file, replacement);
+                File.SetLastWriteTimeUtc(file, stamp);
+            };
+        }
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)], Destination = Remote("/up") });
+        Assert.Equal(original, _server.Read("/up/local-move.txt"));
+        Assert.Equal(replacement, File.ReadAllText(file));
+        Assert.DoesNotContain(Directory.GetFiles(_local), p => Path.GetFileName(p).StartsWith(".FileCat-move-hold-", StringComparison.Ordinal));
+        if (change != "replacement-after-hold")
+            Assert.Contains(job.Issues, i => i.Outcome == StepOutcome.PartiallyApplied);
     }
 
     [Fact]

@@ -847,7 +847,13 @@ public sealed partial class MainViewModel
 
     private void LaunchEditor(string path)
     {
-        var tool = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor ?? ToolLauncher.DetectEditor();
+        var configured = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor;
+        if (configured is null && OperatingSystem.IsWindows() && Services.Shell.IsElevated)
+        {
+            Notify("FileCat is running as administrator, so it will not choose an external editor automatically. Configure an editor in Settings → Tools to edit this file.", true);
+            return;
+        }
+        var tool = configured ?? ToolLauncher.DetectEditor();
         try
         {
             var result = ToolLauncher.Launch(tool, new ToolContext([path], Path.GetDirectoryName(path)!, ActiveTarget()?.Path), Services.Paths.TempDirectory);
