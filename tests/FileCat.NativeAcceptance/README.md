@@ -56,6 +56,15 @@ with the query, then makes six panels (below two different columns) and checks
 the narrowest panel's places again. NVDA must speak the list, the place and
 Keyboard reference; menus are steered by NVDA's last spoken item.
 
+`win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
+and a 24-unit content size in Settings and checks `settings.json`, then opens
+the viewer and the hex editor on a test-owned text file at their minimum size
+and maximized. Each control must lie on screen inside the window, Find and
+More must open by pointer, and Tab (after F6 in the editor, whose Tab switches
+the grid's columns) must reach every control with NVDA speaking it. The editor
+part makes one byte edit for Save and Undo and undoes it before closing.
+
 `win-ax-find-exclusions.ps1 -AppPath <Git-built FileCat.exe> -ReportPath
 <fresh guest JSON>` uses a private local folder and a separate private data
 profile with one ignored `cache` folder. It restores the Find window on-screen,

@@ -1,5 +1,30 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-density-20261028"></a>
+**28 October 2026, Comfortable density and enlarged content in the viewer and
+hex editor with NVDA (AC-S3-059 accepted):** The new
+[density runner](../../tests/FileCat.NativeAcceptance/win-nvda-density.ps1)
+runs on the Win11 VM at 100% with signed portable NVDA 2026.2 against
+Git-built `46da223e` (DLL `CE36050B…0714C229`). In Settings › Appearance it
+chose Comfortable for “Interface density” and, by Tab with NVDA announcing the
+field, raised “Text, hex and comparison size” to 24; `settings.json` saved
+`Comfortable` and 24 and a new viewer showed “24 size”. The viewer at its
+480 × 300 minimum and maximized at 1,925 × 1,340 kept Text, Hex, Info, Find,
+More and both size buttons on screen inside the window; clicking Find showed
+its field, clicking More listed Checksum…, Copy visible source text, Copy
+displayed text and Edit bytes…, and Tab reached every control with NVDA
+speaking each. Hex was chosen by pointer and F4 returned to Text; Escape
+closed the viewer. The hex editor at its 620 × 360 minimum and maximized kept
+Save, Undo, Redo, Find, More and both size buttons on screen; More listed Save
+As…, Export patch… and Apply patch…. Tab in the editor's grid switches its hex
+and text columns (an existing expert key), so its keyboard route out is F6,
+as the editor's hint line says; after a one-byte edit F6 reached Save and Tab
+reached Undo, Replace bytes…, Go to…, the size buttons, Find and More with
+NVDA speaking each. Ctrl+Z then enabled Redo and left Save with nothing to
+save, Escape closed the editor, and `a.txt` kept its SHA-256
+([receipt](evidence/ac-s3-059-win11-nvda-density-46da223e.json)). Limit: NVDA
+users focusing the grid hear its offset and typing status, not the F6 hint.
+
 <a id="evidence-places-150-20261028"></a>
 **28 October 2026, Places and command-search Help at 150% with NVDA
 (AC-S3-058 accepted):** The new

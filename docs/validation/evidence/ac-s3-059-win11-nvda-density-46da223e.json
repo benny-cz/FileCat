@@ -1,0 +1,317 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DensityFixture\\2baf0c38e4d84f098c9c199ecc69d603",
+    "Dpi":  96,
+    "Checks":  [
+                   {
+                       "Window":  "a.txt — FileCat Viewer",
+                       "Size":  "minimum",
+                       "Frame":  "48;71;480;300",
+                       "Controls":  [
+                                        {
+                                            "Name":  "Text",
+                                            "Bounds":  "56;75;41;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Hex",
+                                            "Bounds":  "105;75;40;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Info",
+                                            "Bounds":  "153;75;40;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Show or hide viewer Find bar",
+                                            "Bounds":  "237;109;54;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "More viewer actions",
+                                            "Bounds":  "198;143;61;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Decrease text and hex size",
+                                            "Bounds":  "299;109;55;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Increase text and hex size",
+                                            "Bounds":  "409;109;55;30",
+                                            "Inside":  true
+                                        }
+                                    ],
+                       "MoreItems":  [
+                                         "Checksum…",
+                                         "Copy visible source text",
+                                         "Copy displayed text",
+                                         "Edit bytes…"
+                                     ],
+                       "SpokenByTab":  [
+                                           "Find in file",
+                                           "Aa",
+                                           "Hex bytes",
+                                           "Text viewer",
+                                           "Text",
+                                           "Hex",
+                                           "Info",
+                                           "Text encoding",
+                                           "Wrap",
+                                           "Follow end",
+                                           "Show or hide viewer Find bar",
+                                           "Decrease text and hex size",
+                                           "Increase text and hex size",
+                                           "Refresh viewer content",
+                                           "Go to…",
+                                           "More viewer actions"
+                                       ]
+                   },
+                   {
+                       "Window":  "a.txt — FileCat Viewer",
+                       "Size":  "maximized",
+                       "Frame":  "0;23;1925;1340",
+                       "Controls":  [
+                                        {
+                                            "Name":  "Text",
+                                            "Bounds":  "8;27;41;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Hex",
+                                            "Bounds":  "57;27;40;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Info",
+                                            "Bounds":  "105;27;40;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Show or hide viewer Find bar",
+                                            "Bounds":  "637;27;78;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "More viewer actions",
+                                            "Bounds":  "1038;27;61;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Decrease text and hex size",
+                                            "Bounds":  "723;27;55;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Increase text and hex size",
+                                            "Bounds":  "833;27;55;30",
+                                            "Inside":  true
+                                        }
+                                    ],
+                       "MoreItems":  [
+                                         "Checksum…",
+                                         "Copy visible source text",
+                                         "Copy displayed text",
+                                         "Edit bytes…"
+                                     ],
+                       "SpokenByTab":  [
+                                           "Find in file",
+                                           "Aa",
+                                           "Hex bytes",
+                                           "Text viewer",
+                                           "Text",
+                                           "Hex",
+                                           "Info",
+                                           "Text encoding",
+                                           "Wrap",
+                                           "Follow end",
+                                           "Show or hide viewer Find bar",
+                                           "Decrease text and hex size",
+                                           "Increase text and hex size",
+                                           "Refresh viewer content",
+                                           "Go to…",
+                                           "More viewer actions"
+                                       ]
+                   },
+                   {
+                       "Window":  "● a.txt — FileCat Hex Editor",
+                       "Size":  "minimum",
+                       "Frame":  "48;71;620;360",
+                       "Controls":  [
+                                        {
+                                            "Name":  "Save",
+                                            "Bounds":  "56;77;45;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Undo",
+                                            "Bounds":  "107;77;51;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Redo",
+                                            "Bounds":  "164;77;48;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Show or hide hex editor Find bar",
+                                            "Bounds":  "576;77;54;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "More hex editor actions",
+                                            "Bounds":  "56;111;61;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Decrease editor content size",
+                                            "Bounds":  "409;77;55;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Increase editor content size",
+                                            "Bounds":  "515;77;55;30",
+                                            "Inside":  true
+                                        }
+                                    ],
+                       "MoreItems":  [
+                                         "Save As…",
+                                         "Export patch…",
+                                         "Apply patch…"
+                                     ],
+                       "SpokenByTab":  [
+                                           "Save",
+                                           "Undo",
+                                           "Replace bytes…",
+                                           "Go to…",
+                                           "Decrease editor content size",
+                                           "Increase editor content size",
+                                           "Show or hide hex editor Find bar",
+                                           "More hex editor actions"
+                                       ]
+                   },
+                   {
+                       "Window":  "● a.txt — FileCat Hex Editor",
+                       "Size":  "maximized",
+                       "Frame":  "0;23;1925;1340",
+                       "Controls":  [
+                                        {
+                                            "Name":  "Save",
+                                            "Bounds":  "8;29;45;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Undo",
+                                            "Bounds":  "59;29;51;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Redo",
+                                            "Bounds":  "116;29;48;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Show or hide hex editor Find bar",
+                                            "Bounds":  "528;29;78;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "More hex editor actions",
+                                            "Bounds":  "612;29;61;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Decrease editor content size",
+                                            "Bounds":  "361;29;55;30",
+                                            "Inside":  true
+                                        },
+                                        {
+                                            "Name":  "Increase editor content size",
+                                            "Bounds":  "467;29;55;30",
+                                            "Inside":  true
+                                        }
+                                    ],
+                       "MoreItems":  [
+                                         "Save As…",
+                                         "Export patch…",
+                                         "Apply patch…"
+                                     ],
+                       "SpokenByTab":  [
+                                           "Save",
+                                           "Undo",
+                                           "Replace bytes…",
+                                           "Go to…",
+                                           "Decrease editor content size",
+                                           "Increase editor content size",
+                                           "Show or hide hex editor Find bar",
+                                           "More hex editor actions"
+                                       ]
+                   }
+               ],
+    "Settings":  {
+                     "File":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\DensityFixture\\2baf0c38e4d84f098c9c199ecc69d603\\data\\settings.json",
+                     "RowDensity":  "Comfortable",
+                     "ContentFontSize":  24
+                 },
+    "AppDllSha256":  "CE36050B090D52A1E0067535B0F6101D8282E78E74D988CDDCA40C450714C229",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "SettingsMethod":  {
+                           "Tab":  "select",
+                           "Density":  "click",
+                           "Size":  "up arrows"
+                       },
+    "ViewerContentSize":  "label not exposed",
+    "ViewerTexts":  [
+                        "Decrease text and hex size",
+                        "24 size",
+                        "Increase text and hex size"
+                    ],
+    "Modes":  "Hex by pointer, Text by F4",
+    "ViewerClosed":  "Escape",
+    "EditorOpenSpeech":  [
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Hex\u0027, \u0027toggle button\u0027, \u0027not pressed\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027pressed\u0027]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Hex view\u0027, \u0027document\u0027, \u0027Offset 0 of 4\\xa0731, byte 4C hex; row 00000000: 4C 69 6E 65 20 31 20 6F 66 20 74 68 65 20 64 65 6E 73 69 74 79 20 66 69 78 74 75 72. No byte selection; read-only byte inspection; Read-only inspection; viewport begins at byte 0, horizontal position 0.\u0027, \u0027No byte selection; read-only byte inspection; Read-only inspection; viewport begins at byte 0, horizontal position 0.\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\DensityFixture\\\\2baf0c38e4d84f098c9c199ecc69d603\\\\left\u0027, \u0027list\u0027, \u00272 visible rows, 1 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027a.txt\u0027, \u0027not selected\u0027, \u0027file, 4,6 KB, modified 28.10.2026 1:53:48, not marked, 2 of 2\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Search commands\u0027, \u0027edit\u0027, \u0027Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.\u0027, CancellableSpeech (still valid)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027e\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027d\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027i\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027t\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027space\u0027, EndUtteranceCommand()]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027f\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027i\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027l\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027e\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027space\u0027, EndUtteranceCommand()]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027b\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027y\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027t\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027e\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027s\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027space\u0027, EndUtteranceCommand()]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027i\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027n\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027space\u0027, EndUtteranceCommand()]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027h\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027e\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[CharacterModeCommand(True), LangChangeCommand (\u0027en_US\u0027), \u0027x\u0027, EndUtteranceCommand(), CharacterModeCommand(False)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027a.txt — FileCat Hex Editor\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Hex view\u0027, \u0027document\u0027, \u0027Offset 0 of 4\\xa0731, byte 4C hex; row 00000000: 4C 69 6E 65 20 31 20 6F 66 20 74 68. No byte selection; active typing column: hex; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.\u0027, \u0027No byte selection; active typing column: hex; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.\u0027, CancellableSpeech (still valid)]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Typing: hex · No unsaved changes · other programs cannot write this file while it is open\u0027]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027No byte selection; active typing column: hex; pending first nibble 4, type the second digit; Byte editing available; no unsaved changes; viewport begins at byte 0, horizontal position 0.\u0027]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027No byte selection; active typing column: hex; Byte editing available; 1 modified bytes, unsaved; viewport begins at byte 0, horizontal position 0.\u0027]",
+                             "[LangChangeCommand (\u0027en_US\u0027), \u0027Typing: hex · 1 byte modified (unsaved) · other programs cannot write this file while it is open\u0027]"
+                         ],
+    "EditorUndo":  {
+                       "Save":  false,
+                       "Redo":  true
+                   },
+    "EditorClosed":  "Escape"
+}
