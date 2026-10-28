@@ -7,6 +7,32 @@ namespace FileCat.App.Tests;
 public sealed class MacPictureSandboxTests(ITestOutputHelper output)
 {
     [Fact]
+    public void Generated_policy_removes_filesystem_authority_before_narrow_read_grants()
+    {
+        string executable = Path.Combine(Path.GetTempPath(), "quoted\"dir", "worker");
+        string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetDirectoryName(executable)!));
+        string parent = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(root)!);
+        string quotedRoot = root.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+        string quotedParent = parent.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+        string profile = MacPictureSandbox.ProfileFor(executable);
+        int denyRead = profile.IndexOf("(deny file-read*)", StringComparison.Ordinal);
+        int systemBaseline = profile.IndexOf("(import \"system.sb\")", StringComparison.Ordinal);
+        int allowWorker = profile.IndexOf($"(allow file-read* (subpath \"{quotedRoot}\"))", StringComparison.Ordinal);
+        int allowParentMetadata = profile.IndexOf($"(allow file-read-metadata (literal \"{quotedParent}\"))", StringComparison.Ordinal);
+        int denyWrite = profile.IndexOf("(deny file-write*)", StringComparison.Ordinal);
+        int denyFork = profile.IndexOf("(deny process-fork)", StringComparison.Ordinal);
+        int denyNetwork = profile.IndexOf("(deny network*)", StringComparison.Ordinal);
+        Assert.True(denyRead >= 0);
+        Assert.True(systemBaseline > denyRead);
+        Assert.True(allowWorker > systemBaseline);
+        Assert.True(allowParentMetadata > allowWorker);
+        Assert.True(denyWrite > allowParentMetadata);
+        Assert.True(denyFork > denyWrite);
+        Assert.True(denyNetwork > denyFork);
+        Assert.Contains("quoted\\\"dir", profile, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Actual_macOS_worker_policy_denies_descendants_and_network()
     {
         if (!OperatingSystem.IsMacOS()) { Assert.Skip("The macOS Seatbelt policy is native to macOS."); return; }
@@ -43,6 +69,44 @@ public sealed class MacPictureSandboxTests(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public async Task macOS_policy_allows_application_reads_but_refuses_unlisted_reads_and_all_writes()
+    {
+        if (!OperatingSystem.IsMacOS()) { Assert.Skip("The macOS Seatbelt policy is native to macOS."); return; }
+        string root = Path.Combine(Path.GetTempPath(), $"filecat-picture-fs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        string secret = Path.Combine(root, "secret.txt");
+        string write = Path.Combine(root, "write.txt");
+        await File.WriteAllTextAsync(secret, "I550_SECRET", TestContext.Current.CancellationToken);
+        try
+        {
+            var deniedRead = await Run(MacPictureSandbox.StartInfo("/bin/cat", [secret]));
+            var deniedWrite = await Run(MacPictureSandbox.StartInfo("/usr/bin/touch", [write]));
+            var allowedRead = await Run(MacPictureSandbox.StartInfo("/bin/cat", [typeof(PictureDecoder).Assembly.Location]));
+            output.WriteLine($"MAC_PICTURE_FS denied-read={deniedRead.ExitCode}/{deniedRead.Error} denied-write={deniedWrite.ExitCode}/{deniedWrite.Error} allowed-read={allowedRead.ExitCode}/{allowedRead.Output.Length}");
+            Assert.NotEqual(0, deniedRead.ExitCode);
+            Assert.DoesNotContain("I550_SECRET", deniedRead.Output, StringComparison.Ordinal);
+            Assert.NotEqual(0, deniedWrite.ExitCode);
+            Assert.False(File.Exists(write));
+            Assert.Equal(0, allowedRead.ExitCode);
+            Assert.NotEmpty(allowedRead.Output);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task<(int ExitCode, string Output, string Error)> Run(ProcessStartInfo start)
+    {
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("The policy probe did not start.");
+        Task<string> output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        Task<string> error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+        await process.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        return (process.ExitCode, await output, await error);
+    }
+
     [DllImport("/usr/lib/libsandbox.1.dylib", EntryPoint = "sandbox_check", CharSet = CharSet.Ansi)]
     private static extern int SandboxCheck(int pid, string operation, int filterType);
+
 }
