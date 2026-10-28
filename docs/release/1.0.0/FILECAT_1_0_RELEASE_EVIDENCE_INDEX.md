@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**888 evidence entries; none is final candidate qualification.** No candidate exists.
+**889 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -16,6 +16,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-B02-A1 | Damaged archives of every format, listed and read | `b0b2329`, `6bbbb21`, `c22c793`, `325aa63` | Preliminary automated | [E-B02-A1](evidence/E-B02-A1-archive-fuzz.md) | I58 |
 | E-B02-I1 | Damaged files of every inspected format (PE, ELF, Mach-O, pictures, media, pages, APK) | `5e5f4ab`, `8cb0737` | Preliminary automated | [E-B02-I1](evidence/E-B02-I1-inspector-damage.md) | I65 |
 | E-DEC-2026-10-28 | Owner decisions DEC-01–DEC-10 and EXT-02/EXT-04 dispositions; executed reporting, tag-ruleset, immutable-release and release-environment settings; FDD payload without the helper | `f986ad59` → `0eabfc27`; GitHub API before/after reads; local win-x64 publish in a separate worktree | Owner decision record plus verified settings; configuration scope only, no tag, release or candidate | [Owner decisions](evidence/E-DEC-2026-10-28-owner-decisions.md) | I01, I02, I05, I14, I18, DEC-01–DEC-10, EXT-02, EXT-04 |
+| E-REVIEW-2026-10-29 | Four-part review of the 27–28 October Codex commits: containment, security bundles, remote/recovery/UI, release engineering | `fac7bb2b`…`f986ad59`; read-only source and upstream-source review, key findings re-read at `41447e73` | Review findings with ownership; R-H2 fixed in `41447e73`; no qualification claim | [Codex commit review](evidence/E-REVIEW-2026-10-29-codex-commits.md) | I03, I08, I16, FCSEC-001–019, EXT-04, GATE-CI-FINAL |
 | E-DPI | Source review of DPI P01, P02, P04–P06, P08–P12, P14; P07 in part | `16b1e47` → `65a76f8`, `efc128f`, `7a99f9d`, `cf92679` | Static + preliminary automated | [E-DPI](evidence/E-DPI-review.md) | I44, I48–I51, I53–I55 |
 | E-ENV-00…05 | Host, Windows Sandbox failure, lent VMs and Mac, CI installer-compiler provenance, GitHub state, test servers | — | Preflight facts | [E-ENV](evidence/E-ENV-environments.md) | I01, I03, I11, I18 |
 | E-ENV-06 | Resumption source, CI outcomes, GitHub controls and current VMware access | `08c2e2d`, `3316f15`, `a5a3c0c` | Preflight facts | [E-ENV-06](evidence/E-ENV-06-resumption.md) | I01, I04, I11, I18, I96 |
