@@ -6,7 +6,7 @@ namespace FileCat.Platform.Windows.Tests;
 
 /// <summary>
 /// MTP through Windows Portable Devices. Listing devices always runs; the device scenario runs only with
-/// FILECAT_MTP_TEST=1 and works exclusively inside a folder named FileCat-test on the first storage, which it removes.
+/// FILECAT_MTP_TEST=1 and works exclusively inside test-named folders on the first storage, which it removes.
 /// </summary>
 [Collection(Device)]
 public sealed class MtpTests
@@ -38,6 +38,66 @@ public sealed class MtpTests
             return null;
         }
         return (session, storage);
+    }
+
+    [Fact]
+    public async Task Move_to_writable_device_retires_only_the_verified_local_source()
+    {
+        var opened = OpenTestDevice();
+        if (opened is null) Assert.Skip("Set FILECAT_MTP_TEST=1 with an unlocked writable WPD device to qualify Move.");
+        var (session, storage) = opened.Value;
+        string deviceId = session.Id;
+        var required = Core.Resources.LocationCapabilities.CreateDirectory | Core.Resources.LocationCapabilities.TransferTarget;
+        if ((MtpProvider.Offered(session.Abilities, storage.Access) & required) != required)
+        {
+            session.Dispose();
+            Assert.Skip("The selected WPD storage cannot create folders and receive files; it cannot qualify Move.");
+        }
+
+        string folderName = "FileCat-test-" + Guid.NewGuid().ToString("N")[..12];
+        string folderId;
+        using (session) folderId = session.CreateFolder(storage.Id, folderName);
+        string local = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-mtp-move", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            byte[] expected = Enumerable.Range(0, 131_071).Select(i => (byte)(i * 37)).ToArray();
+            string source = Path.Combine(local, "move.bin");
+            File.WriteAllBytes(source, expected);
+
+            var mtp = new MtpProvider();
+            var providers = new Core.Resources.ProviderRegistry();
+            providers.Register(new WindowsFileSystemProvider());
+            providers.Register(mtp);
+            MtpJobs.Register();
+            var jobs = new JobManager(new WindowsFileOperations(), providers, Path.Combine(local, "journal"));
+            var destination = new Core.Resources.Location(Core.Resources.Schemes.Mtp, storage.Name + "/" + folderName, session: deviceId);
+            var job = jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Move,
+                Sources = [Core.Resources.ItemRef.ForFileSystemPath(source, Core.Resources.EntryKind.File)],
+                Destination = destination,
+            });
+            var ct = TestContext.Current.CancellationToken;
+            while (!job.State.IsFinished()) await Task.Delay(20, ct);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.DoesNotContain(job.Issues, i => i.Severity is IssueSeverity.Error or IssueSeverity.Warning);
+            Assert.False(File.Exists(source));
+
+            using var verify = WpdSession.Open(deviceId);
+            var stored = Assert.Single(verify.Children(folderId, ct));
+            Assert.Equal(("move.bin", (long)expected.Length), (stored.Name, stored.Size));
+            using var readback = verify.OpenRead(stored.Id);
+            using var bytes = new MemoryStream();
+            readback.CopyTo(bytes);
+            Assert.Equal(expected, bytes.ToArray());
+            mtp.CloseAll();
+        }
+        finally
+        {
+            using var cleanup = WpdSession.Open(deviceId);
+            cleanup.Delete(folderId, recursive: true);
+            Directory.Delete(local, recursive: true);
+        }
     }
 
     [Fact]
