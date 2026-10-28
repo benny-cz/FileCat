@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**883 evidence entries; none is final candidate qualification.** No candidate exists.
+**884 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -895,6 +895,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I524-OWNER-REG | Edit-commit owner registration before job callbacks | `ecfedb5a`; Windows x64 deterministic old/final pair and complete headless App suite | ZIP and synthetic-SFTP owner boundary 0P/2F→2P/0F; affected class 41P, strict synthetic persisted-session case passes, full App 2,549P/64S/0F. Historical ARM64 failures remain failed; exact pushed ARM64 qualification is pending. | [Owner-registration boundary](evidence/E-I524-edit-owner-registration.md) | I524/V08/ENV-06 |
 | E-I524-ARM64-ACK | Exact pushed Windows ARM64 owner correction and bounded recurrence | `ecfedb5a`/40709127494 and unchanged relevant source at `2b71c71c`/40713229629 | Strict synthetic SFTP persisted-`Unchanged` row and both owner-boundary controls pass twice on native ARM64; each App TRX is 2,558P/55S/0F. Historical failures remain failed; preliminary remediation accepted, candidate open. | [ARM64 qualification and recurrence](evidence/E-I524-ARM64-owner-recurrence.md) | I524/V08/ENV-06 |
 | E-I549-LINUX-ARM64-PICTURE | Native Linux ARM64 picture-worker process boundary with x64 regression | `445f20dc`; native Ubuntu 24.04.5 ARM64/x64 plus Windows x64 structural/build controls | ARM64 baseline 0P/4S and no FileCat seccomp filter changes to 9P/0S, one live filter and real `EPERM` process refusal; x64 9P/0S; Windows 5P/4S and zero-warning/error build. Complete Git bundle and 34-file raw manifest rehash; temporary guest/Mac tooling removed. | [Native boundary evidence](evidence/E-I549-linux-arm64-picture-policy.md) | I549/I08/V10/V23 |
+| E-I550-MAC-PICTURE-FILESYSTEM | Native macOS picture-worker content/write boundary and full picture regression | `79bea6e5`; physical Apple-silicon macOS 27.0.1 plus Windows x64 structure/build | Exact old policy reads an owned secret and creates an owned file. Final focused Mac controls pass 3P/0S, full picture slice 94P/5 explicit non-Mac skips; Windows 1P/2 native skips and zero-warning/error solution build. Bounded root trace identifies only exact ancestor-metadata traversal; final secret read and all writes remain refused. Complete Git bundle and 42-file manifest rehash; temporary stages removed. | [Mac filesystem evidence](evidence/E-I550-macos-picture-filesystem.md) | I550/I08/V10/V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
