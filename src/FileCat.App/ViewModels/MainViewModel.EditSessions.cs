@@ -394,9 +394,11 @@ public sealed partial class MainViewModel
         {
             TraceEditCommit("submit-start");
             CheckSessionAction(); _ = Operations; // Register the finish observer before a fast job can return.
-            var job = Services.Jobs.Submit(request);
-            _sessionCommits[job] = new SessionCommit(session, copy);
-            TraceEditCommit($"owner-registered:{job.ShortId}:{job.State}");
+            var job = Services.Jobs.SubmitWithRegistration(request, admitted =>
+            {
+                _sessionCommits[admitted] = new SessionCommit(session, copy);
+                TraceEditCommit($"owner-registered:{admitted.ShortId}:{admitted.State}");
+            });
             if (origin is not null) Track(job, origin);
         }
         catch { TraceEditCommit("submit-error"); copy.Dispose(); throw; }

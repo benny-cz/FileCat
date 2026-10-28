@@ -24,6 +24,37 @@ namespace FileCat.App.Tests;
 public sealed class EditCommitTests(ITestOutputHelper output)
 {
     [AvaloniaTheory]
+    [InlineData("zip")]
+    [InlineData("sftp")]
+    public async Task Commit_owner_is_registered_before_JobAdded_can_finish_the_job(string scheme)
+    {
+        using var f = new Fixture(scheme);
+        IDictionary owners = (IDictionary)typeof(MainViewModel)
+            .GetField("_sessionCommits", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.Vm)!;
+        bool ownerWasPresent = false;
+        f.Services.Jobs.JobAdded += job =>
+        {
+            ownerWasPresent = owners.Contains(job);
+            job.Cancel();
+        };
+
+        await f.Commit().WaitAsync(TimeSpan.FromSeconds(10));
+        await f.Finish();
+
+        var canceled = Assert.Single(f.Services.Jobs.Jobs);
+        Emit(f, "registration-before-finish", new
+        {
+            ownerWasPresent,
+            state = canceled.State.ToString(),
+            trace = f.Vm.EditCommitTrace,
+        });
+        Assert.True(ownerWasPresent);
+        Assert.Equal(JobState.Canceled, canceled.State);
+        Assert.Equal("base", f.TargetText);
+        Assert.Equal(EditState.Modified, f.Services.EditSessions.StateOf(Assert.Single(f.Services.EditSessions.LoadAll())));
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Active_upload_keeps_the_snapshot_until_the_executor_returns_even_after_stop(bool shutdown)
