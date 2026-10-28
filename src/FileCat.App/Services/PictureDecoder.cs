@@ -23,10 +23,11 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// through standard input and read back within bounds, and stopped after <see cref="Timeout"/>. On Windows the worker
 /// normally starts with low integrity and a job that caps its memory and child count. A failed low-integrity start
 /// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
-/// On Unix it verifies an ordinary identity and irreversibly gives up retained root rights before consuming input;
-/// it has no OS filesystem/network sandbox or job memory limit. Linux x64 also restricts direct process creation
-/// on every worker thread before consuming input.
-/// The Unix decoder itself ends when its launching parent dies; this does not contain detached descendants.
+/// On Unix it verifies an ordinary identity and irreversibly gives up retained root rights before consuming input.
+/// Linux x64 restricts direct process creation on every worker thread; macOS applies an OS policy that denies process
+/// creation and network access. The worker retains the ordinary user's filesystem rights and has no job memory limit.
+/// The Unix decoder itself also ends when its launching parent dies. Other Unix architectures do not contain a
+/// decoder exploit that creates a detached descendant.
 /// A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
@@ -77,8 +78,8 @@ public static class PictureDecoder
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(Timeout);
         var token = limit.Token;
-        var (executable, arguments) = WorkerCommand(maxSide);
-        await using var worker = Worker.Start(executable, arguments);
+        var launch = WorkerLaunchFor(maxSide);
+        await using var worker = Worker.StartPicture(launch);
         using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
         var input = worker.Input;
@@ -206,17 +207,26 @@ public static class PictureDecoder
     /// FileCat itself, in worker mode: the app host next to FileCat.dll, the running file when FileCat is one file, or
     /// the dotnet host with the dll.
     /// </summary>
+    private sealed record WorkerLaunch(string Executable, string Arguments, string[] ArgumentList);
+
     internal static (string Executable, string Arguments) WorkerCommand(int maxSide)
     {
+        var launch = WorkerLaunchFor(maxSide);
+        return (launch.Executable, launch.Arguments);
+    }
+
+    private static WorkerLaunch WorkerLaunchFor(int maxSide)
+    {
         string arguments = $"{PictureWorker.Argument} {maxSide}";
+        string[] argumentList = [PictureWorker.Argument, maxSide.ToString(System.Globalization.CultureInfo.InvariantCulture)];
         string dll = typeof(PictureWorker).Assembly.Location;
         string? process = Environment.ProcessPath;
-        if (dll.Length == 0 && process is not null) return (process, arguments);
+        if (dll.Length == 0 && process is not null) return new(process, arguments, argumentList);
         string host = Path.Combine(Path.GetDirectoryName(dll)!, OperatingSystem.IsWindows() ? "FileCat.exe" : "FileCat");
-        if (File.Exists(host)) return (host, arguments);
+        if (File.Exists(host)) return new(host, arguments, argumentList);
         // Reuse the runtime already loaded by this process. An absolute PATH entry can still be writable.
         string dotnet = LoadedRuntimeHost.Current() ?? throw new InvalidOperationException("The .NET runtime could not be found for the picture worker.");
-        return (dotnet, $"\"{dll}\" {arguments}");
+        return new(dotnet, $"\"{dll}\" {arguments}", [dll, .. argumentList]);
     }
 
     /// <summary>The decoder process: Windows token/job restrictions, inherited process authority on Unix.</summary>
@@ -241,9 +251,20 @@ public static class PictureDecoder
         public Stream Input => _sandboxed?.Input ?? _process!.StandardInput.BaseStream;
         public Stream Output => _sandboxed?.Output ?? _process!.StandardOutput.BaseStream;
 
+        public static Worker StartPicture(WorkerLaunch launch)
+        {
+            if (OperatingSystem.IsWindows())
+                return new Worker(Platform.Windows.Shell.SandboxedWorker.Start(launch.Executable, launch.Arguments, MemoryLimit), null);
+            ProcessStartInfo psi = OperatingSystem.IsMacOS()
+                ? MacPictureSandbox.StartInfo(launch.Executable, launch.ArgumentList)
+                : StartInfo(launch.Executable, launch.ArgumentList);
+            return StartUnix(psi);
+        }
+
         public static Worker Start(string executable, string arguments)
         {
-            if (OperatingSystem.IsWindows()) return new Worker(Platform.Windows.Shell.SandboxedWorker.Start(executable, arguments, MemoryLimit), null);
+            if (OperatingSystem.IsWindows())
+                return new Worker(Platform.Windows.Shell.SandboxedWorker.Start(executable, arguments, MemoryLimit), null);
             var psi = new ProcessStartInfo(executable, arguments)
             {
                 RedirectStandardInput = true,
@@ -252,6 +273,25 @@ public static class PictureDecoder
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            return StartUnix(psi);
+        }
+
+        private static ProcessStartInfo StartInfo(string executable, IReadOnlyList<string> arguments)
+        {
+            var psi = new ProcessStartInfo(executable)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (string argument in arguments) psi.ArgumentList.Add(argument);
+            return psi;
+        }
+
+        private static Worker StartUnix(ProcessStartInfo psi)
+        {
             // The decoder parses untrusted bytes and needs no parent environment variables. In particular, do not
             // copy credentials or native-library search overrides into it. Supply only its private lifetime channel
             // and the diagnostic-port refusal; neither changes its inherited Unix UID or filesystem/network rights.
