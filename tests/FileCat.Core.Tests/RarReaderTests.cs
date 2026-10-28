@@ -44,6 +44,57 @@ public sealed class RarReaderTests
         Assert.Equal(reference.Contents, ours.Contents);
     }
 
+    public static TheoryData<string> Rar4Fixtures()
+    {
+        var data = new TheoryData<string>();
+        foreach (string path in Directory.EnumerateFiles(Fixtures).Order(StringComparer.Ordinal))
+        {
+            string name = Path.GetFileName(path);
+            if (!name.StartsWith("Rar", StringComparison.Ordinal) || name.StartsWith("Rar5", StringComparison.Ordinal)) continue;
+            if (System.Text.RegularExpressions.Regex.IsMatch(name, @"\.part0*([2-9]|\d\d+)\.rar$|\.r\d\d$|\.\d\d\d$")) continue;
+            if (!name.EndsWith(".rar", StringComparison.Ordinal) && !name.EndsWith(".001", StringComparison.Ordinal)) continue;
+            data.Add(name);
+        }
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(Rar4Fixtures))]
+    public void Rar4_listings_match_the_reference_reader(string fixture)
+    {
+        string path = Path.Combine(Fixtures, fixture);
+        var reference = Listing(() => SharpArchiveReader.Open(path, rar: true));
+        var ours = Listing(() => OpenOurs(path));
+        Assert.Equal(reference.Error is null, ours.Error is null);
+        if (reference.Error is not null) return;
+        Assert.Equal(reference.Members.Select(m => (m.Path.Replace('\\', '/'), m.Kind == MemberKind.Directory, m.Encrypted, m.Kind == MemberKind.Directory ? 0 : m.Size)),
+            ours.Members.Select(m => (m.Path.Replace('\\', '/'), m.Kind == MemberKind.Directory, m.Encrypted, m.Kind == MemberKind.Directory ? 0 : m.Size)));
+    }
+
+    [Fact]
+    public void Rar4_stored_members_match_the_reference_bytes()
+    {
+        string path = Path.Combine(Fixtures, "Rar.none.rar");
+        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var ours = Snapshot(() => OpenOurs(path));
+        Assert.Null(ours.Error);
+        Assert.NotEmpty(ours.Contents);
+        Assert.Equal(reference.Contents, ours.Contents);
+    }
+
+    private static (List<MemberInfo> Members, Exception? Error) Listing(Func<IMemberReader> open)
+    {
+        try
+        {
+            using var reader = open();
+            return (reader.List(_ => { }, CancellationToken.None).ToList(), null);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
+        {
+            return ([], ex);
+        }
+    }
+
     [Theory]
     // Fixtures that must decode, with their content counts: a refusal on both sides must not pass silently.
     [InlineData("Rar5.rar", 3)]

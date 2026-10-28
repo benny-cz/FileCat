@@ -56,7 +56,7 @@ internal sealed class RarReader : IMemberReader
             ct.ThrowIfCancellationRequested();
             var m = _archive.Members[i];
             long size = m.Kind == MemberKind.Directory ? 0 : Math.Max(m.UnpackedSize, 0);
-            yield return new MemberInfo(i, m.Name, m.Kind, size, m.PackedSize, m.ModifiedUtc, m.Encrypted, m.LinkTarget);
+            yield return new MemberInfo(i, m.Name, m.Kind, size, m.PackedSize, ArchiveFormats.Utc(m.ModifiedUtc), m.Encrypted, m.LinkTarget);
         }
     }
 
