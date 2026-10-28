@@ -2,7 +2,8 @@
 """Check that the current UX acceptance ledger is finite and cross-linked.
 
 Usage: python tests/FileCat.NativeAcceptance/check-ux-acceptance-ledger.py
-This checks tracking structure, not the application's native behavior.
+This checks tracking structure, not the application's native behavior. Open and accepted rows
+are both read, so a ledger with nothing left open passes too.
 """
 
 from pathlib import Path
@@ -37,24 +38,42 @@ assert all(line.startswith("|") and line.count("|") == 7 for line in accepted_ta
     "The accepted-case table has a blank/broken row or a different number of fields"
 )
 
-lines = [line for line in LEDGER.splitlines() if re.match(r"^\| <a id=", line)]
-assert lines, "The current ledger lost its finite scenario rows"
+# Open rows sit in the scenario tables, which give the finding before the status. A closed row is
+# bold; the accepted-case table gives its status before the accepted scope.
 anchors: set[str] = set()
 scenario_ids: set[str] = set()
+open_rows: list[str] = []
+accepted_rows: list[str] = []
 ledger_finding_ids: set[str] = set()
-for line in lines:
+table = ""
+for line in LEDGER.splitlines():
+    if line.startswith("| Stable "):
+        table = line.split("|")[1].strip()
+        continue
+    if not re.match(r"^\| (\*\*)?<a id=", line):
+        continue
     cells = [cell.strip() for cell in line.split("|")[1:-1]]
     assert len(cells) == 6, f"Ledger row needs six fields: {line[:100]}"
-    anchor_match = re.fullmatch(r'<a id="([a-z0-9-]+)"></a>([A-Z0-9-]+)', cells[0])
-    assert anchor_match, f"Stable scenario/anchor missing: {line[:100]}"
-    anchor, scenario = anchor_match.groups()
+    anchor_match = re.fullmatch(r'(\*\*)?<a id="([a-z0-9-]+)"></a>([A-Z0-9-]+)(\*\*)?', cells[0])
+    assert anchor_match and anchor_match.group(1) == anchor_match.group(4), (
+        f"Stable scenario/anchor missing: {line[:100]}"
+    )
+    closed, anchor, scenario = bool(anchor_match.group(1)), anchor_match.group(2), anchor_match.group(3)
     assert anchor not in anchors and scenario not in scenario_ids, f"Duplicate {scenario}"
     anchors.add(anchor)
     scenario_ids.add(scenario)
-    assert cells[2].startswith(("Open", "Failed", "Blocked")), f"Unclassified {scenario}"
-    assert all(cells[index] for index in (1, 3, 4, 5)), f"Incomplete {scenario}"
+    assert all(cells[1:]), f"Incomplete {scenario}"
     assert "[" in cells[4] and "](" in cells[4], f"Evidence link missing: {scenario}"
-    ledger_finding_ids.update(finding_ids(cells[1], "FCUX"))
+    status = cells[1] if table == "Stable case" else cells[2]
+    if closed:
+        assert status.startswith("Accepted"), f"Bold row {scenario} is not accepted"
+        accepted_rows.append(scenario)
+    else:
+        assert table == "Stable scenario", f"Open row {scenario} outside a scenario table"
+        assert status.startswith(("Open", "Failed", "Blocked")), f"Unclassified {scenario}"
+        open_rows.append(scenario)
+        ledger_finding_ids.update(finding_ids(cells[1], "FCUX"))
+assert open_rows or accepted_rows, "The current ledger lost its finite scenario rows"
 
 accepted_match = re.search(
     r"(?s)<!-- ACCEPTED-FINDINGS-BEGIN -->(.*?)<!-- ACCEPTED-FINDINGS-END -->",
@@ -74,12 +93,17 @@ for target in re.findall(r"UX_UI_ACCEPTANCE_LEDGER\.md#([a-z0-9-]+)", REMAINING)
         "s2--shared-desktop-boundaries",
         "s3--focused-usability-routes",
     }, f"Remaining-work link misses the ledger: {target}"
+if not open_rows:
+    # With nothing open, the remaining-work index lists nothing either.
+    for section in re.split(r"(?m)^## ", REMAINING)[1:]:
+        heading, _, body = section.partition("\n")
+        assert body.strip().startswith("None"), f"Nothing is open, yet remaining work lists {heading}"
 
 assert "GATE-CI-FINAL" in scenario_ids
 assert "Mac 1× remains open" not in STATUS
 assert "documentation-only" in WORKFLOW and "repeat" in WORKFLOW.lower()
 print(
-    f"UX acceptance ledger: {len(lines)} unique open/failed scenarios, "
+    f"UX acceptance ledger: {len(open_rows)} open/failed and {len(accepted_rows)} accepted scenarios, "
     f"{len(accepted_ids)} fully accepted findings, "
     f"{len(ledger_finding_ids)} findings with remaining scenarios"
 )

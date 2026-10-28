@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-ledger-checker-20261028"></a>
+**28 October 2026, ledger checker and accepted-findings inventory:** The
+[ledger checker](../../tests/FileCat.NativeAcceptance/check-ux-acceptance-ledger.py)
+counted only open rows, so it stopped at its first assertion once every
+scenario was accepted. It now reads accepted rows as well, and with nothing
+open it requires the remaining-work index to list nothing. Its first run
+showed that the ledger's accepted-findings inventory still lacked FCUX-058 to
+FCUX-068 and FCUX-074, although their S3 cases (AC-S3-058, 059, 061, 063,
+064, 065, 067 and 068) are accepted with nothing left on their routes. They
+are listed now, and the checker reports 147 accepted scenarios, no open one,
+and all 76 findings accepted.
+
 <a id="evidence-receipts-moved-20261028"></a>
 **28 October 2026, host receipts moved into the evidence folder:** The
 entries of 26 and 27 October cited 100 receipts, frames and logs by their
