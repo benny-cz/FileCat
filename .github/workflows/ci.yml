@@ -654,6 +654,9 @@ jobs:
     needs: [producer-policy, windows, windows-arm64, portable, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # DEC-09: the only job with release-write authority waits for the release owner's approval in the
+    # protected `release` environment (required reviewer, v* tags only); green CI alone never creates a release.
+    environment: release
     permissions:
       contents: write
     steps:

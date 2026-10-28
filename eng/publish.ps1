@@ -52,13 +52,12 @@ dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 
 # The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
+# Only the installed (self-contained) build carries it (DEC-04): the framework-dependent ZIP would make an elevated
+# process resolve the shared .NET runtime, and the portable build lives in a folder its user can change.
 $broker = Join-Path $root "src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj"
 dotnet publish $broker -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
     -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
 if ($LASTEXITCODE -ne 0) { throw "administrator helper publish failed" }
-dotnet publish $broker -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
-if ($LASTEXITCODE -ne 0) { throw "framework-dependent administrator helper publish failed" }
 
 # The Shell helper (TV-16) runs Windows thumbnail and icon handlers outside FileCat, at low integrity in a job object.
 $shellHost = Join-Path $root "src/FileCat.ShellHost/FileCat.ShellHost.csproj"
@@ -102,6 +101,8 @@ Remove-Item $portableZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $portableStage "*") -DestinationPath $portableZip
 Remove-Item -Recurse -Force $portableStage
 
+$fddHelper = @(Get-ChildItem -LiteralPath $fdd -Recurse -File -Filter "FileCat.PrivilegedHost.*")
+if ($fddHelper.Count -ne 0) { throw "the framework-dependent payload must not contain the administrator helper (DEC-04): $($fddHelper.Name -join ', ')" }
 $fddZip = Join-Path $artifacts "FileCat-$Version-$Runtime-fdd.zip"
 Remove-Item $fddZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $fdd "*") -DestinationPath $fddZip
