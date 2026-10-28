@@ -30,6 +30,38 @@ internal sealed class RarReader : IMemberReader
 
     internal IReadOnlyList<FileStream> VolumeStreams => _volumes.OfType<FileStream>().ToList();
 
+    /// <summary>
+    /// Opens the archive at <paramref name="path"/> with every volume of its set ("x.partN.rar" or "x.rar" with "x.r00"…),
+    /// each read-shared and checked by <paramref name="verifyOpened"/> before any byte is read.
+    /// </summary>
+    public static RarReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
+    {
+        var volumes = new List<FileStream>();
+        bool numberedVolumeGap;
+        try
+        {
+            foreach (string volume in SharpArchiveReader.RarVolumes(path, out numberedVolumeGap))
+                volumes.Add(ArchiveFormats.OpenShared(volume, verifyOpened));
+        }
+        catch
+        {
+            foreach (var volume in volumes)
+            {
+                try { volume.Dispose(); }
+                catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Archive volume cleanup after open failure: " + ex.GetType().Name); }
+            }
+            throw;
+        }
+        try
+        {
+            return Open(volumes, numberedVolumeGap);
+        }
+        catch (Exception ex) when (ex is not (IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException))
+        {
+            throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
+        }
+    }
+
     /// <summary>Reads the headers of <paramref name="volumes"/> (in order); the reader owns the streams from here on.</summary>
     public static RarReader Open(List<FileStream> volumes, bool numberedVolumeGap, CancellationToken ct = default) => Open(volumes.Cast<Stream>().ToList(), numberedVolumeGap, ct);
 

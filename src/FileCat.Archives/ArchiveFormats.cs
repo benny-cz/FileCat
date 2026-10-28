@@ -714,7 +714,7 @@ internal sealed class SharpArchiveReader : IMemberReader
     /// <summary>"x.part1.rar" (or any part) → all parts in order; "x.rar" with "x.r00"… → the old naming.</summary>
     internal static List<string> RarVolumes(string path) => RarVolumes(path, out _);
 
-    private static List<string> RarVolumes(string path, out bool numberedVolumeGap)
+    internal static List<string> RarVolumes(string path, out bool numberedVolumeGap)
     {
         numberedVolumeGap = false;
         var dir = Path.GetDirectoryName(path) ?? ".";
