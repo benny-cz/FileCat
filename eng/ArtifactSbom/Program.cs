@@ -92,14 +92,16 @@ try
                 if (type != "runtimepack" || !runtimePacks.TryGetValue(runtimeIdentity, out RuntimeInfo? runtime)
                     || Required(library.Value, "sha512") != "")
                     throw new InvalidDataException("Published runtime pack differs from the reviewed snapshot.");
-                if (seenRuntimePacks.Add(runtimeIdentity)) ValidateRuntimeArchive(runtime);
+                if (seenRuntimePacks.Add(runtimeIdentity))
+                    ValidateNuGetArchive(runtime.ID, runtime.Version, runtime.ContentHash, runtime.ArchiveSHA256, true);
             }
             else if (type == "package" || packages.ContainsKey(id))
             {
                 if (type != "package" || !packages.TryGetValue(id, out PackageInfo? package)
                     || package.Version != libraryVersion || Required(library.Value, "sha512") != "sha512-" + package.ContentHash)
                     throw new InvalidDataException("Published package differs from the reviewed snapshot.");
-                seenPackages.Add(package.ID);
+                if (seenPackages.Add(package.ID))
+                    ValidateNuGetArchive(package.ID, package.Version, package.ContentHash, package.ArchiveSHA256, false);
             }
             else if (type == "project")
             {
@@ -119,6 +121,8 @@ try
                 if (references.TryGetValue(id, out ReferenceInfo? existingReference) && existingReference != reference)
                     throw new InvalidDataException("Conflicting reference component in payload.");
                 references[id] = reference;
+                if (seenPackages.Add(parents[0].ID))
+                    ValidateNuGetArchive(parents[0].ID, parents[0].Version, parents[0].ContentHash, parents[0].ArchiveSHA256, false);
             }
             else throw new InvalidDataException("Unsupported dependency kind in payload.");
         }
@@ -206,7 +210,8 @@ try
         string[] aliases = references.Values.Where(reference => reference.ParentPackage.Equals(package.ID, StringComparison.OrdinalIgnoreCase))
             .Select(reference => reference.ID + "/" + reference.Version).Order(StringComparer.OrdinalIgnoreCase).ToArray();
         if (aliases.Length != 0)
-            node["comment"] = "Published reference components from this reviewed package: " + string.Join(", ", aliases);
+            node["comment"] = "Published build-generated reference projections attributed by the dependency manifest to this reviewed package: "
+                + string.Join(", ", aliases) + ". Their exact payload bytes are recorded as files; no byte identity with an archive member is asserted.";
         if (!string.IsNullOrWhiteSpace(package.RepositoryUrl))
         {
             ((JsonArray)node["externalRefs"]!).Add(new JsonObject
@@ -383,22 +388,25 @@ static string TreeIdentity(IEnumerable<FileRecord> files)
     }
     return Hex(hash.GetHashAndReset());
 }
-static void ValidateRuntimeArchive(RuntimeInfo runtime)
+static void ValidateNuGetArchive(string id, string version, string contentHash, string archiveSHA256, bool contentHashMustMatchArchive)
 {
     string? packageRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
     if (string.IsNullOrWhiteSpace(packageRoot))
         packageRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-    string folder = Path.Combine(packageRoot, runtime.ID.ToLowerInvariant(), runtime.Version.ToLowerInvariant());
-    string archive = Path.Combine(folder, $"{runtime.ID.ToLowerInvariant()}.{runtime.Version.ToLowerInvariant()}.nupkg");
+    string folder = Path.Combine(packageRoot, id.ToLowerInvariant(), version.ToLowerInvariant());
+    string archive = Path.Combine(folder, $"{id.ToLowerInvariant()}.{version.ToLowerInvariant()}.nupkg");
     string sha512File = archive + ".sha512";
     if (!File.Exists(archive) || !File.Exists(sha512File)
         || (File.GetAttributes(archive) & FileAttributes.ReparsePoint) != 0
         || (File.GetAttributes(sha512File) & FileAttributes.ReparsePoint) != 0)
-        throw new InvalidDataException("Restored runtime package archive is unavailable or linked.");
-    string restoredContentHash = File.ReadAllText(sha512File).Trim();
-    if (restoredContentHash != runtime.ContentHash
-        || Hex(SHA256.HashData(File.ReadAllBytes(archive))) != runtime.ArchiveSHA256)
-        throw new InvalidDataException("Restored runtime package archive differs from the reviewed snapshot.");
+        throw new InvalidDataException("Restored NuGet package archive is unavailable or linked.");
+    byte[] archiveBytes = File.ReadAllBytes(archive);
+    string restoredArchiveHash = File.ReadAllText(sha512File).Trim();
+    string actualArchiveHash = Convert.ToBase64String(SHA512.HashData(archiveBytes));
+    if (restoredArchiveHash != actualArchiveHash
+        || (contentHashMustMatchArchive && contentHash != actualArchiveHash)
+        || Hex(SHA256.HashData(archiveBytes)) != archiveSHA256)
+        throw new InvalidDataException("Restored NuGet package archive differs from the reviewed snapshot.");
 }
 
 sealed record PackageInfo(string ID, string Version, string ContentHash, string ArchiveSHA256, string License, string? RepositoryUrl, string? RepositoryCommit, string[] NoticePaths);

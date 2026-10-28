@@ -1,17 +1,35 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import copy
 import hashlib
+import io
 import json
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RUNTIME_ARCHIVE_BYTES = b"reviewed-runtime-package-fixture\x00\x01"
 RUNTIME_ARCHIVE_SHA256 = hashlib.sha256(RUNTIME_ARCHIVE_BYTES).hexdigest()
+RUNTIME_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(RUNTIME_ARCHIVE_BYTES).digest()).decode("ascii")
+REFERENCE_BYTES = b"reviewed-reference-assembly-fixture\x00\x02"
+
+
+def make_package_archive() -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        info = zipfile.ZipInfo("lib/net10.0/Fixture.Package.Core.dll", date_time=(1980, 1, 1, 0, 0, 0))
+        archive.writestr(info, REFERENCE_BYTES)
+    return buffer.getvalue()
+
+
+PACKAGE_ARCHIVE_BYTES = make_package_archive()
+PACKAGE_ARCHIVE_SHA256 = hashlib.sha256(PACKAGE_ARCHIVE_BYTES).hexdigest()
+PACKAGE_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(PACKAGE_ARCHIVE_BYTES).digest()).decode("ascii")
 
 
 def digest(path: pathlib.Path) -> str:
@@ -40,7 +58,7 @@ def deps(include_runtime=True, package_hash="pkg-content", package_id="Fixture.P
 def snapshot(extra_package=False):
     packages = [{
         "ID": "Fixture.Package", "Version": "1.2.3", "NuGetContentHash": "pkg-content",
-        "PackageArchiveSHA256": "1" * 64,
+        "PackageArchiveSHA256": PACKAGE_ARCHIVE_SHA256,
         "NuGetLicenseDeclaration": {"Text": "MIT", "Attributes": {"type": "expression"}},
         "NuGetRepositoryDeclaration": None,
         "RetainedNoticePaths": ["fixture/LICENSE"],
@@ -58,19 +76,20 @@ def snapshot(extra_package=False):
         "Packages": packages,
         "RuntimePacks": [{
             "ID": "Microsoft.NETCore.App.Runtime.win-x64", "Version": "10.0.14", "RID": "win-x64",
-            "NuGetContentHashFromMetadata": "runtime-content", "PackageArchiveSHA256": RUNTIME_ARCHIVE_SHA256,
+            "NuGetContentHashFromMetadata": RUNTIME_ARCHIVE_SHA512, "PackageArchiveSHA256": RUNTIME_ARCHIVE_SHA256,
             "RetainedNoticePaths": ["runtime/LICENSE", "runtime/THIRD-PARTY-NOTICES"],
         }],
     }
 
 
-def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-content", runtime_hash="runtime-content",
+def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-content", runtime_hash=RUNTIME_ARCHIVE_SHA512,
             package_id="Fixture.Package", reference_id="Fixture.Package.Core", reference_hash="",
             extra_package=False):
     payload = folder / "payload"
     payload.mkdir(parents=True)
     write_json(payload / "FileCat.deps.json", deps(include_runtime, package_hash, package_id, reference_id, reference_hash))
     (payload / "FileCat.dll").write_bytes(b"managed-fixture\x00\x01")
+    (payload / "Fixture.Package.Core.dll").write_bytes(REFERENCE_BYTES)
     (payload / "nested").mkdir()
     (payload / "nested" / "native.bin").write_bytes(bytes(range(32)))
     index = folder / "index.json"
@@ -82,7 +101,12 @@ def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-con
     runtime_folder.mkdir(parents=True)
     archive = runtime_folder / "microsoft.netcore.app.runtime.win-x64.10.0.14.nupkg"
     archive.write_bytes(RUNTIME_ARCHIVE_BYTES)
-    pathlib.Path(str(archive) + ".sha512").write_text("runtime-content\n", encoding="utf-8")
+    pathlib.Path(str(archive) + ".sha512").write_text(RUNTIME_ARCHIVE_SHA512 + "\n", encoding="utf-8")
+    package_folder = packages_root / "fixture.package" / "1.2.3"
+    package_folder.mkdir(parents=True)
+    package_archive = package_folder / "fixture.package.1.2.3.nupkg"
+    package_archive.write_bytes(PACKAGE_ARCHIVE_BYTES)
+    pathlib.Path(str(package_archive) + ".sha512").write_text(PACKAGE_ARCHIVE_SHA512 + "\n", encoding="utf-8")
     return payload, index, packages_root
 
 
@@ -110,9 +134,10 @@ def main() -> int:
     cases = []
 
     def run(name, expected, *, kind="setup-payload", include_runtime=True, package_hash="pkg-content",
-            runtime_hash="runtime-content", package_id="Fixture.Package", extra_package=False,
+            runtime_hash=RUNTIME_ARCHIVE_SHA512, package_id="Fixture.Package", extra_package=False,
             reference_id="Fixture.Package.Core", reference_hash="", output_inside=False, precreate=False,
-            extras=(), mutate=None, mutate_runtime_archive=False):
+            extras=(), mutate=None, mutate_runtime_archive=False, mutate_package_archive=False,
+            expected_reference_sha256=None):
         folder = evidence / "cases" / name
         payload, index, packages_root = prepare(folder, include_runtime=include_runtime, package_hash=package_hash,
                                                 runtime_hash=runtime_hash, package_id=package_id,
@@ -123,6 +148,9 @@ def main() -> int:
         if mutate_runtime_archive:
             archive = packages_root / "microsoft.netcore.app.runtime.win-x64" / "10.0.14" / "microsoft.netcore.app.runtime.win-x64.10.0.14.nupkg"
             archive.write_bytes(b"tampered-runtime-package")
+        if mutate_package_archive:
+            archive = packages_root / "fixture.package" / "1.2.3" / "fixture.package.1.2.3.nupkg"
+            archive.write_bytes(b"tampered-package")
         output = payload / "inside.spdx.json" if output_inside else folder / "result.spdx.json"
         if precreate:
             output.write_text("preserve", encoding="utf-8")
@@ -147,9 +175,14 @@ def main() -> int:
                 "VerificationCode": root_package["packageVerificationCode"]["packageVerificationCodeValue"],
                 "SortedUniqueFiles": file_names == sorted(set(file_names)), "OutputSHA256": digest(output),
                 "GeneratorAssemblyHashBound": digest(tool) in document["annotations"][0]["comment"],
+                "ReferenceFileSHA256": next((checksum["checksumValue"]
+                    for value in files if value["fileName"] == "./Fixture.Package.Core.dll"
+                    for checksum in value["checksums"] if checksum["algorithm"] == "SHA256"), None),
             }
             passed = (passed and details["SPDXVersion"] == "SPDX-2.3" and details["SortedUniqueFiles"]
                       and details["GeneratorAssemblyHashBound"])
+            if expected_reference_sha256 is not None:
+                passed = passed and details["ReferenceFileSHA256"] == expected_reference_sha256
         elif precreate:
             passed = passed and output.read_text(encoding="utf-8") == "preserve"
         cases.append({
@@ -168,6 +201,10 @@ def main() -> int:
     run("unused-reviewed-package", True, extra_package=True)
     run("unknown-reference-origin", False, reference_id="Other.Component")
     run("hashed-reference", False, reference_hash="sha512-unreviewed")
+    run("generated-reference-bytes-recorded", True,
+        mutate=lambda payload, _index: (payload / "Fixture.Package.Core.dll").write_bytes(b"tampered-reference"),
+        expected_reference_sha256=hashlib.sha256(b"tampered-reference").hexdigest())
+    run("wrong-reference-package-archive", False, mutate_package_archive=True)
     run("wrong-runtime-hash", False, runtime_hash="wrong")
     run("wrong-runtime-archive", False, mutate_runtime_archive=True)
     run("missing-runtime", False, include_runtime=False)

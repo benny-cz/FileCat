@@ -2,7 +2,8 @@ param([string]$EvidenceDirectory)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $Eng=Split-Path $PSScriptRoot -Parent
-$Parent=[IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'FileCatValidation'))
+$TemporaryBase=if(-not [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)){$env:RUNNER_TEMP}elseif($IsMacOS){[Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)}else{[IO.Path]::GetTempPath()}
+$Parent=[IO.Path]::GetFullPath((Join-Path $TemporaryBase 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($Parent)
 $Root=Join-Path $Parent ('filecat-draft-set-'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($Root)

@@ -2,7 +2,16 @@ param([string]$EvidenceDirectory)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Selector = Join-Path (Split-Path $PSScriptRoot -Parent) 'Select-ReleaseAssets.ps1'
-$TemporaryParent = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'FileCatValidation'))
+$TemporaryBase = if (-not [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+    $env:RUNNER_TEMP
+}
+elseif ($IsMacOS) {
+    [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+}
+else {
+    [IO.Path]::GetTempPath()
+}
+$TemporaryParent = [IO.Path]::GetFullPath((Join-Path $TemporaryBase 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($TemporaryParent)
 $TestRoot = Join-Path $TemporaryParent ('filecat-release-assets-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($TestRoot)
