@@ -56,6 +56,16 @@ with the query, then makes six panels (below two different columns) and checks
 the narrowest panel's places again. NVDA must speak the list, the place and
 Keyboard reference; menus are steered by NVDA's last spoken item.
 
+`win-nvda-about.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
+portable nvda.exe> -ReportPath <fresh guest JSON>` opens About from command
+search with a test-owned `--data` folder and NVDA, requires each value to be
+spoken with its label as Tab reaches it, and the Settings and Local data
+values to be the folders FileCat was started with. Enter on Copy details must
+be heard and leave the displayed lines on the clipboard; Enter on each folder
+button must open that folder in a new tab, be heard and keep the working
+tabs. About must stay open until Enter on Close. The runner restores the
+clipboard it found.
+
 `win-nvda-density.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` sets Comfortable density
 and a 24-unit content size in Settings and checks `settings.json`, then opens

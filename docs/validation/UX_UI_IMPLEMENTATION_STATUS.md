@@ -1,5 +1,31 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-about-20261028"></a>
+**28 October 2026, About's support actions by keyboard with NVDA (AC-S3-067
+accepted):** The new
+[About runner](../../tests/FileCat.NativeAcceptance/win-nvda-about.ps1) runs
+on the Win11 VM at 100% with signed portable NVDA 2026.2 against Git-built
+`bf069986` (DLL `1CE9969A…295F94CE`), with a test-owned `--data` folder so
+About shows two folders: the data folder for settings and its `local` folder.
+About opened from command search by keyboard, with focus on Close. Its first
+run, on `7be08a3d`, passed every action but showed that Tab stops on About's
+values (System, Account, Runtime, Theme, Profile, Settings, Local data) were
+spoken bare, “Classic”, “default” or a path: the label set on each value was
+ignored, since a text block's automation name is its text. Since `bf069986`
+each value names itself with its label and the label beside it stays out of
+the accessibility tree, and NVDA said “Theme: Classic”, “Profile: default”,
+“Settings: C:\…\data” and “Local data: C:\…\data\local”, matching the
+folders FileCat was started with. Tab went on to Copy details, Open settings
+folder and Open local data folder, each spoken with its help naming the
+folder. Enter on Copy details had NVDA say “Copied details.”; About stayed
+open and the clipboard held the version line and exactly the displayed
+Settings and Local data lines. Enter on each folder button opened that folder
+in a new tab of the active panel, NVDA said “Opened … in a new tab.”, and the
+working tabs were unchanged. About closed only by Enter on Close
+([receipt](evidence/ac-s3-067-win11-nvda-about-bf069986.json)). Limit: NVDA
+announces the in-window dialog as a grouping named “About FileCat dialog” and
+does not read its text on opening; Tab reaches every value.
+
 <a id="evidence-tab-identity-20261028"></a>
 **28 October 2026, same-named local, archive and remote tabs with Orca
 (AC-S3-061 accepted):** The new

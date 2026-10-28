@@ -1,0 +1,141 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Fixture":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484",
+    "Dpi":  96,
+    "TabStops":  [
+                     {
+                         "Focused":  "Close dialog",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Close dialog\u0027, \u0027button\u0027, \u0027Cancel this dialog without applying changes. Esc also closes it.\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Write to Marek Střihavka",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Write to Marek Střihavka\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "System: Windows 11 (build 26300, x64)",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027System: Windows 11 (build 26300, x64)\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Account: Admin (administrator, not elevated)",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Account: Admin (administrator, not elevated)\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Runtime: .NET 10.0.5 · Avalonia 12.1.4",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Runtime: .NET 10.0.5 · Avalonia 12.1.4\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Theme: Classic",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Theme: Classic\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Profile: default",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Profile: default\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Settings: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Settings: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Local data: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Local data: C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data\\\\local\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Copy details",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy details\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Open settings folder",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Open settings folder\u0027, \u0027button\u0027, \u0027Open C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data in a new tab without replacing the current tab.\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Open local data folder",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Open local data folder\u0027, \u0027button\u0027, \u0027Open C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data\\\\local in a new tab without replacing the current tab.\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     },
+                     {
+                         "Focused":  "Close",
+                         "Spoken":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Close\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                    ]
+                     }
+                 ],
+    "Shown":  {
+                  "Settings":  "Settings: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                  "LocalData":  "Local data: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local",
+                  "SettingsText":  "Settings: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                  "Texts":  [
+                                "About FileCat",
+                                "FileCat",
+                                "Version 0.1.0-preview (bf06998)",
+                                "Multiplatform File Manager on steroids",
+                                "Made by Marek Střihavka",
+                                "System: Windows 11 (build 26300, x64)",
+                                "Account: Admin (administrator, not elevated)",
+                                "Runtime: .NET 10.0.5 · Avalonia 12.1.4",
+                                "Theme: Classic",
+                                "Profile: default",
+                                "Settings: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                                "Local data: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local"
+                            ]
+              },
+    "Clipboard":  "FileCat 0.1.0-preview (bf06998)\nMultiplatform File Manager on steroids\nMade by Marek Střihavka (marek.strihavka@gmail.com)\nSystem: Windows 11 (build 26300, x64)\nAccount: Admin (administrator, not elevated)\nRuntime: .NET 10.0.5 · Avalonia 12.1.4\nTheme: Classic\nProfile: default\nSettings: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\nLocal data: C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local",
+    "AppDllSha256":  "1CE9969AC50B7AB2D3006A0FE04B9C9C1F310DCE019606844E803450295F94CE",
+    "NvdaVersion":  "2026.2",
+    "Error":  null,
+    "TabsBefore":  [
+                       "left, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\left",
+                       "right, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\right"
+                   ],
+    "OpenSpeech":  [
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027About FileCat dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Close\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                   ],
+    "Expected":  {
+                     "Settings":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                     "LocalData":  "C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local"
+                 },
+    "CopySpeech":  [
+                       "[LangChangeCommand (\u0027en_US\u0027), \u0027Copied details.\u0027]"
+                   ],
+    "Open settings folder speech":  [
+                                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Opened C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data in a new tab.\u0027]"
+                                    ],
+    "Open local data folder speech":  [
+                                          "[LangChangeCommand (\u0027en_US\u0027), \u0027Opened C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data\\\\local in a new tab.\u0027]"
+                                      ],
+    "TabsAfter":  [
+                      "left, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\left",
+                      "data, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data",
+                      "local, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\data\\local",
+                      "right, Unlocked tab, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\AboutFixture\\31154f20ab4c45f5bd0a9f1e204d7484\\right"
+                  ],
+    "CloseSpeech":  [
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Close\u0027, \u0027button\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\AboutFixture\\\\31154f20ab4c45f5bd0a9f1e204d7484\\\\data\\\\local\u0027, \u0027list\u0027, \u00276 visible rows, 5 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                        "[LangChangeCommand (\u0027en_US\u0027), \u0027Go to parent location\u0027, \u0027parent navigation, 1 of 6\u0027, CancellableSpeech (still valid)]"
+                    ]
+}
