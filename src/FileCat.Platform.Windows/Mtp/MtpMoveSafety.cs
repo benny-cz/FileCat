@@ -3,18 +3,50 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 
 namespace FileCat.Platform.Windows.Mtp;
 
 /// <summary>Retire only the bytes uploaded to the device, using the held file handle for deletion.</summary>
 internal static class MtpMoveSafety
 {
+    /// <summary>A private name beside the source, which a Move holds it under while it retires it.</summary>
+    internal static string HoldName(string source) => source + ".filecat-move-" + Guid.NewGuid().ToString("N") + ".hold";
+
+    /// <summary>
+    /// Retires a moved file's local source through a hold name journaled durably first, as an SFTP Move does (review
+    /// findings R-H1 and R-M11): after a crash, interrupted-job review puts the original back under its name, or keeps it
+    /// and says where; it never offers to delete it. <paramref name="retireVia"/> retires it through the hold name it is
+    /// given and says whether it did.
+    /// </summary>
+    internal static bool RetireJournaled(JobJournal journal, string source, Func<string, bool> retireVia)
+    {
+        string held = HoldName(source);
+        int step = journal.RenameVia(source, source, held);
+        journal.Flush();
+        bool retired = false;
+        try { retired = retireVia(held); }
+        finally
+        {
+            if (retired) journal.Done(step, StepOutcome.Committed);
+            else if (File.Exists(held))
+            {
+                // The step stays open, so that interrupted-job review finds the held original and restores it.
+                journal.RequireRecovery();
+                journal.Note($"The moved file's local source is retained at {held}.");
+            }
+            else journal.Done(step, StepOutcome.PartiallyApplied);
+        }
+        return retired;
+    }
+
+    /// <param name="held">The hold name (<see cref="HoldName"/>), journaled before this is called.</param>
     /// <param name="uploadedIdentity">The source's identity when it was uploaded; null where the volume has none.</param>
     /// <param name="identitySurvivesRename">False on FAT and exFAT, where the longer hold name can move the file's
     /// directory entry and with it its identity (review finding R-M2): there the held bytes alone decide.</param>
-    internal static void RetireVerifiedSource(string source, byte[] uploadedDigest, FileIdentity? uploadedIdentity, bool identitySurvivesRename = true)
+    internal static void RetireVerifiedSource(string source, string held, byte[] uploadedDigest, FileIdentity? uploadedIdentity,
+        bool identitySurvivesRename = true)
     {
-        string held = source + ".filecat-move-" + Guid.NewGuid().ToString("N") + ".hold";
         File.Move(source, held);
         bool retired = false;
         try

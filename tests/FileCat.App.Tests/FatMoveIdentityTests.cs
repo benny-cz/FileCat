@@ -98,7 +98,7 @@ public sealed class FatMoveIdentityTests(ITestOutputHelper output)
             try { identity = ProtectedHexFile.Identity(handle); }
             catch (System.ComponentModel.Win32Exception) { } // FAT32 has no 128-bit file ID
         }
-        MtpMoveSafety.RetireVerifiedSource(source, digest, identity, volume.IdentitySurvivesRename);
+        MtpMoveSafety.RetireVerifiedSource(source, MtpMoveSafety.HoldName(source), digest, identity, volume.IdentitySurvivesRename);
         Assert.False(File.Exists(source));
         Assert.Empty(Directory.GetFiles(work, "c.txt*"));
     }

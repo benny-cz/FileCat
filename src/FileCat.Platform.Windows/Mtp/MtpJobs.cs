@@ -223,8 +223,9 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.ItemFailed();
             return false;
         }
-        if (Moving && !TryIo(source, "remove the moved file", () => MtpMoveSafety.RetireVerifiedSource(source, _sentHash ?? throw new IOException("The uploaded source has no byte digest."), _sourceIdentity,
-                Fs.GetVolumeInfo(source).IdentitySurvivesRename)))
+        if (Moving && !MtpMoveSafety.RetireJournaled(Journal, source, held => TryIo(source, "remove the moved file", () =>
+                MtpMoveSafety.RetireVerifiedSource(source, held, _sentHash ?? throw new IOException("The uploaded source has no byte digest."),
+                    _sourceIdentity, Fs.GetVolumeInfo(source).IdentitySurvivesRename))))
         {
             Issue(IssueSeverity.Warning, source, "Copied to the device, but the original could not be removed.", StepOutcome.PartiallyApplied);
         }
@@ -282,10 +283,12 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
                     }
                 }
                 byte[] expected = digest.GetHashAndReset();
-                _createdId = (output as ICreatedObject)?.CreatedObjectId;
                 Mtp.Changed(folder);
-                // A name alone does not bind this attempt to an object. Without an ID and full readback,
-                // retain the local source and report the transfer as unverified.
+                // A device that does not say which object it created has it found by its name, free when the upload began,
+                // and its size; the full readback still has to match. With no single such file, the local source is
+                // retained and the transfer reported unverified.
+                _createdId = MtpUploadEvidence.Identify((output as ICreatedObject)?.CreatedObjectId, name, _sent,
+                    () => session.Children(Mtp.Resolve(folder), Job.Token));
                 var stored = MtpUploadEvidence.Verify(_createdId, name, _sent, expected, session.Get, session.OpenRead, Job.Checkpoint);
                 _sentHash = expected;
                 _sentSize = _sent;

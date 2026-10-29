@@ -44,6 +44,19 @@ public sealed class MtpUploadEvidenceTests
     }
 
     [Fact]
+    public void An_upload_whose_device_named_no_object_is_found_by_its_free_name_and_size()
+    {
+        // Review finding R-M11: a device that returned no object ID could not copy at all, and Retry left a duplicate.
+        static PortableObject Item(string id, string name, long size, bool folder = false) =>
+            new(id, name, folder, false, size, DateTime.UnixEpoch, true, false);
+        Assert.Equal("given", MtpUploadEvidence.Identify("given", "a.jpg", 5, () => throw new InvalidOperationException("not listed")));
+        Assert.Equal("new", MtpUploadEvidence.Identify(null, "a.jpg", 5, () => [Item("other", "b.jpg", 5), Item("new", "a.jpg", 5)]));
+        Assert.Null(MtpUploadEvidence.Identify(null, "a.jpg", 5, () => [Item("short", "a.jpg", 4)]));
+        Assert.Null(MtpUploadEvidence.Identify(null, "a.jpg", 5, () => [Item("one", "a.jpg", 5), Item("two", "a.jpg", 5)]));
+        Assert.Null(MtpUploadEvidence.Identify(null, "a.jpg", 5, () => [Item("dir", "a.jpg", 5, folder: true)]));
+    }
+
+    [Fact]
     public void Move_retires_only_verified_held_bytes()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Held file disposition is Windows-specific.");
@@ -57,7 +70,7 @@ public sealed class MtpUploadEvidenceTests
             using var original = File.OpenHandle(path);
             var originalId = ProtectedHexFile.Identity(original);
             original.Dispose();
-            MtpMoveSafety.RetireVerifiedSource(path, SHA256.HashData(a), originalId);
+            MtpMoveSafety.RetireVerifiedSource(path, MtpMoveSafety.HoldName(path), SHA256.HashData(a), originalId);
             Assert.False(File.Exists(path));
 
             File.WriteAllBytes(path, a);
@@ -67,14 +80,14 @@ public sealed class MtpUploadEvidenceTests
             string displaced = Path.Combine(root, "original.bin");
             File.Move(path, displaced);
             File.WriteAllBytes(path, b);
-            Assert.Throws<IOException>(() => MtpMoveSafety.RetireVerifiedSource(path, SHA256.HashData(a), originalAgainId));
+            Assert.Throws<IOException>(() => MtpMoveSafety.RetireVerifiedSource(path, MtpMoveSafety.HoldName(path), SHA256.HashData(a), originalAgainId));
             Assert.Equal(b, File.ReadAllBytes(path));
             Assert.Equal(a, File.ReadAllBytes(displaced));
 
             // Equal replacement bytes still belong to a different file object and must survive.
             File.Delete(path);
             File.WriteAllBytes(path, a);
-            Assert.Throws<IOException>(() => MtpMoveSafety.RetireVerifiedSource(path, SHA256.HashData(a), originalAgainId));
+            Assert.Throws<IOException>(() => MtpMoveSafety.RetireVerifiedSource(path, MtpMoveSafety.HoldName(path), SHA256.HashData(a), originalAgainId));
             Assert.Equal(a, File.ReadAllBytes(path));
         }
         finally { Directory.Delete(root, recursive: true); }

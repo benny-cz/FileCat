@@ -5,6 +5,18 @@ namespace FileCat.Platform.Windows.Mtp;
 /// <summary>Verify the exact created object and its complete readback before any local Move retirement.</summary>
 internal static class MtpUploadEvidence
 {
+    /// <summary>
+    /// The object an upload created: the ID the device returned or, where a device returns none (review finding R-M11),
+    /// the one file in the folder with the uploaded name and size. The name was free when the upload began, so that file
+    /// is this upload's; with none, or more than one, it stays unknown, and nothing is verified or removed by name.
+    /// </summary>
+    internal static string? Identify(string? createdId, string name, long size, Func<IReadOnlyList<PortableObject>> children)
+    {
+        if (createdId is not null) return createdId;
+        var named = children().Where(o => !o.IsFolder && o.Name == name).ToList();
+        return named is [{ } only] && only.Size == size ? only.Id : null;
+    }
+
     internal static PortableObject Verify(string? createdId, string expectedName, long sent, byte[] expectedDigest,
         Func<string, PortableObject?> get, Func<string, Stream> openRead, Action checkpoint)
     {
