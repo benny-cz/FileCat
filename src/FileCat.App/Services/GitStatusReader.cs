@@ -14,12 +14,19 @@ internal enum GitStatusKind { None, Clean, Untracked, Added, Modified, Conflict 
 /// <summary>A snapshot for the immediate children of one displayed local folder.</summary>
 internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entries)
 {
-    internal GitStatusKind ForName(string name) => entries.GetValueOrDefault(name);
+    private readonly Dictionary<string, GitStatusKind> _entries = entries;
+
+    internal GitStatusKind ForName(string name) => _entries.GetValueOrDefault(name);
+
+    /// <summary>Whether two snapshots give every name the same state (null: no repository).</summary>
+    internal static bool Same(GitStatusSnapshot? a, GitStatusSnapshot? b) =>
+        ReferenceEquals(a, b) || a is not null && b is not null && a._entries.Count == b._entries.Count &&
+        a._entries.All(e => b._entries.TryGetValue(e.Key, out var kind) && kind == e.Value);
 
     /// <summary>A whole work tree's state from its "git status": clean, or its strongest change.</summary>
     internal static GitStatusKind Summary(string status) => Parse(string.Empty, status).Strongest();
 
-    private GitStatusKind Strongest() => entries.Count == 0 ? GitStatusKind.Clean : entries.Values.Max();
+    private GitStatusKind Strongest() => _entries.Count == 0 ? GitStatusKind.Clean : _entries.Values.Max();
 
     internal static GitStatusSnapshot Parse(string tracked, string status)
     {

@@ -133,6 +133,10 @@ public sealed class FileListControl : Control
     private string? _gitStatusFolder;
     private CancellationTokenSource? _gitStatusCancel;
     private int _gitStatusGeneration;
+    private bool _gitStatusAgain;
+
+    /// <summary>Git snapshots taken in so far (tests).</summary>
+    internal int GitSnapshotsTaken { get; private set; }
 
     private readonly TextBox _renameEditor;
     private Canvas? _renameOverlay;
@@ -799,18 +803,29 @@ public sealed class FileListControl : Control
 
     internal void RefreshGitStatuses()
     {
-        _gitStatusGeneration++;
-        _gitStatusCancel?.Cancel();
         if (VisualRoot is null || Tab?.Location is not { IsFileSystem: true } location)
         {
+            _gitStatusGeneration++;
+            _gitStatusCancel?.Cancel();
             _gitStatuses = null;
             _gitStatusFolder = null;
             return;
         }
+        bool sameFolder = string.Equals(_gitStatusFolder, location.Path,
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        // A busy folder is reread again and again. A read of it under way finishes, and one more follows it: canceled
+        // by every reread, a slow read in a large repository never finished (a Low of the review of 47f09505).
+        if (sameFolder && _gitStatusCancel is not null)
+        {
+            _gitStatusAgain = true;
+            return;
+        }
+        _gitStatusGeneration++;
+        _gitStatusCancel?.Cancel();
+        _gitStatusAgain = false;
         // A focus return or filesystem notification can refresh the same folder repeatedly. Keep the
         // existing badges on screen until the replacement snapshot is ready; only navigation clears them.
-        if (!string.Equals(_gitStatusFolder, location.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-            _gitStatuses = null;
+        if (!sameFolder) _gitStatuses = null;
         _gitStatusFolder = location.Path;
         var cancellation = new CancellationTokenSource();
         _gitStatusCancel = cancellation;
@@ -826,7 +841,11 @@ public sealed class FileListControl : Control
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (generation != _gitStatusGeneration || Tab?.Location?.Path != folder) return;
+                    bool changed = !GitStatusSnapshot.Same(_gitStatuses, snapshot);
                     _gitStatuses = snapshot;
+                    GitSnapshotsTaken++;
+                    // Only a change closes a tip, which may describe the old state; each snapshot closed every tip.
+                    if (!changed) return;
                     ClearTip();
                     InvalidateVisual();
                     _automationPeer?.QueueUpdate(ListingChange.State);
@@ -838,7 +857,11 @@ public sealed class FileListControl : Control
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (ReferenceEquals(_gitStatusCancel, cancellation)) _gitStatusCancel = null;
+                    if (ReferenceEquals(_gitStatusCancel, cancellation))
+                    {
+                        _gitStatusCancel = null;
+                        if (_gitStatusAgain) RefreshGitStatuses();
+                    }
                     cancellation.Dispose();
                 }, DispatcherPriority.Background);
             }
