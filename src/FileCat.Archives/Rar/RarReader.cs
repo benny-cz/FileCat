@@ -146,7 +146,10 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         {
             long before = prepared;
             packed = checked(packed + Math.Max(1, earlier.PackedSize));
-            var limits = MemberLimits.Of(-1, packed, ArchiveProvider.MaxSpooledMember, ArchiveProvider.MaxExpansionRatio);
+            // The run is bounded by its expansion ratio only. Each member is already held to its own declared size, and a
+            // run of real members may well hold more than the 8 GiB a member of unknown size may have: a solid RAR with a
+            // member over 8 GiB could otherwise not be read past that member, not even in archive order.
+            var limits = MemberLimits.Of(-1, packed, long.MaxValue, ArchiveProvider.MaxExpansionRatio);
             stream.Drain(produced => limits.Check(checked(before + produced)));
             prepared = checked(before + stream.Position);
         }
