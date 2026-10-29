@@ -117,6 +117,20 @@ internal sealed class TestFtpServer : IDisposable
                             "drwxr-xr-x 3 user group 4096 Jan 01 2026 ..\r\n").encode() if virtual_self else b""
                     data = head + b"".join(f"-rw-r--r-- 1 user group 1 Jan 01 2026 item{i:05}.txt\r\n".encode() for i in range(listing_count))
                     self.push_dtp_data(data, isproducer=False, cmd="LIST")
+        # FILECAT_FTP_VIRTUAL_PADDED "count:length": listings of count lines for the folder itself, each padded to length
+        # bytes with a fact of no meaning, which are no entries: they reach the line and wire limits, not the entry limit.
+        padded = os.environ.get("FILECAT_FTP_VIRTUAL_PADDED")
+        if padded:
+            padded_count, padded_length = (int(part) for part in padded.split(":"))
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                def padded_lines(self, prefix, suffix):
+                    pad = b"x" * max(0, padded_length - len(prefix) - len(suffix) - 2)
+                    return (prefix + pad + suffix + b"\r\n") * padded_count
+                def ftp_MLSD(self, path):
+                    self.push_dtp_data(self.padded_lines(b"type=cdir;modify=20260101000000;x.pad=", b"; /"), isproducer=False, cmd="MLSD")
+                def ftp_LIST(self, path):
+                    self.push_dtp_data(self.padded_lines(b"total 0 ", b""), isproducer=False, cmd="LIST")
         # FILECAT_FTP_EMPTY_550: an empty folder is refused as some servers do, "550 No files found."
         if os.environ.get("FILECAT_FTP_EMPTY_550"):
             BaseHandler = Handler
@@ -163,7 +177,8 @@ internal sealed class TestFtpServer : IDisposable
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
-        string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false)
+        string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false,
+        (int Lines, int Length)? virtualPadding = null)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
@@ -200,6 +215,8 @@ internal sealed class TestFtpServer : IDisposable
         if (virtualListingCount > 0) start.Environment["FILECAT_FTP_VIRTUAL_LISTING"] = virtualListingCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (virtualSelfLines) start.Environment["FILECAT_FTP_VIRTUAL_SELF"] = "1";
         if (emptyFolders550) start.Environment["FILECAT_FTP_EMPTY_550"] = "1";
+        if (virtualPadding is { } padding)
+            start.Environment["FILECAT_FTP_VIRTUAL_PADDED"] = FormattableString.Invariant($"{padding.Lines}:{padding.Length}");
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
@@ -354,6 +371,36 @@ public sealed class FtpIntegrationTests : IDisposable
         var listed = lease.Channel.List("/", ct);
         Assert.Equal(RemoteListingBudget.MaxEntries, listed.Count);
         Assert.All(listed, e => Assert.StartsWith("item", e.Name, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(1, RemoteListingBudget.MaxLineBytes + 2)]
+    [InlineData(300, 60_000)]
+    public void A_listing_past_its_line_or_wire_limit_is_refused(int lines, int length)
+    {
+        // A Low of the review of d1757bca: the tests of AC-10 reached the entry limit, but no line or listing that passes
+        // the 64 KiB line limit or the 16 MiB wire limit. Here one line just past the first, then 300 lines of 60,000 bytes
+        // (18 MB, within the line limit and the limit of lines that are no entries) past the second.
+        using var server = TestFtpServer.TryStart(virtualPadding: (lines, length));
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        Assert.Throws<RemoteListingLimitException>(() => lease.Channel.List("/", ct));
+    }
+
+    [Fact]
+    public void A_padded_listing_within_its_limits_lists_nothing_it_does_not_hold()
+    {
+        // The same lines within both limits are the folder itself, which no listing holds as an entry.
+        using var server = TestFtpServer.TryStart(virtualPadding: (100, 60_000));
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        Assert.Empty(lease.Channel.List("/", ct));
     }
 
     [Fact]
