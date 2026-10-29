@@ -27,8 +27,9 @@ FileCat's changes, all for release issue I14 (no UnRAR-derived code may ship):
   plain stream (`PpmdVersion.H`, which no `PpmdProperties` produces) throws `NotSupportedException`.
 - `Compressors/PPMd/PpmdStream.cs`: uses `PpmdModelH7z` where it used `ModelPpm` (the field type, four
   constructions and one `using` line); nothing else changed.
-- Project file: `FileCat.SharpCompress` assembly, `net10.0` only, no strong-name key (the upstream
-  `.snk`/`.pfx` are not copied), FileCat's locked restore, and `InternalsVisibleTo` for FileCat.Archives
-  (the shared PPMd model) and FileCat.Core.Tests.
+- Project file: `FileCat.SharpCompress.csproj` (upstream's `SharpCompress.csproj`, named after the
+  assembly so that the SDK lists it once in `FileCat.deps.json`), `FileCat.SharpCompress` assembly,
+  `net10.0` only, no strong-name key (the upstream `.snk`/`.pfx` are not copied), FileCat's locked
+  restore, and `InternalsVisibleTo` for FileCat.Archives (the shared PPMd model) and FileCat.Core.Tests.
 
 FileCat reads RAR archives with its own reader (`src/FileCat.Archives/Rar`).

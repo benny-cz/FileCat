@@ -12,8 +12,10 @@
     <!-- RAR 1.5 decompression, LGPL-2.1-or-later: a separate, replaceable assembly (licenses/xadmaster). -->
     <ProjectReference Include="..\FileCat.Archives.Rar15\FileCat.Archives.Rar15.csproj" />
     <!-- SharpCompress 0.50.5 built from source without its UnRAR-derived RAR and PPMd variant H code (release issue I14);
-         its components' licenses are in licenses/sharpcompress. -->
-    <ProjectReference Include="..\ThirdParty\SharpCompress\SharpCompress.csproj" />
+         its components' licenses are in licenses/sharpcompress. The project file is named after its assembly: the SDK
+         matches a referenced project to its restore entry by file name, and would list a differently named one in
+         FileCat.deps.json a second time, as an unreviewed "FileCat.SharpCompress.Reference". -->
+    <ProjectReference Include="..\ThirdParty\SharpCompress\FileCat.SharpCompress.csproj" />
     <PackageReference Include="LTRData.DiscUtils.Iso9660" />
     <PackageReference Include="LTRData.DiscUtils.Udf" />
     <InternalsVisibleTo Include="FileCat.Core.Tests" />

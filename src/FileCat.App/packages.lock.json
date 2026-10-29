@@ -276,7 +276,7 @@
           "SSH.NET": "[2026.0.0, )"
         }
       },
-      "FileCat.SharpCompress": {
+      "filecat.sharpcompress": {
         "type": "Project"
       },
       "filecat.shellhost": {

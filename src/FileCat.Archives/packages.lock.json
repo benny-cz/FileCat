@@ -51,7 +51,7 @@
           "BouncyCastle.Cryptography": "[2.7.0, )"
         }
       },
-      "FileCat.SharpCompress": {
+      "filecat.sharpcompress": {
         "type": "Project"
       },
       "BouncyCastle.Cryptography": {

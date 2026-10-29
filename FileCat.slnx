@@ -11,7 +11,7 @@
     <Project Path="src/FileCat.ShellHost/FileCat.ShellHost.csproj" />
   </Folder>
   <Folder Name="/src/ThirdParty/">
-    <Project Path="src/ThirdParty/SharpCompress/SharpCompress.csproj" />
+    <Project Path="src/ThirdParty/SharpCompress/FileCat.SharpCompress.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />

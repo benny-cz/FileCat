@@ -221,7 +221,7 @@
           "FileCat.Core": "[0.1.0-preview, )"
         }
       },
-      "FileCat.SharpCompress": {
+      "filecat.sharpcompress": {
         "type": "Project"
       },
       "BouncyCastle.Cryptography": {
