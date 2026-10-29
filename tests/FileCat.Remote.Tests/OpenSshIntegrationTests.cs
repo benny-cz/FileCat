@@ -31,6 +31,45 @@ public sealed class OpenSshIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Stopped_listings_close_their_folders_on_the_server()
+    {
+        // A Low of the review of d1757bca: SSH.NET closes a listing's directory handle with the token it was given, so a
+        // stopped listing never sent its close, and the server kept the folder open for the life of the connection. Here
+        // the server may hold 64 descriptors: 80 stopped listings that each left a folder open would leave it none, and the
+        // last listing would fail.
+        using var sshd = TestSshd.TryStart(sftpDescriptors: 64);
+        if (sshd is null) Assert.Skip("No OpenSSH sshd and sftp-server here (install openssh-server or set FILECAT_SSHD).");
+        var ct = TestContext.Current.CancellationToken;
+        string folder = Directory.CreateDirectory(Path.Combine(sshd.Files, "many")).FullName;
+        for (int i = 0; i < 20_000; i++) File.WriteAllBytes(Path.Combine(folder, $"f{i:00000}"), []);
+        var context = new ConnectContext
+        {
+            ApproveHostKey = key => key.AsSpan().SequenceEqual(sshd.HostKey),
+            GetSecret = _ => null,
+            AnswerPrompts = (_, _) => null,
+        };
+        using var channel = new SshNetConnector().Connect(sshd.Profile, context, ct);
+        Assert.Equal(20_000, channel.List(folder, ct).Count);
+        int stopped = 0;
+        for (int i = 0; i < 80; i++)
+        {
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
+            try { channel.List(folder, stop.Token); }
+            catch (OperationCanceledException) { stopped++; }
+        }
+        Assert.True(stopped >= 70, $"{stopped} of 80 listings were stopped while they were read.");
+        // Each stopped listing closes its folder once the server has answered the read under way.
+        var watch = Stopwatch.StartNew();
+        IReadOnlyList<IRemoteEntry>? listed = null;
+        while (listed is null)
+        {
+            try { listed = channel.List(folder, ct); }
+            catch (IOException) when (watch.Elapsed < TimeSpan.FromSeconds(10)) { Thread.Sleep(100); }
+        }
+        Assert.Equal(20_000, listed.Count);
+    }
+
+    [Fact]
     public void A_connection_is_not_held_to_the_small_socket_buffers_SSH_NET_sets()
     {
         // Release issue I41: SSH.NET's ConnectAsync leaves 137,072-byte buffers (Linux reports twice what was set), which

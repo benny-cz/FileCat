@@ -191,12 +191,32 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
     {
         var entries = new List<IRemoteEntry>();
         var budget = new RemoteListingBudget(job);
-        await foreach (var file in client.ListDirectoryAsync(path, ct))
+        // SSH.NET closes a listing's directory handle with the token the listing was given: stopped, it never sent the
+        // close, and the server kept the handle for the life of the connection (a Low of the review of d1757bca). So the
+        // listing itself runs without a token, and a stop stops waiting for it; its handle is closed once the server has
+        // answered the request under way.
+        var listing = client.ListDirectoryAsync(path, CancellationToken.None).GetAsyncEnumerator(CancellationToken.None);
+        Task<bool> next = Task.FromResult(false);
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            if (file.Name is "." or "..") continue;
-            budget.Add(file.Name);
-            entries.Add(new Entry(file, RemotePath.Combine(path, file.Name)));
+            while (await (next = listing.MoveNextAsync().AsTask()).WaitAsync(ct).ConfigureAwait(false))
+            {
+                ct.ThrowIfCancellationRequested();
+                var file = listing.Current;
+                if (file.Name is "." or "..") continue;
+                budget.Add(file.Name);
+                entries.Add(new Entry(file, RemotePath.Combine(path, file.Name)));
+            }
+        }
+        finally
+        {
+            _ = next.ContinueWith(answered =>
+                {
+                    _ = answered.Exception;
+                    return listing.DisposeAsync().AsTask();
+                }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap()
+                .ContinueWith(closed => _ = closed.Exception, CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
         return entries;
     }

@@ -37,12 +37,21 @@ internal sealed class TestSshd : IDisposable
         KeyFile = Path.Combine(Directory, "client"),
     };
 
-    public static TestSshd? TryStart()
+    /// <param name="sftpDescriptors">The SFTP server process may hold this many descriptors (the system's sftp-server is
+    /// then used, not sshd's own): every folder it has open holds one. Null where no sftp-server is found.</param>
+    public static TestSshd? TryStart(int? sftpDescriptors = null)
     {
         if (OperatingSystem.IsWindows()) return null;
         string? sshd = Environment.GetEnvironmentVariable("FILECAT_SSHD") is { Length: > 0 } configured ? configured
             : new[] { "/usr/sbin/sshd", "/usr/local/sbin/sshd", "/opt/homebrew/sbin/sshd" }.FirstOrDefault(File.Exists);
         if (sshd is null) return null;
+        string sftp = "internal-sftp";
+        if (sftpDescriptors is { } descriptors)
+        {
+            if (new[] { "/usr/lib/openssh/sftp-server", "/usr/libexec/openssh/sftp-server", "/usr/libexec/sftp-server" }
+                    .FirstOrDefault(File.Exists) is not { } server) return null;
+            sftp = $"ulimit -n {descriptors}; exec {server}";
+        }
         string dir = System.IO.Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-sshd-" + Guid.NewGuid().ToString("N")[..8])).FullName;
         Run("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", Path.Combine(dir, "host"));
         Run("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", Path.Combine(dir, "client"));
@@ -56,7 +65,7 @@ internal sealed class TestSshd : IDisposable
         File.WriteAllText(Path.Combine(dir, "sshd_config"), string.Join('\n',
             $"Port {port}", "ListenAddress 127.0.0.1", $"HostKey {dir}/host", $"PidFile {dir}/sshd.pid", $"AuthorizedKeysFile {dir}/authorized_keys",
             "StrictModes no", "UsePAM no", "PasswordAuthentication no", "KbdInteractiveAuthentication no", "PubkeyAuthentication yes",
-            "Subsystem sftp internal-sftp", "LogLevel ERROR") + "\n");
+            $"Subsystem sftp {sftp}", "LogLevel ERROR") + "\n");
         var psi = new ProcessStartInfo(sshd) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
         foreach (var a in new[] { "-D", "-e", "-f", Path.Combine(dir, "sshd_config") }) psi.ArgumentList.Add(a);
         var process = Process.Start(psi)!;
