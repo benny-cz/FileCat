@@ -164,16 +164,21 @@ tracks installed-app and native interaction checks separately.
 
 ## More ways to work
 
-- **Rename many files with a preview.** Build names with masks, counters, dates or regular
-  expressions. FileCat flags collisions before starting and can undo completed renames.
-- **Gather files without moving them.** Persistent working sets bring items from different folders
-  into one panel while actions still apply to the originals.
-- **Run a command across a selection.** Preview each invocation for files and folders on disk,
-  then see individual exit codes and output tails in the job results.
+- **Rename many files without surprises.** Use masks, counters, dates or regular expressions.
+  A live preview catches collisions before the job starts, with guarded undo afterward.
+- **Inspect files down to the bytes.** View very large text and hex files; edit local files in a
+  hex editor with undo and patch export. Inspect PE, ELF, Mach-O, APK, image, audio and video
+  structures without executing or playing them.
+- **Verify files in batches.** Check checksum manifests and supported minisign or OpenPGP
+  signatures, with file-level results that make mismatches easy to find.
+- **Read native filesystem details.** Examine NTFS streams, Unix extended attributes, macOS
+  resource forks and sparse ranges where the platform supports them.
+- **Run your own tools on a selection.** Preview each command for selected files and folders on
+  disk, then see its exit code and output tail in the job results.
+- **Keep control close.** Search the command palette, change keyboard bindings, open a terminal
+  at the current folder, or start an SSH terminal from an SFTP panel.
 - **Create links where supported.** Make symbolic or hard links, or Windows junctions, after
   FileCat checks the target and file system.
-- **Stay in your preferred workflow.** Find commands in the palette, change keyboard bindings,
-  open a terminal in the current folder, or start an SSH terminal from an SFTP panel.
 
 ## Platforms and validation
 
