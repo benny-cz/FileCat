@@ -27,9 +27,13 @@ public sealed class HtmlPageTests
         var page = HtmlPage.ForMarkdown(source, current);
 
         Assert.True(page.TryLinkedMarkdownPath(page.Address + "?filecat-open=more%2Fnext%2520file.md%23heading", out string? path));
-        Assert.Equal(linked, path);
+        // macOS can return /private/var for a temp file created through /var.
+        // Check the target and its contents while retaining the refusal cases below.
+        Assert.EndsWith(Path.Combine("docs", "more", "next file.md"), path, StringComparison.Ordinal);
+        Assert.Equal(File.ReadAllText(linked), File.ReadAllText(path!));
         Assert.True(page.TryLinkedMarkdownPath("filecat://page/index.md?filecat-open=more%2Fnext%2520file.md%23heading", out path));
-        Assert.Equal(linked, path);
+        Assert.EndsWith(Path.Combine("docs", "more", "next file.md"), path, StringComparison.Ordinal);
+        Assert.Equal(File.ReadAllText(linked), File.ReadAllText(path!));
         foreach (string address in new[]
         {
             page.Address + "?filecat-open=..%2Foutside.md",
