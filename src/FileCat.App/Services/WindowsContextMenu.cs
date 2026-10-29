@@ -67,11 +67,18 @@ internal static class WindowsContextMenu
             using var child = Process.Start(start);
             if (child is null) return Result.Failed;
             Task<string> readErrors = ReadErrorPrefixAsync(child.StandardError);
-            bool completed = await MonitorHostAsync(child, StartupTimeout, InteractiveTimeout, InvokeTimeout);
+            var outcome = await MonitorHostAsync(child, StartupTimeout, InteractiveTimeout, InvokeTimeout);
+            if (outcome == HostOutcome.StillRunning)
+            {
+                // The chosen verb outlasted its deadline, as a paste of a large folder through the Shell can: it goes on in
+                // its helper, which shows the Shell's own progress, and ends when it does (review finding R-M8).
+                AppLog.Info("A Windows context menu action is still running in its helper; FileCat stopped waiting for it.");
+                return Result.Handled;
+            }
             string details;
             try { details = await readErrors.WaitAsync(TimeSpan.FromSeconds(5)); }
             catch (TimeoutException) { details = "The helper's error stream did not close."; }
-            if (!completed)
+            if (outcome == HostOutcome.Ended)
             {
                 AppLog.Warn("Windows context menu helper was ended after its lifecycle deadline" +
                     (details.Length == 0 ? "." : ": " + details[..Math.Min(240, details.Length)].Trim()));
@@ -102,21 +109,15 @@ internal static class WindowsContextMenu
     /// forever. Only the root host is ended after a deadline: a program that an explicitly chosen verb already
     /// launched is not mistaken for hostile parser work and killed with it.
     /// </summary>
-    internal static async Task<bool> MonitorHostAsync(Process child, TimeSpan startupTimeout,
+    internal static async Task<HostOutcome> MonitorHostAsync(Process child, TimeSpan startupTimeout,
         TimeSpan interactiveTimeout, TimeSpan invokeTimeout)
     {
         Task exited = child.WaitForExitAsync();
         Task<string?> signal = child.StandardOutput.ReadLineAsync();
         HostPhase phase = HostPhase.Starting;
-        while (true)
+        while (phase != HostPhase.Invoking)
         {
-            TimeSpan limit = phase switch
-            {
-                HostPhase.Starting => startupTimeout,
-                HostPhase.Interactive => interactiveTimeout,
-                _ => invokeTimeout,
-            };
-            Task deadline = Task.Delay(limit);
+            Task deadline = Task.Delay(phase == HostPhase.Starting ? startupTimeout : interactiveTimeout);
             await Task.WhenAny(exited, signal, deadline);
 
             // A final signal and process exit can become observable together. Consume the signal first so a healthy
@@ -132,10 +133,10 @@ internal static class WindowsContextMenu
                     if (await Task.WhenAny(exited, Task.Delay(TimeSpan.FromSeconds(5))) == exited)
                     {
                         await exited;
-                        return phase is not HostPhase.Starting;
+                        return phase is HostPhase.Starting ? HostOutcome.Ended : HostOutcome.Exited;
                     }
                     await EndHostAsync(child);
-                    return false;
+                    return HostOutcome.Ended;
                 }
                 if (phase == HostPhase.Starting && message == ReadyMessage)
                     phase = HostPhase.Interactive;
@@ -144,19 +145,40 @@ internal static class WindowsContextMenu
                 else
                 {
                     await EndHostAsync(child);
-                    return false;
+                    return HostOutcome.Ended;
                 }
-                signal = child.StandardOutput.ReadLineAsync();
+                if (phase != HostPhase.Invoking) signal = child.StandardOutput.ReadLineAsync();
                 continue;
             }
             if (exited.IsCompleted)
             {
                 await exited;
-                return phase is not HostPhase.Starting;
+                return phase is HostPhase.Starting ? HostOutcome.Ended : HostOutcome.Exited;
             }
             await EndHostAsync(child);
-            return false;
+            return HostOutcome.Ended;
         }
+        // The chosen verb runs. A Shell extension may write its own output meanwhile: it says nothing about the verb, so
+        // it is drained without being kept, and no line of it ends the helper.
+        _ = DrainAsync(child.StandardOutput);
+        if (await Task.WhenAny(exited, Task.Delay(invokeTimeout)) == exited)
+        {
+            await exited;
+            return HostOutcome.Exited;
+        }
+        // A synchronous verb (a paste of a large folder through the Shell) can take minutes, and ending its helper now
+        // would leave its work half done (review finding R-M8): FileCat stops waiting instead.
+        return HostOutcome.StillRunning;
+    }
+
+    /// <summary>How a helper's lifetime ended for FileCat: ended by it, exited by itself, or still running its verb.</summary>
+    internal enum HostOutcome { Ended, Exited, StillRunning }
+
+    private static async Task DrainAsync(StreamReader reader)
+    {
+        var buffer = new char[4096];
+        try { while (await reader.ReadAsync(buffer) > 0) { } }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException) { }
     }
 
     private static async Task EndHostAsync(Process child)

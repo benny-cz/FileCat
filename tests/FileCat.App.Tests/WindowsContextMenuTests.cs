@@ -44,25 +44,47 @@ public sealed class WindowsContextMenuTests
         if (!OperatingSystem.IsWindows()) Assert.Skip("The context-menu lifecycle helper is Windows-only.");
         using var child = StartFixture("ping -n 30 127.0.0.1 >nul");
 
-        bool completed = await WindowsContextMenu.MonitorHostAsync(child,
+        var outcome = await WindowsContextMenu.MonitorHostAsync(child,
             TimeSpan.FromMilliseconds(300), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
 
-        Assert.False(completed);
+        Assert.Equal(WindowsContextMenu.HostOutcome.Ended, outcome);
         Assert.True(child.HasExited);
     }
 
     [Fact]
-    public async Task User_choice_time_is_distinct_from_a_bounded_hung_verb()
+    public async Task A_verb_that_outlasts_its_deadline_is_left_to_finish_its_work()
     {
+        // Review finding R-M8: a synchronous verb, such as a paste of a large folder, was ended at its 20-second deadline,
+        // leaving a truncated destination.
         if (!OperatingSystem.IsWindows()) Assert.Skip("The context-menu lifecycle helper is Windows-only.");
         string ready = WindowsContextMenu.ReadyMessage, invoke = WindowsContextMenu.InvokeMessage;
         using var child = StartFixture($"echo {ready}& ping -n 2 127.0.0.1 >nul& echo {invoke}& ping -n 30 127.0.0.1 >nul");
+        try
+        {
+            var outcome = await WindowsContextMenu.MonitorHostAsync(child,
+                TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(300));
 
-        bool completed = await WindowsContextMenu.MonitorHostAsync(child,
-            TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(300));
+            Assert.Equal(WindowsContextMenu.HostOutcome.StillRunning, outcome);
+            Assert.False(child.HasExited);
+        }
+        finally
+        {
+            if (!child.HasExited) child.Kill(entireProcessTree: true);
+        }
+    }
 
-        Assert.False(completed);
-        Assert.True(child.HasExited);
+    [Fact]
+    public async Task A_line_a_Shell_extension_writes_while_its_verb_runs_does_not_end_the_helper()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The context-menu lifecycle helper is Windows-only.");
+        string ready = WindowsContextMenu.ReadyMessage, invoke = WindowsContextMenu.InvokeMessage;
+        using var child = StartFixture($"echo {ready}& echo {invoke}& echo a Shell extension's own line& ping -n 2 127.0.0.1 >nul& exit /b 0");
+
+        var outcome = await WindowsContextMenu.MonitorHostAsync(child,
+            TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(10));
+
+        Assert.Equal(WindowsContextMenu.HostOutcome.Exited, outcome);
+        Assert.Equal(0, child.ExitCode);
     }
 
     [Fact]
@@ -71,10 +93,10 @@ public sealed class WindowsContextMenuTests
         if (!OperatingSystem.IsWindows()) Assert.Skip("The context-menu lifecycle helper is Windows-only.");
         using var child = StartFixture($"echo {WindowsContextMenu.ReadyMessage}& exit /b 10");
 
-        bool completed = await WindowsContextMenu.MonitorHostAsync(child,
+        var outcome = await WindowsContextMenu.MonitorHostAsync(child,
             TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
 
-        Assert.True(completed);
+        Assert.Equal(WindowsContextMenu.HostOutcome.Exited, outcome);
         Assert.Equal(10, child.ExitCode);
     }
 
