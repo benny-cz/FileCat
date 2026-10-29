@@ -24,8 +24,9 @@ public enum HostKeyStatus
 /// <param name="KnownFingerprint">For <see cref="HostKeyStatus.Changed"/>: the fingerprint that was expected.</param>
 /// <param name="Source">Where the matching or conflicting entry came from.</param>
 /// <param name="OtherTypesKnown">For <see cref="HostKeyStatus.Unknown"/>: keys of other types are known for the server.</param>
+/// <param name="Problem">For <see cref="HostKeyStatus.Unavailable"/>: why, as a sentence for the user.</param>
 public sealed record HostKeyCheck(HostKeyStatus Status, string Host, int Port, string KeyType, string Fingerprint, string? KnownFingerprint,
-    string? Source, bool OtherTypesKnown = false);
+    string? Source, bool OtherTypesKnown = false, string? Problem = null);
 
 /// <summary>
 /// Host-key trust (plan §14.1): FileCat's own known_hosts file (read and written), seeded read-only by the user's
@@ -34,7 +35,15 @@ public sealed record HostKeyCheck(HostKeyStatus Status, string Host, int Port, s
 /// </summary>
 public sealed class HostKeyTrust
 {
+    /// <summary>FileCat's own file, which <see cref="Remember"/> rewrites whole.</summary>
     private const int MaxKnownHostsBytes = 4 * 1024 * 1024;
+
+    /// <summary>
+    /// Checking reads each file a line at a time and keeps only the server's entries, so a long known_hosts (an
+    /// organisation's) is read, not refused for every server (review finding R-M14); a runaway one still is.
+    /// </summary>
+    private const long MaxCheckedBytes = 64L << 20;
+    private const int MaxLineChars = 64 << 10, MaxEntriesPerServer = 1024;
     private readonly string _ownFile;
     private readonly IReadOnlyList<string> _seedFiles;
     private readonly object _lock = new();
@@ -66,13 +75,16 @@ public sealed class HostKeyTrust
         string type = KeyTypeOf(keyBlob);
         string fingerprint = Fingerprint(keyBlob);
         if (WindowsTokenAuthority.IsHighIntegrity)
-            return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, _ownFile);
+            return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, _ownFile,
+                Problem: "FileCat does not read user-profile host-key trust while running as administrator. Reopen it without elevation.");
         var sources = new List<(string File, List<KnownHostEntry> Matching)>();
         foreach (var file in new[] { _ownFile }.Concat(_seedFiles))
         {
-            if (!TryReadEntries(file, out var entries))
-                return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, file);
-            sources.Add((file, entries.Where(e => e.Matches(host, port)).ToList()));
+            // A file that cannot be read whole might hold this key's revocation: no key is trusted past it.
+            if (!TryReadEntries(file, host, port, out var matching, out string? problem))
+                return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, file,
+                    Problem: $"{file} {problem}, so no key is trusted without it.");
+            sources.Add((file, matching));
         }
         // An exact revocation in any configured file vetoes earlier positive pins.
         foreach (var (file, lines) in sources)
@@ -125,30 +137,27 @@ public sealed class HostKeyTrust
         }
     }
 
-    private static bool TryReadEntries(string file, out List<KnownHostEntry> entries)
+    /// <summary>The server's entries in one trust file; false, with why, when the file cannot be read to its end.</summary>
+    private static bool TryReadEntries(string file, string host, int port, out List<KnownHostEntry> matching, out string? problem)
     {
-        entries = [];
+        var found = new List<KnownHostEntry>();
+        matching = found;
         try
         {
-            var lines = BoundedTrustText.ReadLines(file, MaxKnownHostsBytes);
-            if (lines is null)
+            problem = BoundedTrustText.ForEachLine(file, MaxCheckedBytes, MaxLineChars, line =>
             {
-                AppLog.Warn($"Trust file {AppLog.P(file)} exceeds its input budget; host-key trust was not granted.");
-                return false;
-            }
-            foreach (var line in lines)
-                if (KnownHostEntry.Parse(line) is { } entry) entries.Add(entry);
-            return true;
+                if (KnownHostEntry.Parse(line) is not { } entry || !entry.Matches(host, port)) return;
+                if (found.Count == MaxEntriesPerServer)
+                    throw new InvalidDataException($"has more than {MaxEntriesPerServer:N0} entries for this server");
+                found.Add(entry);
+            });
         }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            AppLog.Warn($"Trust file {AppLog.P(file)} could not be read; host-key trust was not granted.");
-            return false;
-        }
+        catch (InvalidDataException ex) { problem = ex.Message; }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { problem = null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { problem = "could not be read (" + ex.Message.TrimEnd('.') + ")"; }
+        if (problem is null) return true;
+        AppLog.Warn($"Trust file {AppLog.P(file)} {problem}; host-key trust was not granted.");
+        return false;
     }
 }
 

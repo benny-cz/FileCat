@@ -110,7 +110,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
         if (!_listings.TryGetValue(folder, out var map))
         {
             map = new Dictionary<string, IRemoteEntry>(StringComparer.Ordinal);
-            foreach (var e in Channel.List(folder, Job.Token)) map[e.Name] = e;
+            foreach (var e in Channel.ListAll(folder, Job.Token)) map[e.Name] = e;
             _listings[folder] = map;
         }
         return map;
@@ -203,7 +203,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
         if (entry.IsDirectory && !entry.IsLink)
         {
             IReadOnlyList<IRemoteEntry> children = [];
-            if (!Remote(entry.FullPath, "read the folder", () => children = Channel.List(entry.FullPath, Job.Token)))
+            if (!Remote(entry.FullPath, "read the folder", () => children = Channel.ListAll(entry.FullPath, Job.Token)))
             {
                 if (count) Job.ItemFailed();
                 return false;
@@ -424,11 +424,13 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool ok = UploadFile(() => new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 1, FileOptions.SequentialScan),
-            info, local, destFolder, name, unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc,
+            info, local, destFolder, name, out string published,
+            unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc,
             refreshSource: () => info = Fs.TryGetInfo(local) ?? throw new FileNotFoundException("The upload source no longer exists.", local));
         if (ok && Moving)
         {
-            DeletePublishedLocalSource(local, destFolder, name, info);
+            // Checked against the copy under the name it was published as: "a (2).txt" after Keep both (review finding R-M1).
+            DeletePublishedLocalSource(local, destFolder, published, info);
         }
         return ok;
     }
@@ -577,7 +579,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue,
             DateTime.MinValue, FileAttributes.Normal);
         return UploadFile(() => new ContentStream(Core.Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("This item has no content to copy.")), incoming,
-            provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name);
+            provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name, out _);
     }
 
     private bool AdmitName(string name, string sourceDisplay)
@@ -595,9 +597,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     }
 
     /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
-    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name, Func<bool>? unchanged = null,
-        Func<FileSystemItemInfo>? refreshSource = null)
+    /// <param name="published">The name the copy has on the server: another one after Keep both.</param>
+    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name,
+        out string published, Func<bool>? unchanged = null, Func<FileSystemItemInfo>? refreshSource = null)
     {
+        published = name;
         Job.SetCurrent(sourceDisplay);
         string dst = RemotePath.Combine(destFolder, name);
         IRemoteEntry? existing = null;
@@ -658,7 +662,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     }
                     break;
                 case DecisionAction.KeepBothRenameIncoming:
-                    name = UniqueName(destFolder, name, false);
+                    name = published = UniqueName(destFolder, name, false);
                     dst = RemotePath.Combine(destFolder, name);
                     break;
                 case DecisionAction.KeepBothRenameExisting:
@@ -1101,7 +1105,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             // Listed without the job's cancellation: a cancelled job still removes what it wrote (release issue I33).
             string name = RemotePath.Name(temp);
-            Channel.List(folder, CancellationToken.None).FirstOrDefault(e => e.Name == name && !e.IsDirectory)?.Delete();
+            Channel.ListAll(folder, CancellationToken.None).FirstOrDefault(e => e.Name == name && !e.IsDirectory)?.Delete();
             Changed(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

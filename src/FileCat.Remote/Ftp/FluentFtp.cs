@@ -219,11 +219,15 @@ internal sealed partial class FtpChannel : ISftpChannel
         return true;
     });
 
-    public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => Run(() =>
+    public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => List(path, ct, job: false);
+
+    public IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct) => List(path, ct, job: true);
+
+    private IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct, bool job) => Run(() =>
     {
         string safePath = Safe(path);
         bool machine = _client.HasFeature(FtpCapability.MLST);
-        var items = ReadBoundedListing(machine ? "MLSD " + safePath : "LIST -a " + safePath, safePath, machine, ct);
+        var items = ReadBoundedListing(machine ? "MLSD " + safePath : "LIST -a " + safePath, safePath, machine, ct, job);
         // Some FTP servers report a link to a directory as type=dir in MLSD. Keep MLSD's
         // complete names and precise metadata, but corroborate its types with LIST before a
         // job can recurse. An item absent from LIST is opaque: treating it as a link prevents
@@ -232,7 +236,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         if (machine)
         {
             listByName = new Dictionary<string, FtpListItem>(StringComparer.Ordinal);
-            foreach (var listed in ReadBoundedListing("LIST " + safePath, safePath, machine: false, ct))
+            foreach (var listed in ReadBoundedListing("LIST " + safePath, safePath, machine: false, ct, job))
             {
                 ct.ThrowIfCancellationRequested();
                 string listedName = ExactName(listed.Name, listed.Input, listed.Type == FtpObjectType.Link ? listed.LinkTarget : null);
@@ -255,10 +259,10 @@ internal sealed partial class FtpChannel : ISftpChannel
     });
 
     /// <summary>Read and parse bounded wire lines without FluentFTP's unbounded GetListingInternal array.</summary>
-    private List<FtpListItem> ReadBoundedListing(string command, string path, bool machine, CancellationToken ct)
+    private List<FtpListItem> ReadBoundedListing(string command, string path, bool machine, CancellationToken ct, bool job)
     {
         var items = new List<FtpListItem>();
-        var budget = new RemoteListingBudget();
+        var budget = new RemoteListingBudget(job);
         var parser = new FtpListParser(_client);
         parser.Init(_client.ServerOS, _client.Config.ListingParser);
         byte[] chunk = new byte[8192];
@@ -272,7 +276,7 @@ internal sealed partial class FtpChannel : ISftpChannel
                 {
                     if (lineLength > 0 && line[lineLength - 1] == '\r') lineLength--;
                     if (lineLength == 0) return;
-                    if (++lines > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
+                    if (++lines > budget.EntryLimit) throw budget.Exceeded();
                     string raw = _client.Encoding.GetString(line, 0, lineLength);
                     var item = parser.ParseSingleLine(path, raw, _client.Capabilities, machine);
                     if (item is null || item.Name is "." or "..") return;
@@ -283,14 +287,14 @@ internal sealed partial class FtpChannel : ISftpChannel
                 while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (read > RemoteListingBudget.MaxWireBytes - wireBytes) throw new RemoteListingLimitException();
+                    if (read > budget.WireByteLimit - wireBytes) throw budget.Exceeded();
                     wireBytes += read;
                     for (int i = 0; i < read; i++)
                     {
                         if (chunk[i] == '\n') { ParseLine(); lineLength = 0; }
                         else
                         {
-                            if (lineLength == line.Length) throw new RemoteListingLimitException();
+                            if (lineLength == line.Length) throw budget.Exceeded();
                             line[lineLength++] = chunk[i];
                         }
                     }

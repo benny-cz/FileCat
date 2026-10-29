@@ -137,9 +137,11 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
         try
         {
             string path = Resolve(location, lease.Channel);
-            var list = lease.Channel.List(path, ct);
-            if (list.Count > RemoteListingBudget.MaxEntries) throw new RemoteListingLimitException();
-            var budget = new RemoteListingBudget();
+            // A job or a comparison must see the folder whole, within a larger bound than a folder shown (review
+            // finding R-M9).
+            var budget = new RemoteListingBudget(job: sink.Whole);
+            var list = sink.Whole ? lease.Channel.ListAll(path, ct) : lease.Channel.List(path, ct);
+            if (list.Count > budget.EntryLimit) throw budget.Exceeded();
             var batch = new List<EntryData>(list.Count);
             int links = 0;
             foreach (var e in list)

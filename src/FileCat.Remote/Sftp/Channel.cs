@@ -42,8 +42,14 @@ public interface ISftpChannel : IDisposable
     /// <summary>The folder the server starts in (usually the user's home folder).</summary>
     string HomeDirectory { get; }
 
-    /// <summary>Entries of a folder, without "." and "..".</summary>
+    /// <summary>Entries of a folder, without "." and "..", within the limit for a folder shown.</summary>
     IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct);
+
+    /// <summary>
+    /// The same for a folder a job works in, which must see every entry: within a far larger limit than a folder shown
+    /// (review finding R-M9).
+    /// </summary>
+    IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct) => List(path, ct);
 
     /// <summary>Attributes with links followed; null when nothing is there (a dangling link reports itself).</summary>
     RemoteStat? Stat(string path);

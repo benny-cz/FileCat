@@ -183,12 +183,14 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
 
     public string HomeDirectory { get; } = client.WorkingDirectory;
 
-    public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => Wrap(() => ListBoundedAsync(path, ct).GetAwaiter().GetResult());
+    public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct) => Wrap(() => ListBoundedAsync(path, ct, job: false).GetAwaiter().GetResult());
 
-    private async Task<IReadOnlyList<IRemoteEntry>> ListBoundedAsync(string path, CancellationToken ct)
+    public IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct) => Wrap(() => ListBoundedAsync(path, ct, job: true).GetAwaiter().GetResult());
+
+    private async Task<IReadOnlyList<IRemoteEntry>> ListBoundedAsync(string path, CancellationToken ct, bool job)
     {
         var entries = new List<IRemoteEntry>();
-        var budget = new RemoteListingBudget();
+        var budget = new RemoteListingBudget(job);
         await foreach (var file in client.ListDirectoryAsync(path, ct))
         {
             ct.ThrowIfCancellationRequested();

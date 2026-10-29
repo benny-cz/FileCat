@@ -150,6 +150,21 @@ public sealed class SftpProviderTests : IDisposable
         Assert.Single(_ui.SecretQuestions);
     }
 
+    [Fact]
+    public async Task A_server_whose_key_cannot_be_checked_is_refused_with_the_reason()
+    {
+        // Review finding R-M14: the refusal said only "Key exchange negotiation failed".
+        string seed = Directory.CreateDirectory(Path.Combine(_dir, "known_hosts_is_a_folder")).FullName;
+        using var connections = new SftpConnections(id => _profiles.FirstOrDefault(p => p.Id == id), new FakeConnector(_server),
+            new HostKeyTrust(Path.Combine(_dir, "known_hosts"), [seed]), _secrets, _ui);
+        Assert.ThrowsAny<IOException>(() => connections.Lease(_profile.Id, TestContext.Current.CancellationToken).Dispose());
+        string said = Assert.Single(_ui.Informed);
+        Assert.Contains("could not be checked", said, StringComparison.Ordinal);
+        Assert.Contains(seed, said, StringComparison.Ordinal);
+        Assert.Empty(_ui.HostKeyQuestions);
+        Assert.Empty(_ui.SecretQuestions);
+    }
+
     /// <summary>
     /// A password the user asks to keep is kept once the server has accepted it (E-V11-S1): a mistyped one is never
     /// stored, so it is not tried first on every later connection — on a server that locks an account after a few

@@ -839,6 +839,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private sealed class ListSink(List<EntryData> list) : IEnumerationSink
     {
         public List<string> Issues { get; } = [];
+        public bool Whole => true;
         public void AddBatch(ReadOnlySpan<EntryData> entries)
         {
             foreach (var e in entries) list.Add(e);

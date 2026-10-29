@@ -236,6 +236,7 @@ public static class TreeCompare
     private sealed class Sink(List<EntryData> into) : IEnumerationSink
     {
         public string? Error { get; private set; }
+        public bool Whole => true;
         public void AddBatch(ReadOnlySpan<EntryData> entries) => into.AddRange(entries.ToArray());
         public void ReportIssue(string message) => Error ??= message;
     }

@@ -153,6 +153,34 @@ public sealed class HostKeyTrustTests : IDisposable
     }
 
     [Fact]
+    public void A_long_known_hosts_is_read_a_line_at_a_time_and_still_trusts_its_pin()
+    {
+        // Review finding R-M14: past 4 MiB or 32,768 lines, a known_hosts refused every server, its own pins too.
+        string seed = Path.Combine(_dir, "long_known_hosts");
+        using (var writer = new StreamWriter(seed, false, new UTF8Encoding(false)))
+        {
+            for (int i = 0; i < 50_000; i++) writer.WriteLine(Line($"host{i:00000}.example.org", EdOther));
+            writer.WriteLine(Line("pinned.example", Ed));
+        }
+        Assert.True(new FileInfo(seed).Length > 4 << 20);
+        var trust = new HostKeyTrust(Path.Combine(_dir, "own"), [seed]);
+        Assert.Equal(HostKeyStatus.Trusted, trust.Check("pinned.example", 22, Ed).Status);
+        Assert.Equal(HostKeyStatus.Changed, trust.Check("host49999.example.org", 22, Ed).Status);
+        Assert.Equal(HostKeyStatus.Unknown, trust.Check("new.example", 22, Ed).Status);
+    }
+
+    [Fact]
+    public void Unavailable_trust_says_which_file_and_why()
+    {
+        string seed = Path.Combine(_dir, "long-line");
+        File.WriteAllText(seed, Line("pinned.example", Ed) + "\n#" + new string('x', 70_000) + "\n");
+        var check = new HostKeyTrust(Path.Combine(_dir, "own"), [seed]).Check("pinned.example", 22, Ed);
+        Assert.Equal(HostKeyStatus.Unavailable, check.Status);
+        Assert.Contains(seed, check.Problem, StringComparison.Ordinal);
+        Assert.Contains("line longer than 64 KiB", check.Problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Unreadable_seed_cannot_silently_trust_an_earlier_pin()
     {
         string own = Path.Combine(_dir, "own-known-hosts");

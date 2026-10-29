@@ -312,6 +312,51 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task Jobs_list_a_folder_whole_beyond_the_limit_for_a_folder_shown()
+    {
+        // Review finding R-M9: jobs used the 20,000-entry listing limit for a folder shown, so any copy, move or delete
+        // in a larger remote folder failed.
+        _server.ShownListingLimit = 20;
+        for (int i = 0; i < 30; i++) _server.File($"/up/old{i:00}.txt", "old");
+        for (int i = 0; i < 30; i++) _server.File($"/big/item{i:00}.txt", "item");
+        string a = LocalFile("a.txt", "uploaded");
+        var move = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(a, EntryKind.File)], Destination = Remote("/up"),
+        });
+        Assert.True(move.State == JobState.Completed, string.Join("; ", move.Issues.Select(i => i.Message)));
+        Assert.False(File.Exists(a));
+        Assert.Equal("uploaded", _server.Read("/up/a.txt"));
+        Assert.Equal(31, Names("/up").Count());
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "down")).FullName;
+        var copy = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [RemoteItem("/", "big", EntryKind.Directory)], Destination = Location.FileSystem(dest),
+        });
+        Assert.True(copy.State == JobState.Completed, string.Join("; ", copy.Issues.Select(i => i.Message)));
+        Assert.Equal(30, Directory.GetFiles(Path.Combine(dest, "big")).Length);
+    }
+
+    [Fact]
+    public async Task A_keep_both_move_to_the_server_removes_its_source_once_the_renamed_copy_is_checked()
+    {
+        // Review finding R-M1: the copy went up as "a (2).txt", but the check before deleting the source read "a.txt",
+        // another file, so the source was never removed (here the other file even has the same size).
+        _server.File("/up/a.txt", "existing");
+        string a = LocalFile("a.txt", "uploaded");
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(a, EntryKind.File)], Destination = Remote("/up"),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameIncoming },
+        });
+        Assert.True(job.State == JobState.Completed, string.Join("; ", job.Issues.Select(i => i.Message)));
+        Assert.False(File.Exists(a));
+        Assert.Equal("existing", _server.Read("/up/a.txt"));
+        Assert.Equal("uploaded", _server.Read("/up/a (2).txt"));
+        Assert.Equal(["a (2).txt", "a.txt"], Names("/up"));
+    }
+
+    [Fact]
     public async Task A_move_to_the_server_keeps_a_source_that_changed_during_the_upload()
     {
         // Release plan DPI P01: the local source went once its copy was published, even if it changed meanwhile.

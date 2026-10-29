@@ -312,6 +312,8 @@ public sealed class FtpIntegrationTests : IDisposable
             var profile = flood.Profile(protocol);
             using var connections = Connections(profile, interaction);
             using var lease = connections.Lease(profile.Id, ct);
+            // A job's listing takes the whole folder (review finding R-M9); a folder shown stops at its limit.
+            Assert.Equal(RemoteListingBudget.MaxEntries + 1, lease.Channel.ListAll("/", ct).Count);
             long before = Process.GetCurrentProcess().WorkingSet64;
             Assert.Throws<RemoteListingLimitException>(() => lease.Channel.List("/", ct));
             long peak = Process.GetCurrentProcess().PeakWorkingSet64;

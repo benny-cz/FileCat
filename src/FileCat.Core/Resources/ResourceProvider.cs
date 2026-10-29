@@ -39,6 +39,12 @@ public interface IEnumerationSink
     void ReportProgress(string text)
     {
     }
+
+    /// <summary>
+    /// Whether the consumer must see every entry (a job copying or moving the folder, a comparison), not a view of it: a
+    /// provider that bounds what it lists for a folder shown may allow far more (review finding R-M9).
+    /// </summary>
+    bool Whole => false;
 }
 
 /// <summary>

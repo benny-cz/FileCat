@@ -27,6 +27,9 @@ internal sealed class FakeSftpServer
     public byte[] HostKey { get; set; } = KeyBlob("ssh-ed25519", 1);
     public string Password { get; set; } = "secret";
     public bool PosixRename { get; set; } = true;
+    /// <summary>When set, <c>List</c> refuses a folder with more entries, as the real channels do for a folder shown;
+    /// <c>ListAll</c>, for jobs, does not.</summary>
+    public int? ShownListingLimit { get; set; }
     public int Connects;
     public int ActiveChannels;
     /// <summary>When set, every channel operation fails as if the connection dropped.</summary>
@@ -187,6 +190,13 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
     }
 
     public IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct)
+    {
+        var all = ListAll(path, ct);
+        if (all.Count > server.ShownListingLimit) throw new IOException("This folder exceeds the fake server's listing limit for a folder shown.");
+        return all;
+    }
+
+    public IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct)
     {
         Check();
         lock (server.Lock)
@@ -405,6 +415,9 @@ internal sealed class ScriptedInteraction : IRemoteInteraction
     public bool SaveSecret { get; set; }
     public List<HostKeyCheck> HostKeyQuestions { get; } = [];
     public List<SecretRequest> SecretQuestions { get; } = [];
+    public List<string> Informed { get; } = [];
+
+    public void Inform(RemoteProfile profile, string message) => Informed.Add(message);
 
     public HostKeyDecision DecideHostKey(RemoteProfile profile, HostKeyCheck check)
     {

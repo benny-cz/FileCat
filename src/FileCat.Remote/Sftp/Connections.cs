@@ -383,6 +383,11 @@ public sealed class SftpConnections : IDisposable
             case HostKeyStatus.Trusted:
                 return true;
             case HostKeyStatus.Revoked or HostKeyStatus.Unavailable:
+                // Said, not only refused: the connection itself reports only "Key exchange negotiation failed" (review
+                // finding R-M14).
+                Interaction.Inform(profile, check.Status == HostKeyStatus.Revoked
+                    ? $"FileCat did not connect to {profile.Host}: its {check.KeyType} key ({check.Fingerprint}) is marked revoked in {check.Source}."
+                    : $"FileCat did not connect to {profile.Host}: its key could not be checked. {check.Problem}");
                 return false;
         }
         var decision = Interaction.DecideHostKey(profile, check);
