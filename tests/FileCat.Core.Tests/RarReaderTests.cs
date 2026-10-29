@@ -4,7 +4,11 @@ using System.Text;
 using FileCat.Archives;
 using FileCat.Archives.Rar;
 using FileCat.Archives.Rar15;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace FileCat.Core.Tests;
@@ -16,6 +20,128 @@ namespace FileCat.Core.Tests;
 public sealed class RarReaderTests
 {
     private static readonly string Fixtures = Path.Combine(AppContext.BaseDirectory, "TestData", "Archives");
+
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unix_matching_rar_volume_fifo_is_refused_without_waiting(bool linked)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO volume control.");
+        using var dir = new TempDir();
+        string selected = Path.Combine(dir.Path, "set.part1.rar");
+        File.Copy(Path.Combine(Fixtures, "Rar5.solid.rar"), selected);
+        string fifo = Path.Combine(dir.Path, "volume.fifo");
+        Assert.Equal(0, MakeFifo(fifo, 384));
+        string sibling = Path.Combine(dir.Path, "set.part2.rar");
+        if (linked) File.CreateSymbolicLink(sibling, fifo);
+        else File.Move(fifo, sibling);
+
+        var clock = Stopwatch.StartNew();
+        Assert.ThrowsAny<IOException>(() => RarReader.Open(selected));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Volume refusal took {clock.Elapsed}.");
+
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        var archives = new ArchiveProvider(Path.Combine(dir.Path, "temp"), providers);
+        providers.Register(archives);
+        var root = archives.GetContainerLocation(selected)!;
+        clock.Restart();
+        await Assert.ThrowsAnyAsync<IOException>(() => archives.EnumerateAsync(root, new AuditSink(), TestContext.Current.CancellationToken));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Public archive listing refusal took {clock.Elapsed}.");
+    }
+
+    private sealed class AuditSink : IEnumerationSink
+    {
+        public List<EntryData> Entries { get; } = [];
+        public void AddBatch(ReadOnlySpan<EntryData> entries)
+        {
+            foreach (var entry in entries) Entries.Add(entry);
+        }
+        public void ReportIssue(string message) { }
+    }
+
+    private static byte[] PackedZeroRun(Rar3PpmdTestStream stream, int length, bool reset)
+    {
+        stream.StartBlock(4, 1, reset);
+        stream.Literal(0);
+        int left = length - 1;
+        while (left >= 4)
+        {
+            int count = Math.Min(left, 259);
+            stream.Run(count);
+            left -= count;
+        }
+        while (left-- > 0) stream.Literal(0);
+        stream.EndFile();
+        return stream.Take();
+    }
+
+    [Fact]
+    public async Task Solid_predecessor_must_obey_the_expansion_ratio_before_a_small_member_opens()
+    {
+        const int expanded = 66 << 20;
+        var first = new byte[expanded];
+        var stream = new Rar3PpmdTestStream();
+        byte[] packedFirst = PackedZeroRun(stream, expanded, reset: true);
+        stream.StartBlock(4, 1, reset: false);
+        stream.Literal((byte)'Z');
+        stream.EndFile();
+        byte[] packedSecond = stream.ToArray();
+        Assert.True(packedFirst.Length < expanded / ArchiveProvider.MaxExpansionRatio,
+            $"The predecessor must exceed the product ratio limit: {expanded:N0} output, {packedFirst.Length:N0} packed bytes.");
+        TestContext.Current.TestOutputHelper?.WriteLine($"Solid predecessor: {packedFirst.Length:N0} packed bytes, {expanded:N0} decoded bytes; later selected member: 1 byte.");
+
+        using var dir = new TempDir();
+        string path = WriteRar29Archive(dir, solid: true,
+            ("large.bin", first, packedFirst), ("small.txt", "Z"u8.ToArray(), packedSecond));
+        using var reader = OpenOurs(path);
+        var members = reader.List(_ => { }, CancellationToken.None).ToList();
+        Assert.Equal(2, members.Count);
+        Assert.Equal(1, members[1].Size);
+        Assert.Throws<InvalidDataException>(() =>
+        {
+            using var selected = reader.Open(1, CancellationToken.None);
+            selected.CopyTo(Stream.Null);
+        });
+
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        var archives = new ArchiveProvider(Path.Combine(dir.Path, "temp"), providers);
+        providers.Register(archives);
+        var root = archives.GetContainerLocation(path)!;
+        var sink = new AuditSink();
+        await archives.EnumerateAsync(root, sink, TestContext.Current.CancellationToken);
+        var small = Assert.Single(sink.Entries, entry => entry.Name == "small.txt");
+        Assert.Throws<InvalidDataException>(() => archives.OpenContent(archives.GetItemRef(root, small)));
+    }
+
+    [Fact]
+    public void Several_subthreshold_solid_predecessors_obey_an_aggregate_ratio()
+    {
+        const int each = 33 << 20;
+        var zeros = new byte[each];
+        var stream = new Rar3PpmdTestStream();
+        byte[] packedA = PackedZeroRun(stream, each, reset: true);
+        byte[] packedB = PackedZeroRun(stream, each, reset: false);
+        stream.StartBlock(4, 1, reset: false);
+        stream.Literal((byte)'Z');
+        stream.EndFile();
+        byte[] packedC = stream.ToArray();
+        Assert.True(packedA.Length + packedB.Length < 2L * each / ArchiveProvider.MaxExpansionRatio,
+            $"The combined compressed size must exceed the product ratio: {packedA.Length + packedB.Length:N0} bytes.");
+        using var dir = new TempDir();
+        string path = WriteRar29Archive(dir, solid: true,
+            ("a.bin", zeros, packedA), ("b.bin", zeros, packedB), ("selected.txt", "Z"u8.ToArray(), packedC));
+        using var reader = OpenOurs(path);
+        Assert.Throws<InvalidDataException>(() =>
+        {
+            using var selected = reader.Open(2, CancellationToken.None);
+            selected.CopyTo(Stream.Null);
+        });
+    }
 
     public static TheoryData<string> Rar5Fixtures()
     {

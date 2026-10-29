@@ -168,6 +168,9 @@ public sealed class ArchiveFormatTests : IDisposable
         var (providers, archives, _) = Providers();
         var root = archives.GetContainerLocation(path)!;
         var dest = _dir.Dir("out");
+        // macOS exposes its test temp tree through /var, a system symlink to
+        // /private/var. Exercise extraction at the same directory's real path.
+        if (OperatingSystem.IsMacOS()) dest = UnixFiles.RealPath(dest) ?? dest;
         var manager = new JobManager(new IdentityAwareTestFiles(), providers, Path.Combine(_dir.Path, "journal"));
         var job = manager.Submit(new JobRequest
         {
@@ -175,7 +178,11 @@ public sealed class ArchiveFormatTests : IDisposable
             Sources = List(archives, root).Select(e => archives.GetItemRef(root, e)).ToList(),
             Destination = Location.FileSystem(dest),
         });
-        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        var deadline = System.Diagnostics.Stopwatch.StartNew();
+        while (!job.State.IsFinished() && deadline.Elapsed < TimeSpan.FromSeconds(10))
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.True(job.State.IsFinished(), $"Extraction did not finish: {job.State}; " +
+            string.Join("; ", job.Issues.Select(i => i.Message)));
         Assert.Equal("alpha", File.ReadAllText(Path.Combine(dest, "a.txt")));
         Assert.Equal(70_000, new FileInfo(Path.Combine(dest, "sub", "b.bin")).Length);
         Assert.False(File.Exists(Path.Combine(dest, "link")) || File.Exists(Path.Combine(dest, "evil.txt")));

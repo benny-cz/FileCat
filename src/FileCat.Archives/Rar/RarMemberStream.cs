@@ -1,4 +1,5 @@
 using FileCat.Core.Jobs;
+using FileCat.Core.Content;
 
 namespace FileCat.Archives.Rar;
 
@@ -143,16 +144,31 @@ internal sealed class RarMemberStream : Stream
     /// mismatch here is this member's problem; a later member verifies its own bytes. Decoding damage still throws:
     /// the decoder's state would be unknown.
     /// </summary>
-    public void Drain()
+    public void Drain(Action<long>? onProgress = null)
     {
         var sink = new byte[64 * 1024];
+        // A later solid member cannot bypass the limits that would apply if this
+        // predecessor were extracted directly. Check bytes already handed out too.
+        var limits = MemberLimits.Of(_member.UnpackedSize, _member.PackedSize,
+            ArchiveProvider.MaxSpooledMember, ArchiveProvider.MaxExpansionRatio);
         try
         {
-            while (Read(sink) > 0) { }
+            limits.Check(_produced);
+            onProgress?.Invoke(_produced);
+            while (Read(sink) > 0)
+            {
+                limits.Check(_produced);
+                onProgress?.Invoke(_produced);
+            }
         }
         catch (InvalidDataException ex) when (RarData.IsChecksum(ex))
         {
             _finished = true;
+        }
+        catch
+        {
+            Broken = true;
+            throw;
         }
     }
 

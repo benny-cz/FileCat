@@ -291,10 +291,15 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             ArchiveIndex.VolumeWitness[] volumes;
             try
             {
-                volumes = reader is IVolumeStreams volumeSet
-                    ? volumeSet.VolumeStreams.Select(stream => new ArchiveIndex.VolumeWitness(stream,
-                        SourceChangeToken.FromHandle(stream.SafeFileHandle), GetOpenedSourceIdentity(stream.SafeFileHandle))).ToArray()
-                    : [];
+                if (reader is IVolumeStreams volumeSet)
+                {
+                    var streams = volumeSet.VolumeStreams;
+                    var paths = volumeSet.VolumePaths;
+                    if (streams.Count != paths.Count) throw new InvalidDataException("The archive volume list changed while it was being opened.");
+                    volumes = streams.Select((stream, i) => new ArchiveIndex.VolumeWitness(stream, paths[i],
+                        SourceChangeToken.FromHandle(stream.SafeFileHandle), GetOpenedSourceIdentity(stream.SafeFileHandle))).ToArray();
+                }
+                else volumes = [];
             }
             catch
             {
@@ -450,7 +455,7 @@ internal sealed class ArchiveIndex : IDisposable
     private readonly IMemberReader _reader;
     private FileStream? _witness;
     private string? _openedChangeToken;
-    internal readonly record struct VolumeWitness(FileStream Stream, string? Token, string? Identity);
+    internal readonly record struct VolumeWitness(FileStream Stream, string Path, string? Token, string? Identity);
     private VolumeWitness[] _volumes = [];
     private Func<string, string?>? _volumePathIdentity;
     private string? _rarEntryPath;
@@ -480,11 +485,11 @@ internal sealed class ArchiveIndex : IDisposable
         // Discovery is part of the catalog: a newly added numbered part can fill a gap without changing
         // any volume that was already open. Re-enumerate only at index admission/reuse, never per byte read.
         if (_rarEntryPath is { } entryPath &&
-            !Rar.RarVolumes.Of(entryPath).SequenceEqual(_volumes.Select(v => v.Stream.Name), PathUtil.SafetyComparer))
+            !Rar.RarVolumes.Of(entryPath).SequenceEqual(_volumes.Select(v => v.Path), PathUtil.SafetyComparer))
             throw new IOException("The set of archive volumes changed since its catalog was built.");
         foreach (var volume in _volumes)
-            if (volume.Token is null || SourceChangeToken.FromPath(volume.Stream.Name) != volume.Token ||
-                volume.Identity is { Length: > 0 } id && _volumePathIdentity!(volume.Stream.Name) != id)
+            if (volume.Token is null || SourceChangeToken.FromPath(volume.Path) != volume.Token ||
+                volume.Identity is { Length: > 0 } id && _volumePathIdentity!(volume.Path) != id)
                 throw new IOException("An archive volume changed since its catalog was built.");
     }
     // A volume without an opened identity cannot be tied to its path on the next request. Its change token

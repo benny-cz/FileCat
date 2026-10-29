@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.FileSystem;
 using DiscUtils;
 using DiscUtils.Iso9660;
 using DiscUtils.Udf;
@@ -48,6 +49,7 @@ public interface IMemberReader : IDisposable
 internal interface IVolumeStreams
 {
     IReadOnlyList<FileStream> VolumeStreams { get; }
+    IReadOnlyList<string> VolumePaths { get; }
 }
 
 /// <summary>Formats FileCat reads (ADR-07, P8), recognized by name or by signature, all read-only.</summary>
@@ -136,7 +138,11 @@ public static class ArchiveFormats
 
     internal static FileStream OpenShared(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
     {
-        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+        // A named pipe or device can have an archive-volume name. Opening it by path on
+        // Unix can wait indefinitely for a peer before we can inspect the descriptor.
+        var file = OperatingSystem.IsWindows()
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read, 64 * 1024, isAsync: false);
         try { verifyOpened?.Invoke(path, file.SafeFileHandle); return file; }
         catch { file.Dispose(); throw; }
     }
@@ -707,10 +713,11 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
     private IReader? _reader;
     private bool _disposed;
 
-    private SharpArchiveReader(IArchive archive, List<FileStream> volumes)
+    private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string path)
     {
         _archive = archive;
         _volumes = volumes;
+        VolumePaths = [path];
         _entries = archive.Entries.ToList();
         _ordinals = new int[_entries.Count];
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -728,6 +735,7 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 
     // The provider retains this reader while its index is live: the archive file is the source of its catalog and members.
     public IReadOnlyList<FileStream> VolumeStreams => _volumes;
+    public IReadOnlyList<string> VolumePaths { get; }
 
     public static SharpArchiveReader Open(string path) => Open(path, null);
 
@@ -738,7 +746,7 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
         {
             AdmitSevenZipHeader(volumes[0]);
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };
-            return new SharpArchiveReader(SevenZipArchive.OpenArchive(volumes[0], options), volumes);
+            return new SharpArchiveReader(SevenZipArchive.OpenArchive(volumes[0], options), volumes, path);
         }
         catch (Exception ex)
         {

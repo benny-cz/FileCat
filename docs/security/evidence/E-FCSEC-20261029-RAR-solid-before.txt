@@ -1,0 +1,14 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+    FileCat.Core.Tests.RarReaderTests.Solid_predecessor_must_obey_the_expansion_ratio_before_a_small_member_opens [FAIL]
+      Assert.Throws() Failure: No exception was thrown
+      Expected: typeof(System.IO.InvalidDataException)
+      Stack Trace:
+        tests\FileCat.Core.Tests\RarReaderTests.cs(52,0): at FileCat.Core.Tests.RarReaderTests.Solid_predecessor_must_obey_the_expansion_ratio_before_a_small_member_opens()
+           at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+           at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Finished:    FileCat.Core.Tests (ID = '9832dba35d20809c3910babb9cb96c82d40e2826b584a8b0e3edc8f9ee1d5598')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 1, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 0,760s

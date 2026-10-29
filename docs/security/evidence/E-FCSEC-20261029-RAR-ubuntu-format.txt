@@ -1,0 +1,6 @@
+VSTest version 18.7.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    27, Skipped:     0, Total:    27, Duration: 1 s - FileCat.Core.Tests.dll (net10.0)
