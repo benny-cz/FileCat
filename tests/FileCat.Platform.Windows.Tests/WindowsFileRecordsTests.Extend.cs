@@ -106,8 +106,6 @@ public sealed partial class WindowsFileRecordsTests
         try
         {
             if (!OnNtfs(dir)) Assert.Skip("The test folder is not on NTFS.");
-            string file = Path.Combine(dir, "was-tracked.txt");
-            File.WriteAllText(file, "x");
             // The largest keys there can be, so that the item's entries are the last of $O and of $R: NTFS removes a node's
             // last entry by writing the node's end entry over it, and that leaves the entry's key (and data) behind.
             var top = new Guid(Enumerable.Repeat((byte)0xFF, 16).ToArray());
@@ -118,24 +116,36 @@ public sealed partial class WindowsFileRecordsTests
             BinaryPrimitives.WriteUInt32LittleEndian(reparse, Tag);
             BinaryPrimitives.WriteUInt16LittleEndian(reparse.AsSpan(4), 8);
             "FileCat!"u8.CopyTo(reparse.AsSpan(8));
-            Control(file, 0x0009_0098 /* FSCTL_SET_OBJECT_ID */, ids);
-            Control(file, 0x0009_00A4 /* FSCTL_SET_REPARSE_POINT */, reparse);
-            var before = Read(file);
-            Assert.StartsWith($"{top:B} → record ", Field(Section(before, "Object ID index ($ObjId:$O)"), "Its entry"), StringComparison.Ordinal);
-            Assert.StartsWith("tag 0xA000FFFF", Field(Section(before, "Reparse index ($Reparse:$R)"), "Its entry"), StringComparison.Ordinal);
+            // Another program adding an entry to the same node in the meantime moves the end entry over what was left, so
+            // a few items are tried before the test says the index's slack showed nothing.
+            string excerpt = "";
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                string file = Path.Combine(dir, $"was-tracked-{attempt}.txt");
+                File.WriteAllText(file, "x");
+                Control(file, 0x0009_0098 /* FSCTL_SET_OBJECT_ID */, ids);
+                Control(file, 0x0009_00A4 /* FSCTL_SET_REPARSE_POINT */, reparse);
+                var before = Read(file);
+                Assert.StartsWith($"{top:B} → record ", Field(Section(before, "Object ID index ($ObjId:$O)"), "Its entry"), StringComparison.Ordinal);
+                Assert.StartsWith("tag 0xA000FFFF", Field(Section(before, "Reparse index ($Reparse:$R)"), "Its entry"), StringComparison.Ordinal);
 
-            Control(file, 0x0009_00A0 /* FSCTL_DELETE_OBJECT_ID */, []);
-            Control(file, 0x0009_00AC /* FSCTL_DELETE_REPARSE_POINT */, reparse[..8].Select((b, i) => i is 4 or 5 ? (byte)0 : b).ToArray());
-            var after = Read(file);
-            TestContext.Current.TestOutputHelper?.WriteLine(Excerpt(after, "Object ID index", "Reparse index"));
-            var objectIds = Section(after, "Object ID index ($ObjId:$O)");
-            Assert.StartsWith("matches: Windows reports no object ID for it", Field(objectIds, "Compared"), StringComparison.Ordinal);
-            var leftIds = objectIds.Children.Single(c => c.Title.StartsWith("Left behind in $O for this record (", StringComparison.Ordinal));
-            Assert.Contains(leftIds.Table!.Rows, r => r[0] == top.ToString("B") && r[4] == "this item");
-            var reparsePoints = Section(after, "Reparse index ($Reparse:$R)");
-            Assert.StartsWith("matches: it has no reparse point", Field(reparsePoints, "Compared"), StringComparison.Ordinal);
-            var leftTags = reparsePoints.Children.Single(c => c.Title.StartsWith("Left behind in $R for this record (", StringComparison.Ordinal));
-            Assert.Contains(leftTags.Table!.Rows, r => r[0].StartsWith("0xA000FFFF", StringComparison.Ordinal) && r[2] == "this item");
+                Control(file, 0x0009_00A0 /* FSCTL_DELETE_OBJECT_ID */, []);
+                Control(file, 0x0009_00AC /* FSCTL_DELETE_REPARSE_POINT */, reparse[..8].Select((b, i) => i is 4 or 5 ? (byte)0 : b).ToArray());
+                var after = Read(file);
+                excerpt = Excerpt(after, "Object ID index", "Reparse index");
+                var objectIds = Section(after, "Object ID index ($ObjId:$O)");
+                Assert.StartsWith("matches: Windows reports no object ID for it", Field(objectIds, "Compared"), StringComparison.Ordinal);
+                var reparsePoints = Section(after, "Reparse index ($Reparse:$R)");
+                Assert.StartsWith("matches: it has no reparse point", Field(reparsePoints, "Compared"), StringComparison.Ordinal);
+                bool idLeft = objectIds.Children.Any(c => c.Title.StartsWith("Left behind in $O for this record (", StringComparison.Ordinal)
+                    && c.Table!.Rows.Any(r => r[0] == top.ToString("B") && r[4] == "this item"));
+                bool tagLeft = reparsePoints.Children.Any(c => c.Title.StartsWith("Left behind in $R for this record (", StringComparison.Ordinal)
+                    && c.Table!.Rows.Any(r => r[0].StartsWith("0xA000FFFF", StringComparison.Ordinal) && r[2] == "this item"));
+                if (idLeft && tagLeft) break;
+                TestContext.Current.TestOutputHelper?.WriteLine($"Attempt {attempt + 1}: $O's left behind {idLeft}, $R's {tagLeft}.");
+                Assert.True(attempt < 2, "The indexes did not both show what the item left behind, in three attempts:\n" + excerpt);
+            }
+            TestContext.Current.TestOutputHelper?.WriteLine(excerpt);
         }
         finally { Directory.Delete(dir, recursive: true); }
 
