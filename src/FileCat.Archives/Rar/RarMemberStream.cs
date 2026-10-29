@@ -190,7 +190,11 @@ internal sealed class RarMemberStream : Stream
             try { n = window.ReadOutput(buffer, _end, _start); }
             catch { Broken = true; throw; }
             if (n > 0) return n;
-            if (window.Read >= _end && !window.HasFilteredOutput) return 0;
+            if (window.Read >= _end && !window.HasFilteredOutput)
+            {
+                if (!_decoderDone && _decoder!.EndsWithMarker) ReadEndMarker(window);
+                return 0;
+            }
             if (_decoderDone)
             {
                 if (_end != long.MaxValue) throw RarData.Truncated();
@@ -212,6 +216,14 @@ internal sealed class RarMemberStream : Stream
             if (window.ReadOutput(buffer, _end, _start) is int more and > 0) return more;
             if (_decoderDone) continue;
         }
+    }
+
+    /// <summary>The member's bytes are all out: its decoder reads up to its end-of-member marker and must add nothing.</summary>
+    private void ReadEndMarker(RarWindow window)
+    {
+        _decoderDone = _decoder!.Decode(window);
+        if (!_decoderDone || window.Written > _end) throw RarData.Corrupt("more data than the member's size");
+        if (window.FilterStraddles(window.Written)) throw RarData.Corrupt("filter block past the end of the member");
     }
 
     private void Finish()

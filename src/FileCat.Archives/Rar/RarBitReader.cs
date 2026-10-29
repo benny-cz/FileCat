@@ -84,6 +84,29 @@ internal sealed class RarBitReader
 
     public byte ReadByte() => (byte)Read(8);
 
+    /// <summary>
+    /// A number in RAR 3's compact form (filter parameters): a 2-bit selector, then 4, 8, 16 or 32 bits; the 8-bit form
+    /// with a zero high nibble instead carries a byte to set into 0xFFFFFF00.
+    /// </summary>
+    public uint ReadRar3UInt32()
+    {
+        switch (Read(2))
+        {
+            case 0:
+                return Read(4);
+            case 1:
+            {
+                uint high = Read(4);
+                if (high == 0) return 0xFFFFFF00 | Read(8);
+                return high << 4 | Read(4);
+            }
+            case 2:
+                return Read(16);
+            default:
+                return Read(32);
+        }
+    }
+
     /// <summary>Skips to the next byte boundary of the data; padding beyond the end is not an error here.</summary>
     public void AlignToByte()
     {
