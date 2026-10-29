@@ -17,7 +17,7 @@ Ubuntu 24.04/26.04 x64 and macOS 26+ on Apple silicon are planned previews. The
 [capability matrix](docs/CAPABILITIES.md) describes the differences.
 
 [Why FileCat](#why-filecat) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) ·
-[Themes and screenshots](#make-it-yours) · [Keyboard](#keyboard-essentials) · [Build](#build-and-run)
+[Themes and screenshots](#make-it-yours) · [More features](#more-ways-to-work) · [Build](#build-and-run)
 
 ![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.png)
 
@@ -162,23 +162,18 @@ All gallery images render FileCat's MainWindow on their named operating systems.
 the UI at the recorded source; [release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
 tracks installed-app and native interaction checks separately.
 
-## Keyboard essentials
+## More ways to work
 
-| Keys | Action |
-|---|---|
-| F3 / F4 / Shift+F4 | View / edit (external editor) / edit new file |
-| F5 / F6 / Shift+F5 | Copy / move or rename / duplicate here |
-| F7 / F8 / Shift+F8 | Create folder / delete to Recycle Bin / delete permanently |
-| F2 | Rename in place |
-| Insert / Space | Mark and move down / mark (sizes folders) |
-| Num+ / Num− / Num* / Num/ | Select by mask / unselect / invert / restore selection |
-| Tab / Ctrl+U | Switch to target panel / swap locations |
-| Ctrl+T / Ctrl+W / Ctrl+Tab | New / close / next tab |
-| Alt+F7 / Ctrl+B / Ctrl+F10 | Find files / flat view / compare directories |
-| Ctrl+Shift+P / F1 / Ctrl+J | Command palette / keyboard reference / operations |
-| Ctrl+E, then Tab | Command line; Tab completes names from the panel's folder (again for the next) |
-
-Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
+- **Rename many files with a preview.** Build names with masks, counters, dates or regular
+  expressions. FileCat flags collisions before starting and can undo completed renames.
+- **Gather files without moving them.** Persistent working sets bring items from different folders
+  into one panel while actions still apply to the originals.
+- **Run a command across a selection.** Preview each invocation for files and folders on disk,
+  then see individual exit codes and output tails in the job results.
+- **Create links where supported.** Make symbolic or hard links, or Windows junctions, after
+  FileCat checks the target and file system.
+- **Stay in your preferred workflow.** Find commands in the palette, change keyboard bindings,
+  open a terminal in the current folder, or start an SSH terminal from an SFTP panel.
 
 ## Platforms and validation
 
