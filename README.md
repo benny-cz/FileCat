@@ -183,8 +183,8 @@ tracks installed-app and native interaction checks separately.
 ## Made for real work
 
 FileCat is shaped around the work people actually do: moving a few files, untangling a large
-folder, inspecting an unfamiliar binary, or trying to recover something lost. The interface
-should stay clear as the task gets harder, on Windows, Ubuntu and macOS.
+folder, inspecting an unfamiliar binary, or trying to recover something lost. Across Windows,
+Ubuntu and macOS, FileCat keeps you oriented as routine file work grows into a deeper investigation.
 
 AI helps build FileCat and helps question it. Security reviews probe trust boundaries; QA tests
 exercise failures and interruptions; UX/UI reviews challenge awkward paths and unclear results.
