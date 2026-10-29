@@ -4900,3 +4900,34 @@ Evidence index **905**; acceptance ledger remains **58 cases: 36 Accepted,
 exact `9a2d45ac` hosted CI, then prepare an exact new preview tag for the
 owner's decision. The previous `preview.1` tag is immutable and cannot supply
 this correction. Stable publication remains NO-GO.
+
+## 2026-10-29 — preview.2 exact CI accepted and approved immutable tag pushed
+
+[Main run 40961631336](https://github.com/benny-cz/FileCat/actions/runs/40961631336)
+passes producer policy, Windows x64, Windows ARM64, Ubuntu and macOS at exact
+`5911b0da`; the product-source `9a2d45ac` run passes too. Comparison of the
+four official test artifacts and 20 TRX inventories per run against prior green
+`ee777e94` gives **41,116P/1,531S/0F** versus **41,102P/1,527S/0F**, with
+zero pass-to-skip changes. Four new Linux Page test skips are explicit platform
+or no-display skips; that native Ubuntu route passed separately at I563.
+GATE-CI-FINAL is Accepted again at this exact product source. [The CI/tag
+record](evidence/E-PREVIEW2-TAG-20261029.md) retains the bound and artifact
+digest references.
+
+The owner separately approved immutable `v1.0.0-preview.2` at full
+`5911b0da121d18a8953b0ac0906fc7876a913b90` after CI. The local
+[same-source Windows preflight](evidence/E-PREVIEW2-5911-local-preflight.md)
+built two version-starting ZIPs and three SBOMs. An initial attempt through
+the `artifacts` junction correctly failed the administrator-helper reparse
+guard; a direct workspace output passed without changing the guard. Remote
+main matched the approved commit and the tag was absent immediately before
+the annotated tag was pushed. GitHub tag object `5dceff76` peels to that
+commit. [Tag run 40967715439](https://github.com/benny-cz/FileCat/actions/runs/40967715439)
+has started; its package and protected draft jobs are not yet accepted.
+
+**Convergence:** GATE-CI-FINAL changes Open to Accepted; no other required
+case changes state. Evidence index **907**; acceptance ledger **58 cases:
+37 Accepted, nine Open, one Failed, nine Blocked, two Optional**.
+REL-PIPELINE/I562 stays Failed until the protected draft uploads and verifies
+every server digest. No release exists or is public at this observation;
+stable publication remains NO-GO.
