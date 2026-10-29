@@ -130,16 +130,19 @@ foreach ($dir in @($publish, $fdd)) {
     Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
 }
 
-function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output) {
+function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output, [string[]]$Extra = @()) {
     & dotnet run --project (Join-Path $root 'eng/ArtifactSbom') -c Release -- `
         $Payload (Join-Path $root 'licenses/dependencies/index.json') $Version $Runtime $Kind `
-        $sourceIdentity $createdUtc $Output
+        $sourceIdentity $createdUtc $Output @Extra
     if ($LASTEXITCODE -ne 0) { throw "artifact SBOM failed: $Kind" }
 }
 
 # These describe exact unpacked payload trees and reviewed dependency/runtime identities. The final package
 # manifest separately pins the outer archive/installer bytes; signing and candidate qualification remain later gates.
-Write-ArtifactSbom $publish 'setup-payload' $sbomSetup
+# The installer adds Inno Setup's license text to the installed tree (eng/installer/FileCat.iss); the setup SBOM lists it
+# under Inno Setup's own package, with the loader and uninstaller the pinned compiler supplies.
+$innoVersion = (Get-Content -LiteralPath (Join-Path $root 'eng/toolchains/inno-setup.json') -Raw | ConvertFrom-Json).Version
+Write-ArtifactSbom $publish 'setup-payload' $sbomSetup @("licenses/InnoSetup-$innoVersion.txt=$(Join-Path $root "eng/installer/licenses/InnoSetup-$innoVersion.txt")")
 Write-ArtifactSbom $fdd 'fdd' $sbomFdd
 
 # Portable ZIP: same binaries plus the marker that keeps settings and data beside the executable.

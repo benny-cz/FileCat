@@ -79,11 +79,24 @@ try
     var seenRuntimePacks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var references = new Dictionary<string, ReferenceInfo>(StringComparer.OrdinalIgnoreCase);
     var projects = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var omittedProjects = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
     string[] depsFiles = FindFiles(new DirectoryInfo(payload), ".deps.json").Order(StringComparer.Ordinal).ToArray();
     if (depsFiles.Length == 0) throw new InvalidDataException("Payload has no dependency manifest.");
     foreach (string depsPath in depsFiles)
     {
         using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(depsPath));
+        // The runtime files each library contributes, as the manifest's targets name them.
+        var runtimeAssets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (depsDocument.RootElement.TryGetProperty("targets", out JsonElement targets) && targets.ValueKind == JsonValueKind.Object)
+            foreach (JsonProperty target in targets.EnumerateObject().Where(target => target.Value.ValueKind == JsonValueKind.Object))
+                foreach (JsonProperty entry in target.Value.EnumerateObject())
+                    if (entry.Value.ValueKind == JsonValueKind.Object && entry.Value.TryGetProperty("runtime", out JsonElement assets)
+                        && assets.ValueKind == JsonValueKind.Object)
+                    {
+                        if (!runtimeAssets.TryGetValue(entry.Name, out List<string>? list)) runtimeAssets[entry.Name] = list = [];
+                        list.AddRange(assets.EnumerateObject().Select(asset => asset.Name));
+                    }
+        string depsFolder = Path.GetDirectoryName(depsPath) ?? throw new InvalidDataException("Dependency manifest has no folder.");
         foreach (JsonProperty library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
         {
             int separator = library.Name.LastIndexOf('/');
@@ -110,6 +123,14 @@ try
             }
             else if (type == "project")
             {
+                // Named runtime files that are all missing mean the project is not shipped in this payload: the Linux and
+                // macOS packages drop the Windows-only helpers after publishing, while FileCat.deps.json still names them.
+                if (runtimeAssets.TryGetValue(library.Name, out List<string>? named) && named.Count > 0
+                    && !named.Any(asset => File.Exists(Path.Combine(depsFolder, asset.Replace('/', Path.DirectorySeparatorChar)))))
+                {
+                    omittedProjects.Add(id);
+                    continue;
+                }
                 if (projects.TryGetValue(id, out string? existing) && existing != libraryVersion)
                     throw new InvalidDataException("Conflicting project version in payload.");
                 projects[id] = libraryVersion;
@@ -132,6 +153,7 @@ try
             else throw new InvalidDataException("Unsupported dependency kind in payload.");
         }
     }
+    omittedProjects.ExceptWith(projects.Keys);
     if (references.Values.Any(reference => !seenPackages.Contains(reference.ParentPackage)))
         throw new InvalidDataException("Published reference component omits its reviewed parent package.");
     bool selfContained = kind != "fdd";
@@ -158,7 +180,15 @@ try
         files.Add(ReadFile(item, logical));
     }
     files.Sort((left, right) => string.CompareOrdinal(left.Path, right.Path));
-    string verification = Hex(SHA1.HashData(Encoding.ASCII.GetBytes(string.Concat(files.Select(file => file.SHA1).Order(StringComparer.Ordinal)))));
+    // The runtime an AppImage starts with is type2-runtime, under its own licenses: its own package holds it, not FileCat's.
+    FileRecord? appImageRuntime = kind == "appimage" ? files.FirstOrDefault(file => file.Path == ".appimage/runtime") : null;
+    // The installer adds Inno Setup's license text to the installed tree; with it come Inno Setup's loader (the setup
+    // executable) and the uninstaller it installs, which are Inno Setup's work and under its license, not FileCat's.
+    FileRecord? innoLicense = kind == "setup-payload"
+        ? files.FirstOrDefault(file => file.Path.StartsWith("licenses/InnoSetup-", StringComparison.Ordinal) && file.Path.EndsWith(".txt", StringComparison.Ordinal))
+        : null;
+    List<FileRecord> ownFiles = files.Where(file => !ReferenceEquals(file, appImageRuntime) && !ReferenceEquals(file, innoLicense)).ToList();
+    string verification = VerificationCode(ownFiles);
     string treeIdentity = TreeIdentity(files);
     string rootId = "SPDXRef-Package-FileCat";
 
@@ -177,8 +207,9 @@ try
             ["licenseDeclared"] = "MIT",
             ["copyrightText"] = "Copyright (c) 2026 Benny and FileCat contributors",
             ["sourceInfo"] = sourceStatement,
-            ["comment"] = $"Exact {kind} payload tree for {rid}; tree SHA-256 {treeIdentity}. Preliminary composition evidence, not signing or candidate qualification.",
-            ["hasFiles"] = new JsonArray(files.Select(file => (JsonNode?)file.SpdxId).ToArray()),
+            ["comment"] = $"Exact {kind} payload tree for {rid}; tree SHA-256 {treeIdentity}. Preliminary composition evidence, not signing or candidate qualification."
+                + (omittedProjects.Count == 0 ? "" : $" Its dependency manifest also names {string.Join(", ", omittedProjects)}, whose files this payload does not carry: not shipped here."),
+            ["hasFiles"] = new JsonArray(ownFiles.Select(file => (JsonNode?)file.SpdxId).ToArray()),
             ["externalRefs"] = new JsonArray(new JsonObject
             {
                 ["referenceCategory"] = "OTHER",
@@ -285,6 +316,61 @@ try
     {
         ["spdxElementId"] = "SPDXRef-DOCUMENT", ["relationshipType"] = "DESCRIBES", ["relatedSpdxElement"] = rootId
     });
+    if (appImageRuntime is not null)
+    {
+        // Its version comes from the reviewed runtime snapshot beside the dependency index, when there is one.
+        string runtimeIndex = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(noticeIndexPath)) ?? "", "appimage-runtime", "index.json");
+        string runtimeVersion = "NOASSERTION";
+        if (File.Exists(runtimeIndex))
+        {
+            using var runtimeDocument = JsonDocument.Parse(File.ReadAllBytes(runtimeIndex));
+            runtimeVersion = runtimeDocument.RootElement.GetProperty("RuntimeInput").GetProperty("DeclaredSourceCommit").GetString() ?? "NOASSERTION";
+        }
+        spdxPackages.Add(new JsonObject
+        {
+            ["name"] = "type2-runtime",
+            ["SPDXID"] = "SPDXRef-AppImage-Runtime",
+            ["versionInfo"] = runtimeVersion,
+            ["downloadLocation"] = "https://github.com/AppImage/type2-runtime",
+            ["filesAnalyzed"] = true,
+            ["packageVerificationCode"] = new JsonObject { ["packageVerificationCodeValue"] = VerificationCode([appImageRuntime]) },
+            ["hasFiles"] = new JsonArray(appImageRuntime.SpdxId),
+            ["licenseConcluded"] = "NOASSERTION",
+            ["licenseDeclared"] = "MIT AND LGPL-2.1-only AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
+            ["licenseComments"] = "type2-runtime (MIT) statically linking libfuse 3.15.0 (LGPL-2.1-only), squashfuse 0.5.2 (BSD-2-Clause), "
+                + "zstd (BSD-3-Clause), zlib (Zlib), mimalloc (MIT) and musl (MIT), as its producer declares them; texts in "
+                + "licenses/appimage-runtime. Its corresponding source ships beside the AppImage as "
+                + $"FileCat-{version}-{rid}-appimage-runtime-source.tar.gz.",
+            ["copyrightText"] = "NOASSERTION",
+            ["comment"] = "The bytes this AppImage starts with: the reviewed runtime of eng/linux/appimage-runtime, with the "
+                + "AppImage's MD5 digest that appimagetool writes into its .digest_md5 section."
+        });
+        relationships.Add(new JsonObject { ["spdxElementId"] = rootId, ["relationshipType"] = "CONTAINS", ["relatedSpdxElement"] = "SPDXRef-AppImage-Runtime" });
+    }
+    if (innoLicense is not null)
+    {
+        string innoVersion = innoLicense.Path["licenses/InnoSetup-".Length..^".txt".Length];
+        spdxPackages.Add(new JsonObject
+        {
+            ["name"] = "Inno Setup",
+            ["SPDXID"] = "SPDXRef-Inno-Setup",
+            ["versionInfo"] = innoVersion,
+            ["downloadLocation"] = "https://jrsoftware.org/isinfo.php",
+            ["filesAnalyzed"] = true,
+            ["packageVerificationCode"] = new JsonObject { ["packageVerificationCodeValue"] = VerificationCode([innoLicense]) },
+            ["hasFiles"] = new JsonArray(innoLicense.SpdxId),
+            ["licenseConcluded"] = "NOASSERTION",
+            ["licenseDeclared"] = "NOASSERTION",
+            ["licenseComments"] = $"Inno Setup License (Jordan Russell and Martijn Laan), a permissive license that is not SPDX-listed or "
+                + $"OSI-approved; its text is installed as {innoLicense.Path}.",
+            ["copyrightText"] = "Copyright (C) 1997-2026 Jordan Russell. Portions Copyright (C) 2000-2026 Martijn Laan.",
+            ["comment"] = $"The installer's loader (the setup executable's own code) and the uninstaller it installs (unins000.exe, with "
+                + $"unins000.dat) are Inno Setup {innoVersion}'s, from the pinned compiler (eng/toolchains/inno-setup.json). Their bytes "
+                + "come from that compiler when the installer is built and are not in this payload tree; the installer build's receipt "
+                + "pins the setup executable."
+        });
+        relationships.Add(new JsonObject { ["spdxElementId"] = rootId, ["relationshipType"] = "CONTAINS", ["relatedSpdxElement"] = "SPDXRef-Inno-Setup" });
+    }
     foreach (string dependencyId in dependencyIds.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         relationships.Add(new JsonObject { ["spdxElementId"] = rootId, ["relationshipType"] = "DEPENDS_ON", ["relatedSpdxElement"] = dependencyId });
 
@@ -348,6 +434,8 @@ catch (Exception error)
 static string Required(JsonElement value, string name) => value.GetProperty(name).GetString()
     ?? throw new InvalidDataException($"Missing string field: {name}");
 static string Hex(byte[] value) => Convert.ToHexString(value).ToLowerInvariant();
+static string VerificationCode(IEnumerable<FileRecord> files) =>
+    Hex(SHA1.HashData(Encoding.ASCII.GetBytes(string.Concat(files.Select(file => file.SHA1).Order(StringComparer.Ordinal)))));
 static string SpdxId(string kind, string identity) => "SPDXRef-" + kind + "-" + Hex(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..20];
 static bool IsSpdxLicense(string value) => value is "MIT" or "Apache-2.0" or "BSD-2-Clause" or "BSD-3-Clause" or "LGPL-2.1-only" or "LGPL-2.1-or-later";
 static string NormalizeLogical(string value)

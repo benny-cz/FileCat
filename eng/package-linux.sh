@@ -220,9 +220,6 @@ APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
 SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
 rm -f "$APPIMAGE" "$APPIMAGE.rejected"
 rm -f "$SBOM_APPIMAGE"
-dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
-  "$APPDIR" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_APPIMAGE" \
-  ".appimage/runtime=$RUNTIME"
 # Runs without FUSE (CI containers).
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
@@ -237,6 +234,22 @@ if ! echo "$RUNTIME_SUM  $PREFIX" | sha256sum -c --quiet -; then
   exit 2
 fi
 rm -f "$PREFIX"
+# Its SBOM describes the AppImage as built: the file system appimagetool packed (with the .DirIcon it adds) and the runtime
+# bytes the AppImage starts with (the reviewed runtime plus the digest appimagetool wrote), which the SBOM files under the
+# runtime's own package and licenses. An AppImage whose SBOM cannot be written does not keep its release name.
+SHIPPED="$OUT/appimage-shipped-$RID"
+rm -rf "$SHIPPED"
+mkdir -p "$SHIPPED"
+head -c "$(wc -c < "$RUNTIME")" "$APPIMAGE" > "$SHIPPED/runtime"
+if ! (cd "$SHIPPED" && "$APPIMAGE" --appimage-extract > /dev/null) \
+  || ! dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
+    "$SHIPPED/squashfs-root" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_IDENTITY" "$CREATED_UTC" \
+    "$SBOM_APPIMAGE" ".appimage/runtime=$SHIPPED/runtime"; then
+  mv -f "$APPIMAGE" "$APPIMAGE.rejected"
+  echo "The AppImage's SBOM could not be written from the AppImage as built; kept as $APPIMAGE.rejected." >&2
+  exit 2
+fi
+rm -rf "$SHIPPED"
 
 # 4) The runtime's corresponding source (EXT-04: LGPL-2.1 section 6 for its static libfuse), attached beside the
 # AppImage: the libfuse, squashfuse and type2-runtime sources exactly as published, the upstream producer's package

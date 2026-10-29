@@ -42,7 +42,7 @@ def write_json(path: pathlib.Path, value) -> None:
 
 
 def deps(include_runtime=True, package_hash="pkg-content", package_id="Fixture.Package",
-         reference_id="Fixture.Package.Core", reference_hash="", projects=()):
+         reference_id="Fixture.Package.Core", reference_hash="", projects=(), project_runtime=None):
     libraries = {
         f"{package_id}/1.2.3": {"type": "package", "serviceable": True, "sha512": "sha512-" + package_hash},
         "FileCat/1.0.0": {"type": "project", "serviceable": False, "sha512": ""},
@@ -54,7 +54,12 @@ def deps(include_runtime=True, package_hash="pkg-content", package_id="Fixture.P
         libraries["runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14"] = {
             "type": "runtimepack", "serviceable": False, "sha512": ""
         }
-    return {"runtimeTarget": {"name": ".NETCoreApp,Version=v10.0/win-x64", "signature": ""}, "libraries": libraries}
+    value = {"runtimeTarget": {"name": ".NETCoreApp,Version=v10.0/win-x64", "signature": ""}, "libraries": libraries}
+    if project_runtime:
+        # The runtime files a project contributes, as a real manifest's targets name them.
+        value["targets"] = {".NETCoreApp,Version=v10.0/win-x64": {
+            f"{project}/1.0.0": {"runtime": {asset: {}}} for project, asset in project_runtime.items()}}
+    return value
 
 
 def snapshot(extra_package=False):
@@ -86,10 +91,13 @@ def snapshot(extra_package=False):
 
 def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-content", runtime_hash=RUNTIME_ARCHIVE_SHA512,
             package_id="Fixture.Package", reference_id="Fixture.Package.Core", reference_hash="",
-            extra_package=False, projects=()):
+            extra_package=False, projects=(), project_runtime=None, project_files=()):
     payload = folder / "payload"
     payload.mkdir(parents=True)
-    write_json(payload / "FileCat.deps.json", deps(include_runtime, package_hash, package_id, reference_id, reference_hash, projects))
+    write_json(payload / "FileCat.deps.json", deps(include_runtime, package_hash, package_id, reference_id, reference_hash,
+                                                   projects, project_runtime))
+    for name in project_files:
+        (payload / name).write_bytes(b"project-fixture\x00" + name.encode("utf-8"))
     (payload / "FileCat.dll").write_bytes(b"managed-fixture\x00\x01")
     (payload / "Fixture.Package.Core.dll").write_bytes(REFERENCE_BYTES)
     (payload / "nested").mkdir()
@@ -139,12 +147,14 @@ def main() -> int:
             runtime_hash=RUNTIME_ARCHIVE_SHA512, package_id="Fixture.Package", extra_package=False,
             reference_id="Fixture.Package.Core", reference_hash="", output_inside=False, precreate=False,
             extras=(), mutate=None, mutate_runtime_archive=False, mutate_package_archive=False,
-            expected_reference_sha256=None, projects=(), expected_project_licenses=None):
+            expected_reference_sha256=None, projects=(), expected_project_licenses=None, project_runtime=None,
+            project_files=(), expected_root_comment=None, expected_appimage_runtime=False, expected_inno=False):
         folder = evidence / "cases" / name
         payload, index, packages_root = prepare(folder, include_runtime=include_runtime, package_hash=package_hash,
                                                 runtime_hash=runtime_hash, package_id=package_id,
                                                 reference_id=reference_id, reference_hash=reference_hash,
-                                                extra_package=extra_package, projects=projects)
+                                                extra_package=extra_package, projects=projects,
+                                                project_runtime=project_runtime, project_files=project_files)
         if mutate:
             mutate(payload, index)
         if mutate_runtime_archive:
@@ -182,6 +192,25 @@ def main() -> int:
                     for checksum in value["checksums"] if checksum["algorithm"] == "SHA256"), None),
                 "ProjectLicenses": {value["name"]: value["licenseDeclared"] for value in document["packages"]
                                     if value["SPDXID"].startswith("SPDXRef-Project-")},
+                "RootComment": root_package["comment"],
+            }
+            runtime_files = [value["SPDXID"] for value in files if value["fileName"] == "./.appimage/runtime"]
+            runtime_package = next((value for value in document["packages"] if value["SPDXID"] == "SPDXRef-AppImage-Runtime"), None)
+            details["AppImageRuntime"] = None if runtime_package is None else {
+                "License": runtime_package["licenseDeclared"],
+                "HoldsRuntimeFile": runtime_package.get("hasFiles") == runtime_files and len(runtime_files) == 1,
+                "OutsideFileCat": not set(runtime_files) & set(root_package["hasFiles"]),
+                "Contained": any(value["spdxElementId"] == "SPDXRef-Package-FileCat" and value["relationshipType"] == "CONTAINS"
+                                 and value["relatedSpdxElement"] == "SPDXRef-AppImage-Runtime"
+                                 for value in document["relationships"]),
+            }
+            inno_files = [value["SPDXID"] for value in files if value["fileName"].startswith("./licenses/InnoSetup-")]
+            inno_package = next((value for value in document["packages"] if value["SPDXID"] == "SPDXRef-Inno-Setup"), None)
+            details["InnoSetup"] = None if inno_package is None else {
+                "Version": inno_package["versionInfo"],
+                "HoldsLicenseText": inno_package.get("hasFiles") == inno_files and len(inno_files) == 1,
+                "OutsideFileCat": not set(inno_files) & set(root_package["hasFiles"]),
+                "NamesUninstaller": "unins000.exe" in inno_package["comment"],
             }
             passed = (passed and details["SPDXVersion"] == "SPDX-2.3" and details["SortedUniqueFiles"]
                       and details["GeneratorAssemblyHashBound"])
@@ -189,6 +218,21 @@ def main() -> int:
                 passed = passed and details["ReferenceFileSHA256"] == expected_reference_sha256
             if expected_project_licenses is not None:
                 passed = passed and details["ProjectLicenses"] == expected_project_licenses
+            if expected_root_comment is not None:
+                passed = passed and expected_root_comment in details["RootComment"]
+            runtime = details["AppImageRuntime"]
+            if expected_appimage_runtime:
+                passed = passed and runtime == {
+                    "License": "MIT AND LGPL-2.1-only AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
+                    "HoldsRuntimeFile": True, "OutsideFileCat": True, "Contained": True}
+            else:
+                passed = passed and runtime is None
+            inno = details["InnoSetup"]
+            if expected_inno:
+                passed = passed and inno == {"Version": "6.7.1", "HoldsLicenseText": True, "OutsideFileCat": True,
+                                             "NamesUninstaller": True}
+            else:
+                passed = passed and inno is None
         elif precreate:
             passed = passed and output.read_text(encoding="utf-8") == "preserve"
         cases.append({
@@ -201,10 +245,16 @@ def main() -> int:
     run("framework-dependent", True, kind="fdd", include_runtime=False)
     extra = evidence / "extra-runtime"
     extra.write_bytes(b"appimage-runtime")
-    run("extra-file", True, kind="appimage", extras=(f".appimage/runtime={extra}",))
+    # An AppImage's runtime is type2-runtime, under its own licenses: its own package holds it, not FileCat's.
+    run("extra-file", True, kind="appimage", extras=(f".appimage/runtime={extra}",), expected_appimage_runtime=True)
     run("wrong-package-hash", False, package_hash="wrong")
     run("unknown-package", False, package_id="Unknown.Package")
     run("unused-reviewed-package", True, extra_package=True)
+    # The installer adds Inno Setup's license text; the setup SBOM files it, with Inno Setup's loader and uninstaller, under
+    # Inno Setup's own package.
+    inno_text = evidence / "InnoSetup-6.7.1.txt"
+    inno_text.write_bytes(b"Inno Setup License fixture\n")
+    run("inno-setup-license", True, extras=(f"licenses/InnoSetup-6.7.1.txt={inno_text}",), expected_inno=True)
     # FileCat's projects are MIT, except its XADMaster port (LGPL) and its build of SharpCompress, whose parts keep their
     # own licenses (licenses/sharpcompress/COMPONENTS.md).
     run("project-licenses", True, projects=("FileCat.Core", "FileCat.Archives.Rar15", "FileCat.SharpCompress"),
@@ -213,6 +263,14 @@ def main() -> int:
             "FileCat.Core": "MIT",
             "FileCat.SharpCompress": "MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
         })
+    # A project the manifest names but whose files the payload lacks (the Windows-only helpers in the Linux and macOS
+    # packages) is not shipped there; with its file present it is listed.
+    run("project-files-absent-omitted", True, projects=("FileCat.ShellHost",),
+        project_runtime={"FileCat.ShellHost": "FileCat.ShellHost.dll"}, expected_project_licenses={},
+        expected_root_comment="also names FileCat.ShellHost, whose files this payload does not carry")
+    run("project-files-present-listed", True, projects=("FileCat.ShellHost",),
+        project_runtime={"FileCat.ShellHost": "FileCat.ShellHost.dll"}, project_files=("FileCat.ShellHost.dll",),
+        expected_project_licenses={"FileCat.ShellHost": "MIT"})
     run("unknown-reference-origin", False, reference_id="Other.Component")
     run("hashed-reference", False, reference_hash="sha512-unreviewed")
     run("generated-reference-bytes-recorded", True,

@@ -4,13 +4,19 @@ param(
     [ValidateSet('x64', 'arm64')][string]$Architecture = 'x64',
     [Parameter(Mandatory)][string]$CompilerRoot,
     [Parameter(Mandatory)][string]$ReceiptDirectory,
-    [ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit = $env:GITHUB_SHA
+    [ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit = $env:GITHUB_SHA,
+    # The folder eng/publish.ps1 wrote the payload and its SBOMs to (its -ArtifactDirectory); artifacts/ by default.
+    [string]$ArtifactDirectory
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $recipe = Join-Path $PSScriptRoot 'installer/FileCat.iss'
-$publish = Join-Path $repo "artifacts/publish/win-$Architecture"
-$output = Join-Path $repo "artifacts/FileCat-$Version-win-$Architecture-setup.exe"
+$artifacts = if ([string]::IsNullOrWhiteSpace($ArtifactDirectory)) { Join-Path $repo 'artifacts' } else { [IO.Path]::GetFullPath($ArtifactDirectory) }
+$publish = Join-Path $artifacts "publish/win-$Architecture"
+$output = Join-Path $artifacts "FileCat-$Version-win-$Architecture-setup.exe"
+function RepoPath([string]$Path) {
+    if ($Path.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { $Path.Substring($repo.Length + 1).Replace('\', '/') } else { $Path.Replace('\', '/') }
+}
 if (Test-Path -LiteralPath $output) { throw 'Installer output already exists; use a clean package workspace.' }
 if (-not (Test-Path -LiteralPath $ReceiptDirectory -PathType Container)) { throw 'Compiler receipt directory is missing.' }
 $compiler = & (Join-Path $PSScriptRoot 'Assert-InnoSetupCompiler.ps1') -ToolRoot $CompilerRoot
@@ -21,14 +27,18 @@ function InputInventory {
         (Join-Path $repo 'src/FileCat.App/Assets/filecat.ico'), (Join-Path $PSScriptRoot 'installer/licenses/InnoSetup-6.7.1.txt'))
     @($files | Sort-Object FullName | ForEach-Object {
         [pscustomobject]@{
-            Path = $_.FullName.Substring($repo.Length + 1).Replace('\', '/')
+            Path = RepoPath $_.FullName
             Bytes = $_.Length
             SHA256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         }
     })
 }
 $before = InputInventory
-$arguments = '"/DAppVersion=' + $Version + '" "/DArch=' + $Architecture + '" "' + $recipe + '"'
+# The installer packages exactly the payload its setup SBOM describes, from the folder publish.ps1 wrote, into that folder.
+$sboms = @(Get-ChildItem -LiteralPath $artifacts -File -Filter "sbom-$Version*-win-$Architecture-setup-payload.spdx.json")
+if ($sboms.Count -ne 1) { throw "Expected one setup SBOM for $Version win-$Architecture in $artifacts; found $($sboms.Count)." }
+$sbomCheck = & (Join-Path $PSScriptRoot 'Assert-SetupPayloadMatchesSbom.ps1') -Payload $publish -Sbom $sboms[0].FullName
+$arguments = '"/DAppVersion=' + $Version + '" "/DArch=' + $Architecture + '" "/DPayloadDir=' + $publish + '" "/O' + $artifacts + '" "' + $recipe + '"'
 $start = [Diagnostics.ProcessStartInfo]::new($compiler.Executable)
 $start.Arguments = $arguments
 $start.WorkingDirectory = $repo
@@ -54,7 +64,7 @@ $unchanged = ($before | ConvertTo-Json -Depth 4 -Compress) -ceq ($after | Conver
 $compilerAfter = & (Join-Path $PSScriptRoot 'Assert-InnoSetupCompiler.ps1') -ToolRoot $CompilerRoot
 $outputPin = $null
 if (Test-Path -LiteralPath $output) {
-    $outputPin = [ordered]@{ Path = $output.Substring($repo.Length + 1).Replace('\', '/'); Bytes = (Get-Item -LiteralPath $output).Length
+    $outputPin = [ordered]@{ Path = RepoPath $output; Bytes = (Get-Item -LiteralPath $output).Length
         SHA256 = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToLowerInvariant() }
 }
 $receipt = [ordered]@{
@@ -62,6 +72,7 @@ $receipt = [ordered]@{
     Arguments = $arguments; CompilerSHA256 = (Get-FileHash -LiteralPath $compiler.Executable -Algorithm SHA256).Hash.ToLowerInvariant()
     CompilerVersion = $compiler.Version; CompilerManifestSHA256 = $compiler.ManifestSHA256
     FrozenFilesVerifiedBeforeAndAfter = $compilerAfter.FilesVerified; Inputs = $before; InputsUnchanged = $unchanged
+    SetupSbom = RepoPath $sbomCheck.Sbom; PayloadMatchesSetupSbom = $true
     ExitCode = $exitCode; TimedOut = $timedOut; Output = $outputPin
 }
 [IO.File]::WriteAllText((Join-Path $ReceiptDirectory "installer-win-$Architecture.json"), ($receipt | ConvertTo-Json -Depth 7))

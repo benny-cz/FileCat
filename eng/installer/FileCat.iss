@@ -1,5 +1,6 @@
 ; FileCat per-machine installer (plan §19.3, ADR-15), for x64 or ARM64 Windows (D-48).
-; Build: run eng/publish.ps1 first (with -Runtime win-arm64 for ARM64), then:
+; Build: run eng/publish.ps1 first (with -Runtime win-arm64 for ARM64), then eng/Compile-WindowsInstaller.ps1, which
+; checks the payload against its setup SBOM and passes PayloadDir and the output folder; by hand:
 ;   iscc /DAppVersion=0.1.0 eng\installer\FileCat.iss               (x64)
 ;   iscc /DAppVersion=0.1.0 /DArch=arm64 eng\installer\FileCat.iss  (ARM64)
 ; The pinned Inno Setup tool builds the shipped installer engine/loader/uninstaller (modified BSD license).
@@ -10,6 +11,9 @@
 #endif
 #ifndef Arch
   #define Arch "x64"
+#endif
+#ifndef PayloadDir
+  #define PayloadDir "..\..\artifacts\publish\win-" + Arch
 #endif
 
 [Setup]
@@ -46,7 +50,7 @@ CloseApplications=yes
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\..\artifacts\publish\win-{#Arch}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "licenses\InnoSetup-6.7.1.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
