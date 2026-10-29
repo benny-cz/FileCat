@@ -33,7 +33,11 @@ for current readiness and remaining qualification; the screenshots show a develo
   compare-and-mark (Ctrl+F10).
 - **Viewer**: F3 text/hex viewer that reads multi-gigabyte files without loading them whole, encoding detection with
   evidence, search, go to offset, checksums, follow mode; Ctrl+Q quick view.
-- **Archives**: ZIP browsing and extraction (read-only) with Mark-of-the-Web propagation.
+- **Archives**: browse, view and extract ZIP, 7z, RAR (1.5 to 7, solid and multi-volume, with
+  FileCat's own reader), TAR (plain or gzip, bzip2, xz or zstd compressed), single compressed files
+  and ISO 9660/UDF images; archives nest inside each other. Members whose checksums do not match are
+  reported as damaged, and extraction carries the Mark of the Web. ZIP archives can also be changed:
+  each change rebuilds the archive and replaces it only once verified.
 - **Windows integration**: native CopyFile2 (keeps ReFS block cloning and SMB offload), SMB share
   listing with credential prompts, terminals, reveal in Explorer, and the installed Windows file
   context menu with application commands and icons. Shell extensions run in a separate process.
