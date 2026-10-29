@@ -68,9 +68,17 @@ for ($Depth=0; $Object.type -ceq 'tag' -and $Depth -lt 5; $Depth++) {
 if ($Object.type -cne 'commit' -or $Object.sha -cne $SourceCommit) { throw 'Remote tag differs from the selected source commit.' }
 $Releases = [Collections.Generic.List[object]]::new()
 for ($Page=1; $Page -le 100; $Page++) {
-    $Rows = @(Read-GitHub "releases?per_page=100&page=$Page")
+    # Invoke-RestMethod emits an empty JSON array as one empty Object[] object.
+    # @(...), unlike direct assignment, wraps it in another array and makes the
+    # loop below inspect a non-release object under StrictMode.
+    $Rows = Read-GitHub "releases?per_page=100&page=$Page"
+    if ($null -eq $Rows) { throw 'Malformed release page.' }
+    if ($Rows -isnot [array]) { $Rows = @($Rows) }
     if ($Rows.Count -gt 100) { throw 'Malformed release page.' }
-    foreach ($Row in $Rows) { if ($Row.tag_name -ceq $Tag) { $Releases.Add($Row) } }
+    foreach ($Row in $Rows) {
+        if ($null -eq $Row -or $Row -isnot [pscustomobject] -or $Row.PSObject.Properties.Name -notcontains 'tag_name') { throw 'Malformed release entry.' }
+        if ($Row.tag_name -ceq $Tag) { $Releases.Add($Row) }
+    }
     if ($Rows.Count -lt 100) { break }
 }
 if ($Page -gt 100 -or $Releases.Count -gt 1) { throw 'Release inventory is incomplete or ambiguous.' }
@@ -82,9 +90,15 @@ if ($Releases.Count -eq 1) {
     if ($Release.PSObject.Properties.Name -contains 'immutable' -and $Release.immutable) { throw 'Existing release is immutable.' }
     $ReleaseID = $Release.id
     for ($Page=1; $Page -le 100; $Page++) {
-        $Rows = @(Read-GitHub "releases/$ReleaseID/assets?per_page=100&page=$Page")
+        $Rows = Read-GitHub "releases/$ReleaseID/assets?per_page=100&page=$Page"
+        if ($null -eq $Rows) { throw 'Malformed asset page.' }
+        if ($Rows -isnot [array]) { $Rows = @($Rows) }
         if ($Rows.Count -gt 100) { throw 'Malformed asset page.' }
-        foreach ($Row in $Rows) { $Assets.Add($Row) }
+        foreach ($Row in $Rows) {
+            if ($null -eq $Row -or $Row -isnot [pscustomobject] -or
+                $Row.PSObject.Properties.Name -notcontains 'id' -or $Row.PSObject.Properties.Name -notcontains 'name') { throw 'Malformed asset entry.' }
+            $Assets.Add($Row)
+        }
         if ($Rows.Count -lt 100) { break }
     }
     if ($Page -gt 100) { throw 'Asset inventory is incomplete.' }

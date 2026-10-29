@@ -8,18 +8,22 @@ It follows the familiar conventions of Open Salamander, Total Commander and FAR 
 explicit operation targets and clear reports of what completed, failed or remains uncertain.
 
 Built with **C# · .NET 10 · Avalonia 12**. **MIT-licensed.** Windows provides the full native
-integration; Linux and macOS builds run the portable core.
+integration; Linux and macOS builds run the portable core. A written architecture, automated
+tests, native platform checks and [retained release evidence](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
+back the implementation.
 
 [Explore the features](#highlights) · [Choose a theme](#make-it-yours) · [Keyboard essentials](#keyboard-essentials) · [Build and run](#build-and-run)
 
-![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.jpg)
+![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.png)
 
-*Four panels, twelve tabs, one workspace. Real Windows captures using owned demonstration files.*
+*Four panels, twelve tabs, one workspace. Current FileCat MainWindow rendered on Windows with owned demonstration files.*
 
 FileCat 1.0.0 is in release validation. See the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
 for current readiness and remaining qualification; the screenshots show a development build.
 
 ## Highlights
+
+### Main features
 
 - **Panels and tabs**: two panels by default, more when there is room, each with its own target;
   locked tabs, recently closed tabs, bookmarks (Ctrl+0–9), histories (Alt+F11/F12), named workspaces;
@@ -33,6 +37,9 @@ for current readiness and remaining qualification; the screenshots show a develo
   compare-and-mark (Ctrl+F10).
 - **Viewer**: F3 text/hex viewer that reads multi-gigabyte files without loading them whole, encoding detection with
   evidence, search, go to offset, checksums, follow mode; Ctrl+Q quick view.
+
+### Advanced features
+
 - **Archives**: browse, view and extract ZIP, 7z, RAR (1.5 to 7, solid and multi-volume, with
   FileCat's own reader), TAR (plain or gzip, bzip2, xz or zstd compressed), single compressed files
   and ISO 9660/UDF images; archives nest inside each other. Members whose checksums do not match are
@@ -60,27 +67,41 @@ Animated effects can be turned off, and system high contrast takes priority.
 
 <table>
 <tr>
-<td width="50%"><strong>Classic</strong><br><a href="docs/screenshots/windows/Classic.jpg"><img src="docs/screenshots/windows/Classic.jpg" alt="FileCat Classic on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>Classic Dark</strong><br><a href="docs/screenshots/windows/ClassicDark.jpg"><img src="docs/screenshots/windows/ClassicDark.jpg" alt="FileCat Classic Dark on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Classic</strong><br><a href="docs/screenshots/windows/Classic.png"><img src="docs/screenshots/windows/Classic.png" alt="FileCat Classic on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Classic Dark</strong><br><a href="docs/screenshots/windows/ClassicDark.png"><img src="docs/screenshots/windows/ClassicDark.png" alt="FileCat Classic Dark on Windows with four panels and three tabs in every panel" width="700"></a></td>
 </tr>
 <tr>
-<td width="50%"><strong>Cyberpunk</strong><br><a href="docs/screenshots/windows/Cyberpunk.jpg"><img src="docs/screenshots/windows/Cyberpunk.jpg" alt="FileCat Cyberpunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>Psychedelic</strong><br><a href="docs/screenshots/windows/Psychedelic.jpg"><img src="docs/screenshots/windows/Psychedelic.jpg" alt="FileCat Psychedelic on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Cyberpunk</strong><br><a href="docs/screenshots/windows/Cyberpunk.png"><img src="docs/screenshots/windows/Cyberpunk.png" alt="FileCat Cyberpunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Psychedelic</strong><br><a href="docs/screenshots/windows/Psychedelic.png"><img src="docs/screenshots/windows/Psychedelic.png" alt="FileCat Psychedelic on Windows with four panels and three tabs in every panel" width="700"></a></td>
 </tr>
 <tr>
-<td width="50%"><strong>Steampunk</strong><br><a href="docs/screenshots/windows/Steampunk.jpg"><img src="docs/screenshots/windows/Steampunk.jpg" alt="FileCat Steampunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>DOS Commander</strong><br><a href="docs/screenshots/windows/DosCommander.jpg"><img src="docs/screenshots/windows/DosCommander.jpg" alt="FileCat DOS Commander on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Steampunk</strong><br><a href="docs/screenshots/windows/Steampunk.png"><img src="docs/screenshots/windows/Steampunk.png" alt="FileCat Steampunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>DOS Commander</strong><br><a href="docs/screenshots/windows/DosCommander.png"><img src="docs/screenshots/windows/DosCommander.png" alt="FileCat DOS Commander on Windows with four panels and three tabs in every panel" width="700"></a></td>
 </tr>
 <tr>
-<td width="50%"><strong>High Contrast</strong><br><a href="docs/screenshots/windows/HighContrast.jpg"><img src="docs/screenshots/windows/HighContrast.jpg" alt="FileCat High Contrast on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>System (this host uses dark mode)</strong><br><a href="docs/screenshots/windows/System.jpg"><img src="docs/screenshots/windows/System.jpg" alt="FileCat System (this host uses dark mode) on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>High Contrast</strong><br><a href="docs/screenshots/windows/HighContrast.png"><img src="docs/screenshots/windows/HighContrast.png" alt="FileCat High Contrast on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>System (this guest uses light mode)</strong><br><a href="docs/screenshots/windows/System.png"><img src="docs/screenshots/windows/System.png" alt="FileCat System theme following the Windows guest's light mode, with four panels and three tabs in every panel" width="700"></a></td>
 </tr>
 </table>
 
-System adapts to the operating system; in this capture it matches the dark palette.
-[Capture details and exact source](docs/screenshots/windows/CAPTURE.md).
+System adapts to the operating system; this Windows guest uses a light palette.
+[Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
 
 </details>
+
+### On macOS and Ubuntu
+
+The same four-panel workspace, shown in one representative theme on each platform:
+
+<table>
+<tr>
+<td width="50%"><strong>macOS · Classic Dark</strong><br><a href="docs/screenshots/macos/ClassicDark.png"><img src="docs/screenshots/macos/ClassicDark.png" alt="FileCat Classic Dark rendered on macOS with four panels and twelve tabs" width="700"></a></td>
+<td width="50%"><strong>Ubuntu · Classic Dark</strong><br><a href="docs/screenshots/ubuntu/ClassicDark.png"><img src="docs/screenshots/ubuntu/ClassicDark.png" alt="FileCat Classic Dark rendered on Ubuntu with four panels and twelve tabs" width="700"></a></td>
+</tr>
+</table>
+
+These images render FileCat's MainWindow on each named OS. They show the portable UI, while
+[release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) tracks installed-app and native integration checks separately.
 
 ## Keyboard essentials
 

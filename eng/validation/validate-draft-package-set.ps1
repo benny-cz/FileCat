@@ -37,7 +37,7 @@ function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec){
     if($Suffix -ceq 'releases/51/assets?per_page=100&page=1'){
         if($Case.ContainsKey('Verify')){return $Remote}
         if($Case.Name -eq 'existing-last-platform'){return @($Remote | Where-Object {$_.name -ceq 'FileCat-1.0.0-rc.1-osx-arm64.zip'})}
-        return @()
+        Write-Output -NoEnumerate -InputObject ([object[]]@()); return
     }
     throw 'Unexpected substituted API path.'
 }

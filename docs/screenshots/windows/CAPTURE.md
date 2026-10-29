@@ -1,4 +1,7 @@
-# Windows theme captures
+# Historical native Windows theme captures
+
+These original 2026-10-09 JPEGs remain as native interaction evidence. The
+README now uses the [2026-10-29 current-source cross-platform PNG gallery](../CAPTURE-2026-10-29.md).
 
 Captured 2026-10-09 from the real Windows FileCat window using the supported `@oai/sky` computer-use API.
 Exact compiled source: `a2f6cd9109a6b3dfddad7e92e74c5875147c78f9`.

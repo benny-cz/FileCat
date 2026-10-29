@@ -3,6 +3,7 @@ using Avalonia.Headless;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using System.Text.Json;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
@@ -11,7 +12,8 @@ using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
 
 // Renders FileCat's main window off-screen to PNG files, one per theme, for visual checks of the whole app.
-// Usage: Screenshots <out-folder> <left> [<right>] [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3]
+// Usage: Screenshots <out-folder> <left> [<right>] [--workspace saved-workspace.json]
+//        [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3] [--dismiss-notification]
 //        [--frames 3 --every 700]   (several frames per theme, for animated themes)
 //        [--check "label"]   (tick a check box, in the window --in-window chooses)
 //        [--focus name] [--focus-right name] [--mark a;b] [--commands id,id]   (a scene: focus and mark items in the
@@ -47,7 +49,7 @@ Location Place(string arg)
 var left = Place(args[1]);
 var right = args.Length > 2 && !args[2].StartsWith("--", StringComparison.Ordinal) ? Place(args[2]) : left;
 string Option(string name, string fallback) => Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
-var themes = Option("--themes", string.Join(',', ThemePalette.All.Select(p => p.Name))).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var themes = Option("--themes", string.Join(',', ThemeManager.Names)).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var size = Option("--size", "1400x900").Split('x');
 double wait = double.Parse(Option("--wait", "3"), System.Globalization.CultureInfo.InvariantCulture);
 int frames = int.Parse(Option("--frames", "1"), System.Globalization.CultureInfo.InvariantCulture);
@@ -57,7 +59,16 @@ string? focusRight = Option("--focus-right", "") is { Length: > 0 } fr ? fr : nu
 var marks = Option("--mark", "").Split(';', StringSplitOptions.RemoveEmptyEntries);
 var commands = Option("--commands", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var presses = Option("--press", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+bool dismissNotification = args.Contains("--dismiss-notification");
 int tabIndex = int.Parse(Option("--tab", "-1"), System.Globalization.CultureInfo.InvariantCulture);
+WorkspaceState? showcaseWorkspace = null;
+if (Option("--workspace", "") is { Length: > 0 } workspacePath)
+{
+    showcaseWorkspace = JsonSerializer.Deserialize(File.ReadAllText(workspacePath), StateJsonContext.Default.WorkspaceState)
+        ?? throw new ArgumentException("The showcase workspace is empty.");
+    if (showcaseWorkspace.Panels.Count != 4 || showcaseWorkspace.Panels.Any(p => p.Tabs.Count < 3))
+        throw new ArgumentException("A showcase workspace needs four panels with at least three tabs each.");
+}
 
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
@@ -97,10 +108,16 @@ foreach (var theme in themes)
     ThemeManager.Apply(theme);
     var vm = new MainViewModel(services);
     var window = new MainWindow(vm, null) { Width = double.Parse(size[0], System.Globalization.CultureInfo.InvariantCulture), Height = double.Parse(size[1], System.Globalization.CultureInfo.InvariantCulture) };
-    vm.Initialize(null);
+    vm.Initialize(showcaseWorkspace);
+    // A screenshot may intentionally show the post-dismissal workspace. This is explicit so
+    // normal visual checks still expose state/load warnings by default.
+    if (dismissNotification) vm.ClearNotification();
     var panels = vm.Workspace.Panels;
-    panels[0].ActiveTab?.Navigate(left);
-    if (panels.Count > 1) panels[1].ActiveTab?.Navigate(right);
+    if (showcaseWorkspace is null)
+    {
+        panels[0].ActiveTab?.Navigate(left);
+        if (panels.Count > 1) panels[1].ActiveTab?.Navigate(right);
+    }
     opened.Clear();
     window.Show();
     Pump(TimeSpan.FromSeconds(wait));

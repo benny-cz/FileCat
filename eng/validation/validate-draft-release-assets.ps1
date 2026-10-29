@@ -20,7 +20,11 @@ $Source = '0123456789abcdef0123456789abcdef01234567'
 $Version = '1.0.0-rc.1'
 $Reference = "refs/tags/v$Version"
 $Cases = @(
-    @{Name='windows-new';Platform='windows'}, @{Name='linux-draft';Platform='linux'}, @{Name='macos-annotated';Platform='macos'},
+    @{Name='windows-new';Platform='windows'}, @{Name='windows-new-irm-empty';Platform='windows'},
+    @{Name='linux-draft';Platform='linux'}, @{Name='linux-draft-irm-empty-assets';Platform='linux'},
+    @{Name='macos-annotated';Platform='macos'},
+    @{Name='release-malformed-row';Error='Malformed release entry'},
+    @{Name='asset-malformed-row';Error='Malformed asset entry'},
     @{Name='duplicate-package';Error='An existing release asset conflicts'},
     @{Name='duplicate-same-digest';Error='An existing release asset conflicts'},
     @{Name='duplicate-manifest';Error='An existing release asset conflicts'},
@@ -66,12 +70,18 @@ function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec) {
     }
     if ($Suffix.StartsWith('git/tags/')) { return [pscustomobject]@{object=[pscustomobject]@{type=$(if ($Case.Name -eq 'annotated-depth') {'tag'} else {'commit'});sha=$Source}} }
     if ($Suffix -ceq 'releases?per_page=100&page=1') {
-        if ($Case.Name -in @('windows-new','macos-annotated')) { return @() }
+        # Invoke-RestMethod returns an empty JSON array as one empty array object,
+        # which @(...)-wrapping must not turn into one malformed release row.
+        if ($Case.Name -eq 'windows-new-irm-empty') { Write-Output -NoEnumerate -InputObject ([object[]]@()); return }
+        if ($Case.Name -eq 'release-malformed-row') { return @([pscustomobject]@{message='synthetic malformed row'}) }
+        if ($Case.Name -in @('windows-new','macos-annotated')) { Write-Output -NoEnumerate -InputObject ([object[]]@()); return }
         $Draft = [pscustomobject]@{id=51;tag_name="v$Version";draft=($Case.Name -ne 'published-release');prerelease=$true;immutable=($Case.Name -eq 'immutable-release')}
         if ($Case.Name -eq 'ambiguous-release') { return @($Draft,$Draft) }
         return @($Draft)
     }
     if ($Suffix -ceq 'releases/51/assets?per_page=100&page=1') {
+        if ($Case.Name -eq 'linux-draft-irm-empty-assets') { Write-Output -NoEnumerate -InputObject ([object[]]@()); return }
+        if ($Case.Name -eq 'asset-malformed-row') { return @([pscustomobject]@{message='synthetic malformed asset'}) }
         if ($Case.ContainsKey('Verify')) { return $RemoteUploads }
         if ($Case.Name -eq 'duplicate-next-page') {
             return @(1..100 | ForEach-Object {[pscustomobject]@{id=$_;name="unrelated-owned-$_.zip";label=$null;digest=$null}})
