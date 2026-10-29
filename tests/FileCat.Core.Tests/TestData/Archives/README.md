@@ -77,8 +77,8 @@ seed `0x2545F491`, multiplier 1103515245, increment 12345, taking bits 16–23) 
 | `FileCat.Methods.Deflate64.7z` | Deflate64 (FileCat does not read it: refused as unsupported) | 4,117 | `7255f8a5efbc4acd597a6833e25583641b930475991eb9326fa9e91765276b4b` |
 | `FileCat.Methods.Copy.7z` | Copy | 24,619 | `a12c63e392e9845dfbff0bd537e455a0325be91c5ae240b3ba7a3071f1b24da3` |
 
-`FileCat.SolidPartial.7z`, `FileCat.SolidBomb.LZMA2.7z`, `FileCat.TwoFolders.BZip2.7z` and `FileCat.Bomb.tar.bz2`
-are FileCat-owned fixtures for what a reader decodes to get past members nobody asked for
+`FileCat.SolidPartial.7z`, `FileCat.SolidBomb.LZMA2.7z`, `FileCat.TwoFolders.BZip2.7z`, `FileCat.Bomb.tar.bz2` and
+`FileCat.Bomb.tar.zst` are FileCat-owned fixtures for what a reader decodes to get past members nobody asked for
 (`ArchivePassBudgetTests`). Each holds a first member and then a small `b-small.txt` (`hello from b` and a line
 feed; `hello` and a line feed in the TAR). The first member is `a-lines.txt`, 975,000 bytes: 25,000 lines
 "FileCat solid 7z member a, line NNNNNN", SHA-256 `b846b41e3f2e74acfb23c72948bef77d975c0a83ae355f9e2a058ba699cd92c3`.
@@ -91,6 +91,11 @@ In the others it is `a-zeros.bin`, a run of zero bytes. 7-Zip 24.01 (x64) packed
 | `FileCat.SolidBomb.LZMA2.7z` | `a -t7z -ms=64g -m0=LZMA2 -mx=9`: one solid folder | 512 MiB of zeros | 78,496 | `e4ef3c3ec0198cd5de58c486d88ead58fb7162f229e7f58226481c8537cb32b9` |
 | `FileCat.TwoFolders.BZip2.7z` | `a -t7z -ms=on -m0=BZip2 -mx=9`: 7-Zip gives each member its own folder | 512 MiB of zeros | 632 | `22b13a1aff5fba9bce78b43d0cddc51c6e847c2456b6350b064330ad653ba12a` |
 | `FileCat.Bomb.tar.bz2` | `tar -cf - a-zeros.bin b-small.txt \| bzip2 -9` | 2 GiB of zeros | 1,710 | `5f3569ce3065bc79609649f0c8a527efa2adf6b04c95356501e7ceb887b23756` |
+| `FileCat.Bomb.tar.zst` | `eng/make-tar-zst-bomb.py`: the same TAR as one zstd frame, the zeros as RLE blocks | 2 GiB of zeros | 73,740 | `f978d070d40814be403405d668065493f225bf51ec9cb919f165391360665f62` |
+
+Both TAR fixtures hold the same TAR stream, SHA-256 `a2cbef803ebfb8bedc0b6f3d10baa22fe33a1d90c7437e872e82a13563b8b496`.
+zstd decodes it at memory speed, so the tests that read a gigabyte of it to reach the expansion limit stay fast on a
+slow runner; the cancellation test keeps bzip2, which is slow enough to be canceled inside the member.
 
 The other `Rar*` fixtures (RAR 1.5 through 5, stored, solid, multi-volume under both naming
 schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damaged

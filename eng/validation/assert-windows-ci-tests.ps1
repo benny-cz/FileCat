@@ -10,6 +10,7 @@ if (-not (Test-Path -LiteralPath $receipt -PathType Leaf)) {
 }
 $rows = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
 $expected = @(
+    'tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj (page view)',
     'tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj',
     'tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj',
     'tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj',
@@ -24,4 +25,4 @@ for ($i = 0; $i -lt $expected.Count; $i++) {
         throw "Windows test project $($expected[$i]) did not pass: recorded project=$($rows[$i].Project), exit=$($rows[$i].ExitCode)."
     }
 }
-Write-Host 'All five Windows test projects passed and have a complete ordered receipt.'
+Write-Host 'The page view run and all five Windows test projects passed and have a complete ordered receipt.'

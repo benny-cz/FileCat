@@ -101,7 +101,10 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public unsafe void As_administrator_the_indexes_show_the_entries_an_item_had_left_behind()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
+        // Setting an object ID and a reparse point of any tag takes the restore privilege, which a token lowered to medium
+        // integrity (as CI lowers the hosted runner's administrator token) no longer holds.
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess || !Core.State.WindowsTokenAuthority.IsHighIntegrity)
+            Assert.Skip("Needs Windows and an administrator's high token.");
         string dir = RawReadableVolume.NewFolder("filecat-record-tests");
         try
         {

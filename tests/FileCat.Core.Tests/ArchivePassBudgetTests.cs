@@ -104,8 +104,9 @@ public sealed class ArchivePassBudgetTests
     {
         await OnOwnThread(() =>
         {
-            // A 2 GiB member of zeros and a 6-byte one, in 1,710 bytes of bzip2.
-            using var reader = Open("FileCat.Bomb.tar.bz2");
+            // A 2 GiB member of zeros and a 6-byte one, in 73,740 bytes of zstd. Its runs of zeros decode at memory speed:
+            // the gigabyte to the limit takes a second even on a slow runner, where bzip2's took a minute.
+            using var reader = Open("FileCat.Bomb.tar.zst");
             var warnings = new List<string>();
             var members = reader.List(warnings.Add, TestContext.Current.CancellationToken).ToList();
             Assert.Equal(["a-zeros.bin"], members.Select(m => m.Path));
@@ -123,7 +124,7 @@ public sealed class ArchivePassBudgetTests
             using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
             var clock = Stopwatch.StartNew();
             Assert.ThrowsAny<OperationCanceledException>(() => reader.List(_ => { }, cancel.Token).ToList());
-            // Reaching the limit takes seconds; a canceled listing stops at the next read.
+            // Reaching the limit through bzip2 takes seconds; a canceled listing stops at the next read.
             Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"Canceling took {clock.Elapsed}.");
             return true;
         });
@@ -134,7 +135,7 @@ public sealed class ArchivePassBudgetTests
     {
         await OnOwnThread(() =>
         {
-            using var reader = Open("FileCat.Bomb.tar.bz2");
+            using var reader = Open("FileCat.Bomb.tar.zst");
             // The listing never gets past the first member; the cursor is asked for the second anyway.
             var refused = Assert.Throws<InvalidDataException>(() => reader.Open(1, TestContext.Current.CancellationToken));
             Assert.Contains("1000:1", refused.Message);

@@ -32,6 +32,9 @@ public sealed class NetworkDiscoveryTests
         var ct = TestContext.Current.CancellationToken;
         using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var mdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        // macOS sends no UDP datagram larger than the socket's send buffer, 9,216 bytes unless raised ("Message too
+        // long"); the amplified answer is 26 KB.
+        mdns.Client.SendBufferSize = 64 * 1024;
         using var cutoff = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cutoff.CancelAfter(TimeSpan.FromSeconds(2));
         var responder = Task.Run(async () =>

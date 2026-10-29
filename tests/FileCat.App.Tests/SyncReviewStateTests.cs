@@ -7,6 +7,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Compare;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Tests;
@@ -16,12 +18,16 @@ public sealed class SyncReviewStateTests
     private const string Left = "C:\\Source\\Photos";
     private const string Right = "E:\\Backup\\Photos";
 
+    // Mirror removes only what the comparison reviewed, whichever side becomes the target.
     private static TreeCompareResult Comparison() => new([
         new TreeDiffEntry("left-only.txt", TreeDiffKind.LeftOnly,
-            new EntryData { Name = "left-only.txt", Kind = EntryKind.File }, null),
+            new EntryData { Name = "left-only.txt", Kind = EntryKind.File }, null) { RemovalReview = Reviewed(Left, "left-only.txt") },
         new TreeDiffEntry("right-only.txt", TreeDiffKind.RightOnly, null,
-            new EntryData { Name = "right-only.txt", Kind = EntryKind.File }),
+            new EntryData { Name = "right-only.txt", Kind = EntryKind.File }) { RemovalReview = Reviewed(Right, "right-only.txt") },
     ], true, 1);
+
+    private static ReviewedSourceTree Reviewed(string side, string name) =>
+        new(new FileTreeReview(Path.Combine(side, name), [], AllowLinks: false), new LocalFileSystemProvider());
 
     private static SyncWindow Window(Func<IReadOnlyList<SyncItem>, bool, bool, bool>? submit = null) =>
         new(Comparison(), new SyncContext(Left, Right, true, true, false, false, false,

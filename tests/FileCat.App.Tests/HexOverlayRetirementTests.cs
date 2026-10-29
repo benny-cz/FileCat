@@ -137,7 +137,9 @@ public sealed class HexOverlayRetirementTests(ITestOutputHelper output)
     {
         var source = new Source(128, closeFails) { Hold = true };
         var overlay = new HexPatchOverlay(source);
-        var pending = Task.Run(() => Record.Exception(() => overlay.Write(0, new byte[] { 23 })));
+        // Its own thread: a busy suite's thread pool can leave a queued write unstarted past the wait below.
+        var pending = Task.Factory.StartNew(() => Record.Exception(() => overlay.Write(0, new byte[] { 23 })),
+            CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         try
         {
             Assert.True(source.Entered.Wait(5000, TestContext.Current.CancellationToken));
