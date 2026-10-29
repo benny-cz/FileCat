@@ -9,7 +9,10 @@ namespace FileCat.Platform.Windows.Mtp;
 /// <summary>Retire only the bytes uploaded to the device, using the held file handle for deletion.</summary>
 internal static class MtpMoveSafety
 {
-    internal static void RetireVerifiedSource(string source, byte[] uploadedDigest, FileIdentity uploadedIdentity)
+    /// <param name="uploadedIdentity">The source's identity when it was uploaded; null where the volume has none.</param>
+    /// <param name="identitySurvivesRename">False on FAT and exFAT, where the longer hold name can move the file's
+    /// directory entry and with it its identity (review finding R-M2): there the held bytes alone decide.</param>
+    internal static void RetireVerifiedSource(string source, byte[] uploadedDigest, FileIdentity? uploadedIdentity, bool identitySurvivesRename = true)
     {
         string held = source + ".filecat-move-" + Guid.NewGuid().ToString("N") + ".hold";
         File.Move(source, held);
@@ -25,8 +28,15 @@ internal static class MtpMoveSafety
                 0x0000_0001 /* FILE_SHARE_READ */, 0, 3 /* OPEN_EXISTING */,
                 0x0200_0000 /* FILE_FLAG_OPEN_REPARSE_POINT */, 0);
             if (handle.IsInvalid) throw new IOException("The moved source could not be held for verification.", new Win32Exception(Marshal.GetLastWin32Error()));
-            if (ProtectedHexFile.Identity(handle) != uploadedIdentity)
-                throw new IOException("The source file object changed after upload; the replacement was retained.");
+            if (identitySurvivesRename)
+            {
+                if (uploadedIdentity is not { } expected) throw new IOException("The uploaded source has no file identity.");
+                FileIdentity current;
+                try { current = ProtectedHexFile.Identity(handle); }
+                catch (Win32Exception ex) { throw new IOException("The held source's file identity could not be read.", ex); }
+                if (current != expected)
+                    throw new IOException("The source file object changed after upload; the replacement was retained.");
+            }
             using var input = new FileStream(handle, FileAccess.Read, 1024 * 1024);
             byte[] heldDigest = SHA256.HashData(input);
             if (!CryptographicOperations.FixedTimeEquals(uploadedDigest, heldDigest))

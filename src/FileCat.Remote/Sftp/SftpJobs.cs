@@ -455,13 +455,16 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             if (current is null || current.IsDirectory || current.IsLink ||
                 current.Size != uploaded.Size || current.ModifiedUtc != uploaded.ModifiedUtc)
                 throw new IOException("The local source changed before it could be removed.");
-            string? identity = Fs.GetFileIdentity(local);
+            string? before = Fs.GetFileIdentity(local);
             Fs.Move(local, held, replaceExisting: false, writeThrough: true);
             moved = true;
+            // On FAT and exFAT the longer hold name can move the file's directory entry, and with it its identity (review
+            // finding R-M2): there the identity is the held file's from here on, and the bytes compared below decide.
+            string? identity = Fs.GetFileIdentity(held);
             var heldInfo = Fs.TryGetInfo(held);
             if (heldInfo is null || heldInfo.IsDirectory || heldInfo.IsLink || heldInfo.Size != uploaded.Size ||
                 heldInfo.ModifiedUtc != uploaded.ModifiedUtc ||
-                identity is not null && Fs.GetFileIdentity(held) != identity)
+                before is not null && identity != before && Fs.GetVolumeInfo(held).IdentitySurvivesRename)
                 throw new IOException("The held local source is not the selected file.");
 
             string remote = RemotePath.Combine(destFolder, name);

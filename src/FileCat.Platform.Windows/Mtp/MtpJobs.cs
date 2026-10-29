@@ -223,7 +223,8 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.ItemFailed();
             return false;
         }
-        if (Moving && !TryIo(source, "remove the moved file", () => MtpMoveSafety.RetireVerifiedSource(source, _sentHash ?? throw new IOException("The uploaded source has no byte digest."), _sourceIdentity ?? throw new IOException("The uploaded source has no file identity."))))
+        if (Moving && !TryIo(source, "remove the moved file", () => MtpMoveSafety.RetireVerifiedSource(source, _sentHash ?? throw new IOException("The uploaded source has no byte digest."), _sourceIdentity,
+                Fs.GetVolumeInfo(source).IdentitySurvivesRename)))
         {
             Issue(IssueSeverity.Warning, source, "Copied to the device, but the original could not be removed.", StepOutcome.PartiallyApplied);
         }
@@ -236,6 +237,12 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
     private long _sentSize;
     private string? _createdId;
     private FileIdentity? _sourceIdentity;
+
+    private static FileIdentity? IdentityOf(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
+    {
+        try { return ProtectedHexFile.Identity(handle); }
+        catch (System.ComponentModel.Win32Exception) { return null; }
+    }
 
     /// <summary>
     /// Writes the file under <paramref name="name"/> and checks that the device holds all of it. A cancel or a failure part
@@ -255,7 +262,9 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             try
             {
                 using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
-                if (Moving) _sourceIdentity = ProtectedHexFile.Identity(input.SafeFileHandle);
+                // FAT32 has no 128-bit file ID: the identity is then unknown, and FAT's would not survive the hold rename
+                // anyway (review finding R-M2), so the bytes alone decide there.
+                if (Moving) _sourceIdentity = IdentityOf(input.SafeFileHandle);
                 var session = Mtp.Session(folder.Session!);
                 output = session.CreateFile(Mtp.Resolve(folder), name, input.Length);
                 using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);

@@ -65,6 +65,13 @@ public sealed record VolumeInfo(
 {
     public static VolumeInfo Unknown(string path) => new(PathUtil.GetDeviceKey(path), null, false, !OperatingSystem.IsWindows(),
         TimeSpan.FromSeconds(2), false, false, false, false, false);
+
+    /// <summary>
+    /// Whether a file keeps its identity when renamed. FAT and exFAT derive it from where the file's directory entry lies,
+    /// which a longer name can move (review finding R-M2), so an identity is not compared across a rename there.
+    /// </summary>
+    public bool IdentitySurvivesRename => FileSystem is not { } fs ||
+        !(fs.Contains("fat", StringComparison.OrdinalIgnoreCase) || fs.Contains("msdos", StringComparison.OrdinalIgnoreCase));
 }
 
 public enum RecycleClassification
