@@ -29,6 +29,9 @@ Ubuntu 24.04/26.04 x64 and macOS 26+ on Apple silicon are planned previews. The
 
 *These are current-source MainWindow renders on their named operating systems. The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) separates them from installed-app testing.*
 
+See [all seven Windows theme screenshots](#make-it-yours), including Psychedelic and DOS Commander,
+plus Classic Dark on macOS.
+
 **Release status:** FileCat 1.0.0 is still in validation. The images show development builds;
 the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) tracks
 what has passed and what remains before a public release.
@@ -140,11 +143,17 @@ each panel. Select an image to see it at full size. The Ubuntu view is [near the
 | **Classic** | **Classic Dark** |
 |---|---|
 | [![Classic theme on Windows](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![Classic Dark theme on Windows](docs/screenshots/windows/ClassicDark.png)](docs/screenshots/windows/ClassicDark.png) |
+
 | **Cyberpunk** | **Psychedelic** |
+|---|---|
 | [![Cyberpunk theme on Windows](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![Psychedelic theme on Windows](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
+
 | **Steampunk** | **DOS Commander** |
+|---|---|
 | [![Steampunk theme on Windows](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) | [![DOS Commander theme on Windows](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) |
+
 | **High Contrast** | **Classic Dark on macOS** |
+|---|---|
 | [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![Classic Dark theme on macOS](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) |
 
 [Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
