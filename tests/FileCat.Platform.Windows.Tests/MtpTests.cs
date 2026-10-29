@@ -40,6 +40,20 @@ public sealed class MtpTests
         return (session, storage);
     }
 
+    /// <summary>
+    /// Waits for a device job, two minutes at most: a device that stops answering fails the test and its job is canceled
+    /// rather than waiting for the runner (a Low of the review of 38181fe1).
+    /// </summary>
+    private static async Task Finished(Core.Jobs.Job job, CancellationToken ct)
+    {
+        for (var deadline = DateTime.UtcNow.AddMinutes(2); !job.State.IsFinished(); await Task.Delay(20, ct))
+        {
+            if (DateTime.UtcNow < deadline) continue;
+            job.Cancel();
+            Assert.Fail($"{job.Title} did not finish within two minutes; it was canceled.");
+        }
+    }
+
     [Fact]
     public async Task Move_to_writable_device_retires_only_the_verified_local_source()
     {
@@ -78,7 +92,7 @@ public sealed class MtpTests
                 Destination = destination,
             });
             var ct = TestContext.Current.CancellationToken;
-            while (!job.State.IsFinished()) await Task.Delay(20, ct);
+            await Finished(job, ct);
             Assert.Equal(JobState.Completed, job.State);
             Assert.DoesNotContain(job.Issues, i => i.Severity is IssueSeverity.Error or IssueSeverity.Warning);
             Assert.False(File.Exists(source));
@@ -175,7 +189,7 @@ public sealed class MtpTests
             async Task<Core.Jobs.Job> Run(Core.Jobs.JobRequest request)
             {
                 var job = jobs.Submit(request);
-                while (!job.State.IsFinished()) await Task.Delay(20, ct);
+                await Finished(job, ct);
                 Assert.True(job.State == Core.Jobs.JobState.Completed, $"{job.Title}: {job.State} {string.Join("; ", job.Issues.Select(i => i.Message))}");
                 return job;
             }
