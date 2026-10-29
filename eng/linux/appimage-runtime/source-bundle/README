@@ -59,8 +59,8 @@ section at offset 932096. To check that an AppImage starts with this runtime:
 
   producer-packages.txt
       The 138 Alpine packages, with versions, that the upstream build
-      installed into its base image, copied from the job log of run
-      39320578745, job 118293253809.
+      installed or upgraded in its base image, taken from the apk lines of
+      the job log of run 39320578745, job 118293253809.
 
   rebuild.sh
       Rebuilds the runtime in that environment, and relinks a FileCat

@@ -17,12 +17,12 @@
   "SourceBundle": {
     "AssetName": "FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz",
     "Directory": "appimage-runtime-source",
-    "Bytes": 4704829,
-    "SHA256": "8b92ecaff637f201fecb0a51dd383cdf42ff54eb891f9eba9eb8a05c0ae6530a",
+    "Bytes": 4704832,
+    "SHA256": "be7816ce0e129b0417758f942378bed89350e04fb1700c7bd5caa1005d72e587",
     "Archive": "GNU tar format, entries sorted by name, mtime 2026-10-19T20:35:22Z (type2-runtime commit time), uid/gid 0 without names, modes 644/755, gzip -9n",
     "Files": [
-      { "Path": "README", "Bytes": 8707, "SHA256": "53beaf80e3545f6a2e3d4cfbfa91ca4eecf608bab822832ce13bc79e03cabee9" },
-      { "Path": "SHA256SUMS", "Bytes": 565, "SHA256": "ca9b5c5c2ab57afc0ce3c91085103969397f7680b4bd5b512a67020c339e945f" },
+      { "Path": "README", "Bytes": 8733, "SHA256": "6c8d770db8222559b1d643e3180cdf9850bc30d7d7b247016be11c10f20a4bcf" },
+      { "Path": "SHA256SUMS", "Bytes": 565, "SHA256": "6b483a2a3fa2e603dec0a0a2790c86b22fbcf4981f51d52cd17b618888742f4e" },
       {
         "Path": "producer-packages.txt",
         "Bytes": 2601,

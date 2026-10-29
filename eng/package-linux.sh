@@ -205,7 +205,7 @@ dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- --appimage-runt
   "$ROOT/licenses/appimage-runtime" "$RUNTIME" "$APPDIR/usr/lib/filecat/licenses/appimage-runtime"
 APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
 SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
-rm -f "$APPIMAGE"
+rm -f "$APPIMAGE" "$APPIMAGE.rejected"
 rm -f "$SBOM_APPIMAGE"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$APPDIR" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" appimage "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_APPIMAGE" \
@@ -214,11 +214,15 @@ dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 # The AppImage must start with the reviewed runtime, which its source bundle describes: apart from the digest section,
-# every runtime byte is unchanged.
+# every runtime byte is unchanged. A refused AppImage does not keep its release name.
 PREFIX="$OUT/runtime-prefix-$RID"
 head -c "$(wc -c < "$RUNTIME")" "$APPIMAGE" > "$PREFIX"
 dd if=/dev/zero of="$PREFIX" bs=1 seek="$RUNTIME_DIGEST_OFFSET" count=16 conv=notrunc status=none
-echo "$RUNTIME_SUM  $PREFIX" | sha256sum -c --quiet - || { echo "The AppImage does not start with the reviewed runtime." >&2; exit 2; }
+if ! echo "$RUNTIME_SUM  $PREFIX" | sha256sum -c --quiet -; then
+  mv -f "$APPIMAGE" "$APPIMAGE.rejected"
+  echo "The AppImage does not start with the reviewed runtime; kept as $APPIMAGE.rejected." >&2
+  exit 2
+fi
 rm -f "$PREFIX"
 
 # 4) The runtime's corresponding source (EXT-04: LGPL-2.1 section 6 for its static libfuse), attached beside the
@@ -226,10 +230,10 @@ rm -f "$PREFIX"
 # list, a README and rebuild.sh. The archive depends only on those vendored files, so its bytes are pinned as well:
 # sorted entries, fixed time and owner, normalized modes and gzip -n. Update the pin with any of those files.
 SOURCE_BUNDLE="$OUT/FileCat-$VERSION-$RID-appimage-runtime-source.tar.gz"
-SOURCE_BUNDLE_SUM=8b92ecaff637f201fecb0a51dd383cdf42ff54eb891f9eba9eb8a05c0ae6530a
+SOURCE_BUNDLE_SUM=be7816ce0e129b0417758f942378bed89350e04fb1700c7bd5caa1005d72e587
 SOURCE_EPOCH=1792442122 # 2026-10-19T20:35:22Z, the time of type2-runtime commit fedfad51
 STAGE="$OUT/appimage-runtime-source-$RID"
-rm -rf "$STAGE" "$SOURCE_BUNDLE"
+rm -rf "$STAGE" "$SOURCE_BUNDLE" "$SOURCE_BUNDLE.unreviewed"
 install -d -m 755 "$STAGE/appimage-runtime-source/sources"
 for f in README SHA256SUMS producer-packages.txt sources/fuse-3.15.0.tar.xz sources/squashfuse-0.5.2.tar.gz \
   sources/type2-runtime-fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz; do
@@ -239,12 +243,14 @@ install -m 755 "$VENDOR/source-bundle/rebuild.sh" "$STAGE/appimage-runtime-sourc
 (cd "$STAGE/appimage-runtime-source" && sha256sum -c --strict --quiet SHA256SUMS) \
   || { echo "The AppImage runtime sources differ from their reviewed checksums." >&2; exit 2; }
 tar -C "$STAGE" --sort=name --format=gnu --mtime="@$SOURCE_EPOCH" --owner=0 --group=0 --numeric-owner \
-  --mode='u=rwX,go=rX' -cf - appimage-runtime-source | gzip -9n > "$SOURCE_BUNDLE"
-SOURCE_BUNDLE_ACTUAL="$(sha256sum "$SOURCE_BUNDLE" | cut -d ' ' -f 1)"
+  --mode='u=rwX,go=rX' -cf - appimage-runtime-source | gzip -9n > "$SOURCE_BUNDLE.unreviewed"
+SOURCE_BUNDLE_ACTUAL="$(sha256sum "$SOURCE_BUNDLE.unreviewed" | cut -d ' ' -f 1)"
 if [ "$SOURCE_BUNDLE_ACTUAL" != "$SOURCE_BUNDLE_SUM" ]; then
-  echo "The runtime source bundle is $SOURCE_BUNDLE_ACTUAL, not the reviewed reproducible $SOURCE_BUNDLE_SUM." >&2
+  echo "The runtime source bundle is $SOURCE_BUNDLE_ACTUAL, not the reviewed reproducible $SOURCE_BUNDLE_SUM;" \
+    "kept as $SOURCE_BUNDLE.unreviewed." >&2
   exit 2
 fi
+mv -f "$SOURCE_BUNDLE.unreviewed" "$SOURCE_BUNDLE"
 rm -rf "$STAGE"
 
 echo "Done:"
