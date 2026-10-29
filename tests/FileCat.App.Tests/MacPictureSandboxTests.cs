@@ -30,6 +30,36 @@ public sealed class MacPictureSandboxTests(ITestOutputHelper output)
         Assert.True(denyFork > denyWrite);
         Assert.True(denyNetwork > denyFork);
         Assert.Contains("quoted\\\"dir", profile, StringComparison.Ordinal);
+        // Review finding R-H4: no other program, launchd job, service, Apple event, signal, I/O Kit device or terminal.
+        int denyExec = profile.IndexOf("(deny process-exec*)", StringComparison.Ordinal);
+        int allowWorkerExec = profile.IndexOf("(allow process-exec (literal ", StringComparison.Ordinal);
+        Assert.True(denyExec > denyNetwork && allowWorkerExec > denyExec);
+        foreach (string rule in new[] { "(deny job-creation)", "(deny mach-lookup)", "(deny appleevent-send)",
+                     "(deny signal)(allow signal (target self))", "(deny iokit-open)", "(deny pseudo-tty)" })
+            Assert.True(profile.IndexOf(rule, StringComparison.Ordinal) > allowWorkerExec, rule);
+        Assert.DoesNotContain("(subpath \"/dev\")", profile, StringComparison.Ordinal);
+        Assert.Contains("(allow file-read* (literal \"/dev/urandom\"))", profile, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task macOS_policy_runs_no_other_program_signals_no_other_process_and_creates_no_launchd_job()
+    {
+        if (!OperatingSystem.IsMacOS()) { Assert.Skip("The macOS Seatbelt policy is native to macOS."); return; }
+        // Review finding R-H4: the worker could run another program, have launchd start an unsandboxed job for it, or
+        // signal the user's processes.
+        var exec = await Run(MacPictureSandbox.StartInfo("/bin/sh", ["-c", "exec /bin/echo R-H4-EXEC"]));
+        var signal = await Run(MacPictureSandbox.StartInfo("/bin/kill",
+            ["-0", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)]));
+        string label = "io.github.benny-cz.filecat.picture-probe." + Guid.NewGuid().ToString("N");
+        var submit = await Run(MacPictureSandbox.StartInfo("/bin/launchctl", ["submit", "-l", label, "--", "/usr/bin/true"]));
+        var listed = await Run(new ProcessStartInfo("/bin/launchctl", ["list", label])
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false });
+        if (listed.ExitCode == 0) using (Process.Start("/bin/launchctl", ["remove", label])) { }
+        output.WriteLine($"MAC_PICTURE_AUTHORITY exec={exec.ExitCode}/{exec.Output.Trim()} signal={signal.ExitCode} submit={submit.ExitCode}/{submit.Error.Trim()} listed={listed.ExitCode}");
+        Assert.NotEqual(0, exec.ExitCode);
+        Assert.DoesNotContain("R-H4-EXEC", exec.Output, StringComparison.Ordinal);
+        Assert.NotEqual(0, signal.ExitCode);
+        Assert.NotEqual(0, listed.ExitCode);
     }
 
     [Fact]

@@ -5,10 +5,11 @@ using System.Text;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// Starts the macOS picture worker under the OS Seatbelt facility. Hostile decoder input cannot create a descendant,
-/// communicate over the network, write to the filesystem, or read outside the application/runtime/system allowlist.
+/// Starts the macOS picture worker under the OS Seatbelt facility. Hostile decoder input cannot create a descendant or
+/// run another program, have launchd or a system service act for it, communicate over the network, write to the
+/// filesystem, or read outside the application/runtime/system allowlist.
 /// </summary>
-internal static class MacPictureSandbox
+internal static partial class MacPictureSandbox
 {
     internal const string Executable = "/usr/bin/sandbox-exec";
 
@@ -19,11 +20,13 @@ internal static class MacPictureSandbox
         "/usr",
         "/bin",
         "/sbin",
-        "/dev",
         "/private/etc",
         "/private/var/db/dyld",
         "/private/var/db/timezone",
     ];
+
+    /// <summary>The devices it reads; never the user's terminals.</summary>
+    private static readonly string[] Devices = ["/dev/null", "/dev/zero", "/dev/random", "/dev/urandom"];
 
     internal static ProcessStartInfo StartInfo(string executable, IReadOnlyList<string> arguments)
     {
@@ -69,7 +72,17 @@ internal static class MacPictureSandbox
             profile.Append("(allow file-read* (subpath ").Append(Quote(root)).Append("))");
         foreach (string path in metadataPaths)
             profile.Append("(allow file-read-metadata (literal ").Append(Quote(path)).Append("))");
+        foreach (string device in Devices)
+            profile.Append("(allow file-read* (literal ").Append(Quote(device)).Append("))");
         profile.Append("(deny file-write*)(deny process-fork)(deny network*)");
+        // Nothing another process could do for it (review finding R-H4): no program but the worker itself, which
+        // sandbox-exec starts under this profile; no launchd job (launchd asks the sandbox before creating one, however
+        // the request is made), no system service lookup, Apple event, signal to another process, I/O Kit device or
+        // terminal.
+        profile.Append("(deny process-exec*)(allow process-exec (literal ").Append(Quote(RealPath(executable))).Append("))");
+        // "(target others)" is not enforced (a probe still signals another process); a signal to itself stays allowed.
+        profile.Append("(deny job-creation)(deny mach-lookup)(deny appleevent-send)(deny signal)(allow signal (target self))");
+        profile.Append("(deny iokit-open)(deny pseudo-tty)(deny file-read* (regex #\"^/dev/(tty|pty|ptmx)\"))");
         return profile.ToString();
 
         void Add(string? path)
@@ -88,4 +101,21 @@ internal static class MacPictureSandbox
 
     private static string Quote(string path) => '"' + path.Replace("\\", "\\\\", StringComparison.Ordinal)
         .Replace("\"", "\\\"", StringComparison.Ordinal) + '"';
+
+    /// <summary>The path Seatbelt sees, with every link resolved (/var is /private/var); the full path where it cannot.</summary>
+    private static string RealPath(string path)
+    {
+        string full = Path.GetFullPath(path);
+        if (!OperatingSystem.IsMacOS()) return full;
+        nint resolved = RealPathNative(full, 0);
+        if (resolved == 0) return full;
+        try { return Marshal.PtrToStringUTF8(resolved) ?? full; }
+        finally { Free(resolved); }
+    }
+
+    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint RealPathNative(string path, nint resolved);
+
+    [LibraryImport("libc", EntryPoint = "free")]
+    private static partial void Free(nint pointer);
 }
