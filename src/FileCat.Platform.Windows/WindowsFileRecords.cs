@@ -13,10 +13,10 @@ namespace FileCat.Platform.Windows;
 /// <summary>
 /// What NTFS, ReFS, FAT, and exFAT record about a file or folder (D-56), read through a handle that asks only to read
 /// attributes, so nothing changes: all four times to 100 ns, IDs and parent, hard links, the 8.3 name, the latest
-/// change-journal entry, object ID, reparse data, clusters on the volume, compression, sparse ranges, security, and for
-/// files on SMB shares the connection. As administrator on NTFS also the MFT record ($FILE_NAME times that programs
-/// cannot set, every attribute and its runs, the record's slack), the item's entries in $Extend's $ObjId and $Reparse
-/// indexes, and its history in the change journal.
+/// change-journal entry, object ID, reparse data, clusters on the volume, compression, sparse ranges, security, who can
+/// decrypt an EFS-encrypted item, and for files on SMB shares the connection. As administrator on NTFS also the MFT
+/// record ($FILE_NAME times that programs cannot set, every attribute and its runs, the record's slack), the item's
+/// entries in $Extend's $ObjId and $Reparse indexes, and its history in the change journal.
 /// </summary>
 public sealed unsafe partial class WindowsFileRecords : IFileRecords
 {
@@ -107,6 +107,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (fat && !_remote && privileged) _sections.Add(FatSection(root));
             if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
             if (SecuritySection() is { } security) _sections.Add(security);
+            if (EfsSection() is { } efs) _sections.Add(efs);
             if (SecureSection() is { } secure) _sections.Add(secure);
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
