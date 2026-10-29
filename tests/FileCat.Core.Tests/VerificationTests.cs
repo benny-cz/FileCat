@@ -602,7 +602,11 @@ public sealed class VerificationTests : IDisposable
         Assert.Equal(VerificationState.NotChecked, historical.State);
         Assert.StartsWith("previously checked ", historical.Text, StringComparison.Ordinal);
         Assert.Equal(VerificationState.Differs, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
-        Assert.Equal(VerificationState.NotChecked, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
+        // Known to differ, it stays marked so after a refresh, and the folder counts it as failed (review finding R-M13).
+        var kept = service.Automatic(path, TestContext.Current.CancellationToken)!;
+        Assert.Equal(VerificationState.Differs, kept.State);
+        Assert.Contains("at the check of", kept.Text, StringComparison.Ordinal);
+        Assert.Equal((0, 1, 0, 0, 0), service.Summary(_dir, ["setup.exe"]));
     }
 
     [Fact]
@@ -786,9 +790,9 @@ public sealed class VerificationTests : IDisposable
             Assert.Contains(job.Issues, i => i.Path == lonely && i.Message.StartsWith("Nothing beside it says what it should be", StringComparison.Ordinal));
             Assert.Equal(job.BytesTotal, job.BytesDone);
 
-            // Kept results are historical until the current bytes are read again.
+            // A kept match is historical until the current bytes are read again; a kept mismatch stays one (R-M13).
             Assert.Equal(VerificationState.NotChecked, service.Automatic(good, TestContext.Current.CancellationToken)!.State);
-            Assert.Equal(VerificationState.NotChecked, Service(threshold: 1, cacheFile: cacheFile).Automatic(bad, TestContext.Current.CancellationToken)!.State);
+            Assert.Equal(VerificationState.Differs, Service(threshold: 1, cacheFile: cacheFile).Automatic(bad, TestContext.Current.CancellationToken)!.State);
 
             // A manifest verified as such leaves the hashes it read: a new checksum file's row needs no reading.
             string later = Write("later.bin", "later");

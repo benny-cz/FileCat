@@ -90,13 +90,14 @@ public sealed class MetadataDemandTests
             await retryShown.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             MetadataValue current = default;
             await WaitFor(() => (current = metadata.Get("verified", path, entry, "owned", false)).State == MetadataState.Available);
-            Assert.Equal(VerificationState.NotChecked, Assert.IsType<VerificationResult>(current.Value).State);
+            // The explicit check above found the new sidecar's mismatch: kept, it stays one (review finding R-M13).
+            Assert.Equal(VerificationState.Differs, Assert.IsType<VerificationResult>(current.Value).State);
             await WaitFor(() => Volatile.Read(ref active) == 0);
             // A redraw may request another current producer after the obsolete one completes.
             // The invariant is that no retry publishes or computes the old sidecar result.
             Assert.True(Volatile.Read(ref calls) >= 2);
             Assert.Equal(VerificationState.Matches, producedStates.First());
-            Assert.All(producedStates.Skip(1), state => Assert.Equal(VerificationState.NotChecked, state));
+            Assert.All(producedStates.Skip(1), state => Assert.Equal(VerificationState.Differs, state));
             Assert.Equal(bytes, File.ReadAllBytes(path));
             Assert.Equal(modified, File.GetLastWriteTimeUtc(path).Ticks);
         }

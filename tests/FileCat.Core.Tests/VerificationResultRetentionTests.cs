@@ -31,8 +31,9 @@ public sealed class VerificationResultRetentionTests
             Assert.Contains(result.Details, d => d.Contains("differs", StringComparison.Ordinal) && d.Contains("line 128", StringComparison.Ordinal));
 
         var cached = service.Automatic(target, TestContext.Current.CancellationToken)!;
-        Assert.Equal(VerificationState.NotChecked, cached.State);
-        Assert.Contains("previously checked", cached.Text, StringComparison.Ordinal);
+        // A kept mismatch stays one (review finding R-M13); a kept match is historical.
+        Assert.Equal(lateMismatch ? VerificationState.Differs : VerificationState.NotChecked, cached.State);
+        Assert.Contains(lateMismatch ? "at the check of" : "previously checked", cached.Text, StringComparison.Ordinal);
         Assert.InRange(cached.Details.Count, 1, 64);
         Assert.Contains(cached.Details, d => d.Contains("more claims", StringComparison.Ordinal));
         if (lateMismatch)

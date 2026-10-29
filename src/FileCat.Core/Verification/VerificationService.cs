@@ -496,10 +496,18 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         IReadOnlyList<string> details = cached.Details.Count >= 64
             ? cached.Details
             : ["Previous result: " + cached.Text, .. cached.Details];
+        // A remembered failure stays one (review finding R-M13): bytes that differed from what vouches for them, or a bad
+        // signature, are no safer to trust because they may have been replaced since. Only a remembered success, which the
+        // old bytes earned, turns neutral until the current bytes are read (FCSEC-006).
+        if (IsFailure(cached.State))
+            return new VerificationResult(cached.State, $"{cached.Text} at the check of {when}; verify current file", details)
+            { CheckedUtc = cached.CheckedUtc };
         return new VerificationResult(VerificationState.NotChecked, $"previously checked {when}; verify current file",
             details)
         { CheckedUtc = cached.CheckedUtc };
     }
+
+    private static bool IsFailure(VerificationState state) => state is VerificationState.Differs or VerificationState.SignatureBad;
 
     /// <summary>
     /// Checks signatures over a checksum file now (<paramref name="claims"/>, from <see cref="FolderSidecars.SignaturesOver"/>;
@@ -644,18 +652,20 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             if (!_folders.TryGetValue(folder, out var known)) return default;
             sidecars = known.Sidecars;
         }
-        int notChecked = 0, historical = 0;
+        int bad = 0, notChecked = 0, historical = 0;
         foreach (string name in names)
         {
             if (!sidecars.Covers(name)) continue;
             string path = Path.Combine(folder, name);
             if (Stamp(path) is not { } stamp) continue;
             var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name, CancellationToken.None))));
-            // The summary uses only remembered results. It cannot claim that current bytes are verified.
+            // The summary uses only remembered results. It cannot claim that current bytes are verified, but a remembered
+            // failure still counts as one (R-M13).
             if (result is null) notChecked++;
+            else if (IsFailure(result.State)) bad++;
             else historical++;
         }
-        return (0, 0, 0, notChecked, historical);
+        return (0, bad, 0, notChecked, historical);
     }
 
     /// <summary>The sidecars a file's result depends on: its checksum files and signatures, and the signatures of those manifests.</summary>
