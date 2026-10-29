@@ -1792,17 +1792,6 @@ public sealed class RarReaderTests
         return archive.ToArray();
     }
 
-    private static void WriteRar4Block(Stream output, byte type, ushort flags, ReadOnlySpan<byte> body)
-    {
-        var header = new byte[7 + body.Length];
-        header[2] = type;
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(3), flags);
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(5), (ushort)header.Length);
-        body.CopyTo(header.AsSpan(7));
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(header, (ushort)FileCat.Core.Jobs.Crc32.HashToUInt32(header.AsSpan(2)));
-        output.Write(header);
-    }
-
     private sealed record Rar2Member(string Name, byte[] Packed, long Size, int Version);
 
     /// <summary>
