@@ -53,6 +53,9 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The page finished loading (true), or could not be shown (false, with why).</summary>
     public event Action<bool, string?>? Loaded;
 
+    /// <summary>A contained Markdown link clicked in this page; the host opens it in another viewer.</summary>
+    public event Action<HtmlPage, string>? LinkedMarkdown;
+
     /// <summary>A key FileCat's viewer may want (Esc, function keys, Ctrl and Alt combinations): the handler says whether it took it.</summary>
     public Func<uint, bool, bool, bool, bool>? KeyPressed { get; set; }
 
@@ -107,6 +110,11 @@ public sealed class WebView2Page : IDisposable
             core.NewWindowRequested += (_, e) =>
             {
                 e.Handled = true;
+                if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+                {
+                    LinkedMarkdown?.Invoke(page, path);
+                    return;
+                }
                 Refuse(e.Uri);
             };
             core.DownloadStarting += (_, e) => e.Cancel = true;
@@ -119,7 +127,13 @@ public sealed class WebView2Page : IDisposable
             };
             core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
             core.DocumentTitleChanged += (_, _) => TitleChanged?.Invoke(core.DocumentTitle);
-            core.NavigationCompleted += (_, e) => Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
+            core.NavigationCompleted += (_, e) =>
+            {
+                // A refused or host-handled link reports OperationCanceled after the original page has loaded.
+                // Treating that cancellation as a page-load failure makes the viewer leave Page mode permanently.
+                if (!e.IsSuccess && e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled) return;
+                Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
+            };
             _controller.AcceleratorKeyPressed += OnAcceleratorKey;
             _controller.Bounds = new System.Drawing.Rectangle(0, 0, _size.Width, _size.Height);
             _controller.IsVisible = true;
@@ -134,6 +148,10 @@ public sealed class WebView2Page : IDisposable
     /// <summary>A picture of the page as drawn, as PNG (tests and diagnostics: what a reader would see).</summary>
     internal Task CaptureAsync(Stream png) =>
         _controller?.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, png) ?? Task.CompletedTask;
+
+    /// <summary>Test-only host action: activate the first rendered link without enabling page-authored scripts.</summary>
+    internal Task ClickLinkForTestsAsync(int index) =>
+        _controller?.CoreWebView2.ExecuteScriptAsync($"document.querySelectorAll('a')[{index}]?.click()") ?? Task.CompletedTask;
 
     /// <summary>Shows a page (at once, or once the view is ready).</summary>
     public void Show(HtmlPage page)
@@ -225,6 +243,18 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The page may go to other pages in its folder (a link, an anchor); anywhere else is refused.</summary>
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
+        if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+        {
+            e.Cancel = true;
+            LinkedMarkdown?.Invoke(page, path);
+            return;
+        }
+        if (_page?.IsLinkedMarkdownRequest(e.Uri) == true)
+        {
+            e.Cancel = true;
+            Refuse(e.Uri);
+            return;
+        }
         if (OurAddress(e.Uri)) { _navigationGeneration++; return; }
         e.Cancel = true;
         Refuse(e.Uri);

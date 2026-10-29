@@ -173,7 +173,7 @@ public sealed class MarkdownTests
     }
 
     [Fact]
-    public void Links_lead_to_the_web_mail_or_this_page_and_nowhere_else()
+    public void Links_lead_to_the_web_mail_this_page_or_contained_markdown()
     {
         Assert.Equal("<p><a href=\"https://example.com/a?b=1&amp;c=2\" title=\"Home — https://example.com/a?b=1&amp;c=2\">site</a></p>",
             Html("[site](https://example.com/a?b=1&c=2 \"Home\")"));
@@ -181,8 +181,10 @@ public sealed class MarkdownTests
         Assert.Equal("<p><a href=\"#install\" title=\"#install\">jump</a></p>", Html("[jump](#install)"));
         Assert.Equal("<p><a href=\"mailto:me@example.com\" title=\"mailto:me@example.com\">me@example.com</a></p>", Html("<me@example.com>"));
         Assert.Equal("<p>go <a href=\"https://www.example.com\" title=\"https://www.example.com\">www.example.com</a>.</p>", Html("go www.example.com."));
-        // Scripts, data, files and other places are shown as text with the address they named, never as links.
-        foreach (string url in new[] { "javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "file:///etc/passwd", "other.md", "../up.html" })
+        Assert.Contains("<a href=\"?filecat-open=other.md\" title=\"Open in a separate FileCat viewer — other.md\">", Html("[other](other.md)"));
+        Assert.Contains("<a href=\"?filecat-open=docs%2Fother%20file.md%23section\"", Html("[other](<docs/other file.md#section>)"));
+        // Scripts, data, non-Markdown files and paths escaping this folder remain text with the address they named.
+        foreach (string url in new[] { "javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "file:///etc/passwd", "../up.md", "%2e%2e/up.md", "../up.html" })
         {
             string html = Html($"[click]({url})");
             Assert.DoesNotContain("<a ", html);
@@ -225,7 +227,7 @@ public sealed class MarkdownTests
             Assert.Contains(name, new[] { "p", "span", "br", "a", "img", "code", "em", "strong", "del", "kbd" });
             Assert.DoesNotMatch("(?i)\\bon[a-z]+\\s*=", attributes);
             if (System.Text.RegularExpressions.Regex.Match(attributes, "href=\"([^\"]*)\"") is { Success: true } href)
-                Assert.Matches("^(https?:|mailto:|#)", href.Groups[1].Value);
+                Assert.Matches("^(https?:|mailto:|#|\\?filecat-open=)", href.Groups[1].Value);
             if (System.Text.RegularExpressions.Regex.Match(attributes, "src=\"([^\"]*)\"") is { Success: true } src)
                 Assert.DoesNotMatch("^[a-zA-Z][a-zA-Z0-9+.-]*:|^/", src.Groups[1].Value);
         }

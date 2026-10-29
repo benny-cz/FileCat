@@ -143,6 +143,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     internal bool SandboxEnabled => _sandboxEnabled;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
+    public event Action<HtmlPage, string>? LinkedMarkdown;
 
     /// <summary>Raised on the GTK thread when the page is clicked.</summary>
     public event Action? FocusRequested;
@@ -165,6 +166,14 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             return 0;
         });
     }
+
+    /// <summary>Test-only host navigation through the same native policy callback as a rendered link.</summary>
+    internal Task RequestAddressForTestsAsync(string address) => OnGtk(() =>
+    {
+        if (_view != 0)
+            fixed (byte* uri = Utf8(address)) Native.webkit_web_view_load_uri(_view, uri);
+        return 0;
+    });
 
     public void SetSize(int width, int height) => _ = OnGtk(() =>
     {
@@ -428,12 +437,30 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             if (type == NewWindowAction)
             {
                 Native.webkit_policy_decision_ignore(decision);
-                Of(data)?.Refused();
+                var owner = Of(data);
+                nint newAction = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
+                string newUri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(newAction))) ?? "";
+                if (owner?._page is { } linkedPage && linkedPage.TryLinkedMarkdownPath(newUri, out string? linkedPath) && linkedPath is not null)
+                    owner.LinkedMarkdown?.Invoke(linkedPage, linkedPath);
+                else owner?.Refused();
                 return 1;
             }
             if (type != NavigationAction) return 0;
             nint action = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
             string uri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(action))) ?? "";
+            var engine = Of(data);
+            if (engine?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
+            {
+                Native.webkit_policy_decision_ignore(decision);
+                engine.LinkedMarkdown?.Invoke(page, path);
+                return 1;
+            }
+            if (engine?._page?.IsLinkedMarkdownRequest(uri) == true)
+            {
+                Native.webkit_policy_decision_ignore(decision);
+                engine.Refused();
+                return 1;
+            }
             if (IsOwn(uri)) Native.webkit_policy_decision_use(decision);
             else
             {

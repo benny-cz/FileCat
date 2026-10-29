@@ -67,6 +67,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     public int BlockedCount => _blocked;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
+    public event Action<HtmlPage, string>? LinkedMarkdown;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
     /// <summary>Raised when the web view takes the keyboard itself (a click in it, say).</summary>
@@ -85,6 +86,13 @@ internal sealed unsafe class MacPageEngine : IPageEngine
 
     /// <summary>The view in a window of its own, as the native control host puts it in the viewer's.</summary>
     internal void ShowInWindow() => ObjC.ShowInWindow(_view);
+
+    /// <summary>Test-only host navigation through the same native policy callback as a rendered link.</summary>
+    internal void RequestAddressForTests(string address)
+    {
+        nint url = ObjC.Send(ObjC.Class("NSURL"), "URLWithString:", ObjC.String(address));
+        ObjC.Send(_view, "loadRequest:", ObjC.Send(ObjC.Class("NSURLRequest"), "requestWithURL:", url));
+    }
 
     /// <summary>Runs the main run loop (and the main queue) for a moment.</summary>
     internal static void RunLoop(TimeSpan time) => ObjC.RunLoop(time.TotalSeconds);
@@ -355,12 +363,17 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         {
             string uri = ObjC.ToString(ObjC.Send(ObjC.Send(ObjC.Send(action, "request"), "URL"), "absoluteString")) ?? "";
             bool newWindow = ObjC.Send(action, "targetFrame") == 0;
-            if (!newWindow && IsOwn(uri))
+            var owner = Of(self);
+            if (owner?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
+                owner.LinkedMarkdown?.Invoke(page, path);
+            else if (owner?._page?.IsLinkedMarkdownRequest(uri) == true)
+                owner.Refused();
+            else if (!newWindow && IsOwn(uri))
             {
                 policy = Allow;
-                if (Of(self) is { } owner) owner._findGeneration++;
+                if (owner is not null) owner._findGeneration++;
             }
-            else Of(self)?.Refused();
+            else owner?.Refused();
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
         ObjC.InvokeBlock(decisionHandler, policy);
@@ -423,7 +436,14 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static nint CreateWebView(nint self, nint selector, nint webView, nint configuration, nint action, nint features)
     {
-        try { Of(self)?.Refused(); }
+        try
+        {
+            var owner = Of(self);
+            string uri = ObjC.ToString(ObjC.Send(ObjC.Send(ObjC.Send(action, "request"), "URL"), "absoluteString")) ?? "";
+            if (owner?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
+                owner.LinkedMarkdown?.Invoke(page, path);
+            else owner?.Refused();
+        }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
         return 0;
     }

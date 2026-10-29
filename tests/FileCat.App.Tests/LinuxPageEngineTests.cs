@@ -142,6 +142,53 @@ public sealed class LinuxPageEngineTests
     }
 
     [Fact]
+    public async Task WebKitGTK_routes_a_contained_markdown_link_without_replacing_the_current_page()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("WebKitGTK is Linux's."); return; }
+        bool required = Environment.GetEnvironmentVariable("FILECAT_REQUIRE_WEBKIT") == "1";
+        if (!required && Environment.GetEnvironmentVariable("DISPLAY") is null) { Assert.Skip("No X display."); return; }
+        if (LinuxPageEngine.Unavailable is { } why)
+        {
+            if (required) Assert.Fail(why);
+            Assert.Skip(why);
+            return;
+        }
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-page-links", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string current = Path.Combine(root, "index.md");
+            string next = Path.Combine(root, "next.md");
+            File.WriteAllText(current, "# Index\n\n[Next](next.md)");
+            File.WriteAllText(next, "# Next");
+            using var source = new FileContentSource(current);
+            using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
+            Assert.NotNull(engine);
+            var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.Loaded += (ok, _) => loaded.TrySetResult(ok);
+            engine.Show(HtmlPage.ForMarkdown(source, current));
+            Assert.True(await loaded.Task.WaitAsync(TimeSpan.FromSeconds(60), ct));
+            var linkLoadFailures = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            engine.Loaded += (ok, why) => { if (!ok) linkLoadFailures.Enqueue(why ?? "unknown"); };
+            var requested = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.LinkedMarkdown += (_, path) => requested.TrySetResult(path);
+            await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=next.md");
+            Assert.Equal(next, await requested.Task.WaitAsync(TimeSpan.FromSeconds(15), ct));
+            Assert.Equal("index.md", engine.Title);
+            Assert.Equal(0, engine.BlockedCount);
+            await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=missing.md");
+            for (int i = 0; i < 100 && engine.BlockedCount == 0; i++) await Task.Delay(50, ct);
+            Assert.Equal(1, engine.BlockedCount);
+            await Task.Delay(200, ct);
+            Assert.Empty(linkLoadFailures);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public async Task WebKitGTK_finds_rendered_markdown_text_without_enabling_page_scripts()
     {
         if (!OperatingSystem.IsLinux()) { Assert.Skip("WebKitGTK is Linux's."); return; }

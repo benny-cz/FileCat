@@ -53,7 +53,9 @@ try
     // Release issue I25: a Markdown file drawn (its title is the file's name, its script text), the picture beside it
     // loaded, and the picture on the web never requested.
     string readme = Path.Combine(site, "README.md");
-    File.WriteAllText(readme, "# Notes\n\nAlpha one. Alpha two.\n\n![local](pic.png) ![remote](https://example.com/remote.png)\n\n<script>document.title = 'SCRIPT RAN';</script>\n");
+    File.WriteAllText(readme, "# Notes\n\nAlpha one. Alpha two.\n\n[Next](next.md)\n\n![local](pic.png) ![remote](https://example.com/remote.png)\n\n<script>document.title = 'SCRIPT RAN';</script>\n");
+    string nextMarkdown = Path.Combine(site, "next.md");
+    File.WriteAllText(nextMarkdown, "# Next");
     var markdown = MacPageEngine.Create(Path.Combine(root, "data-md"), out unavailable);
     if (markdown is null)
     {
@@ -83,6 +85,25 @@ try
     var absentFind = await FindMarkdown("absent phrase", true);
     Console.WriteLine($"markdown find: {firstFind}, {secondFind}, {previousFind}, absent {absentFind}");
     passed &= firstFind?.Found == true && secondFind?.Found == true && previousFind?.Found == true && absentFind?.Found == false && markdown.Title == "README.md";
+    int linkLoadFailures = 0;
+    markdown.Loaded += (ok, _) => { if (!ok) linkLoadFailures++; };
+    string? linkedMarkdown = null;
+    markdown.LinkedMarkdown += (_, path) => linkedMarkdown = path;
+    markdown.RequestAddressForTests("filecat://page/README.md?filecat-open=next.md");
+    clock.Restart();
+    while (linkedMarkdown is null && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    Console.WriteLine($"markdown linked viewer request: {linkedMarkdown ?? "(none)"}; current title: {markdown.Title}");
+    // macOS canonicalizes /var to /private/var when the contained target is resolved.
+    bool linkedExact = linkedMarkdown is { } linked && linked.EndsWith("/site/next.md", StringComparison.Ordinal) &&
+        File.ReadAllText(linked) == File.ReadAllText(nextMarkdown);
+    passed &= linkedExact && markdown.Title == "README.md" && markdown.BlockedCount == 0;
+    markdown.RequestAddressForTests("filecat://page/README.md?filecat-open=missing.md");
+    clock.Restart();
+    while (markdown.BlockedCount == 0 && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    Console.WriteLine($"missing Markdown request refused: {markdown.BlockedCount}");
+    MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(200));
+    Console.WriteLine($"link cancellation load failures: {linkLoadFailures}");
+    passed &= markdown.BlockedCount == 1 && linkedExact && linkLoadFailures == 0;
     markdown.Dispose();
 
     // Release plan §6.3 (I12): the title once came late and was missed (CI run 36711390817); the fix observes it. Many

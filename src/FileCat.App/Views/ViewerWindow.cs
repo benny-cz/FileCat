@@ -453,6 +453,13 @@ public sealed class ViewerWindow : Window
             _status.Text = why + " Its source is shown instead.";
         };
         _pageView.KeyRequested = OnPageKey;
+        _pageView.LinkedMarkdown += async path =>
+        {
+            if (!_isPage || _closing.IsCancellationRequested) return;
+            bool opened = await ViewerLauncher.TryOpenPath(_services, path);
+            if (!opened && !_closing.IsCancellationRequested)
+                _status.Text = "The linked Markdown file could not be opened: " + path;
+        };
         _fitPicture.Click += (_, _) => { _picture.Fit = true; UpdatePictureZoomControls(); };
         _actualSize.Click += (_, _) => { _picture.ShowActualSize(); UpdatePictureZoomControls(); };
         _zoomLevels.Click += (_, _) => OpenPictureZoomMenu();
@@ -2301,7 +2308,10 @@ public static class ViewerLauncher
         return opened;
     }
 
-    public static async Task OpenPath(AppServices services, string path)
+    public static async Task OpenPath(AppServices services, string path) => await TryOpenPath(services, path);
+
+    /// <summary>Open a local file in a separate viewer; false means the file could not be admitted.</summary>
+    public static async Task<bool> TryOpenPath(AppServices services, string path)
     {
         try
         {
@@ -2309,10 +2319,12 @@ public static class ViewerLauncher
             string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
             var source = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new FileContentSource(path));
             await Open(services, item, source, hex: false);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            // The caller shows its own errors; a missing file simply opens nothing.
+            // A missing or inaccessible file opens nothing; the linked-Markdown caller reports the failed click.
+            return false;
         }
     }
 }

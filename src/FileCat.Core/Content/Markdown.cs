@@ -8,7 +8,8 @@ namespace FileCat.Core.Content;
 /// Markdown drawn as a page in the viewer (release issue I25): CommonMark's blocks and inlines with GitHub's tables, task
 /// lists, strikethrough and bare web addresses — enough for READMEs, notes and documentation. Built in, so it adds no
 /// dependency. The file is untrusted: its HTML never reaches the page (it is shown as text, apart from a few formatting
-/// tags without attributes, and comments, which stay hidden), links lead only to the web, mail or within the page, and
+/// tags without attributes, and comments, which stay hidden), links lead only to the web, mail, within the page or a
+/// separately opened local Markdown file, and
 /// pictures load only from the file's own folder; the page's policy forbids scripts and everything else, on top of the
 /// viewer's own containment (§16.1).
 /// </summary>
@@ -30,17 +31,32 @@ public static partial class Markdown
     public static bool IsMarkdown(string name) =>
         Path.GetExtension(name.TrimEnd('/', '\\')).ToLowerInvariant() is ".md" or ".markdown" or ".mdown" or ".mkd" or ".mkdn" or ".mdwn";
 
+    /// <summary>A Markdown file link may name only a relative file, never a scheme, drive, network share or directory.</summary>
+    internal static bool TryLocalDestination(string address, out string relativePath)
+    {
+        relativePath = "";
+        string path = address.Split('?', '#')[0];
+        if (address.Length > 4096 || path.Length == 0 || path[0] is '/' or '\\' ||
+            path.Contains('\\') || path.Contains(':')) return false;
+        try { path = Uri.UnescapeDataString(path); }
+        catch (UriFormatException) { return false; }
+        if (path.Length == 0 || path[0] is '/' or '\\' || path.Contains('\\') || path.Contains(':') ||
+            path.Any(char.IsControl) || path.Split('/').Contains("..") || !IsMarkdown(path)) return false;
+        relativePath = path;
+        return true;
+    }
+
     /// <summary>A whole page: the document drawn, its style, and a policy that allows nothing but itself and its pictures.</summary>
     public static string ToPage(string markdown, string title) => ToPageCancellable(markdown, title, default);
 
-    internal static string ToPageCancellable(string markdown, string title, CancellationToken ct)
+    internal static string ToPageCancellable(string markdown, string title, CancellationToken ct, bool localLinks = true)
     {
         ct.ThrowIfCancellationRequested();
         var body = markdown.Length > MaxChars
             ? $"<p class=\"note\">This file is {markdown.Length / (1 << 20)} MB of text, more than FileCat draws as a page; the Text mode shows it.</p>"
             : TooManyLines(markdown)
                 ? $"<p class=\"note\">This file has more than {MaxLines:N0} lines, more than FileCat draws as a page; the Text mode shows it.</p>"
-                : RenderHtml(markdown, ct);
+                : RenderHtml(markdown, ct, localLinks);
         return $$"""
             <!DOCTYPE html>
             <html><head><meta charset="utf-8">
@@ -77,11 +93,11 @@ public static partial class Markdown
         return false;
     }
 
-    private static string RenderHtml(string markdown, CancellationToken ct)
+    private static string RenderHtml(string markdown, CancellationToken ct, bool localLinks = true)
     {
         var lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Select(ExpandTabs).ToList();
         ct.ThrowIfCancellationRequested();
-        var renderer = new Renderer(ct);
+        var renderer = new Renderer(ct, localLinks);
         renderer.CollectReferences(lines);
         var html = new StringBuilder();
         renderer.Blocks(lines, html, 0);
@@ -233,7 +249,12 @@ public static partial class Markdown
     private sealed partial class Renderer
     {
         private readonly CancellationToken _ct;
-        public Renderer(CancellationToken ct) => _ct = ct;
+        private readonly bool _localLinks;
+        public Renderer(CancellationToken ct, bool localLinks)
+        {
+            _ct = ct;
+            _localLinks = localLinks;
+        }
         private readonly Dictionary<string, (string Url, string? Title)> _references = new(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _slugs = new(StringComparer.Ordinal);
 
@@ -889,7 +910,7 @@ public static partial class Markdown
                 (url, title) = found;
             }
             string label = text[(open + 1)..close];
-            html = image ? Picture(url!, label, title) : Anchor(url!, Inline(label, depth + 1), title);
+            html = image ? Picture(url!, label, title) : Anchor(url!, Inline(label, depth + 1), title, _localLinks);
             return true;
         }
 
@@ -998,15 +1019,17 @@ public static partial class Markdown
         }
 
         /// <summary>
-        /// A link: to the web, mail or a place in this page, with its address shown on hover. Other destinations (other
-        /// files, scripts, data) are not links here: the text is shown, with the address it named.
+        /// A link: to the web, mail, a place in this page, or a relative Markdown file that the viewer opens separately.
+        /// Other destinations (scripts, data, non-Markdown files) remain text with the address they named.
         /// </summary>
-        private static string Anchor(string url, string inner, string? title)
+        private static string Anchor(string url, string inner, string? title, bool localLinks = false)
         {
             string decoded = WebUtility.HtmlDecode(url).Trim();
             string tip = title is { Length: > 0 } ? title + " — " + decoded : decoded;
             if (SafeHref(decoded))
                 return $"<a href=\"{Encode(decoded)}\" title=\"{Encode(tip)}\">{inner}</a>";
+            if (localLinks && TryLocalDestination(decoded, out _))
+                return $"<a href=\"?filecat-open={Uri.EscapeDataString(decoded)}\" title=\"{Encode("Open in a separate FileCat viewer — " + tip)}\">{inner}</a>";
             return $"<span class=\"link\" title=\"{Encode(tip)}\">{inner}</span>";
         }
 

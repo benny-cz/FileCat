@@ -30,6 +30,51 @@ public sealed class PageViewTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Clicking_a_local_markdown_link_requests_another_viewer_without_navigating_the_page()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "markdown-links")).FullName;
+        string current = Path.Combine(site, "index.md");
+        string linked = Path.Combine(site, "next.md");
+        File.WriteAllText(current, "# Index\n\n[Next](next.md) [Missing](missing.md)");
+        File.WriteAllText(linked, "# Next");
+        var requests = new ConcurrentQueue<string>();
+        var served = new ConcurrentQueue<string>();
+        var completions = new ConcurrentQueue<(bool Ok, string? Why)>();
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var source = new FileContentSource(current);
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-markdown"));
+            var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.LinkedMarkdown += (_, path) => requests.Enqueue(path);
+            view.Served += (path, found) => { if (found) served.Enqueue(path); };
+            view.Loaded += (ok, why) =>
+            {
+                completions.Enqueue((ok, why));
+                if (ok) loaded.TrySetResult();
+                else loaded.TrySetException(new InvalidOperationException(why));
+            };
+            view.Show(HtmlPage.ForMarkdown(source, current));
+            await loaded.Task;
+            await view.ClickLinkForTestsAsync(0);
+            for (int i = 0; i < 100 && requests.IsEmpty; i++) await Task.Delay(50);
+            Assert.Equal(new[] { linked }, requests.ToArray());
+            Assert.DoesNotContain("/next.md", served);
+            await view.ClickLinkForTestsAsync(1);
+            for (int i = 0; i < 100 && view.BlockedCount == 0; i++) await Task.Delay(50);
+            Assert.Equal(1, view.BlockedCount);
+            Assert.Equal(new[] { linked }, requests.ToArray());
+            Assert.DoesNotContain("/missing.md", served);
+            await Task.Delay(200);
+            Assert.DoesNotContain(completions, result => !result.Ok);
+            Assert.Equal("index.md", view.Title);
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(30));
+    }
+
     /// <summary>
     /// The rest of what a page can reach for (release issue I25): a style sheet, a web font, a frame and a
     /// navigation of its own, each naming the web. The engine must refuse every one of them, and the page still

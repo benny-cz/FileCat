@@ -68,6 +68,47 @@ public sealed class HtmlPage
 
     public string Address => $"https://{Host}/{Uri.EscapeDataString(Name)}";
 
+    /// <summary>Whether this is a rendered local Markdown link, including one whose target must be refused.</summary>
+    public bool IsLinkedMarkdownRequest(string address) =>
+        _markdown && Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.UserInfo.Length == 0 &&
+        uri.IsDefaultPort &&
+        ((uri.Scheme == Uri.UriSchemeHttps && string.Equals(uri.Host, Host, StringComparison.OrdinalIgnoreCase)) ||
+         (uri.Scheme == "filecat" && string.Equals(uri.Host, "page", StringComparison.OrdinalIgnoreCase))) &&
+        uri.AbsolutePath == "/" + Uri.EscapeDataString(Name) &&
+        uri.GetComponents(UriComponents.Query, UriFormat.UriEscaped).StartsWith("filecat-open=", StringComparison.Ordinal);
+
+    /// <summary>
+    /// A rendered Markdown link asks the host to open another file in a separate viewer. Only Markdown inside this
+    /// page's folder tree qualifies; the synthetic page navigation itself is always cancelled by the host.
+    /// </summary>
+    public bool TryLinkedMarkdownPath(string address, out string? path)
+    {
+        path = null;
+        if (_folder is null || _ct.IsCancellationRequested || !IsLinkedMarkdownRequest(address)) return false;
+        var uri = new Uri(address);
+
+        const string marker = "filecat-open=";
+        string query = uri.GetComponents(UriComponents.Query, UriFormat.UriEscaped);
+        if (!query.StartsWith(marker, StringComparison.Ordinal) || query.Contains('&')) return false;
+        string destination;
+        try { destination = Uri.UnescapeDataString(query[marker.Length..]); }
+        catch (UriFormatException) { return false; }
+        if (!Markdown.TryLocalDestination(destination, out string relative)) return false;
+        string full;
+        try
+        {
+            full = Path.GetFullPath(Path.Combine(_folder, relative.Replace('/', Path.DirectorySeparatorChar)));
+            if (!InsideLinked(full, _folder)) return false;
+            string folder = ResolveLinks(_folder);
+            string resolved = ResolveLinks(full);
+            if (!InsideLinked(resolved, folder) || !Markdown.IsMarkdown(resolved)) return false;
+            path = resolved;
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or
+                                   IOException or UnauthorizedAccessException) { return false; }
+    }
+
     /// <summary>
     /// The bytes and type of what the page asked for at <paramref name="path"/> (the path part of an address on
     /// <see cref="Host"/>, escaped as in the address), or null when it is not served: outside the page's folder, not a
@@ -157,9 +198,18 @@ public sealed class HtmlPage
 
     private bool Inside(string full) => Inside(full, _folder!);
 
+    // A case-sensitive APFS volume is possible, even though the default Mac volume is case-insensitive.
+    private static bool InsideLinked(string full, string folder) =>
+        Inside(full, folder, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
     private static bool Inside(string full, string folder)
     {
         var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        return Inside(full, folder, comparison);
+    }
+
+    private static bool Inside(string full, string folder, StringComparison comparison)
+    {
         folder = folder.EndsWith(Path.DirectorySeparatorChar) ? folder : folder + Path.DirectorySeparatorChar;
         return full.StartsWith(folder, comparison);
     }
@@ -199,7 +249,7 @@ public sealed class HtmlPage
         var bytes = file.Item1;
         var guess = TextDecoding.Detect(bytes.AsSpan(0, Math.Min(bytes.Length, 64 * 1024)));
         string text = guess.Encoding.GetString(bytes, guess.PreambleLength, bytes.Length - guess.PreambleLength);
-        return (Encoding.UTF8.GetBytes(Markdown.ToPageCancellable(text, Name, _ct)), "text/html");
+        return (Encoding.UTF8.GetBytes(Markdown.ToPageCancellable(text, Name, _ct, _folder is not null)), "text/html");
     }
 
     private (byte[], string)? Read(IContentSource source, string mime)

@@ -58,6 +58,9 @@ public sealed class PageView : NativeControlHost
     /// <summary>The current navigation completed; used to keep an older viewer snapshot until replacement loads.</summary>
     public event Action<bool, string?>? LoadCompleted;
 
+    /// <summary>A contained relative Markdown link was activated; open its file in another viewer.</summary>
+    public event Action<string>? LinkedMarkdown;
+
     /// <summary>Keys the page would otherwise keep (Esc, function keys, Ctrl and Alt combinations): whether the viewer took one.</summary>
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
@@ -271,6 +274,11 @@ public sealed class PageView : NativeControlHost
             if (!IsFocused) Focus(NavigationMethod.Pointer);
         });
         engine.FocusLeft += backward => Dispatcher.UIThread.Post(() => LeavePage(backward));
+        engine.LinkedMarkdown += (page, path) => Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && IsEffectivelyVisible)
+                LinkedMarkdown?.Invoke(path);
+        });
     }
 
     protected override void DestroyNativeControlCore(IPlatformHandle control)
@@ -349,6 +357,7 @@ internal interface IPageEngine : IDisposable
     int BlockedCount { get; }
     event Action? Changed;
     event Action<bool, string?>? Loaded;
+    event Action<HtmlPage, string>? LinkedMarkdown { add { } remove { } }
     Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
     void Show(HtmlPage page);
     void SetSize(int width, int height);
@@ -409,6 +418,7 @@ internal sealed class WindowsPageEngine : IPageEngine
         _view.TitleChanged += _ => Changed?.Invoke();
         _view.Blocked += _ => Changed?.Invoke();
         _view.Loaded += (ok, why) => Loaded?.Invoke(ok, why);
+        _view.LinkedMarkdown += (page, path) => LinkedMarkdown?.Invoke(page, path);
         _view.KeyPressed = (virtualKey, ctrl, shift, alt) =>
         {
             if (KeyRequested is not { } handler || ToKey(virtualKey) is not { } key) return false;
@@ -422,6 +432,7 @@ internal sealed class WindowsPageEngine : IPageEngine
     public int BlockedCount => _view.BlockedCount;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
+    public event Action<HtmlPage, string>? LinkedMarkdown;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
     public void Show(HtmlPage page) => _view.Show(page);
     public void SetSize(int width, int height) => _view.SetSize(width, height);

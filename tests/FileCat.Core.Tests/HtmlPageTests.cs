@@ -13,6 +13,54 @@ public sealed class HtmlPageTests
     private static extern int MakeFifo(string path, uint mode);
 
     [Fact]
+    public void Local_markdown_links_open_only_contained_markdown_files_in_another_viewer()
+    {
+        using var root = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(root.Path, "docs")).FullName;
+        string nested = Directory.CreateDirectory(Path.Combine(folder, "more")).FullName;
+        string current = Path.Combine(folder, "index.md");
+        string linked = Path.Combine(nested, "next file.md");
+        File.WriteAllText(current, "[next](more/next%20file.md#heading)");
+        File.WriteAllText(linked, "# Next");
+        File.WriteAllText(Path.Combine(root.Path, "outside.md"), "# Outside");
+        using var source = new FileContentSource(current);
+        var page = HtmlPage.ForMarkdown(source, current);
+
+        Assert.True(page.TryLinkedMarkdownPath(page.Address + "?filecat-open=more%2Fnext%2520file.md%23heading", out string? path));
+        Assert.Equal(linked, path);
+        Assert.True(page.TryLinkedMarkdownPath("filecat://page/index.md?filecat-open=more%2Fnext%2520file.md%23heading", out path));
+        Assert.Equal(linked, path);
+        foreach (string address in new[]
+        {
+            page.Address + "?filecat-open=..%2Foutside.md",
+            page.Address + "?filecat-open=%252e%252e%2Foutside.md",
+            page.Address + "?filecat-open=more%2Fnext%20file.txt",
+            page.Address + "?filecat-open=https%3A%2F%2Fexample.com%2Fx.md",
+            page.Address + "?filecat-open=%2Foutside.md",
+            page.Address + "?filecat-open=more%2Fnext%2520file.md&extra=1",
+            "https://example.com/index.md?filecat-open=more%2Fnext%2520file.md",
+            page.Address + "?filecat-open=missing.md",
+        })
+            Assert.False(page.TryLinkedMarkdownPath(address, out _), address);
+    }
+
+    [Fact]
+    public void A_markdown_link_through_a_symlink_outside_its_folder_is_refused()
+    {
+        using var root = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(root.Path, "docs")).FullName;
+        string current = Path.Combine(folder, "index.md");
+        string outside = Path.Combine(root.Path, "outside.md");
+        File.WriteAllText(current, "[outside](linked.md)");
+        File.WriteAllText(outside, "# Outside");
+        try { File.CreateSymbolicLink(Path.Combine(folder, "linked.md"), outside); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Assert.Skip("Links cannot be made here: " + ex.Message); }
+        using var source = new FileContentSource(current);
+        var page = HtmlPage.ForMarkdown(source, current);
+        Assert.False(page.TryLinkedMarkdownPath(page.Address + "?filecat-open=linked.md", out _));
+    }
+
+    [Fact]
     public void A_page_does_not_open_an_adjacent_fifo_waiting_for_a_writer()
     {
         if (OperatingSystem.IsWindows()) { Assert.Skip("Unix FIFO control."); return; }
@@ -143,6 +191,16 @@ public sealed class HtmlPageTests
         Assert.Equal("inside.html", page.Name);
         Assert.Equal("<html>archived</html>", Encoding.UTF8.GetString(page.Resolve("/inside.html")!.Value.Bytes));
         Assert.Null(page.Resolve("/style.css"));
+    }
+
+    [Fact]
+    public void Archived_markdown_does_not_offer_an_unopenable_local_file_link()
+    {
+        using var source = new MemoryContentSource("inside.md", Encoding.UTF8.GetBytes("[next](next.md)"));
+        var page = HtmlPage.ForMarkdown(source, "archive.zip/docs/inside.md");
+        string html = Encoding.UTF8.GetString(page.Resolve("/inside.md")!.Value.Bytes);
+        Assert.Contains("<span class=\"link\" title=\"next.md\">next</span>", html);
+        Assert.DoesNotContain("?filecat-open=", html);
     }
 
     [Theory]
