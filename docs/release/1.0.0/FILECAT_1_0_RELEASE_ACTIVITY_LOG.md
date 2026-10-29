@@ -4475,3 +4475,36 @@ At the owner's request, four independent read-only reviews covered the 27–28 O
 - **R-H6:** elevated writes outside `JsonFileStore` still follow planted links.
 
 R-H2 is fixed in `41447e73`. Each Python validator now stops its step. The validator adapts every package identity the App lock has moved, in memory only. Locally it passes 71/71 and the SBOM controls 17/17; HEAD's validator fails the seven "unchanged" controls. THIRD-PARTY-NOTICES.md now names SharpCompress 0.50.5. Under the owner's split, the security-plan, I08 and CI-owned findings stay with Codex, which has uncommitted edits in several of those files. The release session keeps R-M15–R-M17 (SBOM fidelity, dirty-tree identity, mutable AppImage runtime source) and the release-engineering Low items. New ledger row REL-REVIEW-CODEX-20261029 is Open; the evidence index is **889**. Stable publication remains NO-GO.
+
+## 2026-10-29 — FileCat's own RAR reader on main, stress campaigns and hosted CI state
+
+FileCat now opens every RAR with its own managed reader ([record](evidence/E-I14-rar-reader.md)), pushed as `e57ebaaf` after three fuzz campaigns ran clean. RAR 2.0–7 is ported from rardecode v2.4.5 (BSD-2-Clause) and RAR 1.5 from XADMaster (LGPL-2.1-or-later) in its own assembly. That replaces the 2026-10-28 plan of libarchive's readers plus Ppmd7, and the blocker register's EXT-02 route and I14 now describe the built route.
+- **Tests.** Windows Core: 4,846 tests, 0 failures (152 platform skips); archive App tests 20/20. macOS 27.0.1 arm64 and Ubuntu 24.04.5 x64 ran the five RAR/archive classes natively, 268/268 each.
+- **libarchive's 76 RAR test files.** Wherever the retired SharpCompress path reads an archive completely, FileCat gives the same members and bytes. The one exception is RAR 4 Unix symlinks, which are now listed as links. Every damaged file is refused cleanly.
+- **Fuzzing.** 690,000 rounds on Windows (`6e06b830`) and 230,000 each on macOS and Ubuntu (`e57ebaaf`), with no failure. macOS and Ubuntu gave identical outcome counts for every seed. The largest round allocated 493 MiB of its 1.5 GiB budget, and the slowest took 474 ms. A further Windows campaign at `e57ebaaf` (rounds 30,000–39,999) is running.
+
+Hosted CI has been red since `fbbc25a8`.
+- **Windows App lanes (I555).** Since `559a7572`, both Windows lanes fail 37–38 App tests in state saving and edit sessions on the elevated runners. I555's correction does not yet cover them, and they stay with the security session.
+- **RAR 2.0 tests (fixed).** At `b3903c01`, two RAR 2.0 tests timed out on hosted macOS and Ubuntu, although they take under half a second locally. Their ten-second guard queued the work on the thread pool, so a busy pool could spend the limit before the decode even started. The RAR test guards now run on their own threads with a 30-second hang limit. The fuzz harness now awaits its rounds instead of blocking, and the Core test project builds without warnings.
+
+**Ledger changes.**
+- The evidence index adds E-I14-RAR and indexes two records from this session's merged branches, E-EXT04 and E-I05-D56: **892** entries.
+- The dashboard's convergence table now matches the ledger statuses set on 2026-10-28.
+- REL-RAR-LICENSE stays Open until SharpCompress ships without its UnRAR-derived RAR and PPMd var.H code.
+
+Stable publication remains NO-GO.
+
+## 2026-10-29 — Corrected I03 evidence claims from the review
+
+The release-engineering Low findings of the [review](evidence/E-REVIEW-2026-10-29-codex-commits.md) were rechecked against the raw evidence and the validators, and the text is corrected. The measured bytes and outcomes are unchanged.
+- **[E-I03-DRAFT](evidence/E-I03-DRAFT-cross-platform-package-set.md#corrections-2026-10-29)**:
+  - `7f62225e…58c4` is DiscUtils' upstream `LICENSE.txt`, not the LTRData.Extensions MIT text (`b05785f9…92b5`, not hashed in that run).
+  - On Windows, only the x64 portable ZIP was run natively.
+  - The thirteen synthetic publication controls are eleven refusals and two allowed cases (`draft-package-set-controls.json`). The I03 issue, the I03-DRAFT-PACKAGE-SET and REL-I03-PROVENANCE rows, and the evidence index now say so.
+- **E-I03-SBOM**: the unused reviewed package and the Unix symbolic-link payload are allowed cases (`validate-artifact-sbom.py` lines 201 and 217), not refusals.
+- **I03-LTRDATA-LICENSE row**: it names LTRData.Extensions as a DiscUtils dependency, not a Windows shell helper.
+
+Still owed by the release session, after the SharpCompress slice lands, because they touch the same SBOM and notice code:
+- R-M15 SBOM fidelity;
+- the LTRData copyright line in a human-readable notice;
+- byte-checked attribution of `reference` libraries.

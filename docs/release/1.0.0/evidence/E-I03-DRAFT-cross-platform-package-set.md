@@ -18,15 +18,15 @@ The selected set contains both Windows setup executables, four Windows ZIPs, six
 
 ## Native package checks
 
-- On Windows 11 build 26300 in the disposable VM, the exact x64 portable ZIP (`180f5387…69e45`) was expanded and its hidden `--version` process exited zero with `FileCat 1.0.0-rc.1`; the executable product version binds source `8ae4229b…`. Embedded public notices and the LTRData MIT text hash to `06e63c31…97665` and `7f62225e…58c4`. A first PowerShell GUI-process invocation captured empty stdout and is retained separately as a test-oracle failure.
-- On Ubuntu 26.04.1, tar, deb and AppImage version checks exit zero. The deb contains seven required icon sizes. Static extraction of the AppImage finds exactly eleven reviewed AppImage-runtime notice files with the committed hashes, including musl, zlib, zstd and mimalloc full texts. Its public notice and LTRData hashes match the Windows payload.
+- On Windows 11 build 26300 in the disposable VM, the exact x64 portable ZIP (`180f5387…69e45`) was expanded and its hidden `--version` process exited zero with `FileCat 1.0.0-rc.1`; the executable product version binds source `8ae4229b…`. The embedded public notices hash to `06e63c31…97665` and the embedded DiscUtils licence text (LTRData/DiscUtils `LICENSE.txt`) to `7f62225e…58c4`. This was the only Windows package run natively: the ARM64 ZIPs, the framework-dependent ZIP and both setup executables were not. A first PowerShell GUI-process invocation captured empty stdout and is retained separately as a test-oracle failure.
+- On Ubuntu 26.04.1, tar, deb and AppImage version checks exit zero. The deb contains seven required icon sizes. Static extraction of the AppImage finds exactly eleven reviewed AppImage-runtime notice files with the committed hashes, including musl, zlib, zstd and mimalloc full texts. Its public notice and DiscUtils licence hashes match the Windows payload.
 - On the physical Apple Silicon Mac, the app ZIP's ad-hoc signature verifies, `--version` exits zero with `FileCat 1.0.0-rc.1`, and all seven icon frames are present.
 
 The Ubuntu native archive is 193,694,915 bytes, SHA-256 `213404310bc7c218f7c2e1b7c71db50fa9c519ce809fc4070437da42fc739544`. The Mac native archive is SHA-256 `b359c2b6327c8447c2647663df0d933b4df786101c0404d682f12134b763518a`. A clean Mac notice run at the exact source passes 63/63 controls (seven allowed, 56 refused); its retrieved archive is SHA-256 `43ce05fc0639f2405fc3076ffc5c0ab750a0f5df059c5dce3ac7c0bec1c2c7b8`.
 
 ## Release-path refusal
 
-The combined draft-package validator passes all 13 synthetic contract/mutation cases. Authenticated read-only preflight validates local bytes separately for Windows, Linux and macOS, then the aggregate route, and all four attempts stop at the same required boundary:
+The combined draft-package validator passes all 13 synthetic contract/mutation cases: two allowed (a complete preflight and a complete upload) and eleven refusals. Authenticated read-only preflight validates local bytes separately for Windows, Linux and macOS, then the aggregate route, and all four attempts stop at the same required boundary:
 
 `Read-only GitHub preflight failed at git/ref/tags/v1.0.0-rc.1; no upload is authorized.`
 
@@ -35,3 +35,12 @@ The prerelease tag does not exist. No tag, GitHub release, asset upload, signing
 ## Remaining boundary
 
 This accepts only the deterministic 23-file unsigned preview composition and its bounded native smokes. It does not resolve libfuse LGPL static-link source/relinkability obligations, establish legal eligibility, reproduce the AppImage runtime bit for bit, resolve SharpCompress RAR eligibility (`EXT-02`), freeze the release contract, qualify a signed candidate, seal the REP or authorize stable publication. Those requirements remain in `REL-I03-PROVENANCE`, `EXT-04`, `REL-FQ-CANDIDATE` and `REL-GO-PUBLISH`.
+
+## Corrections (2026-10-29)
+
+The [review of the 27–28 October commits](E-REVIEW-2026-10-29-codex-commits.md) found three overstatements, corrected above:
+- **Licence text.** This record first called `7f62225e…58c4` the LTRData MIT text. It is DiscUtils' upstream `LICENSE.txt`. LTRData.Extensions' MIT reference text is `b05785f9…92b5`, and this run recorded no hash for it.
+- **Native smokes.** It did not say that only the x64 portable ZIP was run natively on Windows.
+- **Control count.** The ledger counted the thirteen synthetic cases as refusals. Two of them (`preflight-complete`, `upload-complete`) are allowed cases, so there are eleven refusals.
+
+The measured bytes and outcomes are unchanged.

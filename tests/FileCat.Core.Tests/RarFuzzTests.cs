@@ -39,7 +39,7 @@ public sealed class RarFuzzTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(string fixture)
+    public async Task Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(string fixture)
     {
         int rounds = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_RAR_FUZZ_ROUNDS"), out var r) ? r : 150;
         int first = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_RAR_FUZZ_START"), out var s) ? s : 0;
@@ -57,8 +57,15 @@ public sealed class RarFuzzTests
             var damaged = Damage(original, map, fixture, round);
             var watch = Stopwatch.StartNew();
             var run = Task.Factory.StartNew(() => Run(damaged), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-            if (!run.Wait(limit)) Assert.Fail($"{fixture} round {round} still running after {limit.TotalSeconds:N0} s (FILECAT_RAR_FUZZ_START={round}).");
-            var (outcome, allocated, failure) = run.Result;
+            try
+            {
+                await run.WaitAsync(limit, TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                Assert.Fail($"{fixture} round {round} still running after {limit.TotalSeconds:N0} s (FILECAT_RAR_FUZZ_START={round}).");
+            }
+            var (outcome, allocated, failure) = await run;
             if (failure is not null) Assert.Fail($"{fixture} round {round} (FILECAT_RAR_FUZZ_START={round}): {failure}");
             if (allocated > AllocationBudget) Assert.Fail($"{fixture} round {round} allocated {allocated >> 20} MiB.");
             outcomes[outcome] = outcomes.GetValueOrDefault(outcome) + 1;
