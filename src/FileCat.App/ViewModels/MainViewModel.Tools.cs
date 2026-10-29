@@ -421,8 +421,9 @@ public sealed partial class MainViewModel
         Views.DirectoryDiffWindow.StartAsync(leftName, rightName,
             $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed." +
             (overlap is null ? "" : $" Synchronize is not offered. {overlap}"),
+            // Without a synchronization to offer, nothing is reviewed for a Mirror's removals.
             (progress, ct) => Task.Run(() => TreeCompare.CompareAsync(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress,
-                new ComparisonIo(Services.Io, Services.Providers), Services.Platform.FileOperations)),
+                new ComparisonIo(Services.Io, Services.Providers), Services.Platform.FileOperations, reviewRemovals: sync is not null)),
             (entries, leftSide) =>
             {
                 var set = Services.ResultSets.Create($"{(leftSide ? "Left" : "Right")} differences: {Path.GetFileName((leftSide ? leftName : rightName).TrimEnd('\\', '/'))}",

@@ -60,8 +60,11 @@ public static class TreeCompare
         bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null, IFileSystemOperations? files = null)
         => CompareAsync(providers, left, right, criteria, tolerance, caseInsensitiveNames, ct, progress, io, files).GetAwaiter().GetResult();
 
+    /// <param name="reviewRemovals">Whether each item on one side only is reviewed (its bytes and final path read), so that a
+    /// Mirror may remove it as compared; not where the comparison can lead to no synchronization (overlapping folders).</param>
     public static async Task<TreeCompareResult> CompareAsync(ProviderRegistry providers, Location left, Location right, CompareCriteria criteria, TimeSpan tolerance,
-        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null, IFileSystemOperations? files = null)
+        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null, IFileSystemOperations? files = null,
+        bool reviewRemovals = true)
     {
         var entries = new List<TreeDiffEntry>();
         long remainingReviewBytes = 256L * 1024 * 1024;
@@ -143,7 +146,7 @@ public static class TreeCompare
                 ct.ThrowIfCancellationRequested, byteLimit: Math.Min(remainingReviewBytes, JournalRecovery.StagedReviewByteLimit),
                 itemLimit: Math.Min(remainingReviewItems, 1000), allowLinks: true);
             // It reads the item's bytes and final path: on the device's worker, as the listings are.
-            var review = io is null ? Capture() : await io.ReviewAsync(provider, folder, Capture, ct).ConfigureAwait(false);
+            var review = !reviewRemovals ? null : io is null ? Capture() : await io.ReviewAsync(provider, folder, Capture, ct).ConfigureAwait(false);
             if (review is not null) { remainingReviewItems -= review.Items.Count; remainingReviewBytes -= review.Bytes; }
             entry = entry with { RemovalReview = review is null ? null : new ReviewedSourceTree(review, provider) };
             if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
