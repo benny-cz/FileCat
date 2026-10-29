@@ -127,7 +127,7 @@
                       </WrapPanel>
                       <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding CanStopReview}" ColumnSpacing="8">
                         <TextBlock Text="{Binding ActionStatus}" Classes="small" TextWrapping="Wrap" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="{Binding StopReviewLabel}" Tag="{Binding}" Click="OnStopInterruptedReview"
+                        <Button Grid.Column="1" Content="{Binding StopReviewLabel}" Tag="{Binding}" Click="OnStopInterruptedReview" Classes="stopReview"
                                 AutomationProperties.HelpText="Stops recovery preparation before approval, or after the current safe cleanup step" />
                       </Grid>
                     </StackPanel>

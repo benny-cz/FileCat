@@ -228,6 +228,51 @@ public sealed class OperationsDrawerLayoutTests
     }
 
     [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Stop_stays_in_view_when_the_recovery_area_changes_after_a_review_starts(bool revealedByContinue)
+    {
+        // Hosted macOS once found Stop 15 DIP short of the bounded recovery viewport (14 of 29 DIP visible): the reveal
+        // scrolled to the end once, and the area changed after it. Only Continue revealed Stop at all, and it scrolled to
+        // the end of the area, which the reviewed reports follow.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var item = new InterruptedJobViewModel(new InterruptedJob(
+                Path.Combine(root, "journal"), nameof(JobKind.Copy), "Interrupted copy", DateTime.UtcNow,
+                [Path.Combine(root, "source")], Path.Combine(root, "target"), [], [], 0, 1));
+            center.Interrupted.Add(item);
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var recovery = view.FindControl<ScrollViewer>("RecoveryScroll")!;
+            // As a cleanup or a new transfer starts its review: the phase changes, with no explicit reveal.
+            item.SetActionPhase(RecoveryActionPhase.Reviewing, "Reviewing recovery sources…");
+            if (revealedByContinue) view.RevealRecoveryReview(item);
+            Layout(window);
+            AssertStopVisible(view, recovery, "after the review started");
+
+            // The review announces its progress above everything in the area, as each phase does.
+            center.AnnounceRecovery("Reviewing staged files and source changes; nothing is changed before you approve the reviewed plan.");
+            Layout(window);
+            Assert.True(recovery.Extent.Height > recovery.Viewport.Height + 1, "The fixture must exercise a clipped recovery card.");
+            AssertStopVisible(view, recovery, "after an announcement above it");
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static void AssertStopVisible(OperationsView view, ScrollViewer recovery, string when)
+    {
+        var stop = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Stop review" && b.IsVisible);
+        var top = stop.TranslatePoint(new Point(0, 0), recovery)!.Value.Y;
+        var bottom = stop.TranslatePoint(new Point(0, stop.Bounds.Height), recovery)!.Value.Y;
+        double visibleHeight = Math.Min(bottom, recovery.Bounds.Height) - Math.Max(top, 0);
+        Assert.True(visibleHeight >= stop.Bounds.Height - 1,
+            $"Stop must be in view {when}: visible {visibleHeight} of {stop.Bounds.Height} DIP in {recovery.Bounds.Height} DIP viewport.");
+    }
+
+    [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(20)]
     public async Task Small_window_keeps_an_operation_row_and_full_report_action(int interruptions)

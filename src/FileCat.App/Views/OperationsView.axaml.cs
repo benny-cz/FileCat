@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
@@ -28,6 +29,12 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
+        // changes: the action starting, a status line wrapping, the window settling around the drawer.
+        RecoveryScroll.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty) RevealStop(null);
+        };
         DetailsDrawer.PropertyChanged += (_, e) =>
         {
             if (e.Property != Visual.IsVisibleProperty || !DetailsDrawer.IsVisible) return;
@@ -447,15 +454,26 @@ public partial class OperationsView : UserControl
         // settles for the production path that starts the review and reveals
         // it in the same dispatcher turn. This does not change the user's
         // saved drawer size.
-        void Reveal()
-        {
-            if (Center is { IsOpen: true } center &&
-                ReferenceEquals(center.SelectedInterrupted, item) && item.CanStopReview)
-                RecoveryScroll.ScrollToEnd();
-        }
+        RevealStop(item);
+        Dispatcher.UIThread.Post(() => RevealStop(item), DispatcherPriority.Loaded);
+    }
 
-        Reveal();
-        Dispatcher.UIThread.Post(Reveal, DispatcherPriority.Loaded);
+    /// <summary>
+    /// Scrolls the recovery area just enough to show the selected item's Stop, when it can be stopped (with
+    /// <paramref name="item"/>, only when that item is the selected one). Stop is brought into view itself, not the
+    /// end of the area, which the reviewed reports follow; a Stop already in view is left where it is.
+    /// </summary>
+    private void RevealStop(InterruptedJobViewModel? item)
+    {
+        if (Center is not { IsOpen: true, SelectedInterrupted: { CanStopReview: true } selected } ||
+            item is not null && !ReferenceEquals(item, selected)) return;
+        var stop = RecoveryScroll.GetVisualDescendants().OfType<Button>()
+            .FirstOrDefault(b => b.Classes.Contains("stopReview") && ReferenceEquals(b.Tag, selected) && b.IsEffectivelyVisible);
+        if (stop?.TranslatePoint(default, RecoveryScroll) is not { } top) return;
+        double bottom = top.Y + stop.Bounds.Height, viewport = RecoveryScroll.Viewport.Height;
+        var offset = RecoveryScroll.Offset;
+        if (bottom > viewport) RecoveryScroll.Offset = offset.WithY(offset.Y + Math.Min(bottom - viewport, top.Y));
+        else if (top.Y < 0) RecoveryScroll.Offset = offset.WithY(offset.Y + top.Y);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
