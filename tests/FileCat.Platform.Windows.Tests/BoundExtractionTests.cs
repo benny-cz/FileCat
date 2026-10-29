@@ -13,9 +13,9 @@ public sealed class BoundExtractionTests
         public bool Attempted { get; private set; }
         public bool Blocked { get; private set; }
 
-        public override IDisposable HoldDirectory(string path)
+        public override IDisposable HoldDirectory(string path, string? root = null)
         {
-            var held = base.HoldDirectory(path);
+            var held = base.HoldDirectory(path, root);
             if (!Attempted && Path.GetFullPath(path).Equals(Path.GetFullPath(child), StringComparison.OrdinalIgnoreCase))
             {
                 Attempted = true;
@@ -35,7 +35,8 @@ public sealed class BoundExtractionTests
         public bool Called { get; private set; }
 
         public override BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
-            string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null)
+            string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null,
+            DateTime? expectedModifiedUtc = null)
         {
             Called = true;
             DateTime stamp = File.GetLastWriteTimeUtc(destination);

@@ -76,11 +76,11 @@ public sealed class OperationScopeTests
             vm.Execute(CommandIds.AddPanel);
             await Task.Delay(100, ct);
 
-            // Replace B's x.txt: the copy goes on as it was planned.
-            job.Decision!.Resolve(new Decision(DecisionAction.Replace));
+            // Keep both x.txt (this headless platform replaces nothing): the copy goes on as it was planned.
+            job.Decision!.Resolve(new Decision(DecisionAction.KeepBothRenameIncoming));
             for (int i = 0; i < 500 && !job.State.IsFinished(); i++) await Task.Delay(20, ct);
             Assert.Equal(JobState.Completed, job.State);
-            Assert.Equal(new Dictionary<string, string> { ["x.txt"] = "A-x", ["y.txt"] = "A-y" }, Manifest(b));
+            Assert.Equal(new Dictionary<string, string> { ["x (2).txt"] = "A-x", ["x.txt"] = "B-x", ["y.txt"] = "A-y" }, Manifest(b));
             Assert.Empty(Manifest(c));
             var afterA = Manifest(a);
             Assert.Equal(beforeA.Count + 2, afterA.Count);

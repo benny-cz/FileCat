@@ -335,7 +335,10 @@ public sealed class UndoLifecycleUiTests
     [AvaloniaFact]
     public async Task Replacement_move_review_names_the_partial_inverse_and_irreversible_destination_content()
     {
-        using var f = await Fixture.Open();
+        // Replacement binds to the reviewed destination only through Windows' native adapter; elsewhere it is refused (the
+        // owner's policy of 2b62355f), and the headless platform replaces nothing.
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Replacing a destination is Windows' native adapter's.");
+        using var f = await Fixture.Open(nativeWindows: true);
         string source = Path.Combine(f.Root, "files", "a.txt"), destination = Directory.CreateDirectory(Path.Combine(f.Root, "replacement")).FullName;
         string target = Path.Combine(destination, "a.txt"); File.WriteAllText(target, "old destination bytes");
         var original = f.Services.Jobs.Submit(new JobRequest { Kind = JobKind.Move,
@@ -387,9 +390,9 @@ public sealed class UndoLifecycleUiTests
     {
         public required AppServices Services; public required MainViewModel Vm; public required MainWindow Window; public required string Root;
         public string EmptyPath => Path.Combine(Root, "created-empty.txt");
-        public static async Task<Fixture> Open()
+        public static async Task<Fixture> Open(bool nativeWindows = false)
         {
-            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(nativeWindowsOriginMarks: nativeWindows);
             if (typeof(MainWindow).GetField("_interruptedStartup", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) is Task startup) await startup;
             return new Fixture { Services = services, Vm = vm, Window = window, Root = root };
         }

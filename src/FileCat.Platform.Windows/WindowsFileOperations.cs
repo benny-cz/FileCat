@@ -12,25 +12,32 @@ public partial class WindowsFileOperations : PortableFileOperations
     private const string ZoneStream = ":Zone.Identifier";
     private const int MaxOriginMarkBytes = 64 * 1024;
 
-    public override IDisposable HoldRegularFile(string path)
+    public override IDisposable HoldRegularFile(string path, string? root = null)
     {
-        if (!WindowsIcons.IsLocal(path)) return base.HoldRegularFile(path);
-        return Shell.LocalIconFileLease.TryOpen(path)
+        if (!WindowsIcons.IsLocal(path)) return base.HoldRegularFile(path, root);
+        return Shell.LocalIconFileLease.TryOpen(path, Shell.LocalIconFileLease.ForTransfers, root)
             ?? throw new IOException("The source path contains a link or cannot be held; it was not added to the archive.");
     }
 
-    public override IDisposable HoldDirectory(string path)
+    public override IDisposable HoldDirectory(string path, string? root = null)
     {
-        if (!WindowsIcons.IsLocal(path)) return base.HoldDirectory(path);
-        return Shell.LocalIconFileLease.TryOpenDirectory(path)
+        if (!WindowsIcons.IsLocal(path)) return base.HoldDirectory(path, root);
+        return Shell.LocalIconFileLease.TryOpenDirectory(path, Shell.LocalIconFileLease.ForTransfers, chosen: root)
             ?? throw new IOException("The destination folder path contains a link or cannot be held; nothing was written there.");
+    }
+
+    public override bool HeldDirectoryRedirected(IDisposable lease)
+    {
+        if (lease is not Shell.LocalIconFileLease held) return false;
+        try { return Elevation.NtFile.IsLink(held.LastHandle); }
+        catch (System.ComponentModel.Win32Exception) { return true; }
     }
 
     public override BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint)
     {
         if (!WindowsIcons.IsLocal(path)) return null;
         var report = new Elevation.SecureFileOps(checkpoint, Elevation.ElevationPaths.ToDisplayPath)
-            .DeleteTree(Elevation.ElevationPaths.ToVolumePathWithoutFollowing(path));
+            .DeleteTree(Elevation.ElevationPaths.ToVolumePathForBoundOperation(path));
         return new BoundTreeDeletion(report.Done, report.Failed, report.Problems);
     }
 

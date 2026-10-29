@@ -47,7 +47,9 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 {
     private const int BufferSize = 1024 * 1024;
 
-    private sealed record Addition(string Member, string? Source, bool FolderEntry, DateTime Modified, FileAttributes Attributes, long Length);
+    /// <param name="Root">The folder the user chose to add, for a file found in it: no link below it is followed.</param>
+    private sealed record Addition(string Member, string? Source, bool FolderEntry, DateTime Modified, FileAttributes Attributes, long Length,
+        string? Root = null);
 
     public override void Execute()
     {
@@ -413,7 +415,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 {
                     var info = new FileInfo(change.SourcePath ?? throw new ArgumentException("A source file is required."));
                     if (!info.Exists) throw new FileNotFoundException("The file to add no longer exists.", info.FullName);
-                    if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
+                    // A cloud placeholder (a OneDrive file) is a reparse point, but no link.
+                    if (ReparseLinks.IsLink(info.FullName))
                         throw new IOException("The source is a link; links are not added to ZIP archives.");
                     result.Add(new Addition(member, info.FullName, false, info.LastWriteTime, info.Attributes, info.Length));
                     break;
@@ -443,7 +446,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             {
                 any = true;
                 string child = prefix + "/" + entry.Name;
-                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 && ReparseLinks.IsLink(entry.FullName))
                 {
                     Issue(IssueSeverity.Warning, entry.FullName, "Not added: links are not stored in ZIP archives and are not followed.", StepOutcome.Skipped);
                     continue;
@@ -454,7 +457,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     continue;
                 }
                 if (entry is DirectoryInfo sub) pending.Push((sub, child));
-                else if (entry is FileInfo file) result.Add(new Addition(child, file.FullName, false, file.LastWriteTime, file.Attributes, file.Length));
+                else if (entry is FileInfo file)
+                    result.Add(new Addition(child, file.FullName, false, file.LastWriteTime, file.Attributes, file.Length, root.FullName));
             }
             if (!any) result.Add(new Addition(prefix, null, true, dir.LastWriteTime, FileAttributes.Directory, 0));
         }
@@ -475,7 +479,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
     private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced)
     {
-        using var held = Fs.HoldRegularFile(addition.Source!);
+        using var held = Fs.HoldRegularFile(addition.Source!, addition.Root);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
         Stamp(entry, addition.Modified, attributes, replaced?.Comment);

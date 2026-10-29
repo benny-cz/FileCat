@@ -76,7 +76,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 var next = OpenOrThrow(current, parts[i], FolderAccess, ShareAll, Open, DirectoryFile | OpenReparsePoint, $"Open folder \"{parts[i]}\"");
                 current.Dispose();
                 current = next;
-                if (IsReparsePoint(GetBasic(current).FileAttributes))
+                if (IsLink(current))
                     throw new IOException($"The folder \"{parts[i]}\" is now a link, so the path changed after the plan was made. Nothing was done there.");
             }
             leaf = includeLast ? "" : parts[^1];
@@ -97,7 +97,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         SafeFileHandle root;
         try { root = OpenOrThrow(parent, leaf, DeleteAccess, approve is null ? ShareAll : ShareRead, Open, OpenReparsePoint, "Open the item"); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(volumePath), ex); return report; }
-        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<(string Name, uint Attributes, FileIdentity? Identity)> Pending)>();
+        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<(string Name, uint Attributes, uint ReparseTag, FileIdentity? Identity)> Pending)>();
         try
         {
             if (approve is not null && !approve(root, volumePath))
@@ -106,9 +106,10 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 return report;
             }
             uint attributes = GetBasic(root).FileAttributes;
-            if (!IsDirectory(attributes) || IsReparsePoint(attributes))
+            if (!IsDirectory(attributes) || IsLink(root))
             {
-                // A file, or a link (removed as a link; its target is never touched).
+                // A file, or a link (removed as a link; its target is never touched). A folder that is another kind of
+                // reparse point, such as a Cloud Files placeholder, is a folder.
                 Remove(root, volumePath, report, beforeRemove);
                 return report;
             }
@@ -135,7 +136,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                     entryAttributes = GetBasic(entry).FileAttributes;
                 }
                 catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(childPath), ex); continue; }
-                if (!IsReparsePoint(listed.Attributes) && IsReparsePoint(entryAttributes))
+                if (!IsLink(listed.Attributes, listed.ReparseTag) && IsLink(entry))
                 {
                     entry.Dispose();
                     report.Fail(_display(childPath), new IOException("The listed item became a link before deletion; it was left in place."));
@@ -159,7 +160,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                     report.Fail(_display(childPath), new IOException("The item is no longer the fully reviewed object."));
                     continue;
                 }
-                if (IsDirectory(entryAttributes) && !IsReparsePoint(entryAttributes))
+                if (IsDirectory(entryAttributes) && !IsLink(entry))
                 {
                     try { stack.Push((entry, childPath, SnapshotChildren(entry))); }
                     catch (Exception ex) when (IsIo(ex)) { entry.Dispose(); report.Fail(_display(childPath), ex); }
@@ -178,9 +179,9 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         }
     }
 
-    private Queue<(string Name, uint Attributes, FileIdentity? Identity)> SnapshotChildren(SafeFileHandle directory)
+    private Queue<(string Name, uint Attributes, uint ReparseTag, FileIdentity? Identity)> SnapshotChildren(SafeFileHandle directory)
     {
-        var pending = new Queue<(string Name, uint Attributes, FileIdentity? Identity)>();
+        var pending = new Queue<(string Name, uint Attributes, uint ReparseTag, FileIdentity? Identity)>();
         int count = 0;
         foreach (var listed in List(directory))
         {
@@ -190,11 +191,11 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             {
                 using var entry = OpenOrThrow(directory, listed.Name, ReadAttributes | Synchronize, ShareAll,
                     Open, OpenReparsePoint, "Identify listed item");
-                if (IsReparsePoint(GetBasic(entry).FileAttributes) == IsReparsePoint(listed.Attributes))
+                if (IsLink(entry) == IsLink(listed.Attributes, listed.ReparseTag))
                     identity = ProtectedHexFile.Identity(entry);
             }
             catch (Exception ex) when (IsIo(ex)) { /* A changed or inaccessible entry is refused when visited. */ }
-            pending.Enqueue((listed.Name, listed.Attributes, identity));
+            pending.Enqueue((listed.Name, listed.Attributes, listed.ReparseTag, identity));
         }
         return pending;
     }
@@ -218,17 +219,19 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         using var destination = OpenDirectory(destinationFolder);
         SafeFileHandle source;
         uint attributes;
+        bool link;
         try
         {
             source = OpenOrThrow(sourceParent, leaf, ReadAccess, ShareAll, Open, OpenReparsePoint, "Open the source");
             attributes = GetBasic(source).FileAttributes;
+            link = IsLink(source);
         }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(sourcePath), ex); return report; }
-        if (IsReparsePoint(attributes) || !IsDirectory(attributes))
+        if (link || !IsDirectory(attributes))
         {
             using (source)
             {
-                if (IsReparsePoint(attributes))
+                if (link)
                 {
                     report.LinksSkipped++;
                     report.Note($"{_display(sourcePath)} is a link; links are not copied by the administrator helper.");
@@ -261,13 +264,15 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 string childPath = path + "\\" + child;
                 SafeFileHandle entry;
                 uint entryAttributes;
+                bool entryLink;
                 try
                 {
                     entry = OpenOrThrow(from, child, ReadAccess, ShareAll, Open, OpenReparsePoint, "Open");
                     entryAttributes = GetBasic(entry).FileAttributes;
+                    entryLink = IsLink(entry);
                 }
                 catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(childPath), ex); continue; }
-                if (IsReparsePoint(entryAttributes))
+                if (entryLink)
                 {
                     entry.Dispose();
                     report.LinksSkipped++;
@@ -324,7 +329,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             report.Fail(_display(path), status == NotADirectory ? new IOException("A file with this name exists at the destination.") : Error(status, "Open the destination folder"));
             return null;
         }
-        if (IsReparsePoint(GetBasic(existing).FileAttributes))
+        if (IsLink(existing))
         {
             existing.Dispose();
             report.Fail(_display(path), new IOException("The destination folder is a link; nothing is copied through it."));

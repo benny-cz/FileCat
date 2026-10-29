@@ -14,9 +14,9 @@ public sealed class ElevatedExtractionAndZipSourceTests
     {
         public bool Attempted { get; private set; }
 
-        public override IDisposable HoldDirectory(string path)
+        public override IDisposable HoldDirectory(string path, string? root = null)
         {
-            var lease = base.HoldDirectory(path);
+            var lease = base.HoldDirectory(path, root);
             if (!Attempted && Path.GetFullPath(path).Equals(Path.GetFullPath(child), StringComparison.OrdinalIgnoreCase))
             {
                 Attempted = true;

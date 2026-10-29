@@ -9,6 +9,12 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 {
     /// <summary>The identity as the hex editor and its journal record it (the inode in the first 8 of 16 bytes).</summary>
     public FileIdentity Identity => new(Device, Inode.ToString("X16") + new string('0', 16));
+
+    /// <summary>The owner's user ID.</summary>
+    public uint Owner { get; init; }
+
+    /// <summary>The permission bits (the low 12 bits of the mode: set-ID, sticky, and read, write and execute).</summary>
+    public uint Mode { get; init; }
 }
 
 /// <summary>
@@ -19,7 +25,8 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 public static unsafe partial class UnixFiles
 {
     private const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100, AtEmptyPath = 0x1000;
-    private const uint StatxType = 0x1, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
+    private const uint StatxType = 0x1, StatxMode = 0x2, StatxUid = 0x8, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
+    private const uint StatxWanted = StatxType | StatxMode | StatxUid | StatxCtime | StatxIno | StatxSize;
     private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000, TypeRegular = 0x8000;
 
     /// <summary>
@@ -33,7 +40,7 @@ public static unsafe partial class UnixFiles
         try
         {
             if (OperatingSystem.IsLinux())
-                return Statx(AtFdCwd, path, followLinks ? 0 : AtSymlinkNoFollow, StatxType | StatxCtime | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
+                return Statx(AtFdCwd, path, followLinks ? 0 : AtSymlinkNoFollow, StatxWanted, buffer) == 0 ? FromStatx(buffer) : null;
             if (OperatingSystem.IsMacOS())
             {
                 bool arm = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
@@ -76,7 +83,7 @@ public static unsafe partial class UnixFiles
             handle.DangerousAddRef(ref added);
             int fd = (int)handle.DangerousGetHandle();
             if (OperatingSystem.IsLinux())
-                return Statx(fd, string.Empty, AtEmptyPath | AtSymlinkNoFollow, StatxType | StatxCtime | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
+                return Statx(fd, string.Empty, AtEmptyPath | AtSymlinkNoFollow, StatxWanted, buffer) == 0 ? FromStatx(buffer) : null;
             if (OperatingSystem.IsMacOS())
                 return (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacFstat(fd, buffer) : MacFstatInode64(fd, buffer)) == 0
                     ? FromMacStat(buffer) : null;
@@ -119,15 +126,17 @@ public static unsafe partial class UnixFiles
         ulong device = ((ulong)*(uint*)(b + 136) << 32) | *(uint*)(b + 140);
         return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory,
             (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0,
-            type == TypeRegular);
+            type == TypeRegular)
+        { Owner = *(uint*)(b + 20), Mode = (uint)(*(ushort*)(b + 28) & 0xFFF) };
     }
 
-    // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, ctimespec at 64, i64 size at 96.
+    // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, u32 uid at 16, ctimespec at 64, i64 size at 96.
     private static UnixStat FromMacStat(byte* b)
     {
         int type = *(ushort*)(b + 4) & TypeMask;
         return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory,
-            *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true, type == TypeRegular);
+            *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true, type == TypeRegular)
+        { Owner = *(uint*)(b + 16), Mode = (uint)(*(ushort*)(b + 4) & 0xFFF) };
     }
 
     /// <summary>

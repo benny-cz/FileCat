@@ -179,6 +179,14 @@ public sealed class SyncTests : IDisposable
         string target = Put("dest/item.bin", "REVIEWED", Old);
         var providers = Providers();
         var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "unbound-journal"));
+        // Replacement is not offered where it cannot happen: a policy to replace asks instead, before anything is copied
+        // (review finding F-H2 of f134ba37), and even an answer to replace keeps both.
+        var asked = new List<ConflictRequest>();
+        jobs.DecisionRequested += pending =>
+        {
+            lock (asked) asked.Add(Assert.IsType<ConflictRequest>(pending.Request));
+            pending.Resolve(new Decision(DecisionAction.Replace));
+        };
         var job = jobs.Submit(new JobRequest
         {
             Kind = JobKind.Copy,
@@ -192,10 +200,11 @@ public sealed class SyncTests : IDisposable
             Assert.True(DateTime.UtcNow < deadline);
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
-        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.False(Assert.Single(asked).CanReplace);
         Assert.Equal("INCOMING", File.ReadAllText(source));
         Assert.Equal("REVIEWED", File.ReadAllText(target));
-        Assert.Contains(job.Issues, i => i.Message.Contains("cannot bind replacement", StringComparison.Ordinal));
+        Assert.Equal(["item (2).bin", "item.bin"], Directory.GetFiles(dest).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal("INCOMING", File.ReadAllText(Path.Combine(dest, "item (2).bin")));
     }
 
     [Fact]

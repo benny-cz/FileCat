@@ -206,8 +206,10 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
         var root = review?.FindItem(target);
         string? recoveryPath = Fs.PrepareReviewedReplacement(source, target);
         if (recoveryPath is not null) Journal.ReplacementRecovery(step, recoveryPath);
+        // Content-reviewed, or (beyond the budget, or kept by a cloud provider) bound by identity, length and last write.
         return Fs.ReplaceReviewed(source, target, root?.Version.Identity, root?.Content?.Sha256 ?? string.Empty,
-            root?.Content?.Length ?? -1, Job.Token, recoveryPath)
+            root?.Content?.Length ?? (root is null || root.Version.Info.IsDirectory ? -1 : root.Version.Info.Size), Job.Token, recoveryPath,
+            root is { Content: null } ? root.Version.Info.ModifiedUtc : null)
             ?? new BoundReplacement(false, true,
                 Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
@@ -683,7 +685,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
         var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true);
+            itemLimit: 1, allowLinks: true, bindByIdentity: true);
         bool replace = false;
         var target = dst;
         if (existing is not null)
@@ -693,7 +695,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 if (info.IsDirectory && !info.IsLink && existing.IsDirectory && !existing.IsLink)
                     return MergeMoveDirectory(src, dst);
-                var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory);
+                var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
                 switch (d)
                 {
                     case DecisionAction.Skip:
@@ -969,11 +971,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
         var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true);
+            itemLimit: 1, allowLinks: true, bindByIdentity: true);
         if (existing is not null)
         {
             // A real folder is never replaced by a file or a link: that question offers skipping or keeping both.
-            var d = ResolveConflict(src, dst, info, existing, replaceable: !(existing.IsDirectory && !existing.IsLink));
+            // Nor is anything this file system cannot replace bound to its review (a link, or on Linux, macOS or a
+            // network share, by the owner's policy): offered keeping both instead, before anything is copied.
+            var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
             switch (d)
             {
                 case DecisionAction.Skip:
@@ -1172,6 +1176,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 if (replace)
                 {
                     var bound = ReplaceReviewed(writeTo, target, targetReview, step);
+                    // Held open by another program: asked as in use, and Retry tries the same replacement again.
+                    if (bound.InUse is { } busy) throw busy;
                     if (!bound.Published)
                     {
                         refused = true;
@@ -1490,6 +1496,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 return;
             }
             var bound = ReplaceReviewed(staged, target, targetReview, step);
+            if (bound.InUse is { } busy) throw busy;
             if (!bound.Published)
             {
                 refused = true;

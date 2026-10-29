@@ -18,13 +18,15 @@ public static partial class ElevationPaths
     /// The volume-GUID path (\\?\Volume{…}\…) of an existing local item. A final link is resolved to itself (the link),
     /// never to its target; folders on the way resolve to where they really are.
     /// </summary>
-    public static string ToVolumePath(string path)
+    public static string ToVolumePath(string path) => ToVolumePath(path, followLast: false);
+
+    private static string ToVolumePath(string path, bool followLast)
     {
         string full = Path.GetFullPath(path);
         if (PathUtil.IsUncPath(full) || GetDriveType(Path.GetPathRoot(full) ?? full) == DriveRemote)
             throw new NotSupportedException("Administrator rights on this computer do not change access to network shares, so network locations are not retried as administrator.");
         string native = full.Length >= 248 && !full.StartsWith(@"\\?\", StringComparison.Ordinal) ? @"\\?\" + full : full;
-        using var handle = CreateFile(native, 0, 7, 0, OpenExisting, BackupSemantics | OpenReparsePoint, 0);
+        using var handle = CreateFile(native, 0, 7, 0, OpenExisting, followLast ? BackupSemantics : BackupSemantics | OpenReparsePoint, 0);
         if (handle.IsInvalid)
         {
             int error = Marshal.GetLastPInvokeError();
@@ -45,6 +47,21 @@ public static partial class ElevationPaths
         // A volume's root resolves with its trailing separator (\\?\Volume{…}\), but a SUBST drive's root resolves to the
         // folder behind it, without one (\\?\Volume{…}\work): S:\proj must not become …\workproj, another folder.
         return rest.Length == 0 || volumeRoot.EndsWith('\\') ? volumeRoot + rest : volumeRoot + "\\" + rest;
+    }
+
+    /// <summary>
+    /// Where a handle-bound deletion of an item the user chose starts. An elevated FileCat walks the whole path without
+    /// following links (<see cref="ToVolumePathWithoutFollowing"/>), so that a standard user's link cannot redirect it.
+    /// Without elevation, links above the item are followed, as any program follows them: whoever could place one could do
+    /// as much with the user's own rights. The item itself, and everything below it, are still never followed.
+    /// </summary>
+    public static string ToVolumePathForBoundOperation(string path)
+    {
+        if (Core.State.WindowsTokenAuthority.IsHighIntegrity) return ToVolumePathWithoutFollowing(path);
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        if (Path.GetDirectoryName(full) is not { } parent) return ToVolumePathWithoutFollowing(full);
+        string volumeParent = ToVolumePath(parent, followLast: true);
+        return (volumeParent.EndsWith('\\') ? volumeParent : volumeParent + "\\") + Path.GetFileName(full);
     }
 
     internal static unsafe string? FinalPath(SafeFileHandle handle, uint flags)

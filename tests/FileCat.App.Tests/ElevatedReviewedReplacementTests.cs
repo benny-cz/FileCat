@@ -13,7 +13,8 @@ public sealed class ElevatedReviewedReplacementTests
         public bool Attempted { get; private set; }
 
         public override BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
-            string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null)
+            string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null,
+            DateTime? expectedModifiedUtc = null)
         {
             Attempted = true;
             File.WriteAllText(trigger, "The high-token job reached bound replacement.");

@@ -9,14 +9,14 @@ public sealed class ZipSourceLinkTests
 {
     private sealed class SwapAtRead(string source, string protectedBytes) : WindowsFileOperations
     {
-        public override IDisposable HoldRegularFile(string path)
+        public override IDisposable HoldRegularFile(string path, string? root = null)
         {
             if (path == source)
             {
                 File.Move(source, source + ".held");
                 File.CreateSymbolicLink(source, protectedBytes);
             }
-            return base.HoldRegularFile(path);
+            return base.HoldRegularFile(path, root);
         }
     }
 

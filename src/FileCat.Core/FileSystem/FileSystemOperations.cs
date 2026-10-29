@@ -97,7 +97,10 @@ public sealed record RecycleResult(string Path, RecycleOutcome Outcome, string? 
 public sealed record BoundTreeDeletion(int Done, int Failed, IReadOnlyList<string> Problems);
 
 /// <summary>Outcome of an object-bound replacement; a retained old target needs explicit user review.</summary>
-public sealed record BoundReplacement(bool Published, bool Changed, string? RetainedPath = null, string? Reason = null);
+/// <param name="InUse">Another program holds the destination open without letting it be deleted (an editor): nothing
+/// changed, and the same replacement can be tried again once it lets go (I22).</param>
+public sealed record BoundReplacement(bool Published, bool Changed, string? RetainedPath = null, string? Reason = null,
+    IOException? InUse = null);
 
 /// <summary>Result of deleting exactly the reviewed file object through an open handle.</summary>
 public sealed record BoundDeletion(bool Deleted, bool Changed, string? Reason = null);
@@ -115,11 +118,19 @@ public interface IFileSystemOperations
     FileSystemItemInfo? TryGetInfo(string path);
     VolumeInfo GetVolumeInfo(string path);
 
-    /// <summary>Keep a regular source and its path components stable while a path-taking reader copies its bytes.</summary>
-    IDisposable HoldRegularFile(string path);
+    /// <summary>
+    /// Keep a regular source and its path components stable while a path-taking reader copies its bytes. The file is never
+    /// a link, nor is a folder below <paramref name="root"/>, the folder the user chose to add; that folder and those above
+    /// it are followed as by any program, except by an elevated FileCat (<see cref="PortableFileOperations.FollowableComponents"/>).
+    /// </summary>
+    IDisposable HoldRegularFile(string path, string? root = null);
 
-    /// <summary>Keep a destination folder and its path components stable while a path-taking writer uses it.</summary>
-    IDisposable HoldDirectory(string path);
+    /// <summary>
+    /// Keep a destination folder and its path components stable while a path-taking writer uses it. A folder below
+    /// <paramref name="root"/>, the destination the user chose (by default the folder itself), is never a link; the root
+    /// and the folders above it are followed as by any program, except by an elevated FileCat.
+    /// </summary>
+    IDisposable HoldDirectory(string path, string? root = null);
 
     /// <summary>Copies one file to a destination that must not exist (staged names only).</summary>
     void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
@@ -131,11 +142,23 @@ public interface IFileSystemOperations
     void Move(string source, string destination, bool replaceExisting, bool writeThrough = false);
 
     /// <summary>
-    /// Atomically avoid overwriting a different destination object after its complete content review. Null means this
-    /// adapter has no bound protocol; callers must not infer safety from a pathname-only recheck.
+    /// Atomically avoid overwriting a different destination object after its review: its complete content
+    /// (<paramref name="expectedSha256"/>), or, for a file beyond the content-review budget or one a cloud provider keeps
+    /// (an empty hash), its native identity, length and last write time (<paramref name="expectedModifiedUtc"/>). Null
+    /// means this adapter has no bound protocol; callers must not infer safety from a pathname-only recheck.
     /// </summary>
     BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity, string expectedSha256,
-        long expectedLength, CancellationToken ct, string? recoveryPath = null);
+        long expectedLength, CancellationToken ct, string? recoveryPath = null, DateTime? expectedModifiedUtc = null);
+
+    /// <summary>Whether <see cref="ReplaceReviewed"/> can replace an item at this destination. Where it cannot, an item
+    /// there is not offered for replacement, rather than refused after the whole copy.</summary>
+    bool CanReplaceReviewed(string destination);
+
+    /// <summary>
+    /// Whether a folder held by <see cref="HoldDirectory"/> has itself become a link since: an empty folder can be made a
+    /// mount point in place, which keeps its name. Asked once a file was created in it, when it can no longer become one.
+    /// </summary>
+    bool HeldDirectoryRedirected(IDisposable lease);
 
     /// <summary>Reserve a candidate retained-target name before a bound replacement is durably journaled.</summary>
     string? PrepareReviewedReplacement(string source, string destination);
@@ -240,7 +263,12 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint) => null;
 
     public virtual BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
-        string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null) => null;
+        string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null,
+        DateTime? expectedModifiedUtc = null) => null;
+
+    public virtual bool CanReplaceReviewed(string destination) => false;
+
+    public virtual bool HeldDirectoryRedirected(IDisposable lease) => false;
 
     public virtual string? PrepareReviewedReplacement(string source, string destination) => null;
 
@@ -250,37 +278,67 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct) => null;
 
-    public virtual IDisposable HoldRegularFile(string path)
+    public virtual IDisposable HoldRegularFile(string path, string? root = null)
     {
         string full = Path.GetFullPath(path);
-        string? root = Path.GetPathRoot(full);
-        if (string.IsNullOrEmpty(root)) throw new IOException("The source has no root.");
-        string current = root;
-        foreach (string part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
-        {
-            current = Path.Combine(current, part);
-            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException("The source path contains a link; it was not added to the archive.");
-        }
+        RefuseLinks(full, FollowableComponents(full, root, file: true), "The source path contains a link; it was not added to the archive.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) != 0) throw new IOException("The source is a folder, not a regular file.");
         return EmptyLease.Instance;
     }
 
-    public virtual IDisposable HoldDirectory(string path)
+    public virtual IDisposable HoldDirectory(string path, string? root = null)
     {
         string full = Path.GetFullPath(path);
-        string? root = Path.GetPathRoot(full);
-        if (string.IsNullOrEmpty(root)) throw new IOException("The destination has no root.");
-        string current = root;
-        foreach (string part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
-        {
-            current = Path.Combine(current, part);
-            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException("The destination folder path contains a link; nothing was written there.");
-        }
+        RefuseLinks(full, FollowableComponents(full, root, file: false), "The destination folder path contains a link; nothing was written there.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) == 0) throw new IOException("The destination is not a folder.");
         return EmptyLease.Instance;
     }
+
+    /// <summary>
+    /// How many leading components of a full path may be links that are followed: those up to <paramref name="root"/>, the
+    /// folder the user chose (by default a folder itself, or a file's folder), and that folder. A link below it is never
+    /// followed (AC-20: links are neither followed nor stored there), nor is a file that is itself one. A folder above the
+    /// chosen one (created on the way to it) is followed like it; any other path follows none.
+    /// </summary>
+    public static int FollowableComponents(string full, string? root, bool file)
+    {
+        int count = Components(full), followable = file ? count - 1 : count;
+        if (root is null) return followable;
+        string chosen = Path.GetFullPath(root);
+        if (PathUtil.IsSameOrUnder(full, chosen)) return Math.Min(followable, Components(chosen));
+        return !file && PathUtil.IsSameOrUnder(chosen, full) ? followable : 0;
+    }
+
+    private static int Components(string full) =>
+        full[(Path.GetPathRoot(full)?.Length ?? 0)..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    /// <summary>
+    /// Refuses a link where it is not followed (<see cref="FollowableComponents"/>). Where it would be, an elevated FileCat
+    /// (administrator, or root) still refuses it, so that a link another, standard user placed cannot redirect what it
+    /// reads or writes (AC-20), unless only the system could have placed it: one owned by root, in a folder root owns and
+    /// nobody else may write to (macOS's /var and /tmp, where every temporary folder is). Without elevation it is followed,
+    /// as by any program: whoever could place one could do as much with the user's own rights.
+    /// </summary>
+    private static void RefuseLinks(string full, int followable, string refusal)
+    {
+        bool elevated = OperatingSystem.IsWindows() ? State.WindowsTokenAuthority.IsHighIntegrity : Environment.IsPrivilegedProcess;
+        string? root = Path.GetPathRoot(full);
+        if (string.IsNullOrEmpty(root)) throw new IOException("The path has no root.");
+        string current = root;
+        int index = 0;
+        foreach (string part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            bool followed = index++ < followable;
+            if (followed && !elevated) continue;
+            if (ReparseLinks.IsLink(current) && !(followed && IsSystemLink(current))) throw new IOException(refusal);
+        }
+    }
+
+    private static bool IsSystemLink(string path) =>
+        !OperatingSystem.IsWindows() && UnixFiles.Stat(path) is { IsLink: true, Owner: 0 }
+        && Path.GetDirectoryName(path) is { } folder && UnixFiles.Stat(folder) is { IsDirectory: true, Owner: 0 } holder
+        && (holder.Mode & 0x12) == 0; // no group or other write (0o022)
 
     private sealed class EmptyLease : IDisposable
     {

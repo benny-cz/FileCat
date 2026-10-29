@@ -72,7 +72,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Issue(IssueSeverity.Error, destDir, "Not copied: the source container paths could not be checked: " + ex.Message, StepOutcome.Failed);
             return;
         }
-        if (!Directory.Exists(destDir) && !CreateDestinationDirectory(_sourceParents[0], destDir, "create the destination folder")) return;
+        if (!Directory.Exists(destDir) && !CreateDestinationDirectory(_sourceParents[0], destDir, destDir, "create the destination folder")) return;
         _originMark = FindOriginMark(Job.Request.Sources[0].Parent);
         var sources = Job.Request.Sources;
         for (int index = 0; index < sources.Count; index++)
@@ -102,7 +102,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 if (targetDir != destDir)
                 {
                     if (!DestinationAllowed(root.Parent, targetDir)) { Job.RootFailed(index); continue; }
-                    if (!CreateDestinationDirectory(root.Parent, targetDir, "create the destination folder")) { Job.RootFailed(index); continue; }
+                    if (!CreateDestinationDirectory(root.Parent, targetDir, destDir, "create the destination folder")) { Job.RootFailed(index); continue; }
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -120,7 +120,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 Job.RootFailed(index);
                 continue;
             }
-            bool ok = root.IsContainer ? CopyContainer(root, dst, destDir) : CopyItem(root, dst);
+            bool ok = root.IsContainer ? CopyContainer(root, dst, destDir) : CopyItem(root, dst, destDir);
             if (ok) Job.RootCompleted(index);
             else Job.RootFailed(index);
         }
@@ -136,7 +136,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         return false;
     }
 
-    private bool CreateDestinationDirectory(Location source, string folder, string what) =>
+    /// <param name="destRoot">The destination the user chose: no folder below it may be a link (AC-20).</param>
+    private bool CreateDestinationDirectory(Location source, string folder, string destRoot, string what) =>
         TryIo(folder, what, () =>
         {
             // Source review, an I/O failure or an error decision can change admission before this attempt.
@@ -152,11 +153,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             }
             foreach (string next in missing)
             {
-                using var parent = Fs.HoldDirectory(cursor);
+                using var parent = Fs.HoldDirectory(cursor, destRoot);
                 Fs.CreateDirectory(next);
                 cursor = next;
             }
-            using var final = Fs.HoldDirectory(full);
+            using var final = Fs.HoldDirectory(full, destRoot);
         });
 
     private string? DestinationRefusal(Location source, string folder)
@@ -256,9 +257,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         // A descendant can be a different mount or a link into the recovery source's disk.
         // The admitted root does not establish where this particular folder writes.
         if (!DestinationAllowed(dir.Parent, dst)) return false;
-        if (!Directory.Exists(dst) && !CreateDestinationDirectory(dir.Parent, dst, "create a folder")) return false;
+        if (!Directory.Exists(dst) && !CreateDestinationDirectory(dir.Parent, dst, destRoot, "create a folder")) return false;
         IDisposable heldDirectory;
-        try { heldDirectory = Fs.HoldDirectory(dst); }
+        try { heldDirectory = Fs.HoldDirectory(dst, destRoot); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Job.ItemFailed();
@@ -324,16 +325,16 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 all &= Job.Kind != JobKind.Move;
                 continue;
             }
-            all &= c.IsContainer ? CopyContainer(child, childDst, destRoot) : CopyItem(child, childDst);
+            all &= c.IsContainer ? CopyContainer(child, childDst, destRoot) : CopyItem(child, childDst, destRoot);
         }
         return all;
     }
 
-    private bool CopyItem(ItemRef item, string dst)
+    private bool CopyItem(ItemRef item, string dst, string destRoot)
     {
         Job.SetCurrent(item.Name);
         IDisposable heldDirectory;
-        try { heldDirectory = Fs.HoldDirectory(Path.GetDirectoryName(dst)!); }
+        try { heldDirectory = Fs.HoldDirectory(Path.GetDirectoryName(dst)!, destRoot); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Job.ItemFailed();
@@ -346,11 +347,16 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
         var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true);
+            itemLimit: 1, allowLinks: true, bindByIdentity: true);
         if (existing is not null)
         {
             var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue, DateTime.MinValue, FileAttributes.Normal);
+            // What this file system cannot replace bound to its review (a link, or on Linux, macOS or a network share, by
+            // the owner's policy) is not offered for replacement, and a policy to replace asks instead: before anything
+            // is extracted, not refused after it.
+            bool replaceable = !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst);
             var policy = Job.Request.Options.Conflicts;
+            if (!replaceable && policy is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer) policy = ConflictPolicy.Ask;
             var action = policy switch
             {
                 ConflictPolicy.Skip => DecisionAction.Skip,
@@ -358,9 +364,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 ConflictPolicy.KeepBothRenameIncoming => DecisionAction.KeepBothRenameIncoming,
                 ConflictPolicy.ReplaceIfNewer => incoming.ModifiedUtc > existing.ModifiedUtc.AddSeconds(2) ? DecisionAction.Replace : DecisionAction.Skip,
                 _ => Job.Ask(new ConflictRequest("An item with this name already exists", Path.GetFileName(dst), incoming, existing, item.Name, dst,
-                    !existing.IsDirectory, false, existing.IsDirectory, incoming.ModifiedUtc > existing.ModifiedUtc, Path.GetFileName(Unique(dst)), null)).Action,
+                    replaceable, false, existing.IsDirectory, incoming.ModifiedUtc > existing.ModifiedUtc, Path.GetFileName(Unique(dst)), null)).Action,
             };
             if (action == DecisionAction.ReplaceIfNewer) action = incoming.ModifiedUtc > existing.ModifiedUtc ? DecisionAction.Replace : DecisionAction.Skip;
+            // An answer given for all conflicts can say Replace where nothing may be replaced here.
+            if (!replaceable && action == DecisionAction.Replace) action = DecisionAction.KeepBothRenameIncoming;
             switch (action)
             {
                 case DecisionAction.Skip:
@@ -473,6 +481,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 {
                     // A refused CreateNew never transfers ownership of an existing path to this copy.
                     stagedOwned = true;
+                    // The folder's name is held, but while it was empty a standard user could have made it a mount point
+                    // to another folder for an elevated FileCat to write into. With this file in it, it can no longer
+                    // become one; if it already had, nothing is written there (AC-20).
+                    if (Fs.HeldDirectoryRedirected(directoryLease))
+                        throw new IOException("The destination folder became a link before anything was written; nothing was written through it.");
                     var buffer = new byte[BufferSize];
                     var clock = System.Diagnostics.Stopwatch.StartNew();
                     while (true)
@@ -601,6 +614,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             if (replace)
             {
                 var bound = ReplaceReviewed(staged, target, targetReview, step);
+                // Held open by another program: asked as in use, and Retry tries the same replacement again.
+                if (bound.InUse is { } busy) throw busy;
                 if (!bound.Published)
                 {
                     refused = true;

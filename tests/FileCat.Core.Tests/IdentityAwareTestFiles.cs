@@ -11,6 +11,10 @@ namespace FileCat.Core.Tests;
 /// </summary>
 internal partial class IdentityAwareTestFiles : PortableFileOperations
 {
+    // Offers replacement as the Windows adapter does on a fixed drive. Its bound replacement is still Portable's refusal,
+    // so what a test sees for a replaced item is the refusal a destination that changed after review gets.
+    public override bool CanReplaceReviewed(string destination) => true;
+
     public override unsafe string? GetFileIdentity(string path)
     {
         if (!OperatingSystem.IsWindows()) return base.GetFileIdentity(path);

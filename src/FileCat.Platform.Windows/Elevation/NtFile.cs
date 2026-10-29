@@ -122,11 +122,36 @@ internal static unsafe partial class NtFile
     public static bool IsReparsePoint(uint attributes) => (attributes & (uint)FileAttributes.ReparsePoint) != 0;
     public static bool IsDirectory(uint attributes) => (attributes & (uint)FileAttributes.Directory) != 0;
 
+    public const uint MountPointTag = Core.FileSystem.ReparseLinks.MountPointTag;
+
+    /// <summary>Whether a reparse tag makes the item a link (see <see cref="Core.FileSystem.ReparseLinks"/>).</summary>
+    public static bool IsLinkTag(uint tag) => Core.FileSystem.ReparseLinks.IsLinkTag(tag);
+
+    /// <summary>The open item's reparse tag, or 0 when it is no reparse point.</summary>
+    public static uint GetReparseTag(SafeFileHandle handle)
+    {
+        const int AttributeTagInfo = 9;
+        AttributeTag info;
+        if (!GetFileInformationByHandleEx(handle, AttributeTagInfo, &info, (uint)sizeof(AttributeTag))) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        return IsReparsePoint(info.FileAttributes) ? info.ReparseTag : 0;
+    }
+
+    public static bool IsLink(SafeFileHandle handle) => IsLinkTag(GetReparseTag(handle));
+
+    /// <summary>Whether a listed entry is a link (see <see cref="IsLinkTag"/>).</summary>
+    public static bool IsLink(uint attributes, uint reparseTag) => IsReparsePoint(attributes) && IsLinkTag(reparseTag);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AttributeTag
+    {
+        public uint FileAttributes, ReparseTag;
+    }
+
     /// <summary>Names in a directory (without "." and ".."), read through the handle, never by path.</summary>
-    public static List<(string Name, uint Attributes)> List(SafeFileHandle directory)
+    public static List<(string Name, uint Attributes, uint ReparseTag)> List(SafeFileHandle directory)
     {
         const int FullDirectoryInfo = 14, FullDirectoryRestartInfo = 15, NoMoreFiles = 18;
-        var result = new List<(string, uint)>();
+        var result = new List<(string, uint, uint)>();
         var buffer = new byte[64 * 1024];
         bool first = true;
         fixed (byte* start = buffer)
@@ -142,12 +167,14 @@ internal static unsafe partial class NtFile
                 first = false;
                 for (int offset = 0; ;)
                 {
-                    // FILE_FULL_DIR_INFO: attributes at 56, name length (bytes) at 60, name at 68.
+                    // FILE_FULL_DIR_INFO: attributes at 56, name length (bytes) at 60, then the EA size, which holds a
+                    // reparse point's tag, at 64, and the name at 68.
                     byte* entry = start + offset;
                     uint attributes = *(uint*)(entry + 56);
                     int length = (int)*(uint*)(entry + 60);
+                    uint tag = IsReparsePoint(attributes) ? *(uint*)(entry + 64) : 0;
                     var name = new string((char*)(entry + 68), 0, length / 2);
-                    if (name is not ("." or "..")) result.Add((name, attributes));
+                    if (name is not ("." or "..")) result.Add((name, attributes, tag));
                     int next = (int)*(uint*)entry;
                     if (next == 0) break;
                     offset += next;

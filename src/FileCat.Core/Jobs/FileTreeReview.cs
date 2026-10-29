@@ -8,17 +8,22 @@ namespace FileCat.Core.Jobs;
 /// paths are retained for every item. This does not hold native mutation handles or freeze a filesystem snapshot.
 /// When links are allowed, only their literal item/link metadata is reviewed; target content is not followed.
 /// </summary>
-public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.Item> Items, bool AllowLinks)
+public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.Item> Items, bool AllowLinks, bool BindByIdentity = false)
 {
     public sealed record Item(string Path, SourcePathReview Version, JournalRecovery.StagedFileReview? Content);
     public long Bytes => Items.Sum(i => i.Content?.Length ?? 0);
 
+    /// <param name="bindByIdentity">For a destination about to be replaced: a file beyond the remaining byte budget, or
+    /// one a cloud provider keeps (a reparse point that is no link, whose bytes would have to be downloaded), is reviewed
+    /// by its native identity and metadata alone, without content. Replacement then checks those through the handle it
+    /// holds, so a different or rewritten file is still never destroyed.</param>
     public static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
-        Action? check = null, long byteLimit = JournalRecovery.StagedReviewByteLimit, int itemLimit = 1000, bool allowLinks = false)
-        => Capture(root, files, provider, check, byteLimit, itemLimit, allowLinks, expected: null);
+        Action? check = null, long byteLimit = JournalRecovery.StagedReviewByteLimit, int itemLimit = 1000, bool allowLinks = false,
+        bool bindByIdentity = false)
+        => Capture(root, files, provider, check, byteLimit, itemLimit, allowLinks, bindByIdentity, expected: null);
 
     private static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
-        Action? check, long byteLimit, int itemLimit, bool allowLinks, IReadOnlyDictionary<string, Item>? expected)
+        Action? check, long byteLimit, int itemLimit, bool allowLinks, bool bindByIdentity, IReadOnlyDictionary<string, Item>? expected)
     {
         if (itemLimit <= 0 || byteLimit < 0) return null;
         try
@@ -33,7 +38,8 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
                 // Do not open content belonging to a changed identity/version or a newly discovered descendant.
                 // Complete hashes are compared afterward, but known path changes must stop before that read.
                 if (expected is not null && (!expected.TryGetValue(next.Path, out var approved) || approved.Version != version)) return null;
-                bool link = version.Info.IsLink || (version.Info.Attributes & FileAttributes.ReparsePoint) != 0;
+                bool reparse = (version.Info.Attributes & FileAttributes.ReparsePoint) != 0;
+                bool link = version.Info.IsLink || (reparse && !bindByIdentity);
                 if (link && !allowLinks) return null;
                 JournalRecovery.StagedFileReview? content = null;
                 if (version.Info.IsDirectory && !link)
@@ -44,7 +50,7 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
                         pending.Push((path, next.Depth + 1));
                     }
                 }
-                else if (!link)
+                else if (!link && !(bindByIdentity && version.Identity is not null && (reparse || version.Info.Size > remaining)))
                 {
                     content = JournalRecovery.ReviewStagedFile(next.Path, provider, check, remaining);
                     if (content is null) return null;
@@ -53,7 +59,7 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
                 if (!version.Matches(next.Path, files, check)) return null;
                 items.Add(new(next.Path, version, content));
             }
-            return new(root, items.OrderBy(i => i.Path, StringComparer.Ordinal).ToArray(), allowLinks);
+            return new(root, items.OrderBy(i => i.Path, StringComparer.Ordinal).ToArray(), allowLinks, bindByIdentity);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
     }
@@ -61,7 +67,7 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
     public bool Matches(IFileSystemOperations files, ResourceProvider provider, Action? check = null)
     {
         var expected = Items.ToDictionary(i => i.Path, StringComparer.Ordinal);
-        var current = Capture(Root, files, provider, check, JournalRecovery.StagedReviewByteLimit, 1000, AllowLinks, expected);
+        var current = Capture(Root, files, provider, check, JournalRecovery.StagedReviewByteLimit, 1000, AllowLinks, BindByIdentity, expected);
         return current is not null && current.Items.SequenceEqual(Items);
     }
 
@@ -88,7 +94,7 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
     {
         var pending = Items.Where(i => PathUtil.IsSameOrUnder(i.Path, path)).ToArray();
         return pending.Any(i => PathUtil.SafetyComparer.Equals(i.Path, path)) &&
-            new FileTreeReview(path, pending, AllowLinks).Matches(files, provider, check);
+            new FileTreeReview(path, pending, AllowLinks, BindByIdentity).Matches(files, provider, check);
     }
 }
 

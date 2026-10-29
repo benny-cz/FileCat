@@ -19,7 +19,9 @@ public sealed class BackgroundDecisionTests
     [AvaloniaFact]
     public async Task A_background_conflict_cannot_steal_a_prompt_or_its_queued_Enter()
     {
-        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        // Replace is offered only where it binds to the reviewed destination: through Windows' native adapter.
+        bool replaceable = OperatingSystem.IsWindows();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(nativeWindowsOriginMarks: replaceable);
         try
         {
             string destination = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
@@ -53,13 +55,18 @@ public sealed class BackgroundDecisionTests
             var review = vm.ReviewDecisionAsync(job);
             Dispatcher.UIThread.RunJobs();
             var skip = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Skip");
-            var replace = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Replace");
+            var replace = window.GetVisualDescendants().OfType<Button>().SingleOrDefault(b => b.Content as string == "Replace");
             Assert.True(skip.IsDefault);
             Assert.True(skip.IsFocused);
-            Assert.False(replace.IsDefault);
-            Assert.Contains("danger", replace.Classes);
+            if (replaceable)
+            {
+                Assert.NotNull(replace);
+                Assert.False(replace.IsDefault);
+                Assert.Contains("danger", replace.Classes);
+            }
+            else Assert.Null(replace);
             await vm.ReviewDecisionAsync(job); // duplicate admission does not create another dialog
-            Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Replace");
+            Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Skip");
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             await review;
             await Until(() => job.State.IsFinished());

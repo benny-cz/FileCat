@@ -10,6 +10,19 @@ namespace FileCat.Platform.Windows;
 
 public partial class WindowsFileOperations
 {
+    /// <summary>
+    /// Fixed and removable drives (a USB stick, an SD card): their items can be held, checked and renamed by handle. A
+    /// network location cannot bind replacement to the reviewed object, and by the owner's policy is not replaced.
+    /// </summary>
+    internal static bool IsReplaceVolume(string path)
+    {
+        if (!Path.IsPathFullyQualified(path) || path.StartsWith(@"\\", StringComparison.Ordinal)) return false;
+        try { return Path.GetPathRoot(path) is { Length: > 0 } root && new DriveInfo(root).DriveType is DriveType.Fixed or DriveType.Removable or DriveType.Ram; }
+        catch (Exception ex) when (ex is ArgumentException or IOException) { return false; }
+    }
+
+    public override bool CanReplaceReviewed(string destination) => OperatingSystem.IsWindows() && IsReplaceVolume(destination);
+
     public override BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct)
         => DeleteReviewedTreeCore(path, reviewed, checkpoint, ct, null);
@@ -17,7 +30,7 @@ public partial class WindowsFileOperations
     internal BoundTreeDeletion? DeleteReviewedTreeCore(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct, Action? beforeRemove)
     {
-        if (!OperatingSystem.IsWindows() || !WindowsIcons.IsLocal(path)) return null;
+        if (!OperatingSystem.IsWindows() || !IsReplaceVolume(path)) return null;
         string root = Path.GetFullPath(path);
         if (reviewed.Count is < 1 or > 1000 ||
             reviewed.Any(e => !PathUtil.IsSameOrUnder(e.Path, root) || e.Identity is null || e.IsLink ||
@@ -26,7 +39,7 @@ public partial class WindowsFileOperations
         var expected = reviewed.ToDictionary(e => Path.GetFullPath(e.Path), PathUtil.SafetyComparer);
         if (expected.Count != reviewed.Count || !expected.TryGetValue(root, out var top) || !top.IsDirectory)
             return new BoundTreeDeletion(0, 1, ["The compared tree membership is incomplete."]);
-        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(root)!);
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(root)!, LeaseLinks.Refuse, removable: true);
         if (parent is null) return new BoundTreeDeletion(0, 1, ["The compared tree's parent cannot be held without following a link."]);
         try
         {
@@ -37,7 +50,7 @@ public partial class WindowsFileOperations
                 string display = Path.GetFullPath(ElevationPaths.ToDisplayPath(volumePath));
                 if (!expected.TryGetValue(display, out var item)) return false;
                 uint attributes = GetBasic(handle).FileAttributes;
-                if (IsReparsePoint(attributes) || IsDirectory(attributes) != item.IsDirectory) return false;
+                if (IsLink(handle) || IsDirectory(attributes) != item.IsDirectory) return false;
                 var identity = ProtectedHexFile.Identity(handle);
                 string actual = $"{identity.VolumeSerial:X16}:{identity.FileId}";
                 if (!string.Equals(actual, item.Identity, StringComparison.OrdinalIgnoreCase)) return false;
@@ -70,16 +83,16 @@ public partial class WindowsFileOperations
         long expectedLength, CancellationToken ct, Action? beforeDelete)
     {
         if (!OperatingSystem.IsWindows()) return null;
-        if (expectedIdentity is null || expectedLength < 0 || expectedSha256.Length != 64 || !WindowsIcons.IsLocal(path))
+        if (expectedIdentity is null || expectedLength < 0 || expectedSha256.Length != 64 || !IsReplaceVolume(path))
             return new BoundDeletion(false, true, "The compared file has no usable local identity and complete byte review.");
         string full = Path.GetFullPath(path);
-        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(full)!);
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(full)!, LeaseLinks.Refuse, removable: true);
         if (parent is null) return new BoundDeletion(false, true, "The compared file's parent is linked or cannot be held.");
         try
         {
             using var file = OpenOrThrow(parent.LastHandle, Path.GetFileName(full), ReadData | ReadAttributes | Delete | Synchronize,
                 ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open compared file for deletion");
-            if (IsReparsePoint(GetBasic(file).FileAttributes))
+            if (IsLink(file))
                 return new BoundDeletion(false, true, "The compared file is now a link.");
             var identity = ProtectedHexFile.Identity(file);
             string actual = $"{identity.VolumeSerial:X16}:{identity.FileId}";
@@ -104,7 +117,7 @@ public partial class WindowsFileOperations
     /// </summary>
     public override string? PrepareReviewedReplacement(string source, string destination)
     {
-        if (!OperatingSystem.IsWindows() || !WindowsIcons.IsLocal(source) || !WindowsIcons.IsLocal(destination)) return null;
+        if (!OperatingSystem.IsWindows() || !IsReplaceVolume(source) || !IsReplaceVolume(destination)) return null;
         try
         {
             string parent = Path.GetDirectoryName(Path.GetFullPath(destination))!;
@@ -114,16 +127,20 @@ public partial class WindowsFileOperations
     }
 
     public override BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
-        string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null)
-        => ReplaceReviewedCore(source, destination, expectedIdentity, expectedSha256, expectedLength, ct, null, recoveryPath);
+        string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null,
+        DateTime? expectedModifiedUtc = null)
+        => ReplaceReviewedCore(source, destination, expectedIdentity, expectedSha256, expectedLength, ct, null, recoveryPath, expectedModifiedUtc);
 
     internal BoundReplacement? ReplaceReviewedCore(string source, string destination, string? expectedIdentity,
         string expectedSha256, long expectedLength, CancellationToken ct, Action? afterRetire,
-        string? recoveryPath = null)
+        string? recoveryPath = null, DateTime? expectedModifiedUtc = null)
     {
         if (!OperatingSystem.IsWindows()) return null;
-        if (expectedIdentity is null || expectedLength < 0 || expectedSha256.Length != 64 ||
-            !WindowsIcons.IsLocal(source) || !WindowsIcons.IsLocal(destination))
+        // Bound by its complete content, or (beyond the content budget, or kept by a cloud provider) by its identity,
+        // length and last write time, all checked through the handle that keeps writers out.
+        bool byContent = expectedSha256.Length == 64;
+        if (expectedIdentity is null || expectedLength < 0 || (!byContent && expectedModifiedUtc is null) ||
+            !IsReplaceVolume(source) || !IsReplaceVolume(destination))
             return new BoundReplacement(false, true, Reason: "This destination cannot be replaced with an object-bound local operation.");
         string target = Path.GetFullPath(destination);
         string parentPath = Path.GetDirectoryName(target)!;
@@ -137,7 +154,7 @@ public partial class WindowsFileOperations
             !backupName.StartsWith(".filecat-replaced-", StringComparison.Ordinal) ||
             !backupName.EndsWith(".bak", StringComparison.Ordinal))
             return new BoundReplacement(false, true, Reason: "The retained-target recovery name is invalid.");
-        using var parent = LocalIconFileLease.TryOpenDirectory(parentPath);
+        using var parent = LocalIconFileLease.TryOpenDirectory(parentPath, LeaseLinks.Refuse, removable: true);
         if (parent is null)
             return new BoundReplacement(false, true, Reason: "The destination's parent is linked or cannot be held.");
         SafeFileHandle opened;
@@ -145,6 +162,12 @@ public partial class WindowsFileOperations
         {
             opened = OpenOrThrow(parent.LastHandle, name, ReadData | ReadAttributes | Delete | Synchronize,
                 ShareRead | ShareDelete, Open, NonDirectoryFile | OpenReparsePoint, "Open reviewed destination");
+        }
+        catch (IOException ex) when (Core.Jobs.ErrorText.Classify(ex) == "sharing")
+        {
+            // An editor has it open without letting it be deleted: nothing changed. The question says it is in use, and
+            // Retry replaces it once the editor lets go (I22).
+            return new BoundReplacement(false, false, Reason: "The destination is in use by another program.", InUse: ex);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
         {
@@ -154,12 +177,14 @@ public partial class WindowsFileOperations
         try
         {
             ct.ThrowIfCancellationRequested();
-            if (IsReparsePoint(GetBasic(old).FileAttributes))
+            if (IsLink(old))
                 return new BoundReplacement(false, true, Reason: "A linked destination is not eligible for bound replacement.");
             var identity = ProtectedHexFile.Identity(old);
             string actualIdentity = $"{identity.VolumeSerial:X16}:{identity.FileId}";
             if (!string.Equals(actualIdentity, expectedIdentity, StringComparison.OrdinalIgnoreCase) ||
-                RandomAccess.GetLength(old) != expectedLength || !DigestMatches(old, expectedSha256, expectedLength, ct))
+                RandomAccess.GetLength(old) != expectedLength ||
+                (byContent ? !DigestMatches(old, expectedSha256, expectedLength, ct)
+                    : DateTime.FromFileTimeUtc(GetBasic(old).LastWriteTime) != expectedModifiedUtc!.Value.ToUniversalTime()))
                 return new BoundReplacement(false, true, Reason: "The destination's identity or complete bytes changed after review.");
 
             // A different file can enter the old name between this check and the handle rename. The later incoming
