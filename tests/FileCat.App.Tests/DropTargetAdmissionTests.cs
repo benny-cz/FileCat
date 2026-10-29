@@ -36,6 +36,33 @@ public sealed class DropTargetAdmissionTests
     }
 
     [AvaloniaFact]
+    public async Task FileCats_own_shift_drag_is_a_move_but_not_of_copies_made_to_drag()
+    {
+        // A Low of the review of d1757bca: FileCat's own Shift-drag was refused with a message blaming another app. Its
+        // source deletes nothing on the drop's result, so the drop is a Move job, reviewed as F6's is; copies made to drag
+        // items out of an archive, a server or a device are not moved, which would leave the originals.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[1];
+            await Listed(panel.ActiveTab!.Listing);
+            var (move, refusal) = DropTargetAdmission.Check(panel, true, move: true, ownDrag: true);
+            Assert.Null(refusal);
+            Assert.Equal(DragDropEffects.Move, move!.Effect);
+            Assert.Equal(DragDropEffects.Copy, DropTargetAdmission.Check(panel, true, move: false, ownDrag: true).Accepted!.Effect);
+
+            string staged = Path.Combine(services.Paths.TempDirectory, "drag", "owned-" + Guid.NewGuid().ToString("N"), "member.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(staged)!);
+            File.WriteAllText(staged, "copied out to be dragged");
+            await vm.DropFilesAsync(panel, move, [staged]);
+            Assert.Equal(DropTargetAdmission.StagedMoveRefusal, vm.Notification);
+            Assert.True(File.Exists(staged));
+            Assert.Empty(services.Jobs.Jobs);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Local_target_offers_copy_but_refuses_native_shift_move_before_review()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

@@ -307,6 +307,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         { if (_vm.EditSessionsActive) _vm.Notify($"Cannot review interrupted work: {ex.Message}", true); }
     }
 
+    /// <summary>FileCat's own drag is under way: its source deletes nothing on the drop's result.</summary>
+    private bool _ownDrag;
+
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
         DragDrop.SetAllowDrop(view, true);
@@ -317,7 +320,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             bool files = e.DataTransfer.Contains(DataFormat.File);
             string? refusal;
             var (current, candidateRefusal) = DropTargetAdmission.Check(panel, files,
-                (e.KeyModifiers & KeyModifiers.Shift) != 0);
+                (e.KeyModifiers & KeyModifiers.Shift) != 0, _ownDrag);
             (current, refusal) = dragIntent.Hover(current, candidateRefusal);
             // Native drag managers may never raise Drop when the offered effect is None.
             // Explain an unsupported file destination on its first hover, but do not
@@ -347,7 +350,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
-            var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move);
+            var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move, _ownDrag);
             if (targetChanged)
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
@@ -432,6 +435,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 {
                     var transfer = new DataTransfer();
                     foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
+                    // The drag loop holds the pointer: what hovers FileCat's panels until it returns is this drag.
+                    _ownDrag = true;
                     var effect = await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
                     if (effect != DragDropEffects.None) prepared.Handoff();
                 }
@@ -440,6 +445,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 {
                     _vm.Notify("Dragging could not start: " + Formatters.SafeName(ex.Message), true);
                 }
+                finally { _ownDrag = false; }
             }
         };
     }

@@ -18,6 +18,9 @@ public static class DragStaging
     public const long MaxBytes = 64L * 1024 * 1024;
     private const string Folder = "drag";
 
+    /// <summary>Whether a path is one of the copies made to drag items out of an archive, a server or a device.</summary>
+    public static bool IsStaged(string path, string tempRoot) => PathUtil.IsSameOrUnder(path, Path.Combine(tempRoot, Folder));
+
     /// <summary>The staged files, or null and why the items cannot be dragged.</summary>
     public static (IReadOnlyList<string>? Paths, string? Refusal) Stage(IReadOnlyList<ItemRef> items, ProviderRegistry providers, IFileSystemOperations fs,
         string tempRoot, CancellationToken ct)

@@ -914,25 +914,33 @@ public sealed partial class MainViewModel
     /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
     internal async Task DropFilesAsync(PanelViewModel panel, DropTargetAdmission.Offer offered, IReadOnlyList<string> paths)
     {
-        var (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, offered.Effect == Avalonia.Input.DragDropEffects.Move);
+        // Only FileCat's own drag is offered as a Move.
+        bool move = offered.Effect == Avalonia.Input.DragDropEffects.Move;
+        // Dragged out of an archive, a server or a device, FileCat drops the copies it made to drag them: moving those
+        // would leave the originals where they are.
+        if (move && paths.Any(p => Core.Operations.DragStaging.IsStaged(p, Services.Paths.TempDirectory)))
+        {
+            Notify(DropTargetAdmission.StagedMoveRefusal, true);
+            return;
+        }
+        var (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, move, ownDrag: move);
         if (current is null || !DropTargetAdmission.SameTarget(offered, current))
         {
             Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
             return;
         }
         bool available = await Task.Run(() => Directory.Exists(offered.Destination.Path));
-        (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, offered.Effect == Avalonia.Input.DragDropEffects.Move);
+        (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, move, ownDrag: move);
         if (!available || current is null || !DropTargetAdmission.SameTarget(offered, current))
         {
             Notify(!available ? "The drop folder is no longer available. Reconnect or choose another destination with F5."
                 : current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
             return;
         }
-        bool move = offered.Effect == Avalonia.Input.DragDropEffects.Move;
         var dest = offered.Destination;
         var items = await Task.Run(() => paths.Select(p => ItemRef.ForFileSystemPath(p,
             Directory.Exists(p) ? EntryKind.Directory : EntryKind.File)).ToList());
-        (current, refusal) = DropTargetAdmission.Check(panel, true, move);
+        (current, refusal) = DropTargetAdmission.Check(panel, true, move, ownDrag: move);
         if (current is null || !DropTargetAdmission.SameTarget(offered, current))
         {
             Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
