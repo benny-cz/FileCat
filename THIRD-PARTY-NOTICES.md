@@ -35,6 +35,7 @@ versions and source obligations remain under review.
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
 | SharpCompress | 0.50.5 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |
 | rardecode (ported source in FileCat's RAR reader) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
+| XADMaster (ported source in FileCat's RAR 1.5 decoder) | commit 7cb9ee0a | LGPL-2.1-or-later | `src/FileCat.Archives.Rar15` ports its RAR 1.5 decoding (XADRAR15Handle) into the separate, replaceable `FileCat.Archives.Rar15.dll`; Copyright (c) 2017-present MacPaw Way Ltd., originally by Dag Ågren. Notice below; full text in `licenses/xadmaster/LICENSE`, shipped with FileCat; no UnRAR source |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; the signed package's SPDX expression and copyright metadata are bound to retained canonical MIT text |
 | AppImage type2-runtime (Linux AppImage only) | declared commit fedfad51, immutable GitHub asset ID 657374641, exact runtime input pinned by checksum | MIT root; linked components have their own licenses | The official producer log binds Alpine 3.21 digest `ce6475…3507`, libfuse 3.15.0, squashfuse 0.5.2, musl 1.2.5-r11, zstd 1.5.6-r2, zlib 1.3.2-r1 and mimalloc 2.1.7-r0. Original source license texts are retained in `licenses/appimage-runtime`; complete actual static composition, static-link/source obligations and binary/source reproducibility remain unqualified. The tarball and Debian package omit this wrapper |
@@ -81,3 +82,29 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## XADMaster (LGPL-2.1-or-later)
+
+FileCat's RAR 1.5 decompression, the separate assembly `FileCat.Archives.Rar15.dll`, is a C# port of
+code from XADMaster (https://github.com/MacPaw/XADMaster, commit
+7cb9ee0abbb163f261e4cb74501e15067032319c), The Unarchiver's archive library.
+
+```
+Copyright (c) 2017-present, MacPaw Way Ltd. All rights reserved.
+XADMaster was originally written by Dag Ågren.
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+```
+
+The full license text is `licenses/xadmaster/LICENSE`, which FileCat's packages ship with this file.
+The library's complete corresponding source is `src/FileCat.Archives.Rar15` in FileCat's public
+source repository; you may modify it and replace the DLL with your own build
+(`licenses/xadmaster/README.md`).

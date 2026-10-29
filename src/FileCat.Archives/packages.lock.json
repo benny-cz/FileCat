@@ -48,6 +48,9 @@
         "resolved": "1.0.23",
         "contentHash": "K+Lb4/siT7+K50r4kndp5QaJLgupf5zE4qe8QxqwF0uSAiZtodsiFc3+i9IQpkGGMDwi83isG9qYA3JOJrO7UA=="
       },
+      "filecat.archives.rar15": {
+        "type": "Project"
+      },
       "filecat.core": {
         "type": "Project",
         "dependencies": {

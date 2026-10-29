@@ -13,6 +13,8 @@ internal sealed partial class RarArchive
         Rar4Sign = 0x79, Rar4Service = 0x7A, Rar4End = 0x7B;
 
     private readonly List<int> _rar4VolumeNumbers = [];
+    private bool _rar4SolidArchive;   // the archive header's solid flag
+    private bool _rar4FileHeaderSeen;
 
     private void ReadRar4Volume(Stream stream, int volume, CancellationToken ct)
     {
@@ -54,6 +56,7 @@ internal sealed partial class RarArchive
                     case Rar4Main:
                         CheckRar4Crc(header, crc, header.Length);
                         if ((flags & 0x0080) != 0) throw new InvalidDataException(EncryptedListMessage);
+                        _rar4SolidArchive = (flags & 0x0008) != 0;
                         break;
                     case Rar4File:
                     case Rar4Service:
@@ -65,6 +68,10 @@ internal sealed partial class RarArchive
                         member.PackedSize = dataSize;
                         if (type == Rar4File)
                         {
+                            // As XADMaster reads RAR 1.5 data, the archive header's solid flag covers every file after
+                            // the archive's first; the file header's own solid flag is RAR 2.0's (RAR's technote).
+                            if (member.Version is > 0 and < 20) member.SolidContinuation = _rar4SolidArchive && _rar4FileHeaderSeen && member.Method != 0;
+                            _rar4FileHeaderSeen = true;
                             if (Members.Count >= RarLimits.MaxMembers) throw new InvalidDataException("The archive has too many members to list.");
                             AddPart(member, volume, -1, dataStart, (flags & 0x0001) != 0, (flags & 0x0002) != 0);
                         }

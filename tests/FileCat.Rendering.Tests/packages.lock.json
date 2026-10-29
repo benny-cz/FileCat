@@ -391,11 +391,15 @@
       "filecat.archives": {
         "type": "Project",
         "dependencies": {
+          "FileCat.Archives.Rar15": "[0.1.0-preview, )",
           "FileCat.Core": "[0.1.0-preview, )",
           "LTRData.DiscUtils.Iso9660": "[1.0.89, )",
           "LTRData.DiscUtils.Udf": "[1.0.89, )",
           "SharpCompress": "[0.50.5, )"
         }
+      },
+      "filecat.archives.rar15": {
+        "type": "Project"
       },
       "filecat.core": {
         "type": "Project",

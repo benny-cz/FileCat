@@ -45,8 +45,15 @@ internal sealed class RarPackedStream(IReadOnlyList<Stream> volumes, IReadOnlyLi
 }
 
 /// <summary>
-/// The content of one member: stored bytes, or the decoder's output for exactly this member. The checksum the archive
-/// records is verified when the content ends, so damaged data is reported, never handed out as complete.
+/// Copies a member's next bytes into the destination; returns 0 once the member has ended. A decoder that keeps its own
+/// window (RAR 1.5) hands out its output this way.
+/// </summary>
+internal delegate int RarExternalDecoder(Span<byte> destination);
+
+/// <summary>
+/// The content of one member: stored bytes, the decoder's output for exactly this member, or the output of an external
+/// decoder. The checksum the archive records is verified when the content ends, so damaged data is reported, never
+/// handed out as complete.
 /// </summary>
 internal sealed class RarMemberStream : Stream
 {
@@ -54,6 +61,7 @@ internal sealed class RarMemberStream : Stream
     private readonly Stream? _stored;
     private readonly RarDecoder? _decoder;
     private readonly RarWindow? _window;
+    private readonly RarExternalDecoder? _external;
     private readonly long _start;
     private readonly long _end;
     private readonly CancellationToken _ct;
@@ -63,12 +71,14 @@ internal sealed class RarMemberStream : Stream
     private bool _decoderDone;
     private bool _finished;
 
-    private RarMemberStream(RarMember member, Stream? stored, RarDecoder? decoder, RarWindow? window, CancellationToken ct)
+    private RarMemberStream(RarMember member, Stream? stored, RarDecoder? decoder, RarWindow? window, CancellationToken ct,
+        RarExternalDecoder? external = null)
     {
         _member = member;
         _stored = stored;
         _decoder = decoder;
         _window = window;
+        _external = external;
         _ct = ct;
         _start = window?.Written ?? 0;
         _end = member.UnpackedSize < 0 ? long.MaxValue : _start + member.UnpackedSize;
@@ -88,6 +98,16 @@ internal sealed class RarMemberStream : Stream
         return new RarMemberStream(member, null, decoder, window, ct);
     }
 
+    /// <summary>
+    /// Content from a decoder with its own window: <paramref name="read"/> produces exactly the member's bytes, which
+    /// are counted and checksummed here like every other member's.
+    /// </summary>
+    public static RarMemberStream External(RarMember member, RarExternalDecoder read, CancellationToken ct)
+    {
+        if (member.UnpackedSize < 0) throw RarData.Unsupported("a member whose size the archive does not record");
+        return new RarMemberStream(member, null, null, null, ct, read);
+    }
+
     /// <summary>True once decoding failed: the decoder and window state are no longer usable for a solid run.</summary>
     public bool Broken { get; private set; }
 
@@ -105,7 +125,7 @@ internal sealed class RarMemberStream : Stream
     public override int Read(Span<byte> buffer)
     {
         if (_finished || buffer.IsEmpty) return 0;
-        int n = _window is null ? ReadStored(buffer) : ReadDecoded(buffer);
+        int n = _external is not null ? ReadExternal(buffer) : _window is null ? ReadStored(buffer) : ReadDecoded(buffer);
         if (n == 0)
         {
             Finish();
@@ -143,6 +163,20 @@ internal sealed class RarMemberStream : Stream
         int n = _stored!.Read(buffer[..(int)Math.Min(buffer.Length, left)]);
         if (n <= 0) throw RarData.Truncated();
         return n;
+    }
+
+    private int ReadExternal(Span<byte> buffer)
+    {
+        _ct.ThrowIfCancellationRequested();
+        long left = _member.UnpackedSize - _produced;
+        if (left <= 0) return 0;
+        int n;
+        try { n = _external!(buffer[..(int)Math.Min(buffer.Length, left)]); }
+        catch { Broken = true; throw; }
+        if (n > 0) return n;
+        // The decoder ended before the member's size: the exact-size check must not pass silently.
+        Broken = true;
+        throw RarData.Truncated();
     }
 
     private int ReadDecoded(Span<byte> buffer)

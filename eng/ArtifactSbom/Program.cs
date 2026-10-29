@@ -256,12 +256,16 @@ try
         if (name.Equals("FileCat", StringComparison.OrdinalIgnoreCase)) continue;
         string spdxId = SpdxId("Project", name + "/" + projectVersion);
         dependencyIds.Add(spdxId);
+        // FileCat's projects are MIT, except the RAR 1.5 decoder ported from XADMaster (licenses/xadmaster).
+        bool lgpl = name.Equals("FileCat.Archives.Rar15", StringComparison.OrdinalIgnoreCase);
         spdxPackages.Add(new JsonObject
         {
             ["name"] = name, ["SPDXID"] = spdxId, ["versionInfo"] = projectVersion,
             ["downloadLocation"] = "NOASSERTION", ["filesAnalyzed"] = false,
-            ["licenseConcluded"] = "NOASSERTION", ["licenseDeclared"] = "MIT",
-            ["copyrightText"] = "Copyright (c) 2026 Benny and FileCat contributors",
+            ["licenseConcluded"] = "NOASSERTION", ["licenseDeclared"] = lgpl ? "LGPL-2.1-or-later" : "MIT",
+            ["copyrightText"] = lgpl
+                ? "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Benny and FileCat contributors"
+                : "Copyright (c) 2026 Benny and FileCat contributors",
             ["sourceInfo"] = "Built from FileCat " + sourceStatement[0..1].ToLowerInvariant() + sourceStatement[1..]
         });
     }

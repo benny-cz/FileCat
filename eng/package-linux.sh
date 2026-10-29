@@ -43,6 +43,11 @@ rm -f "$PUB"/FileCat.ShellHost* "$PUB"/FileCat.PrivilegedHost*
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$PUB/"
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
   "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$PUB/licenses/dependencies"
+# FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.
+mkdir -p "$PUB/licenses/xadmaster"
+cp "$ROOT/licenses/xadmaster/LICENSE" "$ROOT/licenses/xadmaster/README.md" "$PUB/licenses/xadmaster/"
+echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $PUB/licenses/xadmaster/LICENSE" | sha256sum -c - >/dev/null \
+  || { echo "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text." >&2; exit 2; }
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not

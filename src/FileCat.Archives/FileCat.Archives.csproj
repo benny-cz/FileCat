@@ -9,6 +9,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <!-- RAR 1.5 decompression, LGPL-2.1-or-later: a separate, replaceable assembly (licenses/xadmaster). -->
+    <ProjectReference Include="..\FileCat.Archives.Rar15\FileCat.Archives.Rar15.csproj" />
     <PackageReference Include="SharpCompress" />
     <PackageReference Include="LTRData.DiscUtils.Iso9660" />
     <PackageReference Include="LTRData.DiscUtils.Udf" />
