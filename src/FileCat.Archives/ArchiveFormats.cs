@@ -7,7 +7,6 @@ using DiscUtils;
 using DiscUtils.Iso9660;
 using DiscUtils.Udf;
 using SharpCompress.Archives;
-using SharpCompress.Archives.Rar;
 using SharpCompress.Archives.SevenZip;
 
 using SharpCompress.Compressors.BZip2;
@@ -126,7 +125,7 @@ public static class ArchiveFormats
         ArchiveKind.Bzip2 => new SingleStreamReader(path, s => BZip2Stream.Create(s, SharpCompress.Compressors.CompressionMode.Decompress, false, false, true), "bzip2", displayName, ".bz2", verifyOpened),
         ArchiveKind.Xz => new SingleStreamReader(path, s => new XZStream(s), "xz", displayName, ".xz", verifyOpened),
         ArchiveKind.Zstd => new SingleStreamReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "zstd", displayName, ".zst", verifyOpened),
-        ArchiveKind.SevenZip => SharpArchiveReader.Open(path, rar: false, verifyOpened),
+        ArchiveKind.SevenZip => SharpArchiveReader.Open(path, verifyOpened),
         ArchiveKind.Rar => Rar.RarReader.Open(path, verifyOpened),
         _ => new DiscImageReader(path, verifyOpened),
     };
@@ -594,10 +593,10 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 }
 
 /// <summary>
-/// 7z and RAR through SharpCompress. Non-solid RAR archives open members directly. Solid RAR and every 7z keep a forward
-/// reader instead: 7z packs several members into one compressed block, and opening one member out of order yields an
-/// empty stream in SharpCompress. Extracting in archive order decompresses each block once. Multi-volume RAR sets are
-/// opened whole.
+/// 7z through FileCat's build of SharpCompress (src/ThirdParty/SharpCompress). Every 7z keeps a forward reader: 7z packs
+/// several members into one compressed block, and opening one member out of order yields an empty stream in
+/// SharpCompress. Extracting in archive order decompresses each block once. RAR archives have their own reader
+/// (<see cref="Rar.RarReader"/>).
 /// </summary>
 internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 {
@@ -644,9 +643,7 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 
     private readonly IArchive _archive;
     private readonly List<IArchiveEntry> _entries;
-    private readonly List<FileStream> _volumes;
-    private readonly bool _sequential;
-    private readonly bool _numberedVolumeGap;
+    private readonly List<FileStream> _volumes; // the archive file: one stream, kept as the volume list cleanup walks
     // The reader visits entries in its own order (7z puts empty entries elsewhere than its entry list), so members are
     // matched by name and occurrence, never by position.
     private readonly int[] _ordinals;
@@ -654,13 +651,10 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
     private IReader? _reader;
     private bool _disposed;
 
-    private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string format, bool sequential, bool numberedVolumeGap)
+    private SharpArchiveReader(IArchive archive, List<FileStream> volumes)
     {
-        _sequential = sequential;
-        _numberedVolumeGap = numberedVolumeGap;
         _archive = archive;
         _volumes = volumes;
-        Format = format;
         _entries = archive.Entries.ToList();
         _ordinals = new int[_entries.Count];
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -672,42 +666,23 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
         }
     }
 
-    public string Format { get; }
+    public string Format => "7z";
 
-    public bool SharesCursor => _sequential;
+    public bool SharesCursor => true;
 
-    // The provider retains this reader while its index is live. Every RAR volume is a source of its catalog
-    // and members, even when the selected path is only the first part.
+    // The provider retains this reader while its index is live: the archive file is the source of its catalog and members.
     public IReadOnlyList<FileStream> VolumeStreams => _volumes;
 
-    public static SharpArchiveReader Open(string path, bool rar) => Open(path, rar, null);
+    public static SharpArchiveReader Open(string path) => Open(path, null);
 
-    public static SharpArchiveReader Open(string path, bool rar, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
+    public static SharpArchiveReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened)
     {
-        bool numberedVolumeGap = false;
-        var volumes = new List<FileStream>();
+        var volumes = new List<FileStream> { ArchiveFormats.OpenShared(path, verifyOpened) };
         try
         {
-            foreach (var volume in rar ? RarVolumes(path, out numberedVolumeGap) : [path])
-                volumes.Add(ArchiveFormats.OpenShared(volume, verifyOpened));
-        }
-        catch
-        {
-            foreach (var volume in volumes)
-            {
-                try { volume.Dispose(); }
-                catch (Exception ex) { AppLog.Warn("Archive volume cleanup after open failure: " + ex.GetType().Name); }
-            }
-            throw;
-        }
-        try
-        {
-            if (!rar) AdmitSevenZipHeader(volumes[0]);
+            AdmitSevenZipHeader(volumes[0]);
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };
-            IArchive archive = rar
-                ? volumes.Count > 1 ? RarArchive.OpenArchive(volumes.Cast<Stream>().ToList(), options) : RarArchive.OpenArchive(volumes[0], options)
-                : SevenZipArchive.OpenArchive(volumes[0], options);
-            return new SharpArchiveReader(archive, volumes, rar ? volumes.Count > 1 ? $"RAR ({volumes.Count} volumes)" : "RAR" : "7z", sequential: !rar || archive.IsSolid, numberedVolumeGap);
+            return new SharpArchiveReader(SevenZipArchive.OpenArchive(volumes[0], options), volumes);
         }
         catch (Exception ex)
         {
@@ -715,52 +690,6 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
             if (ex is IOException or UnauthorizedAccessException) throw;
             throw new InvalidDataException(Describe(ex), ex);
         }
-    }
-
-    /// <summary>"x.part1.rar" (or any part) → all parts in order; "x.rar" with "x.r00"… → the old naming.</summary>
-    internal static List<string> RarVolumes(string path) => RarVolumes(path, out _);
-
-    internal static List<string> RarVolumes(string path, out bool numberedVolumeGap)
-    {
-        numberedVolumeGap = false;
-        var dir = Path.GetDirectoryName(path) ?? ".";
-        var name = Path.GetFileName(path);
-        var modern = System.Text.RegularExpressions.Regex.Match(name, @"^(.*)\.part(\d+)\.rar$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        if (modern.Success)
-        {
-            var stem = modern.Groups[1].Value;
-            var parts = Directory.EnumerateFiles(dir, stem + ".part*.rar")
-                .Select(p => (Path: p, M: System.Text.RegularExpressions.Regex.Match(Path.GetFileName(p), @"\.part(\d+)\.rar$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
-                .Where(x => x.M.Success && Path.GetFileName(x.Path).StartsWith(stem + ".part", StringComparison.OrdinalIgnoreCase))
-                .Select(x => (x.Path, Number: int.Parse(x.M.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)))
-                .OrderBy(x => x.Number).ToList();
-            // Split-before/after flags describe each member's ends, so the dependency can call a member complete
-            // even when an interior numbered volume is absent. Keep that discovery warning independently.
-            for (int i = 1; i < parts.Count; i++)
-                if (parts[i].Number - parts[i - 1].Number > 1) numberedVolumeGap = true;
-            return parts.Count > 0 ? parts.Select(x => x.Path).ToList() : [path];
-        }
-        var extension = Path.GetExtension(name);
-        bool secondary = System.Text.RegularExpressions.Regex.IsMatch(extension, @"^\.[r-z]\d{2}$",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var baseName = Path.GetFileNameWithoutExtension(name);
-        var old = new List<(string Path, int Number)>();
-        if (!secondary) old.Add((path, 0));
-        foreach (string candidate in Directory.EnumerateFiles(dir))
-        {
-            if (!string.Equals(Path.GetFileNameWithoutExtension(candidate), baseName, StringComparison.OrdinalIgnoreCase)) continue;
-            string suffix = Path.GetExtension(candidate).ToLowerInvariant();
-            if (secondary && suffix == ".rar") old.Add((candidate, 0));
-            else if (System.Text.RegularExpressions.Regex.IsMatch(suffix, @"^\.[r-z]\d{2}$"))
-                old.Add((candidate, 1 + (suffix[1] - 'r') * 100 + (suffix[2] - '0') * 10 + suffix[3] - '0'));
-        }
-        old.Sort((a, b) => a.Number.CompareTo(b.Number));
-        // A secondary entry point needs the primary volume first, once. Retain later volumes after a gap,
-        // with the same explicit discovery warning as numbered sets; stopping at a gap loses intact members.
-        if (old.Count > 0 && old[0].Number != 0) numberedVolumeGap = true;
-        for (int i = 1; i < old.Count; i++)
-            if (old[i].Number - old[i - 1].Number > 1) numberedVolumeGap = true;
-        return old.Count > 0 ? old.Select(x => x.Path).ToList() : [path];
     }
 
     private static string Describe(Exception ex) =>
@@ -771,7 +700,7 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if (_numberedVolumeGap || !_archive.IsComplete)
+        if (!_archive.IsComplete)
             warn("Some volumes of this archive are missing; members that continue in them cannot be extracted.");
         for (int i = 0; i < _entries.Count; i++)
         {
@@ -789,7 +718,6 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
         try
         {
             if (HasNoSevenZipStream(_entries[index])) return Stream.Null;
-            if (!_sequential) return _entries[index].OpenEntryStream();
             string key = _entries[index].Key ?? string.Empty;
             int ordinal = _ordinals[index];
             // Already passed (or current, its stream consumed): start over; otherwise continue forward.

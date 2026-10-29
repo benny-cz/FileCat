@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpCompress.Compressors.LZMA.RangeCoder;
-using SharpCompress.Compressors.PPMd.H;
 using SharpCompress.Compressors.PPMd.I1;
 using SharpCompress.IO;
 
@@ -17,7 +16,7 @@ public class PpmdStream : Stream, IAsyncDisposable
     private readonly Stream _stream;
     private readonly bool _compress;
     private Model _model;
-    private ModelPpm _modelH;
+    private PpmdModelH7z _modelH;
     private Decoder _decoder;
     private long _position;
     private bool _isDisposed;
@@ -61,7 +60,7 @@ public class PpmdStream : Stream, IAsyncDisposable
         }
         if (_properties.Version == PpmdVersion.H)
         {
-            _modelH = new ModelPpm();
+            _modelH = new PpmdModelH7z();
             if (compress)
             {
                 throw new NotImplementedException();
@@ -70,7 +69,7 @@ public class PpmdStream : Stream, IAsyncDisposable
         }
         if (_properties.Version == PpmdVersion.H7Z)
         {
-            _modelH = new ModelPpm();
+            _modelH = new PpmdModelH7z();
             if (compress)
             {
                 throw new NotImplementedException();
@@ -123,7 +122,7 @@ public class PpmdStream : Stream, IAsyncDisposable
             }
             else if (properties.Version == PpmdVersion.H)
             {
-                instance._modelH = new ModelPpm();
+                instance._modelH = new PpmdModelH7z();
                 await instance
                     ._modelH.DecodeInitAsync(
                         stream,
@@ -135,7 +134,7 @@ public class PpmdStream : Stream, IAsyncDisposable
             }
             else if (properties.Version == PpmdVersion.H7Z)
             {
-                instance._modelH = new ModelPpm();
+                instance._modelH = new PpmdModelH7z();
                 await instance
                     ._modelH.DecodeInitAsync(
                         null,

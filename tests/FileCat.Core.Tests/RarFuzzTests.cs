@@ -46,7 +46,7 @@ public sealed class RarFuzzTests
         var limit = TimeSpan.FromSeconds(int.TryParse(Environment.GetEnvironmentVariable("FILECAT_RAR_FUZZ_SECONDS"), out var t) ? t : 30);
         if (Environment.GetEnvironmentVariable("FILECAT_RAR_FUZZ_FIXTURE") is { Length: > 0 } only && only != fixture)
             Assert.Skip($"FILECAT_RAR_FUZZ_FIXTURE picks {only}.");
-        var original = SharpArchiveReader.RarVolumes(Path.Combine(Fixtures, fixture)).Select(File.ReadAllBytes).ToList();
+        var original = RarVolumes.Of(Path.Combine(Fixtures, fixture)).Select(File.ReadAllBytes).ToList();
         var map = RarMap.Scan(original);
         var outcomes = new Dictionary<string, int>();
         long mostAllocated = 0;

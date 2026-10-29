@@ -239,9 +239,9 @@
         "dependencies": {
           "FileCat.Archives.Rar15": "[0.1.0-preview, )",
           "FileCat.Core": "[0.1.0-preview, )",
+          "FileCat.SharpCompress": "[0.1.0-preview, )",
           "LTRData.DiscUtils.Iso9660": "[1.0.89, )",
-          "LTRData.DiscUtils.Udf": "[1.0.89, )",
-          "SharpCompress": "[0.50.5, )"
+          "LTRData.DiscUtils.Udf": "[1.0.89, )"
         }
       },
       "filecat.archives.rar15": {
@@ -275,6 +275,9 @@
           "FluentFTP": "[55.0.0, )",
           "SSH.NET": "[2026.0.0, )"
         }
+      },
+      "FileCat.SharpCompress": {
+        "type": "Project"
       },
       "filecat.shellhost": {
         "type": "Project",
@@ -318,12 +321,6 @@
         "requested": "[1.0.3179.45, )",
         "resolved": "1.0.3179.45",
         "contentHash": "3pokSH5CnN0G6rGhGFo1y87inxYhNxBQ2Vdf0wlvBj99KHxQJormjDACmqRnFeUsmuNFIhWwfAL1ztq7wD5qRA=="
-      },
-      "SharpCompress": {
-        "type": "CentralTransitive",
-        "requested": "[0.50.5, )",
-        "resolved": "0.50.5",
-        "contentHash": "wAEAxPV67rmS3IlIm+tvGNPJXEtZNqlwkZrwJZAvz0AagZP0qLtT4mM2hk8S+uO0Kx+wYoy/FsADQpHwsN5y3g=="
       },
       "SSH.NET": {
         "type": "CentralTransitive",

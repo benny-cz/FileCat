@@ -30,8 +30,10 @@ public sealed class SharpVolumeOpenFailureTests
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             bool before = Exclusive(first);
             blocker = denySecond ? new FileStream(second, FileMode.Open, FileAccess.Read, FileShare.None) : null;
-            var type = Assembly.Load("FileCat.Archives").GetTypes().Single(t => t.Name == "SharpArchiveReader");
-            Exception? failure = Open(type.GetMethod("Open", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(bool)])!, first);
+            // RAR volume sets are opened by FileCat's own RAR reader (SharpArchiveReader reads 7z only).
+            var type = Assembly.Load("FileCat.Archives").GetTypes().Single(t => t.Name == "RarReader");
+            Exception? failure = Open(type.GetMethod("Open", BindingFlags.Public | BindingFlags.Static,
+                [typeof(string), typeof(Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>)])!, first);
             bool after = Exclusive(first);
             blocker?.Dispose(); blocker = null;
             bool secondAfter = Exclusive(second);
@@ -70,7 +72,7 @@ public sealed class SharpVolumeOpenFailureTests
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static Exception? Open(MethodInfo method, string path)
     {
-        try { ((IDisposable)method.Invoke(null, [path, true])!).Dispose(); return null; }
+        try { ((IDisposable)method.Invoke(null, [path, null])!).Dispose(); return null; }
         catch (TargetInvocationException ex) { return ex.InnerException; }
         catch (Exception ex) { return ex; }
     }

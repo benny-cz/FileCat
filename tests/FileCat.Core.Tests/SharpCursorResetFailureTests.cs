@@ -34,7 +34,7 @@ public sealed class SharpCursorResetFailureTests
         bool actualArchiveClosed = false;
         try
         {
-            target = Call(type, null, "Open", path, false)!;
+            target = Call(type, null, "Open", path)!;
             originalArchive = (IArchive)Field(type, target, "_archive");
             var entries = (List<IArchiveEntry>)Field(type, target, "_entries");
             var volumes = (List<FileStream>)Field(type, target, "_volumes");

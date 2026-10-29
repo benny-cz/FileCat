@@ -40,7 +40,7 @@ public sealed class RarReaderTests
     public void Members_and_bytes_match_the_reference_reader(string fixture)
     {
         string path = Path.Combine(Fixtures, fixture);
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         var ours = Snapshot(() => OpenOurs(path));
         Assert.Equal(reference.Error is null, ours.Error is null);
         if (reference.Error is not null)
@@ -73,7 +73,7 @@ public sealed class RarReaderTests
     public void Rar4_listings_match_the_reference_reader(string fixture)
     {
         string path = Path.Combine(Fixtures, fixture);
-        var reference = Listing(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Listing(() => UpstreamRarReader.Open(path));
         var ours = Listing(() => OpenOurs(path));
         Assert.Equal(reference.Error is null, ours.Error is null);
         if (reference.Error is not null) return;
@@ -94,7 +94,7 @@ public sealed class RarReaderTests
     public void Rar29_members_and_bytes_match_the_reference_reader(string fixture)
     {
         string path = Path.Combine(Fixtures, fixture);
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         var ours = Snapshot(() => OpenOurs(path));
         Assert.True(reference.Error is null == ours.Error is null, $"reference: {reference.Error?.Message ?? "ok"}; ours: {ours.Error?.Message ?? "ok"}");
         if (ours.Error is not null) Assert.IsType<InvalidDataException>(ours.Error);
@@ -105,7 +105,7 @@ public sealed class RarReaderTests
     public void Rar4_stored_members_match_the_reference_bytes()
     {
         string path = Path.Combine(Fixtures, "Rar.none.rar");
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         var ours = Snapshot(() => OpenOurs(path));
         Assert.Null(ours.Error);
         Assert.NotEmpty(ours.Contents);
@@ -772,7 +772,7 @@ public sealed class RarReaderTests
     private static void AssertBothDecode(string path, params byte[][] contents)
     {
         var expected = contents.Select(Hash).ToList();
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         Assert.Null(reference.Error);
         Assert.Equal(expected, reference.Contents.Select(c => c.Hash).ToList());
         var ours = Snapshot(() => OpenOurs(path));
@@ -796,7 +796,7 @@ public sealed class RarReaderTests
         var packed = new byte[segment.Length];
         file.Position = segment.Offset;
         file.ReadExactly(packed);
-        using var reader = SharpArchiveReader.Open(path, rar: true);
+        using var reader = UpstreamRarReader.Open(path);
         var info = reader.List(_ => { }, CancellationToken.None).First(m => m.Path.Replace('\\', '/').EndsWith(nameEnd, StringComparison.Ordinal));
         using var content = reader.Open(info.Index, CancellationToken.None);
         return (ReadAll(content), packed);
@@ -955,7 +955,7 @@ public sealed class RarReaderTests
     public void Rar15_members_decode_byte_identically_to_the_reference_reader()
     {
         string path = Path.Combine(Fixtures, "Rar15.rar");
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         var ours = Snapshot(() => OpenOurs(path));
         Assert.Null(reference.Error);
         Assert.Null(ours.Error);
@@ -1672,7 +1672,7 @@ public sealed class RarReaderTests
     internal static RarReader OpenOurs(string path)
     {
         var volumes = new List<FileStream>();
-        foreach (string volume in SharpArchiveReader.RarVolumes(path)) volumes.Add(ArchiveFormats.OpenShared(volume));
+        foreach (string volume in RarVolumes.Of(path)) volumes.Add(ArchiveFormats.OpenShared(volume));
         return RarReader.Open(volumes, numberedVolumeGap: false);
     }
 
@@ -1715,7 +1715,7 @@ public sealed class RarReaderTests
         using var temp = new TempDir();
         string path = Path.Combine(temp.Path, "synthetic.rar");
         File.WriteAllBytes(path, Rar2Archive(members, [.. contents.Select(c => FileCat.Core.Jobs.Crc32.HashToUInt32(c))], solid));
-        var reference = Snapshot(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Snapshot(() => UpstreamRarReader.Open(path));
         var ours = Snapshot(() => OpenOurs(path));
         Assert.Null(reference.Error);
         Assert.Null(ours.Error);

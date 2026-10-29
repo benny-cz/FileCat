@@ -43,7 +43,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         bool numberedVolumeGap;
         try
         {
-            foreach (string volume in SharpArchiveReader.RarVolumes(path, out numberedVolumeGap))
+            foreach (string volume in RarVolumes.Of(path, out numberedVolumeGap))
                 volumes.Add(ArchiveFormats.OpenShared(volume, verifyOpened));
         }
         catch

@@ -77,9 +77,10 @@ internal sealed class BitWriter
 
 /// <summary>
 /// RAR 3 PPMd data for tests: PPMd variant H with RAR's range coder, wrapped in RAR's PPMd block headers and escape
-/// codes. The model is a copy of FileCat's decoder model (src/FileCat.Archives/Rar/Rar3Ppmd.cs) with its three coding
-/// points turned into encoding. SharpCompress (UnRAR's PPMd-H) decoding this output shows the model matches RAR's;
-/// FileCat decoding it shows the decoding side does too. Keep the two models in step.
+/// codes. The model is a copy of FileCat's decoder model (PpmdModelH in src/ThirdParty/SharpCompress/Compressors/PPMd,
+/// shared by RAR 3 and 7z) with its three coding points turned into encoding. Upstream SharpCompress (UnRAR's PPMd-H,
+/// test-only) decoding this output shows the model matches RAR's; FileCat decoding it shows the decoding side does too.
+/// Keep the two models in step.
 /// </summary>
 internal sealed class Rar3PpmdTestStream
 {
@@ -192,7 +193,7 @@ internal sealed class Rar3PpmdTestStream
     }
 }
 
-/// <summary>The PPMd variant H model of <c>Rar3Ppmd</c>, encoding instead of decoding.</summary>
+/// <summary>The PPMd variant H model of <c>PpmdModelH</c> (RAR's <c>Rar3Ppmd</c>), encoding instead of decoding.</summary>
 internal sealed class Rar3PpmdTestEncoder
 {
     private const uint RangeTop = 1 << 24;
@@ -424,7 +425,7 @@ internal sealed class Rar3PpmdTestEncoder
         return Rescale(context, s);
     }
 
-    // ---- From here on, the model exactly as Rar3Ppmd has it (without its damage checks) ----
+    // ---- From here on, the model exactly as PpmdModelH has it (without its damage checks) ----
 
     private void InitAllocator(int megabytes)
     {

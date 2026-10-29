@@ -14,7 +14,8 @@
     <!-- Ed25519 and BLAKE2b for minisign signatures beside files (D-57): SSH.NET already ships it; MIT. -->
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="FluentFTP" Version="55.0.0" />
-    <!-- Read-only archive formats (ADR-07, P8): managed code under FileCat's limits. -->
+    <!-- Read-only archive formats (ADR-07, P8): managed code under FileCat's limits. FileCat ships its own build of
+         SharpCompress (src/ThirdParty/SharpCompress); the package is a test-only reference reader (FileCat.Core.Tests). -->
     <PackageVersion Include="SharpCompress" Version="0.50.5" />
     <PackageVersion Include="LTRData.DiscUtils.Iso9660" Version="1.0.89" />
     <PackageVersion Include="LTRData.DiscUtils.Udf" Version="1.0.89" />

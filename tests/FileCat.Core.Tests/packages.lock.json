@@ -12,6 +12,12 @@
           "Microsoft.TestPlatform.TestHost": "18.0.1"
         }
       },
+      "SharpCompress": {
+        "type": "Direct",
+        "requested": "[0.50.5, )",
+        "resolved": "0.50.5",
+        "contentHash": "wAEAxPV67rmS3IlIm+tvGNPJXEtZNqlwkZrwJZAvz0AagZP0qLtT4mM2hk8S+uO0Kx+wYoy/FsADQpHwsN5y3g=="
+      },
       "xunit.runner.visualstudio": {
         "type": "Direct",
         "requested": "[3.1.5, )",
@@ -189,9 +195,9 @@
         "dependencies": {
           "FileCat.Archives.Rar15": "[0.1.0-preview, )",
           "FileCat.Core": "[0.1.0-preview, )",
+          "FileCat.SharpCompress": "[0.1.0-preview, )",
           "LTRData.DiscUtils.Iso9660": "[1.0.89, )",
-          "LTRData.DiscUtils.Udf": "[1.0.89, )",
-          "SharpCompress": "[0.50.5, )"
+          "LTRData.DiscUtils.Udf": "[1.0.89, )"
         }
       },
       "filecat.archives.rar15": {
@@ -214,6 +220,9 @@
         "dependencies": {
           "FileCat.Core": "[0.1.0-preview, )"
         }
+      },
+      "FileCat.SharpCompress": {
+        "type": "Project"
       },
       "BouncyCastle.Cryptography": {
         "type": "CentralTransitive",
@@ -239,12 +248,6 @@
           "LTRData.DiscUtils.Core": "1.0.89",
           "LTRData.DiscUtils.Iso9660": "1.0.89"
         }
-      },
-      "SharpCompress": {
-        "type": "CentralTransitive",
-        "requested": "[0.50.5, )",
-        "resolved": "0.50.5",
-        "contentHash": "wAEAxPV67rmS3IlIm+tvGNPJXEtZNqlwkZrwJZAvz0AagZP0qLtT4mM2hk8S+uO0Kx+wYoy/FsADQpHwsN5y3g=="
       }
     },
     "net10.0/linux-arm64": {

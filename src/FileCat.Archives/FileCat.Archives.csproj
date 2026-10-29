@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Read-only archive formats beyond ZIP (plan §15, ADR-07, P8): TAR family (in-box readers), 7z, RAR, xz, bz2, and
-    zstd (SharpCompress), ISO 9660 and UDF images (DiscUtils). All managed; FileCat enforces entry, size, ratio, and
-    path limits around them. Core stays free of third-party packages.
+    Read-only archive formats beyond ZIP (plan §15, ADR-07, P8): TAR family (in-box readers), RAR (FileCat's own reader,
+    Rar/), 7z, xz, bz2, and zstd (FileCat's build of SharpCompress), ISO 9660 and UDF images (DiscUtils). All managed;
+    FileCat enforces entry, size, ratio, and path limits around them. Core stays free of third-party packages.
   -->
   <PropertyGroup>
     <RootNamespace>FileCat.Archives</RootNamespace>
@@ -11,7 +11,9 @@
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <!-- RAR 1.5 decompression, LGPL-2.1-or-later: a separate, replaceable assembly (licenses/xadmaster). -->
     <ProjectReference Include="..\FileCat.Archives.Rar15\FileCat.Archives.Rar15.csproj" />
-    <PackageReference Include="SharpCompress" />
+    <!-- SharpCompress 0.50.5 built from source without its UnRAR-derived RAR and PPMd variant H code (release issue I14);
+         its components' licenses are in licenses/sharpcompress. -->
+    <ProjectReference Include="..\ThirdParty\SharpCompress\SharpCompress.csproj" />
     <PackageReference Include="LTRData.DiscUtils.Iso9660" />
     <PackageReference Include="LTRData.DiscUtils.Udf" />
     <InternalsVisibleTo Include="FileCat.Core.Tests" />

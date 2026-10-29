@@ -2,8 +2,10 @@
   <!--
     SharpCompress 0.50.5 (MIT, Copyright (c) Adam Hathcock), source of commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626,
     built here without its RAR support: its RAR decoders and PPMd variant H were ported from UnRAR, whose license is not
-    OSI-approved (release issue I14). FileCat reads RAR archives with its own reader (src/FileCat.Archives/Rar).
-    Every change from upstream is listed in THIRD-PARTY-CHANGES.md beside this file.
+    OSI-approved (release issue I14). FileCat reads RAR archives with its own reader (src/FileCat.Archives/Rar), and 7z
+    PPMd decodes through the PPMd variant H model that reader shares (Compressors/PPMd/PpmdModelH.cs, from rardecode).
+    Every change from upstream is listed in THIRD-PARTY-CHANGES.md beside this file; every component's license is in
+    licenses/sharpcompress/COMPONENTS.md.
   -->
   <PropertyGroup>
     <AssemblyName>FileCat.SharpCompress</AssemblyName>
@@ -16,4 +18,9 @@
     <Product>SharpCompress (FileCat build without RAR)</Product>
     <Copyright>Copyright (c) Adam Hathcock and SharpCompress contributors</Copyright>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- FileCat's RAR reader decodes RAR 3 PPMd with the shared PPMd variant H model (Compressors/PPMd/PpmdModelH.cs). -->
+    <InternalsVisibleTo Include="FileCat.Archives" />
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
 </Project>

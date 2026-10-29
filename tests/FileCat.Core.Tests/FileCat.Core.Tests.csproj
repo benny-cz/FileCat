@@ -11,6 +11,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <!-- Upstream SharpCompress, test-only and under its own alias: its RAR reader (ported from UnRAR, which FileCat does not
+         ship) is the differential oracle for FileCat's RAR reader, and its 7z reader one for FileCat's 7z PPMd. Unaliased
+         SharpCompress types are FileCat's own build (src/ThirdParty/SharpCompress). -->
+    <PackageReference Include="SharpCompress" Aliases="UpstreamSharpCompress" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />

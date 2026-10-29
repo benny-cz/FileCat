@@ -32,7 +32,7 @@ public sealed class RarLibarchiveCorpusTests
     public void Real_and_damaged_archives_match_the_reference_or_are_refused_cleanly(string file)
     {
         string path = Path.Combine(Corpus, file);
-        var reference = Read(() => SharpArchiveReader.Open(path, rar: true));
+        var reference = Read(() => UpstreamRarReader.Open(path));
         var ours = Read(() => RarReaderTests.OpenOurs(path));
         Assert.True(ours.Failure is null or InvalidDataException,
             $"{file}: FileCat's reader ended in {ours.Failure?.GetType().FullName}: {ours.Failure?.Message}\n{ours.Failure?.StackTrace}");
