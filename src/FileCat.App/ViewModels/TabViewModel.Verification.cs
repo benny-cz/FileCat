@@ -44,12 +44,21 @@ public sealed partial class TabViewModel
     }
 
     /// <summary>
+    /// What a file beside checksum files or signatures shows while FileCat runs elevated, where it checks no file by
+    /// itself: not checked, rather than the empty cell of a file nothing covers, also where its checksum says it differs
+    /// (review finding P8 of f134ba37).
+    /// </summary>
+    internal static readonly VerificationResult Elevated = new(VerificationState.NotChecked, "not checked (elevated)",
+        ["FileCat runs as administrator and checks no file by itself.", "File → Verify checks this file now."]);
+
+    /// <summary>
     /// A row's check, once known (null for rows nothing covers, and while it is worked out): asked of the metadata
     /// service, which checks visible rows in the background on their device's queue.
     /// </summary>
     public VerificationResult? Verification(in EntryData e, int storeIndex)
     {
         if (!_hasSidecars || e.Kind != EntryKind.File || Location is not { IsFileSystem: true } location) return null;
+        if (Core.State.WindowsTokenAuthority.IsHighIntegrity) return Elevated;
         var store = Listing.Store;
         string path = Path.Join(location.Path, e.Name);
         string device = Services.Providers.For(location).GetDeviceKey(location);

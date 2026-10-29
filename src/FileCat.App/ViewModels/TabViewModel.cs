@@ -1009,6 +1009,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (field is null || Location is null) return string.Empty;
         // A folder without checksum files or signatures has nothing to verify (search results are asked file by file).
         if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return string.Empty;
+        // Elevated, FileCat checks no file by itself: a file its folder's checksums or signatures may cover says so.
+        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && e.Kind == EntryKind.File &&
+            Core.State.WindowsTokenAuthority.IsHighIntegrity)
+            return Elevated.Text;
         var item = Services.Providers.For(Location).GetItemRef(Location, e);
         if (item.FileSystemPath is not { } path) return string.Empty;
         var store = Listing.Store;

@@ -62,6 +62,43 @@ public sealed class VerificationUiTests
     }
 
     [AvaloniaFact]
+    public async Task Elevated_a_file_beside_a_checksum_file_says_it_was_not_checked()
+    {
+        // Review finding P8 of f134ba37: elevated, FileCat checks no file by itself, and a file whose checksum says it
+        // differs showed the empty cell of a file nothing covers.
+        Assert.SkipUnless(Core.State.WindowsTokenAuthority.IsHighIntegrity, "FileCat checks no file by itself only at high integrity.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "files", "checks.sfv"), "a.txt 00000000\n");
+            var tab = vm.ActiveTab!;
+            tab.Refresh();
+            VerificationResult? result = null;
+            string cell = string.Empty;
+            for (int attempt = 0; attempt < 250 && result is null; attempt++)
+            {
+                window.CaptureRenderedFrame();
+                var listing = tab.Listing;
+                for (int row = 0; row < listing.VisibleCount; row++)
+                {
+                    if (listing.GetVisible(row) is not { Name: "a.txt" } entry) continue;
+                    result = tab.Verification(entry, listing.GetStoreIndex(row));
+                    cell = tab.GetMetadataText(entry, listing.GetStoreIndex(row), BuiltInFields.Verified.Id, out _);
+                    break;
+                }
+                if (result is null) await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+            Assert.True(tab.HasSidecars);
+            Assert.Equal(VerificationState.NotChecked, result?.State);
+            Assert.Equal("not checked (elevated)", cell);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Files_beside_a_checksum_file_show_their_result_and_a_large_one_is_checked_on_request()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
