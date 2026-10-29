@@ -4618,3 +4618,36 @@ Six of the eleven new tests fail on the old code. The full Core suite passes on 
 - REL-REVIEW-CODEX-20261029 stays Open for the security session's findings.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — The `f134ba37` recheck's nine High fixed; what still broke hosted CI fixed (I560, I561)
+
+**At the owner's instruction**, the release session took over the nine High findings ([record](evidence/E-REVIEW-2026-10-29-f134ba37.md#high-findings-fixed-by-the-release-session)). Two subagents in their own worktrees took Registry and Markdown; the security session meanwhile wrote a new review pass into its plan and changed no product file.
+- **F-H1 (`505cf1bb`).** A case-only rename on a volume that ignores case goes through a temporary name. Without rename flags (NFS, 9p, FUSE), a file's new name is claimed with a hard link, which never replaces.
+- **F-H2 (`4f6743e1`).** A destination over the 64 MiB review budget, or kept by a cloud provider, is replaced by identity, length and last write time. Removable drives replace too. Where nothing can be replaced (the owner's policy), Replace is not offered: the user is asked before the copy, not refused after it, and a sync plan keeps such files (`f48d4a72`).
+- **F-H3 and F-H9 (`4f6743e1`).** Only real links are links; OneDrive placeholders are folders and files. Below the folder the user chose, no link is followed; above it, links are followed as by any program, except by an elevated FileCat. macOS's `/var` and `/tmp` work again; elevated, only a link the system alone could have placed is followed.
+- **F-H4 (`59cd42a9`).** SUBST paths stay inside the folder behind the drive.
+- **F-H5 (`b685b782`).** The Registry import preview is linear in its input.
+- **F-H6 and F-H7 (`f2ad9238`).** A page draws at most 200,000 table cells, and Markdown renders in linear time. That includes the security session's new FCSEC-042 and FCSEC-047.
+- **F-H8 (`4f6743e1`).** A held folder made a mount point in place gets nothing.
+
+**Also fixed:**
+- **I560, Medium.** A destination held open without delete sharing is reported in use again, with Retry (an I22 regression).
+- **`94501bb6`.** The comparison's one-sided review runs on its device worker.
+
+**Hosted CI (I561).** The security session's `b42250a8` runs the Windows tests at medium integrity. `f77272e3` fixes what still failed:
+- the WebView2 page tests run at the runner's own token;
+- a restore-privilege test needs a high token;
+- a TAR bomb test that took a minute of bzip2 on Ubuntu now reads a 73,740-byte zstd copy of the same TAR;
+- a 26 KB UDP test datagram works on macOS;
+- stale sync and replacement tests now expect `f134ba37`'s behaviour.
+
+**Runs before the push:**
+- **This host:** with every commit, Platform 546 and Core 4,998, 0 failed. App 2,650 had one failure, a Git badge test with an 8 s limit, which passes alone; the affected App classes pass with the last commit.
+- **Win11 VM, elevated:** the new link, SUBST, held-folder and Cloud Files tests pass. The 13 failures are six tests that are not elevation-aware, which hosted CI also failed at high integrity, and seven WebView2 tests without a desktop.
+- **Mac and Ubuntu VM:** Core passes apart from tests that need a Git checkout or a `dotnet` host, which a copied build lacks; the network test that failed on the Mac is fixed. Their App suites fail only where the copy lacks executable apphosts or a shared runtime, and in the sync preview test that `f48d4a72` fixes; Ubuntu runs Remote clean.
+
+**Ledger.**
+- Issues are now **561/540/2/19**, and the evidence index stays **897**.
+- REL-REVIEW-CODEX-20261029 stays Open for the recheck's Medium and Low, with the security session.
+
+Stable publication remains NO-GO.
