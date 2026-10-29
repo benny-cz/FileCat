@@ -4677,3 +4677,17 @@ Skips reconciled against `445f20dc`: no skip there runs now, and the one test th
 - Issues stay **561/540/2/19**, and the evidence index **897**.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — The security session stops; its three open High findings fixed (R-H1, R-H3, R-H4); I555 accepted
+
+The owner stopped the concurrent Codex agent, so its open findings pass to the release session ([record](evidence/E-REVIEW-2026-10-29-codex-commits.md#taken-over-after-the-security-session-stopped-29-october)).
+- **R-H1 (`fb59e594`).** A crash while an SFTP or FTP move held the user's original under a private name let interrupted-job review offer to delete it as a partial file. The hold is now journaled as a rename back to its own name: recovery restores the original, or keeps and reports it.
+- **R-H3 (`e423d85a`).** The Linux picture worker could change any user file's mode, owner, times or extended attributes, and truncate files on Landlock ABI below 3. Its inherited seccomp filter now denies those calls. On the Ubuntu VM the new probe fails without the change.
+- **R-H4 (`16970200`).** The macOS picture worker could run other programs and signal the user's processes, among other routes. Its profile now confines it to itself. On the Mac the old profile let a probe do both, and the new one refuses.
+- **I555-ARM-ELEVATED-STATE accepted.** In the green run at `6edc78e7` the ARM64 lane passes the elevated-only control at its high token and the ordinary cases at medium integrity.
+
+These product changes reopen GATE-CI-FINAL until the run on their head passes.
+
+**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 34 Accepted and 11 Open.
+
+Stable publication remains NO-GO.
