@@ -73,6 +73,8 @@ cp "$FRAMES/filecat-256.png" "$ICONSET/icon_256x256.png"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/FileCat.icns"
 rm -rf "$ICONSET" "$FRAMES"
 
+# The minimum macOS is the support floor, macOS 26 (PSD-MAC; the owner's decision of 2026-10-29): macOS refuses to
+# open the app on an older system rather than run it where it is not supported.
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -87,7 +89,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleIconFile</key><string>FileCat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Benny and FileCat contributors. MIT license.</string>
