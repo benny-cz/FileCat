@@ -33,12 +33,22 @@ public partial class WindowsFileOperations : PortableFileOperations
         catch (System.ComponentModel.Win32Exception) { return true; }
     }
 
-    public override BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint)
+    public override BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint, Func<string, bool>? deleteReadOnly = null)
     {
         if (!WindowsIcons.IsLocal(path)) return null;
-        var report = new Elevation.SecureFileOps(checkpoint, Elevation.ElevationPaths.ToDisplayPath)
-            .DeleteTree(Elevation.ElevationPaths.ToVolumePathForBoundOperation(path));
-        return new BoundTreeDeletion(report.Done, report.Failed, report.Problems);
+        try
+        {
+            var report = new Elevation.SecureFileOps(checkpoint, Elevation.ElevationPaths.ToDisplayPath)
+                .DeleteTree(Elevation.ElevationPaths.ToVolumePathForBoundOperation(path), deleteReadOnly: deleteReadOnly);
+            return new BoundTreeDeletion(report.Done, report.Failed, report.Problems)
+                { ReadOnlyKept = report.ReadOnlyKept, InUse = report.InUse };
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // The folder itself could not be read: an I/O error the job retries or skips as any other (finding F-M4 of
+            // f134ba37), never one that ends it.
+            throw new IOException(ex.Message, ex) { HResult = unchecked((int)0x80070000) | ex.NativeErrorCode };
+        }
     }
 
     public override unsafe VolumeInfo GetVolumeInfo(string path)

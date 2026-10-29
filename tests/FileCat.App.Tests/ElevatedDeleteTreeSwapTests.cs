@@ -10,7 +10,7 @@ public sealed class ElevatedDeleteTreeSwapTests
 {
     private sealed class SignalMediumTree(string trigger, string writerResult) : WindowsFileOperations
     {
-        public override BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint)
+        public override BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint, Func<string, bool>? deleteReadOnly = null)
         {
             bool signaled = false;
             return base.DeleteTreeBound(path, () =>
@@ -27,7 +27,7 @@ public sealed class ElevatedDeleteTreeSwapTests
                     }
                 }
                 checkpoint();
-            });
+            }, deleteReadOnly);
         }
     }
 

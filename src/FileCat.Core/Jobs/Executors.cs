@@ -1813,15 +1813,38 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
     private bool DeleteTree(string dir, int depth = 0)
     {
         // The Windows adapter walks and removes through no-follow handles, so a child swapped for a junction or
-        // symbolic link after classification is removed as a link and never enumerated as the outside directory.
-        if (Fs.DeleteTreeBound(dir, () => Job.Checkpoint()) is { } bound)
+        // symbolic link after classification is removed as a link and never enumerated as the outside directory. As by
+        // name (finding F-M4 of f134ba37): a folder it cannot read asks Retry or Skip, a child another program holds
+        // open (antivirus, the indexer) is retried as a locked file is, and a read-only file is deleted only when the
+        // user agrees. Each attempt deletes what it can; a read-only file kept once is not asked about again.
+        BoundTreeDeletion? bound = null;
+        bool unbound = false;
+        int done = 0;
+        HashSet<string>? kept = null;
+        bool reached = TryIo(dir, "delete the folder", () =>
         {
-            for (int i = 0; i < bound.Done; i++) Job.ItemDone();
-            for (int i = 0; i < bound.Failed; i++) Job.ItemFailed();
-            foreach (string problem in bound.Problems)
-                Issue(IssueSeverity.Error, dir, "The folder could not be fully deleted: " + problem, StepOutcome.PartiallyApplied);
-            if (bound.Done > 0) Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo.");
-            return bound.Failed == 0;
+            bound = null;
+            if (Fs.DeleteTreeBound(dir, () => Job.Checkpoint(), DeleteReadOnly) is not { } attempt)
+            {
+                unbound = true;
+                return;
+            }
+            done += attempt.Done;
+            bound = attempt;
+            if (attempt.InUse is { } busy) throw busy;
+        });
+        if (!unbound)
+        {
+            for (int i = 0; i < done; i++) Job.ItemDone();
+            if (bound is null) Job.ItemFailed(); // the folder itself could not be read, and the answer was Skip
+            else
+            {
+                for (int i = 0; i < bound.Failed; i++) Job.ItemFailed();
+                foreach (string problem in bound.Problems)
+                    Issue(IssueSeverity.Error, dir, "The folder could not be fully deleted: " + problem, StepOutcome.PartiallyApplied);
+            }
+            if (done > 0) Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo.");
+            return reached && bound is { Failed: 0, ReadOnlyKept: 0 };
         }
         if (depth >= MaxRecursiveTreeDepth)
         {
@@ -1863,21 +1886,33 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
         if (removed) { Job.ItemDone(); Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo."); }
         else Job.ItemFailed();
         return removed;
+
+        bool DeleteReadOnly(string path)
+        {
+            if (kept?.Contains(path) == true) return false;
+            if (ConfirmReadOnly(path)) return true;
+            (kept ??= new(StringComparer.OrdinalIgnoreCase)).Add(path);
+            return false;
+        }
+    }
+
+    /// <summary>Asks before a read-only file is deleted: true deletes it, false keeps it (counted as skipped).</summary>
+    private bool ConfirmReadOnly(string path)
+    {
+        var d = Job.Ask(new ConfirmRequest("Read-only item", $"\"{Path.GetFileName(path)}\" is read-only. Delete it anyway?", path, "readonly",
+            [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob]));
+        if (d.Action == DecisionAction.Skip)
+        {
+            Job.ItemSkipped();
+            return false;
+        }
+        if (d.Action != DecisionAction.Proceed) throw new OperationCanceledException();
+        return true;
     }
 
     private bool DeleteOne(string path, FileSystemItemInfo info)
     {
-        if (info.IsReadOnly && !info.IsDirectory)
-        {
-            var d = Job.Ask(new ConfirmRequest("Read-only item", $"\"{Path.GetFileName(path)}\" is read-only. Delete it anyway?", path, "readonly",
-                [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob]));
-            if (d.Action == DecisionAction.Skip)
-            {
-                Job.ItemSkipped();
-                return false;
-            }
-            if (d.Action != DecisionAction.Proceed) throw new OperationCanceledException();
-        }
+        if (info.IsReadOnly && !info.IsDirectory && !ConfirmReadOnly(path)) return false;
         bool ok = TryIo(path, "delete the item", () =>
         {
             if (info.IsReadOnly) Fs.SetAttributes(path, info.Attributes & ~FileAttributes.ReadOnly);

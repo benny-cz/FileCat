@@ -17,12 +17,22 @@ public sealed class TreeReport
     public int StreamsNotCopied { get; set; }
     /// <summary>Download marks (Mark-of-the-Web) the destination could not store: a security-relevant loss.</summary>
     public int MarksLost { get; set; }
+    /// <summary>Delete: read-only files kept because the caller said so.</summary>
+    public int ReadOnlyKept { get; set; }
+    /// <summary>The first item another program holds open without sharing its deletion, as a sharing violation.</summary>
+    public IOException? InUse { get; private set; }
     public List<string> Problems { get; } = [];
+
+    /// <summary>Items left in place: a folder that holds one is kept too.</summary>
+    internal int Left => Failed + ReadOnlyKept;
 
     public void Fail(string path, Exception ex)
     {
         Failed++;
         Note($"{path}: {ex.Message}");
+        int code = ex is Win32Exception native ? native.NativeErrorCode
+            : (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x80070000) ? ex.HResult & 0xFFFF : 0;
+        if (code is 32 or 33 or 1224) InUse ??= new IOException($"{path}: {ex.Message}", unchecked((int)0x80070000) | code);
     }
 
     public void Note(string problem)
@@ -89,15 +99,19 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         }
     }
 
+    /// <param name="deleteReadOnly">Asked before a read-only file is deleted, with its display path: false keeps it, and
+    /// so the folders above it. Without it, read-only files are deleted as any other.</param>
     public TreeReport DeleteTree(string volumePath, Func<SafeFileHandle, string, bool>? approve = null,
-        Action? beforeRemove = null)
+        Action? beforeRemove = null, Func<string, bool>? deleteReadOnly = null)
     {
         var report = new TreeReport();
         using var parent = Walk(volumePath, includeLast: false, out var leaf);
         SafeFileHandle root;
         try { root = OpenOrThrow(parent, leaf, DeleteAccess, approve is null ? ShareAll : ShareRead, Open, OpenReparsePoint, "Open the item"); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(volumePath), ex); return report; }
-        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<(string Name, uint Attributes, uint ReparseTag, FileIdentity? Identity)> Pending)>();
+        // Each folder with the items left in place when it was entered: a folder with more left inside is kept, without
+        // a second failure for it ("not empty").
+        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<(string Name, uint Attributes, uint ReparseTag, FileIdentity? Identity)> Pending, int Left)>();
         try
         {
             if (approve is not null && !approve(root, volumePath))
@@ -110,19 +124,22 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             {
                 // A file, or a link (removed as a link; its target is never touched). A folder that is another kind of
                 // reparse point, such as a Cloud Files placeholder, is a folder.
-                Remove(root, volumePath, report, beforeRemove);
+                RemoveUnlessKept(root, attributes, volumePath, report, beforeRemove, deleteReadOnly);
                 return report;
             }
-            stack.Push((root, volumePath, SnapshotChildren(root)));
+            stack.Push((root, volumePath, SnapshotChildren(root), report.Left));
             root = null!;
             while (stack.Count > 0)
             {
                 checkpoint();
-                var (handle, path, pending) = stack.Peek();
+                var (handle, path, pending, left) = stack.Peek();
                 if (pending.Count == 0)
                 {
                     stack.Pop();
-                    using (handle) Remove(handle, path, report, beforeRemove);
+                    using (handle)
+                    {
+                        if (report.Left == left) Remove(handle, path, report, beforeRemove);
+                    }
                     continue;
                 }
                 var listed = pending.Dequeue();
@@ -135,6 +152,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                     entry = OpenOrThrow(handle, child, DeleteAccess, approve is null ? ShareAll : ShareRead, Open, OpenReparsePoint, "Open");
                     entryAttributes = GetBasic(entry).FileAttributes;
                 }
+                catch (FileNotFoundException) { continue; } // gone since it was listed: nothing is left of it
                 catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(childPath), ex); continue; }
                 if (!IsLink(listed.Attributes, listed.ReparseTag) && IsLink(entry))
                 {
@@ -162,12 +180,12 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 }
                 if (IsDirectory(entryAttributes) && !IsLink(entry))
                 {
-                    try { stack.Push((entry, childPath, SnapshotChildren(entry))); }
+                    try { stack.Push((entry, childPath, SnapshotChildren(entry), report.Left)); }
                     catch (Exception ex) when (IsIo(ex)) { entry.Dispose(); report.Fail(_display(childPath), ex); }
                 }
                 else
                 {
-                    using (entry) Remove(entry, childPath, report, beforeRemove);
+                    using (entry) RemoveUnlessKept(entry, entryAttributes, childPath, report, beforeRemove, deleteReadOnly);
                 }
             }
             return report;
@@ -198,6 +216,16 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             pending.Enqueue((listed.Name, listed.Attributes, listed.ReparseTag, identity));
         }
         return pending;
+    }
+
+    /// <summary>Removes a file or link, unless it is a read-only file the caller keeps (finding F-M4 of f134ba37).</summary>
+    private void RemoveUnlessKept(SafeFileHandle handle, uint attributes, string path, TreeReport report, Action? beforeRemove,
+        Func<string, bool>? deleteReadOnly)
+    {
+        if (deleteReadOnly is not null && !IsDirectory(attributes) && (attributes & (uint)FileAttributes.ReadOnly) != 0 &&
+            !deleteReadOnly(_display(path)))
+            report.ReadOnlyKept++;
+        else Remove(handle, path, report, beforeRemove);
     }
 
     private void Remove(SafeFileHandle handle, string path, TreeReport report, Action? beforeRemove = null)

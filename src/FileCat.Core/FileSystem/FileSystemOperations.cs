@@ -94,7 +94,15 @@ public enum RecycleOutcome
 public sealed record RecycleResult(string Path, RecycleOutcome Outcome, string? RecycledId = null, string? Error = null);
 
 /// <summary>Result of a handle-bound tree delete, where supported by the platform adapter.</summary>
-public sealed record BoundTreeDeletion(int Done, int Failed, IReadOnlyList<string> Problems);
+public sealed record BoundTreeDeletion(int Done, int Failed, IReadOnlyList<string> Problems)
+{
+    /// <summary>Read-only files kept because the caller said so, with the folders above them.</summary>
+    public int ReadOnlyKept { get; init; }
+
+    /// <summary>The first item another program holds open without sharing its deletion (antivirus, the indexer, a
+    /// console in the folder), as a sharing violation: a retry may succeed.</summary>
+    public IOException? InUse { get; init; }
+}
 
 /// <summary>Outcome of an object-bound replacement; a retained old target needs explicit user review.</summary>
 /// <param name="InUse">Another program holds the destination open without letting it be deleted (an editor): nothing
@@ -178,7 +186,9 @@ public interface IFileSystemOperations
     void DeleteDirectory(string path);
 
     /// <summary>Deletes a tree through verified directory handles, or returns null when this adapter lacks that operation.</summary>
-    BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint);
+    /// <param name="deleteReadOnly">Asked before a read-only file is deleted, with its path: false keeps it. Without
+    /// it, read-only files are deleted as any other.</param>
+    BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint, Func<string, bool>? deleteReadOnly = null);
 
     void SetAttributes(string path, FileAttributes attributes);
 
@@ -260,7 +270,7 @@ public class PortableFileOperations : IFileSystemOperations
 {
     private const int BufferSize = 1024 * 1024;
 
-    public virtual BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint) => null;
+    public virtual BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint, Func<string, bool>? deleteReadOnly = null) => null;
 
     public virtual BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
         string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null,
