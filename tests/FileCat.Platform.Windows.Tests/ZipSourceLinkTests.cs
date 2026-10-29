@@ -21,6 +21,47 @@ public sealed class ZipSourceLinkTests
     }
 
     [Fact]
+    public async Task A_source_another_program_is_writing_is_still_added()
+    {
+        // Finding F-M6 of f134ba37: the source's hold shared reading only, so a live log failed and ended the whole Add.
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows file handles are required.");
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-zip-live-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string log = Path.Combine(root, "live.log"), zip = Path.Combine(root, "packed.zip");
+            var providers = new ProviderRegistry();
+            providers.Register(new LocalFileSystemProvider());
+            var jobs = new JobManager(new WindowsFileOperations(), providers, Path.Combine(root, "journal"));
+            Job job;
+            using (var writer = new FileStream(log, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite))
+            {
+                writer.Write("line 1\n"u8);
+                writer.Flush();
+                job = jobs.Submit(new JobRequest
+                {
+                    Kind = JobKind.ArchiveUpdate,
+                    Sources = [],
+                    Archive = new ArchivePlan(zip, null, [new ArchiveChange(ArchiveChangeKind.AddFile, "live.log", log)]),
+                });
+                var deadline = DateTime.UtcNow.AddSeconds(20);
+                while (!job.State.IsFinished())
+                {
+                    Assert.True(DateTime.UtcNow < deadline);
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                }
+            }
+            Assert.True(job.State == JobState.Completed, string.Join("; ", job.Issues.Select(i => i.Message)));
+            using var archive = System.IO.Compression.ZipFile.OpenRead(zip);
+            using var entry = new StreamReader(Assert.Single(archive.Entries).Open());
+            Assert.Equal("line 1\n", entry.ReadToEnd());
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public async Task Zip_pack_refuses_a_source_swapped_to_a_link_before_content_read()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows file handles are required.");

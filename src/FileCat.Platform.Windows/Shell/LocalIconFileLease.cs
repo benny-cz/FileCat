@@ -70,7 +70,9 @@ public sealed class LocalIconFileLease : IDisposable
                 bool leaf = i == parts.Length - 1;
                 bool file = leaf && !directory;
                 uint access = (file ? GenericRead : Traverse | ReadAttributes) | Synchronize;
-                uint share = file ? ShareRead : ShareRead | ShareWrite;
+                // Denying delete sharing keeps each name bound. Writers stay allowed: a live log, a database or a download
+                // another program is writing is still added to an archive, as before the hold (finding F-M6 of f134ba37).
+                uint share = ShareRead | ShareWrite;
                 uint kind = file ? NonDirectoryFile : DirectoryFile;
                 var next = OpenOrThrow(parent, parts[i], access, share, Open, kind | OpenReparsePoint, "Open local path");
                 uint tag;
