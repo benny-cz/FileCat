@@ -1,0 +1,172 @@
+FileCat AppImage runtime: corresponding source
+==============================================
+
+FileCat's Linux AppImage (FileCat-<version>-x86_64.AppImage) begins with the
+AppImage type2-runtime, the small static program that mounts the application
+payload and starts FileCat. That runtime is statically linked with libfuse
+3.15.0, which is licensed under the GNU Lesser General Public License,
+version 2.1 (LGPL-2.1). This archive is published with every FileCat AppImage
+release. It carries the complete source of the runtime, including libfuse and
+the change applied to it, and a script that rebuilds the runtime and relinks it
+with a modified libfuse, for the source and relinking terms of LGPL-2.1
+section 6.
+
+
+1. The runtime these sources correspond to
+------------------------------------------
+
+  file       runtime-x86_64 (AppImage type2-runtime, x86_64, static PIE)
+  bytes      944632
+  SHA-256    617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46
+  source     https://github.com/AppImage/type2-runtime
+             commit fedfad51acc2860b2916a1eef32ba4a500ff31ef
+  published  GitHub release asset 657374641 (runtime-x86_64 of the upstream
+             "continuous" release, 2026-10-19T20:37:12Z), built by upstream
+             GitHub Actions run 39320578745, job 118293253809, and signed
+             there with key 570C77ACEA40C0F1B758902CBF96CCA56490F695
+
+FileCat keeps these exact bytes in its own repository and builds every
+AppImage from them. appimagetool changes one thing when it assembles the
+AppImage: it writes a 16-byte MD5 digest into the runtime's .digest_md5
+section at offset 932096. To check that an AppImage starts with this runtime:
+
+  head -c 944632 FileCat-<version>-x86_64.AppImage > runtime-prefix
+  dd if=/dev/zero of=runtime-prefix bs=1 seek=932096 count=16 conv=notrunc
+  sha256sum runtime-prefix        # 617aa77314d57c8b...
+
+
+2. Contents
+-----------
+
+  sources/fuse-3.15.0.tar.xz
+      libfuse 3.15.0 release tarball as published at
+      https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz
+      SHA-256 70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0
+      The library is LGPL-2.1 (LGPL2.txt); the utilities, which the runtime
+      does not contain, are GPL-2.0 (GPL2.txt).
+
+  sources/squashfuse-0.5.2.tar.gz
+      squashfuse 0.5.2, https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz
+      SHA-256 db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3
+      BSD-2-Clause.
+
+  sources/type2-runtime-fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz
+      https://github.com/AppImage/type2-runtime/archive/fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz
+      SHA-256 e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e
+      MIT. runtime.c, its Makefile and linker script, the upstream build
+      scripts, and patches/libfuse/mount.c.diff, the change applied to
+      libfuse (fusermount is taken from $FUSERMOUNT_PROG).
+
+  producer-packages.txt
+      The 138 Alpine packages, with versions, that the upstream build
+      installed into its base image, copied from the job log of run
+      39320578745, job 118293253809.
+
+  rebuild.sh
+      Rebuilds the runtime in that environment, and relinks a FileCat
+      AppImage with a rebuilt runtime.
+
+  SHA256SUMS
+      Checksums of the other files in this archive (sha256sum -c SHA256SUMS).
+
+The runtime also contains static code from four Alpine packages: musl 1.2.5
+(musl-dev 1.2.5-r11, MIT), zstd 1.5.6 (zstd-static 1.5.6-r2, BSD-3-Clause
+or GPL-2.0), zlib 1.3.2 (zlib-static 1.3.2-r1, Zlib) and mimalloc 2.1.7
+(mimalloc2-dev 2.1.7-r0, MIT). Their license texts are in the AppImage under
+usr/lib/filecat/licenses/appimage-runtime. Their sources are available from
+Alpine (https://gitlab.alpinelinux.org/alpine/aports) and from their projects.
+
+
+3. How upstream built the runtime
+---------------------------------
+
+The upstream workflow .github/workflows/build.yaml ran
+scripts/docker/build-with-docker.sh for x86_64 on an ubuntu-24.04 runner:
+
+  a. Base image: alpine:3.21, which the job resolved to
+     docker.io/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
+  b. scripts/docker/Dockerfile installed the build packages:
+       apk add --no-cache bash alpine-sdk util-linux strace file autoconf
+         automake libtool xz eudev-dev gettext-dev linux-headers meson
+         zstd-dev zstd-static zlib-dev zlib-static clang musl-dev mimalloc-dev
+     Among them: clang19 19.1.4-r0, gcc 14.2.0-r4, binutils 2.43.1-r3,
+     meson 1.6.1-r0, samurai 1.2-r6, autoconf 2.72-r0, automake 1.17-r0,
+     libtool 2.4.7-r3, musl-dev 1.2.5-r11, mimalloc2-dev 2.1.7-r0,
+     zlib-static 1.3.2-r1 and zstd-static 1.5.6-r2 (all: producer-packages.txt).
+  c. scripts/common/install-dependencies.sh downloaded libfuse 3.15.0 and
+     squashfuse 0.5.2, checked the SHA-256 values above, applied
+     patches/libfuse/mount.c.diff to libfuse, built libfuse as a static
+     library with meson and ninja, and built squashfuse with autotools
+     (LDFLAGS=-static), installing both into the image. Compiler flags map
+     the temporary build directory to "." so it does not reach the binary.
+  d. The workflow wrote src/runtime/version:
+       https://github.com/AppImage/type2-runtime/commit/fedfad5
+  e. scripts/build-runtime.sh compiled src/runtime/runtime.c with clang and
+     linked it as a static PIE against squashfuse, squashfuse_ll, zstd, zlib,
+     fuse3 (libfuse), mimalloc and musl. It then moved the debug information
+     to runtime-x86_64.debug, stripped the binary, added a .gnu_debuglink
+     section and wrote the AppImage magic bytes "AI\x02" at offset 8.
+
+
+4. Rebuilding the runtime
+-------------------------
+
+Requirements: Linux on x86_64 (or Docker/Podman emulation of linux/amd64),
+Docker or Podman, bash, GNU coreutils and network access to Docker Hub and
+the Alpine package mirror; --unpack-libfuse also needs tar, xz and patch.
+The libfuse, squashfuse and type2-runtime sources come from this archive;
+only the base image and the Alpine packages are downloaded.
+
+  ./rebuild.sh
+
+writes out/runtime-x86_64 and out/runtime-x86_64.debug and reports whether
+the new runtime is byte-identical to the one above. It checks the sources
+against SHA256SUMS, starts the pinned base image, installs the packages of
+step 3b, and repeats steps 3c to 3e inside the container. Step 3c is the
+upstream script with its two downloads replaced by the archives in sources/
+(and a placeholder /dev/fuse, so that libfuse's install step does not need
+to create a device node); step 3e runs scripts/build-runtime.sh from the
+type2-runtime source unchanged. CONTAINER_ENGINE=podman selects Podman when
+both are installed.
+
+Alpine keeps only the current version of each package in its repositories,
+so a later rebuild installs the then-current Alpine 3.21 packages; by
+2026-10-29 musl-dev 1.2.5-r11 had become 1.2.5-r12. rebuild.sh lists every
+producer package whose version it could not install
+(out/package-differences.txt). Different package versions can give a runtime
+that works the same but differs in its bytes. When FileCat prepared this
+archive, on 2026-10-29, ./rebuild.sh with Podman 4.9.3 reproduced the runtime
+byte for byte, with musl-dev 1.2.5-r12 and seven other packages newer than
+the producer's.
+
+  ./rebuild.sh --expect-shipped
+
+fails (exit status 3) unless the rebuilt runtime is identical.
+
+
+5. Relinking FileCat with a modified libfuse
+--------------------------------------------
+
+  ./rebuild.sh --unpack-libfuse ./libfuse
+      Unpacks libfuse 3.15.0 into ./libfuse with the type2-runtime patch
+      applied. Change it as you like.
+
+  LIBFUSE_DIR=./libfuse ./rebuild.sh --out ./out-modified
+      Builds the runtime as in section 4, with that libfuse tree in place of
+      the bundled release (the tree must not contain a build directory).
+
+  ./rebuild.sh --relink FileCat-<version>-x86_64.AppImage \
+        ./out-modified/runtime-x86_64 FileCat-relinked-x86_64.AppImage
+      Writes a new AppImage: the new runtime followed by FileCat's unchanged
+      payload (the squashfs image that starts right after the old runtime).
+
+The runtime finds its payload where its own ELF image ends, so a runtime of
+any size works. The relinked file has a zeroed .digest_md5 section and no
+signature; neither is needed to run it. Run it as before, for example
+./FileCat-relinked-x86_64.AppImage --version, or with
+APPIMAGE_EXTRACT_AND_RUN=1 on systems without FUSE.
+
+Instead of --relink, appimagetool --runtime-file ./out-modified/runtime-x86_64
+can assemble a new AppImage from an AppDir;
+FileCat-<version>-x86_64.AppImage --appimage-extract unpacks FileCat's AppDir
+into squashfs-root.

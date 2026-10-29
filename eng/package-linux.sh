@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Builds FileCat's Linux release payloads (P9, approved 2026-09-28) under artifacts/:
 #   FileCat-<ver>-<rid>.tar.gz         self-contained build + filecat.desktop + icon + install-desktop-entry.sh
-#   filecat_<debver>_<arch>.deb        /opt/filecat, /usr/bin/filecat, desktop entry, icon
+#   filecat_<ver>_<arch>.deb           /opt/filecat, /usr/bin/filecat, desktop entry, icon (package version <debver>)
 #   FileCat-<ver>-<appimage-arch>.AppImage
+#   FileCat-<ver>-<rid>-appimage-runtime-source.tar.gz   corresponding source of the AppImage runtime (EXT-04)
 # Usage: eng/package-linux.sh [version] [rid]   (rid: linux-x64 or linux-arm64)
 set -euo pipefail
 
@@ -144,7 +145,9 @@ Description: Keyboard-first two-panel file manager
  Commander, and FAR Manager: keyboard-first work with folders, archives, SFTP and
  FTP servers, and phones, with previews and guarded operations.
 EOF
-DEB_FILE="$OUT/filecat_${DEB_VERSION}_${DEB_ARCH}.deb"
+# The package's Debian version keeps '~' so that a preview sorts before its release. GitHub renames release assets
+# whose names contain '~', so the file is named with FileCat's own version.
+DEB_FILE="$OUT/filecat_${VERSION}_${DEB_ARCH}.deb"
 SBOM_DEB="$OUT/sbom-$VERSION-$RID-deb.spdx.json"
 rm -f "$DEB_FILE"
 rm -f "$SBOM_DEB"
@@ -182,24 +185,22 @@ if [ -z "$TOOL" ]; then
   fi
   chmod +x "$TOOL"
 fi
-# The runtime, the start-up part every AppImage carries, is selected by GitHub's immutable asset ID and pinned by
-# checksum too. Asset 657374641 is the x86_64 build of type2-runtime commit fedfad51 (2026-10-19). That commit is the
-# previously reviewed 0700-extraction source plus one reproducibility-only file-prefix-map change. A replacement asset
-# receives another ID; deletion, changed bytes or a wrong API response therefore fail closed. Update the asset ID,
-# source commit, checksum, signature review and reviewed notice snapshot together.
-RUNTIME="${APPIMAGE_RUNTIME:-}"
-if [ -z "$RUNTIME" ]; then
-  RUNTIME="$OUT/runtime-$APPIMAGE_ARCH"
-  if [ "$APPIMAGE_ARCH" = "x86_64" ]; then
-    RUNTIME_SUM=617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46
-    curl -fsSL --retry 3 -H 'Accept: application/octet-stream' -H 'X-GitHub-Api-Version: 2022-11-28' \
-      -o "$RUNTIME" "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/657374641"
-    echo "$RUNTIME_SUM  $RUNTIME" | sha256sum -c - || { echo "The selected type2-runtime asset differs from the reviewed bytes." >&2; exit 2; }
-  else
-    echo "Set APPIMAGE_RUNTIME to a type2-runtime for $APPIMAGE_ARCH." >&2
-    exit 2
-  fi
+# The runtime, the start-up part every AppImage carries, is the reviewed x86_64 build of type2-runtime commit fedfad51
+# (2026-10-19), vendored in eng/linux/appimage-runtime with its manifest: upstream's GitHub asset 657374641 of the
+# mutable "continuous" release, which a later upstream build deletes. Packaging reads no runtime from the network.
+# That commit is the previously reviewed 0700-extraction source plus one reproducibility-only file-prefix-map change.
+# APPIMAGE_RUNTIME may name another copy, but every runtime must have the reviewed bytes. Update the vendored runtime,
+# checksum, digest offset, source bundle, signature review and reviewed notice snapshot together.
+VENDOR="$ROOT/eng/linux/appimage-runtime"
+RUNTIME_SUM=617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46
+# appimagetool writes the AppImage's MD5 into the runtime's 16-byte .digest_md5 section, at this offset of these bytes.
+RUNTIME_DIGEST_OFFSET=932096
+if [ "$APPIMAGE_ARCH" != "x86_64" ]; then
+  echo "No reviewed type2-runtime and source bundle exist for $APPIMAGE_ARCH." >&2
+  exit 2
 fi
+RUNTIME="${APPIMAGE_RUNTIME:-$VENDOR/runtime-$APPIMAGE_ARCH}"
+echo "$RUNTIME_SUM  $RUNTIME" | sha256sum -c - || { echo "The selected type2-runtime differs from the reviewed bytes." >&2; exit 2; }
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- --appimage-runtime \
   "$ROOT/licenses/appimage-runtime" "$RUNTIME" "$APPDIR/usr/lib/filecat/licenses/appimage-runtime"
 APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
@@ -212,6 +213,39 @@ dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
 # Runs without FUSE (CI containers).
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
+# The AppImage must start with the reviewed runtime, which its source bundle describes: apart from the digest section,
+# every runtime byte is unchanged.
+PREFIX="$OUT/runtime-prefix-$RID"
+head -c "$(wc -c < "$RUNTIME")" "$APPIMAGE" > "$PREFIX"
+dd if=/dev/zero of="$PREFIX" bs=1 seek="$RUNTIME_DIGEST_OFFSET" count=16 conv=notrunc status=none
+echo "$RUNTIME_SUM  $PREFIX" | sha256sum -c --quiet - || { echo "The AppImage does not start with the reviewed runtime." >&2; exit 2; }
+rm -f "$PREFIX"
+
+# 4) The runtime's corresponding source (EXT-04: LGPL-2.1 section 6 for its static libfuse), attached beside the
+# AppImage: the libfuse, squashfuse and type2-runtime sources exactly as published, the upstream producer's package
+# list, a README and rebuild.sh. The archive depends only on those vendored files, so its bytes are pinned as well:
+# sorted entries, fixed time and owner, normalized modes and gzip -n. Update the pin with any of those files.
+SOURCE_BUNDLE="$OUT/FileCat-$VERSION-$RID-appimage-runtime-source.tar.gz"
+SOURCE_BUNDLE_SUM=8b92ecaff637f201fecb0a51dd383cdf42ff54eb891f9eba9eb8a05c0ae6530a
+SOURCE_EPOCH=1792442122 # 2026-10-19T20:35:22Z, the time of type2-runtime commit fedfad51
+STAGE="$OUT/appimage-runtime-source-$RID"
+rm -rf "$STAGE" "$SOURCE_BUNDLE"
+install -d -m 755 "$STAGE/appimage-runtime-source/sources"
+for f in README SHA256SUMS producer-packages.txt sources/fuse-3.15.0.tar.xz sources/squashfuse-0.5.2.tar.gz \
+  sources/type2-runtime-fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz; do
+  install -m 644 "$VENDOR/source-bundle/$f" "$STAGE/appimage-runtime-source/$f"
+done
+install -m 755 "$VENDOR/source-bundle/rebuild.sh" "$STAGE/appimage-runtime-source/rebuild.sh"
+(cd "$STAGE/appimage-runtime-source" && sha256sum -c --strict --quiet SHA256SUMS) \
+  || { echo "The AppImage runtime sources differ from their reviewed checksums." >&2; exit 2; }
+tar -C "$STAGE" --sort=name --format=gnu --mtime="@$SOURCE_EPOCH" --owner=0 --group=0 --numeric-owner \
+  --mode='u=rwX,go=rX' -cf - appimage-runtime-source | gzip -9n > "$SOURCE_BUNDLE"
+SOURCE_BUNDLE_ACTUAL="$(sha256sum "$SOURCE_BUNDLE" | cut -d ' ' -f 1)"
+if [ "$SOURCE_BUNDLE_ACTUAL" != "$SOURCE_BUNDLE_SUM" ]; then
+  echo "The runtime source bundle is $SOURCE_BUNDLE_ACTUAL, not the reviewed reproducible $SOURCE_BUNDLE_SUM." >&2
+  exit 2
+fi
+rm -rf "$STAGE"
 
 echo "Done:"
-ls -la "$TARBALL" "$DEB_FILE" "$APPIMAGE" "$SBOM_TAR" "$SBOM_DEB" "$SBOM_APPIMAGE"
+ls -la "$TARBALL" "$DEB_FILE" "$APPIMAGE" "$SOURCE_BUNDLE" "$SBOM_TAR" "$SBOM_DEB" "$SBOM_APPIMAGE"

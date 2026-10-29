@@ -579,6 +579,9 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
           mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
           unpacked/FileCat-*/FileCat --version
+          # The AppImage runtime's corresponding source (EXT-04) unpacks and matches its own checksums.
+          mkdir runtime-source && tar -xzf artifacts/FileCat-*-linux-x64-appimage-runtime-source.tar.gz -C runtime-source
+          (cd runtime-source/appimage-runtime-source && sha256sum -c --strict SHA256SUMS && bash -n rebuild.sh)
       - name: Select exact Linux release assets
         id: assets
         shell: pwsh

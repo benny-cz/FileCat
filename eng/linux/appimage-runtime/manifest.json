@@ -1,0 +1,62 @@
+{
+  "SchemaVersion": 1,
+  "Scope": "AppImage runtime input that eng/package-linux.sh embeds, and the corresponding-source bundle it attaches to each AppImage release (EXT-04)",
+  "Runtime": {
+    "Path": "runtime-x86_64",
+    "Architecture": "x86_64",
+    "Bytes": 944632,
+    "SHA256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+    "SourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "RetrievedFrom": "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/657374641",
+    "RetrievedUTC": "2026-10-28T23:39:34Z",
+    "GitHubAssetDigest": "sha256:617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+    "AssetCreatedUTC": "2026-10-19T20:37:12Z",
+    "DigestSection": { "Name": ".digest_md5", "Offset": 932096, "Bytes": 16 },
+    "NoticeSnapshot": "licenses/appimage-runtime/index.json"
+  },
+  "SourceBundle": {
+    "AssetName": "FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz",
+    "Directory": "appimage-runtime-source",
+    "Bytes": 4704829,
+    "SHA256": "8b92ecaff637f201fecb0a51dd383cdf42ff54eb891f9eba9eb8a05c0ae6530a",
+    "Archive": "GNU tar format, entries sorted by name, mtime 2026-10-19T20:35:22Z (type2-runtime commit time), uid/gid 0 without names, modes 644/755, gzip -9n",
+    "Files": [
+      { "Path": "README", "Bytes": 8707, "SHA256": "53beaf80e3545f6a2e3d4cfbfa91ca4eecf608bab822832ce13bc79e03cabee9" },
+      { "Path": "SHA256SUMS", "Bytes": 565, "SHA256": "ca9b5c5c2ab57afc0ce3c91085103969397f7680b4bd5b512a67020c339e945f" },
+      {
+        "Path": "producer-packages.txt",
+        "Bytes": 2601,
+        "SHA256": "63c38652083060da6a8f4d6b7350dba24e45f8fceab619be4c16e337365b82b6",
+        "Origin": "apk install lines of https://github.com/AppImage/type2-runtime/actions/runs/39320578745/job/118293253809"
+      },
+      { "Path": "rebuild.sh", "Bytes": 8655, "SHA256": "a56f71e2fa231c18ef2b1734fe891bfcba4b307323b38aa06fe4e2b6a00ed85c" },
+      {
+        "Path": "sources/fuse-3.15.0.tar.xz",
+        "Bytes": 4589124,
+        "SHA256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0",
+        "Origin": "https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz",
+        "License": "LGPL-2.1-only (library); GPL-2.0-only (utilities, not in the runtime)"
+      },
+      {
+        "Path": "sources/squashfuse-0.5.2.tar.gz",
+        "Bytes": 75404,
+        "SHA256": "db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3",
+        "Origin": "https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz",
+        "License": "BSD-2-Clause"
+      },
+      {
+        "Path": "sources/type2-runtime-fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz",
+        "Bytes": 31128,
+        "SHA256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e",
+        "Origin": "https://github.com/AppImage/type2-runtime/archive/fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz",
+        "License": "MIT"
+      }
+    ]
+  },
+  "SourcesRetrievedUTC": "2026-10-28T23:39:46Z",
+  "UpdateTogether": [
+    "runtime-x86_64 and RUNTIME_SUM/RUNTIME_DIGEST_OFFSET in eng/package-linux.sh",
+    "licenses/appimage-runtime (index.json RuntimeInput and notice texts)",
+    "source-bundle/* with its SHA256SUMS and SOURCE_BUNDLE_SUM in eng/package-linux.sh"
+  ]
+}

@@ -14,6 +14,8 @@ eng/installer/licenses/InnoSetup-6.7.1.txt -text
 # Frozen notice/snapshot bytes retain original line endings and whitespace.
 licenses/dependencies/** -text -whitespace
 licenses/appimage-runtime/** -text -whitespace
+# The vendored AppImage runtime, its upstream sources and the source-bundle files keep their exact bytes.
+eng/linux/appimage-runtime/** -text
 
 # Retained publish metadata keeps its exact producer bytes.
 eng/validation/fixtures/dependency-notices/** -text

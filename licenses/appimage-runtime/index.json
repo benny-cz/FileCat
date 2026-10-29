@@ -6,6 +6,7 @@
     "Bytes": 944632,
     "SHA256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
     "DeclaredSourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "VendoredPath": "eng/linux/appimage-runtime/runtime-x86_64",
     "GitHubReleaseID": 417724209,
     "GitHubReleaseTagAtReview": "continuous",
     "GitHubReleaseDeclaredImmutable": false,
@@ -144,6 +145,26 @@
       }
     }
   ],
+  "CorrespondingSource": {
+    "ReleaseAsset": "FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz",
+    "RepositoryManifest": "eng/linux/appimage-runtime/manifest.json",
+    "Archives": [
+      {
+        "Path": "sources/fuse-3.15.0.tar.xz",
+        "SHA256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0"
+      },
+      {
+        "Path": "sources/squashfuse-0.5.2.tar.gz",
+        "SHA256": "db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3"
+      },
+      {
+        "Path": "sources/type2-runtime-fedfad51acc2860b2916a1eef32ba4a500ff31ef.tar.gz",
+        "SHA256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e"
+      }
+    ],
+    "RebuildScript": "rebuild.sh",
+    "RebuiltByteIdenticalOn": "2026-10-29"
+  },
   "DeclaredStaticLibraries": [
     "squashfuse",
     "squashfuse_ll",
@@ -158,7 +179,6 @@
   "AllReferencedSourcesProvenToShip": false,
   "Unresolved": [
     "Complete static-link/source obligations and distribution eligibility",
-    "Downloaded runtime source reproducibility",
     "Independent embedded checksum semantics"
   ],
   "CandidateQualified": false
