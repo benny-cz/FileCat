@@ -2,15 +2,17 @@
 
 **A file manager for everyday work, with serious tools when you need to go deeper.**
 
-Copy, search and compare files by keyboard or mouse. Commander-style panels and tabs keep several
-places in view. For more demanding tasks, inspect large files, work across archives and remote
-servers, verify downloads, or recover deleted files from supported disks and images.
+Built for Windows, Ubuntu and macOS, FileCat follows each system's file and desktop conventions:
+Recycle Bin or Trash, permissions and metadata, download-origin marks and credential stores. Copy,
+search and compare files by keyboard or mouse. Commander-style panels and tabs keep several places
+in view. For more demanding tasks, inspect large files, work across archives and remote servers,
+verify downloads, or recover deleted files from supported disks and images.
 
 FileCat shows the destination before an operation starts and distinguishes completed work from
 failures and uncertainty afterward. It is built with **C# · .NET 10 · Avalonia 12** and is
-**MIT-licensed**. Windows has the fullest native integration; Windows ARM64, Ubuntu and macOS
-are preview targets for 1.0.0. The [capability matrix](docs/CAPABILITIES.md) describes the
-differences.
+**MIT-licensed**. For 1.0.0, Windows 11 x64 is the planned stable tier; Windows 11 ARM64,
+Ubuntu 24.04/26.04 x64 and macOS 26+ on Apple silicon are planned previews. The
+[capability matrix](docs/CAPABILITIES.md) describes the differences.
 
 [Why FileCat](#why-filecat) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) ·
 [Themes and screenshots](#make-it-yours) · [Keyboard](#keyboard-essentials) · [Build](#build-and-run)
