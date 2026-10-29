@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -62,7 +63,12 @@ try
         string? repositoryUrl = hasRepositoryAttributes && repositoryAttributes.TryGetProperty("url", out var url) ? url.GetString() : null;
         string? repositoryCommit = hasRepositoryAttributes && repositoryAttributes.TryGetProperty("commit", out var commit) ? commit.GetString() : null;
         string[] notices = item.GetProperty("RetainedNoticePaths").EnumerateArray().Select(value => value.GetString() ?? throw new InvalidDataException("Null notice path.")).ToArray();
-        if (!packages.TryAdd(id, new(id, packageVersion, contentHash, archiveHash, licenseText, repositoryUrl, repositoryCommit, notices)))
+        // The assemblies a package's build targets reference directly, which the dependency manifest lists as references
+        // rather than under the package: the reviewed index names each one and the package file it comes from.
+        ReferenceComponent[] components = item.TryGetProperty("ReferenceComponents", out JsonElement referenceComponents)
+            ? referenceComponents.EnumerateArray().Select(value => new ReferenceComponent(Required(value, "ID"), PackageRelative(Required(value, "PackagePath")))).ToArray()
+            : [];
+        if (!packages.TryAdd(id, new(id, packageVersion, contentHash, archiveHash, licenseText, repositoryUrl, repositoryCommit, notices, components)))
             throw new InvalidDataException("Duplicate package in notice snapshot.");
     }
     var runtimePacks = new Dictionary<string, RuntimeInfo>(StringComparer.OrdinalIgnoreCase);
@@ -80,22 +86,28 @@ try
     var references = new Dictionary<string, ReferenceInfo>(StringComparer.OrdinalIgnoreCase);
     var projects = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     var omittedProjects = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+    // The files publish copies from each restored package folder (paths inside the package) and from each runtime pack
+    // (bare names by kind): they must be the reviewed archives' own bytes.
+    var packageFiles = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
+    var runtimePackFiles = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
+    string[] assetKinds = ["runtime", "native", "resources", "runtimeTargets"];
     string[] depsFiles = FindFiles(new DirectoryInfo(payload), ".deps.json").Order(StringComparer.Ordinal).ToArray();
     if (depsFiles.Length == 0) throw new InvalidDataException("Payload has no dependency manifest.");
     foreach (string depsPath in depsFiles)
     {
         using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(depsPath));
-        // The runtime files each library contributes, as the manifest's targets name them.
-        var runtimeAssets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        // The files each library contributes, by kind, as the manifest's targets name them.
+        var libraryAssets = new Dictionary<string, List<(string Kind, string Name)>>(StringComparer.OrdinalIgnoreCase);
         if (depsDocument.RootElement.TryGetProperty("targets", out JsonElement targets) && targets.ValueKind == JsonValueKind.Object)
             foreach (JsonProperty target in targets.EnumerateObject().Where(target => target.Value.ValueKind == JsonValueKind.Object))
-                foreach (JsonProperty entry in target.Value.EnumerateObject())
-                    if (entry.Value.ValueKind == JsonValueKind.Object && entry.Value.TryGetProperty("runtime", out JsonElement assets)
-                        && assets.ValueKind == JsonValueKind.Object)
-                    {
-                        if (!runtimeAssets.TryGetValue(entry.Name, out List<string>? list)) runtimeAssets[entry.Name] = list = [];
-                        list.AddRange(assets.EnumerateObject().Select(asset => asset.Name));
-                    }
+                foreach (JsonProperty entry in target.Value.EnumerateObject().Where(entry => entry.Value.ValueKind == JsonValueKind.Object))
+                    foreach (string assetKind in assetKinds)
+                        if (entry.Value.TryGetProperty(assetKind, out JsonElement assets) && assets.ValueKind == JsonValueKind.Object)
+                        {
+                            if (!libraryAssets.TryGetValue(entry.Name, out var list)) libraryAssets[entry.Name] = list = [];
+                            list.AddRange(assets.EnumerateObject().Select(asset => (assetKind, asset.Name)));
+                        }
+        List<(string Kind, string Name)> AssetsOf(string library) => libraryAssets.TryGetValue(library, out var list) ? list : [];
         string depsFolder = Path.GetDirectoryName(depsPath) ?? throw new InvalidDataException("Dependency manifest has no folder.");
         foreach (JsonProperty library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
         {
@@ -110,22 +122,25 @@ try
                 if (type != "runtimepack" || !runtimePacks.TryGetValue(runtimeIdentity, out RuntimeInfo? runtime)
                     || Required(library.Value, "sha512") != "")
                     throw new InvalidDataException("Published runtime pack differs from the reviewed snapshot.");
-                if (seenRuntimePacks.Add(runtimeIdentity))
-                    ValidateNuGetArchive(runtime.ID, runtime.Version, runtime.ContentHash, runtime.ArchiveSHA256, true);
+                seenRuntimePacks.Add(runtimeIdentity);
+                if (!runtimePackFiles.TryGetValue(runtimeIdentity, out var named)) runtimePackFiles[runtimeIdentity] = named = new(StringComparer.Ordinal);
+                named.UnionWith(AssetsOf(library.Name).Select(asset => asset.Kind + "/" + asset.Name));
             }
             else if (type == "package" || packages.ContainsKey(id))
             {
                 if (type != "package" || !packages.TryGetValue(id, out PackageInfo? package)
                     || package.Version != libraryVersion || Required(library.Value, "sha512") != "sha512-" + package.ContentHash)
                     throw new InvalidDataException("Published package differs from the reviewed snapshot.");
-                if (seenPackages.Add(package.ID))
-                    ValidateNuGetArchive(package.ID, package.Version, package.ContentHash, package.ArchiveSHA256, false);
+                seenPackages.Add(package.ID);
+                if (!packageFiles.TryGetValue(package.ID, out var named)) packageFiles[package.ID] = named = new(StringComparer.Ordinal);
+                named.UnionWith(AssetsOf(library.Name).Select(asset => PackageRelative(asset.Name)));
             }
             else if (type == "project")
             {
                 // Named runtime files that are all missing mean the project is not shipped in this payload: the Linux and
                 // macOS packages drop the Windows-only helpers after publishing, while FileCat.deps.json still names them.
-                if (runtimeAssets.TryGetValue(library.Name, out List<string>? named) && named.Count > 0
+                string[] named = AssetsOf(library.Name).Where(asset => asset.Kind == "runtime").Select(asset => asset.Name).ToArray();
+                if (named.Length > 0
                     && !named.Any(asset => File.Exists(Path.Combine(depsFolder, asset.Replace('/', Path.DirectorySeparatorChar)))))
                 {
                     omittedProjects.Add(id);
@@ -137,18 +152,29 @@ try
             }
             else if (type == "reference")
             {
-                PackageInfo[] parents = packages.Values
-                    .Where(package => libraryVersion == package.Version
-                        && id.StartsWith(package.ID + ".", StringComparison.OrdinalIgnoreCase))
+                // Only a reference the reviewed index names as a package's own is attributed to it; a name that merely
+                // starts with a package's ID is not.
+                (PackageInfo Package, ReferenceComponent Component)[] origins = packages.Values
+                    .Where(package => libraryVersion == package.Version)
+                    .SelectMany(package => package.ReferenceComponents
+                        .Where(candidate => candidate.ID.Equals(id, StringComparison.OrdinalIgnoreCase))
+                        .Select(candidate => (package, candidate)))
                     .ToArray();
-                if (Required(library.Value, "sha512") != "" || parents.Length != 1)
-                    throw new InvalidDataException("Published reference component has no unique reviewed package origin.");
-                var reference = new ReferenceInfo(id, libraryVersion, parents[0].ID);
+                if (Required(library.Value, "sha512") != "")
+                    throw new InvalidDataException("Published reference component carries a package hash.");
+                if (origins.Length != 1)
+                    throw new InvalidDataException("Published reference component is not one the reviewed snapshot names as a package's own.");
+                (PackageInfo parent, ReferenceComponent component) = origins[0];
+                string fileName = component.PackagePath[(component.PackagePath.LastIndexOf('/') + 1)..];
+                if (AssetsOf(library.Name).Any(asset => asset.Kind != "runtime" || asset.Name != fileName))
+                    throw new InvalidDataException("Published reference component's files differ from the one its reviewed package names.");
+                var reference = new ReferenceInfo(id, libraryVersion, parent.ID, component.PackagePath);
                 if (references.TryGetValue(id, out ReferenceInfo? existingReference) && existingReference != reference)
                     throw new InvalidDataException("Conflicting reference component in payload.");
                 references[id] = reference;
-                if (seenPackages.Add(parents[0].ID))
-                    ValidateNuGetArchive(parents[0].ID, parents[0].Version, parents[0].ContentHash, parents[0].ArchiveSHA256, false);
+                seenPackages.Add(parent.ID);
+                if (!packageFiles.TryGetValue(parent.ID, out var named)) packageFiles[parent.ID] = named = new(StringComparer.Ordinal);
+                named.Add(component.PackagePath);
             }
             else throw new InvalidDataException("Unsupported dependency kind in payload.");
         }
@@ -156,6 +182,18 @@ try
     omittedProjects.ExceptWith(projects.Keys);
     if (references.Values.Any(reference => !seenPackages.Contains(reference.ParentPackage)))
         throw new InvalidDataException("Published reference component omits its reviewed parent package.");
+    int restoredFilesMatched = 0;
+    foreach (string packageId in seenPackages.Order(StringComparer.OrdinalIgnoreCase))
+    {
+        PackageInfo package = packages[packageId];
+        restoredFilesMatched += ValidateNuGetArchive(package.ID, package.Version, package.ContentHash, package.ArchiveSHA256, false, _ => packageFiles[package.ID]);
+    }
+    foreach (string identity in seenRuntimePacks.Order(StringComparer.OrdinalIgnoreCase))
+    {
+        RuntimeInfo runtime = runtimePacks[identity];
+        restoredFilesMatched += ValidateNuGetArchive(runtime.ID, runtime.Version, runtime.ContentHash, runtime.ArchiveSHA256, true,
+            members => runtimePackFiles[identity].Select(named => RuntimePackMember(members, runtime.RID, named)));
+    }
     bool selfContained = kind != "fdd";
     if (selfContained)
     {
@@ -244,10 +282,13 @@ try
             })
         };
         string[] aliases = references.Values.Where(reference => reference.ParentPackage.Equals(package.ID, StringComparison.OrdinalIgnoreCase))
-            .Select(reference => reference.ID + "/" + reference.Version).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+            .OrderBy(reference => reference.ID, StringComparer.OrdinalIgnoreCase)
+            .Select(reference => $"{reference.ID}/{reference.Version} (from {reference.PackagePath})").ToArray();
         if (aliases.Length != 0)
-            node["comment"] = "Published build-generated reference projections attributed by the dependency manifest to this reviewed package: "
-                + string.Join(", ", aliases) + ". Their exact payload bytes are recorded as files; no byte identity with an archive member is asserted.";
+            node["comment"] = "Assemblies this reviewed package's build targets reference directly, which the dependency manifest lists as "
+                + "references; the reviewed notice index names each as this package's own: " + string.Join(", ", aliases)
+                + ". Their restored files match this archive's members; their payload bytes, which publishing may compile ahead of time, "
+                + "are recorded as files.";
         if (!string.IsNullOrWhiteSpace(package.RepositoryUrl))
         {
             ((JsonArray)node["externalRefs"]!).Add(new JsonObject
@@ -422,7 +463,7 @@ try
         File.Move(temporary, output, false);
     }
     finally { if (File.Exists(temporary)) File.Delete(temporary); }
-    Console.WriteLine($"Wrote SPDX 2.3 SBOM: {files.Count} exact files, {seenPackages.Count} reviewed NuGet packages, {seenRuntimePacks.Count} runtime packs, tree {treeIdentity}.");
+    Console.WriteLine($"Wrote SPDX 2.3 SBOM: {files.Count} exact files, {seenPackages.Count} reviewed NuGet packages, {seenRuntimePacks.Count} runtime packs ({restoredFilesMatched} restored files match their archives), tree {treeIdentity}.");
     return 0;
 }
 catch (Exception error)
@@ -497,7 +538,11 @@ static string TreeIdentity(IEnumerable<FileRecord> files)
     }
     return Hex(hash.GetHashAndReset());
 }
-static void ValidateNuGetArchive(string id, string version, string contentHash, string archiveSHA256, bool contentHashMustMatchArchive)
+// Publish copies a package's files from its restored folder, not from the archive whose hash is reviewed: each file the
+// payload takes (restoredFiles, given the archive's members) must exist there with the archive member's own bytes.
+// Returns how many files it compared.
+static int ValidateNuGetArchive(string id, string version, string contentHash, string archiveSHA256, bool contentHashMustMatchArchive,
+    Func<IReadOnlyDictionary<string, ZipArchiveEntry>, IEnumerable<string>> restoredFiles)
 {
     string? packageRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
     if (string.IsNullOrWhiteSpace(packageRoot))
@@ -516,9 +561,59 @@ static void ValidateNuGetArchive(string id, string version, string contentHash, 
         || (contentHashMustMatchArchive && contentHash != actualArchiveHash)
         || Hex(SHA256.HashData(archiveBytes)) != archiveSHA256)
         throw new InvalidDataException("Restored NuGet package archive differs from the reviewed snapshot.");
+    using var archiveReader = new ZipArchive(new MemoryStream(archiveBytes, false), ZipArchiveMode.Read);
+    // NuGet escapes member names in the archive and restores them unescaped.
+    var members = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
+    foreach (ZipArchiveEntry entry in archiveReader.Entries)
+        if (!members.TryAdd(Uri.UnescapeDataString(entry.FullName), entry))
+            throw new InvalidDataException($"NuGet package archive {id} {version} has duplicate member names.");
+    int compared = 0;
+    foreach (string relative in restoredFiles(members).Select(PackageRelative))
+    {
+        if (!members.TryGetValue(relative, out ZipArchiveEntry? member))
+            throw new InvalidDataException($"NuGet package archive {id} {version} lacks {relative}, which the payload takes from it.");
+        var restored = new FileInfo(Path.Combine(folder, relative.Replace('/', Path.DirectorySeparatorChar)));
+        if (!restored.Exists || (restored.Attributes & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException($"Restored file {relative} of {id} {version} is missing or linked.");
+        byte[] expected;
+        using (Stream stream = member.Open()) expected = SHA256.HashData(stream);
+        byte[] actual;
+        using (FileStream stream = restored.Open(FileMode.Open, FileAccess.Read, FileShare.Read)) actual = SHA256.HashData(stream);
+        if (!expected.AsSpan().SequenceEqual(actual))
+            throw new InvalidDataException($"Restored file {relative} of {id} {version} differs from its reviewed archive.");
+        compared++;
+    }
+    return compared;
+}
+// A path inside a package, as the dependency manifest and the notice index name them.
+static string PackageRelative(string value)
+{
+    if (string.IsNullOrWhiteSpace(value) || value.Contains('\\') || value.Contains(':') || value.StartsWith('/')
+        || value.Split('/').Any(part => part is "" or "." or ".."))
+        throw new InvalidDataException("Invalid package file path.");
+    return value;
+}
+// A runtime pack's manifest names its files bare, by kind ("runtime/<name>" or "native/<name>"): the managed ones are under
+// runtimes/<rid>/lib/<framework>/ in the pack, the native ones under runtimes/<rid>/native/.
+static string RuntimePackMember(IReadOnlyDictionary<string, ZipArchiveEntry> members, string rid, string named)
+{
+    int slash = named.IndexOf('/');
+    string kind = named[..slash], name = named[(slash + 1)..];
+    if (name.Length == 0 || name.Contains('/') || name.Contains('\\'))
+        throw new InvalidDataException("Invalid runtime pack file name.");
+    string[] matches = kind switch
+    {
+        "runtime" => members.Keys.Where(path => path.StartsWith($"runtimes/{rid}/lib/", StringComparison.Ordinal)
+            && path.EndsWith("/" + name, StringComparison.Ordinal) && path.Count(character => character == '/') == 4).ToArray(),
+        "native" => members.ContainsKey($"runtimes/{rid}/native/{name}") ? [$"runtimes/{rid}/native/{name}"] : [],
+        _ => throw new InvalidDataException($"Unsupported runtime pack file kind: {kind}."),
+    };
+    if (matches.Length != 1) throw new InvalidDataException($"Runtime pack has no single {kind} file named {name}.");
+    return matches[0];
 }
 
-sealed record PackageInfo(string ID, string Version, string ContentHash, string ArchiveSHA256, string License, string? RepositoryUrl, string? RepositoryCommit, string[] NoticePaths);
+sealed record PackageInfo(string ID, string Version, string ContentHash, string ArchiveSHA256, string License, string? RepositoryUrl, string? RepositoryCommit, string[] NoticePaths, ReferenceComponent[] ReferenceComponents);
+sealed record ReferenceComponent(string ID, string PackagePath);
 sealed record RuntimeInfo(string ID, string Version, string RID, string ContentHash, string ArchiveSHA256, string[] NoticePaths);
-sealed record ReferenceInfo(string ID, string Version, string ParentPackage);
+sealed record ReferenceInfo(string ID, string Version, string ParentPackage, string PackagePath);
 sealed record FileRecord(string Path, long Bytes, string SHA1, string SHA256, string SpdxId, string Description);

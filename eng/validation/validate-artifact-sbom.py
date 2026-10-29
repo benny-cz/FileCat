@@ -10,24 +10,45 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import urllib.parse
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-RUNTIME_ARCHIVE_BYTES = b"reviewed-runtime-package-fixture\x00\x01"
-RUNTIME_ARCHIVE_SHA256 = hashlib.sha256(RUNTIME_ARCHIVE_BYTES).hexdigest()
-RUNTIME_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(RUNTIME_ARCHIVE_BYTES).digest()).decode("ascii")
 REFERENCE_BYTES = b"reviewed-reference-assembly-fixture\x00\x02"
+REFERENCE_PATH = "lib_manual/netcoreapp3.0/Fixture.Package.Core.dll"
+# The files publishing takes from the restored package and runtime pack folders, by archive member name (NuGet escapes
+# member names and restores them unescaped).
+PACKAGE_MEMBERS = {
+    "lib/net10.0/Fixture.Package.dll": b"package-runtime-fixture\x00\x03",
+    "runtimes/win-x64/native/fixture.native.dll": b"package-native-fixture\x00\x04",
+    "lib/net10.0/de/Fixture%2BPackage.resources.dll": b"package-resources-fixture\x00\x05",
+    REFERENCE_PATH: REFERENCE_BYTES,
+}
+RUNTIME_MEMBERS = {
+    "runtimes/win-x64/lib/net10.0/System.Fixture.dll": b"runtime-managed-fixture\x00\x06",
+    "runtimes/win-x64/native/coreclr.fixture.dll": b"runtime-native-fixture\x00\x07",
+}
 
 
-def make_package_archive() -> bytes:
+def make_archive(members) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
-        info = zipfile.ZipInfo("lib/net10.0/Fixture.Package.Core.dll", date_time=(1980, 1, 1, 0, 0, 0))
-        archive.writestr(info, REFERENCE_BYTES)
+        for name, data in members.items():
+            archive.writestr(zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0)), data)
     return buffer.getvalue()
 
 
-PACKAGE_ARCHIVE_BYTES = make_package_archive()
+def restore(folder: pathlib.Path, members) -> None:
+    for name, data in members.items():
+        target = folder / urllib.parse.unquote(name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+
+RUNTIME_ARCHIVE_BYTES = make_archive(RUNTIME_MEMBERS)
+RUNTIME_ARCHIVE_SHA256 = hashlib.sha256(RUNTIME_ARCHIVE_BYTES).hexdigest()
+RUNTIME_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(RUNTIME_ARCHIVE_BYTES).digest()).decode("ascii")
+PACKAGE_ARCHIVE_BYTES = make_archive(PACKAGE_MEMBERS)
 PACKAGE_ARCHIVE_SHA256 = hashlib.sha256(PACKAGE_ARCHIVE_BYTES).hexdigest()
 PACKAGE_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(PACKAGE_ARCHIVE_BYTES).digest()).decode("ascii")
 
@@ -50,16 +71,26 @@ def deps(include_runtime=True, package_hash="pkg-content", package_id="Fixture.P
     }
     for project in projects:
         libraries[f"{project}/1.0.0"] = {"type": "project", "serviceable": False, "sha512": ""}
+    # The files each library contributes, as a real manifest's targets name them: package files by their path inside the
+    # package, a reference's and a runtime pack's by bare name.
+    target = {
+        f"{package_id}/1.2.3": {
+            "runtime": {"lib/net10.0/Fixture.Package.dll": {}},
+            "native": {"runtimes/win-x64/native/fixture.native.dll": {}},
+            "resources": {"lib/net10.0/de/Fixture+Package.resources.dll": {"locale": "de"}},
+        },
+        f"{reference_id}/1.2.3": {"runtime": {f"{reference_id}.dll": {}}},
+    }
     if include_runtime:
         libraries["runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14"] = {
             "type": "runtimepack", "serviceable": False, "sha512": ""
         }
-    value = {"runtimeTarget": {"name": ".NETCoreApp,Version=v10.0/win-x64", "signature": ""}, "libraries": libraries}
-    if project_runtime:
-        # The runtime files a project contributes, as a real manifest's targets name them.
-        value["targets"] = {".NETCoreApp,Version=v10.0/win-x64": {
-            f"{project}/1.0.0": {"runtime": {asset: {}}} for project, asset in project_runtime.items()}}
-    return value
+        target["runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14"] = {
+            "runtime": {"System.Fixture.dll": {}}, "native": {"coreclr.fixture.dll": {}}}
+    for project, asset in (project_runtime or {}).items():
+        target[f"{project}/1.0.0"] = {"runtime": {asset: {}}}
+    return {"runtimeTarget": {"name": ".NETCoreApp,Version=v10.0/win-x64", "signature": ""}, "libraries": libraries,
+            "targets": {".NETCoreApp,Version=v10.0/win-x64": target}}
 
 
 def snapshot(extra_package=False):
@@ -69,6 +100,7 @@ def snapshot(extra_package=False):
         "NuGetLicenseDeclaration": {"Text": "MIT", "Attributes": {"type": "expression"}},
         "NuGetRepositoryDeclaration": None,
         "RetainedNoticePaths": ["fixture/LICENSE"],
+        "ReferenceComponents": [{"ID": "Fixture.Package.Core", "PackagePath": REFERENCE_PATH}],
     }]
     if extra_package:
         packages.append({
@@ -112,12 +144,20 @@ def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-con
     archive = runtime_folder / "microsoft.netcore.app.runtime.win-x64.10.0.14.nupkg"
     archive.write_bytes(RUNTIME_ARCHIVE_BYTES)
     pathlib.Path(str(archive) + ".sha512").write_text(RUNTIME_ARCHIVE_SHA512 + "\n", encoding="utf-8")
+    restore(runtime_folder, RUNTIME_MEMBERS)
     package_folder = packages_root / "fixture.package" / "1.2.3"
     package_folder.mkdir(parents=True)
     package_archive = package_folder / "fixture.package.1.2.3.nupkg"
     package_archive.write_bytes(PACKAGE_ARCHIVE_BYTES)
     pathlib.Path(str(package_archive) + ".sha512").write_text(PACKAGE_ARCHIVE_SHA512 + "\n", encoding="utf-8")
+    restore(package_folder, PACKAGE_MEMBERS)
     return payload, index, packages_root
+
+
+def edit_json(path: pathlib.Path, change) -> None:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    change(value)
+    write_json(path, value)
 
 
 def main() -> int:
@@ -148,7 +188,8 @@ def main() -> int:
             reference_id="Fixture.Package.Core", reference_hash="", output_inside=False, precreate=False,
             extras=(), mutate=None, mutate_runtime_archive=False, mutate_package_archive=False,
             expected_reference_sha256=None, projects=(), expected_project_licenses=None, project_runtime=None,
-            project_files=(), expected_root_comment=None, expected_appimage_runtime=False, expected_inno=False):
+            project_files=(), expected_root_comment=None, expected_appimage_runtime=False, expected_inno=False,
+            mutate_restored=None, expected_package_comment=None):
         folder = evidence / "cases" / name
         payload, index, packages_root = prepare(folder, include_runtime=include_runtime, package_hash=package_hash,
                                                 runtime_hash=runtime_hash, package_id=package_id,
@@ -163,6 +204,8 @@ def main() -> int:
         if mutate_package_archive:
             archive = packages_root / "fixture.package" / "1.2.3" / "fixture.package.1.2.3.nupkg"
             archive.write_bytes(b"tampered-package")
+        if mutate_restored:
+            mutate_restored(packages_root)
         output = payload / "inside.spdx.json" if output_inside else folder / "result.spdx.json"
         if precreate:
             output.write_text("preserve", encoding="utf-8")
@@ -193,6 +236,8 @@ def main() -> int:
                 "ProjectLicenses": {value["name"]: value["licenseDeclared"] for value in document["packages"]
                                     if value["SPDXID"].startswith("SPDXRef-Project-")},
                 "RootComment": root_package["comment"],
+                "PackageComment": next((value.get("comment") for value in document["packages"]
+                                        if value["name"] == "Fixture.Package"), None),
             }
             runtime_files = [value["SPDXID"] for value in files if value["fileName"] == "./.appimage/runtime"]
             runtime_package = next((value for value in document["packages"] if value["SPDXID"] == "SPDXRef-AppImage-Runtime"), None)
@@ -220,6 +265,8 @@ def main() -> int:
                 passed = passed and details["ProjectLicenses"] == expected_project_licenses
             if expected_root_comment is not None:
                 passed = passed and expected_root_comment in details["RootComment"]
+            if expected_package_comment is not None:
+                passed = passed and expected_package_comment in (details["PackageComment"] or "")
             runtime = details["AppImageRuntime"]
             if expected_appimage_runtime:
                 passed = passed and runtime == {
@@ -241,7 +288,8 @@ def main() -> int:
             "StderrSHA256": digest(folder / "stderr.txt"), "Details": details,
         })
 
-    run("self-contained", True)
+    run("self-contained", True,
+        expected_package_comment=f"Fixture.Package.Core/1.2.3 (from {REFERENCE_PATH})")
     run("framework-dependent", True, kind="fdd", include_runtime=False)
     extra = evidence / "extra-runtime"
     extra.write_bytes(b"appimage-runtime")
@@ -272,6 +320,46 @@ def main() -> int:
         project_runtime={"FileCat.ShellHost": "FileCat.ShellHost.dll"}, project_files=("FileCat.ShellHost.dll",),
         expected_project_licenses={"FileCat.ShellHost": "MIT"})
     run("unknown-reference-origin", False, reference_id="Other.Component")
+    # A reference is a package's only when the reviewed index names it so: sharing the package's ID as a prefix is not
+    # enough, and the manifest must name the file the index does.
+    run("reference-prefix-only", False, reference_id="Fixture.Package.Other")
+    # On Linux and macOS the manifest lists WebView2's Core reference but not the package, which has no files for those
+    # RIDs: the reference is still the package's, and the package's archive and the reference's restored file are checked.
+    def drop_package(payload, _index):
+        def change(value):
+            value["libraries"].pop("Fixture.Package/1.2.3")
+            value["targets"][".NETCoreApp,Version=v10.0/win-x64"].pop("Fixture.Package/1.2.3")
+        edit_json(payload / "FileCat.deps.json", change)
+
+    run("reference-without-package-files", True, mutate=drop_package,
+        expected_package_comment=f"Fixture.Package.Core/1.2.3 (from {REFERENCE_PATH})")
+    run("reference-without-package-files-changed", False, mutate=drop_package,
+        mutate_restored=lambda root: (root / f"fixture.package/1.2.3/{REFERENCE_PATH}").write_bytes(b"tampered-restored"))
+    run("reference-not-named-by-index", False,
+        mutate=lambda _payload, index: edit_json(index, lambda value: value["Packages"][0].pop("ReferenceComponents")))
+    run("reference-file-differs", False,
+        mutate=lambda payload, _index: edit_json(payload / "FileCat.deps.json", lambda value: value["targets"][
+            ".NETCoreApp,Version=v10.0/win-x64"]["Fixture.Package.Core/1.2.3"].update(
+                runtime={"Fixture.Package.Other.dll": {}})))
+    # Publishing copies the restored package folders, not the archives whose hashes are reviewed: each file it takes must
+    # be the archive member's own bytes.
+    for case, relative in (
+            ("restored-package-file-changed", "fixture.package/1.2.3/lib/net10.0/Fixture.Package.dll"),
+            ("restored-package-resources-changed", "fixture.package/1.2.3/lib/net10.0/de/Fixture+Package.resources.dll"),
+            ("restored-reference-file-changed", f"fixture.package/1.2.3/{REFERENCE_PATH}"),
+            ("restored-runtime-file-changed",
+             "microsoft.netcore.app.runtime.win-x64/10.0.14/runtimes/win-x64/lib/net10.0/System.Fixture.dll")):
+        run(case, False, mutate_restored=lambda root, relative=relative: (root / relative).write_bytes(b"tampered-restored"))
+    run("restored-file-missing", False, mutate_restored=lambda root: (
+        root / "microsoft.netcore.app.runtime.win-x64/10.0.14/runtimes/win-x64/native/coreclr.fixture.dll").unlink())
+    run("manifest-file-not-in-archive", False,
+        mutate=lambda payload, _index: edit_json(payload / "FileCat.deps.json", lambda value: value["targets"][
+            ".NETCoreApp,Version=v10.0/win-x64"]["Fixture.Package/1.2.3"]["native"].update(
+                {"runtimes/win-x64/native/unreviewed.dll": {}})))
+    run("manifest-file-escapes-package", False,
+        mutate=lambda payload, _index: edit_json(payload / "FileCat.deps.json", lambda value: value["targets"][
+            ".NETCoreApp,Version=v10.0/win-x64"]["Fixture.Package/1.2.3"]["native"].update(
+                {"../../fixture.package/1.2.3/lib/net10.0/Fixture.Package.dll": {}})))
     run("hashed-reference", False, reference_hash="sha512-unreviewed")
     run("generated-reference-bytes-recorded", True,
         mutate=lambda payload, _index: (payload / "Fixture.Package.Core.dll").write_bytes(b"tampered-reference"),
@@ -288,6 +376,15 @@ def main() -> int:
     if os.name != "nt":
         run("symbolic-link", True,
             mutate=lambda payload, _index: (payload / "native-link").symlink_to("nested/native.bin"))
+
+        def link_restored(root: pathlib.Path) -> None:
+            restored = root / "fixture.package/1.2.3/lib/net10.0/Fixture.Package.dll"
+            copy = root / "outside-copy.dll"
+            copy.write_bytes(restored.read_bytes())
+            restored.unlink()
+            restored.symlink_to(copy)
+
+        run("restored-file-linked", False, mutate_restored=link_restored)
 
     if not all(case["Passed"] for case in cases):
         write_json(evidence / "artifact-sbom-controls.json", {"Cases": cases})

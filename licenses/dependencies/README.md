@@ -11,6 +11,12 @@ indexed package and file entries. `System.CodeDom` and `System.Management`
 their package-declared `dotnet/dotnet` source revision.
 It includes build-only packages and RID alternatives from the resolved App graph;
 their presence here does not mean their code is shipped in every FileCat package.
+A package whose build targets reference an assembly directly, which a published dependency
+manifest then lists as a `reference` rather than under the package, names it in
+`ReferenceComponents` with the package file it comes from: Microsoft.Web.WebView2's
+`Microsoft.Web.WebView2.Core.dll`. The artifact SBOM tool (`eng/ArtifactSbom`) attributes a
+reference to a package only through that list, and checks each file publishing takes from a
+restored package folder against the member of the reviewed archive.
 
 The index explicitly records unresolved provenance. LTRData.Extensions 1.0.23 has
 an author- and repository-signed NuGet archive whose metadata declares the SPDX

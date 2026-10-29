@@ -1331,7 +1331,13 @@
         "nuget/microsoft.web.webview2/1.0.3179.45/NOTICE.txt"
       ],
       "FullTextRetained": true,
-      "Coverage": "nuget-files-retained"
+      "Coverage": "nuget-files-retained",
+      "ReferenceComponents": [
+        {
+          "ID": "Microsoft.Web.WebView2.Core",
+          "PackagePath": "lib_manual/netcoreapp3.0/Microsoft.Web.WebView2.Core.dll"
+        }
+      ]
     },
     {
       "ID": "SkiaSharp",
