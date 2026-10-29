@@ -48,7 +48,11 @@ everything else is left out.
   CA2022 suppression: FileCat's build never reaches the gzip flavour.
 - `Compressors/Xz/XZBlock.cs`: reads all of a block's padding, refusing padding that is cut short; a short
   read left bytes for the next field to take as its own.
-- `Common/SevenZip/ArchiveReader.cs` and `ArchiveReader.Async.cs`: an unused `using` line dropped from each.
+- `Common/SevenZip/ArchiveReader.cs` and `ArchiveReader.Async.cs`: an unused `using` line dropped from each. A packed
+  header (7-Zip's default encoded header, or additional streams) is no longer decoded into an array of the size the
+  archive declares, allocated up front: the buffer grows as data actually decodes, and decoding stops beyond 256 MiB, or
+  beyond 1000 times the packed size once past 64 MiB. A 100-byte archive could make the reader allocate 2 GiB. A packed
+  header that ends early is reported as a damaged archive (`InvalidFormatException`), not as an I/O error.
 - Project file: `FileCat.SharpCompress.csproj` (upstream's `SharpCompress.csproj`, named after the
   assembly so that the SDK lists it once in `FileCat.deps.json`), `FileCat.SharpCompress` assembly,
   `net10.0` only, no strong-name key (the upstream `.snk`/`.pfx` are not copied), FileCat's locked

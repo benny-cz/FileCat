@@ -212,11 +212,25 @@ internal sealed partial class ArchiveReader
                     )
                     .ConfigureAwait(false);
 
-                var unpackSize = checked((int)folder.GetUnpackSize());
-                var data = new byte[unpackSize];
-                await outStream
-                    .ReadExactAsync(data, 0, data.Length, cancellationToken)
-                    .ConfigureAwait(false);
+                var unpackSize = AdmitDecodedHeaderSize(folder.GetUnpackSize());
+                var data = NewDecodedHeaderBuffer(unpackSize);
+                var filled = 0;
+                while (filled < unpackSize)
+                {
+                    if (filled == data.Length)
+                    {
+                        Array.Resize(ref data, GrownDecodedHeaderLength(data.Length, unpackSize));
+                    }
+                    var read = await outStream
+                        .ReadAsync(data, filled, data.Length - filled, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        throw new InvalidFormatException("The archive's packed header ends early.");
+                    }
+                    filled += read;
+                    CheckDecodedHeader(filled, myPackSizes);
+                }
                 if (outStream.ReadByte() >= 0)
                 {
                     throw new InvalidFormatException("Decoded stream is longer than expected.");

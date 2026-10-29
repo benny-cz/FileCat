@@ -619,6 +619,39 @@ internal partial class ArchiveReader
         finally { }
     }
 
+    // FileCat: the size a packed header decodes to comes from the archive, so it is never allocated up front: the buffer
+    // grows only as data actually decodes, and decoding stops beyond 256 MiB, or beyond 1000 times the packed size once
+    // past 64 MiB. A 100-byte archive could otherwise make the reader allocate 2 GiB (release review finding R-H5).
+    private const int MaxDecodedHeaderBytes = 256 << 20;
+
+    private static int AdmitDecodedHeaderSize(long unpackSize) =>
+        unpackSize is >= 0 and <= MaxDecodedHeaderBytes
+            ? (int)unpackSize
+            : throw new InvalidFormatException(
+                "The archive's header is larger than FileCat reads (256 MiB)."
+            );
+
+    private static byte[] NewDecodedHeaderBuffer(int unpackSize) =>
+        new byte[Math.Min(unpackSize, 1 << 20)];
+
+    private static int GrownDecodedHeaderLength(int length, int unpackSize) =>
+        (int)Math.Min(unpackSize, 2L * length);
+
+    private static void CheckDecodedHeader(long decoded, long[] packSizes)
+    {
+        long packed = 0;
+        foreach (var size in packSizes)
+        {
+            packed += size;
+        }
+        if (decoded > 64 << 20 && decoded / Math.Max(1, packed) > 1000)
+        {
+            throw new InvalidFormatException(
+                "The archive's header expands more than 1000:1 (possibly a decompression bomb)."
+            );
+        }
+    }
+
     private List<byte[]> ReadAndDecodePackedStreams(long baseOffset, IPasswordProvider pass)
     {
         try
@@ -657,9 +690,23 @@ internal partial class ArchiveReader
                     pass
                 );
 
-                var unpackSize = checked((int)folder.GetUnpackSize());
-                var data = new byte[unpackSize];
-                outStream.ReadExact(data, 0, data.Length);
+                var unpackSize = AdmitDecodedHeaderSize(folder.GetUnpackSize());
+                var data = NewDecodedHeaderBuffer(unpackSize);
+                var filled = 0;
+                while (filled < unpackSize)
+                {
+                    if (filled == data.Length)
+                    {
+                        Array.Resize(ref data, GrownDecodedHeaderLength(data.Length, unpackSize));
+                    }
+                    var read = outStream.Read(data, filled, data.Length - filled);
+                    if (read == 0)
+                    {
+                        throw new InvalidFormatException("The archive's packed header ends early.");
+                    }
+                    filled += read;
+                    CheckDecodedHeader(filled, myPackSizes);
+                }
                 if (outStream.ReadByte() >= 0)
                 {
                     throw new InvalidFormatException("Decoded stream is longer than expected.");
