@@ -103,15 +103,32 @@ internal sealed class TestFtpServer : IDisposable
                         return path
                     return super().ftp_DELE(path)
         listing_count = int(os.environ.get("FILECAT_FTP_VIRTUAL_LISTING", "0"))
+        # FILECAT_FTP_VIRTUAL_SELF: the virtual listings also carry the folder itself, its parent, and LIST's total line.
+        virtual_self = bool(os.environ.get("FILECAT_FTP_VIRTUAL_SELF"))
         if listing_count:
             BaseHandler = Handler
             class Handler(BaseHandler):
                 def ftp_MLSD(self, path):
-                    data = b"".join(f"type=file;size=1;modify=20260101000000; item{i:05}.txt\r\n".encode() for i in range(listing_count))
+                    head = b"type=cdir;modify=20260101000000; /\r\ntype=pdir;modify=20260101000000; ..\r\n" if virtual_self else b""
+                    data = head + b"".join(f"type=file;size=1;modify=20260101000000; item{i:05}.txt\r\n".encode() for i in range(listing_count))
                     self.push_dtp_data(data, isproducer=False, cmd="MLSD")
                 def ftp_LIST(self, path):
-                    data = b"".join(f"-rw-r--r-- 1 user group 1 Jan 01 2026 item{i:05}.txt\r\n".encode() for i in range(listing_count))
+                    head = (f"total {listing_count}\r\ndrwxr-xr-x 2 user group 4096 Jan 01 2026 .\r\n"
+                            "drwxr-xr-x 3 user group 4096 Jan 01 2026 ..\r\n").encode() if virtual_self else b""
+                    data = head + b"".join(f"-rw-r--r-- 1 user group 1 Jan 01 2026 item{i:05}.txt\r\n".encode() for i in range(listing_count))
                     self.push_dtp_data(data, isproducer=False, cmd="LIST")
+        # FILECAT_FTP_EMPTY_550: an empty folder is refused as some servers do, "550 No files found."
+        if os.environ.get("FILECAT_FTP_EMPTY_550"):
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                def ftp_MLSD(self, path):
+                    if os.path.isdir(path) and not os.listdir(path):
+                        return self.respond("550 No files found.")
+                    return super().ftp_MLSD(path)
+                def ftp_LIST(self, path):
+                    if os.path.isdir(path) and not os.listdir(path):
+                        return self.respond("550 No files found.")
+                    return super().ftp_LIST(path)
         Handler.authorizer = auth
         Handler.use_gmt_times = True
         # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
@@ -146,7 +163,7 @@ internal sealed class TestFtpServer : IDisposable
     /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
-        string? failAfterBackupCleanup = null, int virtualListingCount = 0)
+        string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
@@ -181,6 +198,8 @@ internal sealed class TestFtpServer : IDisposable
         if (failAfterStagePublish is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_STAGE_RNTO"] = failAfterStagePublish;
         if (failAfterBackupCleanup is not null) start.Environment["FILECAT_FTP_FAIL_AFTER_BACKUP_DELE"] = failAfterBackupCleanup;
         if (virtualListingCount > 0) start.Environment["FILECAT_FTP_VIRTUAL_LISTING"] = virtualListingCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (virtualSelfLines) start.Environment["FILECAT_FTP_VIRTUAL_SELF"] = "1";
+        if (emptyFolders550) start.Environment["FILECAT_FTP_EMPTY_550"] = "1";
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
@@ -319,6 +338,59 @@ public sealed class FtpIntegrationTests : IDisposable
             long peak = Process.GetCurrentProcess().PeakWorkingSet64;
             TestContext.Current.TestOutputHelper?.WriteLine($"{protocol}: limit={RemoteListingBudget.MaxEntries}, working-set-before={before}, process-peak={peak}");
         }
+    }
+
+    [Fact]
+    public void A_listing_skips_the_folder_itself_its_parent_and_its_total_line()
+    {
+        // Review finding R-M10: MLSD's cdir and pdir entries were kept, and with LIST's "total", "." and ".." they counted
+        // toward the limit, so a folder holding exactly the limit was refused.
+        using var server = TestFtpServer.TryStart(virtualListingCount: RemoteListingBudget.MaxEntries, virtualSelfLines: true);
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        var listed = lease.Channel.List("/", ct);
+        Assert.Equal(RemoteListingBudget.MaxEntries, listed.Count);
+        Assert.All(listed, e => Assert.StartsWith("item", e.Name, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_listing_stopped_before_its_final_reply_closes_its_connection()
+    {
+        // Review finding R-M10: a listing cancelled or failed mid-transfer left its 226 or 426 reply unread, and the
+        // connection went back to the pool, where the next command would have taken that reply for its own.
+        using var server = TestFtpServer.TryStart(virtualListingCount: 20_000);
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using (var lease = connections.Lease(profile.Id, ct))
+        {
+            Assert.ThrowsAny<OperationCanceledException>(() => lease.Channel.List("/", new CancellationToken(canceled: true)));
+            Assert.False(lease.Channel.IsConnected);
+        }
+        using var again = connections.Lease(profile.Id, ct);
+        Assert.Equal(20_000, again.Channel.List("/", ct).Count);
+    }
+
+    [Fact]
+    public void A_server_that_refuses_to_list_an_empty_folder_lists_it_empty()
+    {
+        // Review finding R-M10: "550 No files found" for an empty folder became an error; a missing folder still is one.
+        using var server = TestFtpServer.TryStart(emptyFolders550: true);
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        Directory.CreateDirectory(Path.Combine(server.Root, "empty"));
+        File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(server.Root, "full")).FullName, "a.txt"), "a");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        Assert.Empty(lease.Channel.List("/empty", ct));
+        Assert.Equal(["a.txt"], lease.Channel.List("/full", ct).Select(e => e.Name));
+        Assert.ThrowsAny<IOException>(() => lease.Channel.List("/missing", ct));
+        Assert.True(lease.Channel.IsConnected);
     }
 
     [Fact]

@@ -139,7 +139,7 @@ public sealed class CertificateRejectedException(string message, Exception? inne
 /// <summary>Expose FluentFTP's protected data stream so listing bytes can be capped before its array parser.</summary>
 internal sealed class BoundedFtpClient(string host, string user, string password, int port) : FtpClient(host, user, password, port)
 {
-    internal Stream OpenListingData(string command)
+    internal FtpDataStream OpenListingData(string command)
     {
         SetDataType(Config.ListingDataType);
         return OpenDataStream(command, 0);
@@ -258,6 +258,9 @@ internal sealed partial class FtpChannel : ISftpChannel
         return (IReadOnlyList<IRemoteEntry>)list;
     });
 
+    /// <summary>Lines of a listing that are no entry ("total", the folder itself, its parent): bounded apart from entries.</summary>
+    private const int MaxOtherListingLines = 1024;
+
     /// <summary>Read and parse bounded wire lines without FluentFTP's unbounded GetListingInternal array.</summary>
     private List<FtpListItem> ReadBoundedListing(string command, string path, bool machine, CancellationToken ct, bool job)
     {
@@ -267,19 +270,34 @@ internal sealed partial class FtpChannel : ISftpChannel
         parser.Init(_client.ServerOS, _client.Config.ListingParser);
         byte[] chunk = new byte[8192];
         byte[] line = new byte[RemoteListingBudget.MaxLineBytes];
-        int lineLength = 0, wireBytes = 0, lines = 0;
+        int lineLength = 0, wireBytes = 0, other = 0;
+        FtpDataStream data;
+        try { data = _client.OpenListingData(command); }
+        catch (FtpCommandException ex) when (ex.CompletionCode is "550" or "450" && SaysNothingToList(ex) && _client.DirectoryExists(path))
+        {
+            // Some servers refuse to list an empty folder, as FluentFTP's own listing allows for (review finding R-M10);
+            // a folder that is not there, or a refusal for any other reason, is still an error.
+            return items;
+        }
+        bool settled = false;
         try
         {
-            using (var stream = _client.OpenListingData(command))
+            using (var stream = data)
             {
                 void ParseLine()
                 {
                     if (lineLength > 0 && line[lineLength - 1] == '\r') lineLength--;
                     if (lineLength == 0) return;
-                    if (++lines > budget.EntryLimit) throw budget.Exceeded();
                     string raw = _client.Encoding.GetString(line, 0, lineLength);
                     var item = parser.ParseSingleLine(path, raw, _client.Capabilities, machine);
-                    if (item is null || item.Name is "." or "..") return;
+                    // A "total" line, the folder itself or its parent (MLSD's cdir and pdir) is no entry, and a folder at the
+                    // entry limit still lists (R-M10); such lines have a bound of their own.
+                    if (item is null || item.Name is "." or ".." ||
+                        item.SubType is FtpObjectSubType.SelfDirectory or FtpObjectSubType.ParentDirectory)
+                    {
+                        if (++other > MaxOtherListingLines) throw budget.Exceeded();
+                        return;
+                    }
                     budget.Add(item.Name);
                     items.Add(item);
                 }
@@ -302,19 +320,31 @@ internal sealed partial class FtpChannel : ISftpChannel
                 if (lineLength > 0) ParseLine();
             }
             // OpenDataStream returns only the data stream. Its 226 completion remains on the control channel after the
-            // data socket closes; consume and validate it before the next PASV/metadata command uses this connection.
-            var reply = _client.GetReply();
-            if (!reply.Success)
-                throw new IOException($"The server did not finish the listing: {reply.Message} ({reply.Code})");
+            // data socket closes; consume and validate it before the next PASV/metadata command uses this connection. A
+            // server with nothing to send may have given its final reply in place of a preliminary one already.
+            if (data.CommandStatus.Type == FtpResponseType.PositivePreliminary)
+            {
+                var reply = _client.GetReply();
+                settled = true;
+                if (!reply.Success)
+                    throw new IOException($"The server did not finish the listing: {reply.Message} ({reply.Code})");
+            }
+            settled = true;
             return items;
         }
-        catch (RemoteListingLimitException)
+        finally
         {
-            // A deliberately truncated data transfer must not return this channel to the connection pool.
-            _client.Dispose();
-            throw;
+            // A transfer stopped before its final reply was read (cancelled, failed, or deliberately truncated at the limit)
+            // leaves that reply on the control connection, where the next command would take it for its own (review
+            // finding R-M10): the connection is closed, never returned to the pool.
+            if (!settled) _client.Dispose();
         }
     }
+
+    /// <summary>A server's refusal to list that says there is nothing to list ("550 No files found").</summary>
+    private static bool SaysNothingToList(FtpCommandException ex) =>
+        ex.Message.Contains("no files", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("empty", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("no such file", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The fields of a Unix-style listing line before the name, up to the one space that precedes it.</summary>
     [System.Text.RegularExpressions.GeneratedRegex(@"^[-bcdlps][-rwxsStTlL]{9}[+@.]?\s+\d+\s+(?:\S+\s+){1,2}\d+\s+\S{3,4}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4}) ")]
