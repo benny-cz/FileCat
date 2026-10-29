@@ -68,12 +68,36 @@ public sealed class PageView : NativeControlHost
     /// <summary>Whether the page finished loading.</summary>
     public bool PageLoaded { get; private set; }
 
+    /// <summary>
+    /// How long a page may load before it is reported as not shown: on Linux, where WebKitGTK can leave a page waiting
+    /// with no callback at all when its page process or sandbox does not start (a Low of the review of c0e9cb5a and
+    /// 97eb0e49); elsewhere the engine reports every failure itself.
+    /// </summary>
+    internal TimeSpan? LoadTimeout { get; set; } = OperatingSystem.IsLinux() ? TimeSpan.FromSeconds(30) : null;
+    private IDisposable? _loadTimer;
+    private int _loadGeneration;
+
     /// <summary>Shows a page, now or once the native view exists.</summary>
     public void Show(HtmlPage page)
     {
         _page = page;
         PageLoaded = false;
-        _engine?.Show(page);
+        if (_engine is { } engine) Load(engine, page);
+    }
+
+    private void Load(IPageEngine engine, HtmlPage page)
+    {
+        _loadTimer?.Dispose();
+        _loadTimer = null;
+        int generation = ++_loadGeneration;
+        engine.Show(page);
+        if (LoadTimeout is not { } timeout) return;
+        _loadTimer = DispatcherTimer.RunOnce(() =>
+        {
+            if (generation != _loadGeneration || PageLoaded || !ReferenceEquals(engine, _engine)) return;
+            _loadGeneration++;
+            Failed?.Invoke($"The page did not finish loading within {timeout.TotalSeconds:0} seconds: its page process may not have started.");
+        }, timeout);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -216,7 +240,7 @@ public sealed class PageView : NativeControlHost
         }
         ConnectEngine(_engine);
         Resize();
-        if (_page is { } page) _engine.Show(page);
+        if (_page is { } page) Load(_engine, page);
         // The viewer gave the page focus before its engine existed.
         if (_hasKeyboard) GiveKeysToPage();
         return _engine.Handle;
@@ -226,7 +250,7 @@ public sealed class PageView : NativeControlHost
     {
         _engine = engine;
         ConnectEngine(engine);
-        if (_page is { } page) engine.Show(page);
+        if (_page is { } page) Load(engine, page);
     }
 
     private void ConnectEngine(IPageEngine engine)
@@ -234,6 +258,8 @@ public sealed class PageView : NativeControlHost
         engine.Changed += () => Dispatcher.UIThread.Post(() => Changed?.Invoke());
         engine.Loaded += (ok, why) => Dispatcher.UIThread.Post(() =>
         {
+            _loadTimer?.Dispose();
+            _loadTimer = null;
             PageLoaded = ok;
             LoadCompleted?.Invoke(ok, why);
             if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
@@ -252,6 +278,8 @@ public sealed class PageView : NativeControlHost
         if (_engine is { } engine && ReferenceEquals(control, engine.Handle))
         {
             _engine = null;
+            _loadTimer?.Dispose();
+            _loadTimer = null;
             engine.Dispose();
             return;
         }

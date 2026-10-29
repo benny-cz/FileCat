@@ -314,6 +314,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         Connect(_view, "notify::title", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, void>)&OnTitle);
         Connect(_view, "load-changed", (nint)(delegate* unmanaged[Cdecl]<nint, int, nint, void>)&OnLoadChanged);
         Connect(_view, "load-failed", (nint)(delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, int>)&OnLoadFailed);
+        Connect(_view, "web-process-terminated", (nint)(delegate* unmanaged[Cdecl]<nint, int, nint, void>)&OnProcessTerminated);
         Connect(_view, "permission-request", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnPermission);
         Connect(_view, "button-press-event", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, int>)&OnPressed);
 
@@ -509,6 +510,27 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message);
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// The page's own process ended (WebKitWebProcessTerminationReason: crashed 0, over its memory limit 1, ended by
+    /// FileCat 2): the page is reported as not shown, where it stayed blank (a Low of the review of c0e9cb5a).
+    /// </summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnProcessTerminated(nint view, int reason, nint data)
+    {
+        try
+        {
+            const int EndedByFileCat = 2, OverMemoryLimit = 1;
+            if (reason == EndedByFileCat) return;
+            Of(data)?.Loaded?.Invoke(false, reason == OverMemoryLimit
+                ? "its page process used more memory than it may and was ended"
+                : "its page process ended unexpectedly");
+        }
+        catch (Exception ex)
+        {
+            Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message);
         }
     }
 
