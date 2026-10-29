@@ -4808,3 +4808,30 @@ remediations, two preliminary closures, 20 unresolved**. Evidence index
 **902**. Acceptance ledger **57 cases: 35 Accepted, 10 Open, one Failed,
 nine Blocked, two Optional**. No release was created or published; stable
 publication remains NO-GO.
+
+## 2026-10-29 — contained Markdown links and Page-state correction
+
+The owner reported that a local Markdown link had only a tooltip. The first
+separate-viewer implementation opened the target, but the originating Windows
+viewer fell from Page to Text and its Page button could not restore it. A
+controlled Windows 11 VMware case reproduced the false failure: WebView2 sent
+two `OperationCanceled` load completions for host-handled link navigation.
+Commit `3a1c118c` suppresses only those cancellation completions and limits
+clickable disk-file links to contained Markdown targets. The owner then
+confirmed a real Windows click works. [I563](evidence/E-I563-markdown-linked-viewer.md)
+retains the initial failure, exact corrected Windows VM test, macOS WKWebView
+and Ubuntu WebKitGTK native controls, raw hashes and the owner observation.
+The first uncontained path approach was rejected by automatic approval review;
+the implemented resolver rejects traversal and checks symlink-resolved
+containment.
+
+**Convergence:** I563-MARKDOWN-LINK-SOURCE newly Accepted at preliminary
+source/native scope. No previous child case reopened. GATE-CI-FINAL remains
+Open on the new product head; exact frozen installed-candidate click and
+original Page preservation remain under REL-FQ-CORE. Nine external/candidate
+cases remain Blocked. Issue register **563 IDs: 541 preliminary remediations,
+two preliminary closures, 20 unresolved**. Evidence index **903**. Acceptance
+ledger **58 cases: 36 Accepted, 10 Open, one Failed, nine Blocked, two
+Optional**. The next eligible action is the exact hosted-package native start
+and composition review, followed by corrected-source CI and a fresh preview
+tag decision. No release was created; stable publication remains NO-GO.
