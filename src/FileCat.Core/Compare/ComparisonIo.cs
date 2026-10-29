@@ -84,4 +84,8 @@ public sealed class ComparisonIo(DeviceIoScheduler io, ProviderRegistry provider
 
     public Task<FolderContents?> ReadFolderContentsAsync(Location inside, CancellationToken ct)
         => Run(providers.For(inside), inside, ct, () => FolderContents.Read(inside.Path, ct));
+
+    /// <summary>The review of an item on one side only, for a removal to check (it reads the item's bytes), on that device's worker.</summary>
+    public Task<T> ReviewAsync<T>(ResourceProvider provider, Location folder, Func<T> review, CancellationToken ct)
+        => Run(provider, folder, ct, review);
 }

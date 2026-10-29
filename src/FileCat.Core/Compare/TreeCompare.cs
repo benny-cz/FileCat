@@ -139,9 +139,11 @@ public static class TreeCompare
             if (!folder.IsFileSystem) return entry;
             string? path = provider.GetItemRef(folder, data).FileSystemPath;
             if (path is null) return entry;
-            var review = remainingReviewItems <= 0 ? null : FileTreeReview.Capture(path, files ?? new PortableFileOperations(), provider,
+            FileTreeReview? Capture() => remainingReviewItems <= 0 ? null : FileTreeReview.Capture(path, files ?? new PortableFileOperations(), provider,
                 ct.ThrowIfCancellationRequested, byteLimit: Math.Min(remainingReviewBytes, JournalRecovery.StagedReviewByteLimit),
                 itemLimit: Math.Min(remainingReviewItems, 1000), allowLinks: true);
+            // It reads the item's bytes and final path: on the device's worker, as the listings are.
+            var review = io is null ? Capture() : await io.ReviewAsync(provider, folder, Capture, ct).ConfigureAwait(false);
             if (review is not null) { remainingReviewItems -= review.Items.Count; remainingReviewBytes -= review.Bytes; }
             entry = entry with { RemovalReview = review is null ? null : new ReviewedSourceTree(review, provider) };
             if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
