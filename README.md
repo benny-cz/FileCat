@@ -1,11 +1,11 @@
 # FileCat
 
-**A file manager for the work that outgrows one window.**
+**Find, inspect, move, and recover files—with a clear view of the result.**
 
-Arrange folders in two or more panels, keep your places in tabs, and move through files with the
-keyboard or mouse. FileCat brings the familiar Commander workflow to everyday copying, searching
-and comparing, then keeps going: inspect large files, work across archives and remote servers,
-verify downloads, and recover deleted files from supported disks and images.
+FileCat is a Commander-style file manager for everyday copying, searching and comparing. Keep
+several places in view with panels and tabs, and work by keyboard or mouse. When a task calls for
+more, inspect large files, work across archives and remote servers, verify downloads, or recover
+deleted files from supported disks and images.
 
 FileCat shows the destination before an operation starts and distinguishes completed work from
 failures and uncertainty afterward. It is built with **C# · .NET 10 · Avalonia 12** and is
