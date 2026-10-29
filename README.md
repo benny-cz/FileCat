@@ -2,11 +2,13 @@
 
 **A file manager for everyday work, with serious tools when you need to go deeper.**
 
-Built for Windows, Ubuntu and macOS, FileCat follows each system's file and desktop conventions:
-Recycle Bin or Trash, permissions and metadata, download-origin marks and credential stores. Copy,
-search and compare files by keyboard or mouse. Commander-style panels and tabs keep several places
-in view. For more demanding tasks, inspect large files, work across archives and remote servers,
-verify downloads, or recover deleted files from supported disks and images.
+FileCat is a multi-panel, multi-tab file manager for Windows, Ubuntu and macOS. Browse local disks,
+removable storage, archives and remote servers in one workspace; on Windows, reach phones and
+cameras too.
+Search and compare files, recover deleted data from supported NTFS, FAT and exFAT disks or images,
+and go deeper with text and hex viewers, a hex editor, and inspectors for executables, images,
+audio and video. FileCat follows each operating system's native file behavior and makes platform
+and location limits clear.
 
 FileCat shows the destination before an operation starts and distinguishes completed work from
 failures and uncertainty afterward. It is built with **C# · .NET 10 · Avalonia 12** and is
@@ -142,10 +144,10 @@ to see it at full size. The macOS and Ubuntu views are [near the top](#filecat).
 | [![Cyberpunk theme on Windows](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![Psychedelic theme on Windows](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
 | **Steampunk** | **DOS Commander** |
 | [![Steampunk theme on Windows](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) | [![DOS Commander theme on Windows](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) |
-| **High Contrast** | **System (light on this guest)** |
+| **High Contrast** | **System** |
 | [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![System theme on Windows](docs/screenshots/windows/System.png)](docs/screenshots/windows/System.png) |
 
-System adapts to the operating system; this Windows guest uses a light palette.
+The System theme follows the operating system's appearance.
 [Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
 
 All ten gallery images render FileCat's MainWindow on their named operating systems. They show
