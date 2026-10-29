@@ -15,7 +15,7 @@ namespace FileCat.App.Views;
 public sealed record SyncContext(
     string LeftName, string RightName,
     bool LeftWritable, bool RightWritable, bool LeftRecycles, bool RightRecycles, bool IgnoresCase,
-    Func<IReadOnlyList<SyncItem>, bool, bool, bool> Submit)
+    Func<IReadOnlyList<SyncItem>, bool, bool, bool> Submit, bool LeftReplaces = true, bool RightReplaces = true)
 {
     /// <summary>Why the side cannot receive a synchronization, or null.</summary>
     public string? WhyNotTarget(bool left) => (left ? LeftWritable : RightWritable)
@@ -200,7 +200,8 @@ public sealed class SyncWindow : Window
             ClearPermanentConsent();
             _planNotice = "Plan rebuilt for the current direction and mode. Choices for matching actions were kept; changed actions returned to their defaults. Review the included steps again.";
         }
-        _items = SyncPlanner.Propose(_comparison, SourceIsLeft, Mode, _context.IgnoresCase);
+        _items = SyncPlanner.Propose(_comparison, SourceIsLeft, Mode, _context.IgnoresCase,
+            SourceIsLeft ? _context.RightReplaces : _context.LeftReplaces);
         foreach (var item in _items)
             if (_reviewedChoices.TryGetValue((item.Entry, SourceIsLeft, item.Action), out bool include)) item.Include = include;
         _planBuilt = true;

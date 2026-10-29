@@ -413,9 +413,11 @@ public sealed partial class MainViewModel
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { overlap = unknown; }
         }
         if (!current() || ct.IsCancellationRequested) return;
+        // Where files cannot be replaced bound to what was compared, the plan keeps them rather than a step refusing later.
+        bool Replaces(Location l) => l.IsFileSystem && Services.Platform.FileOperations.CanReplaceReviewed(l.Path);
         var sync = overlap is not null ? null : new Views.SyncContext(leftName, rightName, Writable(lloc, lcaps), Writable(rloc, rcaps),
             (lcaps & LocationCapabilities.Recycle) != 0, (rcaps & LocationCapabilities.Recycle) != 0, OperatingSystem.IsWindows(),
-            (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc));
+            (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc), Replaces(lloc), Replaces(rloc));
         Views.DirectoryDiffWindow.StartAsync(leftName, rightName,
             $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed." +
             (overlap is null ? "" : $" Synchronize is not offered. {overlap}"),

@@ -254,6 +254,26 @@ public sealed class SyncTests : IDisposable
     }
 
     [Fact]
+    public void A_target_that_cannot_replace_keeps_its_changed_files_in_the_plan()
+    {
+        // Linux, macOS and network shares replace no file (the owner's policy of 2b62355f): the plan keeps each file that
+        // differs before anything runs, not a step refusing after its copy (review finding F-H2 of f134ba37).
+        var (left, right) = Trees();
+        var comparison = Compare(Providers(), left, right);
+        foreach (var mode in new[] { SyncMode.Update, SyncMode.Mirror })
+        {
+            var by = ByPath(SyncPlanner.Propose(comparison, sourceIsLeft: true, mode, targetIgnoresCase: OperatingSystem.IsWindows(),
+                targetReplaces: false));
+            foreach (string kept in new[] { "b.txt", "d.txt", "g.txt" })
+            {
+                Assert.False(by[kept].CanInclude, kept);
+                Assert.Contains("not replaced", by[kept].Reason, StringComparison.Ordinal);
+            }
+            Assert.Equal(SyncAction.Copy, by["a.txt"].Action);
+        }
+    }
+
+    [Fact]
     public async Task Update_copies_new_and_newer_items_and_removes_nothing()
     {
         var (left, right) = Trees();

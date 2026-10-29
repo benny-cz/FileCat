@@ -58,7 +58,11 @@ public static class SyncPlanner
         return null;
     }
 
-    public static List<SyncItem> Propose(TreeCompareResult comparison, bool sourceIsLeft, SyncMode mode, bool targetIgnoresCase)
+    /// <param name="targetReplaces">Whether files in the target can be replaced, bound to what was compared (a local
+    /// Windows drive). Where they cannot (Linux, macOS, network shares: the owner's policy of 2b62355f), a file that
+    /// differs is kept, and the plan says so before anything runs.</param>
+    public static List<SyncItem> Propose(TreeCompareResult comparison, bool sourceIsLeft, SyncMode mode, bool targetIgnoresCase,
+        bool targetReplaces = true)
     {
         var differences = comparison.Entries.Where(e => e.IsDifference).ToList();
         var collisions = targetIgnoresCase ? CaseCollisions(comparison.Entries) : [];
@@ -81,9 +85,12 @@ public static class SyncPlanner
             bool unread = e.Contents is null && (e.Left ?? e.Right) is { Kind: EntryKind.Directory } folder && !folder.Has(EntryFlags.Link);
             bool unreviewed = e.RemovalReview is null;
             string holds = e.Contents is { } contents ? $" ({contents.Describe()})" : "";
+            const string NotReplaced = "files here are not replaced (FileCat replaces files only on a local Windows drive): kept";
             SyncItem item = e.Kind switch
             {
                 var k when k == sourceOnly => new(e, SyncAction.Copy, true, e.IsFolder ? "Only in the source: the folder is copied with its contents" + holds : "Only in the source"),
+                var k when !targetReplaces && (k == sourceNewer || k == targetNewer || k == TreeDiffKind.Different) =>
+                    new(e, SyncAction.None, false, (k == sourceNewer ? "Newer in the source" : k == targetNewer ? "Newer in the target" : "Different") + ", but " + NotReplaced),
                 var k when k == sourceNewer => new(e, SyncAction.ReplaceOlder, true, "Newer in the source"),
                 var k when k == targetOnly && mode == SyncMode.Mirror && unread =>
                     new(e, SyncAction.None, false, "Only in the target, but the comparison did not read all it holds: Mirror leaves it"),

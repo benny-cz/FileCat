@@ -180,11 +180,17 @@ public sealed class DirectoryDiffTests(ITestOutputHelper output)
             Assert.Single(CompareWindow.OpenWindows, ChangedTxt).Close();
 
             var sync = diff.OpenSync()!;
-            Assert.StartsWith("Will copy 1, replace 1.", sync.Summary);
+            // Files are replaced only on a local Windows drive (the owner's policy of 2b62355f); elsewhere the plan keeps
+            // them, before anything runs.
+            bool replaces = services.Platform.FileOperations.CanReplaceReviewed(r);
+            string planned = replaces ? "Will copy 1, replace 1" : "Will copy 1";
+            Assert.StartsWith(planned + ".", sync.Summary);
+            if (!replaces)
+                Assert.Contains("not replaced", Assert.Single(sync.Items, i => i.Entry.RelativePath == "changed.txt").Reason, StringComparison.Ordinal);
             sync.Choose(sourceIsLeft: true, SyncMode.Mirror);
             Assert.Single(sync.Items, i => i.Action == SyncAction.Remove && i.Include);
             // Without a Recycle Bin (the portable test platform), removals wait for an explicit permanent deletion.
-            Assert.StartsWith(sync.TargetRecycles ? "Will copy 1, replace 1, remove 1." : "Will copy 1, replace 1.", sync.Summary);
+            Assert.StartsWith(sync.TargetRecycles ? planned + ", remove 1." : planned + ".", sync.Summary);
             // The user keeps the extra item, by keyboard (Space on the step): Mirror removes only what stays chosen.
             var steps = sync.GetVisualDescendants().OfType<ListBox>().Single();
             for (int i = 0; i < 250 && sync.FocusManager?.GetFocusedElement() is not ListBoxItem; i++) await Task.Delay(20, ct);
@@ -206,13 +212,15 @@ public sealed class DirectoryDiffTests(ITestOutputHelper output)
                 try { return File.ReadAllText(path); }
                 catch (IOException) { return null; }
             }
-            for (int i = 0; i < 500 && !(File.Exists(Path.Combine(r, "sub", "new.txt")) && Read(Path.Combine(r, "changed.txt")) == "newer"); i++)
+            string expected = replaces ? "newer" : "old";
+            for (int i = 0; i < 500 && !(File.Exists(Path.Combine(r, "sub", "new.txt")) && Read(Path.Combine(r, "changed.txt")) == expected); i++)
                 await Task.Delay(20, ct);
             for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
             // Release issue I22: this failed once in an unelevated Windows 11 VM ("old" after the run); say what the jobs did.
             string Jobs() => $"Adapter {services.Platform.FileOperations.GetType().FullName}; " + string.Join("; ", services.Jobs.Jobs.Select(j => $"{j.Title}: {j.State} [{string.Join(", ", j.Issues.Select(x => $"{x.Outcome} {Path.GetFileName(x.Path)}: {x.Message}"))}]; decision {j.Decision?.Request.ClassKey}: {j.Decision?.Request.Title}: {j.Decision?.Request.Message}"));
             Assert.True(File.ReadAllText(Path.Combine(r, "sub", "new.txt")) == "new", Jobs());
-            Assert.True(File.ReadAllText(Path.Combine(r, "changed.txt")) == "newer", $"changed.txt reads \"{File.ReadAllText(Path.Combine(r, "changed.txt"))}\"; {Jobs()}");
+            Assert.True(File.ReadAllText(Path.Combine(r, "changed.txt")) == expected, $"changed.txt reads \"{File.ReadAllText(Path.Combine(r, "changed.txt"))}\"; {Jobs()}");
+            Assert.DoesNotContain(services.Jobs.Jobs, j => j.Decision is not null);
             Assert.True(File.Exists(Path.Combine(r, "extra.txt")));
             if (openTarget is not null)
             {
