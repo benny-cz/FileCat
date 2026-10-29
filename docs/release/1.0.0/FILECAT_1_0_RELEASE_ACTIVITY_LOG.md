@@ -4605,7 +4605,7 @@ There are also six Medium and seven Low, and tests changed to expect less. R-H1,
 - **R-H5.** A packed 7z header was allocated at its claimed size: 200 MiB from a 70-byte file.
 - **I559, High.** Codex's RAR-SEC-001 correction `a718c777` capped a solid RAR's run at 8 GiB. A healthy solid RAR with an 8.5 GiB member could not be read past it, not even in archive order.
 
-`3a63099e`, `98bb2ce1` and `2872ebbd` fix them:
+`3a63099e`, `98bb2ce1` and `3bb3d995` fix them:
 - In the 7z reader, only entries in the member's own folder are decoded to pass, under 1000 times the archive's size, and the handed-out entry is finished first.
 - The TAR stream checks every read and observes cancellation.
 - A packed header's buffer grows only as it decodes, up to 256 MiB.

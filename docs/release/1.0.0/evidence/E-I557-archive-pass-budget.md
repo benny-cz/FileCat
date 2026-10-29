@@ -1,6 +1,6 @@
 # E-I557 — what the archive readers decode to pass members; 7z members kept aligned; packed 7z headers (R-H5)
 
-**Engineering for I557, I558, I559 and review finding R-H5, on `main` at `3a63099e`, `98bb2ce1` and `2872ebbd` (2026-10-29). Preliminary component evidence; not hosted CI of these commits, candidate qualification or release GO.**
+**Engineering for I557, I558, I559 and review finding R-H5, on `main` at `3a63099e`, `98bb2ce1` and `3bb3d995` (2026-10-29). Preliminary component evidence; not hosted CI of these commits, candidate qualification or release GO.**
 
 ## How they were found
 
@@ -48,12 +48,12 @@ Codex's `a718c777` corrects RAR-SEC-001 in `RarReader.OpenDecoded`. Each earlier
 
 Observed on this host with a solid RAR 5 that WinRAR 7.01 made (`a -s -ds -m1`): an 8.5 GiB member of random bytes (9,126,805,504), then a 13-byte one.
 
-| Opening the 13-byte member | At `a718c777` | With the fix (`2872ebbd`) |
+| Opening the 13-byte member | At `a718c777` | With the fix (`3bb3d995`) |
 |---|---|---|
 | After reading the 8.5 GiB member whole (88–94 s) | Refused at once: "The member is larger than FileCat extracts in one piece." | 13 bytes, at once |
 | Directly | Refused after 78 s of decoding | 13 bytes, after 99 s of decoding |
 
-**Fix (`2872ebbd`).** The run is bounded by its expansion ratio alone: `long.MaxValue` in place of the 8 GiB cap. Each member is still held to its own declared size, so the cap added no protection, only the refusal. All 232 RAR tests pass, including Codex's two bomb tests (a 66 MiB predecessor; two 33 MiB ones). The 8.5 GiB case takes minutes, so it is recorded here rather than added to the suite.
+**Fix (`3bb3d995`).** The run is bounded by its expansion ratio alone: `long.MaxValue` in place of the 8 GiB cap. Each member is still held to its own declared size, so the cap added no protection, only the refusal. All 232 RAR tests pass, including Codex's two bomb tests (a 66 MiB predecessor; two 33 MiB ones). The 8.5 GiB case takes minutes, so it is recorded here rather than added to the suite.
 
 ## Tests and fixtures
 
