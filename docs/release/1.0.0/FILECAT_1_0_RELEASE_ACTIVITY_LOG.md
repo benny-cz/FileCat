@@ -4688,6 +4688,6 @@ The owner stopped the concurrent Codex agent, so its open findings pass to the r
 
 These product changes reopen GATE-CI-FINAL until the run on their head passes.
 
-**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 34 Accepted and 11 Open.
+**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open (I555 accepted, GATE-CI-FINAL reopened).
 
 Stable publication remains NO-GO.
