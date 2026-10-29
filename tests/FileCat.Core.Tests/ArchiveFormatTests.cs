@@ -63,6 +63,7 @@ public sealed class ArchiveFormatTests : IDisposable
     [InlineData("Rar5.multi.part03.rar")]
     [InlineData("7Zip.LZMA2.7z")]
     [InlineData("7Zip.solid.7z")]
+    [InlineData("7Zip.PPMd.7z")]
     [InlineData("Tar.tar.xz")]
     [InlineData("Tar.tar.zst")]
     public void Every_format_lists_the_same_tree_and_extracts_the_same_bytes(string fixture)
@@ -83,7 +84,7 @@ public sealed class ArchiveFormatTests : IDisposable
     public void Solid_archives_give_the_same_bytes_in_any_order()
     {
         var (_, archives, _) = Providers();
-        foreach (var fixture in new[] { "7Zip.solid.7z", "Rar5.solid.rar", "Tar.tar.xz" })
+        foreach (var fixture in new[] { "7Zip.solid.7z", "7Zip.PPMd.7z", "Rar5.solid.rar", "Tar.tar.xz" })
         {
             var root = archives.GetContainerLocation(Path.Combine(Fixtures, fixture))!;
             // Backwards first (every read restarts the cursor), then forwards.

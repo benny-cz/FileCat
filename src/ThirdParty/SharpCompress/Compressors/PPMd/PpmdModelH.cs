@@ -121,6 +121,9 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>The range decoder the model codes through; its owner starts it where each run of coded data starts.</summary>
     public TDecoder Coder;
 
+    /// <summary>How often the model was started afresh: once at its first symbol, then each time its memory filled up.</summary>
+    internal int Starts { get; private set; }
+
     private static InvalidDataException Damaged(string what) => PpmdModelH.Damaged(what);
 
     /// <summary>
@@ -514,6 +517,7 @@ internal sealed class PpmdModelH<TDecoder>
     private void Restart()
     {
         if (_maxOrder == 0) throw new InvalidOperationException("The PPMd model is not set up.");
+        Starts++;
         Array.Clear(_charMask);
         _escCount = 1;
         _initRL = _maxOrder < 12 ? -_maxOrder - 1 : -12 - 1;

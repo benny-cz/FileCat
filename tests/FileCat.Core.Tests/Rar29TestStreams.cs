@@ -193,8 +193,12 @@ internal sealed class Rar3PpmdTestStream
     }
 }
 
-/// <summary>The PPMd variant H model of <c>PpmdModelH</c> (RAR's <c>Rar3Ppmd</c>), encoding instead of decoding.</summary>
-internal sealed class Rar3PpmdTestEncoder
+/// <summary>
+/// The PPMd variant H model of <c>PpmdModelH</c> (RAR's <c>Rar3Ppmd</c>), encoding instead of decoding: with RAR's range
+/// coder, or with 7-Zip's PPMd7z coder (<paramref name="sevenZip"/>, the LZMA SDK's range encoder as Ppmd7z_RangeEnc uses
+/// it), which can also write 7z's end mark.
+/// </summary>
+internal sealed class Rar3PpmdTestEncoder(bool sevenZip = false)
 {
     private const uint RangeTop = 1 << 24;
     private const uint RangeBottom = 1 << 15;
@@ -231,6 +235,9 @@ internal sealed class Rar3PpmdTestEncoder
     private List<byte> _output = [];
     private uint _low;
     private uint _range;
+    private ulong _low7z;      // 7-Zip's coder: a 33-bit low with its carry,
+    private byte _cache;       // the byte waiting for that carry,
+    private long _cacheSize;   // and the bytes behind it
 
     private State[] _states = [];
     private int _stateCount;
@@ -257,13 +264,19 @@ internal sealed class Rar3PpmdTestEncoder
     private readonly int[] _unmasked = new int[256];
     private readonly int[] _chain = new int[256];
 
-    public void Start(List<byte> output, bool reset, int maxOrder, int megabytes)
+    public void Start(List<byte> output, bool reset, int maxOrder, int megabytes) => StartBytes(output, reset, maxOrder, megabytes << 20);
+
+    /// <summary>As <see cref="Start"/>, with the model memory in bytes (7z names any size).</summary>
+    public void StartBytes(List<byte> output, bool reset, int maxOrder, int memoryBytes)
     {
         _output = output;
         _low = 0;
         _range = uint.MaxValue;
+        _low7z = 0;
+        _cache = 0;
+        _cacheSize = 1;
         if (!reset) return;
-        InitAllocator(megabytes);
+        InitAllocator(memoryBytes);
         _maxOrder = maxOrder;
         _prevSym = 0;
         _context = 0;
@@ -271,6 +284,11 @@ internal sealed class Rar3PpmdTestEncoder
 
     public void Flush()
     {
+        if (sevenZip)
+        {
+            for (int i = 0; i < 5; i++) ShiftLow();
+            return;
+        }
         for (int i = 0; i < 4; i++)
         {
             _output.Add((byte)(_low >> 24));
@@ -278,7 +296,16 @@ internal sealed class Rar3PpmdTestEncoder
         }
     }
 
-    public void EncodeByte(byte symbol)
+    public void EncodeByte(byte symbol) => EncodeSymbol(symbol);
+
+    /// <summary>The end mark of 7z: escapes from every context down to and out of the order-0 one (7-Zip's symbol -1).</summary>
+    public void EncodeEnd()
+    {
+        if (!sevenZip) throw new InvalidOperationException("RAR's PPMd has no end mark.");
+        EncodeSymbol(-1);
+    }
+
+    private void EncodeSymbol(int symbol)
     {
         if (_context == 0) Restart();
         int minC = _context;
@@ -291,19 +318,36 @@ internal sealed class Rar3PpmdTestEncoder
             {
                 _orderFall++;
                 minC = Suffix(minC);
-                if (minC == 0) throw new InvalidOperationException("The model cannot code this symbol.");
+                if (minC == 0)
+                {
+                    if (symbol < 0) return; // the end mark is coded
+                    throw new InvalidOperationException("The model cannot code this symbol.");
+                }
             }
             while (NumStates(minC) == masked);
             found = EncodeSymbol2(minC, masked, symbol);
         }
         _context = Update(minC, maxC, found);
-        _prevSym = symbol;
+        _prevSym = (byte)symbol;
     }
 
-    // ---- Range encoder (the decoder's mirror image) ----
+    // ---- Range encoders (the decoders' mirror images) ----
 
     private void Encode(uint lowCount, uint highCount, uint scale)
     {
+        if (sevenZip)
+        {
+            // Range_Encode of Ppmd7z_RangeEnc: start lowCount, size highCount - lowCount, total scale.
+            _range /= scale;
+            _low7z += lowCount * _range;
+            _range *= highCount - lowCount;
+            while (_range < RangeTop)
+            {
+                _range <<= 8;
+                ShiftLow();
+            }
+            return;
+        }
         _range /= scale;
         unchecked
         {
@@ -323,7 +367,52 @@ internal sealed class Rar3PpmdTestEncoder
         }
     }
 
-    private int EncodeBinSymbol(int context, byte symbol)
+    /// <summary>A binary context's decision: RAR codes it as an interval of the bin scale, 7-Zip as a bit.</summary>
+    private void EncodeBit(uint size0, bool one)
+    {
+        if (!sevenZip)
+        {
+            if (one) Encode(size0, BinScale, BinScale);
+            else Encode(0, size0, BinScale);
+            return;
+        }
+        uint bound = (_range >> (IntBits + PeriodBits)) * size0;
+        if (one)
+        {
+            _low7z += bound;
+            _range -= bound;
+        }
+        else
+        {
+            _range = bound;
+        }
+        while (_range < RangeTop)
+        {
+            _range <<= 8;
+            ShiftLow();
+        }
+    }
+
+    /// <summary>RangeEnc_ShiftLow of the LZMA SDK: a byte goes out once no carry can change it.</summary>
+    private void ShiftLow()
+    {
+        if ((uint)_low7z < 0xFF000000 || (_low7z >> 32) != 0)
+        {
+            byte carry = (byte)(_low7z >> 32);
+            byte pending = _cache;
+            do
+            {
+                _output.Add(unchecked((byte)(pending + carry)));
+                pending = 0xFF;
+            }
+            while (--_cacheSize != 0);
+            _cache = (byte)((uint)_low7z >> 24);
+        }
+        _cacheSize++;
+        _low7z = (uint)_low7z << 8;
+    }
+
+    private int EncodeBinSymbol(int context, int symbol)
     {
         int s = context + 1;
         int i = _prevSuccess + s_ns2BSIndex[NumStates(Suffix(context)) - 1] + ((_runLength >> 26) & 0x20);
@@ -334,14 +423,14 @@ internal sealed class Rar3PpmdTestEncoder
         int mean = (ushort)(bs + (1 << (PeriodBits - 2))) >> PeriodBits;
         if (_states[s].Symbol == symbol)
         {
-            Encode(0, bs, BinScale);
+            EncodeBit(bs, one: false);
             if (_states[s].Freq < 128) _states[s].Freq++;
             _binSumm[index] = unchecked((ushort)(bs + (1 << IntBits) - mean));
             _prevSuccess = 1;
             _runLength = unchecked(_runLength + 1);
             return s;
         }
-        Encode(bs, BinScale, BinScale);
+        EncodeBit(bs, one: true);
         bs = unchecked((ushort)(bs - mean));
         _binSumm[index] = bs;
         _initEsc = s_expEscape[bs >> 10];
@@ -350,7 +439,7 @@ internal sealed class Rar3PpmdTestEncoder
         return -1;
     }
 
-    private int EncodeSymbol1(int context, byte symbol)
+    private int EncodeSymbol1(int context, int symbol)
     {
         int count = GetStates(context, out int start);
         uint scale = SummFreq(context);
@@ -388,7 +477,7 @@ internal sealed class Rar3PpmdTestEncoder
         return -1;
     }
 
-    private int EncodeSymbol2(int context, int numMasked, byte symbol)
+    private int EncodeSymbol2(int context, int numMasked, int symbol)
     {
         int see = MakeEscFreq(context, numMasked);
         uint scale = SeeMean(see);
@@ -427,9 +516,8 @@ internal sealed class Rar3PpmdTestEncoder
 
     // ---- From here on, the model exactly as PpmdModelH has it (without its damage checks) ----
 
-    private void InitAllocator(int megabytes)
+    private void InitAllocator(int bytes)
     {
-        int bytes = megabytes << 20;
         int heap2Units = bytes / 8 / UnitSize * 7;
         _heap1MaxBytes = bytes - heap2Units * UnitSize;
         int heap1Units = _heap1MaxBytes / UnitSize + 1;

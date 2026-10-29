@@ -31,6 +31,8 @@ public sealed class ArchiveFuzzTests : IDisposable
     [InlineData("gz")]
     [InlineData("7Zip.LZMA2.7z")]
     [InlineData("7Zip.solid.7z")]
+    [InlineData("7Zip.PPMd.7z")]             // 7z's PPMd: FileCat's shared PPMd variant H model with 7-Zip's coder
+    [InlineData("FileCat.PPMd.o2.m64k.7z")]  // ...in 64 KiB of model memory, which restarts it again and again
     [InlineData("Rar.rar")]
     [InlineData("Rar5.rar")]
     [InlineData("Rar5.solid.rar")]

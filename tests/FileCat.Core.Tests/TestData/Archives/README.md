@@ -35,6 +35,33 @@ Each holds one 4,096-byte file, `alpha.txt` (all zero bytes) or `omega.txt`
 `7931db9acac5fd0124f8189684fa71e10cf20b767caee3c29e282d314b88e419` and
 `9ba572ab801806f6cf4151fb358c24f7a7f10cfedfa3229d5115cb1cc76efc48`, respectively.
 
+`7Zip.PPMd.7z` comes unchanged from SharpCompress 0.50.5, commit `e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626`
+(same MIT license above): fetched by its Git blob ID `d39fd63d4f02e4e4a8e96c24c11ef2a7188662de` and rehashed with
+`git hash-object` to that ID (59,761 bytes, SHA-256
+`8a0a027b14d9eb3cab2910525d422a1acd444d92daa05a4a27e2406be32a9b27`). It holds the same three files as the other
+SharpCompress fixtures in two PPMd folders (order 6, 16 MiB of model memory; the executable's with BCJ).
+
+`FileCat.PPMd.*.7z` are FileCat-owned 7z PPMd fixtures, and `FileCat.PPMd.json` pins them, generated with
+`python -I eng/make-ppmd-fixtures.py tests/FileCat.Core.Tests/TestData/Archives` and 7-Zip 24.01 (x64). The script
+generates their members itself, the same bytes on every machine: seeded text (`text.txt`, 256 KiB; `large.txt`,
+768 KiB; `notes/readme.txt`), binary records (`data/records.bin`, 96 KiB) and an empty `empty.txt`. 7-Zip packs
+them with `a -t7z -m0=PPMd:o=ORDER:mem=MEMORY -ms=off|on -mtc=off -mta=off -mtm=off -mhc=on`:
+
+- `FileCat.PPMd.o2.m64k.7z`: order 2 in 64 KiB, the least model memory 7-Zip writes (`text.txt`, four times as
+  large, restarts the model);
+- `FileCat.PPMd.o16.m1m.7z`: order 16 in 1 MiB, two members, each its own folder;
+- `FileCat.PPMd.o32.m4m.7z`: order 32, the highest 7-Zip writes, in 4 MiB (7-Zip lowers a larger memory to
+  sixteen times its input, so the archive records 4 MiB);
+- `FileCat.PPMd.solid.7z`: order 8 in 8 MiB, solid (`-ms=on`): four members in one folder, the empty one included;
+- `FileCat.PPMd.restarts.7z`: order 6 in 256 KiB, one member (`large.txt`) three times the model memory, which
+  restarts the model 51 times.
+
+The script then extracts every PPMd fixture (these and `7Zip.PPMd.7z`) with 7-Zip into a new folder and records
+each archive's SHA-256, 7-Zip's coder listing and every extracted member's size and SHA-256 in `FileCat.PPMd.json`.
+`SevenZipPpmdTests` requires FileCat's archive path and upstream SharpCompress to read exactly those members, and
+extracts with 7-Zip again where it is installed. The fixtures are not reproducible byte for byte with other 7-Zip
+versions; their pins are what the tests check.
+
 The other `Rar*` fixtures (RAR 1.5 through 5, stored, solid, multi-volume under both naming
 schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damaged
 `Rar.malformed_512byte.rar` and `Rar.issue1050.rar`) come unchanged from SharpCompress 0.50.5,
