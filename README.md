@@ -134,8 +134,8 @@ does not make every parser a full sandbox.
 Choose **View → Theme…** to preview a theme on FileCat itself. Press Enter to keep it or Esc to return.
 Animated effects can be turned off, and system high contrast takes priority.
 
-Every Windows theme is shown below, with four panels and three tabs in each panel. Select an image
-to see it at full size. The macOS and Ubuntu views are [near the top](#filecat).
+Seven Windows themes and Classic Dark on macOS are shown below, with four panels and three tabs in
+each panel. Select an image to see it at full size. The Ubuntu view is [near the top](#filecat).
 
 | **Classic** | **Classic Dark** |
 |---|---|
@@ -144,13 +144,12 @@ to see it at full size. The macOS and Ubuntu views are [near the top](#filecat).
 | [![Cyberpunk theme on Windows](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![Psychedelic theme on Windows](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
 | **Steampunk** | **DOS Commander** |
 | [![Steampunk theme on Windows](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) | [![DOS Commander theme on Windows](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) |
-| **High Contrast** | **System** |
-| [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![System theme on Windows](docs/screenshots/windows/System.png)](docs/screenshots/windows/System.png) |
+| **High Contrast** | **Classic Dark on macOS** |
+| [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![Classic Dark theme on macOS](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) |
 
-The System theme follows the operating system's appearance.
 [Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
 
-All ten gallery images render FileCat's MainWindow on their named operating systems. They show
+All gallery images render FileCat's MainWindow on their named operating systems. They show
 the UI at the recorded source; [release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
 tracks installed-app and native interaction checks separately.
 
