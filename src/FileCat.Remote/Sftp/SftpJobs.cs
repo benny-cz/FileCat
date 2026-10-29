@@ -441,7 +441,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     private void DeletePublishedLocalSource(string local, string destFolder, string name, FileSystemItemInfo uploaded)
     {
         string held = Path.Combine(Path.GetDirectoryName(local)!, ".FileCat-move-hold-" + Guid.NewGuid().ToString("N"));
-        int step = Journal.Intent("hold-moved-local-source", local, staged: held);
+        // The held file is the user's original, never a staged copy. Journaled as a rename back to its own name through
+        // the hold name, and durably before the move: after a crash, interrupted-job review puts it back under its name,
+        // or keeps it and says where; it never offers to delete it (review finding R-H1).
+        int step = Journal.RenameVia(local, local, held);
+        Journal.Flush();
         bool moved = false;
         try
         {
@@ -483,11 +487,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 catch (Exception restore) when (restore is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
+                    // The step stays open, so that interrupted-job review finds the held original and restores it.
                     Journal.RequireRecovery();
                     Journal.Note($"The published remote copy needs review; local source retained at {held}: {ErrorText.Describe(restore)}");
                 }
             }
-            Journal.Done(step, restored ? StepOutcome.PartiallyApplied : StepOutcome.Uncertain);
+            if (restored) Journal.Done(step, StepOutcome.PartiallyApplied);
             Issue(IssueSeverity.Warning, local, restored
                 ? "Copied to the server, but the local source could not be proven identical to the published copy or safely removed. It was kept here; both versions may exist. " + ErrorText.Describe(ex)
                 : $"Copied to the server, but the local source could not be restored to its original name. It is retained at {held}; review both locations before retrying. " + ErrorText.Describe(ex),

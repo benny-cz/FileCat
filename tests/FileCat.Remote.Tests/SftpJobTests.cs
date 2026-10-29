@@ -371,6 +371,46 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_move_killed_while_its_source_is_held_gets_the_source_back_and_never_offers_to_delete_it()
+    {
+        // Review finding R-H1: the original, held under another name while its published copy is verified, was journaled
+        // as a staged partial file, and interrupted-job review offered to delete it.
+        const string original = "the only local copy";
+        string file = LocalFile("held-at-kill.txt", original);
+        _server.Dir("/up");
+        string journals = Path.Combine(_dir, "journal"), atKill = Directory.CreateDirectory(Path.Combine(_dir, "journal-at-kill")).FullName;
+        string? held = null;
+        _ops.AfterMove = (source, to) =>
+        {
+            if (source != file || !Path.GetFileName(to).StartsWith(".FileCat-move-hold-", StringComparison.Ordinal)) return;
+            _ops.AfterMove = null;
+            held = to;
+            // The journal as a kill right now would leave it.
+            foreach (string journal in Directory.GetFiles(journals, "job-*.fcj"))
+            {
+                using var from = new FileStream(journal, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var copy = File.Create(Path.Combine(atKill, Path.GetFileName(journal)));
+                from.CopyTo(copy);
+            }
+        };
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)], Destination = Remote("/up") });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.NotNull(held);
+
+        // The disk as the kill left it: the original only under its hold name.
+        File.WriteAllText(held!, original);
+        var interrupted = Assert.Single(JournalRecovery.Scan(atKill));
+        Assert.DoesNotContain(held!, JournalRecovery.FindStagedLeftovers(interrupted), StringComparer.OrdinalIgnoreCase);
+        var hold = Assert.Single(JournalRecovery.FindRenameLeftovers(interrupted));
+        Assert.Equal(held, hold.Via);
+        Assert.Empty(JournalRecovery.FinishRenames([hold], out int finished));
+        Assert.Equal(1, finished);
+        Assert.Equal(original, File.ReadAllText(file));
+        Assert.False(File.Exists(held));
+    }
+
+    [Fact]
     public async Task A_dropped_upload_starts_again_where_the_server_will_not_continue_it()
     {
         // Release issue I47: ProFTPD refused APPE after a break, and every Retry was refused the same way.
