@@ -4747,3 +4747,15 @@ Locally at medium integrity, as hosted CI runs them, the four suites pass at `c4
 **Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open. GATE-CI-FINAL stays Open for the run at `da5e5734`.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — GATE-CI-FINAL accepted at `da5e5734`; REL-REVIEW-CODEX-20261029 accepted
+
+[Run 40920123617](https://github.com/benny-cz/FileCat/actions/runs/40920123617) at `8c1ce33a` (product head `e87b594f`) passed the producer, Windows x64, Windows ARM64, Ubuntu and macOS in full, the macOS App tests that failed at `bda96754` and `ffb39752` among them. The SSH listing fix followed (`da5e5734`), and [run 40922489282](https://github.com/benny-cz/FileCat/actions/runs/40922489282) at `f3312f80` passed every lane again. On Ubuntu, its Remote suite counted the four new SSH and FTP tests (2,668), and none of them skipped.
+
+Skips reconciled against the last green run, 40874157930 at `6edc78e7`: no test that ran there skips now. The new skips are new tests that skip by design: the FAT and exFAT Move test needs FAT disks (it passed on the Win11 VM's), the elevated P8 test needs a high token (it passed here elevated), and the SSH listing test needs an sshd, which the Windows lanes lack (it ran on Ubuntu and macOS). The others are other platforms' tests: the macOS picture sandbox test of `16970200`, and the Windows context-menu tests of `90ad5e10`, which replaced one the Linux and macOS lanes skipped.
+
+GATE-CI-FINAL is accepted at the product head `da5e5734`. REL-REVIEW-CODEX-20261029 is accepted: every High and Medium finding of the four-part review and of the `f134ba37` recheck is fixed with a regression control, and hosted CI passes with them. The Low left open are recorded with their reasons in the review records.
+
+**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 35 Accepted and 10 Open. The next step is the first preview (DEC-07), which needs the owner's yes on the tag and then on the draft's assets and hashes.
+
+Stable publication remains NO-GO.
