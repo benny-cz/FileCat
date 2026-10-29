@@ -16,8 +16,14 @@ internal sealed class NtfsScanner
     private const long MaxRecords = 16_000_000;
     private const long MaxBitmapBytes = 512L * 1024 * 1024;
     private const long MaxCompressionUnitBytes = 64 * 1024;
-    private const long MaxCompressedUnitsPerFile = 100_000;
-    private const long MaxCompressedUnitsPerScan = 250_000;
+    /// <summary>
+    /// Units described for one file, and for one scan: each keeps an object (about 120 bytes). Both grow with the volume, as
+    /// legitimate compressed data does, to 2 million units (122 GiB of 64 KiB units, about 240 MB). A small image stays
+    /// at a quarter of a million per scan however many records it holds (review finding F-M7 of f134ba37: a flat 100,000
+    /// per file and 250,000 per scan made every compressed file past 6.1 GiB, or past 15.3 GiB of them, its name only).
+    /// </summary>
+    private const long MaxCompressedUnitsPerFile = 2_000_000;
+    private const long MaxCompressedUnitsPerScan = 2_000_000, MinCompressedUnitsPerScan = 250_000;
     private const int MaxAttributeListEntries = 4096;
     private const long RootRecord = 5;
 
@@ -256,7 +262,9 @@ internal sealed class NtfsScanner
         // was accepted) would have each unit read into that much memory.
         // Each described unit retains an object. A sparse run can claim far more units
         // than fit in the supplied image, so the logical file size is not a safe budget.
-        long maxDescribedUnits = Math.Min(MaxCompressedUnitsPerFile, Math.Max(1, _volume.Length / _clusterSize));
+        long volumeClusters = Math.Max(1, _volume.Length / _clusterSize);
+        long maxDescribedUnits = Math.Min(MaxCompressedUnitsPerFile, volumeClusters);
+        long scanUnits = Math.Clamp(volumeClusters, MinCompressedUnitsPerScan, MaxCompressedUnitsPerScan);
         if (count > 10_000_000 || unitBytes > MaxCompressionUnitBytes)
         {
             file.Evidence.Add("Its compressed layout is larger than FileCat reads.");
@@ -270,7 +278,7 @@ internal sealed class NtfsScanner
         // gigabytes made millions of them, 1.6 GiB for a 16 MiB volume; release issue I37).
         long described = runs.Count == 0 ? 0 : runs.Max(r => r.Vcn + r.Length);
         long describedUnits = Math.Min(count, (described + stream.UnitClusters - 1) / stream.UnitClusters);
-        if (describedUnits > maxDescribedUnits || describedUnits > MaxCompressedUnitsPerScan - _describedCompressedUnits)
+        if (describedUnits > maxDescribedUnits || describedUnits > scanUnits - _describedCompressedUnits)
         {
             file.Evidence.Add("Its compressed layout describes more units than this image can safely index.");
             file.State = RecoveryState.NameOnly;

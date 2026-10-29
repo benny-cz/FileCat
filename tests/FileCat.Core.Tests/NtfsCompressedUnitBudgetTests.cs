@@ -7,12 +7,19 @@ namespace FileCat.Core.Tests;
 
 public sealed class NtfsCompressedUnitBudgetTests
 {
-    private sealed class PatchedImage(IBlockSource inner, IReadOnlyDictionary<long, byte> patches) : IBlockSource
+    /// <param name="length">A larger volume than the image, read as zeros past it; 0 for the image's own length.</param>
+    private sealed class PatchedImage(IBlockSource inner, IReadOnlyDictionary<long, byte> patches, long length = 0) : IBlockSource
     {
         public string Description => inner.Description;
-        public long Length => inner.Length;
+        public long Length => length > 0 ? length : inner.Length;
         public int Read(long offset, Span<byte> buffer)
         {
+            if (offset >= inner.Length)
+            {
+                int zeros = (int)Math.Min(buffer.Length, Math.Max(0, Length - offset));
+                buffer[..zeros].Clear();
+                return zeros;
+            }
             int count = inner.Read(offset, buffer);
             for (int i = 0; i < count; i++)
                 if (patches.TryGetValue(offset + i, out byte value)) buffer[i] = value;
@@ -22,10 +29,13 @@ public sealed class NtfsCompressedUnitBudgetTests
     }
 
     [Theory]
-    [InlineData(100, false)]
-    [InlineData(4096, false)]
-    [InlineData(100_000, true)]
-    public void Public_scan_bounds_compressed_sparse_claim_to_the_image(int claimedUnits, bool overBudget)
+    [InlineData(100, false, 0L)]
+    [InlineData(4096, false, 0L)]
+    [InlineData(100_000, true, 0L)]
+    // Review finding F-M7 of f134ba37: on a large volume, a compressed file of 12 GiB (200,000 units of 64 KiB) is
+    // described, where 100,000 units per file made it its name only.
+    [InlineData(200_000, false, 64L << 30)]
+    public void Public_scan_bounds_compressed_sparse_claim_to_the_image(int claimedUnits, bool overBudget, long volumeBytes)
     {
         string image = RecoveryFixtures.Image("ntfs");
         byte[] bytes = File.ReadAllBytes(image);
@@ -63,7 +73,7 @@ public sealed class NtfsCompressedUnitBudgetTests
             if (patches.Count > 0) break;
         }
         Assert.NotEmpty(patches);
-        using var source = new PatchedImage(new ImageFileSource(image), patches);
+        using var source = new PatchedImage(new ImageFileSource(image), patches, volumeBytes);
         long before = GC.GetAllocatedBytesForCurrentThread();
         var watch = Stopwatch.StartNew();
         var volume = Assert.Single(RecoveryScanner.Scan(source, TestContext.Current.CancellationToken));
