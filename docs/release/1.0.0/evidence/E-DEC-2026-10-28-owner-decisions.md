@@ -77,3 +77,9 @@ A fresh `win-x64` publish of `c201ca71` (version `1.0.0-dec04.2`, separate workt
 | `sbom-1.0.0-dec04.2-win-x64-setup-payload.spdx.json` | `166482fcda4af93c3dc06546bf3d157e71e92ee28338460abdf2d58dc8b42678` |
 
 These are local preliminary outputs (the installer and other RIDs were not built); they are not candidate artifacts. The dependency-notice manifest fixtures under `eng/validation/fixtures/dependency-notices/` still capture 0.50.4-era `deps.json` files and need requalification with the next notice qualification run.
+
+## The macOS minimum version at the contract freeze (2026-10-29)
+
+REL-CONTRACT's last open point: the macOS bundle declared `LSMinimumSystemVersion` 13.0, below PSD-MAC's floor of macOS 26 on Apple Silicon, and .NET 10 supports only macOS 15, 26 and 27. The release session asked the owner to require macOS 26 or keep 13.0 with an explanation. The owner chose: "Raise the macOS bundle's LSMinimumSystemVersion to 26.0 to match the macOS 26 support floor, then freeze REL-CONTRACT."
+
+`42f02610` sets 26.0 in `eng/package-macos.sh` and in the validation bundle of `tests/FileCat.NativeAcceptance/mac-publish-git-validation.sh`, and notes it in the readiness plan. The generated `Info.plist` passes `plutil -lint` on the physical Mac (macOS 27.0.1), and `plutil -extract` reads 26.0. macOS now refuses to open the preview below macOS 26 instead of running it where it is unsupported. No package was rebuilt for this record; the next package qualification carries the value.

@@ -4651,3 +4651,13 @@ Stable publication remains NO-GO.
 - REL-REVIEW-CODEX-20261029 stays Open for the recheck's Medium and Low, with the security session.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — REL-CONTRACT frozen: the macOS bundle requires macOS 26
+
+The owner chose to raise the macOS bundle's `LSMinimumSystemVersion` from 13.0 to 26.0, the PSD-MAC floor, and to freeze the contract ([record](evidence/E-DEC-2026-10-28-owner-decisions.md#the-macos-minimum-version-at-the-contract-freeze-2026-10-29)). `42f02610` makes the change in the macOS packaging script and the validation bundle. The generated `Info.plist` passes `plutil -lint` on the Mac. REL-CONTRACT is Accepted (frozen); I04 stays Open for the Windows minimum, clean supported machines and candidate qualification.
+
+**Ledger.**
+- Issues stay **561/540/2/19**, and the evidence index **897**.
+- The owner also removed the release session's 17 GB RAR probe folder (`V:\fc-rar-probe`).
+
+Stable publication remains NO-GO.
