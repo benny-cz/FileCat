@@ -37,3 +37,7 @@ The initial observer sampled the trusted launcher/worker handoff after only one 
 ## Disposition
 
 `I552-LINUX-PICTURE-DOMAIN` is **Accepted** for preliminary native Linux x64 and ARM64 picture-worker filesystem/network containment. The temporary ARM64 Lima VM, image cache, Lima installation, validation awake process and Mac stages were removed after evidence collection. `REL-I08-CONTAINMENT` remains Open for whole-process memory, other parser/Shell routes and installed-candidate qualification. Hosted and frozen-candidate qualification remain separate.
+
+## Correction (2026-10-29, review finding R-H3)
+
+"Grants no filesystem writes" held for file contents only. Landlock governs no chmod, chown, extended attribute or time change, and a path's truncation only from its ABI 3 (Linux 6.2); the seccomp filters denied none of them, so a decoder exploit could change those for any file the user owns. `e423d85a` adds them to the launcher's pre-exec filter, which the worker inherits, on x86-64 and ARM64. The live probe now tries chmod, chown, utime, truncate and setxattr on a user file. On the Ubuntu VM (kernel 7.0) it stops at chmod without the change and passes with it; all 38 Linux policy and picture worker tests pass.
