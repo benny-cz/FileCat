@@ -390,11 +390,15 @@ public static class NetworkDiscovery
                 position = pointer;
                 continue;
             }
+            // A datagram's names are charged each label's bytes and the string it becomes, so that one-byte labels reached
+            // again and again through pointers cannot allocate tens of megabytes within the 1 MiB budget (review finding
+            // P7 of f134ba37); the label becomes a string of about 32 bytes beyond its own.
+            const int LabelString = 32;
             if ((length & 0xC0) != 0 || length > 63 || length + 1 > 255 - nameBytes ||
-                length > 1024 * 1024 - decodedNameBytes)
+                length + LabelString > 1024 * 1024 - decodedNameBytes)
                 throw new InvalidDataException("The mDNS name exceeds its parsing budget.");
             nameBytes += length + 1;
-            decodedNameBytes += length;
+            decodedNameBytes += length + LabelString;
             labels.Add(Encoding.UTF8.GetString(message.Slice(position + 1, length)));
             position += 1 + length;
         }

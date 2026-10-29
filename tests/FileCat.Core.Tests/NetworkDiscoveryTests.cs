@@ -58,6 +58,24 @@ public sealed class NetworkDiscoveryTests
         TestContext.Current.TestOutputHelper?.WriteLine($"mDNS socket callback: duration={watch.Elapsed}, process-allocated={allocated:N0} bytes, hosts={found.Count}");
     }
 
+    [Fact]
+    public void Many_pointers_to_one_name_of_tiny_labels_are_rejected_with_bounded_allocation()
+    {
+        // Review finding P7 of f134ba37: 4,000 questions pointing at one legal 250-byte name of one-byte labels decode only
+        // 500,000 bytes, within the 1 MiB budget, but made half a million strings.
+        var bytes = new List<byte>(30_000);
+        bytes.AddRange(new byte[12]);
+        bytes[4] = 0x0F; bytes[5] = 0xA0; // 4,000 questions
+        for (int i = 0; i < 125; i++) { bytes.Add(1); bytes.Add((byte)'a'); }
+        bytes.Add(0); bytes.AddRange(new byte[4]);
+        for (int i = 1; i < 4000; i++) { bytes.Add(0xC0); bytes.Add(0x0C); bytes.AddRange(new byte[4]); }
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var found = NetworkDiscovery.ParseMdnsAnswer([.. bytes], IPAddress.Loopback);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Empty(found);
+        Assert.True(allocated < 8 * 1024 * 1024, $"mDNS parse allocated {allocated:N0} bytes.");
+    }
+
     private static byte[] AmplifiedMdnsAnswer()
     {
         var bytes = new List<byte>(26_000);
