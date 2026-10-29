@@ -4691,3 +4691,21 @@ These product changes reopen GATE-CI-FINAL until the run on their head passes.
 **Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open (I555 accepted, GATE-CI-FINAL reopened).
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Six Medium review findings fixed (F-M4, F-M6, R-M1, R-M2, R-M9, R-M14); CI at `bda96754`
+
+- **F-M6 (`2e658e36`).** A ZIP add lets other programs keep writing a file it reads, so a live log no longer ends the Add.
+- **F-M4 (`4854f0c8`).** The Windows handle-bound tree delete now does what the delete by name does. It asks Retry or Skip for a folder it cannot reach, retries a child another program holds open, and confirms read-only files again.
+- **R-M1, R-M9, R-M14 (`1a7f071a`):**
+  - a Keep-both Move checks the name it published before deleting its source;
+  - jobs and comparisons list large remote folders whole, within a bound of their own;
+  - a long known_hosts is read a line at a time, and a refused key is explained.
+- **R-M2 (`d74be210`).** Moves from FAT and exFAT drop their source again. In the Win11 VM both gave a file another index after the hold rename, and an MTP Move from either aborted its job.
+- **R-H6** was already fixed by `f134ba37`, and its row now says so ([record](evidence/E-REVIEW-2026-10-29-codex-commits.md#taken-over-after-the-security-session-stopped-29-october)).
+- **Correction.** The dashboard counted only R-M1–R-M3, R-M9 and R-M14 as left of the Codex review's Medium. R-M4, R-M6–R-M8 and R-M10–R-M13 were never rechecked either, so they are open too.
+
+[Run 40884391431](https://github.com/benny-cz/FileCat/actions/runs/40884391431) at `bda96754` (the R-H fixes) passed the producer, Windows x64, Windows ARM64 and Ubuntu in full. macOS failed one App test, a drawer layout test (Stop 14 of 29 DIP visible), in a drawer none of the changes touched. GATE-CI-FINAL stays Open for the run at `d74be210`.
+
+**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open.
+
+Stable publication remains NO-GO.
