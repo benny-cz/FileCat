@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text;
+using System.Text.RegularExpressions;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
 
@@ -10,15 +12,91 @@ public sealed class MarkdownTests
     private static string Html(string markdown) => Markdown.ToHtml(markdown).Trim();
 
     [Fact]
-    public void Long_invalid_table_delimiter_is_bounded_and_alignment_still_works()
+    public async Task Long_invalid_table_delimiter_is_bounded_and_alignment_still_works()
     {
-        string hostile = "| a | b |\n|" + new string(' ', 64 * 1024) + "x|";
+        // A dash, then spaces, then text: the pattern the delimiter row was read with until f134ba37 tried every split of
+        // the spaces, 19 s for this line at 128 KB. (Without the dash, "|" + spaces + "x|", it refused the line at once.)
+        string hostile = "| a | b |\n| --- " + new string(' ', 256 * 1024) + "x |";
         var watch = Stopwatch.StartNew();
-        string page = Markdown.ToPage(hostile, "hostile.md");
-        watch.Stop();
+        string page = await Task.Factory.StartNew(() => Markdown.ToPage(hostile, "hostile.md"), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        TestContext.Current.TestOutputHelper?.WriteLine($"Markdown render took {watch.Elapsed}.");
         Assert.Contains("<p>| a | b |", page);
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"Markdown render took {watch.Elapsed}.");
         Assert.Contains("<table>", Markdown.ToHtml("| a | b |\n| :--- | ---: |\n| 1 | 2 |"));
+    }
+
+    [Fact]
+    public void Line_scanners_read_lines_as_the_patterns_they_replace()
+    {
+        // The patterns fences, headings and definitions were read with until they were found to take quadratic time on
+        // long lines: each one-pass reader must find in a line what its pattern found, groups included.
+        var fence = new Regex(@"^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)[^`]*$");
+        var heading = new Regex(@"^ {0,3}(#{1,6})(?:[ ]+(.*?))?(?:[ ]+#+)?[ ]*$");
+        var definition = new Regex(@"^ {0,3}\[([^\]]{1,999})\]:[ ]*<?([^\s>]*)>?(?:[ ]+(?:""([^""]*)""|'([^']*)'|\(([^)]*)\)))?[ ]*$");
+        void Check(string line)
+        {
+            var f = fence.Match(line);
+            Assert.Equal(f.Success, Markdown.FenceOpen(line, out string marker, out string language));
+            if (f.Success) Assert.Equal((f.Groups[1].Value, f.Groups[2].Value), (marker, language));
+            var h = heading.Match(line);
+            Assert.Equal(h.Success, Markdown.AtxHeading(line, out int level, out string text));
+            if (h.Success) Assert.Equal((h.Groups[1].Length, h.Groups[2].Value), (level, text));
+            var d = definition.Match(line);
+            var m = Markdown.ReferenceDefinition().Match(line);
+            Assert.Equal(d.Success, m.Success);
+            string? title = d.Groups[3].Success ? d.Groups[3].Value : d.Groups[4].Success ? d.Groups[4].Value : d.Groups[5].Success ? d.Groups[5].Value : null;
+            if (d.Success) Assert.Equal((d.Groups[1].Value, d.Groups[2].Value, title), (m.Groups["label"].Value, m.Groups["url"].Value, m.Groups["title"].Success ? m.Groups["title"].Value : null));
+        }
+        // A title alone is a definition, as the old pattern found by giving back the spaces before it.
+        foreach (string line in new[] { "[a]: \"t i\"", "[a]:  'x' ", "[a]: (t)", "[a]: <u> \"t\"", "[a]: u (t) x", "### a # b #", "#  ##  ", "~~~ py `x`", "``` cs x" })
+            Check(line);
+        var random = new Random(25);
+        string[] starts = ["", "```", "~~~", "   ```", "    ~~~", "#", "# ", "###### ", "####### ", "[a]:", " [a b]: <", "[a]: x \"", "[a]:  '", "[a]: ("];
+        // Every kind of white space the patterns' \s matched, and characters that open and close their parts.
+        string characters = "`~# []:<>\"'()ax\\\t" + (char)0xA0 + (char)0x2003 + (char)0x0B + (char)0x0C + (char)0x85;
+        for (int n = 0; n < 200_000; n++)
+        {
+            var line = new StringBuilder(starts[random.Next(starts.Length)]);
+            for (int k = random.Next(16); k > 0; k--) line.Append(characters[random.Next(characters.Length)]);
+            Check(line.ToString());
+        }
+        // Each character after a fence and in a heading (lines never hold a line break: the text is split at them).
+        for (int c = 0; c <= char.MaxValue; c++)
+            if (c != '\n')
+                foreach (string line in new[] { "```" + (char)c + "x", "```x" + (char)c + "y", "# " + (char)c + " #", "#" + (char)c + "x" })
+                    Check(line);
+    }
+
+    [Fact]
+    public void A_table_is_drawn_whole_up_to_the_page_cell_limit_and_its_further_rows_are_left_to_the_text_mode()
+    {
+        // Four columns: the heading and these rows are exactly the cells a page draws.
+        int rows = Markdown.MaxTableCells / 4 - 1;
+        string table = "| a | b | c | d |\n|---|---|---|---|\n" + string.Concat(Enumerable.Repeat("| 1 | 2 | 3 | 4 |\n", rows));
+        string whole = Html(table);
+        Assert.EndsWith("</table></div>", whole);
+        Assert.Equal(rows + 1, Regex.Count(whole, "<tr>"));
+        string cut = Html(table + "| 5 | 6 | 7 | 8 |\n| 9 |\n\n| x | y |\n|---|---|\n| 1 | 2 |\n\nafter");
+        Assert.Equal(rows + 1, Regex.Count(cut, "<tr>"));
+        Assert.DoesNotContain("<td>5</td>", cut);
+        Assert.Contains("</table></div>\n<p class=\"note\">This table goes on for 2 more rows, more cells than FileCat draws as a page; the Text mode shows them.</p>", cut);
+        Assert.Contains("<p class=\"note\">A table of 2 columns and 1 row is not drawn here: it has more cells than FileCat draws as a page; the Text mode shows it.</p>", cut);
+        Assert.EndsWith("<p>after</p>", cut);
+    }
+
+    [Fact]
+    public void Destinations_nest_parentheses_32_deep_as_CommonMarks_reference_parser_allows()
+    {
+        static string Nested(int depth) => $"[a](#{new string('(', depth)}x{new string(')', depth)})";
+        Assert.StartsWith($"<p><a href=\"#{new string('(', 32)}x{new string(')', 32)}\"", Html(Nested(32)));
+        Assert.DoesNotContain("<a ", Html(Nested(33)));
+    }
+
+    [Fact]
+    public void A_comment_ends_at_the_first_end_after_its_start_and_an_unclosed_one_is_text()
+    {
+        Assert.Equal("<p>a  b</p>", Html("a <!-->x--> b"));
+        Assert.Equal("<p>a  c  e &lt;!-- f</p>", Html("a <!-- b --> c <!-- d --> e <!-- f"));
     }
 
     [Theory]

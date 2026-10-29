@@ -83,25 +83,28 @@ public sealed class HtmlPageTests
     }
 
     [Theory]
-    [InlineData(16 * 1024)]
-    [InlineData(32 * 1024)]
-    [InlineData(64 * 1024)]
-    public void Viewer_callback_bounds_malformed_table_delimiters(int spaces)
+    [InlineData(256 * 1024)]
+    [InlineData(1024 * 1024)]
+    public async Task Viewer_callback_bounds_malformed_table_delimiters(int spaces)
     {
-        string markdown = "| a | b |\n|" + new string(' ', spaces) + "x|\n";
+        // A dash, then spaces, then text: the pattern the delimiter row was read with until f134ba37 tried every split of
+        // the spaces, 3.2 s at 64 KB and 19 s at 128 KB. (Without the dash, "|" + spaces + "x|", it refused the line at
+        // once.)
+        string markdown = "| a | b |\n| --- " + new string(' ', spaces) + "x |\n";
         using var reader = new PagedReader(new MemoryContentSource("hostile.md", Encoding.UTF8.GetBytes(markdown)));
         var page = HtmlPage.ForMarkdown(reader, "hostile.md", TestContext.Current.CancellationToken);
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        var watch = Stopwatch.StartNew();
-        var response = page.Resolve("/");
-        watch.Stop();
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        TestContext.Current.TestOutputHelper?.WriteLine($"Markdown viewer callback: whitespace={spaces}, elapsed={watch.Elapsed}, thread-allocated={allocated:N0} bytes");
+        var (response, elapsed, allocated) = await Task.Factory.StartNew(() =>
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var watch = Stopwatch.StartNew();
+            var served = page.Resolve("/");
+            return (served, watch.Elapsed, GC.GetAllocatedBytesForCurrentThread() - before);
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        TestContext.Current.TestOutputHelper?.WriteLine($"Markdown viewer callback: whitespace={spaces}, elapsed={elapsed}, thread-allocated={allocated:N0} bytes");
         Assert.NotNull(response);
         Assert.Equal("text/html", response.Value.MimeType);
         Assert.Contains("<p>| a | b |", Encoding.UTF8.GetString(response.Value.Bytes));
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"{spaces}: {watch.Elapsed}");
-        Assert.True(allocated < 32L * 1024 * 1024, $"{spaces}: {allocated} bytes allocated");
+        Assert.True(allocated < 128L * markdown.Length, $"{spaces}: {allocated} bytes allocated");
     }
 
     [Fact]

@@ -18,6 +18,13 @@ public static partial class Markdown
     public const int MaxChars = 4 << 20;
     public const int MaxLines = 200_000;
 
+    /// <summary>
+    /// The most table cells a page draws. Every row has as many cells as its table's heading, so a heading of 10,000
+    /// columns over 10,000 rows of a lone "|" (60 KB) would be a hundred million cells; a table stops at the limit, with a
+    /// note.
+    /// </summary>
+    public const int MaxTableCells = 200_000;
+
     private const int MaxDepth = 32;
 
     public static bool IsMarkdown(string name) =>
@@ -122,11 +129,60 @@ public static partial class Markdown
 
     private static bool IsBlank(string line) => string.IsNullOrWhiteSpace(line);
 
-    [GeneratedRegex(@"^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)[^`]*$")]
-    private static partial Regex FenceOpen();
+    /// <summary>
+    /// An opening code fence: up to three spaces, three or more backticks or tildes, then an info string without backticks
+    /// whose first word names the language. Read in one pass, with the meaning of the pattern it replaces,
+    /// ^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)[^`]*$, which tried every split of a long line that ends in a backtick: seconds for a
+    /// line of 64 KB, and for one of tildes far longer.
+    /// </summary>
+    internal static bool FenceOpen(string line, out string marker, out string language)
+    {
+        marker = language = "";
+        int start = Indent(line);
+        if (start > 3 || start == line.Length || line[start] is not ('`' or '~')) return false;
+        int end = start;
+        while (end < line.Length && line[end] == line[start]) end++;
+        if (end - start < 3 || line.AsSpan(end).Contains('`')) return false;
+        int word = end;
+        while (word < line.Length && char.IsWhiteSpace(line[word])) word++;
+        int wordEnd = word;
+        while (wordEnd < line.Length && !char.IsWhiteSpace(line[wordEnd])) wordEnd++;
+        marker = line[start..end];
+        language = line[word..wordEnd];
+        return true;
+    }
 
-    [GeneratedRegex(@"^ {0,3}(#{1,6})(?:[ ]+(.*?))?(?:[ ]+#+)?[ ]*$")]
-    private static partial Regex AtxHeading();
+    /// <summary>
+    /// An ATX heading: up to three spaces and one to six #, then after a space its text, without the spaces and the
+    /// closing #s that may end it. Read in one pass, with the meaning of the pattern it replaces,
+    /// ^ {0,3}(#{1,6})(?:[ ]+(.*?))?(?:[ ]+#+)?[ ]*$, which tried the end of the line after each character of the text and
+    /// so read a long run of spaces once per space.
+    /// </summary>
+    internal static bool AtxHeading(string line, out int level, out string text)
+    {
+        level = 0;
+        text = "";
+        int start = Indent(line);
+        if (start > 3) return false;
+        int end = start;
+        while (end < line.Length && line[end] == '#') end++;
+        if (end - start is 0 or > 6 || end < line.Length && line[end] != ' ') return false;
+        level = end - start;
+        int from = end;
+        while (from < line.Length && line[from] == ' ') from++;
+        int to = line.Length;
+        while (to > from && line[to - 1] == ' ') to--;
+        // Closing #s after a space are not part of the text.
+        int hashes = to;
+        while (hashes > from && line[hashes - 1] == '#') hashes--;
+        if (hashes < to && hashes > from && line[hashes - 1] == ' ')
+        {
+            to = hashes - 1;
+            while (to > from && line[to - 1] == ' ') to--;
+        }
+        text = line[from..to];
+        return true;
+    }
 
     [GeneratedRegex(@"^ {0,3}([-*_])(?:[ ]*\1){2,}[ ]*$")]
     private static partial Regex ThematicBreak();
@@ -140,8 +196,14 @@ public static partial class Markdown
     [GeneratedRegex(@"^ {0,3}-+[ ]*$")]
     private static partial Regex SetextTwo();
 
-    [GeneratedRegex(@"^ {0,3}\[([^\]]{1,999})\]:[ ]*<?([^\s>]*)>?(?:[ ]+(?:""([^""]*)""|'([^']*)'|\(([^)]*)\)))?[ ]*$")]
-    private static partial Regex ReferenceDefinition();
+    /// <summary>
+    /// A link reference definition: [label]: destination "title". The spaces before the destination are taken whole
+    /// (atomically): the pattern before let them be shared with the spaces before the title, and tried every split of a
+    /// long run of them, once per space. A title with no destination, which that pattern found by giving spaces back, is
+    /// the second alternative, so the lines read as definitions are the same.
+    /// </summary>
+    [GeneratedRegex(@"^ {0,3}\[(?<label>[^\]]{1,999})\]:(?:(?>[ ]*)<?(?<url>[^\s>]*)>?(?:[ ]+(?:""(?<title>[^""]*)""|'(?<title>[^']*)'|\((?<title>[^)]*)\)))?[ ]*$|[ ]+(?:""(?<title>[^""]*)""|'(?<title>[^']*)'|\((?<title>[^)]*)\))[ ]*$)")]
+    internal static partial Regex ReferenceDefinition();
 
     // A delimiter can contain long runs of whitespace. Parse it in one pass so malformed
     // user content cannot make the regex engine revisit every split position.
@@ -175,6 +237,9 @@ public static partial class Markdown
         private readonly Dictionary<string, (string Url, string? Title)> _references = new(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _slugs = new(StringComparer.Ordinal);
 
+        /// <summary>The table cells drawn so far in the page (at most <see cref="MaxTableCells"/>).</summary>
+        private int _cells;
+
         public void CollectReferences(List<string> lines)
         {
             bool fenced = false;
@@ -182,17 +247,17 @@ public static partial class Markdown
             for (int i = 0; i < lines.Count; i++)
             {
                 _ct.ThrowIfCancellationRequested();
-                if (FenceOpen().Match(lines[i]) is { Success: true } f)
+                if (FenceOpen(lines[i], out string marker, out _))
                 {
-                    if (!fenced) { fenced = true; fence = f.Groups[1].Value; continue; }
+                    if (!fenced) { fenced = true; fence = marker; continue; }
                     if (lines[i].Trim().StartsWith(fence![0]) && lines[i].Trim().Length >= fence.Length && lines[i].Trim().All(c => c == fence[0])) { fenced = false; continue; }
                 }
                 if (fenced) continue;
                 if (ReferenceDefinition().Match(lines[i]) is { Success: true } m)
                 {
-                    string label = Normalize(m.Groups[1].Value);
-                    string? title = m.Groups[3].Success ? m.Groups[3].Value : m.Groups[4].Success ? m.Groups[4].Value : m.Groups[5].Success ? m.Groups[5].Value : null;
-                    _references.TryAdd(label, (m.Groups[2].Value, title));
+                    string label = Normalize(m.Groups["label"].Value);
+                    var title = m.Groups["title"];
+                    _references.TryAdd(label, (m.Groups["url"].Value, title.Success ? title.Value : null));
                     lines[i] = "\0ref"; // consumed; drawn as nothing
                 }
             }
@@ -233,11 +298,9 @@ public static partial class Markdown
                 }
                 if (indent >= 4) { paragraph.Add(line); i++; continue; } // a lazy line of the paragraph
 
-                if (FenceOpen().Match(line) is { Success: true } fence)
+                if (FenceOpen(line, out string marker, out string language))
                 {
                     Flush();
-                    string marker = fence.Groups[1].Value;
-                    string language = fence.Groups[2].Value;
                     var code = new List<string>();
                     i++;
                     while (i < lines.Count)
@@ -260,10 +323,10 @@ public static partial class Markdown
                     i++;
                     continue;
                 }
-                if (AtxHeading().Match(line) is { Success: true } heading)
+                if (AtxHeading(line, out int level, out string heading))
                 {
                     Flush();
-                    Heading(heading.Groups[1].Value.Length, heading.Groups[2].Value, html);
+                    Heading(level, heading, html);
                     i++;
                     continue;
                 }
@@ -330,7 +393,7 @@ public static partial class Markdown
 
         /// <summary>Whether a line begins a block that ends a lazy paragraph continuation.</summary>
         private static bool StartsBlock(string line) =>
-            FenceOpen().IsMatch(line) || AtxHeading().IsMatch(line) || ThematicBreak().IsMatch(line) || ListMarker().IsMatch(line) || line.TrimStart().StartsWith('>');
+            FenceOpen(line, out _, out _) || AtxHeading(line, out _, out _) || ThematicBreak().IsMatch(line) || ListMarker().IsMatch(line) || line.TrimStart().StartsWith('>');
 
         private void Heading(int level, string text, StringBuilder html)
         {
@@ -369,6 +432,7 @@ public static partial class Markdown
             bool loose = false;
             while (i < lines.Count)
             {
+                _ct.ThrowIfCancellationRequested();
                 var m = ListMarker().Match(lines[i]);
                 if (!m.Success || char.IsDigit(m.Groups[2].Value[0]) != ordered || m.Groups[2].Value[^1] != delimiter) break;
                 int contentIndent = m.Groups[3].Value.Trim().Length == 0 && lines[i].Length <= m.Length ? m.Groups[1].Length + m.Groups[2].Length + 1 : m.Length;
@@ -414,21 +478,38 @@ public static partial class Markdown
         {
             var header = Cells(lines[i]);
             var aligns = Cells(lines[i + 1]).Select(c => c.StartsWith(':') && c.EndsWith(':') ? "center" : c.EndsWith(':') ? "right" : c.StartsWith(':') ? "left" : null).ToList();
-            html.Append("<div class=\"table-region\" role=\"region\" aria-label=\"Table; scroll horizontally if needed\" tabindex=\"0\"><table>\n<thead><tr>");
-            for (int c = 0; c < header.Count; c++) Cell("th", header[c], aligns[c], html);
-            html.Append("</tr></thead>\n<tbody>\n");
-            i += 2;
-            while (i < lines.Count && !IsBlank(lines[i]) && lines[i].Contains('|') && !StartsBlock(lines[i]))
+            // Each row is drawn with as many cells as the heading, however few it has: the page draws at most
+            // MaxTableCells, and the rows past them are left to the Text mode.
+            bool drawn = _cells + header.Count <= MaxTableCells;
+            if (drawn)
             {
+                _cells += header.Count;
+                html.Append("<div class=\"table-region\" role=\"region\" aria-label=\"Table; scroll horizontally if needed\" tabindex=\"0\"><table>\n<thead><tr>");
+                for (int c = 0; c < header.Count; c++) Cell("th", header[c], aligns[c], html);
+                html.Append("</tr></thead>\n<tbody>\n");
+            }
+            int left = 0;
+            for (i += 2; i < lines.Count && !IsBlank(lines[i]) && lines[i].Contains('|') && !StartsBlock(lines[i]); i++)
+            {
+                _ct.ThrowIfCancellationRequested();
+                if (!drawn || _cells + header.Count > MaxTableCells) { left++; continue; }
+                _cells += header.Count;
                 var row = Cells(lines[i]);
                 html.Append("<tr>");
                 for (int c = 0; c < header.Count; c++) Cell("td", c < row.Count ? row[c] : "", aligns[c], html);
                 html.Append("</tr>\n");
-                i++;
             }
-            html.Append("</tbody>\n</table></div>\n");
+            if (!drawn)
+                html.Append($"<p class=\"note\">A table of {Counted(header.Count, "column")} and {Counted(left, "row")} is not drawn here: it has more cells than FileCat draws as a page; the Text mode shows it.</p>\n");
+            else
+            {
+                html.Append("</tbody>\n</table></div>\n");
+                if (left > 0) html.Append($"<p class=\"note\">This table goes on for {Counted(left, "more row")}, more cells than FileCat draws as a page; the Text mode shows them.</p>\n");
+            }
             return i;
         }
+
+        private static string Counted(int n, string noun) => n == 1 ? "1 " + noun : $"{n:N0} {noun}s";
 
         private void Cell(string tag, string text, string? align, StringBuilder html)
         {
@@ -469,6 +550,8 @@ public static partial class Markdown
             public char Char;
             public int Count;
             public bool CanOpen, CanClose;
+
+            /// <summary>The tags a delimiter opens, innermost first, and those it closes, innermost first.</summary>
             public readonly List<string> OpenTags = [], CloseTags = [];
         }
 
@@ -479,7 +562,10 @@ public static partial class Markdown
 
         private string Inline(string text, int depth)
         {
-            var closeOf = depth < MaxInlineDepth ? Brackets(text) : null;
+            var places = new Places(text);
+            int[]? closeOf = null;
+            bool[]? nested = null;
+            if (depth < MaxInlineDepth) (closeOf, nested) = Brackets(text, places);
             var nodes = new List<Node>();
             var sb = new StringBuilder();
             void Literal(string s) => sb.Append(s);
@@ -492,6 +578,7 @@ public static partial class Markdown
             int i = 0;
             while (i < text.Length)
             {
+                _ct.ThrowIfCancellationRequested();
                 char c = text[i];
                 if (c == '\\' && i + 1 < text.Length)
                 {
@@ -505,7 +592,7 @@ public static partial class Markdown
                 if (c == '`')
                 {
                     int run = Run(text, i, '`');
-                    int close = FindRun(text, i + run, '`', run);
+                    int close = places.Ticks(i + run, run);
                     if (close >= 0)
                     {
                         string code = text[(i + run)..close].Replace('\n', ' ');
@@ -534,6 +621,13 @@ public static partial class Markdown
                     i = end;
                     continue;
                 }
+                // A comment is not shown. Its end is looked up, not read to: a text of "<!--" by the thousand, none of them
+                // closed, would otherwise be read to its end once for each.
+                if (c == '<' && text.AsSpan(i).StartsWith("<!--") && places.Next("-->", i + 4) is var comment and >= 0)
+                {
+                    i = comment + 3;
+                    continue;
+                }
                 if (c == '<' && Tag(text, i, out end, out string? tag))
                 {
                     Literal(tag!);
@@ -546,7 +640,7 @@ public static partial class Markdown
                     i += entity.Length;
                     continue;
                 }
-                if (closeOf is not null && (c == '[' || c == '!' && i + 1 < text.Length && text[i + 1] == '[') && Link(text, i, closeOf, depth, out end, out string? linked))
+                if (closeOf is not null && (c == '[' || c == '!' && i + 1 < text.Length && text[i + 1] == '[') && Link(text, i, closeOf, nested!, places, depth, out end, out string? linked))
                 {
                     Literal(linked!);
                     i = end;
@@ -589,52 +683,56 @@ public static partial class Markdown
                 if (node.Kind == Kind.Text) { html.Append(node.Html); continue; }
                 foreach (var t in node.CloseTags) html.Append(t);
                 html.Append(Encode(new string(node.Char, node.Count)));
-                foreach (var t in node.OpenTags) html.Append(t);
+                for (int t = node.OpenTags.Count - 1; t >= 0; t--) html.Append(node.OpenTags[t]);
             }
             return html.ToString();
         }
 
         /// <summary>
-        /// Pairs emphasis delimiters as CommonMark does, in linear time: each closer looks back for an opener of its kind,
-        /// and a fruitless search sets how far later ones need look.
+        /// Pairs emphasis delimiters as CommonMark does, in linear time: each closer looks back, through the delimiters
+        /// that can still open only, for an opener of its kind; a fruitless search sets how far later ones need look, and
+        /// a pair drops the delimiters between its ends, which can no longer pair across it. (Looking back through every
+        /// node, and clearing those between each pair one by one, took seconds for emphasis nested by the ten thousand.)
         /// </summary>
         private static void Emphasis(List<Node> nodes)
         {
             var bottom = new Dictionary<(char, int, bool), int>();
+            var openers = new List<int>(); // before the closer, in order: the delimiters that can still open
             for (int closer = 0; closer < nodes.Count; closer++)
             {
                 var c = nodes[closer];
-                if (c.Kind != Kind.Delimiter || !c.CanClose) continue;
-                while (c.Count > 0)
+                if (c.Kind != Kind.Delimiter) continue;
+                while (c.CanClose && c.Count > 0)
                 {
                     var key = (c.Char, c.Count % 3, c.CanOpen);
                     int floor = bottom.TryGetValue(key, out int b) ? b : -1;
-                    int opener = -1;
-                    for (int k = closer - 1; k > floor; k--)
+                    int found = -1;
+                    for (int k = openers.Count - 1; k >= 0 && openers[k] > floor; k--)
                     {
-                        var o = nodes[k];
-                        if (o.Kind != Kind.Delimiter || o.Char != c.Char || !o.CanOpen || o.Count == 0) continue;
+                        var o = nodes[openers[k]];
+                        if (o.Char != c.Char) continue;
                         if (c.Char == '~' && o.Count != c.Count) continue;
                         if ((o.CanClose || c.CanOpen) && (o.Count + c.Count) % 3 == 0 && !(o.Count % 3 == 0 && c.Count % 3 == 0)) continue;
-                        opener = k;
+                        found = k;
                         break;
                     }
-                    if (opener < 0)
+                    if (found < 0)
                     {
                         bottom[key] = closer - 1;
                         break;
                     }
-                    var open = nodes[opener];
+                    var open = nodes[openers[found]];
                     int use = c.Char == '~' ? 2 : open.Count >= 2 && c.Count >= 2 ? 2 : 1;
                     string tag = c.Char == '~' ? "del" : use == 2 ? "strong" : "em";
                     open.Count -= use;
                     c.Count -= use;
-                    open.OpenTags.Insert(0, $"<{tag}>");
+                    open.OpenTags.Add($"<{tag}>");
                     c.CloseTags.Add($"</{tag}>");
                     // Delimiters between the pair can no longer pair across it.
-                    for (int k = opener + 1; k < closer; k++)
-                        if (nodes[k].Kind == Kind.Delimiter) nodes[k].CanOpen = nodes[k].CanClose = false;
+                    openers.RemoveRange(found + 1, openers.Count - found - 1);
+                    if (open.Count == 0) openers.RemoveAt(found);
                 }
+                if (c.CanOpen && c.Count > 0) openers.Add(closer);
             }
         }
 
@@ -645,16 +743,61 @@ public static partial class Markdown
             return n;
         }
 
-        private static int FindRun(string text, int from, char c, int length)
+        /// <summary>
+        /// What the inlines of one text ask about it again and again, each found once: where a string next occurs, where
+        /// a run of so many backticks next starts, and where spaces end. A text of unclosed openers by the thousand
+        /// (comments, code spans, links) then costs a lookup for each, not a read on to its end for each.
+        /// </summary>
+        private sealed class Places(string text)
         {
-            for (int k = from; k < text.Length; k++)
+            private readonly Dictionary<string, List<int>> _at = new(StringComparer.Ordinal);
+            private readonly Dictionary<int, int> _spacesEnd = [];
+            private Dictionary<int, List<int>>? _ticks;
+
+            /// <summary>Where <paramref name="what"/> next occurs at or after <paramref name="from"/>, or -1.</summary>
+            public int Next(string what, int from)
             {
-                if (text[k] != c) continue;
-                int run = Run(text, k, c);
-                if (run == length) return k;
-                k += run - 1;
+                if (!_at.TryGetValue(what, out var at))
+                {
+                    _at[what] = at = [];
+                    for (int k = text.IndexOf(what, StringComparison.Ordinal); k >= 0; k = text.IndexOf(what, k + 1, StringComparison.Ordinal))
+                        at.Add(k);
+                }
+                return First(at, from);
             }
-            return -1;
+
+            /// <summary>Where a run of exactly <paramref name="length"/> backticks next starts at or after <paramref name="from"/>, or -1.</summary>
+            public int Ticks(int from, int length)
+            {
+                if (_ticks is null)
+                {
+                    _ticks = [];
+                    for (int k = text.IndexOf('`'); k >= 0; k = text.IndexOf('`', k))
+                    {
+                        int run = Run(text, k, '`');
+                        if (!_ticks.TryGetValue(run, out var starts)) _ticks[run] = starts = [];
+                        starts.Add(k);
+                        k += run;
+                    }
+                }
+                return _ticks.TryGetValue(length, out var at) ? First(at, from) : -1;
+            }
+
+            /// <summary>Past the spaces and line breaks at <paramref name="from"/>; many links can end at the same ones.</summary>
+            public int SkipSpaces(int from)
+            {
+                if (from >= text.Length || text[from] is not (' ' or '\n')) return from;
+                if (_spacesEnd.TryGetValue(from, out int end)) return end;
+                for (end = from; end < text.Length && text[end] is ' ' or '\n'; end++) { }
+                return _spacesEnd[from] = end;
+            }
+
+            private static int First(List<int> at, int from)
+            {
+                int index = at.BinarySearch(from);
+                if (index < 0) index = ~index;
+                return index < at.Count ? at[index] : -1;
+            }
         }
 
         [GeneratedRegex(@"\G<((?:https?|ftp)://[^\s<>]*|mailto:[^\s<>]+)>", RegexOptions.IgnoreCase)]
@@ -682,16 +825,16 @@ public static partial class Markdown
             return false;
         }
 
-        [GeneratedRegex(@"\G(?:<!--.*?-->|</?(?:b|i|em|strong|sub|sup|kbd|del|s|u|mark|small|br|details|summary)\s*/?>)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        [GeneratedRegex(@"\G</?(?:b|i|em|strong|sub|sup|kbd|del|s|u|mark|small|br|details|summary)\s*/?>", RegexOptions.IgnoreCase)]
         private static partial Regex AllowedTag();
 
-        /// <summary>A comment (dropped) or one of a few formatting tags without attributes (kept); any other HTML stays text.</summary>
+        /// <summary>One of a few formatting tags without attributes (kept); any other HTML stays text, and comments are dropped.</summary>
         private static bool Tag(string text, int i, out int end, out string? html)
         {
             if (AllowedTag().Match(text, i) is { Success: true } m)
             {
                 end = i + m.Length;
-                html = m.Value.StartsWith("<!--", StringComparison.Ordinal) ? "" : m.Value.ToLowerInvariant().Replace(" ", "");
+                html = m.Value.ToLowerInvariant().Replace(" ", "");
                 return true;
             }
             end = i;
@@ -717,7 +860,7 @@ public static partial class Markdown
         }
 
         /// <summary>[text](destination "title"), ![alt](source), and the reference forms [text][label], [text][], [label].</summary>
-        private bool Link(string text, int i, int[] closeOf, int depth, out int end, out string? html)
+        private bool Link(string text, int i, int[] closeOf, bool[] nested, Places places, int depth, out int end, out string? html)
         {
             end = i;
             html = null;
@@ -725,37 +868,39 @@ public static partial class Markdown
             int open = image ? i + 1 : i;
             int close = closeOf[open];
             if (close < 0) return false;
-            string label = text[(open + 1)..close];
             string? url = null, title = null;
             int after = close + 1;
-            if (after < text.Length && text[after] == '(' && Destination(text, after, out int destEnd, out url, out title))
+            if (after < text.Length && text[after] == '(' && Destination(text, after, places, out int destEnd, out url, out title))
             {
                 end = destEnd;
             }
             else
             {
-                string key = label;
+                int key = open, keyEnd = close;
                 end = after;
                 if (after + 1 < text.Length && text[after] == '[' && closeOf[after] is var refClose and > 0)
                 {
-                    string inner = text[(after + 1)..refClose];
-                    if (inner.Length > 0) key = inner;
+                    if (refClose > after + 1) (key, keyEnd) = (after, refClose);
                     end = refClose + 1;
                 }
-                if (!_references.TryGetValue(Normalize(key), out var found)) return false;
+                // No definition's label holds a "]", so one with brackets closing inside it is not looked up: brackets nested
+                // by the thousand would otherwise each copy and read all they hold.
+                if (nested[key] || !_references.TryGetValue(Normalize(text[(key + 1)..keyEnd]), out var found)) return false;
                 (url, title) = found;
             }
+            string label = text[(open + 1)..close];
             html = image ? Picture(url!, label, title) : Anchor(url!, Inline(label, depth + 1), title);
             return true;
         }
 
         /// <summary>
-        /// Each "[" and the "]" that closes it (-1 for none), skipping escaped brackets and code spans: found once, so a
-        /// text of a thousand unmatched brackets is read once rather than once per bracket.
+        /// Each "[" and the "]" that closes it (-1 for none), and whether brackets close inside it, skipping escaped brackets
+        /// and code spans: found once, so a text of a thousand unmatched brackets is read once rather than once per bracket.
         /// </summary>
-        private static int[] Brackets(string text)
+        private static (int[] CloseOf, bool[] Nested) Brackets(string text, Places places)
         {
             var closeOf = new int[text.Length];
+            var nested = new bool[text.Length];
             Array.Fill(closeOf, -1);
             var open = new Stack<int>();
             for (int k = 0; k < text.Length; k++)
@@ -765,59 +910,91 @@ public static partial class Markdown
                 if (c == '`')
                 {
                     int run = Run(text, k, '`');
-                    int to = FindRun(text, k + run, '`', run);
+                    int to = places.Ticks(k + run, run);
                     k = (to > 0 ? to + run : k + run) - 1;
                     continue;
                 }
-                if (c == '[') open.Push(k);
+                if (c == '[')
+                {
+                    // The bracket around this one can close only after this one has: it then holds a pair.
+                    if (open.Count > 0) nested[open.Peek()] = true;
+                    open.Push(k);
+                }
                 else if (c == ']' && open.Count > 0) closeOf[open.Pop()] = k;
             }
-            return closeOf;
+            return (closeOf, nested);
         }
 
         [GeneratedRegex(@"\G&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});")]
         private static partial Regex Entity();
 
-        private static bool Destination(string text, int open, out int end, out string? url, out string? title)
+        /// <summary>Parentheses a destination may nest, as many as in CommonMark's reference parser (cmark).</summary>
+        private const int MaxParens = 32;
+
+        /// <summary>
+        /// A link's (destination "title"). Nothing is copied until the link is known to close, and where a title or an
+        /// address in angle brackets ends is looked up: a line of links that never close, by the thousand, would otherwise
+        /// read on to its end and copy what it read once for each. A destination's parentheses nest at most
+        /// <see cref="MaxParens"/> deep, for the same reason: each "[a](" in a long line opens one for every link before it.
+        /// </summary>
+        private static bool Destination(string text, int open, Places places, out int end, out string? url, out string? title)
         {
             end = open;
             url = title = null;
-            int k = open + 1;
-            while (k < text.Length && text[k] is ' ' or '\n') k++;
-            var dest = new StringBuilder();
-            if (k < text.Length && text[k] == '<')
+            int k = places.SkipSpaces(open + 1);
+            int from, to;
+            bool angled = k < text.Length && text[k] == '<';
+            if (angled)
             {
-                k++;
-                while (k < text.Length && text[k] != '>' && text[k] != '\n') dest.Append(text[k++]);
-                if (k >= text.Length || text[k] != '>') return false;
-                k++;
+                from = k + 1;
+                int close = places.Next(">", from), line = places.Next("\n", from);
+                if (close < 0 || line >= 0 && line < close) return false;
+                to = close;
+                k = close + 1;
             }
             else
             {
+                from = k;
                 int parens = 0;
                 while (k < text.Length && !char.IsWhiteSpace(text[k]))
                 {
-                    if (text[k] == '(') parens++;
+                    if (text[k] == '(')
+                    {
+                        if (++parens > MaxParens) return false;
+                    }
                     else if (text[k] == ')' && parens-- == 0) break;
                     if (text[k] == '\\' && k + 1 < text.Length && char.IsPunctuation(text[k + 1])) k++;
-                    dest.Append(text[k++]);
+                    k++;
                 }
+                to = k;
             }
-            while (k < text.Length && text[k] is ' ' or '\n') k++;
+            k = places.SkipSpaces(k);
+            int titleFrom = -1, titleTo = -1;
             if (k < text.Length && text[k] is '"' or '\'' or '(')
             {
-                char closeQuote = text[k] == '(' ? ')' : text[k];
-                int start = ++k;
-                while (k < text.Length && text[k] != closeQuote) k++;
-                if (k >= text.Length) return false;
-                title = text[start..k];
-                k++;
-                while (k < text.Length && text[k] is ' ' or '\n') k++;
+                titleFrom = k + 1;
+                titleTo = places.Next(text[k] == '(' ? ")" : text[k] == '"' ? "\"" : "'", titleFrom);
+                if (titleTo < 0) return false;
+                k = places.SkipSpaces(titleTo + 1);
             }
             if (k >= text.Length || text[k] != ')') return false;
             end = k + 1;
-            url = dest.ToString();
+            url = angled ? text[from..to] : Unescape(text, from, to);
+            if (titleFrom >= 0) title = text[titleFrom..titleTo];
             return true;
+        }
+
+        /// <summary>A destination's characters, a backslash before punctuation dropped.</summary>
+        private static string Unescape(string text, int from, int to)
+        {
+            if (text.AsSpan(from, to - from).IndexOf('\\') < 0) return text[from..to];
+            var sb = new StringBuilder(to - from);
+            for (int k = from; k < to; k++)
+            {
+                if (text[k] == '\\' && k + 1 < to && char.IsPunctuation(text[k + 1])) k++;
+                sb.Append(text[k]);
+            }
+            return sb.ToString();
         }
 
         /// <summary>
