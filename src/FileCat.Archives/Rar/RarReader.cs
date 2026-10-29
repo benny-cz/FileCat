@@ -166,7 +166,7 @@ internal sealed class RarReader : IMemberReader
     {
         var member = _archive.Members[index];
         _bits.Reset(new RarPackedStream(_volumes, member.Segments));
-        _decoder!.StartMember(_bits, solid);
+        _decoder!.StartMember(_bits, solid, member.UnpackedSize);
         _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct);
         _decodedIndex = index;
         return _decoded;
@@ -183,6 +183,7 @@ internal sealed class RarReader : IMemberReader
 
     private static RarDecoder CreateDecoder(int version) => version switch
     {
+        20 or 26 => new Rar2Decoder(),
         50 => new Rar5Decoder(rar7: false),
         70 => new Rar5Decoder(rar7: true),
         _ => throw RarData.Unsupported($"compression version {version}"),
