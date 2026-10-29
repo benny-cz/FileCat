@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
+. (Join-Path $PSScriptRoot 'Enter-MediumIntegrityTestProcess.ps1')
 $projects = @(
     'tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj',
     'tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj',

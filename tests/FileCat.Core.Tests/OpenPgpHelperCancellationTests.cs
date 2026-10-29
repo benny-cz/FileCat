@@ -98,7 +98,7 @@ public sealed class OpenPgpHelperCancellationTests(ITestOutputHelper output)
             }
             if (phases.Length > 0)
             {
-                string[] arguments = ["--homedir=" + root, "--batch", "--no-tty", "--no-auto-key-retrieve", "--status-fd", "1", "--verify", "--", signature, signed];
+                string[] arguments = ["--no-options", "--homedir=" + root, "--batch", "--no-tty", "--no-auto-key-retrieve", "--status-fd", "1", "--verify", "--", signature, signed];
                 Assert.All(phases, v => Assert.Equal(arguments, v.GetProperty("Arguments").EnumerateArray().Select(x => x.GetString()).ToArray()));
                 var inputs = Assert.Single(phases, v => v.GetProperty("Phase").GetString() == "inputs-read");
                 Assert.Equal(Hash(sigBytes), inputs.GetProperty("SignatureSHA256").GetString());
