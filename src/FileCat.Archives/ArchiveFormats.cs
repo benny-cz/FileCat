@@ -43,6 +43,12 @@ public interface IMemberReader : IDisposable
     bool SharesCursor { get; }
 }
 
+/// <summary>A reader whose content comes from several opened volume files, every one of which must stay the file it was.</summary>
+internal interface IVolumeStreams
+{
+    IReadOnlyList<FileStream> VolumeStreams { get; }
+}
+
 /// <summary>Formats FileCat reads (ADR-07, P8), recognized by name or by signature, all read-only.</summary>
 public static class ArchiveFormats
 {
@@ -121,7 +127,7 @@ public static class ArchiveFormats
         ArchiveKind.Xz => new SingleStreamReader(path, s => new XZStream(s), "xz", displayName, ".xz", verifyOpened),
         ArchiveKind.Zstd => new SingleStreamReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "zstd", displayName, ".zst", verifyOpened),
         ArchiveKind.SevenZip => SharpArchiveReader.Open(path, rar: false, verifyOpened),
-        ArchiveKind.Rar => SharpArchiveReader.Open(path, rar: true, verifyOpened),
+        ArchiveKind.Rar => Rar.RarReader.Open(path, verifyOpened),
         _ => new DiscImageReader(path, verifyOpened),
     };
 
@@ -593,7 +599,7 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 /// empty stream in SharpCompress. Extracting in archive order decompresses each block once. Multi-volume RAR sets are
 /// opened whole.
 /// </summary>
-internal sealed class SharpArchiveReader : IMemberReader
+internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 {
     // SharpCompress reports a missing 7z compression folder as encrypted. Its public entry API does
     // not expose HasStream. Read that pinned header metadata only; missing metadata keeps the original refusal.
@@ -672,7 +678,7 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     // The provider retains this reader while its index is live. Every RAR volume is a source of its catalog
     // and members, even when the selected path is only the first part.
-    internal IReadOnlyList<FileStream> VolumeStreams => _volumes;
+    public IReadOnlyList<FileStream> VolumeStreams => _volumes;
 
     public static SharpArchiveReader Open(string path, bool rar) => Open(path, rar, null);
 

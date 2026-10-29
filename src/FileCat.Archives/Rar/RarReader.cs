@@ -7,7 +7,7 @@ namespace FileCat.Archives.Rar;
 /// independently; a solid run keeps one decoder and window and is read forward, restarting at the run's first member
 /// when an earlier member is asked for.
 /// </summary>
-internal sealed class RarReader : IMemberReader
+internal sealed class RarReader : IMemberReader, IVolumeStreams
 {
     private readonly List<Stream> _volumes;
     private readonly RarArchive _archive;
@@ -31,7 +31,7 @@ internal sealed class RarReader : IMemberReader
 
     public bool SharesCursor => _archive.Solid;
 
-    internal IReadOnlyList<FileStream> VolumeStreams => _volumes.OfType<FileStream>().ToList();
+    public IReadOnlyList<FileStream> VolumeStreams => _volumes.OfType<FileStream>().ToList();
 
     /// <summary>
     /// Opens the archive at <paramref name="path"/> with every volume of its set ("x.partN.rar" or "x.rar" with "x.r00"…),

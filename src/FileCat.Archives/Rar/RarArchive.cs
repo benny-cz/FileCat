@@ -67,29 +67,33 @@ internal sealed partial class RarArchive
         var segment = new RarSegment(volume, offset, part.PackedSize);
         if (splitBefore)
         {
-            bool continues = _split is not null && _split.Name == part.Name
-                && (volumeNumber < 0 || _splitVolumeNumber < 0 || volumeNumber == _splitVolumeNumber + 1);
-            if (!continues)
+            if (_split is not null && _split.Name == part.Name)
             {
-                // A part whose beginning is not here: list it, but it cannot be decoded.
-                if (_split is not null) _missingParts = true;
-                part.HasFirstPart = false;
-                part.HasLastPart = !splitAfter;
-                part.Segments.Add(segment);
-                Members.Add(part);
-                _split = splitAfter ? part : null;
+                // The member's next part. After a missing volume it is still this member (listed once), but its
+                // bytes have a hole: it is never decoded.
+                if (volumeNumber >= 0 && _splitVolumeNumber >= 0 && volumeNumber != _splitVolumeNumber + 1)
+                {
+                    _split.HasGap = true;
+                    _missingParts = true;
+                }
+                var member = _split;
+                member.Segments.Add(segment);
+                member.PackedSize = checked(member.PackedSize + part.PackedSize);
+                // The last part's header carries the checksum of the whole member.
+                member.Crc32 = part.Crc32;
+                member.Blake2sp = part.Blake2sp;
+                member.HasLastPart = !splitAfter;
+                _split = splitAfter ? member : null;
                 _splitVolumeNumber = volumeNumber;
-                _missingParts = true;
                 return;
             }
-            var member = _split!;
-            member.Segments.Add(segment);
-            member.PackedSize = checked(member.PackedSize + part.PackedSize);
-            // The last part's header carries the checksum of the whole member.
-            member.Crc32 = part.Crc32;
-            member.Blake2sp = part.Blake2sp;
-            member.HasLastPart = !splitAfter;
-            _split = splitAfter ? member : null;
+            // A part whose beginning is in no volume here: list it once, but it cannot be decoded.
+            _missingParts = true;
+            part.HasFirstPart = false;
+            part.HasLastPart = !splitAfter;
+            part.Segments.Add(segment);
+            Members.Add(part);
+            _split = splitAfter ? part : null;
             _splitVolumeNumber = volumeNumber;
             return;
         }

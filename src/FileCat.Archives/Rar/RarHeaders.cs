@@ -25,7 +25,8 @@ internal sealed class RarMember
     public List<RarSegment> Segments { get; } = [];
     public bool HasFirstPart { get; set; }
     public bool HasLastPart { get; set; }
-    public bool Complete => HasFirstPart && HasLastPart;
+    public bool HasGap { get; set; }            // a part in between is missing: listed once, never decoded
+    public bool Complete => HasFirstPart && HasLastPart && !HasGap;
 }
 
 /// <summary>A bounds-checked reader over one header's bytes; anything short or oversized is damage.</summary>

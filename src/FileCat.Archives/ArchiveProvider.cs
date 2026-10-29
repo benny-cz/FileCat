@@ -291,8 +291,8 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             ArchiveIndex.VolumeWitness[] volumes;
             try
             {
-                volumes = reader is SharpArchiveReader sharp
-                    ? sharp.VolumeStreams.Select(stream => new ArchiveIndex.VolumeWitness(stream,
+                volumes = reader is IVolumeStreams volumeSet
+                    ? volumeSet.VolumeStreams.Select(stream => new ArchiveIndex.VolumeWitness(stream,
                         SourceChangeToken.FromHandle(stream.SafeFileHandle), GetOpenedSourceIdentity(stream.SafeFileHandle))).ToArray()
                     : [];
             }

@@ -125,7 +125,7 @@ internal sealed partial class RarArchive
             for (int i = 1; i < member.Segments.Count; i++)
             {
                 if (member.Segments[i].Volume == volume && member.Segments[i - 1].Volume == volume - 1)
-                    member.HasFirstPart = false; // spliced across a missing volume: never decode it
+                    member.HasGap = true; // spliced across a missing volume: never decode it
             }
         }
     }
