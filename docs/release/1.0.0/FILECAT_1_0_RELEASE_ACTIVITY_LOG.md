@@ -4672,7 +4672,7 @@ Stable publication remains NO-GO.
 Skips reconciled against `445f20dc`: no skip there runs now, and the one test that ran there and now skips is the undo review of a replacement move on macOS and Ubuntu, where nothing is replaced (the owner's policy). Every other new skip belongs to a test added since and skips by design.
 
 **Ledger.**
-- GATE-CI-FINAL passed at `793c9b63`. The security session's `6edc78e7` (AC-58) changed the product right after, so the run on its head repeats the gate.
+- GATE-CI-FINAL is Accepted. It passed at `793c9b63` and again at the security session's `6edc78e7` (AC-58), the product head, in [run 40874157930](https://github.com/benny-cz/FileCat/actions/runs/40874157930), with the same skips.
 - I561's hosted result is recorded.
 - Issues stay **561/540/2/19**, and the evidence index **897**.
 
