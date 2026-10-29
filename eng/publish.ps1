@@ -87,7 +87,7 @@ if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish faile
 # A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.
 function Assert-PinnedNotices([string]$Folder, [string]$Name) {
     $sums = Join-Path $Folder 'SHA256SUMS'
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne '5A767C6CE1BB64D2DB478DD16C69A7B5FAD831D13BEA3BF4120AA9EDDBEAFEDA') {
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne 'DA9014FB8D4AF0CAB6BA4E19E1BD03BD88EA4F649E4DC1AC45CDD105C532CE8B') {
         throw "$Name/SHA256SUMS differs from the reviewed notice set"
     }
     $expected = @{}

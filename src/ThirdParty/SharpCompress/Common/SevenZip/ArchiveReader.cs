@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpCompress.Compressors.Deflate64;
 using SharpCompress.Compressors.LZMA;
 using SharpCompress.Compressors.LZMA.Utilities;
 using SharpCompress.IO;

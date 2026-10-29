@@ -137,7 +137,7 @@ public sealed class SevenZipPpmdTests : IDisposable
     }
 
     [Fact]
-    public void Damaged_ppmd_data_is_refused_or_decoded_as_upstream_decodes_it()
+    public async Task Damaged_ppmd_data_is_refused_or_decoded_as_upstream_decodes_it()
     {
         // Damage aimed at the packed data itself (between the start header and the archive's header), where FileCat's model
         // and the guarded 7z coder take every byte. SharpCompress's entry streams do not check 7z's CRCs, so damaged data
@@ -173,8 +173,15 @@ public sealed class SevenZipPpmdTests : IDisposable
             }
             return outcomes;
         }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        Assert.True(run.Wait(TimeSpan.FromMinutes(5)), "Reading damaged PPMd data did not end within five minutes (a loop?).");
-        var result = run.Result;
+        try
+        {
+            await run.WaitAsync(TimeSpan.FromMinutes(5), TestContext.Current.CancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            Assert.Fail("Reading damaged PPMd data did not end within five minutes (a loop?).");
+        }
+        var result = await run;
         TestContext.Current.TestOutputHelper?.WriteLine(string.Join("; ", result.Select(o => $"{o.Key}: {o.Value}")));
         Assert.True(result.Keys.Any(k => k != "same"), "No damaged copy decoded differently or was refused: the damage missed the PPMd data.");
     }

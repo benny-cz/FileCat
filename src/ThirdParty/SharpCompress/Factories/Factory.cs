@@ -14,13 +14,7 @@ public abstract class Factory : IFactory
 {
     static Factory()
     {
-        RegisterFactory(new ZipFactory());
-        RegisterFactory(new TarFactory()); //put tar before most
-        RegisterFactory(new GZipFactory());
-        RegisterFactory(new LzwFactory());
-        RegisterFactory(new ArcFactory());
-        RegisterFactory(new ArjFactory());
-        RegisterFactory(new AceFactory());
+        // FileCat's build keeps 7z only (THIRD-PARTY-CHANGES.md).
         RegisterFactory(new SevenZipFactory());
     }
 

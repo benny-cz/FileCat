@@ -1,3 +1,5 @@
+extern alias UpstreamSharpCompress;
+
 using System.Formats.Tar;
 using FileCat.Archives;
 using FileCat.Core.Archives;
@@ -33,6 +35,9 @@ public sealed class ArchiveFuzzTests : IDisposable
     [InlineData("7Zip.solid.7z")]
     [InlineData("7Zip.PPMd.7z")]             // 7z's PPMd: FileCat's shared PPMd variant H model with 7-Zip's coder
     [InlineData("FileCat.PPMd.o2.m64k.7z")]  // ...in 64 KiB of model memory, which restarts it again and again
+    [InlineData("FileCat.Methods.BZip2.7z")]
+    [InlineData("FileCat.Methods.Deflate.7z")]
+    [InlineData("FileCat.Methods.Copy.7z")]  // stored: damage reaches the bytes, and only the member's CRC-32 catches it
     [InlineData("Rar.rar")]
     [InlineData("Rar5.rar")]
     [InlineData("Rar5.solid.rar")]
@@ -108,7 +113,7 @@ public sealed class ArchiveFuzzTests : IDisposable
     private static byte[] Zip(List<(string Name, byte[] Data)> members)
     {
         using var output = new MemoryStream();
-        using (var zip = new SharpCompress.Writers.Zip.ZipWriter(output, new SharpCompress.Writers.Zip.ZipWriterOptions(SharpCompress.Common.CompressionType.Deflate) { LeaveStreamOpen = true }))
+        using (var zip = new UpstreamSharpCompress::SharpCompress.Writers.Zip.ZipWriter(output, new UpstreamSharpCompress::SharpCompress.Writers.Zip.ZipWriterOptions(UpstreamSharpCompress::SharpCompress.Common.CompressionType.Deflate) { LeaveStreamOpen = true }))
             foreach (var (name, data) in members)
                 zip.Write(name, new MemoryStream(data), Stamp.UtcDateTime);
         return output.ToArray();
@@ -117,8 +122,8 @@ public sealed class ArchiveFuzzTests : IDisposable
     private static byte[] Gzip(byte[] data)
     {
         using var output = new MemoryStream();
-        using (var gzip = new SharpCompress.Compressors.Deflate.GZipStream(output, SharpCompress.Compressors.CompressionMode.Compress,
-                   SharpCompress.Compressors.Deflate.CompressionLevel.BestCompression, System.Text.Encoding.UTF8, leaveOpen: true) { LastModified = Stamp.UtcDateTime })
+        using (var gzip = new UpstreamSharpCompress::SharpCompress.Compressors.Deflate.GZipStream(output, UpstreamSharpCompress::SharpCompress.Compressors.CompressionMode.Compress,
+                   UpstreamSharpCompress::SharpCompress.Compressors.Deflate.CompressionLevel.BestCompression, System.Text.Encoding.UTF8, leaveOpen: true) { LastModified = Stamp.UtcDateTime })
             gzip.Write(data, 0, data.Length);
         return output.ToArray();
     }

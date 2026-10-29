@@ -87,7 +87,17 @@ public sealed partial class XZBlock : XZReadOnlyStream
         if (bytes > 0)
         {
             var paddingBytes = new byte[4 - bytes];
-            BaseStream.Read(paddingBytes, 0, paddingBytes.Length);
+            // FileCat: read all of the padding; a short read left bytes for the next field to mistake as its own.
+            var got = 0;
+            while (got < paddingBytes.Length)
+            {
+                var n = BaseStream.Read(paddingBytes, got, paddingBytes.Length - got);
+                if (n <= 0)
+                {
+                    throw new InvalidFormatException("The block's padding is cut short");
+                }
+                got += n;
+            }
             if (paddingBytes.Any(b => b != 0))
             {
                 throw new InvalidFormatException("Padding bytes were non-null");

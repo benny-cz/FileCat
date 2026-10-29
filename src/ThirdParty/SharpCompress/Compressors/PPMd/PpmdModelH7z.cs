@@ -5,8 +5,6 @@
 
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using SharpCompress.Compressors.LZMA.RangeCoder;
 
 namespace SharpCompress.Compressors.PPMd;
@@ -41,10 +39,8 @@ internal readonly struct Ppmd7zRangeDecoder(Decoder decoder) : IPpmdRangeDecoder
 }
 
 /// <summary>
-/// <see cref="PpmdStream"/>'s PPMd variant H decoding (<see cref="PpmdVersion.H7Z"/>, 7z's PPMd): FileCat's shared model
-/// with 7-Zip's coder. It keeps the members of the ModelPpm it replaces, so PpmdStream keeps its shape. Variant H with
-/// RAR's coder over a plain stream (<see cref="PpmdVersion.H"/>, which no <see cref="PpmdProperties"/> produces) is
-/// refused: FileCat decodes RAR's PPMd in its own RAR reader, through the same model.
+/// <see cref="PpmdStream"/>'s decoding of 7z's PPMd: FileCat's shared model with 7-Zip's coder, in the place of
+/// upstream's ModelPpm.
 /// </summary>
 internal sealed class PpmdModelH7z : IDisposable
 {
@@ -56,12 +52,8 @@ internal sealed class PpmdModelH7z : IDisposable
     private bool _ended;   // the end mark was decoded: nothing follows it
     private bool _failed;  // damage was found: the model state is unknown, so nothing more is decoded
 
-    private static NotSupportedException RarCoderUnavailable() =>
-        new("PPMd variant H with RAR's range coder is not decoded through PpmdStream in this build.");
-
-    internal bool DecodeInit(Stream? stream, int maxOrder, int maxMemory)
+    internal void DecodeInit(int maxOrder, int maxMemory)
     {
-        if (stream is not null) throw RarCoderUnavailable();
         if (maxOrder is < 2 or > PpmdModelH.MaxOrder || maxMemory < PpmdModelH.MinMemoryBytes)
             throw new InvalidDataException($"The PPMd parameters are invalid: model order {maxOrder}, {maxMemory} bytes of model memory.");
         if (maxMemory > MaxMemoryBytes)
@@ -70,16 +62,7 @@ internal sealed class PpmdModelH7z : IDisposable
         _initialized = true;
         _ended = false;
         _failed = false;
-        return true;
     }
-
-    internal ValueTask<bool> DecodeInitAsync(Stream? stream, int maxOrder, int maxMemory, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return new ValueTask<bool>(DecodeInit(stream, maxOrder, maxMemory));
-    }
-
-    internal int DecodeChar() => throw RarCoderUnavailable();
 
     /// <summary>The next byte, or -1 once the data's end mark (an escape from the order-0 context) is decoded.</summary>
     internal int DecodeChar(Decoder decoder)
@@ -101,18 +84,6 @@ internal sealed class PpmdModelH7z : IDisposable
         }
         if (symbol < 0) _ended = true;
         return symbol;
-    }
-
-    internal ValueTask<int> DecodeCharAsync(CancellationToken cancellationToken = default) => throw RarCoderUnavailable();
-
-    /// <summary>
-    /// As <see cref="DecodeChar(Decoder)"/>: the model decodes synchronously, so the range decoder reads its input with
-    /// its synchronous Decode and DecodeBit here too.
-    /// </summary>
-    internal ValueTask<int> DecodeCharAsync(Decoder decoder, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return new ValueTask<int>(DecodeChar(decoder));
     }
 
     public void Dispose() { }

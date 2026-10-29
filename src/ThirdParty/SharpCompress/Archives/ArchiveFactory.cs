@@ -20,21 +20,6 @@ public static partial class ArchiveFactory
             .OpenArchive(stream, readerOptions);
     }
 
-    public static IWritableArchive<TOptions> CreateArchive<TOptions>()
-        where TOptions : IWriterOptions
-    {
-        var factory = Factory
-            .Factories.OfType<IWritableArchiveFactory<TOptions>>()
-            .FirstOrDefault();
-
-        if (factory != null)
-        {
-            return factory.CreateArchive();
-        }
-
-        throw new NotSupportedException("Cannot create Archives of type: " + typeof(TOptions));
-    }
-
     public static IArchive OpenArchive(string filePath, ReaderOptions? options = null)
     {
         filePath.NotNullOrEmpty(nameof(filePath));

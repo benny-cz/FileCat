@@ -290,21 +290,10 @@ public sealed class CompressionProviderRegistry
         var providers = new Dictionary<CompressionType, ICompressionProvider>
         {
             [CompressionType.Deflate] = new DeflateCompressionProvider(),
-            [CompressionType.GZip] = new GZipCompressionProvider(),
             [CompressionType.BZip2] = new BZip2CompressionProvider(),
             [CompressionType.ZStandard] = new ZStandardCompressionProvider(),
-            [CompressionType.LZip] = new LZipCompressionProvider(),
             [CompressionType.Xz] = new XzCompressionProvider(),
-            [CompressionType.Lzw] = new LzwCompressionProvider(),
-            [CompressionType.Deflate64] = new Deflate64CompressionProvider(),
-            [CompressionType.Shrink] = new ShrinkCompressionProvider(),
-            [CompressionType.Reduce1] = new Reduce1CompressionProvider(),
-            [CompressionType.Reduce2] = new Reduce2CompressionProvider(),
-            [CompressionType.Reduce3] = new Reduce3CompressionProvider(),
-            [CompressionType.Reduce4] = new Reduce4CompressionProvider(),
-            [CompressionType.Explode] = new ExplodeCompressionProvider(),
             [CompressionType.LZMA] = new LzmaCompressingProvider(),
-            [CompressionType.PPMd] = new PpmdCompressingProvider(),
         };
 
         return new CompressionProviderRegistry(providers);

@@ -1,84 +1,33 @@
 using System;
 using System.Buffers.Binary;
-using SharpCompress.Compressors.PPMd.I1;
 
 namespace SharpCompress.Compressors.PPMd;
 
+/// <summary>
+/// FileCat: the coder properties of 7z's PPMd (variant H): the model order, then the model memory as a little-endian
+/// 32-bit number. Upstream also read ZIP's two-byte PPMd variant I properties and offered them for compression; FileCat's
+/// build keeps 7z decoding only and refuses any other form.
+/// </summary>
 public class PpmdProperties
 {
-    private int _allocatorSize;
-    internal Allocator? _allocator;
-
-    public PpmdProperties()
-        : this(16 << 20, 6) { }
-
-    public PpmdProperties(int allocatorSize, int modelOrder)
-        : this(allocatorSize, modelOrder, ModelRestorationMethod.Restart) { }
-
-    internal PpmdProperties(
-        int allocatorSize,
-        int modelOrder,
-        ModelRestorationMethod modelRestorationMethod
-    )
-    {
-        AllocatorSize = allocatorSize;
-        ModelOrder = modelOrder;
-        RestorationMethod = modelRestorationMethod;
-    }
-
-    public int ModelOrder { get; }
-    public PpmdVersion Version { get; } = PpmdVersion.I1;
-    internal ModelRestorationMethod RestorationMethod { get; }
-
     public PpmdProperties(byte[] properties)
         : this(properties.AsSpan()) { }
 
     public PpmdProperties(ReadOnlySpan<byte> properties)
     {
-        if (properties.Length == 2)
+        if (properties.Length != 5)
         {
-            var props = BinaryPrimitives.ReadUInt16LittleEndian(properties);
-            AllocatorSize = (((props >> 4) & 0xff) + 1) << 20;
-            ModelOrder = (props & 0x0f) + 1;
-            RestorationMethod = (ModelRestorationMethod)(props >> 12);
-        }
-        else if (properties.Length == 5)
-        {
-            Version = PpmdVersion.H7Z;
-            AllocatorSize = BinaryPrimitives.ReadInt32LittleEndian(properties.Slice(1));
-            ModelOrder = properties[0];
-        }
-    }
-
-    public int AllocatorSize
-    {
-        get => _allocatorSize;
-        set
-        {
-            _allocatorSize = value;
-            if (Version == PpmdVersion.I1)
-            {
-                _allocator ??= new Allocator();
-
-                _allocator.Start(_allocatorSize);
-            }
-        }
-    }
-
-    public byte[] Properties
-    {
-        get
-        {
-            var bytes = new byte[2];
-            BinaryPrimitives.WriteUInt16LittleEndian(
-                bytes,
-                (ushort)(
-                    (ModelOrder - 1)
-                    + (((AllocatorSize >> 20) - 1) << 4)
-                    + ((ushort)RestorationMethod << 12)
-                )
+            throw new NotSupportedException(
+                $"Only 7z's PPMd (variant H, five property bytes) is supported; these properties have {properties.Length} bytes."
             );
-            return bytes;
         }
+        ModelOrder = properties[0];
+        AllocatorSize = BinaryPrimitives.ReadInt32LittleEndian(properties.Slice(1));
     }
+
+    public int ModelOrder { get; }
+
+    public int AllocatorSize { get; }
+
+    public PpmdVersion Version => PpmdVersion.H7Z;
 }

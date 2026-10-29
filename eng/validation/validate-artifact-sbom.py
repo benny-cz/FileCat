@@ -211,7 +211,7 @@ def main() -> int:
         expected_project_licenses={
             "FileCat.Archives.Rar15": "LGPL-2.1-or-later",
             "FileCat.Core": "MIT",
-            "FileCat.SharpCompress": "MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib AND Unlicense AND Info-ZIP",
+            "FileCat.SharpCompress": "MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
         })
     run("unknown-reference-origin", False, reference_id="Other.Component")
     run("hashed-reference", False, reference_hash="sha512-unreviewed")

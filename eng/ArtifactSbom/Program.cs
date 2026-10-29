@@ -262,12 +262,12 @@ try
         {
             "filecat.archives.rar15" => ("LGPL-2.1-or-later",
                 "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Benny and FileCat contributors", null),
-            "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib AND Unlicense AND Info-ZIP",
+            "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
                 "Copyright (c) 2014 Adam Hathcock and SharpCompress contributors; the copyrights of its parts from other projects are in "
                 + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Benny and FileCat contributors",
                 "SharpCompress 0.50.5 (github.com/adamhathcock/sharpcompress commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626) built from "
-                + "src/ThirdParty/SharpCompress without its UnRAR-derived RAR and PPMd variant H code. Texts and notices: licenses/sharpcompress. "
-                + "Info-ZIP (its ZIP implode and reduce decoders) is not OSI-approved."),
+                + "src/ThirdParty/SharpCompress, cut down to its 7z, bzip2, xz and zstd readers: no UnRAR-derived RAR or PPMd variant H "
+                + "code and none of its other formats. Every part's license is OSI-approved. Texts and notices: licenses/sharpcompress."),
             _ => ("MIT", "Copyright (c) 2026 Benny and FileCat contributors", null),
         };
         var project = new JsonObject

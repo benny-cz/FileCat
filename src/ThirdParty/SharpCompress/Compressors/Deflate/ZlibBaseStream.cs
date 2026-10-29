@@ -35,7 +35,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpCompress.Common;
-using SharpCompress.Common.Tar.Headers;
 using SharpCompress.IO;
 
 namespace SharpCompress.Compressors.Deflate;
@@ -747,7 +746,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
         }
 
         var timet = BinaryPrimitives.ReadInt32LittleEndian(header.Slice(4));
-        _GzipMtime = TarHeader.EPOCH.AddSeconds(timet);
+        _GzipMtime = DateTime.UnixEpoch.AddSeconds(timet);
         totalBytesRead += n;
         if ((header[3] & 0x04) == 0x04)
         {
@@ -774,7 +773,11 @@ internal class ZlibBaseStream : Stream, IStreamStack
         }
         if ((header[3] & 0x02) == 0x02)
         {
+            // FileCat: upstream reads this through the decompressor and only one of the CRC16's two bytes; the gzip flavour
+            // is unreachable in FileCat's build (gzip goes through System.IO.Compression), so it is left as upstream has it.
+#pragma warning disable CA2022
             Read(_buf1, 0, 1); // CRC16, ignore
+#pragma warning restore CA2022
         }
 
         return totalBytesRead;
@@ -807,7 +810,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
         }
 
         var timet = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
-        _GzipMtime = TarHeader.EPOCH.AddSeconds(timet);
+        _GzipMtime = DateTime.UnixEpoch.AddSeconds(timet);
         totalBytesRead += n;
         if ((header[3] & 0x04) == 0x04)
         {

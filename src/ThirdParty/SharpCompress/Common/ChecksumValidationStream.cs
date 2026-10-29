@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpCompress.Crypto;
 
 namespace SharpCompress.Common;
 
@@ -12,7 +11,7 @@ internal sealed class ChecksumValidationStream : Stream
     private readonly ChecksumDescriptor _checksum;
     private readonly string _entryName;
     private readonly uint[] _crc32Table;
-    private uint _seed = Crc32Stream.DEFAULT_SEED;
+    private uint _seed = 0xFFFF_FFFF;
     private ushort _crc16;
     private bool _validated;
 
@@ -21,7 +20,7 @@ internal sealed class ChecksumValidationStream : Stream
         _stream = stream;
         _checksum = checksum;
         _entryName = string.IsNullOrEmpty(entryName) ? "Entry" : entryName!;
-        _crc32Table = Crc32Stream.InitializeTable(Crc32Stream.DEFAULT_POLYNOMIAL);
+        _crc32Table = Crc32Table();
     }
 
     public override bool CanRead => _stream.CanRead;
@@ -108,7 +107,7 @@ internal sealed class ChecksumValidationStream : Stream
         {
             case ChecksumKind.Crc32:
             case ChecksumKind.Crc32NoFinalXor:
-                _seed = Crc32Stream.CalculateCrc(_crc32Table, _seed, buffer);
+                _seed = Crc32Update(_crc32Table, _seed, buffer);
                 break;
             case ChecksumKind.Crc16Arc:
                 _crc16 = CalculateCrc16Arc(_crc16, buffer);
@@ -160,6 +159,32 @@ internal sealed class ChecksumValidationStream : Stream
                 $"CRC mismatch for entry '{_entryName}'. Expected 0x{expected:X4}, actual 0x{_crc16:X4}."
             );
         }
+    }
+
+    // FileCat: the CRC-32 table and update are written here since FileCat's build drops Crypto/Crc32Stream.cs
+    // (THIRD-PARTY-CHANGES.md); reflected polynomial 0xEDB88320, the same values that class gave.
+    private static uint[] Crc32Table()
+    {
+        var table = new uint[256];
+        for (uint n = 0; n < 256; n++)
+        {
+            var c = n;
+            for (var k = 0; k < 8; k++)
+            {
+                c = (c & 1) != 0 ? 0xEDB8_8320 ^ (c >> 1) : c >> 1;
+            }
+            table[n] = c;
+        }
+        return table;
+    }
+
+    private static uint Crc32Update(uint[] table, uint crc, ReadOnlySpan<byte> buffer)
+    {
+        foreach (var value in buffer)
+        {
+            crc = table[(crc ^ value) & 0xFF] ^ (crc >> 8);
+        }
+        return crc;
     }
 
     private static ushort CalculateCrc16Arc(ushort crc, ReadOnlySpan<byte> buffer)
