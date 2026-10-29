@@ -194,7 +194,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not ((whoami /groups /fo csv) -match 'S-1-16-12288')) { throw 'ARM64 high-integrity refusal control requires a high token.' }
-          dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~Elevated_windows_process_refuses_even_an_owned_state_write"
+          dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~Elevated_windows_process_refuses_even_an_owned_state_write" --results-directory "$env:RUNNER_TEMP/filecat-high-token-results" --logger "trx;LogFileName=high-state-results.trx"
           exit $LASTEXITCODE
       - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Core.Tests -LogFileName core-results.trx
         shell: pwsh
@@ -256,6 +256,7 @@ jobs:
           name: test-results-windows-arm64
           path: |
             **/TestResults/*.trx
+            ${{ runner.temp }}/filecat-high-token-results/high-state-results.trx
             src/FileCat.PrivilegedHost/obj/**/bootstrap-build.json
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/compiler-*.log
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/source-dependencies.json
