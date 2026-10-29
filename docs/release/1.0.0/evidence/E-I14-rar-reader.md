@@ -102,8 +102,4 @@ The logs are in `V:\FileCat\artifacts\rar-reader-20261029` (DEC-10 custody):
 
 ## Remaining for REL-RAR-LICENSE
 
-1. **Ship SharpCompress without its UnRAR-derived code.** Build it from pinned upstream source without its RAR and PPMd var.H code, and move 7z's PPMd onto FileCat's model. Check the result against the upstream reader and 7-Zip. This is in progress on branch `claude/osi-sharpcompress`.
-2. **Align the records.** THIRD-PARTY-NOTICES, the dependency manifest and the SBOM must describe exactly that shipped code.
-3. **Run hosted CI** on the pushed source.
-
-I14 stays Open until all three are done.
+Update 2026-10-29: SharpCompress now ships without its UnRAR-derived code, cut down to what FileCat uses, with every part OSI-licensed and its notices, manifest and SBOM matching ([E-I14-SHARPCOMPRESS](E-I14-sharpcompress-osi.md), `ca293815`). What remains is hosted CI on the pushed source.

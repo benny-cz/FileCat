@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds FileCat for macOS on Apple silicon (P9, approved 2026-09-28) under artifacts/:
-#   FileCat-<ver>-osx-arm64.zip   FileCat.app, ad-hoc signed only (not notarized: Gatekeeper asks on first launch;
-#                                 right-click → Open, or remove the quarantine attribute, to run it)
+#   FileCat-<ver>-osx-arm64.zip   FileCat.app, ad-hoc signed only (not notarized: macOS blocks the first launch of a
+#                                 downloaded copy; Open Anyway in System Settings → Privacy & Security runs it)
 # Usage: eng/package-macos.sh [version]      (needs macOS: iconutil, codesign, ditto; and the .NET SDK)
 set -euo pipefail
 

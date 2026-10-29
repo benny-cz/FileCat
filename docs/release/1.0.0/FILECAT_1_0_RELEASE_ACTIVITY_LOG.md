@@ -4531,3 +4531,18 @@ The agents' oracle comparisons agree too: ext4 equals debugfs on 394 inodes, and
 **Claims reconciled.** CAPABILITIES, IMPLEMENTATION_STATUS, plan §16.1 and its D-56 row, and the command's description now say what is read. The P10-helper sentence is corrected, and the plan's audio/video row no longer promises playback (DEC-05). CI gains an ext4 root step.
 
 **Ledger.** I05 moves to Remediated preliminarily; issues are now **556/534/2/20**, and the evidence index **893**. REL-CONTRACT now waits on the macOS minimum-version question and the new tests' first hosted run. Stable publication remains NO-GO.
+
+## 2026-10-29 — SharpCompress shipped OSI-only; 7z members checked (I14 remediated preliminarily)
+
+The second half of the EXT-02 route is done ([record](evidence/E-I14-sharpcompress-osi.md)). FileCat ships SharpCompress as its own build (`FileCat.SharpCompress.dll`), cut down to what FileCat reads with it: 7z, bzip2, xz and zstd.
+- **What went.** The UnRAR-derived RAR and PPMd var.H code, and every other format, writer and codec. Among them are the Info-ZIP-licensed Implode and Reduce decoders, and the codecs whose terms were not established. DotNetZip's CRC32 class, credited to vbAccelerator, is replaced.
+- **Licenses.** The assembly declares `MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib`, all OSI-approved. RAR 3 and 7z PPMd share FileCat's rardecode-derived model.
+- **A real defect found and fixed.** SharpCompress never checked a 7z member's CRC-32 on the stream FileCat reads, so a damaged 7z could read back as wrong bytes. FileCat now refuses such members. Over 300 single-bit damages per coder, none reads as if whole.
+- **Verification.** A zero-warning build; the Core suite (4,937 tests, 0 failed); 16,000 archive fuzz rounds; all validators. Packages were built from the clean commit on Windows, Ubuntu 24.04.5 and macOS 27, and each carries the pinned license set and an SBOM with the expression.
+
+**Ledger.**
+- I14 moves to Remediated preliminarily; issues are now **556/535/2/19**, and the evidence index **894**.
+- REL-RAR-LICENSE waits only on hosted CI of `ca293815`.
+- CAPABILITIES now says FileCat reads every RAR from 1.5 to 7 and refuses ZIP, 7z or RAR members whose checksums do not match.
+
+Stable publication remains NO-GO.

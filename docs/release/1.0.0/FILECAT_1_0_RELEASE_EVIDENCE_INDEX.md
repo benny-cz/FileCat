@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**893 evidence entries; none is final candidate qualification.** No candidate exists.
+**894 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -64,6 +64,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I09-T1 | Where writing goes, on real systems: loop devices, disk images and a VHDX whose files lie on the source's disk; memory and links from it; shares served by the same computer | `7418c04`, `0a52b7b` | Preliminary live | [I09](FILECAT_1_0_RELEASE_ISSUES.md) | I09 |
 | E-I12 | Historical descriptor/title regressions and durable lifecycle coverage | a0a8ece; original CI 37541603291 attempt 1; actual owner-Mac cross-published payload | Preliminary coverage closure; intermittent Mac failure unforced, broader integration/candidate open | [E-I12](evidence/E-I12-regression-coverage.md) | I12, I06, I13, I25 |
 | E-I14-RAR | FileCat's own RAR reader: provenance, switch-over, differential tests and stress | `e57ebaaf` on main; fuzz at `6e06b830` (Windows) and `e57ebaaf` (Windows, macOS arm64, Ubuntu x64) | Preliminary engineering: Windows Core 4,846 tests/0 failures; 268/268 native on macOS and Ubuntu; libarchive corpus 77/77; 1,380,000 fuzz rounds without a failure. SharpCompress still ships its UnRAR-derived code | [E-I14-RAR](evidence/E-I14-rar-reader.md) | I14, V20, EXT-02, REL-RAR-LICENSE |
+| E-I14-SHARPCOMPRESS | SharpCompress shipped as FileCat's own build: no UnRAR code, cut to 7z/bzip2/xz/zstd, every part OSI-licensed; 7z member CRC-32 checked | `ca293815` on main; Windows host, Ubuntu 24.04.5 VM, macOS 27 arm64 | Preliminary component/package: zero-warning build; Core 4,937/0 failed; 7z CRC refusals with no damaged read accepted; 16,000 archive fuzz rounds clean; all validators pass; packages from the clean commit on three platforms carry the pinned license set. Hosted CI and candidate remain. | [E-I14-SHARPCOMPRESS](evidence/E-I14-sharpcompress-osi.md) | I14, V20, EXT-02, REL-RAR-LICENSE |
 | E-I15-S1 | Installer script and Inno Setup semantics | `4f6b062` | Static | [E-I15](evidence/E-I15-uninstall-vm.md) | I15 |
 | E-I15-V1 | Install and uninstall into a folder holding user files; default folder with one run | Scripts `4f6b062` / `5b061cc`; payload `f87ad32` | Preliminary runtime | [E-I15](evidence/E-I15-uninstall-vm.md) | I15 |
 | E-I16-HOME | Complete FileCat transport suppresses home-directed ignore/attribute rules | Exact f502fd1 App payload; native owned Git comparisons | Finite negative defect hypothesis/positive existing defense; two complete-path cases pass, wider aliases/races/native/candidate open | [E-I16-HOME](evidence/E-I16-HOME-opened-rule-overrides.md) | I16, V23, V24 |
