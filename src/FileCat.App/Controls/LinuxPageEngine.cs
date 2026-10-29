@@ -62,6 +62,23 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     internal static bool NeedsAppArmorUserNamespaceProfile(string? restriction, string? currentProfile) =>
         restriction?.Trim() == "1" && (string.IsNullOrWhiteSpace(currentProfile) || currentProfile.Trim() == "unconfined");
 
+    /// <summary>
+    /// Where WebKitGTK starts its page process without bubblewrap although its sandbox is enabled, and still reports it
+    /// enabled (review finding R-M7): with WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS set to anything but 0, inside Docker,
+    /// and inside a Snap (WebKit's own tests for these). FileCat shows no page there rather than claim a sandbox it does
+    /// not have. Inside a Flatpak, WebKit uses Flatpak's own sandbox instead.
+    /// </summary>
+    internal static string? SandboxSkippedHere(Func<string, bool> exists, Func<string, string?> variable)
+    {
+        if (variable("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS") is { } disabled && disabled != "0")
+            return "Web page preview is unavailable because WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS turns WebKitGTK's page sandbox off. Start FileCat without it.";
+        if (exists("/.dockerenv"))
+            return "Web page preview is unavailable inside a Docker container, where WebKitGTK does not start its page sandbox.";
+        if (variable("SNAP") is not null && variable("SNAP_NAME") is not null && variable("SNAP_REVISION") is not null)
+            return "Web page preview is unavailable inside a Snap, where WebKitGTK does not start its page sandbox.";
+        return null;
+    }
+
     private static string? AppArmorProfileUnavailable()
     {
         const string restrictionPath = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
@@ -790,6 +807,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static string? Load()
         {
             if (!OperatingSystem.IsLinux()) return "Web pages are drawn by WebKitGTK on Linux only.";
+            if (SandboxSkippedHere(File.Exists, Environment.GetEnvironmentVariable) is { } skipped) return skipped;
             if (AppArmorProfileUnavailable() is { } appArmor) return appArmor;
             nint webkit = 0;
             foreach (string name in new[] { "libwebkit2gtk-4.1.so.0", "libwebkit2gtk-4.0.so.37" })

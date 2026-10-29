@@ -22,6 +22,22 @@ public sealed class LinuxPageEngineTests
     }
 
     [Fact]
+    public void Pages_are_refused_where_WebKit_would_start_them_without_its_sandbox()
+    {
+        // Review finding R-M7: FileCat read back the sandbox flag it had set, which WebKitGTK reports as enabled also where
+        // it starts the page process without bubblewrap.
+        static string? Here(string[] files, params (string Name, string Value)[] variables) =>
+            LinuxPageEngine.SandboxSkippedHere(files.Contains, name => variables.FirstOrDefault(v => v.Name == name).Value);
+        Assert.Null(Here([]));
+        Assert.Contains("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", Here([], ("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1")));
+        Assert.Null(Here([], ("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "0")));
+        Assert.Contains("Docker", Here(["/.dockerenv"]));
+        Assert.Contains("Snap", Here([], ("SNAP", "/snap/filecat/1"), ("SNAP_NAME", "filecat"), ("SNAP_REVISION", "1")));
+        Assert.Null(Here([], ("SNAP", "/home/user/snap")));
+        Assert.Null(Here(["/.flatpak-info"]));
+    }
+
+    [Fact]
     public async Task WebKitGTK_draws_the_page_with_its_scripts_off_and_refuses_the_web()
     {
         if (!OperatingSystem.IsLinux())
