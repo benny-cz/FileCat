@@ -16,6 +16,8 @@ licenses/dependencies/** -text -whitespace
 licenses/appimage-runtime/** -text -whitespace
 # XADMaster's LGPL text ships byte for byte (licenses/xadmaster/README.md pins its SHA-256).
 licenses/xadmaster/LICENSE -text
+# The vendored AppImage runtime, its upstream sources and the source-bundle files keep their exact bytes.
+eng/linux/appimage-runtime/** -text
 
 # Retained publish metadata keeps its exact producer bytes.
 eng/validation/fixtures/dependency-notices/** -text

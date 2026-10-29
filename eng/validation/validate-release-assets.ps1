@@ -20,7 +20,7 @@ $Version = '1.0.0-rc.1-extra'
 $Contract = @{
     windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-extra-win-x64-portable.zip','FileCat-1.0.0-rc.1-extra-win-x64-fdd.zip','sbom-1.0.0-rc.1-extra-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-fdd.spdx.json',
         'FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-extra-win-arm64-portable.zip','FileCat-1.0.0-rc.1-extra-win-arm64-fdd.zip','sbom-1.0.0-rc.1-extra-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-fdd.spdx.json')
-    linux=@('FileCat-1.0.0-rc.1-extra-linux-x64.tar.gz','filecat_1.0.0~rc.1-extra_amd64.deb','FileCat-1.0.0-rc.1-extra-x86_64.AppImage','sbom-1.0.0-rc.1-extra-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-appimage.spdx.json')
+    linux=@('FileCat-1.0.0-rc.1-extra-linux-x64.tar.gz','filecat_1.0.0-rc.1-extra_amd64.deb','FileCat-1.0.0-rc.1-extra-x86_64.AppImage','FileCat-1.0.0-rc.1-extra-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-rc.1-extra-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-appimage.spdx.json')
     macos=@('FileCat-1.0.0-rc.1-extra-osx-arm64.zip','sbom-1.0.0-rc.1-extra-osx-arm64-macos-app.spdx.json')
 }
 $Observations = [Collections.Generic.List[object]]::new()
@@ -29,6 +29,9 @@ try {
         $Root = Join-Path $TestRoot $Platform
         [void][IO.Directory]::CreateDirectory($Root)
         $Names = $Contract[$Platform]
+        # GitHub renames uploaded assets whose names contain other characters (such as a Debian version's '~'), which
+        # the exact post-upload name check would then refuse.
+        if (@($Names | Where-Object { $_ -cnotmatch '^[0-9A-Za-z][0-9A-Za-z._-]*[0-9A-Za-z]$' }).Count) { throw 'A release asset name contains characters GitHub renames.' }
         foreach ($Name in $Names) { [IO.File]::WriteAllBytes((Join-Path $Root $Name), [Text.Encoding]::UTF8.GetBytes("owned contract fixture: $Name")) }
         $ExtraName = switch ($Platform) { windows {'unrelated-probe.exe'} linux {'unrelated-probe.AppImage'} macos {'unrelated-probe.zip'} }
         $Extra = Join-Path $Root $ExtraName
@@ -50,7 +53,7 @@ try {
         try { & $Selector -Platform $Platform -Version $Version -SourceCommit $Commit -ArtifactDirectory $Root | Out-Null }
         catch { $Refused = $true }
         if (-not $Refused -or [Convert]::ToHexString([IO.File]::ReadAllBytes($Result.ManifestPath)) -cne [Convert]::ToHexString($Original)) { throw 'Existing manifest was not preserved.' }
-        $Observations.Add(@{Platform=$Platform;Assets=$Names.Count;HashesVerified=$true;ExtraExcluded=$true;ExistingManifestPreserved=$true})
+        $Observations.Add(@{Platform=$Platform;Assets=$Names.Count;HashesVerified=$true;ExtraExcluded=$true;ExistingManifestPreserved=$true;GitHubSafeNames=$true})
     }
     foreach ($Kind in @('missing','empty','directory','invalid-version','glob-root')) {
         $Root = Join-Path $TestRoot $(if ($Kind -eq 'glob-root') { 'glob[fixture]' } else { $Kind })

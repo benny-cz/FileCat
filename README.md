@@ -127,11 +127,13 @@ Packaging also checks the frozen notice snapshot in `licenses/dependencies/index
 against the App lock and published runtime version before copying full texts.
 Review and update that snapshot from verified package/source bytes when changing
 dependencies or the SDK; its index records unresolved license-provenance gaps.
-AppImage packaging additionally checks the original runtime input against
-`licenses/appimage-runtime/index.json` and copies its available wrapper notices.
-Update the runtime pin, source references and notice snapshot together, including
-when supplying `APPIMAGE_RUNTIME` or selecting another architecture. Complete
-static-library composition and source obligations remain release audit gates.
+AppImage packaging embeds the reviewed runtime kept in `eng/linux/appimage-runtime`
+(it downloads none), checks it against its pin and `licenses/appimage-runtime/index.json`,
+copies the wrapper notices and checks that the AppImage starts with that runtime. It
+then writes the runtime's corresponding source,
+`FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`, a reproducible archive
+whose bytes are pinned too. `APPIMAGE_RUNTIME` may only name another copy of the same
+bytes. Update the runtime, its pins, the source bundle and the notice snapshot together.
 
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.

@@ -12,10 +12,13 @@ SPDX inventory whenever dependencies or the SDK change: `eng/publish.ps1` writes
 `deb`, and `appimage` manifests; and `eng/package-macos.sh` writes the macOS `macos-app` manifest.
 Their filenames are `artifacts/sbom-<version>-<rid>-<artifact-kind>.spdx.json`. Review every
 manifest together with the retained notice snapshot.
-The Linux AppImage also includes available wrapper texts in
-`licenses/appimage-runtime`. Its index pins the original runtime input and the
-declared source archives for these texts; complete static-library composition,
-versions and source obligations remain under review.
+The Linux AppImage also includes the wrapper texts in `licenses/appimage-runtime`.
+Its index pins the runtime input, which FileCat keeps in `eng/linux/appimage-runtime`,
+and the source archives of these texts. That runtime statically links libfuse
+(LGPL-2.1), so every AppImage release also publishes
+`FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`: the exact libfuse,
+squashfuse and type2-runtime sources, a README and `rebuild.sh`, which rebuilds
+the runtime and relinks the AppImage with a modified libfuse.
 
 | Component | Version | License | Notes |
 |---|---|---|---|
@@ -38,7 +41,7 @@ versions and source obligations remain under review.
 | XADMaster (ported source in FileCat's RAR 1.5 decoder) | commit 7cb9ee0a | LGPL-2.1-or-later | `src/FileCat.Archives.Rar15` ports its RAR 1.5 decoding (XADRAR15Handle) into the separate, replaceable `FileCat.Archives.Rar15.dll`; Copyright (c) 2017-present MacPaw Way Ltd., originally by Dag Ågren. Notice below; full text in `licenses/xadmaster/LICENSE`, shipped with FileCat; no UnRAR source |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; the signed package's SPDX expression and copyright metadata are bound to retained canonical MIT text |
-| AppImage type2-runtime (Linux AppImage only) | declared commit fedfad51, immutable GitHub asset ID 657374641, exact runtime input pinned by checksum | MIT root; linked components have their own licenses | The official producer log binds Alpine 3.21 digest `ce6475…3507`, libfuse 3.15.0, squashfuse 0.5.2, musl 1.2.5-r11, zstd 1.5.6-r2, zlib 1.3.2-r1 and mimalloc 2.1.7-r0. Original source license texts are retained in `licenses/appimage-runtime`; complete actual static composition, static-link/source obligations and binary/source reproducibility remain unqualified. The tarball and Debian package omit this wrapper |
+| AppImage type2-runtime (Linux AppImage only) | commit fedfad51; upstream GitHub asset 657374641, kept in `eng/linux/appimage-runtime` and pinned by checksum | MIT root; libfuse LGPL-2.1; other linked components have their own licenses | The official producer log binds Alpine 3.21 digest `ce6475…3507`, libfuse 3.15.0, squashfuse 0.5.2, musl 1.2.5-r11, zstd 1.5.6-r2, zlib 1.3.2-r1 and mimalloc 2.1.7-r0. Original source license texts are retained in `licenses/appimage-runtime`. The runtime's corresponding source, with a rebuild and relink script, is published with every AppImage release as `FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`. The tarball and Debian package omit this wrapper |
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
 
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in

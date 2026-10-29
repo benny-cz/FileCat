@@ -30,8 +30,10 @@ $Names = @(switch ($Platform) {
     }
     linux {
         "FileCat-$Version-linux-x64.tar.gz"
-        "filecat_$($Version -replace '^(\d+\.\d+\.\d+)-', '$1~')_amd64.deb"
+        # Named with FileCat's version: GitHub renames assets whose names contain the Debian version's '~'.
+        "filecat_${Version}_amd64.deb"
         "FileCat-$Version-x86_64.AppImage"
+        "FileCat-$Version-linux-x64-appimage-runtime-source.tar.gz"
         "sbom-$Version-linux-x64-tar.spdx.json"
         "sbom-$Version-linux-x64-deb.spdx.json"
         "sbom-$Version-linux-x64-appimage.spdx.json"

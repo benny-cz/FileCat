@@ -1350,6 +1350,7 @@ Names below are derived from current scripts with version `1.0.0`. They are prop
 | `FileCat-1.0.0-linux-x64.tar.gz` | Linux x64, self-contained/R2R | System native libraries; optional desktop-entry installation | No signing mechanism established; final integrity/provenance policy required |
 | `filecat_1.0.0_amd64.deb` | Ubuntu x64 | `/opt/filecat`, launcher and dependency metadata | Clean 26.04 dependency test required; hash unassigned |
 | `FileCat-1.0.0-x86_64.AppImage` | Linux x64 | AppImage runtime plus FileCat payload; normal launch dependencies | Wrapper inventory/license and clean launch required |
+| `FileCat-1.0.0-linux-x64-appimage-runtime-source.tar.gz` | Source for the AppImage runtime | libfuse 3.15.0, squashfuse 0.5.2 and type2-runtime fedfad51 sources, producer package list, README and `rebuild.sh` (EXT-04, LGPL-2.1 section 6) | Reproducible; bytes pinned in `eng/package-linux.sh` |
 | `FileCat-1.0.0-osx-arm64.zip` containing `FileCat.app` | Apple Silicon, self-contained/R2R | Native Avalonia/runtime, system WKWebView; no Windows helpers | Current script ad-hoc only; final policy unresolved; physical MAC required |
 | Checksums, complete SBOM, notices/license materials | All artifacts | Each ties to exact final bytes | Must be generated/verified after final packaging/signing |
 | GitHub source archives | Source tag | GitHub-generated source, not binary qualification | Verify tag relationship; distinguish from signed binaries |
