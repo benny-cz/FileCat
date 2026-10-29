@@ -1,0 +1,22 @@
+﻿guest=Microsoft Windows NT 10.0.26300.0
+integrity=Mandatory Label\High Mandatory Level                          Label            S-1-16-12288                                                                
+test=*Administrator_copy*
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+  Finished:    FileCat.Platform.Windows.Tests (ID = 'd82588112649b98d299cd93626f31d679fea117ea4086bbe1f7b0b720a39749a')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 2, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,225s
+
+exit=0
+test=*High_token_copy_runner*
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+  Finished:    FileCat.Platform.Windows.Tests (ID = 'd82588112649b98d299cd93626f31d679fea117ea4086bbe1f7b0b720a39749a')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,170s
+
+exit=0

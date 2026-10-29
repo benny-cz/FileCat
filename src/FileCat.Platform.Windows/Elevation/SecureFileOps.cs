@@ -363,6 +363,13 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 return;
             }
         }
+        // Hold a readable mark without write/delete sharing until publication. An inaccessible stream is not an
+        // absent stream: publishing the copy without it would silently remove Windows' download warning.
+        SafeFileHandle? sourceZone;
+        byte[]? mark;
+        try { (sourceZone, mark) = ReadZoneIdentifier(source); }
+        catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
+        using var heldSourceZone = sourceZone;
         // Stage under a unique name, then publish with a rename; a failure never leaves a partial file under the real name.
         string temp = ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".tmp";
         SafeFileHandle output;
@@ -372,7 +379,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 NonDirectoryFile | OpenReparsePoint, "Create the file", (uint)FileAttributes.Normal);
         }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
-        bool published = false;
+        bool complete = false;
         try
         {
             var buffer = new byte[1024 * 1024];
@@ -384,21 +391,25 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
                 offset += read;
             }
-            CopyZoneIdentifier(source, output, path, report);
+            using var stagedZone = mark is null ? null : WriteZoneIdentifier(output, mark);
             report.StreamsNotCopied += Streams(source).Count(s => !s.StartsWith(":Zone.Identifier:", StringComparison.OrdinalIgnoreCase));
             var basic = GetBasic(source);
             basic.ChangeTime = 0;
             basic.FileAttributes &= EditableAttributes;
             if (basic.FileAttributes == 0) basic.FileAttributes = (uint)FileAttributes.Normal;
             SetBasic(output, basic);
+            if (mark is null) EnsureZoneIdentifierMissing(source);
+            else VerifyZoneIdentifier(stagedZone!, mark);
             NtFile.Rename(output, targetDirectory, targetName, replace);
-            published = true;
+            if (mark is null) EnsureZoneIdentifierMissing(source);
+            else VerifyZoneIdentifier(stagedZone!, mark);
+            complete = true;
             report.Done++;
         }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); }
         finally
         {
-            if (!published)
+            if (!complete)
             {
                 try { DeleteOpen(output); }
                 catch (Exception ex) when (IsIo(ex)) { report.Note($"A staged file could not be removed: {ex.Message}"); }
@@ -408,28 +419,57 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
     }
 
     /// <summary>
-    /// Mark-of-the-Web is security metadata (plan §8.1): copies keep it, and a lost mark is reported. Both streams are
-    /// opened relative to the already open file handles (":Zone.Identifier"), never by name.
+    /// Mark-of-the-Web is security metadata (plan §8.1). Only an absent stream may produce an unmarked copy. Both
+    /// streams are opened relative to the already open file handles, never by a pathname.
     /// </summary>
-    private void CopyZoneIdentifier(SafeFileHandle source, SafeFileHandle output, string path, TreeReport report)
+    private static (SafeFileHandle? Handle, byte[]? Bytes) ReadZoneIdentifier(SafeFileHandle source)
     {
-        int status = TryOpen(source, ":Zone.Identifier", GenericRead | Synchronize, ShareAll, Open, NonDirectoryFile, out var zone);
+        int status = TryOpen(source, ":Zone.Identifier", GenericRead | Synchronize, ShareRead, Open, NonDirectoryFile, out var zone);
+        if (status == NameNotFound) { zone.Dispose(); return (null, null); }
+        if (status < 0) { zone.Dispose(); throw Error(status, "Read the download mark"); }
+        try { return (zone, ReadBoundedMark(zone)); }
+        catch { zone.Dispose(); throw; }
+    }
+
+    private static byte[] ReadBoundedMark(SafeFileHandle zone)
+    {
+        const int limit = 64 * 1024;
+        var buffer = new byte[limit + 1];
+        int length = 0;
+        while (length < buffer.Length)
+        {
+            int read = RandomAccess.Read(zone, buffer.AsSpan(length), length);
+            if (read == 0) return buffer[..length];
+            length += read;
+        }
+        throw new IOException("The download mark exceeds the 64 KiB copy limit; the file was not published.");
+    }
+
+    private static SafeFileHandle WriteZoneIdentifier(SafeFileHandle output, byte[] mark)
+    {
+        var target = OpenOrThrow(output, ":Zone.Identifier", GenericRead | GenericWrite | Synchronize, ShareRead | ShareDelete,
+            Create, NonDirectoryFile, "Copy the download mark");
+        try
+        {
+            RandomAccess.Write(target, mark, 0);
+            VerifyZoneIdentifier(target, mark);
+            return target;
+        }
+        catch { target.Dispose(); throw; }
+    }
+
+    private static void VerifyZoneIdentifier(SafeFileHandle zone, byte[] expected)
+    {
+        if (!ReadBoundedMark(zone).AsSpan().SequenceEqual(expected))
+            throw new IOException("The copied download mark changed; the file was not published.");
+    }
+
+    private static void EnsureZoneIdentifierMissing(SafeFileHandle source)
+    {
+        var (zone, _) = ReadZoneIdentifier(source);
         using (zone)
         {
-            if (status < 0) return;
-            var mark = new byte[64 * 1024];
-            int length = RandomAccess.Read(zone, mark, 0);
-            try
-            {
-                using var target = OpenOrThrow(output, ":Zone.Identifier", GenericWrite | Synchronize, ShareAll, Create, NonDirectoryFile,
-                    "Copy the download mark");
-                RandomAccess.Write(target, mark.AsSpan(0, length), 0);
-            }
-            catch (Exception ex) when (IsIo(ex))
-            {
-                report.MarksLost++;
-                report.Note($"{_display(path)}: the downloaded-from-the-internet mark could not be copied ({ex.Message}), so Windows will not warn about the copy.");
-            }
+            if (zone is not null) throw new IOException("A download mark appeared while copying; the file was not published.");
         }
     }
 

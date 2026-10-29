@@ -140,6 +140,159 @@ public sealed class ElevationTests
     }
 
     [Fact]
+    public void Administrator_copy_and_runner_refuse_an_unreadable_download_mark()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows streams require Windows.");
+        string root = NewDirectory();
+        try
+        {
+            string source = Path.Combine(root, "download.exe");
+            string destination = Directory.CreateDirectory(Path.Combine(root, "destination")).FullName;
+            const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            File.WriteAllText(source, "OWNED-CONTENT");
+            File.WriteAllText(source + ":Zone.Identifier", mark);
+            string sourceVolume = ElevationPaths.ToVolumePath(source);
+            string destinationVolume = ElevationPaths.ToVolumePath(destination);
+            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var report = Ops().CopyTree(sourceVolume, destinationVolume, "copy.exe", replace: false);
+                Assert.Equal(0, report.Done);
+                Assert.Equal(1, report.Failed);
+                Assert.False(File.Exists(Path.Combine(destination, "copy.exe")));
+                var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
+                    { Path = sourceVolume, Destination = destinationVolume, Name = "runner.exe" });
+                var step = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
+                Assert.Equal(ElevatedOutcome.Failed, step.Outcome);
+                Assert.False(File.Exists(Path.Combine(destination, "runner.exe")));
+            }
+            Assert.Equal(mark, File.ReadAllText(source + ":Zone.Identifier"));
+            var control = Ops().CopyTree(sourceVolume, destinationVolume, "control.exe", replace: false);
+            Assert.Equal(1, control.Done);
+            Assert.Equal(0, control.Failed);
+            Assert.Equal(mark, File.ReadAllText(Path.Combine(destination, "control.exe") + ":Zone.Identifier"));
+            Assert.Empty(Directory.GetFiles(destination, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void Administrator_copy_bounds_and_rechecks_download_marks_before_publication()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows streams require Windows.");
+        string root = NewDirectory();
+        try
+        {
+            string source = Path.Combine(root, "download.exe");
+            string destination = Directory.CreateDirectory(Path.Combine(root, "destination")).FullName;
+            File.WriteAllText(source, "OWNED-CONTENT");
+            string sourceVolume = ElevationPaths.ToVolumePath(source);
+            string destinationVolume = ElevationPaths.ToVolumePath(destination);
+            var plain = Ops().CopyTree(sourceVolume, destinationVolume, "plain.exe", replace: false);
+            Assert.Equal((1, 0), (plain.Done, plain.Failed));
+            Assert.False(File.Exists(Path.Combine(destination, "plain.exe") + ":Zone.Identifier"));
+
+            string ads = source + ":Zone.Identifier";
+            string boundaryMark = "[ZoneTransfer]\r\nZoneId=3\r\n".PadRight(64 * 1024, 'x');
+            File.WriteAllText(ads, boundaryMark);
+            var boundary = Ops().CopyTree(sourceVolume, destinationVolume, "boundary.exe", replace: false);
+            Assert.Equal((1, 0), (boundary.Done, boundary.Failed));
+            Assert.Equal(boundaryMark, File.ReadAllText(Path.Combine(destination, "boundary.exe") + ":Zone.Identifier"));
+
+            File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n" + new string('x', 64 * 1024));
+            var oversized = Ops().CopyTree(sourceVolume, destinationVolume, "oversized.exe", replace: false);
+            Assert.Equal((0, 1), (oversized.Done, oversized.Failed));
+            Assert.False(File.Exists(Path.Combine(destination, "oversized.exe")));
+
+            File.Delete(ads);
+            bool injected = false;
+            var racing = new SecureFileOps(() =>
+            {
+                if (injected) return;
+                injected = true;
+                File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n");
+            }).CopyTree(sourceVolume, destinationVolume, "racing.exe", replace: false);
+            Assert.True(injected);
+            Assert.Equal((0, 1), (racing.Done, racing.Failed));
+            Assert.False(File.Exists(Path.Combine(destination, "racing.exe")));
+
+            const string originalMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            bool replacementAttempted = false, replacementBlocked = false;
+            var heldSourceMark = new SecureFileOps(() =>
+            {
+                if (replacementAttempted) return;
+                replacementAttempted = true;
+                try { File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=4\r\n"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { replacementBlocked = true; }
+            }).CopyTree(sourceVolume, destinationVolume, "held-mark.exe", replace: false);
+            Assert.True(replacementAttempted && replacementBlocked);
+            Assert.Equal((1, 0), (heldSourceMark.Done, heldSourceMark.Failed));
+            Assert.Equal(originalMark, File.ReadAllText(ads));
+            Assert.Equal(originalMark, File.ReadAllText(Path.Combine(destination, "held-mark.exe") + ":Zone.Identifier"));
+
+            string existing = Path.Combine(destination, "existing.exe");
+            File.WriteAllText(existing, "ORIGINAL");
+            using (var held = new FileStream(existing, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                int checkpoints = 0;
+                var blocked = new SecureFileOps(() => checkpoints++).CopyTree(sourceVolume, destinationVolume, "existing.exe", replace: true);
+                Assert.True(checkpoints > 0); // The stage was reached before publication was refused.
+                Assert.Equal((0, 1), (blocked.Done, blocked.Failed));
+                Assert.Equal("ORIGINAL", File.ReadAllText(existing));
+                var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
+                {
+                    Path = sourceVolume, Destination = destinationVolume, Name = "existing.exe", ReplaceExisting = true,
+                });
+                var step = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
+                Assert.Equal(ElevatedOutcome.Failed, step.Outcome);
+                Assert.Equal("ORIGINAL", File.ReadAllText(existing));
+            }
+            Assert.Empty(Directory.GetFiles(destination, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void High_token_copy_runner_keeps_the_mark_at_a_protected_destination()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess,
+            "An owned high-integrity Windows guest is required.");
+        string root = NewDirectory();
+        try
+        {
+            string source = Path.Combine(root, "download.exe");
+            string protectedFolder = Directory.CreateDirectory(Path.Combine(root, "protected")).FullName;
+            var acl = new DirectorySecurity();
+            acl.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            foreach (var sid in new[] { WellKnownSidType.BuiltinAdministratorsSid, WellKnownSidType.LocalSystemSid })
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid, null), FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            new DirectoryInfo(protectedFolder).SetAccessControl(acl);
+            const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            File.WriteAllText(source, "OWNED-CONTENT");
+            File.WriteAllText(source + ":Zone.Identifier", mark);
+            var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
+            {
+                Path = ElevationPaths.ToVolumePath(source),
+                Destination = ElevationPaths.ToVolumePath(protectedFolder),
+                Name = "approved.exe",
+            });
+            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var refused = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
+                Assert.Equal(ElevatedOutcome.Failed, refused.Outcome);
+                Assert.False(File.Exists(Path.Combine(protectedFolder, "approved.exe")));
+            }
+            var accepted = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
+            Assert.Equal(ElevatedOutcome.Committed, accepted.Outcome);
+            string copied = Path.Combine(protectedFolder, "approved.exe");
+            Assert.Equal("OWNED-CONTENT", File.ReadAllText(copied));
+            Assert.Equal(mark, File.ReadAllText(copied + ":Zone.Identifier"));
+            Assert.Empty(Directory.GetFiles(protectedFolder, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
     public void Move_rename_create_and_attributes_work_through_verified_handles()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows tokens, Registry and secure filesystem operations require Windows.");
