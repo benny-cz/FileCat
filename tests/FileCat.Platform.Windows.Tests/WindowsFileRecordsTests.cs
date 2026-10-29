@@ -145,6 +145,15 @@ public sealed partial class WindowsFileRecordsTests
             if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
             var report = Read(file, privileged: false);
             Assert.Equal("Needs administrator rights", report.Sections[1].Title);
+            // Everything the administrator's report adds, said up front (the lines as one text: they wrap at spaces).
+            string notice = string.Join(" ", report.Sections[1].Lines);
+            foreach (string part in (string[])["the MFT record", "the $FILE_NAME times", "every attribute and its runs", "the record's slack", "$LogFile",
+                         "$Secure ($SII and $SDS)", "its hash and mirror copy", "the $ObjId and $Reparse indexes", "the change journal's size", "history in it"])
+                Assert.Contains(part, notice, StringComparison.Ordinal);
+            // Only a folder has an index of names whose slack it adds.
+            Assert.DoesNotContain("$I30", notice, StringComparison.Ordinal);
+            Assert.Contains("the names left behind in its index ($I30 slack)", string.Join(" ", Read(dir, privileged: false).Sections[1].Lines), StringComparison.Ordinal);
+            Assert.DoesNotContain(report.Sections, s => s.Title.StartsWith("Object ID index", StringComparison.Ordinal) || s.Title.StartsWith("Reparse index", StringComparison.Ordinal));
             Assert.DoesNotContain(report.Sections, s => s.Title == "MFT record" || s.Title.StartsWith("Names", StringComparison.Ordinal));
             Assert.Contains(Section(report, "Timestamp checks").Lines, l => l.Contains("strongest checks did not run", StringComparison.Ordinal));
             // A file can legitimately have USN zero when no change is journaled.
