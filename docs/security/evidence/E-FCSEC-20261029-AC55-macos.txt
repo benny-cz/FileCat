@@ -1,0 +1,6 @@
+Mac disposable host `benny@192.168.0.199`, .NET 10.0.101 SDK, current `FileCat.CoreCrashHarness.dll` and `FileCat.Core.dll` transferred from the Windows Release build after `de8c072d`.
+
+`/Users/benny/.dotnet/dotnet FileCat.CoreCrashHarness.dll --job-depth 450`
+depth=450 copy=Completed copyBounded=True copyIssues= delete=Completed deleteBounded=True deleteIssues=
+
+The first attempt used macOS's long default `/var/folders/.../T` path and reached PATH_MAX while creating the 450-level owned fixture, before calling FileCat. The rerun used the shorter owned `/tmp` base. macOS PATH_MAX prevents constructing the 520-level two-character-per-component path needed to hit FileCat's 512-level guard; this run is the finite near-limit positive control for the same Unix fallback.

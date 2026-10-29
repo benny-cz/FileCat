@@ -1,0 +1,1 @@
+depth=520 copy=Failed copyBounded=True copyIssues=The folder tree exceeds the 512-level copy limit; the remaining source is kept. delete=Failed deleteBounded=True deleteIssues=The folder tree exceeds the 512-level delete limit; the remaining folder is kept.

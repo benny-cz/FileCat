@@ -54,9 +54,15 @@ if (args is ["--search-depth", var depthText] && int.TryParse(depthText, out int
     }
 }
 
-if (args is ["--job-depth"])
+if (args is ["--job-depth"] or ["--job-depth", _] &&
+    (args.Length == 1 || int.TryParse(args[1], out _)))
 {
-    string ownedRoot = Path.Combine(Path.GetTempPath(), "filecat-owned-job-depth-" + Guid.NewGuid().ToString("N"));
+    int jobDepth = args.Length == 1 ? 520 : int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+    if (jobDepth is < 1 or > 520) return 15;
+    // macOS's ordinary temporary path is long enough to hit PATH_MAX before a useful deep
+    // fallback control. /tmp is an owned disposable base with the same local filesystem.
+    string ownedRoot = Path.Combine(OperatingSystem.IsMacOS() ? "/tmp" : Path.GetTempPath(),
+        "filecat-owned-job-depth-" + Guid.NewGuid().ToString("N"));
     string source = Path.Combine(ownedRoot, "source");
     string destination = Path.Combine(ownedRoot, "destination");
     var created = new List<string>();
@@ -65,7 +71,7 @@ if (args is ["--job-depth"])
     {
         Directory.CreateDirectory(source);
         Directory.CreateDirectory(destination);
-        for (int i = 0; i < 520; i++)
+        for (int i = 0; i < jobDepth; i++)
         {
             current = Path.Combine(current, "d");
             Directory.CreateDirectory(current);
@@ -83,7 +89,9 @@ if (args is ["--job-depth"])
         });
         var jobDeadline = DateTime.UtcNow.AddSeconds(60);
         while (!copy.State.IsFinished() && DateTime.UtcNow < jobDeadline) await Task.Delay(10);
-        bool copyBounded = copy.State.IsFinished() && copy.Issues.Any(i => i.Message.Contains("level copy limit", StringComparison.Ordinal));
+        bool copyBounded = copy.State.IsFinished() && (jobDepth > 512
+            ? copy.Issues.Any(i => i.Message.Contains("level copy limit", StringComparison.Ordinal))
+            : copy.State == JobState.Completed);
         var delete = manager.Submit(new JobRequest
         {
             Kind = JobKind.Delete,
@@ -93,9 +101,10 @@ if (args is ["--job-depth"])
         while (!delete.State.IsFinished() && DateTime.UtcNow < jobDeadline) await Task.Delay(10);
         // This harness deliberately uses PortableFileOperations, exercising the recursive fallback
         // even on Windows; production Windows deletion uses its separate native bound adapter.
-        bool deleteBounded = delete.State.IsFinished() &&
-            delete.Issues.Any(i => i.Message.Contains("level delete limit", StringComparison.Ordinal));
-        Console.WriteLine($"depth=520 copy={copy.State} copyBounded={copyBounded} copyIssues={string.Join(" | ", copy.Issues.Select(i => i.Message))} delete={delete.State} deleteBounded={deleteBounded} deleteIssues={string.Join(" | ", delete.Issues.Select(i => i.Message))}");
+        bool deleteBounded = delete.State.IsFinished() && (jobDepth > 512
+            ? delete.Issues.Any(i => i.Message.Contains("level delete limit", StringComparison.Ordinal))
+            : delete.State == JobState.Completed && !Directory.Exists(source));
+        Console.WriteLine($"depth={jobDepth} copy={copy.State} copyBounded={copyBounded} copyIssues={string.Join(" | ", copy.Issues.Select(i => i.Message))} delete={delete.State} deleteBounded={deleteBounded} deleteIssues={string.Join(" | ", delete.Issues.Select(i => i.Message))}");
         return copyBounded && deleteBounded ? 0 : 8;
     }
     finally
