@@ -4709,3 +4709,23 @@ Stable publication remains NO-GO.
 **Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Eight more Medium review findings fixed (R-M4, R-M6–R-M8, R-M10–R-M13); CI at `ffb39752`
+
+The Codex review's R-M4, R-M6–R-M8 and R-M10–R-M13 had never been rechecked. Each was confirmed in the current source and fixed ([record](evidence/E-REVIEW-2026-10-29-codex-commits.md#taken-over-after-the-security-session-stopped-29-october)):
+- **R-M13 (`6d82ad9a`).** A file known to differ from its checksum, or to carry a bad signature, keeps its red mark after a refresh, and its folder counts it as failed.
+- **R-M10 (`d8e78733`).** An FTP listing stopped mid-transfer no longer leaves its final reply on a pooled connection. Empty folders refused with 550 list empty again, and MLSD's self and parent entries are dropped.
+- **R-M11 (`4077d641`).** A phone Move journals the hold of its local source, so a crash cannot hide it. A device that names no created object has it found by name and size.
+- **R-M6 (`0c309a2e`).** The Linux picture worker can no longer signal other processes, use SysV IPC, or use descriptors its launcher inherited. The live probe on the Ubuntu VM shows each refused; under the old policy it could signal every process.
+- **R-M12 (`184175c4`).** "Elevated" means a high token on Windows and root elsewhere, for the tool-launch gates too.
+- **R-M7 (`bf9124cc`).** No page is shown where WebKitGTK would start it without its sandbox.
+- **R-M8 (`90ad5e10`).** A long context menu verb, such as a paste of a large folder, finishes its work after FileCat stops waiting.
+- **R-M4 (`1e65bbfc`).** The live speed limit paces each file from the last change or resume, with at most a second of saved allowance.
+
+The operations drawer brings Stop itself into view, which fixes the macOS drawer failure at `bda96754` (`ffb39752`). [Run 40896923278](https://github.com/benny-cz/FileCat/actions/runs/40896923278) at `ffb39752` passed every lane but macOS. There a verification row test met a late folder refresh, and `07d686f4` makes it accept that.
+
+Locally at medium integrity, as hosted CI runs them, all four suites pass at `07d686f4`: App 2,660 tests (80 skipped), Core 5,010 (167 skipped), Remote 2,662 (168 skipped) and the Windows platform suite 554 (42 skipped).
+
+**Ledger.** Issues stay **561/540/2/19**, the evidence index **897**; the acceptance ledger has 33 Accepted and 12 Open. GATE-CI-FINAL stays Open for the run at `07d686f4`.
+
+Stable publication remains NO-GO.
