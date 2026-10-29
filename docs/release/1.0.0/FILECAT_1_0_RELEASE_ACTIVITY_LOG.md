@@ -4493,3 +4493,18 @@ Hosted CI has been red since `fbbc25a8`.
 - REL-RAR-LICENSE stays Open until SharpCompress ships without its UnRAR-derived RAR and PPMd var.H code.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Corrected I03 evidence claims from the review
+
+The release-engineering Low findings of the [review](evidence/E-REVIEW-2026-10-29-codex-commits.md) were rechecked against the raw evidence and the validators, and the text is corrected. The measured bytes and outcomes are unchanged.
+- **[E-I03-DRAFT](evidence/E-I03-DRAFT-cross-platform-package-set.md#corrections-2026-10-29)**:
+  - `7f62225e…58c4` is DiscUtils' upstream `LICENSE.txt`, not the LTRData.Extensions MIT text (`b05785f9…92b5`, not hashed in that run).
+  - On Windows, only the x64 portable ZIP was run natively.
+  - The thirteen synthetic publication controls are eleven refusals and two allowed cases (`draft-package-set-controls.json`). The I03 issue, the I03-DRAFT-PACKAGE-SET and REL-I03-PROVENANCE rows, and the evidence index now say so.
+- **E-I03-SBOM**: the unused reviewed package and the Unix symbolic-link payload are allowed cases (`validate-artifact-sbom.py` lines 201 and 217), not refusals.
+- **I03-LTRDATA-LICENSE row**: it names LTRData.Extensions as a DiscUtils dependency, not a Windows shell helper.
+
+Still owed by the release session, after the SharpCompress slice lands, because they touch the same SBOM and notice code:
+- R-M15 SBOM fidelity;
+- the LTRData copyright line in a human-readable notice;
+- byte-checked attribution of `reference` libraries.

@@ -18,7 +18,7 @@
 | Windows x64 host | Three release suites and dependency-notice controls pass. Exact SBOM controls pass 17/17 (five allowed, twelve refused; symbolic-link positive is Unix-only). | Cross-platform regression control; no host UI used. |
 | Ubuntu 26.04 VMware guest | Exact SBOM controls pass 18/18. A real Linux packaging observation writes tar and deb SBOMs and builds the deb before AppImage acquisition refuses changed runtime bytes. | Generator semantics pass; the package command is not promoted to a complete package-suite pass. |
 
-The refusal suite includes unknown and unused packages, unknown/hashed references, a changed parent package archive, a changed runtime archive, a wrong runtime hash, missing/forbidden runtime placement, output aliasing, duplicate logical paths, an existing output and (on Unix) a symbolic-link payload. The generated-reference positive changes the projection bytes and verifies that the SBOM records the changed exact SHA-256 without weakening parent-package provenance.
+The refusal suite includes an unknown package, a wrong package hash, unknown/hashed references, a changed parent package archive, a changed runtime archive, a wrong runtime hash, missing/forbidden runtime placement, output aliasing, duplicate logical paths and an existing output. An unused reviewed package, an extra AppImage runtime file and (on Unix) a symbolic-link payload are allowed cases (`validate-artifact-sbom.py`). This sentence was corrected on 2026-10-29: it first listed the unused package and the symbolic-link payload as refusals. The generated-reference positive changes the projection bytes and verifies that the SBOM records the changed exact SHA-256 without weakening parent-package provenance.
 
 ## Newly exposed AppImage pin gap
 
