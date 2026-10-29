@@ -1,107 +1,155 @@
 # FileCat
 
-**Your files. Your layout. Your keyboard.**
+**A file manager for the work that outgrows one window.**
 
-FileCat is a keyboard-first file manager and system-resource navigator. Start with two panels,
-open tabs for the folders you return to, then arrange more panels around the work in front of you.
-It follows the familiar conventions of Open Salamander, Total Commander and FAR Manager, with
-explicit operation targets and clear reports of what completed, failed or remains uncertain.
+Arrange folders in two or more panels, keep your places in tabs, and move through files with the
+keyboard or mouse. FileCat brings the familiar Commander workflow to everyday copying, searching
+and comparing, then keeps going: inspect large files, work across archives and remote servers,
+verify downloads, and recover deleted files from supported disks and images.
 
-Built with **C# · .NET 10 · Avalonia 12**. **MIT-licensed.** Windows provides the full native
-integration; Linux and macOS builds run the portable core. A written architecture, automated
-tests, native platform checks and [retained release evidence](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
-back the implementation.
+FileCat shows the destination before an operation starts and distinguishes completed work from
+failures and uncertainty afterward. It is built with **C# · .NET 10 · Avalonia 12** and is
+**MIT-licensed**. Windows has the fullest native integration; Windows ARM64, Ubuntu and macOS
+are preview targets for 1.0.0. The [capability matrix](docs/CAPABILITIES.md) describes the
+differences.
 
-[Explore the features](#highlights) · [Choose a theme](#make-it-yours) · [Keyboard essentials](#keyboard-essentials) · [Build and run](#build-and-run)
+[Why FileCat](#why-filecat) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) ·
+[Themes and screenshots](#make-it-yours) · [Keyboard](#keyboard-essentials) · [Build](#build-and-run)
 
 ![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.png)
 
-*Four panels, twelve tabs, one workspace. Current FileCat MainWindow rendered on Windows with owned demonstration files.*
+*Four panels, twelve tabs, one workspace. Current FileCat MainWindow rendered on Windows with demonstration files.*
 
-FileCat 1.0.0 is in release validation. See the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
-for current readiness and remaining qualification; the screenshots show a development build.
+| Windows · Classic | macOS · Classic Dark | Ubuntu · Classic Dark |
+|---|---|---|
+| [![FileCat Classic on Windows, four panels with three tabs each](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![FileCat Classic Dark on macOS, four panels with three tabs each](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) | [![FileCat Classic Dark on Ubuntu, four panels with three tabs each](docs/screenshots/ubuntu/ClassicDark.png)](docs/screenshots/ubuntu/ClassicDark.png) |
 
-## Highlights
+*These are current-source MainWindow renders on their named operating systems. The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) separates them from installed-app testing.*
 
-### Main features
+**Release status:** FileCat 1.0.0 is still in validation. The images show development builds;
+the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) tracks
+what has passed and what remains before a public release.
 
-- **Panels and tabs**: two panels by default, more when there is room, each with its own target;
-  locked tabs, recently closed tabs, bookmarks (Ctrl+0–9), histories (Alt+F11/F12), named workspaces;
-  typing a path in the location box suggests the folders that complete it (Tab completes).
-- **Fast listings**: a custom virtualized list streams millions of entries without per-row controls;
-  quick search as you type, quick filter (Ctrl+S), column profiles (Alt+0–4), lazy metadata columns.
-- **Safe operations**: staged copies published only when complete, Start or Queue per drive, overlap
-  detection, conflict prompts with compare, verified Recycle Bin outcome (never a silent permanent
-  delete), guarded undo, and a crash-safe journal with interrupted-operation review.
-- **Find and compare**: Alt+F7 search into result sets that act on the originals, flat view (Ctrl+B),
-  compare-and-mark (Ctrl+F10).
-- **Viewer**: F3 text/hex viewer that reads multi-gigabyte files without loading them whole, encoding detection with
-  evidence, search, go to offset, checksums, follow mode; Ctrl+Q quick view.
+## Why FileCat
 
-### Advanced features
+| When you need to… | FileCat gives you… |
+|---|---|
+| Keep several places in view | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
+| Get a large job done without losing track | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
+| Rescue deleted files | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
+| Understand a file before acting | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
+| Work outside a local folder | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
-- **Archives**: browse, view and extract ZIP, 7z, RAR (1.5 to 7, solid and multi-volume, with
-  FileCat's own reader), TAR (plain or gzip, bzip2, xz or zstd compressed), single compressed files
-  and ISO 9660/UDF images; archives nest inside each other. Members whose checksums do not match are
-  reported as damaged, and extraction carries the Mark of the Web. ZIP archives can also be changed:
-  each change rebuilds the archive and replaces it only once verified.
-- **Windows integration**: native CopyFile2 (keeps ReFS block cloning and SMB offload), SMB share
-  listing with credential prompts, terminals, reveal in Explorer, and the installed Windows file
-  context menu with application commands and icons. Shell extensions run in a separate process.
-- **Git state on icons**: clean, changed, added, untracked, and conflicted items in local Git folders
-  get small badges. Windows uses its installed Shell overlay when assigned; otherwise FileCat draws
-  a status mark from Git. Status loads in the background and refreshes with the folder or on focus.
-  FileCat's Git-derived badges omit partial-clone repositories to avoid fetching missing objects.
-  Shared object stores retain these badges when their bounded local alternate paths pass admission;
-  quoted alternate paths and HTTP alternate locations leave the Git-derived badges plain.
-- **Themes**: Classic, Classic Dark, High Contrast, Cyberpunk, Psychedelic, Steampunk and DOS Commander.
-  System follows Windows light/dark and high-contrast preferences. Preview them on the main window before keeping a choice.
+The point is to keep the same workflow as a task grows: find a file, inspect it, compare it,
+copy it to a known target, and see precisely what happened. The sections below describe
+implemented capabilities; the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
+tracks which of them have completed final qualification.
+
+### Arrange the workspace around the task
+
+- Start with two panels or dock more beside and above them. Each panel keeps its own tabs,
+  target and history. Lock a tab, reopen a closed one, save a workspace, or jump to a bookmark.
+- Browse very large folders with virtualized listings. Search names as you type, filter with masks,
+  switch column profiles, and request expensive metadata only when you need it.
+- Find files by name, content or metadata (Alt+F7). Results act on the original files. Flat view,
+  persistent working sets and duplicate finding give different ways to assemble a task.
+- Compare files in text or binary; compare folder trees and preview a one-way **Update** or
+  **Mirror** before running it. There is no automatic two-way synchronization.
+- Git status appears on local file and folder icons: clean, changed, added, untracked or conflicted.
+  It refreshes in the background without fetching missing objects or running repository hooks.
+
+### Recover deleted files
+
+Open **Tools → Recover deleted files** on a supported drive, whole disk or raw/fixed-VHD
+image. FileCat reads NTFS, FAT12/16/32 and exFAT; it can find deleted partitions, use a
+backup GPT or boot sector, and look for deleted FAT folders no live directory points to.
+Results open in an ordinary panel, so you can preview candidates and copy them to a safe target.
+
+Instead of a confidence percentage, each item says **Recoverable**, **Uncertain**,
+**Partly lost**, **Overwritten** or **Name only**, with the evidence behind that state.
+Unknown bytes are shown as missing in the viewer and as named zero-filled ranges in a copy;
+overwritten items cannot be copied. FileCat requests read-only source access and refuses a
+recovery destination on the same physical disk. A mounted filesystem can still update its own
+metadata during a scan; use a disk image or storage-level read-only protection when the source
+must remain byte-identical. Recovery is not guaranteed, and ext4/APFS undelete is not supported.
+[Recovery details and limits](docs/CAPABILITIES.md#locations).
+
+### Work with visible outcomes
+
+- **Know the target.** Copy and move show their destination before Start. Jobs can start now or
+  queue per drive; a later panel navigation cannot silently retarget them.
+- **Know the result.** The Operations view separates completed, failed, skipped and uncertain
+  items. Replacement copies are staged before publication where the provider permits it.
+  A journal records interrupted work for review and supports guarded undo only where it is safe.
+- **Know the delete semantics.** FileCat checks the Recycle Bin or Trash outcome. Where a provider
+  cannot recycle, it asks before permanent deletion instead of presenting a false safety net.
+- **Know the source.** Download-origin marks follow supported copies and archive extraction.
+  SFTP host keys and FTPS certificates are checked; plain FTP requires an explicit choice.
+  Checksum matches show integrity, while a trusted signature can establish provenance.
+- **Limit elevated work.** In an installed Windows build, access-denied items can be retried
+  through a helper for the displayed plan, with an administrator approval for that plan.
+  The portable and framework-dependent ZIPs have no such helper.
+
+Untrusted content crosses narrower boundaries where implemented: pictures decode in a worker,
+HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
+outside the main process. These boundaries differ by platform; the
+[capability matrix](docs/CAPABILITIES.md) and [security policy](SECURITY.md) state their limits.
+Some Unix workers still have the ordinary user's filesystem access; process separation alone
+does not make every parser a full sandbox.
+
+### Look inside files, not just at their names
+
+- **Built-in viewers:** F3 reads text and hex from very large files without loading the whole
+  file. Search, go to line or byte offset, follow a growing file, inspect encodings and checksums,
+  or use Ctrl+Q for quick view. Picture view supports zoom and pan. Page view renders local HTML
+  and Markdown without fetching from the web; a contained Markdown link opens in another viewer.
+- **Inspectors:** Info view reports PE, ELF, Mach-O, APK/AAB, image, audio, video and HTML
+  structure without executing or playing the file. A fixed-length hex editor offers a protected
+  baseline, bounded undo, journaled save, Save As and patch export; in-place saves are not atomic.
+- **Data beneath the file:** inspect NTFS streams, Unix extended attributes, macOS resource forks,
+  permissions, sparse ranges and filesystem records. Windows reports include MFT, USN,
+  `$LogFile` and `$Secure` data where access allows it; Linux and macOS show their native fields.
+- **Verify deliberately:** calculate hashes, check checksum manifests and automatic sidecars,
+  or verify minisign/OpenPGP signatures. Weak hashes are labelled as integrity checks rather than
+  proof of origin.
+
+### Go beyond a local directory
+
+- Browse nested **ZIP, 7z, RAR 1.5–7, TAR/compressed TAR, single compressed files and ISO/UDF**
+  images. Damaged members are reported. ZIP changes rebuild and verify a replacement archive;
+  other archive formats are read-only.
+- Work with **SMB shares, SFTP, FTPS and FTP** from panels, including explicit remote edit
+  sessions. Remote uploads use temporary names where supported; FileCat reports providers that
+  cannot replace atomically. An SSH terminal opens from an SFTP panel.
+- On Windows, browse **phones and cameras over MTP**, the **Registry** in explicit 32/64-bit
+  views, and native Shell actions. Windows native copy keeps supported ReFS block cloning and
+  SMB offload. Platform-specific behavior is documented in the
+  [capability matrix](docs/CAPABILITIES.md).
 
 ## Make it yours
 
 Choose **View → Theme…** to preview a theme on FileCat itself. Press Enter to keep it or Esc to return.
 Animated effects can be turned off, and system high contrast takes priority.
 
-<details>
-<summary><strong>See every theme — four panels and three tabs per panel</strong></summary>
+Every Windows theme is shown below, with four panels and three tabs in each panel. Select an image
+to see it at full size. The macOS and Ubuntu views are [near the top](#filecat).
 
-<table>
-<tr>
-<td width="50%"><strong>Classic</strong><br><a href="docs/screenshots/windows/Classic.png"><img src="docs/screenshots/windows/Classic.png" alt="FileCat Classic on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>Classic Dark</strong><br><a href="docs/screenshots/windows/ClassicDark.png"><img src="docs/screenshots/windows/ClassicDark.png" alt="FileCat Classic Dark on Windows with four panels and three tabs in every panel" width="700"></a></td>
-</tr>
-<tr>
-<td width="50%"><strong>Cyberpunk</strong><br><a href="docs/screenshots/windows/Cyberpunk.png"><img src="docs/screenshots/windows/Cyberpunk.png" alt="FileCat Cyberpunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>Psychedelic</strong><br><a href="docs/screenshots/windows/Psychedelic.png"><img src="docs/screenshots/windows/Psychedelic.png" alt="FileCat Psychedelic on Windows with four panels and three tabs in every panel" width="700"></a></td>
-</tr>
-<tr>
-<td width="50%"><strong>Steampunk</strong><br><a href="docs/screenshots/windows/Steampunk.png"><img src="docs/screenshots/windows/Steampunk.png" alt="FileCat Steampunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>DOS Commander</strong><br><a href="docs/screenshots/windows/DosCommander.png"><img src="docs/screenshots/windows/DosCommander.png" alt="FileCat DOS Commander on Windows with four panels and three tabs in every panel" width="700"></a></td>
-</tr>
-<tr>
-<td width="50%"><strong>High Contrast</strong><br><a href="docs/screenshots/windows/HighContrast.png"><img src="docs/screenshots/windows/HighContrast.png" alt="FileCat High Contrast on Windows with four panels and three tabs in every panel" width="700"></a></td>
-<td width="50%"><strong>System (this guest uses light mode)</strong><br><a href="docs/screenshots/windows/System.png"><img src="docs/screenshots/windows/System.png" alt="FileCat System theme following the Windows guest's light mode, with four panels and three tabs in every panel" width="700"></a></td>
-</tr>
-</table>
+| **Classic** | **Classic Dark** |
+|---|---|
+| [![Classic theme on Windows](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![Classic Dark theme on Windows](docs/screenshots/windows/ClassicDark.png)](docs/screenshots/windows/ClassicDark.png) |
+| **Cyberpunk** | **Psychedelic** |
+| [![Cyberpunk theme on Windows](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![Psychedelic theme on Windows](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
+| **Steampunk** | **DOS Commander** |
+| [![Steampunk theme on Windows](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) | [![DOS Commander theme on Windows](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) |
+| **High Contrast** | **System (light on this guest)** |
+| [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![System theme on Windows](docs/screenshots/windows/System.png)](docs/screenshots/windows/System.png) |
 
 System adapts to the operating system; this Windows guest uses a light palette.
 [Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
 
-</details>
-
-### On macOS and Ubuntu
-
-The same four-panel workspace, shown in one representative theme on each platform:
-
-<table>
-<tr>
-<td width="50%"><strong>macOS · Classic Dark</strong><br><a href="docs/screenshots/macos/ClassicDark.png"><img src="docs/screenshots/macos/ClassicDark.png" alt="FileCat Classic Dark rendered on macOS with four panels and twelve tabs" width="700"></a></td>
-<td width="50%"><strong>Ubuntu · Classic Dark</strong><br><a href="docs/screenshots/ubuntu/ClassicDark.png"><img src="docs/screenshots/ubuntu/ClassicDark.png" alt="FileCat Classic Dark rendered on Ubuntu with four panels and twelve tabs" width="700"></a></td>
-</tr>
-</table>
-
-These images render FileCat's MainWindow on each named OS. They show the portable UI, while
-[release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) tracks installed-app and native integration checks separately.
+All ten gallery images render FileCat's MainWindow on their named operating systems. They show
+the UI at the recorded source; [release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
+tracks installed-app and native interaction checks separately.
 
 ## Keyboard essentials
 
@@ -121,59 +169,50 @@ These images render FileCat's MainWindow on each named OS. They show the portabl
 
 Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
 
+## Platforms and validation
+
+The planned 1.0.0 distribution has **Windows 11 x64** as its stable tier, with
+**Windows 11 ARM64**, **Ubuntu 24.04/26.04 x64** and **macOS 26+ on Apple silicon**
+labelled as previews. Windows provides Registry, Windows Shell, MTP and installed-build
+administrator retry; the Unix builds use their own trash, permission, keyring and device
+authorization paths. [What works where](docs/CAPABILITIES.md) lists the per-location limits.
+
+The implementation is backed by automated suites, failure and interruption tests, and native
+Windows, Ubuntu and Mac checks. We retain exact build and package provenance and record failed
+tests alongside passes in the [release evidence](docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md).
+That work is still in progress: it does not make a development screenshot or source build a
+qualified release. [Current acceptance and gates](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md).
+
 ## Build and run
 
-Requires the exact .NET SDK selected by `global.json`. No paid components or accounts are needed.
+Install the .NET SDK version selected by [`global.json`](global.json), then from the repository root:
 
-```
+```sh
 dotnet build FileCat.slnx
 dotnet test FileCat.slnx
-dotnet run --project src/FileCat.App -- [path] [--left PATH] [--right PATH] [--profile NAME] [--data FOLDER]
+dotnet run --project src/FileCat.App
 ```
 
-Dependencies restore from the tracked `packages.lock.json` files in locked mode.
-A missing lock, changed dependency request or changed package content fails the restore.
-To deliberately update dependencies, edit `Directory.Packages.props`, then regenerate every
-tracked project lock in PowerShell and review the complete diff:
+Pass a folder after `--` to open it, or choose the two starting panels explicitly:
 
-```powershell
-git ls-files '*.csproj' | ForEach-Object {
-    dotnet restore $_ --force-evaluate -p:FileCatUpdateDependencyLocks=true
-    if ($LASTEXITCODE -ne 0) { throw "Dependency update failed: $_" }
-}
+```sh
+dotnet run --project src/FileCat.App -- --left PATH --right PATH
 ```
 
-Normal builds and publishes restore the frozen graph. For a separate RID restore, use
-`dotnet restore -p:RuntimeIdentifier=win-x64`; `restore --runtime` narrows the declared
-multi-RID graph and is rejected. The Linux ARM64 graph preserves the packaging script's
-existing restore compatibility; it does not establish stable platform support.
+Use `--profile NAME` for another saved workspace identity or `--data FOLDER` to put settings,
+history, journals, logs, caches and scratch in one chosen folder. A Windows portable ZIP uses
+`FileCat.portable` to keep that state in `Data/` beside the app. When recovering from a disk,
+run FileCat with `--data` on **another disk** so its own state cannot write to the source.
 
-Packaging also checks the frozen notice snapshot in `licenses/dependencies/index.json`
-against the App lock and published runtime version before copying full texts.
-Review and update that snapshot from verified package/source bytes when changing
-dependencies or the SDK; its index records unresolved license-provenance gaps.
-AppImage packaging embeds the reviewed runtime kept in `eng/linux/appimage-runtime`
-(it downloads none), checks it against its pin and `licenses/appimage-runtime/index.json`,
-copies the wrapper notices and checks that the AppImage starts with that runtime. It
-then writes the runtime's corresponding source,
-`FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`, a reproducible archive
-whose bytes are pinned too. `APPIMAGE_RUNTIME` may only name another copy of the same
-bytes. Update the runtime, its pins, the source bundle and the notice snapshot together.
-
-Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
-framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.
-Each distinct release payload receives an SPDX 2.3 SBOM with exact file hashes and the
-reviewed NuGet/runtime identities. The platform asset manifest separately pins the outer
-archive or installer bytes.
-A portable copy keeps its settings in `Data/` next to the executable (marker file `FileCat.portable`).
-`--data FOLDER` keeps everything FileCat writes (settings, history, logs, journals, caches, scratch) in that one
-folder. FileCat does not scan a disk for deleted files while it keeps files of its own there: to recover from that
-disk, close FileCat and start it with `--data` on another disk.
+Local package scripts, dependency-lock updates, SBOMs and the pinned AppImage runtime are
+covered in the [developer build guide](docs/BUILDING.md). A local build is not a signed or
+qualified 1.0.0 release.
 
 ## Documentation
 
 - [Product architecture and design](docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md)
 - [Implementation status](docs/IMPLEMENTATION_STATUS.md)
+- [Developer build and packaging guide](docs/BUILDING.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 - [Security policy and vulnerability reporting](SECURITY.md)
 - [Release servicing](docs/SERVICING.md) — no updater; security-release cadence
