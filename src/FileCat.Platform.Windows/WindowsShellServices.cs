@@ -343,14 +343,12 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         else ShutdownBlockReasonCreate(owner, reason);
     }
 
-    public override bool IsElevated
-    {
-        get
-        {
-            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-            return new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-        }
-    }
+    /// <summary>
+    /// A high-integrity token, as every other refusal of the security plan decides it (review finding R-M12): an elevated
+    /// Backup Operators member has one without Administrators membership, and a user-configured tool must not run there
+    /// either.
+    /// </summary>
+    public override bool IsElevated => Core.State.WindowsTokenAuthority.IsHighIntegrity;
 
     private ProcessAccount? _account;
 

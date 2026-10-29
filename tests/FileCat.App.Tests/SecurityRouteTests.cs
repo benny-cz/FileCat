@@ -234,6 +234,28 @@ public sealed class SecurityRouteTests
     }
 
     [AvaloniaFact]
+    public void An_elevated_process_launches_no_tool_from_user_settings_on_any_platform()
+    {
+        // Review finding R-M12: the gates applied on Windows only, so root on Linux or macOS ran tools its user configured.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            typeof(AppServices).GetField("<Shell>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(services, new ElevatedShell());
+            var admit = typeof(MainViewModel).GetMethod("AdmitConfiguredExternalTool", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            Assert.False((bool)admit.Invoke(vm, [new ToolDefinition { Name = "Configured", Executable = "/bin/true" }])!);
+            Assert.Contains("will not launch the configured external tool", vm.Notification, StringComparison.Ordinal);
+            Assert.Contains(OperatingSystem.IsWindows() ? "as administrator" : "as root", vm.Notification, StringComparison.Ordinal);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private sealed class ElevatedShell : PortableShellServices
+    {
+        public override bool IsElevated => true;
+    }
+
+    [AvaloniaFact]
     public async Task Native_Windows_editor_gate_refuses_implicit_and_configured_high_token_launches()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_SECURITY_VM_EDITOR") != "1")

@@ -197,7 +197,8 @@ public class PortableShellServices : IShellServices
 
     public virtual void SetShutdownBlock(nint owner, string? reason) { }
 
-    public virtual bool IsElevated => !OperatingSystem.IsWindows() && Environment.UserName == "root";
+    /// <summary>Root on Linux and macOS: an effective user ID of 0, whatever the account is called (review finding R-M12).</summary>
+    public virtual bool IsElevated => !OperatingSystem.IsWindows() && Environment.IsPrivilegedProcess;
 
     public virtual ProcessAccount Account => ProcessAccount.FromEnvironment();
 

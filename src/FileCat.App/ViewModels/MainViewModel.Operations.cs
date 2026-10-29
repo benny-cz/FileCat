@@ -849,9 +849,9 @@ public sealed partial class MainViewModel
     private void LaunchEditor(string path)
     {
         var configured = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor;
-        if (configured is null && OperatingSystem.IsWindows() && Services.Shell.IsElevated)
+        if (configured is null && Services.Shell.IsElevated)
         {
-            Notify("FileCat is running as administrator, so it will not choose an external editor automatically. Reopen FileCat without elevation to edit this file.", true);
+            Notify($"FileCat is running {Elevation}, so it will not choose an external editor automatically. Reopen FileCat without elevation to edit this file.", true);
             return;
         }
         if (configured is not null && !AdmitConfiguredExternalTool(configured)) return;
@@ -869,13 +869,19 @@ public sealed partial class MainViewModel
 
     private Location? ActiveTarget() => Workspace.ActiveTarget?.ActiveTab?.Location;
 
-    /// <summary>User settings are writable by the ordinary account, so a high-token process cannot infer who chose a tool.</summary>
+    /// <summary>
+    /// User settings are writable by the ordinary account, so a high-token process cannot infer who chose a tool. Root on
+    /// Linux or macOS, which may read its user's settings (sudo keeps HOME on many systems), is refused the same (review
+    /// finding R-M12).
+    /// </summary>
     private bool AdmitConfiguredExternalTool(ToolDefinition tool)
     {
-        if (!OperatingSystem.IsWindows() || !Services.Shell.IsElevated) return true;
-        Notify($"FileCat is running as administrator and will not launch the configured external tool \"{Formatters.SafeName(tool.Name)}\" from user settings. Reopen FileCat without elevation to use it.", true);
+        if (!Services.Shell.IsElevated) return true;
+        Notify($"FileCat is running {Elevation} and will not launch the configured external tool \"{Formatters.SafeName(tool.Name)}\" from user settings. Reopen FileCat without elevation to use it.", true);
         return false;
     }
+
+    private static string Elevation => OperatingSystem.IsWindows() ? "as administrator" : "as root";
 
     /// <summary>Runs the per-type association for an intent when one matches the file name; false otherwise.</summary>
     internal bool TryLaunchAssociation(string intent, string path)
