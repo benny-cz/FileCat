@@ -54,6 +54,17 @@ Encrypted RAR members and encrypted file lists stay unsupported, as for every ot
 | macOS 27.0.1 arm64 (M1) | framework-dependent osx-arm64 test publish, .NET 10.0.12 | 268/268, 0 skipped, 10.1 s | `native-tests-macos-arm64-e57ebaaf.log` | `fc63a9656a8896d4926764048a9f5db69526b34df3f8859047bee84da33f0e67` |
 | Ubuntu 24.04.5 x64 (VM) | self-contained linux-x64 Release test publish, .NET 10.0.14 | 268/268, 0 skipped, 13.2 s | `native-tests-ubuntu2404-x64-e57ebaaf.log` | `dea928f9ac64b0ad5edea303dca6876fb88aa264fcca5f87b6ab8b6a8b7ecd3f` |
 
+**Hosted CI** ([run 40808191406](https://github.com/benny-cz/FileCat/actions/runs/40808191406), exact pushed `e57ebaaf`). The Core suite, with every RAR test and the default-round fuzz seeds, passed on all four lanes:
+
+| Lane | Core tests | Failed |
+|---|---|---:|
+| Windows x64 | 4,846 (159 skipped) | 0 |
+| Windows ARM64 | 4,846 (159 skipped) | 0 |
+| Ubuntu 24.04 | 4,841 (111 skipped) | 0 |
+| macOS 26 | 4,841 (130 skipped) | 0 |
+
+This adds Windows ARM64, which no local run covered. The run failed elsewhere, on App tests unrelated to RAR: 38 state-saving and edit-session tests on each elevated Windows runner (I555), and one macOS checksum-dialog test that timed out waiting for its worker.
+
 ## Stress
 
 `RarFuzzTests` damages a seed archive in a different way each round and reads the result in memory:
