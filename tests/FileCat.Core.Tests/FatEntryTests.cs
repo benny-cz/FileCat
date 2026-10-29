@@ -72,6 +72,18 @@ public sealed class FatEntryTests
     }
 
     [Fact]
+    public void A_name_matches_in_either_Unicode_form_and_either_case()
+    {
+        // macOS gives paths decomposed ("e" and a combining accent); FAT and exFAT keep names composed.
+        string decomposed = "Cafe" + (char)0x0301 + ".txt", composed = "Caf" + (char)0x00E9 + ".txt";
+        Assert.True(FatEntries.SameName(decomposed, composed));
+        Assert.True(FatEntries.SameName("CAF" + (char)0x00C9 + ".TXT", decomposed));
+        Assert.False(FatEntries.SameName(composed, "Cafe.txt"));
+        string lone = "a" + (char)0xD800 + "b"; // no normal form: only an exact match finds it
+        Assert.False(FatEntries.SameName(lone, lone));
+    }
+
+    [Fact]
     public void Windows_case_bits_make_an_8_3_name_lower_case_without_a_long_name()
     {
         var entry = new byte[32];
