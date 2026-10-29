@@ -4585,3 +4585,36 @@ Stable publication remains NO-GO.
 **A security finding in FileCat's RAR reader.** Codex's security audit of the reader raised RAR-SEC-001 (High, availability). Opening a later member of a solid archive decodes the earlier members without the expansion budget, so a tiny member can force a large hidden decode. The finding and its correction are in the security plan's lane and still uncommitted. The release session does not edit those files meanwhile, and will review the correction when it lands.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Recheck of Codex's `f134ba37`; archive readers bounded (I557–I559) and R-H5 fixed
+
+**The recheck** ([record](evidence/E-REVIEW-2026-10-29-f134ba37.md)). Three independent read-only reviews covered the security plan's AC-15–44 execution: 44 product files and their tests. Many corrections hold: the AC-15, AC-31 and AC-33 handle protocols, the high-integrity refusals, and the SFV, FAT and NTFS parsers. Nine High findings remain:
+- **Renames on Linux and macOS.** A case-only rename on a case-insensitive volume is refused; on the Ubuntu VM's FAT32, where the old code silently left the name unchanged, it now says the name already exists. Every rename on NFS or FUSE without `rename2` fails.
+- **Replace.** It fails over 64 MiB on Windows fixed drives, with a false message, and on removable drives, and every refusal comes after the whole copy. The owner accepted the Linux/macOS/UNC/link refusal as policy (`2b62355f`).
+- **Reparse points.** Every one counts as a link, OneDrive placeholder folders included.
+- **SUBST drives.** A path on one resolves to a sibling folder for permanent delete; the resolution was observed on this host, and nothing was deleted.
+- **Amplification.** Registry import preview and Markdown (tables and quadratic patterns).
+- **AC-20.** A mount-point route around it is plausible.
+- **macOS temporary folders** below `/var`, a symbolic link, are refused. Hosted macOS fails 42 tests for it, and a test hangs on the Mac.
+
+There are also six Medium and seven Low, and tests changed to expect less. R-H1, R-M1–R-M3, R-M9 and R-M14 are still open. **Since `f134ba37` hosted CI fails on every platform lane:** macOS fails 42 tests and is cancelled, Ubuntu fails two OpenPGP helper tests, Windows x64 is cancelled and ARM64 fails. All of this is the security session's to fix.
+
+**Fixed by the release session** ([record](evidence/E-I557-archive-pass-budget.md)), in its own archive readers, SharpCompress build and RAR reader:
+- **I557, High.** To open a 7z member, every earlier entry was decoded without a limit, even in another folder. A compressed TAR decompressed a whole member before its 1000:1 check, and cancellation could not stop it. A 1,710-byte tar.bz2 decoded 2 GiB just to list.
+- **I558, High.** A 7z member read only in part shifted the next member of its folder, so a healthy solid 7z was reported damaged. Before the CRC check of `34bc2abb`, it read back as wrong bytes.
+- **R-H5.** A packed 7z header was allocated at its claimed size: 200 MiB from a 70-byte file.
+- **I559, High.** Codex's RAR-SEC-001 correction `a718c777` capped a solid RAR's run at 8 GiB. A healthy solid RAR with an 8.5 GiB member could not be read past it, not even in archive order.
+
+`3a63099e`, `98bb2ce1` and `2872ebbd` fix them:
+- In the 7z reader, only entries in the member's own folder are decoded to pass, under 1000 times the archive's size, and the handed-out entry is finished first.
+- The TAR stream checks every read and observes cancellation.
+- A packed header's buffer grows only as it decodes, up to 256 MiB.
+- A solid RAR's run is bounded by its expansion ratio alone; the 8.5 GiB archive now reads through.
+
+Six of the eleven new tests fail on the old code. The full Core suite passes on Windows, and the archive classes on Ubuntu.
+
+**Ledger.**
+- Issues are now **559/538/2/19**, and the evidence index **897**.
+- REL-REVIEW-CODEX-20261029 stays Open for the security session's findings.
+
+Stable publication remains NO-GO.
