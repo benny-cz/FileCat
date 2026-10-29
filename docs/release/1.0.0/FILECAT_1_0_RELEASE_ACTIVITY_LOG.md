@@ -4546,3 +4546,26 @@ The second half of the EXT-02 route is done ([record](evidence/E-I14-sharpcompre
 - CAPABILITIES now says FileCat reads every RAR from 1.5 to 7 and refuses ZIP, 7z or RAR members whose checksums do not match.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Each SBOM describes the bytes its package ships (R-M15 and the reference findings fixed)
+
+The release session fixed its own findings from the [review of the Codex commits](evidence/E-REVIEW-2026-10-29-codex-commits.md) ([record](evidence/E-I03-SBOM-shipped-bytes.md)):
+- **R-M15 (`f80a2822`).** The AppImage SBOM is written from the AppImage as built, with `.DirIcon` and the runtime bytes it starts with, filed under type2-runtime's own package and licenses. The setup SBOM files Inno Setup's license text under Inno Setup's package. The installer packs exactly its SBOM's payload from `-ArtifactDirectory` and refuses one that differs. Linux and macOS SBOMs no longer list the ShellHost project their packages delete.
+- **LTRData (`4e5c5075`).** `THIRD-PARTY-NOTICES.md` gives LTRData.Extensions' MIT notice in full, with its declared copyright.
+- **References and restored files (`bff7a111`).** The notice index now names WebView2's Core assembly as the package's own, and no other reference is attributed. Every file publishing copies from a restored package folder or the runtime pack must match the reviewed archive's member, or no SBOM is written.
+
+**One defect caught before push.** The first Linux and macOS runs refused every SBOM: on those RIDs the manifest lists WebView2's Core reference without the package. That extra check was dropped, and two controls now cover the layout.
+
+**Verification.**
+- **Controls:** Windows 33/33; Ubuntu and Mac 35/35 each.
+- **Real packages from the clean commit:** win-x64, linux-x64 (tar, deb and AppImage) and osx-arm64. Each checked every restored package file it names: 233 on Windows, 229 on Linux and macOS.
+- **Win11 VM:** a payload changed by one byte was refused before Inno Setup ran. The real one compiled into its `-ArtifactDirectory`, and installed with exactly its SBOM's 327 files plus Inno Setup's uninstaller.
+
+**Hosted CI of `1caa2532`.** Core passes on Windows x64 (4,772 passed, 0 failed) and the Ubuntu lane passes. The Windows lane fails only in 39 App tests of I555's state-saving and edit-session kind; that is Codex's lane. The ARM64 and macOS lanes were still running.
+
+**Ledger.**
+- The release session's review findings are all fixed. Codex's `f134ba37` awaits its recheck.
+- I03-SBOM-ENGINE stays Accepted, with the rework's evidence added.
+- The evidence index is now **895**.
+
+Stable publication remains NO-GO.
