@@ -53,8 +53,8 @@ tracks which of them have completed final qualification.
   switch column profiles, and request expensive metadata only when you need it.
 - Find files by name, content or metadata (Alt+F7). Results act on the original files. Flat view,
   persistent working sets and duplicate finding give different ways to assemble a task.
-- Compare files in text or binary; compare folder trees and preview a one-way **Update** or
-  **Mirror** before running it. There is no automatic two-way synchronization.
+- Compare files in text or binary; compare folder trees and preview **Update** or **Mirror**
+  actions before applying them.
 - Git status appears on local file and folder icons: clean, changed, added, untracked or conflicted.
   It refreshes in the background without fetching missing objects or running repository hooks.
 
