@@ -4835,3 +4835,40 @@ ledger **58 cases: 36 Accepted, 10 Open, one Failed, nine Blocked, two
 Optional**. The next eligible action is the exact hosted-package native start
 and composition review, followed by corrected-source CI and a fresh preview
 tag decision. No release was created; stable publication remains NO-GO.
+
+## 2026-10-29 — README reader pass and official old-tag native package starts
+
+The owner selected everyday file work as the README lead, followed by
+recovery and visible safety outcomes, and requested broader features, Git,
+internal viewers, more visible cross-platform/theme images, and human-readable
+build instructions. Commit `27db086a` rewrites the README around those
+implemented use cases, exposes all eight Windows themes and the Mac/Ubuntu
+views in Markdown, and moves dependency/AppImage packaging detail into
+`docs/BUILDING.md`. All 41 README local links, ten unique image paths and
+nine build-guide links resolve; no raw gallery HTML remains. The old gallery
+PNG bytes and their capture identity are unchanged. [PQ01 record](evidence/E-PQ01-refresh-cross-platform-gallery.md).
+
+The exact official `v1.0.0-preview.1` assets from the failed protected tag
+run then received [native package checks](evidence/E-PREVIEW-NATIVE-20261029.md).
+Windows 11 Insider VM x64 portable and FDD ZIPs started in version mode; the
+official installer installed, started and uninstalled from a new owned
+directory with the helper present during install. Ubuntu 24.04.5 tar,
+extracted deb payload and AppImage extract-and-run started; the normal FUSE
+launch wrote version/exit-zero results but VMware reported wrapper exit 2, so
+that mode is not accepted. The Mac ARM64 `.app` ZIP passed native code-signature
+verification and version start. All copied package hashes match the official
+manifests. The hosted AppImage source bundle equals its reviewed SHA-256 pin.
+The 28-file native raw audit manifest rehashes; owned Mac and VM test stages
+were removed after their logs were copied. No downloaded Gatekeeper,
+clean deb install, GA Windows, ARM64 hardware or GUI acceptance is inferred.
+
+**Convergence:** I03-DRAFT-PACKAGE-SET gains new old-tag native format coverage
+while remaining Accepted only at preliminary scope. PQ01 presentation remains
+Accepted; REL-I03-PROVENANCE and REL-V22-DOCS remain Open. No accepted case
+reopened and no new required case was added. GATE-CI-FINAL remains Open for the
+latest product head; REL-PIPELINE remains Failed after I562; nine
+external/candidate cases remain Blocked. Issue register **563/541/two/20**;
+evidence index **904**; acceptance ledger **58 cases: 36 Accepted, 10 Open,
+one Failed, nine Blocked, two Optional**. Next: reconcile exact latest-source
+CI and preflight a new corrected tag for owner approval. The old tag produced
+no release; stable publication remains NO-GO.

@@ -31,3 +31,17 @@ The generator and explicit workspace tool were committed in
 desktop interaction, accessibility, native-engine or final-candidate results.
 PQ01's presentation scope is accepted; REL-V22-DOCS and all final release
 qualification remain open.
+
+## Reader-focused README pass (2026-10-29)
+
+At `27db086a699c8efbc9a7dabe4ab1f37c3e05e5fa`, the owner chose everyday
+multi-panel work as the lead, followed by recovery and visible safety outcomes.
+The README now describes implemented recovery, operations, internal viewers,
+Git badges, verification, archives, remote work and platform differences in
+user-facing sections. The full eight-theme Windows gallery is visible rather
+than collapsed; Windows, macOS and Ubuntu each have a visible image near the
+top. Raw HTML gallery tables were replaced by Markdown. All ten unique image
+paths and 41 local README links resolve, the new nine-link developer guide
+resolves, and neither file contains raw gallery HTML. The same original PNG
+bytes remain; this is a presentation/claim change, not a new capture or
+installed-app observation. The full candidate claim audit remains REL-V22-DOCS.

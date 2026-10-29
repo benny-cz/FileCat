@@ -7,11 +7,17 @@ change the release issue/campaign counts.
 
 - Requested: 2026-10-06 by the product owner during release execution.
 - Priority: low; continue higher-priority release validation first.
-- Status: the 2026-10-09 native Windows presentation remains accepted for its
-  original scope. A current-source refresh on 2026-10-29 adds all eight Windows
-  themes and one Classic Dark image each from macOS and Ubuntu, and splits the
-  README's main and advanced features. [Original native evidence](evidence/E-PQ01-windows-theme-showcase.md)
-  and [refresh evidence](evidence/E-PQ01-refresh-cross-platform-gallery.md) have distinct scope.
+- Status: **presentation accepted**. The 2026-10-09 native Windows presentation
+  remains accepted for its original scope. The 2026-10-29 current-source
+  refresh adds all eight Windows themes and one Classic Dark image each from
+  macOS and Ubuntu. The reader-focused README at `27db086a` leads with
+  everyday work, then recovery and visible safety outcomes; it includes
+  internal viewers, Git badges and the wider implemented capability set.
+  Every theme is visible in Markdown without collapsed/raw-HTML tables, and
+  the build-maintenance detail is in `docs/BUILDING.md`.
+  [Original native evidence](evidence/E-PQ01-windows-theme-showcase.md)
+  and [refresh/README evidence](evidence/E-PQ01-refresh-cross-platform-gallery.md)
+  retain distinct scope. Final candidate claims remain REL-V22-DOCS.
 - Improve the README's text presentation of FileCat for GitHub readers;
   include main and advanced feature lists.
 - Mention that the app has not just been vibecoded: it has also been properly
@@ -35,7 +41,7 @@ change the release issue/campaign counts.
   Unix PNGs show the same owned 2×2 workspace; no installed package, native
   interaction, accessibility or final-candidate result is inferred from them.
 
-Acceptance: a reviewed README with clearer product presentation, working image
-links, all Windows themes, one macOS and one Ubuntu view, and a four-panel,
-twelve-tab workspace. The earlier real-window Windows captures retain their
-separate interaction evidence; the current gallery is a headless UI render.
+Acceptance: met at presentation scope. All 41 local README links and ten
+unique image paths resolve; all Windows themes and one macOS/Ubuntu view are
+visible. The earlier real-window Windows captures retain their separate
+interaction evidence; the current gallery is a headless UI render.
