@@ -12,8 +12,10 @@ public static class ArchivePaths
 
     public static bool TooDeep(string member)
     {
+        // A folder entry ends with '/', which starts no further segment: FileCat's own empty folder at the deepest level
+        // made every later update of its ZIP fail (review finding P6 of f134ba37).
         int segments = 1;
-        foreach (char c in member) if (c == '/') segments++;
+        foreach (char c in member.AsSpan().TrimEnd('/')) if (c == '/') segments++;
         return segments > MaxMemberSegments;
     }
 

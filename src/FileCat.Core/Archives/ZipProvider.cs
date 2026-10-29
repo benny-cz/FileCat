@@ -483,7 +483,11 @@ internal sealed class ZipIndex : IDisposable
 
     public static ZipIndex Build(string path, Encoding? nameEncoding) => Build(path, nameEncoding, null);
 
-    public static ZipIndex Build(string path, Encoding? nameEncoding, Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
+    /// <summary>The characters of member names an index holds; past them, only the first entries are listed.</summary>
+    internal const long MaxNameChars = 64L * 1024 * 1024;
+
+    public static ZipIndex Build(string path, Encoding? nameEncoding, Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null,
+        long maxNameChars = MaxNameChars)
     {
         var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
         ZipArchive? archive = null;
@@ -492,7 +496,7 @@ internal sealed class ZipIndex : IDisposable
             verifyOpened?.Invoke(fs.SafeFileHandle);
             string? changeToken = SourceChangeToken.FromHandle(fs.SafeFileHandle);
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
-            var index = Build(path, fs, archive, changeToken);
+            var index = Build(path, fs, archive, changeToken, maxNameChars);
             index.VerifySource();
             return index;
         }
@@ -508,9 +512,8 @@ internal sealed class ZipIndex : IDisposable
         }
     }
 
-    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken)
+    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken, long maxNameChars)
     {
-        const long maxNameChars = 64L * 1024 * 1024;
         const long maxDirectoryChars = 32L * 1024 * 1024;
         var entries = new List<ZipArchiveEntry>();
         long nameChars = 0;
@@ -554,7 +557,12 @@ internal sealed class ZipIndex : IDisposable
                 break;
             }
             if (entry.FullName.Length > maxNameChars - nameChars)
-                throw new IOException("The ZIP's member names exceed FileCat's index budget.");
+            {
+                // As at the entry limit: the members up to here are listed, with a warning, where the whole archive was
+                // refused (review finding P6 of f134ba37).
+                warning = "The archive's member names exceed what FileCat lists; only the first entries are listed.";
+                break;
+            }
             nameChars += entry.FullName.Length;
             var raw = entry.FullName.Replace('\\', '/');
             string? unsafeReason = null;
