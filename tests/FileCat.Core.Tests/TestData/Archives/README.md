@@ -62,6 +62,21 @@ each archive's SHA-256, 7-Zip's coder listing and every extracted member's size 
 extracts with 7-Zip again where it is installed. The fixtures are not reproducible byte for byte with other 7-Zip
 versions; their pins are what the tests check.
 
+`FileCat.Methods.*.7z` are FileCat-owned 7z fixtures, one per coder, for the member CRC-32 check
+(`SevenZipCrcTests`). Each holds the same three members, made by a short script: `alpha.txt` (11,120 bytes:
+160 numbered lines of thirteen recurring words), `beta.bin` (3,072 bytes from a linear congruential generator,
+seed `0x2545F491`, multiplier 1103515245, increment 12345, taking bits 16–23) and `gamma.txt` (10,260 bytes:
+"FileCat checks every member's CRC-32." 270 times). 7-Zip 24.01 (x64) packed them with
+`a -t7z -m0=METHOD -ms=off -mtc=off -mta=off -mtm=off` (LZMA with `-ms=on`, so one solid folder):
+
+| File | Coder | Bytes | SHA-256 |
+|---|---|---:|---|
+| `FileCat.Methods.LZMA.7z` | LZMA:24k | 3,811 | `895edf5ef9b7cb78b3463617df8c928dff6959c67dd29c314038d1f9daf58a2d` |
+| `FileCat.Methods.BZip2.7z` | BZip2 | 4,414 | `f5a032a09f989725271dfc5109462a9fdc86b1cd590ee9b60e07bc2b5b7a7de2` |
+| `FileCat.Methods.Deflate.7z` | Deflate | 4,093 | `b38bfbeb4cb134e9ab6915bf5424e3ce22c65f46a7120f2588fd6613470e0fd2` |
+| `FileCat.Methods.Deflate64.7z` | Deflate64 (FileCat does not read it: refused as unsupported) | 4,117 | `7255f8a5efbc4acd597a6833e25583641b930475991eb9326fa9e91765276b4b` |
+| `FileCat.Methods.Copy.7z` | Copy | 24,619 | `a12c63e392e9845dfbff0bd537e455a0325be91c5ae240b3ba7a3071f1b24da3` |
+
 The other `Rar*` fixtures (RAR 1.5 through 5, stored, solid, multi-volume under both naming
 schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damaged
 `Rar.malformed_512byte.rar` and `Rar.issue1050.rar`) come unchanged from SharpCompress 0.50.5,

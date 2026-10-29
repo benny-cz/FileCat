@@ -8,6 +8,8 @@ using DiscUtils.Iso9660;
 using DiscUtils.Udf;
 using SharpCompress.Archives;
 using SharpCompress.Archives.SevenZip;
+using SharpCompress.Common;
+using SharpCompress.Common.SevenZip;
 
 using SharpCompress.Compressors.BZip2;
 using SharpCompress.Compressors.Xz;
@@ -190,6 +192,60 @@ internal sealed class SliceStream(Stream inner, long start, long length) : Strea
 }
 
 /// <summary>A stream the caller may dispose without closing the reader's cursor underneath.</summary>
+/// <summary>
+/// A 7z member's data as FileCat reads it, refused with <see cref="InvalidDataException"/> as soon as it is known to be
+/// damaged:
+/// - SharpCompress's decoders signal bad data with their own exception types; they become refusals here.
+/// - A member that ends short of its size is refused.
+/// - Once all of it has been read, it is checked against the CRC-32 its archive header records. Data a decoder took as
+///   valid but that is not what was packed (a flipped bit in a stored member, a damaged stream that still decodes)
+///   would otherwise read as if whole.
+/// Like <see cref="BorrowedStream"/>, it leaves the reader's stream open.
+/// </summary>
+internal sealed class SevenZipMemberStream(Stream inner, uint? expected, long size) : Stream
+{
+    private uint _crc;
+    private long _read;
+    private bool _checked;
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        int n;
+        try { n = inner.Read(buffer); }
+        catch (SharpCompressException ex) { throw new InvalidDataException("The member's data is damaged: " + ex.Message, ex); }
+        if (n > 0)
+        {
+            if (expected is not null) _crc = FileCat.Core.Jobs.Crc32.Append(_crc, buffer[..n]);
+            _read += n;
+            if (_read >= size) Check();
+        }
+        else if (buffer.Length > 0) Check();
+        return n;
+    }
+
+    private void Check()
+    {
+        if (_read > size) throw new InvalidDataException($"The member gave more than its {size:N0} bytes: the archive is damaged.");
+        if (_checked) return;
+        _checked = true;
+        if (_read < size) throw new InvalidDataException($"The member ends after {_read:N0} of its {size:N0} bytes: the archive is damaged.");
+        if (expected is { } crc && _crc != crc)
+            throw new InvalidDataException($"The member's CRC-32 is 0x{_crc:X8}, not the 0x{crc:X8} its archive header records: the archive is damaged.");
+    }
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+}
+
 internal sealed class BorrowedStream(Stream inner) : Stream
 {
     public override bool CanRead => true;
@@ -735,7 +791,12 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
                 if (!_reader.MoveToNextEntry()) throw new FileNotFoundException("The member is no longer in the archive.");
                 var current = _reader.Entry.Key ?? string.Empty;
                 int seen = _seen[current] = _seen.GetValueOrDefault(current) + 1;
-                if (current == key && seen - 1 == ordinal) return new BorrowedStream(_reader.OpenEntryStream());
+                if (current != key || seen - 1 != ordinal) continue;
+                var stream = _reader.OpenEntryStream();
+                // SharpCompress checks a 7z member's CRC-32 only when it extracts to a file itself, never on this stream.
+                var entry = _reader.Entry;
+                uint? crc = entry is SevenZipEntry { Checksum: { IsAvailable: true, Kind: ChecksumKind.Crc32 } checksum } ? unchecked((uint)checksum.ExpectedValue) : null;
+                return new SevenZipMemberStream(stream, crc, entry.Size);
             }
         }
         catch (Exception ex) when (ex is not (IOException or OperationCanceledException or InvalidDataException))
