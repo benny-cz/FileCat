@@ -256,18 +256,30 @@ try
         if (name.Equals("FileCat", StringComparison.OrdinalIgnoreCase)) continue;
         string spdxId = SpdxId("Project", name + "/" + projectVersion);
         dependencyIds.Add(spdxId);
-        // FileCat's projects are MIT, except the RAR 1.5 decoder ported from XADMaster (licenses/xadmaster).
-        bool lgpl = name.Equals("FileCat.Archives.Rar15", StringComparison.OrdinalIgnoreCase);
-        spdxPackages.Add(new JsonObject
+        // FileCat's projects are MIT, except the RAR 1.5 decoder ported from XADMaster (licenses/xadmaster) and FileCat's
+        // build of SharpCompress, whose parts keep their own licenses (licenses/sharpcompress/COMPONENTS.md).
+        (string license, string copyright, string? comment) = name.ToLowerInvariant() switch
+        {
+            "filecat.archives.rar15" => ("LGPL-2.1-or-later",
+                "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Benny and FileCat contributors", null),
+            "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib AND Unlicense AND Info-ZIP",
+                "Copyright (c) 2014 Adam Hathcock and SharpCompress contributors; the copyrights of its parts from other projects are in "
+                + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Benny and FileCat contributors",
+                "SharpCompress 0.50.5 (github.com/adamhathcock/sharpcompress commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626) built from "
+                + "src/ThirdParty/SharpCompress without its UnRAR-derived RAR and PPMd variant H code. Texts and notices: licenses/sharpcompress. "
+                + "Info-ZIP (its ZIP implode and reduce decoders) is not OSI-approved."),
+            _ => ("MIT", "Copyright (c) 2026 Benny and FileCat contributors", null),
+        };
+        var project = new JsonObject
         {
             ["name"] = name, ["SPDXID"] = spdxId, ["versionInfo"] = projectVersion,
             ["downloadLocation"] = "NOASSERTION", ["filesAnalyzed"] = false,
-            ["licenseConcluded"] = "NOASSERTION", ["licenseDeclared"] = lgpl ? "LGPL-2.1-or-later" : "MIT",
-            ["copyrightText"] = lgpl
-                ? "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Benny and FileCat contributors"
-                : "Copyright (c) 2026 Benny and FileCat contributors",
+            ["licenseConcluded"] = "NOASSERTION", ["licenseDeclared"] = license,
+            ["copyrightText"] = copyright,
             ["sourceInfo"] = "Built from FileCat " + sourceStatement[0..1].ToLowerInvariant() + sourceStatement[1..]
-        });
+        };
+        if (comment is not null) project["licenseComments"] = comment;
+        spdxPackages.Add(project);
     }
     var relationships = new JsonArray(new JsonObject
     {

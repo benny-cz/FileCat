@@ -42,12 +42,14 @@ def write_json(path: pathlib.Path, value) -> None:
 
 
 def deps(include_runtime=True, package_hash="pkg-content", package_id="Fixture.Package",
-         reference_id="Fixture.Package.Core", reference_hash=""):
+         reference_id="Fixture.Package.Core", reference_hash="", projects=()):
     libraries = {
         f"{package_id}/1.2.3": {"type": "package", "serviceable": True, "sha512": "sha512-" + package_hash},
         "FileCat/1.0.0": {"type": "project", "serviceable": False, "sha512": ""},
         f"{reference_id}/1.2.3": {"type": "reference", "serviceable": False, "sha512": reference_hash},
     }
+    for project in projects:
+        libraries[f"{project}/1.0.0"] = {"type": "project", "serviceable": False, "sha512": ""}
     if include_runtime:
         libraries["runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14"] = {
             "type": "runtimepack", "serviceable": False, "sha512": ""
@@ -84,10 +86,10 @@ def snapshot(extra_package=False):
 
 def prepare(folder: pathlib.Path, *, include_runtime=True, package_hash="pkg-content", runtime_hash=RUNTIME_ARCHIVE_SHA512,
             package_id="Fixture.Package", reference_id="Fixture.Package.Core", reference_hash="",
-            extra_package=False):
+            extra_package=False, projects=()):
     payload = folder / "payload"
     payload.mkdir(parents=True)
-    write_json(payload / "FileCat.deps.json", deps(include_runtime, package_hash, package_id, reference_id, reference_hash))
+    write_json(payload / "FileCat.deps.json", deps(include_runtime, package_hash, package_id, reference_id, reference_hash, projects))
     (payload / "FileCat.dll").write_bytes(b"managed-fixture\x00\x01")
     (payload / "Fixture.Package.Core.dll").write_bytes(REFERENCE_BYTES)
     (payload / "nested").mkdir()
@@ -137,12 +139,12 @@ def main() -> int:
             runtime_hash=RUNTIME_ARCHIVE_SHA512, package_id="Fixture.Package", extra_package=False,
             reference_id="Fixture.Package.Core", reference_hash="", output_inside=False, precreate=False,
             extras=(), mutate=None, mutate_runtime_archive=False, mutate_package_archive=False,
-            expected_reference_sha256=None):
+            expected_reference_sha256=None, projects=(), expected_project_licenses=None):
         folder = evidence / "cases" / name
         payload, index, packages_root = prepare(folder, include_runtime=include_runtime, package_hash=package_hash,
                                                 runtime_hash=runtime_hash, package_id=package_id,
                                                 reference_id=reference_id, reference_hash=reference_hash,
-                                                extra_package=extra_package)
+                                                extra_package=extra_package, projects=projects)
         if mutate:
             mutate(payload, index)
         if mutate_runtime_archive:
@@ -178,11 +180,15 @@ def main() -> int:
                 "ReferenceFileSHA256": next((checksum["checksumValue"]
                     for value in files if value["fileName"] == "./Fixture.Package.Core.dll"
                     for checksum in value["checksums"] if checksum["algorithm"] == "SHA256"), None),
+                "ProjectLicenses": {value["name"]: value["licenseDeclared"] for value in document["packages"]
+                                    if value["SPDXID"].startswith("SPDXRef-Project-")},
             }
             passed = (passed and details["SPDXVersion"] == "SPDX-2.3" and details["SortedUniqueFiles"]
                       and details["GeneratorAssemblyHashBound"])
             if expected_reference_sha256 is not None:
                 passed = passed and details["ReferenceFileSHA256"] == expected_reference_sha256
+            if expected_project_licenses is not None:
+                passed = passed and details["ProjectLicenses"] == expected_project_licenses
         elif precreate:
             passed = passed and output.read_text(encoding="utf-8") == "preserve"
         cases.append({
@@ -199,6 +205,14 @@ def main() -> int:
     run("wrong-package-hash", False, package_hash="wrong")
     run("unknown-package", False, package_id="Unknown.Package")
     run("unused-reviewed-package", True, extra_package=True)
+    # FileCat's projects are MIT, except its XADMaster port (LGPL) and its build of SharpCompress, whose parts keep their
+    # own licenses (licenses/sharpcompress/COMPONENTS.md).
+    run("project-licenses", True, projects=("FileCat.Core", "FileCat.Archives.Rar15", "FileCat.SharpCompress"),
+        expected_project_licenses={
+            "FileCat.Archives.Rar15": "LGPL-2.1-or-later",
+            "FileCat.Core": "MIT",
+            "FileCat.SharpCompress": "MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib AND Unlicense AND Info-ZIP",
+        })
     run("unknown-reference-origin", False, reference_id="Other.Component")
     run("hashed-reference", False, reference_hash="sha512-unreviewed")
     run("generated-reference-bytes-recorded", True,

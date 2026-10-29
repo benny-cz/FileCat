@@ -18,8 +18,10 @@ an author- and repository-signed NuGet archive whose metadata declares the SPDX
 reference text from an exact `spdx/license-list-data` revision, as prescribed for
 NuGet license expressions. Its declared source tree still has no license-named file,
 so this does not claim an upstream source-tree license file or reproducible binary.
-SharpCompress's RAR implementation still requires a provenance determination beyond
-its root MIT license. The exact .NET 10.0.14 runtime pack license and notices are also retained for
+SharpCompress is no longer a package here: FileCat ships its own build of it without the
+UnRAR-derived RAR and PPMd code (`src/ThirdParty/SharpCompress`), whose license texts and
+component inventory are in `licenses/sharpcompress`; the package is a test-only reference reader.
+The exact .NET 10.0.14 runtime pack license and notices are also retained for
 the five existing publish RIDs. Native subcomponents, runtime composition,
 AppImage and installer obligations still require their own artifact-specific audit. This snapshot does not certify
 complete notices or OSI-only eligibility.

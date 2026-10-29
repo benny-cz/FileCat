@@ -5,8 +5,10 @@ Full license and notice texts retained from pinned packages and their declared s
 are in `licenses/dependencies`, with exact source identities and hashes in `index.json`.
 The snapshot includes the pinned .NET 10.0.14 runtime pack texts, build-only packages and RID
 alternatives; it does not establish which components ship in each artifact or complete native
-license eligibility. SharpCompress's RAR provenance and AppImage/native obligations remain under
-review before stable release. Regenerate the exact
+license eligibility. AppImage/native obligations remain under review before stable release.
+FileCat builds SharpCompress from source without its UnRAR-derived RAR and PPMd code and ships it as
+`FileCat.SharpCompress.dll`; `licenses/sharpcompress` (its component inventory `COMPONENTS.md`, `NOTICE`
+and full license texts) ships with every package. Regenerate the exact
 SPDX inventory whenever dependencies or the SDK change: `eng/publish.ps1` writes the Windows
 `portable`, `fdd`, and `setup-payload` manifests; `eng/package-linux.sh` writes the Linux `tar`,
 `deb`, and `appimage` manifests; and `eng/package-macos.sh` writes the macOS `macos-app` manifest.
@@ -36,8 +38,8 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | Logging interfaces used by SSH.NET |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.2 | MIT | Resolved App runtime dependency |
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
-| SharpCompress | 0.50.5 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |
-| rardecode (ported source in FileCat's RAR reader) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
+| SharpCompress (FileCat's build, `FileCat.SharpCompress.dll`) | 0.50.5 (commit e4193af8) | MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib AND Unlicense AND Info-ZIP | Read-only 7z, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock and SharpCompress contributors. Built from `src/ThirdParty/SharpCompress` without its RAR support and PPMd variant H, which it ported from UnRAR; 7z PPMd decodes through FileCat's PPMd model (rardecode row). SharpCompress itself is MIT; its parts from other projects keep their own licenses, listed file by file in `licenses/sharpcompress/COMPONENTS.md`, with `NOTICE` and the full texts, shipped with FileCat. Its ZIP implode and reduce decoders (unused by FileCat) derive from Info-ZIP code, whose license is not OSI-approved: an open release decision |
+| rardecode (ported source in FileCat's RAR reader) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding, and `src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs` its PPMd variant H model, which RAR 3 and 7z PPMd share; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
 | XADMaster (ported source in FileCat's RAR 1.5 decoder) | commit 7cb9ee0a | LGPL-2.1-or-later | `src/FileCat.Archives.Rar15` ports its RAR 1.5 decoding (XADRAR15Handle) into the separate, replaceable `FileCat.Archives.Rar15.dll`; Copyright (c) 2017-present MacPaw Way Ltd., originally by Dag Ågren. Notice below; full text in `licenses/xadmaster/LICENSE`, shipped with FileCat; no UnRAR source |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; the signed package's SPDX expression and copyright metadata are bound to retained canonical MIT text |
@@ -45,7 +47,9 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
 
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in
-`tests/FileCat.Core.Tests/TestData/Archives/README.md`; pyftpdlib (MIT) as the FTP/FTPS server in tests; disk images
+`tests/FileCat.Core.Tests/TestData/Archives/README.md`; the SharpCompress 0.50.5 package (MIT; its RAR and PPMd
+variant H decoders are ported from UnRAR) as the reference reader FileCat's RAR and 7z PPMd decoding is compared
+with; pyftpdlib (MIT) as the FTP/FTPS server in tests; disk images
 made by FileCat's own `eng/make-recovery-fixtures.sh` (generated text only; `TestData/Recovery/README.md`).
 
 Build-time only (not shipped): Avalonia.BuildServices (MIT) — its usage-statistics task is disabled in
@@ -58,7 +62,8 @@ The FileCat icon is original artwork (`eng/make-icon.ps1`).
 
 ## rardecode (BSD-2-Clause)
 
-FileCat's RAR reader contains code ported from rardecode (https://github.com/nwaples/rardecode).
+FileCat's RAR reader, and the PPMd variant H model in `FileCat.SharpCompress.dll` that RAR 3 and 7z PPMd
+share, contain code ported from rardecode (https://github.com/nwaples/rardecode).
 
 ```
 Copyright (c) 2015, Nicholas Waples

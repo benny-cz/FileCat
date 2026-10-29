@@ -49,6 +49,14 @@ mkdir -p "$PUB/licenses/xadmaster"
 cp "$ROOT/licenses/xadmaster/LICENSE" "$ROOT/licenses/xadmaster/README.md" "$PUB/licenses/xadmaster/"
 echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $PUB/licenses/xadmaster/LICENSE" | sha256sum -c - >/dev/null \
   || { echo "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text." >&2; exit 2; }
+# FileCat.SharpCompress.dll (FileCat's build of SharpCompress) ships its license texts, notices and component inventory
+# byte for byte: SHA256SUMS has its reviewed hash and lists exactly the folder's other files.
+cp -R "$ROOT/licenses/sharpcompress" "$PUB/licenses/"
+( cd "$PUB/licenses/sharpcompress" \
+  && echo "5a767c6ce1bb64d2db478dd16c69a7b5fad831d13bea3bf4120aa9eddbeafeda  SHA256SUMS" | sha256sum -c - >/dev/null \
+  && sha256sum -c SHA256SUMS >/dev/null \
+  && [ "$(find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort)" = "$(cut -c67- SHA256SUMS | LC_ALL=C sort)" ] ) \
+  || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not

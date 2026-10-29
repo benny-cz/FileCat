@@ -46,6 +46,14 @@ mkdir -p "$APP/Contents/Resources/licenses/xadmaster"
 cp "$ROOT/licenses/xadmaster/LICENSE" "$ROOT/licenses/xadmaster/README.md" "$APP/Contents/Resources/licenses/xadmaster/"
 echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $APP/Contents/Resources/licenses/xadmaster/LICENSE" \
   | shasum -a 256 -c - >/dev/null || { echo "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text." >&2; exit 2; }
+# FileCat.SharpCompress.dll (FileCat's build of SharpCompress) ships its license texts, notices and component inventory
+# byte for byte: SHA256SUMS has its reviewed hash and lists exactly the folder's other files.
+cp -R "$ROOT/licenses/sharpcompress" "$APP/Contents/Resources/licenses/"
+( cd "$APP/Contents/Resources/licenses/sharpcompress" \
+  && echo "5a767c6ce1bb64d2db478dd16c69a7b5fad831d13bea3bf4120aa9eddbeafeda  SHA256SUMS" | shasum -a 256 -c - >/dev/null \
+  && shasum -a 256 -c SHA256SUMS >/dev/null \
+  && [ "$(find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort)" = "$(cut -c67- SHA256SUMS | LC_ALL=C sort)" ] ) \
+  || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
 
 # Icon: every size macOS asks for, from the frames drawn for each size (the 16-pixel one by hand) rather than the
 # 256-pixel artwork shrunk, which reads poorly small. 512 and up are left out: macOS scales the 256 for them.

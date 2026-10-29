@@ -492,17 +492,6 @@
       "SourceURL": "https://github.com/LTRData/DiscUtils/blob/745ca1993227864ceaf3095eda1efd1c761e56be/LICENSE.txt"
     },
     {
-      "Path": "upstream/adamhathcock/sharpcompress/e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626/LICENSE.txt",
-      "Bytes": 1081,
-      "SHA256": "b7ca2b6174cee11afe41d78b48527e3d7659a4435c25019a4a5e072299a2f8ed",
-      "Source": "Package-declared upstream Git source",
-      "Repository": "adamhathcock/sharpcompress",
-      "Revision": "e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626",
-      "SourcePath": "LICENSE.txt",
-      "GitBlobSHA1": "94e2f5bc83ac404584fd92c25cfcc305ea2f8942",
-      "SourceURL": "https://github.com/adamhathcock/sharpcompress/blob/e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626/LICENSE.txt"
-    },
-    {
       "Path": "upstream/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
       "Bytes": 1115,
       "SHA256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
@@ -1343,31 +1332,6 @@
       ],
       "FullTextRetained": true,
       "Coverage": "nuget-files-retained"
-    },
-    {
-      "ID": "SharpCompress",
-      "Version": "0.50.5",
-      "NuGetContentHash": "wAEAxPV67rmS3IlIm+tvGNPJXEtZNqlwkZrwJZAvz0AagZP0qLtT4mM2hk8S+uO0Kx+wYoy/FsADQpHwsN5y3g==",
-      "PackageArchiveSHA256": "af0585a88897018b6e0bf34cc741d65f0c4eb676c3e807e77be1067a223c0229",
-      "NuGetLicenseDeclaration": {
-        "Text": "MIT",
-        "Attributes": {
-          "type": "expression"
-        }
-      },
-      "NuGetRepositoryDeclaration": {
-        "Text": null,
-        "Attributes": {
-          "type": "git",
-          "url": "https://github.com/adamhathcock/sharpcompress",
-          "commit": "e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626"
-        }
-      },
-      "RetainedNoticePaths": [
-        "upstream/adamhathcock/sharpcompress/e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626/LICENSE.txt"
-      ],
-      "FullTextRetained": true,
-      "Coverage": "declared-source-texts-retained"
     },
     {
       "ID": "SkiaSharp",

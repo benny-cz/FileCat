@@ -84,6 +84,31 @@ dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained false -
     -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish failed" }
 
+# A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.
+function Assert-PinnedNotices([string]$Folder, [string]$Name) {
+    $sums = Join-Path $Folder 'SHA256SUMS'
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne '5A767C6CE1BB64D2DB478DD16C69A7B5FAD831D13BEA3BF4120AA9EDDBEAFEDA') {
+        throw "$Name/SHA256SUMS differs from the reviewed notice set"
+    }
+    $expected = @{}
+    foreach ($line in [IO.File]::ReadAllLines($sums)) {
+        # A relative path with forward slashes only, never rooted or climbing out of the folder.
+        if ($line -cnotmatch '^([0-9a-f]{64})  ([^/\\][^\\]*)$' -or $Matches[2].Split('/') -contains '..') {
+            throw "$Name/SHA256SUMS has a malformed line"
+        }
+        $expected[$Matches[2]] = $Matches[1]
+    }
+    $actual = @(Get-ChildItem -LiteralPath $Folder -Recurse -File | ForEach-Object {
+        [IO.Path]::GetRelativePath($Folder, $_.FullName).Replace([IO.Path]::DirectorySeparatorChar, '/') } | Where-Object { $_ -cne 'SHA256SUMS' })
+    if ($actual.Count -ne $expected.Count) { throw "$Name has files that SHA256SUMS does not list, or lacks some it does" }
+    foreach ($relative in $actual) {
+        if (-not $expected.ContainsKey($relative) -or
+            (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Folder $relative)).Hash.ToLowerInvariant() -cne $expected[$relative]) {
+            throw "$Name/$relative differs from its pinned bytes"
+        }
+    }
+}
+
 foreach ($dir in @($publish, $fdd)) {
     Copy-Item (Join-Path $root "LICENSE") $dir -Force
     Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
@@ -97,6 +122,12 @@ foreach ($dir in @($publish, $fdd)) {
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $xadmaster "LICENSE")).Hash -ne '9B872A8A070B8AD329C4BD380FB1BF0000F564C75023EC8E1E6803F15364B9E9') {
         throw "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text"
     }
+    # FileCat.SharpCompress.dll is FileCat's build of SharpCompress, whose components keep their own licenses: its license
+    # texts, notices and component inventory ship byte for byte, as licenses/sharpcompress/SHA256SUMS pins them.
+    $sharpCompress = Join-Path $dir "licenses/sharpcompress"
+    New-Item -ItemType Directory -Force -Path $sharpCompress | Out-Null
+    Copy-Item (Join-Path $root "licenses/sharpcompress/*") $sharpCompress -Recurse -Force
+    Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
 }
 
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output) {

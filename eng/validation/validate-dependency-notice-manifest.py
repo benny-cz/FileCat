@@ -124,6 +124,24 @@ for fixture in fixtureIndex['Manifests']:
         library['sha512']='sha512-'+entry['contentHash']
         if 'path' in library:library['path']=package.lower()+'/'+entry['resolved']
         if 'hashPath' in library:library['hashPath']=package.lower()+'.'+entry['resolved']+'.nupkg.sha512'
+    # Packages the App lock no longer resolves at all (SharpCompress, now built from source as the FileCat.SharpCompress
+    # project) leave the fixture in memory too: their library entries, their target entries and every dependency
+    # reference to them.
+    lockNames={name.lower() for name in lockPackages}
+    dropped=sorted({key.rpartition('/')[0] for key,library in data['libraries'].items()
+                    if library.get('type')=='package' and key.rpartition('/')[0].lower() not in lockNames})
+    droppedNames={name.lower() for name in dropped}
+    def withoutDropped(value):
+        if isinstance(value,dict):
+            return {name:withoutDropped(item) for name,item in value.items()
+                    if name.rpartition('/')[0].lower() not in droppedNames  # a library or target entry
+                    and not (name.lower() in droppedNames and isinstance(item,str))}  # a dependency map entry
+        if isinstance(value,list):return [withoutDropped(item) for item in value]
+        return value
+    data=withoutDropped(data)
+    assert all(library.get('type')!='package' or key.rpartition('/')[0].lower() in lockNames for key,library in data['libraries'].items())
+    assert not any(name.lower() in droppedNames for target in data['targets'].values() for entry in target.values()
+                   for name in entry.get('dependencies',{}))
     if runtimeVersion!='10.0.12':
         def currentRuntime(value):
             if isinstance(value,dict):
@@ -149,10 +167,10 @@ for fixture in fixtureIndex['Manifests']:
         code=capture(command,folder,30)
         outputs={p.relative_to(output).as_posix():sha(p) for p in output.rglob('*') if p.is_file()} if output.exists() else {}
         expected=behavior=='unchanged';passed=(code==0 and output.exists() and outputs==snapshot) if expected else (code!=0 and not output.exists())
-        cases.append(dict(Name=name,Fixture=fixture['Name'],Behavior=behavior,ExpectedAllowed=expected,ControlPassed=passed,ExitCode=code,DestinationCreated=output.exists(),ActualOutputPins=outputs,ExpectedOutputPins=snapshot,ManifestSHA256=sha(manifest),OriginalManifestSHA256=fixture['SHA256'],Command=command,StdoutSHA256=sha(folder/'stdout.txt'),StderrSHA256=sha(folder/'stderr.txt')))
+        cases.append(dict(Name=name,Fixture=fixture['Name'],Behavior=behavior,MovedFixturePackages=sorted(moved),DroppedFixturePackages=dropped,ExpectedAllowed=expected,ControlPassed=passed,ExitCode=code,DestinationCreated=output.exists(),ActualOutputPins=outputs,ExpectedOutputPins=snapshot,ManifestSHA256=sha(manifest),OriginalManifestSHA256=fixture['SHA256'],Command=command,StdoutSHA256=sha(folder/'stdout.txt'),StderrSHA256=sha(folder/'stderr.txt')))
 assert len(cases)==63 and all(sha(repo/p['Path'])==p['SHA256'] for p in inputPins)
 payloadPins=[dict(Path=p.relative_to(root).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in sorted((root/'artifacts/bin/DependencyNotices/release').rglob('*')) if p.is_file()]
-proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,AppImageProducerVersionsAndFullTextsResolved=True,ChangedAppImageProducerVersionRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
+proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,FixturePackagesNotInLockDroppedInMemory=sorted({p for c in cases for p in c['DroppedFixturePackages']}),InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,AppImageProducerVersionsAndFullTextsResolved=True,ChangedAppImageProducerVersionRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
 with (root/'dependency-notice-manifest-controls.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(proof,f,indent=2)
 print(json.dumps(dict(Controls=71,Allowed=11,Refused=60,Passed=sum(c['ControlPassed'] for c in cases)+8,SourceCommit=head,SourceTreeDirty=dirty)))
 if not all(c['ControlPassed'] for c in cases):raise SystemExit(1)
