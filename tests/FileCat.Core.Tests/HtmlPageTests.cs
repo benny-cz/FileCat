@@ -82,6 +82,43 @@ public sealed class HtmlPageTests
         Assert.True(reader.Read(0, new byte[10], TestContext.Current.CancellationToken) > 0);
     }
 
+    [Theory]
+    [InlineData(16 * 1024)]
+    [InlineData(32 * 1024)]
+    [InlineData(64 * 1024)]
+    public void Viewer_callback_bounds_malformed_table_delimiters(int spaces)
+    {
+        string markdown = "| a | b |\n|" + new string(' ', spaces) + "x|\n";
+        using var reader = new PagedReader(new MemoryContentSource("hostile.md", Encoding.UTF8.GetBytes(markdown)));
+        var page = HtmlPage.ForMarkdown(reader, "hostile.md", TestContext.Current.CancellationToken);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var watch = Stopwatch.StartNew();
+        var response = page.Resolve("/");
+        watch.Stop();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        TestContext.Current.TestOutputHelper?.WriteLine($"Markdown viewer callback: whitespace={spaces}, elapsed={watch.Elapsed}, thread-allocated={allocated:N0} bytes");
+        Assert.NotNull(response);
+        Assert.Equal("text/html", response.Value.MimeType);
+        Assert.Contains("<p>| a | b |", Encoding.UTF8.GetString(response.Value.Bytes));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"{spaces}: {watch.Elapsed}");
+        Assert.True(allocated < 32L * 1024 * 1024, $"{spaces}: {allocated} bytes allocated");
+    }
+
+    [Fact]
+    public void Viewer_callback_renders_valid_aligned_table_and_refuses_after_close()
+    {
+        const string markdown = "# Readme\n\n| a | b |\n| :--- | ---: |\n| 1 | 2 |\n";
+        using var reader = new PagedReader(new MemoryContentSource("README.md", Encoding.UTF8.GetBytes(markdown)));
+        var page = HtmlPage.ForMarkdown(reader, "README.md", TestContext.Current.CancellationToken);
+        var response = page.Resolve("/");
+        Assert.NotNull(response);
+        string html = Encoding.UTF8.GetString(response.Value.Bytes);
+        Assert.Contains("<h1", html);
+        Assert.Contains("<table>", html);
+        reader.Dispose();
+        Assert.Null(page.Resolve("/"));
+    }
+
     [Fact]
     public void A_link_inside_the_folder_that_leads_out_is_not_followed()
     {

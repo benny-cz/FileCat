@@ -368,6 +368,8 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
         string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}|{SourceChangeKey(outer)}";
+        if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
         lock (_spoolLock)
         {
             if (_spools.TryGetValue(key, out var existing))
@@ -440,6 +442,10 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
 /// <summary>The listing of one archive and its reader; extraction is serialized and bounded.</summary>
 internal sealed class ArchiveIndex : IDisposable
 {
+    private const int MaxMemberSegments = 256;
+    private const long MaxRetainedNameChars = 64L * 1024 * 1024;
+    private const long MaxGeneratedDirectoryChars = 32L * 1024 * 1024;
+    private sealed class IndexBudgetExceededException(string message) : IOException(message);
     private readonly object _lock = new();
     private readonly IMemberReader _reader;
     private FileStream? _witness;
@@ -545,6 +551,8 @@ internal sealed class ArchiveIndex : IDisposable
             var missing = new Stack<string>();
             for (string current = dir; dirs.Add(current);)
             {
+                if (current.Length > MaxGeneratedDirectoryChars - directoryChars)
+                    throw new IndexBudgetExceededException("The archive's generated directory paths exceed FileCat's index budget.");
                 directoryChars += current.Length;
                 directoryCount++;
                 missing.Push(current);
@@ -566,6 +574,8 @@ internal sealed class ArchiveIndex : IDisposable
         {
             foreach (var m in reader.List(warnings.Add, ct))
             {
+                if (m.Path.Length > MaxRetainedNameChars - nameChars)
+                    throw new IndexBudgetExceededException("The archive's member names exceed FileCat's index budget.");
                 nameChars += m.Path.Length;
                 if (++count > ArchiveProvider.MaxEntries)
                 {
@@ -576,6 +586,8 @@ internal sealed class ArchiveIndex : IDisposable
                 string? unsafeReason = null;
                 if (raw.StartsWith('/') || raw.Length > 1 && raw[1] == ':') unsafeReason = "absolute path";
                 var parts = raw.Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+                if (parts.Count > MaxMemberSegments)
+                    throw new IndexBudgetExceededException("An archive member has too many path components to index safely.");
                 if (parts.Any(p => p == "..")) unsafeReason = "\"..\" path traversal";
                 parts.RemoveAll(p => p is "." or "..");
                 if (parts.Count == 0) continue;
@@ -596,7 +608,7 @@ internal sealed class ArchiveIndex : IDisposable
                 children[parent].Add(new Node(name, false, m.Size, modified, tag));
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException && count > 0)
+        catch (Exception ex) when (ex is not (OperationCanceledException or IndexBudgetExceededException) && count > 0)
         {
             // Damage after some members (any engine's error type): what was listed stays usable.
             warnings.Add("The archive is damaged after the members listed: " + ex.Message);
@@ -651,6 +663,8 @@ internal sealed class ArchiveIndex : IDisposable
             if (declared >= 0) dst = new MemoryStream((int)declared);
             else
             {
+                if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
+                    throw new IOException("This archive member has no declared size and cannot be viewed safely while FileCat runs as administrator.");
                 Directory.CreateDirectory(tempDirectory);
                 string spoolPath = Path.Combine(tempDirectory, $"member-{Guid.NewGuid():N}.tmp");
                 dst = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);

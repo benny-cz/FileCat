@@ -1,4 +1,6 @@
 using FileCat.Core.Resources;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Compare;
 
@@ -30,6 +32,9 @@ public sealed record TreeDiffEntry(string RelativePath, TreeDiffKind Kind, Entry
     /// </summary>
     public FileSystem.FolderContents? Contents { get; init; }
 
+    /// <summary>Complete, finite file bytes and descendant review for a one-sided local item.</summary>
+    public ReviewedSourceTree? RemovalReview { get; init; }
+
     public bool IsDifference => Kind != TreeDiffKind.Same;
     public bool IsFolder => (Left ?? Right)?.IsContainer == true;
 }
@@ -52,13 +57,15 @@ public static class TreeCompare
     public const int MaxEntries = 1_000_000;
 
     public static TreeCompareResult Compare(ProviderRegistry providers, Location left, Location right, CompareCriteria criteria, TimeSpan tolerance,
-        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null)
-        => CompareAsync(providers, left, right, criteria, tolerance, caseInsensitiveNames, ct, progress, io).GetAwaiter().GetResult();
+        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null, IFileSystemOperations? files = null)
+        => CompareAsync(providers, left, right, criteria, tolerance, caseInsensitiveNames, ct, progress, io, files).GetAwaiter().GetResult();
 
     public static async Task<TreeCompareResult> CompareAsync(ProviderRegistry providers, Location left, Location right, CompareCriteria criteria, TimeSpan tolerance,
-        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null)
+        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null, IFileSystemOperations? files = null)
     {
         var entries = new List<TreeDiffEntry>();
+        long remainingReviewBytes = 256L * 1024 * 1024;
+        int remainingReviewItems = 4096;
         int folders = 0;
         bool complete = true;
         var lp = providers.For(left);
@@ -129,6 +136,14 @@ public static class TreeCompare
         // A folder on one side only, on a disk or share: all it holds, for a plan to state and a removal to check.
         async Task<TreeDiffEntry> OneSided(TreeDiffEntry entry, ResourceProvider provider, Location folder, EntryData data)
         {
+            if (!folder.IsFileSystem) return entry;
+            string? path = provider.GetItemRef(folder, data).FileSystemPath;
+            if (path is null) return entry;
+            var review = remainingReviewItems <= 0 ? null : FileTreeReview.Capture(path, files ?? new PortableFileOperations(), provider,
+                ct.ThrowIfCancellationRequested, byteLimit: Math.Min(remainingReviewBytes, JournalRecovery.StagedReviewByteLimit),
+                itemLimit: Math.Min(remainingReviewItems, 1000), allowLinks: true);
+            if (review is not null) { remainingReviewItems -= review.Items.Count; remainingReviewBytes -= review.Bytes; }
+            entry = entry with { RemovalReview = review is null ? null : new ReviewedSourceTree(review, provider) };
             if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
                 return entry;
             progress?.Invoke(entry.RelativePath);

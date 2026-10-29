@@ -199,7 +199,7 @@ public sealed class HtmlPage
         var bytes = file.Item1;
         var guess = TextDecoding.Detect(bytes.AsSpan(0, Math.Min(bytes.Length, 64 * 1024)));
         string text = guess.Encoding.GetString(bytes, guess.PreambleLength, bytes.Length - guess.PreambleLength);
-        return (Encoding.UTF8.GetBytes(Markdown.ToPage(text, Name)), "text/html");
+        return (Encoding.UTF8.GetBytes(Markdown.ToPageCancellable(text, Name, _ct)), "text/html");
     }
 
     private (byte[], string)? Read(IContentSource source, string mime)

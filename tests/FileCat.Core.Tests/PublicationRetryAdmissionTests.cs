@@ -72,7 +72,7 @@ public sealed class PublicationRetryAdmissionTests(ITestOutputHelper output)
         finally { foreach (var job in jobs.Jobs) job.Cancel(); Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(5))); }
     }
 
-    private sealed class RetryFiles(string source, string target, string route) : PortableFileOperations
+    private sealed class RetryFiles(string source, string target, string route) : ReviewedReplacementTestFiles
     {
         public int Attempts, Published;
         public bool AliasActive;

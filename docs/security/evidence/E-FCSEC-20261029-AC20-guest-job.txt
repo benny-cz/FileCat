@@ -1,0 +1,8 @@
+HighIntegrity=True
+Link=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-destination\folder
+OutsideMarker=OWNED-EXTRACT-OUTSIDE-UNTOUCHED
+OutsideOutputExists=False
+RefusedState=Failed
+RefusedIssue=Not extracted: The destination folder path contains a link or cannot be held; nothing was written there.
+OrdinaryState=Completed
+OrdinaryBytes=OWNED-ARCHIVE-BYTES

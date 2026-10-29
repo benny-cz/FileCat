@@ -147,7 +147,7 @@ public sealed class SyncFollowLinkPublicationTests(ITestOutputHelper output)
             string parent = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
             Assert.StartsWith(parent, Path.GetFullPath(Root)); Directory.Delete(Root, recursive: true); Assert.False(Directory.Exists(Root));
         }
-        private sealed class Files(Rig rig) : PortableFileOperations
+        private sealed class Files(Rig rig) : ReviewedReplacementTestFiles
         {
             private bool failedMove;
             public override FileSystemItemInfo? TryGetInfo(string path)

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.Platform;
 using FileCat.Core.Tools;
+using FileCat.Core.State;
 using static FileCat.Platform.Windows.Native.NativeMethods;
 
 namespace FileCat.Platform.Windows;
@@ -15,6 +16,8 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 {
     public override void Open(string path)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("System file associations are unavailable while FileCat runs as administrator. Reopen it without elevation.");
         // The OS applies its normal security prompts (e.g. Mark-of-the-Web warnings) when opening.
         var psi = new ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(path) ?? string.Empty };
         Process.Start(psi)?.Dispose();
@@ -179,7 +182,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     internal static string WindowsTerminalCommandArguments(string directory, string command)
     {
         string systemCmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-        return $"-d \"{directory.TrimEnd('\\')}\\\\\" \"{systemCmd}\" /K {command}";
+        return $"-d \"{directory.TrimEnd('\\')}\\\\\" \"{systemCmd}\" /D /K {command}";
     }
 
     /// <summary>A program found by full path, or the error starting a missing one would give (never a bare name, I16).</summary>
@@ -266,16 +269,17 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 
     public override void OpenTerminal(string directory, string shell)
     {
+        RefuseElevatedTerminal();
         ProcessStartInfo psi;
         switch (ResolveShell(shell))
         {
             case "powershell":
-                psi = new ProcessStartInfo(WindowsPowerShell) { ArgumentList = { "-NoExit", "-NoLogo" } };
+                psi = new ProcessStartInfo(WindowsPowerShell) { ArgumentList = { "-NoExit", "-NoLogo", "-NoProfile" } };
                 break;
             case "pwsh":
                 psi = new ProcessStartInfo(shell == "auto"
                     ? SystemPowerShell7 ?? throw new System.ComponentModel.Win32Exception(2, "The system PowerShell 7 installation disappeared.")
-                    : Installed("pwsh.exe", "PowerShell 7")) { ArgumentList = { "-NoExit", "-NoLogo" } };
+                    : Installed("pwsh.exe", "PowerShell 7")) { ArgumentList = { "-NoExit", "-NoLogo", "-NoProfile" } };
                 break;
             case "wt":
                 // As separate arguments: a quoted folder ending in a backslash ("C:\dir\") would escape its own quote.
@@ -284,7 +288,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                     : Installed("wt.exe", "Windows Terminal")) { ArgumentList = { "-d", directory } };
                 break;
             default:
-                psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+                psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe")) { ArgumentList = { "/D" } };
                 break;
         }
         psi.WorkingDirectory = directory;
@@ -295,6 +299,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 
     public override void RunInTerminal(string directory, string command, string shell)
     {
+        RefuseElevatedTerminal();
         ProcessStartInfo psi;
         // A typed command line is cmd's language: "auto" keeps it so (inside Windows Terminal when it is there).
         switch (shell == "auto" ? AutomaticWindowsTerminal is not null ? "wt" : "cmd" : shell)
@@ -304,7 +309,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                 // -EncodedCommand avoids every layer of command-line quoting for the user's text.
                 var exe = shell == "pwsh" ? Installed("pwsh.exe", "PowerShell 7") : WindowsPowerShell;
                 var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
-                psi = new ProcessStartInfo(exe) { Arguments = "-NoExit -NoLogo -EncodedCommand " + encoded };
+                psi = new ProcessStartInfo(exe) { Arguments = "-NoExit -NoLogo -NoProfile -EncodedCommand " + encoded };
                 break;
             case "wt":
                 psi = new ProcessStartInfo(shell == "auto"
@@ -313,13 +318,19 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                 break;
             default:
                 // Explicit shell mode: the user's command line goes to cmd.exe verbatim.
-                psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe")) { Arguments = "/K " + command };
+                psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe")) { Arguments = "/D /K " + command };
                 break;
         }
         psi.WorkingDirectory = directory;
         psi.UseShellExecute = false;
         psi.CreateNoWindow = false;
         Process.Start(psi)?.Dispose();
+    }
+
+    private static void RefuseElevatedTerminal()
+    {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("Terminals are unavailable while FileCat runs as administrator. Reopen it without elevation.");
     }
 
     public override void SetKeepAwake(bool keepAwake) =>

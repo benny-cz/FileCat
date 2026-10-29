@@ -1,0 +1,13 @@
+HighIntegrity=True
+SourceLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\zip-source-link.txt
+SecretBytes=OWNED-ZIP-HIGH-ONLY-MARKER
+RefusedState=Failed
+RefusedIssue=The source is a link; links are not added to ZIP archives.
+RefusedZipExists=False
+ExistingAddRefusedState=Failed
+ExistingZipUnchangedAfterRefusal=True
+OrdinaryState=Completed
+OrdinaryEntryBytes=OWNED-ORDINARY-PACK-BYTES
+ExistingAddAcceptedState=Completed
+ExistingPriorBytes=OWNED-PRIOR-ZIP-BYTES
+ExistingAddedBytes=OWNED-ORDINARY-PACK-BYTES

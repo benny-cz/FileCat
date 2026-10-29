@@ -116,6 +116,8 @@ internal static class InterruptedRecoveryReport
             Detail($"Open step {Count(intent.Step)} ({intent.Operation}) source", intent.Path, intent.Target);
             if (intent.Staged is { } staged) Detail("  staged path", staged);
             if (intent.Via is { } via) Detail("  temporary rename path", via);
+            if (intent.RecoveryPath is { } recovery)
+                Detail("  retained replaced destination; inspect and restore manually if present", recovery);
         }
         foreach (string path in job.StagingDirectories) Detail("Staging directory", path);
         foreach (string path in sources) Detail("Recorded source", path);

@@ -351,6 +351,12 @@ public sealed partial class MainViewModel
             if (renames.Count > 0) message += "\n\nThese reviewed interrupted renames will be finished if their contents and paths remain unchanged (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Intent.Path + " → " + r.Intent.Target).ToList());
             if (unreviewedRenames.Count > 0) message += "\n\nThese recorded temporary rename paths could not be verified. An item may be absent or inaccessible. No change will be made at these paths; inspect the retained report and files before closing recovery tracking:\n" + InterruptedJobText.Bullets(unreviewedRenames);
             if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining recorded paths were not inspected; inspect them separately.";
+            var replacementRecovery = job.OpenIntents.Where(i => i.RecoveryPath is not null)
+                .Select(i => i.RecoveryPath!).Distinct(PathUtil.SafetyComparer).Take(10).ToArray();
+            if (replacementRecovery.Length > 0)
+                message += "\n\nAn interrupted replacement may have retained its original destination at these recovery names. " +
+                    "These files will not be deleted or moved by cleanup; inspect them before closing tracking:\n" +
+                    InterruptedJobText.Bullets(replacementRecovery);
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => unresolvedRemoteUpload ? "Keep remote upload for review" : "OK" };
@@ -493,11 +499,13 @@ public sealed partial class MainViewModel
                 review.Staged.Select(s => s.Path).ToArray(), review.Unreviewed, review.Copies, review.Limited,
                 allSources: recordedSources));
             int renames = job.OpenIntents.Count(i => i.Operation == JobJournal.RenameViaOp);
+            int replacements = job.OpenIntents.Count(i => i.RecoveryPath is not null);
             bool unresolvedRemoteUpload = InterruptedRecoveryReport.HasUnreviewedRemoteUpload(job);
             string message = $"Stop offering automatic recovery for {Formatters.SafeName(job.Title)} on future starts? " +
                 "This does not delete or repair files. The journal will be closed and the recovery actions will no longer be offered. " +
                 "A bounded, copyable report of the known paths and review limits will remain in Operations under Reviewed recovery reports. " +
                 (renames > 0 ? $"\n\n{renames:N0} interrupted rename intent{(renames == 1 ? " has" : "s have")} a temporary name. Its path and possible target remain in the report; inspect or finish it before stopping reminders. " : "") +
+                (replacements > 0 ? $"\n\n{replacements:N0} interrupted replacement intent{(replacements == 1 ? " has" : "s have")} a recorded recovery name. Inspect any retained original there before stopping reminders. " : "") +
                 (unresolvedRemoteUpload ? "\n\n" + InterruptedRecoveryReport.RemoteUploadReviewWarning(job) : "") +
                 (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut
                     ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
@@ -510,6 +518,7 @@ public sealed partial class MainViewModel
                 "A bounded report remains in Operations for this session",
             };
             if (renames > 0) highlights.Add($"Interrupted rename intents to inspect: {renames:N0}");
+            if (replacements > 0) highlights.Add($"Replacement recovery names to inspect: {replacements:N0}");
             if (unresolvedRemoteUpload)
             {
                 highlights.Add("Remote upload: inspect server files before stopping recovery reminders");

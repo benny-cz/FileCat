@@ -1,0 +1,12 @@
+LocalLink=C:\Users\Admin\AppData\Local\Temp\filecat-ac43-icons-b3a0c6ca70a7406dbefe7a369e1986f3\linked.ico
+LinkTarget=\\192.168.58.129\evidence-60f17953194a424f8deee1a231812b66\folder.ico
+ShortcutIcon=C:\Users\Admin\AppData\Local\Temp\filecat-ac43-icons-b3a0c6ca70a7406dbefe7a369e1986f3\linked.ico
+DesktopIniIcon=C:\Users\Admin\AppData\Local\Temp\filecat-ac43-icons-b3a0c6ca70a7406dbefe7a369e1986f3\linked.ico
+LocalUrlIconArrived=True
+LocalLinkIconArrived=True
+LocalFolderIconArrived=True
+LinkedUrlIconArrived=False
+LinkedShortcutIconArrived=False
+LinkedFolderIconArrived=False
+LocalProgramIconArrived=True
+ShareTargetUsesTypeIcon=True

@@ -1,0 +1,5 @@
+WriterIntegrity=S-1-16-8192
+Swapped=True
+Target=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac31-destination\incoming.bin
+Retired=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac31-retired-A.bin
+TargetLength=4096

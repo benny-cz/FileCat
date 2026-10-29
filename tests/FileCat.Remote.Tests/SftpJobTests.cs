@@ -238,10 +238,9 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
-    public async Task A_move_from_the_server_deletes_only_what_it_copied_as_it_was_copied()
+    public async Task A_move_from_the_server_keeps_same_metadata_replacement_and_all_originals()
     {
-        // Release plan DPI P09: the move deleted each folder whole once it was copied, with whatever had appeared in it
-        // on the server meanwhile, or changed there after it was copied.
+        // A remote pathname and its size/time cannot bind a later delete to the bytes downloaded.
         var original = new Dictionary<string, string> { ["/src/m/a.txt"] = "a", ["/src/m/b.txt"] = "b", ["/src/m/sub/c.txt"] = "c" };
         foreach (var (path, content) in original) _server.File(path, content);
         // When the second file is read, the first is already copied: it changes on the server, and a new file appears.
@@ -252,19 +251,64 @@ public sealed class SftpJobTests : IDisposable
             if (read.Count != 2) return;
             _server.OnRead = null;
             _server.File("/src/m/late.txt", "appeared during the move");
-            _server.File(read[0], "changed after it was copied");
+            DateTime modified = _server.Lookup(read[0], false)!.Modified;
+            _server.File(read[0], "x"); // same length and timestamp as the downloaded "a"
+            Assert.Equal(modified, _server.Lookup(read[0], false)!.Modified);
         };
         string dest = Directory.CreateDirectory(Path.Combine(_dir, "moved")).FullName;
         var job = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [RemoteItem("/src", "m", EntryKind.Directory)], Destination = Location.FileSystem(dest) });
         Assert.True(job.State.IsFinished());
         foreach (var (path, content) in original) Assert.Equal(content, File.ReadAllText(Path.Combine(dest, path["/src/".Length..])));
-        // What was copied and is unchanged went; what appeared or changed stays, with its folder.
-        foreach (var path in original.Keys.Where(p => p != read[0])) Assert.Null(_server.Lookup(path, false));
+        foreach (var (path, content) in original.Where(p => p.Key != read[0])) Assert.Equal(content, _server.Read(path));
         Assert.Equal("appeared during the move", _server.Read("/src/m/late.txt"));
-        Assert.Equal("changed after it was copied", _server.Read(read[0]));
+        Assert.Equal("x", _server.Read(read[0]));
         Assert.NotNull(_server.Lookup("/src/m", false));
-        Assert.Contains(job.Issues, i => i.Message.Contains("it appeared there during the move", StringComparison.Ordinal));
-        Assert.Contains(job.Issues, i => i.Message.Contains("it changed there after it was copied", StringComparison.Ordinal));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, i => i.Message.Contains("server original was kept", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_server_to_local_move_with_no_post_open_revision_keeps_its_source()
+    {
+        _server.File("/src/no-revision.txt", "exact A");
+        _server.NoStatAfterOpen.Add("/src/no-revision.txt");
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "no-revision")).FullName;
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [RemoteItem("/src", "no-revision.txt")],
+            Destination = Location.FileSystem(dest),
+        });
+        Assert.Equal("exact A", File.ReadAllText(Path.Combine(dest, "no-revision.txt")));
+        Assert.Equal("exact A", _server.Read("/src/no-revision.txt"));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, i => i.Message.Contains("server original was kept", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Remote_folder_copy_refuses_a_linked_local_destination_child()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The Windows destination-link boundary is under test.");
+        _server.File("/src/folder/inside.txt", "remote bytes");
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "linked-destination")).FullName;
+        string outside = Directory.CreateDirectory(Path.Combine(_dir, "outside-destination")).FullName;
+        string marker = Path.Combine(outside, "marker.txt");
+        File.WriteAllText(marker, "outside marker");
+        try { Directory.CreateSymbolicLink(Path.Combine(dest, "folder"), outside); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip("Creating an owned directory link is unavailable: " + ex.GetType().Name);
+        }
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [RemoteItem("/src", "folder", EntryKind.Directory)],
+            Destination = Location.FileSystem(dest),
+        });
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Equal("outside marker", File.ReadAllText(marker));
+        Assert.False(File.Exists(Path.Combine(outside, "inside.txt")));
+        Assert.Contains(job.Issues, issue => issue.Message.Contains("link", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -713,7 +757,7 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
-    public async Task Moving_to_a_local_folder_deletes_on_the_server_only_what_arrived_completely()
+    public async Task Moving_to_a_local_folder_keeps_server_originals_and_reports_partial_move()
     {
         _server.File("/m/whole/a.txt", "a");
         _server.File("/m/whole/deep/b.txt", "b");
@@ -730,8 +774,8 @@ public sealed class SftpJobTests : IDisposable
         });
         Assert.Equal("b", File.ReadAllText(Path.Combine(dest, "whole", "deep", "b.txt")));
         Assert.Equal("s", File.ReadAllText(Path.Combine(dest, "single.txt")));
-        Assert.False(_server.Exists("/m/whole"));
-        Assert.False(_server.Exists("/m/single.txt"));
+        Assert.True(_server.Exists("/m/whole"));
+        Assert.Equal("s", _server.Read("/m/single.txt"));
         // Skipped because of a conflict: it stays on the server, and the local file is untouched.
         Assert.Equal("remote", _server.Read("/m/blocked.txt"));
         Assert.Equal("local", File.ReadAllText(Path.Combine(dest, "blocked.txt")));

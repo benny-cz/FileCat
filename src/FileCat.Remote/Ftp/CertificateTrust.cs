@@ -1,4 +1,5 @@
 using FileCat.Core.Diagnostics;
+using FileCat.Core.State;
 
 namespace FileCat.Remote.Ftp;
 
@@ -28,6 +29,8 @@ public sealed class CertificateTrust(string path)
     public CertificateCheck Check(string host, int port, CertificateInfo certificate)
     {
         if (certificate.Problems.Count == 0) return new CertificateCheck(host, port, certificate, CertificateStatus.Valid, null);
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            return new CertificateCheck(host, port, certificate, CertificateStatus.Unknown, null);
         var pinned = Pins().Entries.Where(p => p.Key == Key(host, port)).Select(p => p.Sha256).ToList();
         if (pinned.Contains(certificate.Sha256, StringComparer.OrdinalIgnoreCase)) return new CertificateCheck(host, port, certificate, CertificateStatus.Pinned, certificate.Sha256);
         return new CertificateCheck(host, port, certificate, pinned.Count > 0 ? CertificateStatus.Changed : CertificateStatus.Unknown, pinned.FirstOrDefault());
@@ -36,6 +39,8 @@ public sealed class CertificateTrust(string path)
     /// <summary>Pins the certificate for the server, replacing any earlier pin.</summary>
     public void Remember(string host, int port, string sha256)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("FileCat does not save user-profile certificate trust while running as administrator. Reopen it without elevation.");
         lock (_lock)
         {
             var existing = Pins();

@@ -14,7 +14,7 @@ public sealed class UndoLifecycleTests : IDisposable
     private readonly ProviderRegistry _providers = new();
     public UndoLifecycleTests() => _providers.Register(new LocalFileSystemProvider());
     public void Dispose() => _dir.Dispose();
-    private JobManager Manager(IFileSystemOperations? files = null, string journal = "journals") => new(files ?? new PortableFileOperations(), _providers, _dir.Dir(journal));
+    private JobManager Manager(IFileSystemOperations? files = null, string journal = "journals") => new(files ?? new ReviewedReplacementTestFiles(), _providers, _dir.Dir(journal));
     private static ItemRef Item(string path) => ItemRef.ForFileSystemPath(path, Directory.Exists(path) ? EntryKind.Directory : EntryKind.File);
     private static Job Original(params UndoStep[] steps)
     {

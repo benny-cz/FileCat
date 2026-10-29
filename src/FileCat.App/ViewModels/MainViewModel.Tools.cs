@@ -420,7 +420,7 @@ public sealed partial class MainViewModel
             $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed." +
             (overlap is null ? "" : $" Synchronize is not offered. {overlap}"),
             (progress, ct) => Task.Run(() => TreeCompare.CompareAsync(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress,
-                new ComparisonIo(Services.Io, Services.Providers))),
+                new ComparisonIo(Services.Io, Services.Providers), Services.Platform.FileOperations)),
             (entries, leftSide) =>
             {
                 var set = Services.ResultSets.Create($"{(leftSide ? "Left" : "Right")} differences: {Path.GetFileName((leftSide ? leftName : rightName).TrimEnd('\\', '/'))}",

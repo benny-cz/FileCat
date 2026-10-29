@@ -1,0 +1,11 @@
+tcpdump: data link type LINUX_SLL2
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+2026-10-29 06:09:20.096771 ens33 In  IP 192.168.58.128.64336 > 192.168.58.129.445: tcp 0
+2026-10-29 06:09:20.097135 ens33 In  IP 192.168.58.128.64336 > 192.168.58.129.445: tcp 0
+2026-10-29 06:09:20.097639 ens33 In  IP 192.168.58.128.64336 > 192.168.58.129.445: tcp 0
+2026-10-29 06:09:20.150241 ens33 In  IP 192.168.58.128.64336 > 192.168.58.129.445: tcp 0
+
+4 packets captured
+4 packets received by filter
+0 packets dropped by kernel

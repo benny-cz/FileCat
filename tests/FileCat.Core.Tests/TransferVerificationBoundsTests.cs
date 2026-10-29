@@ -36,7 +36,7 @@ public sealed class TransferVerificationBoundsTests(ITestOutputHelper output)
         if (replace) File.WriteAllBytes(target, previous);
         var provider = new VerificationProvider(source, length, behavior);
         var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); providers.Register(provider);
-        var jobs = new JobManager(new PortableFileOperations(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
+        var jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
         int decisions = 0;
         jobs.DecisionRequested += d => { Interlocked.Increment(ref decisions); d.Resolve(new Decision(DecisionAction.Skip)); };
         try

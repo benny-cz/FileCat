@@ -187,7 +187,7 @@ public sealed class TransferFailureEvidenceTests(ITestOutputHelper output)
         {
             Destination = Directory.CreateDirectory(System.IO.Path.Join(directory, "destination")).FullName;
             var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); providers.Register(source);
-            _jobs = new JobManager(new PortableFileOperations(), providers, System.IO.Path.Join(directory, "journal")) { MaxConcurrent = 0 };
+            _jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, System.IO.Path.Join(directory, "journal")) { MaxConcurrent = 0 };
             _jobs.DecisionRequested += d => { Interlocked.Increment(ref Decisions); DecisionMessages.Add(d.Request.Message); d.Resolve(new Decision(DecisionAction.Skip)); };
         }
         public void Write(string path, byte[] bytes)

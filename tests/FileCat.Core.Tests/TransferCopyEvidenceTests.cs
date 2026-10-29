@@ -37,7 +37,7 @@ public sealed class TransferCopyEvidenceTests(ITestOutputHelper output)
         byte[] previous = "owned prior destination\n"u8.ToArray(); if (replace) File.WriteAllBytes(target, previous);
         var provider = new CopyProvider(source, length, behavior);
         var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); providers.Register(provider);
-        var jobs = new JobManager(new PortableFileOperations(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
+        var jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
         int decisions = 0;
         jobs.DecisionRequested += d => { Interlocked.Increment(ref decisions); d.Resolve(new Decision(DecisionAction.Skip)); };
         try
@@ -115,7 +115,7 @@ public sealed class TransferCopyEvidenceTests(ITestOutputHelper output)
         byte[] previous = "owned prior destination\n"u8.ToArray(); if (replace) File.WriteAllBytes(target, previous);
         var provider = new ProgressiveProvider(source, declared, dir.Dir("spool"));
         var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); providers.Register(provider);
-        var jobs = new JobManager(new PortableFileOperations(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
+        var jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, dir.Dir("journal")) { MaxConcurrent = 0 };
         int decisions = 0; jobs.DecisionRequested += d => { Interlocked.Increment(ref decisions); d.Resolve(new Decision(DecisionAction.Skip)); };
         try
         {

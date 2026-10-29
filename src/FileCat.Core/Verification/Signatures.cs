@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Math.EC.Rfc8032;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Verification;
 
@@ -295,6 +296,7 @@ public static class OpenPgp
 
     public static SignatureResult Verify(string signature, string signed, CancellationToken ct, string? home = null)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity) return ElevatedUnavailable;
         if (Tool is null) return NotInstalled;
         ct.ThrowIfCancellationRequested();
         // gpg would wait on a pipe planted under the signed file's name until its minute runs out.
@@ -308,12 +310,15 @@ public static class OpenPgp
     /// </summary>
     internal static SignatureResult Verify(string signature, ReadOnlyMemory<byte> content, CancellationToken ct, string? home = null)
     {
+        if (WindowsTokenAuthority.IsHighIntegrity) return ElevatedUnavailable;
         if (Tool is null) return NotInstalled;
         ct.ThrowIfCancellationRequested();
         return Run(signature, "-", content, ct, home);
     }
 
     private static SignatureResult NotInstalled => new(VerificationState.SignatureUnchecked, "OpenPGP signatures are checked with GnuPG, which is not installed here");
+    private static SignatureResult ElevatedUnavailable => new(VerificationState.SignatureUnchecked,
+        "OpenPGP verification is unavailable while FileCat runs as administrator; reopen it without elevation to avoid running user-profile GnuPG configuration");
 
     /// <param name="signed">The signed file, or "-" for <paramref name="content"/> on gpg's standard input.</param>
     private static SignatureResult Run(string signature, string signed, ReadOnlyMemory<byte>? content, CancellationToken ct, string? home)
@@ -328,8 +333,11 @@ public static class OpenPgp
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        // User-local gpg.conf can name executable helpers (notably a photo viewer).
+        // Keep the keyring in the selected home, but never execute its configuration.
+        start.ArgumentList.Add("--no-options");
         if (home is not null) start.ArgumentList.Add("--homedir=" + home);
-        // Never a key server behind the user's back (gpg.conf may ask for it), and the files after "--", never read as options.
+        // Never a key server behind the user's back; files after "--" are never read as options.
         foreach (string arg in new[] { "--batch", "--no-tty", "--no-auto-key-retrieve", "--status-fd", "1", "--verify", "--", signature, signed }) start.ArgumentList.Add(arg);
         string status;
         try

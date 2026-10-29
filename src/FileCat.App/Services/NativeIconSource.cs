@@ -219,6 +219,8 @@ public sealed class NativeIconSource : INativeIconSource
         return PerItem("lnk|" + path + "|" + entry.Modified, async () =>
         {
             byte[] bytes;
+            using var lease = LocalIconFileLease.TryOpen(path);
+            if (lease is null) return new Plan(null, null);
             using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
             {
                 if (file.Length > ShellFileIcons.MaxBytes) return new Plan(null, null);
@@ -243,6 +245,8 @@ public sealed class NativeIconSource : INativeIconSource
                 string targetExt = NameParts.GetExtension(Path.GetFileName(target));
                 if (OwnIconTypes.Contains(targetExt) && _pictures() is { } pictures && WindowsIcons.IsLocal(target))
                 {
+                    using var targetLease = LocalIconFileLease.TryOpen(target);
+                    if (targetLease is null) return new Plan(null, TypeKey(targetExt));
                     FileAttributes attributes;
                     try { attributes = File.GetAttributes(target); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { attributes = FileAttributes.Normal; }
@@ -271,6 +275,8 @@ public sealed class NativeIconSource : INativeIconSource
     internal static async Task<ShellFileIcon?> ReadCustomFolderIconAsync(string path)
     {
         string ini = Path.Join(path, "desktop.ini");
+        using var lease = LocalIconFileLease.TryOpen(ini);
+        if (lease is null) return null;
         var fileInfo = new FileInfo(ini);
         if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return null;
         using var file = new FileStream(ini, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
@@ -300,6 +306,8 @@ public sealed class NativeIconSource : INativeIconSource
     internal static long? ResourceTime(IconLocation location, Func<IconLocation, string?> refusal)
     {
         if (refusal(location) is not null) return null;
+        using var lease = LocalIconFileLease.TryOpen(location.File);
+        if (lease is null) return null;
         try { return File.GetLastWriteTimeUtc(location.File).Ticks; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
     }
@@ -381,9 +389,11 @@ public sealed class NativeIconSource : INativeIconSource
         if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return Icon(w, h, bgra);
         if (key == "sysdrive") return Load("stock:" + WindowsIcons.StockFixedDrive, size);
         if (!key.StartsWith("type:", StringComparison.Ordinal)) return null;
-        // Types drawn by an icon handler have no fixed location: the Shell's small icon (16 pixels) stands in.
-        string name = key switch { "type:<dir>" => "folder", "type:<file>" or "type:<generic>" => "file", "type:<app>" => "file.exe", _ => "file" + key[5..] };
-        return _shell.TryGetTypeIcon(name, key == "type:<dir>", size, out w, out h, out bgra) && w > 0 ? Icon(w, h, bgra) : null;
+        // A type handler has no file identity FileCat can hold. Do not let a per-user association resolve an
+        // unverified icon path during automatic browsing; the generic local stock icon is the safe fallback.
+        var generic = WindowsIcons.StockLocation(key == "type:<dir>" ? WindowsIcons.StockFolder : WindowsIcons.StockDocumentNoAssociation);
+        return generic is { } stock && WindowsIcons.TryExtract(stock, size, out w, out h, out bgra)
+            ? Icon(w, h, bgra) : null;
     }
 
     // Drawn into 16 device-independent pixels, however many pixels that holds at the display's scaling.

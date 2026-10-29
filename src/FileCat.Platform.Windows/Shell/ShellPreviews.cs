@@ -30,6 +30,9 @@ public static class ShellPreviewPolicy
         if (!Path.IsPathFullyQualified(file) || file.Contains('\0') || file.Contains('|')) return "Not a full path.";
         if (!IconFiles.Contains(Path.GetExtension(file))) return "Icons are read only from programs, libraries, and icon files.";
         if (IsNetworkOrRemovable(file) && (!allowNetworkAndRemovable || file.StartsWith(@"\\", StringComparison.Ordinal))) return "The icon is not on this computer.";
+        // GetAttributes itself can follow a directory link to a share. Hold every local component while asking.
+        using var lease = LocalIconFileLease.TryOpen(file);
+        if (lease is null) return "The icon file contains a link or cannot be held.";
         try
         {
             var attributes = File.GetAttributes(file);

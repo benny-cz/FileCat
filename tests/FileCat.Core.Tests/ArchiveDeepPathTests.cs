@@ -121,6 +121,19 @@ public sealed class ArchiveDeepPathTests(ITestOutputHelper output)
         Location location = zip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         try
         {
+            if (depth + 1 > ArchivePaths.MaxMemberSegments)
+            {
+                // Deep paths are now rejected before ancestor expansion; the old successful-listing expectation
+                // was consequentially superseded by the finite index-depth budget.
+                var refusal = Assert.ThrowsAny<IOException>(() =>
+                    provider.EnumerateAsync(location, new Sink(), CancellationToken.None).GetAwaiter().GetResult());
+                Assert.Contains("path components", refusal.Message);
+                File.WriteAllText(Path.Combine(root, "result.json"), JsonSerializer.Serialize(new
+                {
+                    zip, explicitDirectory, depth, StackBytes, Refused = true, Refusal = refusal.Message,
+                }));
+                return;
+            }
             var top = new Sink(); provider.EnumerateAsync(location, top, CancellationToken.None).GetAwaiter().GetResult();
             var leaf = new Sink(); provider.EnumerateAsync(location.WithPath(folder), leaf, CancellationToken.None).GetAwaiter().GetResult();
             Assert.Empty(top.Warnings); Assert.Empty(leaf.Warnings);

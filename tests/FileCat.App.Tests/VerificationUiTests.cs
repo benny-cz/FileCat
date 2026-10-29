@@ -11,6 +11,7 @@ using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Metadata;
+using FileCat.Core.Operations;
 using FileCat.Core.Resources;
 using FileCat.Core.Verification;
 
@@ -19,6 +20,43 @@ namespace FileCat.App.Tests;
 /// <summary>D-57: files beside checksum files show what they match, in the list, its status line, and on request.</summary>
 public sealed class VerificationUiTests
 {
+    [AvaloniaFact]
+    public async Task Malformed_large_SFV_sidecar_does_not_stall_the_automatic_file_row()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string folder = Path.Combine(root, "files");
+            string invalid = "a.txt " + new string(' ', 64 * 1024 - 20) + "XXXXXXXX\n";
+            string crc = Crc32.Append(0, "alpha"u8).ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
+            File.WriteAllText(Path.Combine(folder, "checks.sfv"), string.Concat(Enumerable.Repeat(invalid, 62)) + $"a.txt {crc}\n");
+            var tab = vm.ActiveTab!;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            tab.Refresh();
+            VerificationResult? result = null;
+            for (int attempt = 0; attempt < 500; attempt++)
+            {
+                window.CaptureRenderedFrame();
+                var listing = tab.Listing;
+                for (int row = 0; row < listing.VisibleCount; row++)
+                {
+                    if (listing.GetVisible(row) is not { Name: "a.txt" } entry) continue;
+                    result = tab.Verification(entry, listing.GetStoreIndex(row));
+                    break;
+                }
+                if (result is { Settling: false }) break;
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Automatic SFV row took {watch.Elapsed}.");
+            Assert.True(tab.HasSidecars);
+            Assert.Equal(VerificationState.Matches, result?.State);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Files_beside_a_checksum_file_show_their_result_and_a_large_one_is_checked_on_request()
     {

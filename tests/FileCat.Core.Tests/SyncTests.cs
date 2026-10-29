@@ -56,14 +56,17 @@ public sealed class SyncTests : IDisposable
 
     private static Dictionary<string, SyncItem> ByPath(List<SyncItem> items) => items.ToDictionary(i => i.Entry.RelativePath);
 
-    private async Task Run(ProviderRegistry providers, List<JobRequest> requests)
+    private async Task Run(ProviderRegistry providers, List<JobRequest> requests, bool allowUnboundTree = false)
     {
-        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
+        var manager = new JobManager(new ReviewedReplacementTestFiles(), providers, Path.Combine(_dir.Path, "journal"));
         var jobs = requests.Select(manager.Submit).ToList();
         foreach (var job in jobs)
         {
             while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
-            Assert.True(job.State == JobState.Completed, $"{job.Title}: {job.State} {string.Join("; ", job.Issues.Select(i => i.Message))}");
+            if (allowUnboundTree && job.Request.OnlyAsCompared && job.State == JobState.CompletedWithIssues)
+                Assert.Contains(job.Issues, i => i.Message.Contains("cannot delete a bound, fully reviewed tree", StringComparison.Ordinal));
+            else
+                Assert.True(job.State == JobState.Completed, $"{job.Title}: {job.State} {string.Join("; ", job.Issues.Select(i => i.Message))}");
         }
     }
 
@@ -88,12 +91,13 @@ public sealed class SyncTests : IDisposable
     }
 
     [Fact]
-    public async Task Mirror_makes_the_target_like_the_source_but_keeps_newer_target_files_unless_chosen()
+    public async Task Mirror_copies_and_replaces_but_refuses_unbound_tree_removal()
     {
         var (left, right) = Trees();
         var providers = Providers();
         var plan = SyncPlanner.Propose(Compare(providers, left, right), sourceIsLeft: true, SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
         var by = ByPath(plan);
+        Assert.NotNull(by["x.txt"].Entry.RemovalReview);
         Assert.Equal((SyncAction.Copy, true), (by["a.txt"].Action, by["a.txt"].Include));
         Assert.Equal((SyncAction.ReplaceOlder, true), (by["b.txt"].Action, by["b.txt"].Include));
         Assert.Equal((SyncAction.Replace, true), (by["d.txt"].Action, by["d.txt"].Include));
@@ -106,7 +110,8 @@ public sealed class SyncTests : IDisposable
         Assert.Equal("copy 3, replace 2, remove 2", SyncPlanner.Describe(plan));
 
         by["x.txt"].Include = false; // the user keeps one extra item
-        await Run(providers, SyncPlanner.BuildRequests(plan, sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true));
+        await Run(providers, SyncPlanner.BuildRequests(plan, sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true),
+            allowUnboundTree: true);
 
         Assert.Equal("a", File.ReadAllText(Path.Combine(right, "a.txt")));
         Assert.Equal("b-new", File.ReadAllText(Path.Combine(right, "b.txt")));
@@ -115,7 +120,7 @@ public sealed class SyncTests : IDisposable
         Assert.Equal("e", File.ReadAllText(Path.Combine(right, "sub", "e.txt")));
         Assert.Equal("f", File.ReadAllText(Path.Combine(right, "newdir", "f.txt")));
         Assert.True(File.Exists(Path.Combine(right, "x.txt")));
-        Assert.False(Directory.Exists(Path.Combine(right, "olddir")));
+        Assert.True(Directory.Exists(Path.Combine(right, "olddir"))); // Portable adapter has no object-bound tree delete.
         // The source is never touched.
         Assert.Equal(7, Directory.GetFiles(left, "*", SearchOption.AllDirectories).Length);
     }
@@ -144,6 +149,56 @@ public sealed class SyncTests : IDisposable
     }
 
     [Fact]
+    public async Task Mirror_keeps_a_same_metadata_replacement_of_a_compared_target_file()
+    {
+        string left = _dir.Dir("L");
+        string original = Put("R/x.txt", "A", Old);
+        string right = Path.GetDirectoryName(original)!;
+        var providers = Providers();
+        var plan = SyncPlanner.Propose(Compare(providers, left, right), sourceIsLeft: true,
+            SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
+        Assert.Equal(SyncAction.Remove, Assert.Single(plan).Action);
+        string retired = Path.Combine(_dir.Path, "retired-A.txt");
+        File.Move(original, retired);
+        File.WriteAllText(original, "B");
+        File.SetLastWriteTimeUtc(original, Old);
+        var request = Assert.Single(SyncPlanner.BuildRequests(plan, sourceIsLeft: true,
+            Location.FileSystem(right), providers, deletePermanently: true));
+        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "adverse-journal"));
+        var job = manager.Submit(request);
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal("B", File.ReadAllText(original));
+        Assert.NotEqual(JobState.Completed, job.State);
+    }
+
+    [Fact]
+    public async Task An_adapter_without_bound_replace_keeps_both_source_and_destination()
+    {
+        string source = Put("source/item.bin", "INCOMING", Old);
+        string dest = _dir.Dir("dest");
+        string target = Put("dest/item.bin", "REVIEWED", Old);
+        var providers = Providers();
+        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "unbound-journal"));
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Location.FileSystem(dest),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+        });
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (!job.State.IsFinished())
+        {
+            Assert.True(DateTime.UtcNow < deadline);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Equal("INCOMING", File.ReadAllText(source));
+        Assert.Equal("REVIEWED", File.ReadAllText(target));
+        Assert.Contains(job.Issues, i => i.Message.Contains("cannot bind replacement", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Mirror_removes_a_folder_only_while_all_it_holds_is_as_compared()
     {
         // A folder's own time changes only for its direct items, and on NTFS it is listed late and stays the same within a
@@ -160,8 +215,9 @@ public sealed class SyncTests : IDisposable
         Assert.Equal("Only in the target: Mirror removes it with all it holds (1 file and 1 folder, 7 bytes)", by["old"].Reason);
         Assert.Equal("Only in the target: Mirror removes it with all it holds (1 file, 1 byte)", by["gone"].Reason);
         Put("R/old/deep/w.txt", "WRITTEN", New); // the same size, another time, two levels down
-        await Run(providers, [.. SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "gone"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true)]);
-        Assert.False(Directory.Exists(Path.Combine(right, "gone"))); // unchanged: removed
+        await Run(providers, [.. SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "gone"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true)],
+            allowUnboundTree: true);
+        Assert.True(Directory.Exists(Path.Combine(right, "gone"))); // portable adapter conservatively keeps an unbound tree.
         var requests = SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "old"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true);
         var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
         var job = manager.Submit(Assert.Single(requests));
@@ -233,7 +289,10 @@ public sealed class SyncTests : IDisposable
         Assert.True(by["ok.txt"].Include);
         // A case-sensitive target keeps them apart.
         by = ByPath(SyncPlanner.Propose(comparison, sourceIsLeft: true, SyncMode.Mirror, targetIgnoresCase: false));
-        Assert.True(by["Readme.md"].Include && by["README.md"].Include && by["Notes.txt"].Include);
+        // This synthetic comparison has no content review for the target-only README. Its name no longer collides,
+        // but Mirror still cannot remove it without the new deletion review.
+        Assert.True(by["Readme.md"].Include && by["Notes.txt"].Include);
+        Assert.False(by["README.md"].CanInclude);
         Assert.False(by[@"..\evil/x.txt"].CanInclude);
     }
 

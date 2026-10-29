@@ -26,8 +26,7 @@ public interface IOriginMarkSource
 /// Common byte-stream strategy (plan §7.1): copies items from any provider that exposes content (archives,
 /// remote, recovery) into a file-system destination, through staged names, with Mark-of-the-Web propagated
 /// from the outermost container to every extracted item (plan §8.1, §15). A folder counts as completed only when all of
-/// it arrived: a move (from a server) deletes the source of completed folders only, so a skipped link or a file the
-/// filter left out keeps its folder on the server.
+/// it arrived; server-to-local Move keeps server originals because pathname deletion has no object binding.
 /// </summary>
 internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal, ProviderRegistry providers)
     : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
@@ -42,12 +41,6 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private sealed record BackingFile(string Path, string? FinalPath, string Identity);
     private readonly List<BackingFile> _backingFiles = [];
     private Location[] _sourceParents = [];
-
-    /// <summary>
-    /// Told of every file that arrived, with the version its source stated when it was read: a move from a server deletes
-    /// exactly those, and only while they are still that version (release plan DPI P09).
-    /// </summary>
-    public Action<ItemRef, ContentRevision?>? Copied { get; init; }
 
     public static bool CanHandle(JobRequest r, ProviderRegistry providers) =>
         r.Sources.Count > 0 && Listing.ItemSources.Parents(r.Sources)!.All(p => providers.IsRegistered(p.Scheme) &&
@@ -149,7 +142,21 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // Source review, an I/O failure or an error decision can change admission before this attempt.
             // Empty folders also write to the destination; do not wait for a later file-staging check.
             if (DestinationRefusal(source, folder) is { } refusal) throw new IOException(refusal);
-            Fs.CreateDirectory(folder);
+            string full = Path.GetFullPath(folder);
+            var missing = new Stack<string>();
+            string cursor = full;
+            while (!Directory.Exists(cursor))
+            {
+                missing.Push(cursor);
+                cursor = Path.GetDirectoryName(cursor) ?? throw new IOException("The destination has no existing parent folder.");
+            }
+            foreach (string next in missing)
+            {
+                using var parent = Fs.HoldDirectory(cursor);
+                Fs.CreateDirectory(next);
+                cursor = next;
+            }
+            using var final = Fs.HoldDirectory(full);
         });
 
     private string? DestinationRefusal(Location source, string folder)
@@ -250,6 +257,15 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         // The admitted root does not establish where this particular folder writes.
         if (!DestinationAllowed(dir.Parent, dst)) return false;
         if (!Directory.Exists(dst) && !CreateDestinationDirectory(dir.Parent, dst, "create a folder")) return false;
+        IDisposable heldDirectory;
+        try { heldDirectory = Fs.HoldDirectory(dst); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, dst, "Not extracted: " + ex.Message, StepOutcome.Failed);
+            return false;
+        }
+        using var directoryLease = heldDirectory;
         var children = new List<EntryData>();
         var sink = new ListSink(children);
         try
@@ -316,10 +332,21 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private bool CopyItem(ItemRef item, string dst)
     {
         Job.SetCurrent(item.Name);
+        IDisposable heldDirectory;
+        try { heldDirectory = Fs.HoldDirectory(Path.GetDirectoryName(dst)!); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, dst, "Not extracted: " + ex.Message, StepOutcome.Failed);
+            return false;
+        }
+        using var directoryLease = heldDirectory;
         var provider = providers.Get(item.Parent.Scheme);
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
+        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
+            itemLimit: 1, allowLinks: true);
         if (existing is not null)
         {
             var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue, DateTime.MinValue, FileAttributes.Normal);
@@ -556,6 +583,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
         int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged, durable: replace);
+        bool refused = false;
+        string? replaceRefusal = null;
         bool ok = TryIo(target, "publish the extracted item", () =>
         {
             // Every retry is a new publication attempt; the preceding failure or decision can change aliases.
@@ -564,18 +593,42 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             if (DestinationRefusal(item.Parent, dir) is { } refusal) throw new IOException(refusal);
             CheckBackingTarget(target);
             CheckBackingTarget(staged);
-            Fs.Move(staged, target, replace);
+            if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+            {
+                refused = true;
+                return;
+            }
+            if (replace)
+            {
+                var bound = ReplaceReviewed(staged, target, targetReview, step);
+                if (!bound.Published)
+                {
+                    refused = true;
+                    replaceRefusal = bound.Reason;
+                    if (bound.RetainedPath is not null)
+                        Issue(IssueSeverity.Warning, bound.RetainedPath,
+                            "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
+                }
+                else if (bound.RetainedPath is not null)
+                    Issue(IssueSeverity.Warning, bound.RetainedPath,
+                        bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
+                return;
+            }
+            Fs.Move(staged, target, replaceExisting: false);
         });
-        Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
+        ok &= !refused;
+        Journal.Done(step, ok ? StepOutcome.Committed : refused ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
         if (!ok)
         {
             Job.AddBytes(-written);
             DiscardOwnedStaging();
             Job.ItemFailed();
+            if (refused) Issue(IssueSeverity.Warning, target,
+                "Not replaced: " + (replaceRefusal ?? "the destination's complete bytes or identity changed after the conflict review, or could not be read completely."),
+                StepOutcome.CanceledBeforeChange);
             return false;
         }
         Job.ItemDone();
-        Copied?.Invoke(item, revision);
         // A recovered file with lost parts is still worth having, but never passed off as complete (plan §17.1).
         if (caveat is not null)
             Issue(IssueSeverity.Warning, item.Name, caveat + (lost is { Count: > 0 } ? " " + PartialContent.Describe(lost, written) : ""), StepOutcome.Committed);

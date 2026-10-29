@@ -1,0 +1,4 @@
+Listening=192.168.58.129:445
+Mode=positive
+Connections=1
+Peer=192.168.58.128:64336

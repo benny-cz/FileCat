@@ -4,10 +4,19 @@ using System.Diagnostics;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
+using FileCat.App.Views;
+using FileCat.Core.Archives;
+using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Platform;
+using FileCat.Core.Jobs;
+using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Platform.Windows;
@@ -16,6 +25,155 @@ namespace FileCat.App.Tests;
 
 public sealed class SecurityRouteTests
 {
+    [AvaloniaFact]
+    public async Task Native_high_token_browsing_checksum_sidecar_leaves_verification_unchecked()
+    {
+        string? staged = Environment.GetEnvironmentVariable("FILECAT_SECURITY_VM_LINK_FIXTURE");
+        if (staged is null) Assert.Skip("Run in the owned medium/high Windows fixture.");
+        Assert.True(OperatingSystem.IsWindows() && WindowsTokenAuthority.IsHighIntegrity);
+        var previousFactory = PlatformFactory.WindowsFactory;
+        AppServices? services = null;
+        MainViewModel? vm = null;
+        MainWindow? window = null;
+        string? testRoot = null;
+        try
+        {
+            PlatformFactory.WindowsFactory = () => new WindowsPlatform();
+            (services, vm, window, testRoot) = AccessibilityTests.OpenMainWindow();
+            var tab = vm.ActiveTab!;
+            tab.Navigate(FileCat.Core.Resources.Location.FileSystem(staged));
+            for (int i = 0; i < 250 && tab.Listing.State != ListingState.Complete; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(ListingState.Complete, tab.Listing.State);
+            Assert.True(tab.HasSidecars);
+            // A second listing schedules FolderChanged; the visible row schedules Automatic.
+            tab.Refresh();
+            for (int i = 0; i < 250 && tab.Listing.State != ListingState.Complete; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(tab.Listing.FocusName("verification-linked.txt"));
+            for (int i = 0; i < 50; i++)
+            {
+                window.CaptureRenderedFrame();
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+            var listing = tab.Listing;
+            int row = Enumerable.Range(0, listing.VisibleCount)
+                .Single(index => listing.GetVisible(index).Name == "verification-linked.txt");
+            var entry = listing.GetVisible(row);
+            int store = listing.GetStoreIndex(row);
+            Assert.Null(tab.Verification(entry, store));
+            Assert.DoesNotContain("checksums:", tab.StatusLeft, StringComparison.Ordinal);
+            Assert.Equal("OWNED-HIGH-MARKER-UNTOUCHED", File.ReadAllText(Path.Combine(staged, "high-only-marker.txt")));
+            Assert.Equal("OWNED-CACHE-SENTINEL", File.ReadAllText(Path.Combine(staged, "verification-cache.jsonl")));
+            File.WriteAllText(Path.Combine(staged, "ac34-ui-result.txt"),
+                $"HighIntegrity={WindowsTokenAuthority.IsHighIntegrity}\nSidecarsListed={tab.HasSidecars}\n" +
+                $"RowResult=null\nStatus={tab.StatusLeft}\n" +
+                $"Marker={File.ReadAllText(Path.Combine(staged, "high-only-marker.txt"))}\n" +
+                $"Cache={File.ReadAllText(Path.Combine(staged, "verification-cache.jsonl"))}\n");
+        }
+        finally
+        {
+            if (services is not null && window is not null && testRoot is not null)
+                AccessibilityTests.Close(services, window, testRoot);
+            PlatformFactory.WindowsFactory = previousFactory;
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Native_high_token_Pack_panel_refuses_the_medium_staged_source_link()
+    {
+        string? staged = Environment.GetEnvironmentVariable("FILECAT_SECURITY_VM_LINK_FIXTURE");
+        if (staged is null) Assert.Skip("Run in the owned medium/high Windows fixture.");
+        Assert.True(OperatingSystem.IsWindows() && WindowsTokenAuthority.IsHighIntegrity);
+        var previousFactory = PlatformFactory.WindowsFactory;
+        AppServices? services = null;
+        MainViewModel? vm = null;
+        MainWindow? window = null;
+        string? testRoot = null;
+        try
+        {
+            PlatformFactory.WindowsFactory = () => new WindowsPlatform();
+            (services, vm, window, testRoot) = AccessibilityTests.OpenMainWindow();
+            var tab = vm.ActiveTab!;
+            tab.Navigate(FileCat.Core.Resources.Location.FileSystem(staged!));
+            for (int i = 0; i < 250 && tab.Listing.State != ListingState.Complete; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(ListingState.Complete, tab.Listing.State);
+            Assert.True(tab.Listing.FocusName("zip-source-link.txt"));
+            string archivePath = Path.Combine(testRoot, "owned-ac35-ui.zip");
+            var pending = vm.ExecuteAsync(CommandIds.Pack);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            var pathBox = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Archive path");
+            pathBox.Text = archivePath;
+            window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Pack"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await pending.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            for (int i = 0; i < 500 && (services.Jobs.Jobs.Count == 0 || !services.Jobs.Jobs[0].State.IsFinished()); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("link", StringComparison.OrdinalIgnoreCase));
+            Assert.False(File.Exists(archivePath));
+            string marker = Path.Combine(staged!, "zip-high-only-marker.txt");
+            Assert.Equal("OWNED-ZIP-HIGH-ONLY-MARKER", File.ReadAllText(marker));
+
+            string existingZip = Path.Combine(testRoot, "owned-ac35-f5.zip");
+            using (var prior = ZipFile.Open(existingZip, ZipArchiveMode.Create))
+            using (var kept = new StreamWriter(prior.CreateEntry("kept.txt").Open()))
+                kept.Write("OWNED-PRIOR-ZIP-BYTES");
+            byte[] existingBytes = File.ReadAllBytes(existingZip);
+            var targetTab = vm.Workspace.Panels.Single(panel => !ReferenceEquals(panel, tab.Panel)).ActiveTab!;
+            targetTab.Navigate(ZipProvider.ForFile(existingZip));
+            for (int i = 0; i < 250 && targetTab.Listing.State != ListingState.Complete; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(ListingState.Complete, targetTab.Listing.State);
+            vm.Workspace.Activate(tab.Panel);
+            Assert.True(tab.Listing.FocusName("zip-source-link.txt"));
+            var pendingAdd = vm.ExecuteAsync(CommandIds.Copy);
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(dialogs.IsOpen);
+            window.UpdateLayout();
+            var destination = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Destination");
+            Assert.Contains("owned-ac35-f5.zip", destination.Text);
+            var copyButton = window.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "Copy") &&
+                    button.GetVisualAncestors().OfType<Border>().Any(border => border.Classes.Contains("backdrop")));
+            for (int i = 0; i < 250 && !copyButton.IsEnabled; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(copyButton.IsEnabled, $"Destination did not validate: {destination.Text}");
+            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await pendingAdd.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            for (int i = 0; i < 500 && (services.Jobs.Jobs.Count < 2 || !services.Jobs.Jobs[1].State.IsFinished()); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(2, services.Jobs.Jobs.Count);
+            var addJob = services.Jobs.Jobs[1];
+            Assert.Equal(JobState.Failed, addJob.State);
+            Assert.Contains(addJob.Issues, issue => issue.Message.Contains("link", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(existingBytes, File.ReadAllBytes(existingZip));
+            Assert.Equal("OWNED-ZIP-HIGH-ONLY-MARKER", File.ReadAllText(marker));
+            File.WriteAllText(Path.Combine(staged!, "ac35-ui-result.txt"),
+                $"HighIntegrity={WindowsTokenAuthority.IsHighIntegrity}\nPackState={job.State}\n" +
+                $"PackArchiveExists={File.Exists(archivePath)}\nF5AddState={addJob.State}\n" +
+                $"ExistingZipUnchanged=True\nMarker={File.ReadAllText(marker)}\n" +
+                $"PackIssues={string.Join(" | ", job.Issues.Select(issue => issue.Message))}\n" +
+                $"F5Issues={string.Join(" | ", addJob.Issues.Select(issue => issue.Message))}\n");
+        }
+        finally
+        {
+            if (vm is not null) ((OverlayDialogService)vm.Dialogs).CancelAll();
+            if (services is not null && window is not null && testRoot is not null)
+                AccessibilityTests.Close(services, window, testRoot);
+            PlatformFactory.WindowsFactory = previousFactory;
+        }
+    }
+
     [AvaloniaFact]
     public async Task Native_Windows_persisted_medium_written_tools_cannot_gain_a_high_token()
     {

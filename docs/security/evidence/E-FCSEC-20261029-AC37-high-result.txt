@@ -1,0 +1,7 @@
+HighIntegrity=True
+NearBytes=66060288
+OverLimitRefused=True
+NestedRefused=True
+MemberSpoolExists=False
+NestedSpoolExists=False
+Marker=OWNED-HIGH-MARKER-UNTOUCHED

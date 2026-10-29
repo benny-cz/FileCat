@@ -9,6 +9,18 @@ public sealed class MarkdownTests
 {
     private static string Html(string markdown) => Markdown.ToHtml(markdown).Trim();
 
+    [Fact]
+    public void Long_invalid_table_delimiter_is_bounded_and_alignment_still_works()
+    {
+        string hostile = "| a | b |\n|" + new string(' ', 64 * 1024) + "x|";
+        var watch = Stopwatch.StartNew();
+        string page = Markdown.ToPage(hostile, "hostile.md");
+        watch.Stop();
+        Assert.Contains("<p>| a | b |", page);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"Markdown render took {watch.Elapsed}.");
+        Assert.Contains("<table>", Markdown.ToHtml("| a | b |\n| :--- | ---: |\n| 1 | 2 |"));
+    }
+
     [Theory]
     [InlineData("# Title", "<h1 id=\"title\">Title</h1>")]
     [InlineData("### Three ###", "<h3 id=\"three\">Three</h3>")]

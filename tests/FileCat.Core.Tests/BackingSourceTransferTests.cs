@@ -118,7 +118,7 @@ public sealed class BackingSourceTransferTests(ITestOutputHelper output)
         }
     }
 
-    private sealed class RecordingFiles(string source, string target, string other, string route) : PortableFileOperations
+    private sealed class RecordingFiles(string source, string target, string other, string route) : ReviewedReplacementTestFiles
     {
         public string Source = source;
         public bool AliasActive = route is "identity" or "final-path";

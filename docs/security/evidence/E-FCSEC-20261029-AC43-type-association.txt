@@ -1,0 +1,5 @@
+Extension=.fc437307a0
+ProgId=FileCat.Security.Ac43.120609d1bfb84d01931e4da1c4997d12
+LocalLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\type-icon-link.ico
+TypeLocation=Unavailable
+HighIntegrity=True

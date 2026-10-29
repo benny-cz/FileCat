@@ -1,0 +1,12 @@
+HighIntegrity=True
+WriterIntegrity=S-1-16-8192
+Swapped=True
+Child=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-selected\child
+Retired=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-retired-child
+Outside=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-outside
+JobState=Failed
+ChildIsLink=True
+RetiredBytes=OWNED-AC33-ORDINARY
+OutsideMarker=OWNED-EXTRACT-OUTSIDE-UNTOUCHED
+JournalPartiallyApplied=True
+Issues=The folder could not be fully deleted: C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-selected\child: The listed item became a link before deletion; it was left in place. | The folder could not be fully deleted: C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-selected: The directory is not empty.

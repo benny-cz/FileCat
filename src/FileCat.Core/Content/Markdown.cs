@@ -24,13 +24,16 @@ public static partial class Markdown
         Path.GetExtension(name.TrimEnd('/', '\\')).ToLowerInvariant() is ".md" or ".markdown" or ".mdown" or ".mkd" or ".mkdn" or ".mdwn";
 
     /// <summary>A whole page: the document drawn, its style, and a policy that allows nothing but itself and its pictures.</summary>
-    public static string ToPage(string markdown, string title)
+    public static string ToPage(string markdown, string title) => ToPageCancellable(markdown, title, default);
+
+    internal static string ToPageCancellable(string markdown, string title, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var body = markdown.Length > MaxChars
             ? $"<p class=\"note\">This file is {markdown.Length / (1 << 20)} MB of text, more than FileCat draws as a page; the Text mode shows it.</p>"
             : TooManyLines(markdown)
                 ? $"<p class=\"note\">This file has more than {MaxLines:N0} lines, more than FileCat draws as a page; the Text mode shows it.</p>"
-                : RenderHtml(markdown);
+                : RenderHtml(markdown, ct);
         return $$"""
             <!DOCTYPE html>
             <html><head><meta charset="utf-8">
@@ -47,9 +50,10 @@ public static partial class Markdown
     /// <summary>The document's HTML (no page around it).</summary>
     public static string ToHtml(string markdown)
     {
+        CancellationToken ct = default;
         if (markdown.Length > MaxChars || TooManyLines(markdown))
             throw new InvalidDataException("Markdown exceeds the page character or line limit; show it as text.");
-        return RenderHtml(markdown);
+        return RenderHtml(markdown, ct);
     }
 
     // Split materializes an entry even for the empty line after a trailing terminator. Check before it allocates.
@@ -66,10 +70,11 @@ public static partial class Markdown
         return false;
     }
 
-    private static string RenderHtml(string markdown)
+    private static string RenderHtml(string markdown, CancellationToken ct)
     {
         var lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Select(ExpandTabs).ToList();
-        var renderer = new Renderer();
+        ct.ThrowIfCancellationRequested();
+        var renderer = new Renderer(ct);
         renderer.CollectReferences(lines);
         var html = new StringBuilder();
         renderer.Blocks(lines, html, 0);
@@ -138,14 +143,35 @@ public static partial class Markdown
     [GeneratedRegex(@"^ {0,3}\[([^\]]{1,999})\]:[ ]*<?([^\s>]*)>?(?:[ ]+(?:""([^""]*)""|'([^']*)'|\(([^)]*)\)))?[ ]*$")]
     private static partial Regex ReferenceDefinition();
 
-    [GeneratedRegex(@"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")]
-    private static partial Regex TableDelimiter();
+    // A delimiter can contain long runs of whitespace. Parse it in one pass so malformed
+    // user content cannot make the regex engine revisit every split position.
+    private static bool IsTableDelimiter(ReadOnlySpan<char> line)
+    {
+        line = line.Trim();
+        if (!line.IsEmpty && line[0] == '|') line = line[1..];
+        if (!line.IsEmpty && line[^1] == '|') line = line[..^1];
+        if (line.IsEmpty) return false;
+        while (true)
+        {
+            int separator = line.IndexOf('|');
+            var cell = (separator < 0 ? line : line[..separator]).Trim();
+            if (!cell.IsEmpty && cell[0] == ':') cell = cell[1..];
+            if (!cell.IsEmpty && cell[^1] == ':') cell = cell[..^1];
+            if (cell.IsEmpty) return false;
+            foreach (char ch in cell)
+                if (ch != '-') return false;
+            if (separator < 0) return true;
+            line = line[(separator + 1)..];
+        }
+    }
 
     [GeneratedRegex(@"^ {0,3}<!--")]
     private static partial Regex CommentStart();
 
     private sealed partial class Renderer
     {
+        private readonly CancellationToken _ct;
+        public Renderer(CancellationToken ct) => _ct = ct;
         private readonly Dictionary<string, (string Url, string? Title)> _references = new(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _slugs = new(StringComparer.Ordinal);
 
@@ -155,6 +181,7 @@ public static partial class Markdown
             string? fence = null;
             for (int i = 0; i < lines.Count; i++)
             {
+                _ct.ThrowIfCancellationRequested();
                 if (FenceOpen().Match(lines[i]) is { Success: true } f)
                 {
                     if (!fenced) { fenced = true; fence = f.Groups[1].Value; continue; }
@@ -185,6 +212,7 @@ public static partial class Markdown
             }
             while (i < lines.Count)
             {
+                _ct.ThrowIfCancellationRequested();
                 string line = lines[i];
                 if (line == "\0ref") { Flush(); i++; continue; }
                 if (IsBlank(line)) { Flush(); i++; continue; }
@@ -288,7 +316,7 @@ public static partial class Markdown
                     i = List(lines, i, html, depth);
                     continue;
                 }
-                if (paragraph.Count == 0 && i + 1 < lines.Count && line.Contains('|') && TableDelimiter().IsMatch(lines[i + 1]) &&
+                if (paragraph.Count == 0 && i + 1 < lines.Count && line.Contains('|') && IsTableDelimiter(lines[i + 1]) &&
                     Cells(line).Count == Cells(lines[i + 1]).Count)
                 {
                     i = Table(lines, i, html);

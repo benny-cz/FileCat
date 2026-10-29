@@ -120,7 +120,7 @@ public sealed class FolderSidecars
             try
             {
                 if (SidecarNames.IsSignatureFile(name)) result.AddSignature(name, info, files);
-                else if (info.Length <= MaxChecksumFileBytes) parsed = result.AddChecksums(name, info, files);
+                else if (info.Length <= MaxChecksumFileBytes) parsed = result.AddChecksums(name, info, files, ct);
             }
             // One sidecar FileCat cannot make sense of leaves the folder's others standing (and is still fingerprinted: a change is seen).
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
@@ -254,16 +254,17 @@ public sealed class FolderSidecars
     }
 
     /// <summary>Reads a checksum file's claims; the fingerprint of the bytes they were read from, or null when it could not be read.</summary>
-    private string? AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files)
+    private string? AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files, CancellationToken ct)
     {
         ChecksumManifest manifest;
         byte[] content;
-        try { manifest = ChecksumManifests.Load(sidecar.FullName, MaxChecksumFileBytes, out content); }
+        try { manifest = ChecksumManifests.LoadCancellable(sidecar.FullName, MaxChecksumFileBytes, out content, ct); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return null; }
         string fingerprint = ContentFingerprint(content);
         bool any = false;
         foreach (var entry in manifest.Entries)
         {
+            ct.ThrowIfCancellationRequested();
             if (entry.Problem is not null || entry.Path is null) continue;
             if (!string.Equals(Path.GetDirectoryName(entry.Path), sidecar.DirectoryName, StringComparison.OrdinalIgnoreCase)) continue;
             string covered = Path.GetFileName(entry.Path);

@@ -45,6 +45,10 @@ public static unsafe partial class WindowsIcons
     {
         width = height = 0;
         bgra = [];
+        // The resource name may come from a shortcut, desktop.ini, or a per-user type association. Keep every
+        // component bound until the path-taking Windows extractor returns, including when a component is swapped.
+        using var lease = Shell.LocalIconFileLease.TryOpen(location.File);
+        if (lease is null) return false;
         nint icon = 0;
         uint id = 0;
         uint count = PrivateExtractIconsW(location.File, location.Index, size, size, &icon, &id, 1, 0);

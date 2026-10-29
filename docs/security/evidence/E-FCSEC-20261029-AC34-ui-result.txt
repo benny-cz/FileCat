@@ -1,0 +1,6 @@
+HighIntegrity=True
+SidecarsListed=True
+RowResult=null
+Status=9 folders, 22 files · 3 KB
+Marker=OWNED-HIGH-MARKER-UNTOUCHED
+Cache=OWNED-CACHE-SENTINEL

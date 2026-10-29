@@ -1,0 +1,8 @@
+HighIntegrity=True
+PackState=Failed
+PackArchiveExists=False
+F5AddState=Failed
+ExistingZipUnchanged=True
+Marker=OWNED-ZIP-HIGH-ONLY-MARKER
+PackIssues=The source is a link; links are not added to ZIP archives.
+F5Issues=The source is a link; links are not added to ZIP archives.

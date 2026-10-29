@@ -39,6 +39,20 @@ public sealed class RecoveryReviewStoreTests
     }
 
     [Fact]
+    public void Local_replacement_report_names_the_retained_original_without_offering_automatic_deletion()
+    {
+        string recovery = @"C:\owned\.filecat-replaced-0123456789abcdef.bak";
+        var job = new InterruptedJob(@"C:\state\job-owned.fcj", "Move", "Replace", DateTime.UtcNow,
+            [@"C:\owned\incoming.bin"], @"C:\owned",
+            [new PendingIntent(3, "move-replace", @"C:\owned\incoming.bin", @"C:\owned\target.bin", null)
+                { RecoveryPath = recovery }], [], 0, 1);
+        string report = InterruptedRecoveryReport.Format(job, "Inspect", [], [], new CopyReview([], [], false), false);
+        Assert.Contains("retained replaced destination; inspect and restore manually if present", report);
+        Assert.Contains(JsonSerializer.Serialize(recovery), report);
+        Assert.DoesNotContain("Reviewed staged file deleted by cleanup: " + JsonSerializer.Serialize(recovery), report);
+    }
+
+    [Fact]
     public void Full_retained_report_preserves_paths_effects_and_unknown_remainder()
     {
         string source = "C:\\root\\name\twith-control";

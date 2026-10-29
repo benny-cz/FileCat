@@ -8,11 +8,21 @@ namespace FileCat.Core.Archives;
 /// <summary>Member-path rules shared by the planner and the executor.</summary>
 public static class ArchivePaths
 {
+    public const int MaxMemberSegments = 256;
+
+    public static bool TooDeep(string member)
+    {
+        int segments = 1;
+        foreach (char c in member) if (c == '/') segments++;
+        return segments > MaxMemberSegments;
+    }
+
     /// <summary>Why a member path is unacceptable for a new or renamed member, or null.</summary>
     public static string? Problem(string member)
     {
         if (member.Length == 0) return "The name is empty.";
         if (member.Length > 32_000) return "The path is too long.";
+        if (TooDeep(member)) return "The path has too many folders.";
         if (member.StartsWith('/') || member.EndsWith('/') || member.Contains('\\') || member.Length > 1 && member[1] == ':')
             return "Use a relative path with '/' between folders.";
         foreach (var part in member.Split('/'))
@@ -344,6 +354,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         foreach (var entry in existing)
         {
             string name = ArchivePaths.Normalize(entry.FullName);
+            if (ArchivePaths.TooDeep(name)) throw new IOException("An existing ZIP member has too many path components to update safely.");
             string trimmed = name.TrimEnd('/');
             int occurrence = occurrences.TryGetValue(name, out var seen) ? seen + 1 : 0;
             occurrences[name] = occurrence;
@@ -402,6 +413,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 {
                     var info = new FileInfo(change.SourcePath ?? throw new ArgumentException("A source file is required."));
                     if (!info.Exists) throw new FileNotFoundException("The file to add no longer exists.", info.FullName);
+                    if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
+                        throw new IOException("The source is a link; links are not added to ZIP archives.");
                     result.Add(new Addition(member, info.FullName, false, info.LastWriteTime, info.Attributes, info.Length));
                     break;
                 }
@@ -462,6 +475,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
     private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced)
     {
+        using var held = Fs.HoldRegularFile(addition.Source!);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
         Stamp(entry, addition.Modified, attributes, replaced?.Comment);

@@ -1,0 +1,5 @@
+WriterIntegrity=S-1-16-8192
+Swapped=True
+Child=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-selected\child
+Retired=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac33-retired-child
+Outside=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-outside

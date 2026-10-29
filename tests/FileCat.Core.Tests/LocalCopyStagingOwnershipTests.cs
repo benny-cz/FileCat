@@ -70,7 +70,7 @@ public sealed class LocalCopyStagingOwnershipTests(ITestOutputHelper output)
         finally { foreach (var job in jobs.Jobs) job.Cancel(); Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(5))); }
     }
 
-    private sealed class Files(string moment, ManualResetEventSlim fixtureReady) : PortableFileOperations
+    private sealed class Files(string moment, ManualResetEventSlim fixtureReady) : ReviewedReplacementTestFiles
     {
         public int Copies, ProgressCalls;
         public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)

@@ -316,6 +316,7 @@ public static class NetworkDiscovery
         int questions = BinaryPrimitives.ReadUInt16BigEndian(message[4..]);
         int records = BinaryPrimitives.ReadUInt16BigEndian(message[6..]) + BinaryPrimitives.ReadUInt16BigEndian(message[8..]) + BinaryPrimitives.ReadUInt16BigEndian(message[10..]);
         int at = 12;
+        int decodedNameBytes = 0;
         var instances = new List<string>();
         var targets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var addresses = new Dictionary<string, IPAddress>(StringComparer.OrdinalIgnoreCase);
@@ -323,12 +324,12 @@ public static class NetworkDiscovery
         {
             for (int i = 0; i < questions; i++)
             {
-                ReadName(message, ref at);
+                ReadName(message, ref at, ref decodedNameBytes);
                 at += 4;
             }
             for (int i = 0; i < records && at < message.Length; i++)
             {
-                string owner = ReadName(message, ref at);
+                string owner = ReadName(message, ref at, ref decodedNameBytes);
                 if (at + 10 > message.Length) break;
                 ushort type = BinaryPrimitives.ReadUInt16BigEndian(message[at..]);
                 int length = BinaryPrimitives.ReadUInt16BigEndian(message[(at + 8)..]);
@@ -338,11 +339,11 @@ public static class NetworkDiscovery
                 {
                     case 12 when owner.Equals("_smb._tcp.local", StringComparison.OrdinalIgnoreCase): // PTR
                         int p = data;
-                        if (instances.Count < MaxHostsPerProbe) instances.Add(ReadName(message, ref p));
+                        if (instances.Count < MaxHostsPerProbe) instances.Add(ReadName(message, ref p, ref decodedNameBytes));
                         break;
                     case 33 when length >= 7: // SRV: priority, weight, port, target
                         int s = data + 6;
-                        if (targets.Count < MaxHostsPerProbe || targets.ContainsKey(owner)) targets[owner] = ReadName(message, ref s);
+                        if (targets.Count < MaxHostsPerProbe || targets.ContainsKey(owner)) targets[owner] = ReadName(message, ref s, ref decodedNameBytes);
                         break;
                     case 1 when length == 4: // A
                         if (addresses.Count < MaxHostsPerProbe || addresses.ContainsKey(owner)) addresses[owner] = new IPAddress(message.Slice(data, 4));
@@ -353,6 +354,7 @@ public static class NetworkDiscovery
         }
         catch (IndexOutOfRangeException) { }
         catch (ArgumentOutOfRangeException) { }
+        catch (InvalidDataException) { }
         foreach (string instance in instances)
         {
             string name = instance.EndsWith("._smb._tcp.local", StringComparison.OrdinalIgnoreCase) ? instance[..^"._smb._tcp.local".Length] : instance;
@@ -365,10 +367,11 @@ public static class NetworkDiscovery
     }
 
     /// <summary>A DNS name at <paramref name="at"/>, following compression pointers (a bounded number of them).</summary>
-    private static string ReadName(ReadOnlySpan<byte> message, ref int at)
+    private static string ReadName(ReadOnlySpan<byte> message, ref int at, ref int decodedNameBytes)
     {
         var labels = new List<string>();
         int position = at, jumps = 0;
+        int nameBytes = 0;
         bool jumped = false;
         while (true)
         {
@@ -387,6 +390,11 @@ public static class NetworkDiscovery
                 position = pointer;
                 continue;
             }
+            if ((length & 0xC0) != 0 || length > 63 || length + 1 > 255 - nameBytes ||
+                length > 1024 * 1024 - decodedNameBytes)
+                throw new InvalidDataException("The mDNS name exceeds its parsing budget.");
+            nameBytes += length + 1;
+            decodedNameBytes += length;
             labels.Add(Encoding.UTF8.GetString(message.Slice(position + 1, length)));
             position += 1 + length;
         }

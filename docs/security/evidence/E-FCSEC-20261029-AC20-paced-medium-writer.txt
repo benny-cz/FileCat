@@ -1,0 +1,5 @@
+WriterIntegrity=S-1-16-8192
+RenameBlocked=True
+ErrorKind=MethodInvocationException
+Child=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-paced-destination\folder
+Outside=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-outside

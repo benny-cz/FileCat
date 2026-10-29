@@ -17,7 +17,7 @@ public sealed class JobEngineTests : IDisposable
     public JobEngineTests()
     {
         _providers.Register(new LocalFileSystemProvider());
-        _jobs = new JobManager(new PortableFileOperations(), _providers, Path.Combine(_dir.Path, "journal"));
+        _jobs = new JobManager(new ReviewedReplacementTestFiles(), _providers, Path.Combine(_dir.Path, "journal"));
         _src = _dir.Dir("src");
         _dst = _dir.Dir("dst");
     }

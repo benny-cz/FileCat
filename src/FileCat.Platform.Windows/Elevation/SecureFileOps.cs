@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using FileCat.Core.FileSystem;
 using Microsoft.Win32.SafeHandles;
 using static FileCat.Platform.Windows.Elevation.NtFile;
 
@@ -88,24 +89,30 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         }
     }
 
-    public TreeReport DeleteTree(string volumePath)
+    public TreeReport DeleteTree(string volumePath, Func<SafeFileHandle, string, bool>? approve = null,
+        Action? beforeRemove = null)
     {
         var report = new TreeReport();
         using var parent = Walk(volumePath, includeLast: false, out var leaf);
         SafeFileHandle root;
-        try { root = OpenOrThrow(parent, leaf, DeleteAccess, ShareAll, Open, OpenReparsePoint, "Open the item"); }
+        try { root = OpenOrThrow(parent, leaf, DeleteAccess, approve is null ? ShareAll : ShareRead, Open, OpenReparsePoint, "Open the item"); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(volumePath), ex); return report; }
-        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<string> Pending)>();
+        var stack = new Stack<(SafeFileHandle Handle, string Path, Queue<(string Name, uint Attributes, FileIdentity? Identity)> Pending)>();
         try
         {
+            if (approve is not null && !approve(root, volumePath))
+            {
+                report.Fail(_display(volumePath), new IOException("The item is no longer the fully reviewed object."));
+                return report;
+            }
             uint attributes = GetBasic(root).FileAttributes;
             if (!IsDirectory(attributes) || IsReparsePoint(attributes))
             {
                 // A file, or a link (removed as a link; its target is never touched).
-                Remove(root, volumePath, report);
+                Remove(root, volumePath, report, beforeRemove);
                 return report;
             }
-            stack.Push((root, volumePath, new Queue<string>(List(root).Select(e => e.Name))));
+            stack.Push((root, volumePath, SnapshotChildren(root)));
             root = null!;
             while (stack.Count > 0)
             {
@@ -114,27 +121,52 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 if (pending.Count == 0)
                 {
                     stack.Pop();
-                    using (handle) Remove(handle, path, report);
+                    using (handle) Remove(handle, path, report, beforeRemove);
                     continue;
                 }
-                string childPath = path + "\\" + pending.Dequeue();
-                string child = childPath[(path.Length + 1)..];
+                var listed = pending.Dequeue();
+                string childPath = path + "\\" + listed.Name;
+                string child = listed.Name;
                 SafeFileHandle entry;
                 uint entryAttributes;
                 try
                 {
-                    entry = OpenOrThrow(handle, child, DeleteAccess, ShareAll, Open, OpenReparsePoint, "Open");
+                    entry = OpenOrThrow(handle, child, DeleteAccess, approve is null ? ShareAll : ShareRead, Open, OpenReparsePoint, "Open");
                     entryAttributes = GetBasic(entry).FileAttributes;
                 }
                 catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(childPath), ex); continue; }
+                if (!IsReparsePoint(listed.Attributes) && IsReparsePoint(entryAttributes))
+                {
+                    entry.Dispose();
+                    report.Fail(_display(childPath), new IOException("The listed item became a link before deletion; it was left in place."));
+                    continue;
+                }
+                bool sameIdentity = false;
+                if (listed.Identity is { } expected)
+                {
+                    try { sameIdentity = ProtectedHexFile.Identity(entry) == expected; }
+                    catch (Exception ex) when (IsIo(ex)) { /* An unverified child cannot be deleted. */ }
+                }
+                if (!sameIdentity)
+                {
+                    entry.Dispose();
+                    report.Fail(_display(childPath), new IOException("The listed item's identity changed before deletion; it was left in place."));
+                    continue;
+                }
+                if (approve is not null && !approve(entry, childPath))
+                {
+                    entry.Dispose();
+                    report.Fail(_display(childPath), new IOException("The item is no longer the fully reviewed object."));
+                    continue;
+                }
                 if (IsDirectory(entryAttributes) && !IsReparsePoint(entryAttributes))
                 {
-                    try { stack.Push((entry, childPath, new Queue<string>(List(entry).Select(e => e.Name)))); }
+                    try { stack.Push((entry, childPath, SnapshotChildren(entry))); }
                     catch (Exception ex) when (IsIo(ex)) { entry.Dispose(); report.Fail(_display(childPath), ex); }
                 }
                 else
                 {
-                    using (entry) Remove(entry, childPath, report);
+                    using (entry) Remove(entry, childPath, report, beforeRemove);
                 }
             }
             return report;
@@ -146,10 +178,32 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         }
     }
 
-    private void Remove(SafeFileHandle handle, string path, TreeReport report)
+    private Queue<(string Name, uint Attributes, FileIdentity? Identity)> SnapshotChildren(SafeFileHandle directory)
+    {
+        var pending = new Queue<(string Name, uint Attributes, FileIdentity? Identity)>();
+        int count = 0;
+        foreach (var listed in List(directory))
+        {
+            if ((++count & 255) == 0) checkpoint();
+            FileIdentity? identity = null;
+            try
+            {
+                using var entry = OpenOrThrow(directory, listed.Name, ReadAttributes | Synchronize, ShareAll,
+                    Open, OpenReparsePoint, "Identify listed item");
+                if (IsReparsePoint(GetBasic(entry).FileAttributes) == IsReparsePoint(listed.Attributes))
+                    identity = ProtectedHexFile.Identity(entry);
+            }
+            catch (Exception ex) when (IsIo(ex)) { /* A changed or inaccessible entry is refused when visited. */ }
+            pending.Enqueue((listed.Name, listed.Attributes, identity));
+        }
+        return pending;
+    }
+
+    private void Remove(SafeFileHandle handle, string path, TreeReport report, Action? beforeRemove = null)
     {
         try
         {
+            beforeRemove?.Invoke();
             DeleteOpen(handle);
             report.Done++;
         }

@@ -63,6 +63,9 @@ internal sealed class FatScanner
         long present = (volume.Length - _dataOffset) / _clusterSize;
         if (present <= 0) throw new InvalidDataException("the FAT data area lies beyond the end of the volume.");
         _clusterCount = (uint)Math.Min(declared, present);
+        long fatEntryCapacity = fatSectors * bytesPerSector * 8 / _bits;
+        if (_clusterCount + 2L > fatEntryCapacity)
+            throw new InvalidDataException("the FAT allocation table is too small for the declared data clusters.");
         RootCluster = _bits == 32 ? BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(44)) : 0;
         int labelAt = _bits == 32 ? 71 : 43;
         if (boot[_bits == 32 ? 66 : 38] == 0x29) _label = Ascii(boot.AsSpan(labelAt, 11)).Trim() is { Length: > 0 } l && l != "NO NAME" ? l : null;

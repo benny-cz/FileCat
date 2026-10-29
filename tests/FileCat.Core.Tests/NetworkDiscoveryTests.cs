@@ -1,14 +1,70 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Diagnostics;
 using FileCat.Core.Network;
 
 namespace FileCat.Core.Tests;
 
+[CollectionDefinition("Network discovery allocation", DisableParallelization = true)]
+public sealed class NetworkDiscoveryAllocationCollection;
+
 /// <summary>D-54: finding the local network's computers and file servers (WS-Discovery and multicast DNS).</summary>
+[Collection("Network discovery allocation")]
 public sealed class NetworkDiscoveryTests
 {
     private const string Endpoint = "urn:uuid:1f7b8c3a-0000-4000-8000-00155d000001";
+
+    [Fact]
+    public void Compressed_name_amplification_is_rejected_with_bounded_allocation()
+    {
+        byte[] bytes = AmplifiedMdnsAnswer();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var found = NetworkDiscovery.ParseMdnsAnswer(bytes, IPAddress.Loopback);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Empty(found);
+        Assert.True(allocated < 4 * 1024 * 1024, $"mDNS parse allocated {allocated:N0} bytes.");
+    }
+
+    [Fact]
+    public async Task Loopback_discovery_ignores_amplified_answer_and_reports_valid_SMB_service()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var mdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var cutoff = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cutoff.CancelAfter(TimeSpan.FromSeconds(2));
+        var responder = Task.Run(async () =>
+        {
+            var query = await mdns.ReceiveAsync(ct);
+            await mdns.SendAsync(AmplifiedMdnsAnswer(), query.RemoteEndPoint, ct);
+            await mdns.SendAsync(MdnsAnswer(IPAddress.Parse("10.1.2.3")), query.RemoteEndPoint, ct);
+        }, ct);
+        var found = new List<NetworkHost>();
+        long before = GC.GetTotalAllocatedBytes(precise: true);
+        var watch = Stopwatch.StartNew();
+        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, cutoff.Token, ct,
+            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)mdns.Client.LocalEndPoint!, [IPAddress.Loopback]);
+        watch.Stop();
+        await responder.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        var nas = Assert.Single(found, h => h.Source == "Bonjour");
+        Assert.Equal("nas.local", nas.Server);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"Discovery took {watch.Elapsed}.");
+        Assert.True(allocated < 64L * 1024 * 1024, $"Discovery allocated {allocated:N0} bytes.");
+        TestContext.Current.TestOutputHelper?.WriteLine($"mDNS socket callback: duration={watch.Elapsed}, process-allocated={allocated:N0} bytes, hosts={found.Count}");
+    }
+
+    private static byte[] AmplifiedMdnsAnswer()
+    {
+        var bytes = new List<byte>(26_000);
+        bytes.AddRange(new byte[12]);
+        bytes[4] = 0x0B; bytes[5] = 0xB9; // 3001 questions
+        for (int i = 0; i < 4000; i++) { bytes.Add(1); bytes.Add((byte)'a'); }
+        bytes.Add(0); bytes.AddRange(new byte[4]);
+        for (int i = 0; i < 3000; i++) { bytes.Add(0xC0); bytes.Add(0x0C); bytes.AddRange(new byte[4]); }
+        return [.. bytes];
+    }
 
     [Fact]
     public async Task Owned_loopback_probe_flood_has_a_finite_endpoint_budget()

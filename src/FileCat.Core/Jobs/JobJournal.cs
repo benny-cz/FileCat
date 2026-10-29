@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Jobs;
@@ -128,6 +129,10 @@ public sealed class JobJournal : IDisposable
         Write(new JsonObject { ["t"] = "intent", ["n"] = n, ["op"] = op, ["path"] = path, ["target"] = target, ["staged"] = staged }, sync: durable);
         return n;
     }
+
+    /// <summary>Persist the exact recovery name before a reviewed destination is retired from its original name.</summary>
+    public void ReplacementRecovery(int step, string recoveryPath) =>
+        Write(new JsonObject { ["t"] = "replacement-recovery", ["n"] = step, ["path"] = recoveryPath }, sync: true);
 
     /// <summary>
     /// Records that <paramref name="path"/> is renamed to <paramref name="target"/> through the temporary name
@@ -359,6 +364,7 @@ public sealed record PendingIntent(int Step, string Operation, string Path, stri
 {
     /// <summary>The temporary name of a <see cref="JobJournal.RenameViaOp"/> step.</summary>
     public string? Via { get; init; }
+    public string? RecoveryPath { get; init; }
 }
 
 public static partial class JournalRecovery
@@ -376,6 +382,7 @@ public static partial class JournalRecovery
     public static IReadOnlyList<InterruptedJob> Scan(string directory, int keepFinished = 200, TimeSpan? maxAge = null)
     {
         var result = new List<InterruptedJob>();
+        if (WindowsTokenAuthority.IsHighIntegrity) return result;
         if (!Directory.Exists(directory)) return result;
         var files = new DirectoryInfo(directory).GetFiles("job-*.fcj").OrderByDescending(f => f.Name).ToList();
         int finished = 0;
@@ -404,6 +411,10 @@ public static partial class JournalRecovery
                             if (record.Step > 0)
                                 open[record.Step] = new PendingIntent(record.Step, record.Get("op") ?? "",
                                     record.Get("path") ?? "", record.Get("target"), record.Get("staged")) { Via = record.Get("via") };
+                            break;
+                        case "replacement-recovery":
+                            if (record.Step > 0 && open.TryGetValue(record.Step, out var replacing))
+                                open[record.Step] = replacing with { RecoveryPath = record.Get("path") };
                             break;
                         case "done":
                             if (record.Step > 0) { open.Remove(record.Step); completed++; }

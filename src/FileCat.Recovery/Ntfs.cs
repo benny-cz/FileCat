@@ -16,6 +16,8 @@ internal sealed class NtfsScanner
     private const long MaxRecords = 16_000_000;
     private const long MaxBitmapBytes = 512L * 1024 * 1024;
     private const long MaxCompressionUnitBytes = 64 * 1024;
+    private const long MaxCompressedUnitsPerFile = 100_000;
+    private const long MaxCompressedUnitsPerScan = 250_000;
     private const int MaxAttributeListEntries = 4096;
     private const long RootRecord = 5;
 
@@ -28,6 +30,8 @@ internal sealed class NtfsScanner
     private byte[] _bitmap = [];
     private readonly RecoveryVolume _result;
     private readonly bool _whole;
+    private CancellationToken _scanCancellation;
+    private long _describedCompressedUnits;
 
     private sealed record Parsed(long Number, ushort Sequence, bool InUse, bool IsDirectory, string? Name, long ParentRecord, ushort ParentSequence,
         DateTime? Modified, DateTime? Created, Data? Stream, int NamedStreams);
@@ -67,6 +71,7 @@ internal sealed class NtfsScanner
 
     private RecoveryVolume Run(CancellationToken ct)
     {
+        _scanCancellation = ct;
         // $MFT describes where the MFT itself lies; its first record sits at the cluster the boot sector names.
         var mftRecord = ReadRecordAt(MftCluster * _clusterSize) ?? throw new InvalidDataException("the MFT's own record is damaged.");
         _mftRuns = [(0, MftCluster, Math.Max(1, (_recordSize + _clusterSize - 1) / _clusterSize) * 16)];
@@ -249,6 +254,9 @@ internal sealed class NtfsScanner
         long count = (stream.Size + unitBytes - 1) / unitBytes;
         // NTFS compresses in units of 16 clusters of at most 4 KiB: 64 KiB. A damaged record claiming more (up to 1 GiB
         // was accepted) would have each unit read into that much memory.
+        // Each described unit retains an object. A sparse run can claim far more units
+        // than fit in the supplied image, so the logical file size is not a safe budget.
+        long maxDescribedUnits = Math.Min(MaxCompressedUnitsPerFile, Math.Max(1, _volume.Length / _clusterSize));
         if (count > 10_000_000 || unitBytes > MaxCompressionUnitBytes)
         {
             file.Evidence.Add("Its compressed layout is larger than FileCat reads.");
@@ -262,16 +270,26 @@ internal sealed class NtfsScanner
         // gigabytes made millions of them, 1.6 GiB for a 16 MiB volume; release issue I37).
         long described = runs.Count == 0 ? 0 : runs.Max(r => r.Vcn + r.Length);
         long describedUnits = Math.Min(count, (described + stream.UnitClusters - 1) / stream.UnitClusters);
+        if (describedUnits > maxDescribedUnits || describedUnits > MaxCompressedUnitsPerScan - _describedCompressedUnits)
+        {
+            file.Evidence.Add("Its compressed layout describes more units than this image can safely index.");
+            file.State = RecoveryState.NameOnly;
+            return;
+        }
+        _describedCompressedUnits += describedUnits;
+        int runIndex = 0;
         for (long u = 0; u < describedUnits; u++)
         {
+            if ((u & 1023) == 0) _scanCancellation.ThrowIfCancellationRequested();
             long first = u * stream.UnitClusters, end = first + stream.UnitClusters;
             var pieces = new List<(long, long)>();
             long real = 0;
             bool lost = false, known = true;
             for (long vcn = first; vcn < end;)
             {
-                var run = runs.FirstOrDefault(r => vcn >= r.Vcn && vcn < r.Vcn + r.Length);
-                if (run.Length == 0)
+                while (runIndex < runs.Count && runs[runIndex].Vcn + runs[runIndex].Length <= vcn) runIndex++;
+                var run = runIndex < runs.Count ? runs[runIndex] : default;
+                if (run.Length == 0 || vcn < run.Vcn)
                 {
                     known = vcn * _clusterSize >= stream.Size; // clusters past the end need no run
                     break;

@@ -38,6 +38,11 @@ public static class JsonFileStore
     public static T Load<T>(string path, JsonTypeInfo<T> typeInfo, int currentSchema, Func<T> defaults, out StateLoadStatus status)
         where T : class, IVersionedState
     {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+        {
+            status = StateLoadStatus.UnavailableReadOnly;
+            return defaults();
+        }
         if (!File.Exists(path) && !File.Exists(path + ".bak"))
         {
             status = StateLoadStatus.Missing;

@@ -1,0 +1,3 @@
+Target=192.168.58.129:445
+Connected=True
+SMBBytesSent=0

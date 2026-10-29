@@ -33,6 +33,17 @@ public static partial class ElevationPaths
         return FinalPath(handle, VolumeNameGuid) ?? throw new Win32Exception(Marshal.GetLastPInvokeError());
     }
 
+    /// <summary>Resolves only the drive root; the remaining components are walked without following links by SecureFileOps.</summary>
+    public static string ToVolumePathWithoutFollowing(string path)
+    {
+        string full = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(full) ?? throw new IOException("The path has no drive root.");
+        if (root.Length != 3 || root[1] != ':' || root[2] != '\\')
+            throw new NotSupportedException("A fixed local drive path is required for handle-bound deletion.");
+        string volumeRoot = ToVolumePath(root);
+        return volumeRoot + full[root.Length..];
+    }
+
     internal static unsafe string? FinalPath(SafeFileHandle handle, uint flags)
     {
         var buffer = new char[1024];

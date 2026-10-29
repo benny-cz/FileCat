@@ -93,6 +93,19 @@ public enum RecycleOutcome
 /// <param name="RecycledId">Platform identifier of the item in the bin, used for guarded restore.</param>
 public sealed record RecycleResult(string Path, RecycleOutcome Outcome, string? RecycledId = null, string? Error = null);
 
+/// <summary>Result of a handle-bound tree delete, where supported by the platform adapter.</summary>
+public sealed record BoundTreeDeletion(int Done, int Failed, IReadOnlyList<string> Problems);
+
+/// <summary>Outcome of an object-bound replacement; a retained old target needs explicit user review.</summary>
+public sealed record BoundReplacement(bool Published, bool Changed, string? RetainedPath = null, string? Reason = null);
+
+/// <summary>Result of deleting exactly the reviewed file object through an open handle.</summary>
+public sealed record BoundDeletion(bool Deleted, bool Changed, string? Reason = null);
+
+/// <summary>One exact member of a completely reviewed tree, for handle-bound deletion.</summary>
+public sealed record BoundDeletionEntry(string Path, string? Identity, bool IsDirectory, bool IsLink,
+    string? Sha256, long Length);
+
 /// <summary>
 /// Platform file-system mutations used by the operation engine (AI-02: controls never call these).
 /// Every method is synchronous and called from job threads; failures throw IOException subclasses.
@@ -101,6 +114,12 @@ public interface IFileSystemOperations
 {
     FileSystemItemInfo? TryGetInfo(string path);
     VolumeInfo GetVolumeInfo(string path);
+
+    /// <summary>Keep a regular source and its path components stable while a path-taking reader copies its bytes.</summary>
+    IDisposable HoldRegularFile(string path);
+
+    /// <summary>Keep a destination folder and its path components stable while a path-taking writer uses it.</summary>
+    IDisposable HoldDirectory(string path);
 
     /// <summary>Copies one file to a destination that must not exist (staged names only).</summary>
     void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
@@ -111,6 +130,22 @@ public interface IFileSystemOperations
     /// </summary>
     void Move(string source, string destination, bool replaceExisting, bool writeThrough = false);
 
+    /// <summary>
+    /// Atomically avoid overwriting a different destination object after its complete content review. Null means this
+    /// adapter has no bound protocol; callers must not infer safety from a pathname-only recheck.
+    /// </summary>
+    BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity, string expectedSha256,
+        long expectedLength, CancellationToken ct, string? recoveryPath = null);
+
+    /// <summary>Reserve a candidate retained-target name before a bound replacement is durably journaled.</summary>
+    string? PrepareReviewedReplacement(string source, string destination);
+
+    BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
+        long expectedLength, CancellationToken ct);
+
+    BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
+        Action checkpoint, CancellationToken ct);
+
     void CreateDirectory(string path);
 
     /// <summary>Permanently deletes one file or link (never follows it).</summary>
@@ -118,6 +153,9 @@ public interface IFileSystemOperations
 
     /// <summary>Permanently deletes an empty directory or a directory link (never its target's content).</summary>
     void DeleteDirectory(string path);
+
+    /// <summary>Deletes a tree through verified directory handles, or returns null when this adapter lacks that operation.</summary>
+    BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint);
 
     void SetAttributes(string path, FileAttributes attributes);
 
@@ -198,6 +236,57 @@ public enum LinkKind
 public class PortableFileOperations : IFileSystemOperations
 {
     private const int BufferSize = 1024 * 1024;
+
+    public virtual BoundTreeDeletion? DeleteTreeBound(string path, Action checkpoint) => null;
+
+    public virtual BoundReplacement? ReplaceReviewed(string source, string destination, string? expectedIdentity,
+        string expectedSha256, long expectedLength, CancellationToken ct, string? recoveryPath = null) => null;
+
+    public virtual string? PrepareReviewedReplacement(string source, string destination) => null;
+
+    public virtual BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
+        long expectedLength, CancellationToken ct) => null;
+
+    public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
+        Action checkpoint, CancellationToken ct) => null;
+
+    public virtual IDisposable HoldRegularFile(string path)
+    {
+        string full = Path.GetFullPath(path);
+        string? root = Path.GetPathRoot(full);
+        if (string.IsNullOrEmpty(root)) throw new IOException("The source has no root.");
+        string current = root;
+        foreach (string part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("The source path contains a link; it was not added to the archive.");
+        }
+        if ((File.GetAttributes(full) & FileAttributes.Directory) != 0) throw new IOException("The source is a folder, not a regular file.");
+        return EmptyLease.Instance;
+    }
+
+    public virtual IDisposable HoldDirectory(string path)
+    {
+        string full = Path.GetFullPath(path);
+        string? root = Path.GetPathRoot(full);
+        if (string.IsNullOrEmpty(root)) throw new IOException("The destination has no root.");
+        string current = root;
+        foreach (string part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("The destination folder path contains a link; nothing was written there.");
+        }
+        if ((File.GetAttributes(full) & FileAttributes.Directory) == 0) throw new IOException("The destination is not a folder.");
+        return EmptyLease.Instance;
+    }
+
+    private sealed class EmptyLease : IDisposable
+    {
+        public static EmptyLease Instance { get; } = new();
+        public void Dispose() { }
+    }
 
     public virtual FileSystemItemInfo? TryGetInfo(string path)
     {

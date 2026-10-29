@@ -5,6 +5,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Edit;
 
@@ -112,6 +113,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
 
     public IReadOnlyList<EditSessionRecord> LoadAll()
     {
+        if (WindowsTokenAuthority.IsHighIntegrity) return [];
         if (!Directory.Exists(Root)) return [];
         var sessions = new List<EditSessionRecord>();
         foreach (var dir in Directory.EnumerateDirectories(Root))
@@ -226,6 +228,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
 
     private EditSessionRecord CreateSession(string fileName, Func<string, WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
+        RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
@@ -371,6 +374,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
 
     public void Save(EditSessionRecord record)
     {
+        RefuseElevatedSession();
         string dir = Path.Combine(Root, record.Id);
         string destination = Path.Combine(dir, RecordFile);
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(record, Json);
@@ -476,6 +480,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     /// <summary>Capture one complete bounded working file before queueing, with hash/CRC from those same bytes.</summary>
     public EditCommitCopy PrepareCommit(EditSessionRecord record, string tempRoot, CancellationToken ct = default)
     {
+        RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -502,6 +507,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     /// <summary>Capture a save-copy source completely on its caller's admitted worker, before any destination replacement.</summary>
     public EditCommitCopy PrepareSaveCopy(EditSessionRecord record, string tempRoot, ResourceProvider provider, Action check)
     {
+        RefuseElevatedSession();
         check();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -527,6 +533,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     /// <summary>Copy owned bytes into a unique sibling first. Publish only after the native copy returns and demand remains active.</summary>
     public static void PublishSaveCopy(EditCommitCopy copy, string destination, IFileSystemOperations files, Action check)
     {
+        RefuseElevatedSession();
         check();
         string staged = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!, ".filecat-edit-copy-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
@@ -624,7 +631,17 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         return updated;
     }
 
-    public void Discard(EditSessionRecord record) => Directory.Delete(Path.Combine(Root, record.Id), recursive: true);
+    public void Discard(EditSessionRecord record)
+    {
+        RefuseElevatedSession();
+        Directory.Delete(Path.Combine(Root, record.Id), recursive: true);
+    }
+
+    private static void RefuseElevatedSession()
+    {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("FileCat does not read or write user-profile edit sessions while running as administrator. Reopen it without elevation.");
+    }
 
     public static string Hash(string path)
     {

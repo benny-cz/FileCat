@@ -17,16 +17,17 @@ public sealed class ArchivePrefixBudgetTests(ITestOutputHelper output) : IDispos
     [InlineData(false)]
     public async Task Generated_directory_prefixes_are_charged_and_evicted(bool zip)
     {
-        const int depth = 1024;
+        const int depth = ArchivePaths.MaxMemberSegments - 1;
         string folder = string.Join('/', Enumerable.Repeat("d", depth));
         long minimumPrefixBytes = 2L * depth * depth; // UTF-16 length of d, d/d, d/d/d, ...
         var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider());
         ResourceProvider provider = zip ? new ZipProvider(_root.Path) : new ArchiveProvider(_root.Path, registry);
         try
         {
-            if (provider is ZipProvider zp) zp.RetainedIndexLimitBytes = 64 << 10;
-            else ((ArchiveProvider)provider).RetainedIndexLimitBytes = 64 << 10;
+            if (provider is ZipProvider zp) zp.RetainedIndexLimitBytes = 1 << 20;
+            else ((ArchiveProvider)provider).RetainedIndexLimitBytes = 1 << 20;
             long[] estimates = new long[3];
+            long limit = 1 << 20;
             for (int i = 0; i < 3; i++)
             {
                 string path = Path.Combine(_root.Path, $"archive-{i}." + (zip ? "zip" : "tar"));
@@ -52,6 +53,14 @@ public sealed class ArchivePrefixBudgetTests(ITestOutputHelper output) : IDispos
                 Assert.Single(top.Names);
                 Assert.Equal("d", top.Names[0]);
                 estimates[i] = zip ? ((ZipProvider)provider).RetainedIndexBytes : ((ArchiveProvider)provider).RetainedIndexBytes;
+                if (i == 0)
+                {
+                    // The depth safety cap reduces the generated-prefix footprint; set a measured finite cache
+                    // limit that retains two equivalent indexes and requires the third to evict one.
+                    limit = estimates[0] * 5 / 2;
+                    if (provider is ZipProvider measuredZip) measuredZip.RetainedIndexLimitBytes = limit;
+                    else ((ArchiveProvider)provider).RetainedIndexLimitBytes = limit;
+                }
             }
             long retained = estimates[0];
             int indexes = zip ? ((ZipProvider)provider).RetainedIndexes : ((ArchiveProvider)provider).RetainedIndexes;
@@ -59,7 +68,7 @@ public sealed class ArchivePrefixBudgetTests(ITestOutputHelper output) : IDispos
             {
                 zip, depth, minimumPrefixBytes, firstEstimate = retained,
                 afterSecondEstimate = estimates[1], afterThirdEstimate = estimates[2],
-                retainedIndexesAfterThird = indexes, archiveCount = 3, limitBytes = 64 << 10,
+                retainedIndexesAfterThird = indexes, archiveCount = 3, limitBytes = limit,
             }));
             // The first archive alone owns every generated prefix string. The third opening must evict one old index.
             Assert.True(retained >= minimumPrefixBytes, $"retained={retained}; minimum prefix bytes={minimumPrefixBytes}");

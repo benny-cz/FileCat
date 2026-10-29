@@ -188,9 +188,28 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
                 ? "it changed after the comparison that planned this"
                 : null;
         }
-        if (why is null) return false;
-        Issue(IssueSeverity.Warning, path, $"Not removed: {why}, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+        if (why is not null)
+        {
+            Issue(IssueSeverity.Warning, path, $"Not removed: {why}, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+            return true;
+        }
+        if (Job.Request.ExpectedSourceTrees is { } reviewed && reviewed.TryGetValue(source, out var approved) &&
+            approved.Tree.Matches(Fs, approved.Provider, Job.Checkpoint)) return false;
+        Issue(IssueSeverity.Warning, path,
+            "Not removed: its complete bytes, identity, or descendants could not be confirmed as compared. Compare again to decide about it.",
+            StepOutcome.CanceledBeforeChange);
         return true;
+    }
+
+    protected BoundReplacement ReplaceReviewed(string source, string target, FileTreeReview? review, int step)
+    {
+        var root = review?.FindItem(target);
+        string? recoveryPath = Fs.PrepareReviewedReplacement(source, target);
+        if (recoveryPath is not null) Journal.ReplacementRecovery(step, recoveryPath);
+        return Fs.ReplaceReviewed(source, target, root?.Version.Identity, root?.Content?.Sha256 ?? string.Empty,
+            root?.Content?.Length ?? -1, Job.Token, recoveryPath)
+            ?? new BoundReplacement(false, true,
+                Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
 
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
@@ -663,6 +682,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
+        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
+            itemLimit: 1, allowLinks: true);
         bool replace = false;
         var target = dst;
         if (existing is not null)
@@ -696,12 +717,39 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         // A conflict answer can arrive long after the root was admitted.
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
+        if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, target,
+                "Not replaced: the destination's complete bytes or identity changed after the conflict review, or could not be read completely. Review the conflict again.",
+                StepOutcome.CanceledBeforeChange);
+            return Result.Skipped;
+        }
         // A rename to a new name loses nothing if interrupted (the item is at one of the two names): group-committed.
         int step = Journal.Intent(replace ? "move-replace" : "move", src, target, null, durable: replace);
+        string? retainedTargetPath = null;
+        if (replace)
+        {
+            var bound = ReplaceReviewed(src, target, targetReview, step);
+            Journal.Done(step, bound.Published ? StepOutcome.Committed : bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+            if (!bound.Published)
+            {
+                Job.ItemSkipped();
+                Issue(IssueSeverity.Warning, target, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."),
+                    bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+                if (bound.RetainedPath is not null)
+                    Issue(IssueSeverity.Warning, bound.RetainedPath, "The original destination was kept at this recovery name.", StepOutcome.PartiallyApplied);
+                return Result.Failed;
+            }
+            retainedTargetPath = bound.RetainedPath;
+            if (retainedTargetPath is not null)
+                Issue(IssueSeverity.Warning, retainedTargetPath, bound.Reason ?? "The replaced file remains at this recovery name.", StepOutcome.PartiallyApplied);
+            goto Moved;
+        }
         bool ok;
         try
         {
-            Fs.Move(src, target, replace);
+            Fs.Move(src, target, replaceExisting: false);
             ok = true;
         }
         catch (IOException ex) when (ErrorText.Classify(ex) == "crossdevice")
@@ -716,7 +764,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             ok = TryIo(src, "move the item", () =>
             {
                 if (!SourceRenameStillReviewed(src, info)) { refused = true; return; }
-                Fs.Move(src, target, replace);
+                Fs.Move(src, target, replaceExisting: false);
             }) && !refused;
             if (refused)
             {
@@ -730,9 +778,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Job.ItemFailed();
             return Result.Failed;
         }
+    Moved:
         var moved = Fs.TryGetInfo(target);
         Job.AddUndo(new UndoStep(UndoKind.MoveBack, target, src, moved?.Size ?? info.Size, (moved?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
-        if (replace) Job.RecordUndoRemainder(target, "The overwritten destination contents were not retained. Moving the incoming item back will not restore them.");
+        if (replace) Job.RecordUndoRemainder(target, retainedTargetPath is null
+            ? "The overwritten destination contents were not retained. Moving the incoming item back will not restore them."
+            : $"The replaced destination remains at {retainedTargetPath}; moving the incoming item back will not restore it automatically.");
         Job.AddBytes(Math.Max(0, info.Size));
         Job.ItemDone();
         return Result.Committed;
@@ -917,6 +968,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
+        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
+            itemLimit: 1, allowLinks: true);
         if (existing is not null)
         {
             // A real folder is never replaced by a file or a link: that question offers skipping or keeping both.
@@ -945,7 +998,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
         }
 
-        if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null);
+        if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null, targetReview);
 
         // PI-05: a move that would drop metadata the destination cannot store asks before anything irreversible.
         bool keepSource = false;
@@ -1101,6 +1154,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             // name (which recovery would offer to delete).
             int step = Journal.Intent(replace ? "replace" : "publish", src, target, writeTo, durable: replace);
             bool refused = false;
+            string? refusal = null;
             bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () =>
             {
                 // The target may change while copying or while a failed publication waits for Retry.
@@ -1110,13 +1164,39 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     refused = true;
                     return;
                 }
-                Fs.Move(writeTo, target, replace, writeThrough: Move);
+                if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+                {
+                    refused = true;
+                    return;
+                }
+                if (replace)
+                {
+                    var bound = ReplaceReviewed(writeTo, target, targetReview, step);
+                    if (!bound.Published)
+                    {
+                        refused = true;
+                        refusal = bound.Reason;
+                        if (bound.RetainedPath is not null)
+                            Issue(IssueSeverity.Warning, bound.RetainedPath,
+                                "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
+                    }
+                    else if (bound.RetainedPath is not null)
+                        Issue(IssueSeverity.Warning, bound.RetainedPath,
+                            bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
+                    return;
+                }
+                Fs.Move(writeTo, target, replaceExisting: false, writeThrough: Move);
             });
             if (!published || refused)
             {
                 TryDeleteStaged(writeTo);
                 Journal.Done(step, StepOutcome.CanceledBeforeChange);
-                if (refused) { Job.ItemSkipped(); return Result.Skipped; }
+                if (refused)
+                {
+                    Job.ItemSkipped();
+                    Issue(IssueSeverity.Warning, target, "Not replaced: " + (refusal ?? "the reviewed destination changed."), StepOutcome.CanceledBeforeChange);
+                    return Result.Skipped;
+                }
                 Job.ItemFailed();
                 return Result.Failed;
             }
@@ -1313,7 +1393,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         return ok ? Result.Committed : Result.Failed;
     }
 
-    private Result CopyLink(string src, string target, FileSystemItemInfo info, bool replace, (long Size, long ModifiedTicks)? expectedTarget)
+    private Result CopyLink(string src, string target, FileSystemItemInfo info, bool replace, (long Size, long ModifiedTicks)? expectedTarget,
+        FileTreeReview? targetReview)
     {
         // A replaced item goes only once its replacement exists: the new link is made under a staged name first.
         string linkAt = target;
@@ -1326,7 +1407,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (Fs.TryCopyLink(src, linkAt, info.IsDirectory, out var error))
         {
-            if (staged && PublishLink(src, linkAt, target, info.IsDirectory, expectedTarget) is { } result && result != Result.Committed) return result;
+            if (staged && PublishLink(src, linkAt, target, info.IsDirectory, expectedTarget, targetReview) is { } result && result != Result.Committed) return result;
             if (Move)
             {
                 Job.RecordUndoRemainder(target, "This copied link has no recorded inverse; Undo will not remove it or recreate its source link.");
@@ -1369,7 +1450,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             case DecisionAction.CreateJunction when info.LinkTarget is not null:
                 if (TryIo(linkAt, "create a junction", () => Junctions.Create(linkAt, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
                 {
-                    if (staged && PublishLink(src, linkAt, target, isDirectory: true, expectedTarget) is { } result && result != Result.Committed) return result;
+                    if (staged && PublishLink(src, linkAt, target, isDirectory: true, expectedTarget, targetReview) is { } result && result != Result.Committed) return result;
                     if (Move)
                     {
                         Job.RecordUndoRemainder(target, "This created junction has no recorded inverse; Undo will not remove it or recreate its source link.");
@@ -1390,7 +1471,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     }
 
     /// <summary>Puts a staged link in the place of the item it replaces; if that fails, the staged link goes and the item stays.</summary>
-    private Result PublishLink(string src, string staged, string target, bool isDirectory, (long Size, long ModifiedTicks)? expectedTarget)
+    private Result PublishLink(string src, string staged, string target, bool isDirectory, (long Size, long ModifiedTicks)? expectedTarget,
+        FileTreeReview? targetReview)
     {
         int step = Journal.Intent("replace", src, target, staged);
         bool refused = false;
@@ -1402,9 +1484,24 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 refused = true;
                 return;
             }
-            // A folder link cannot be renamed over another folder link: the old one (only a link) is removed just before.
-            if (isDirectory && Fs.TryGetInfo(target) is { IsDirectory: true, IsLink: true }) Fs.DeleteDirectory(target);
-            Fs.Move(staged, target, replaceExisting: !isDirectory);
+            if (targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+            {
+                refused = true;
+                return;
+            }
+            var bound = ReplaceReviewed(staged, target, targetReview, step);
+            if (!bound.Published)
+            {
+                refused = true;
+                Issue(IssueSeverity.Warning, target, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."),
+                    StepOutcome.CanceledBeforeChange);
+                if (bound.RetainedPath is not null)
+                    Issue(IssueSeverity.Warning, bound.RetainedPath,
+                        "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
+            }
+            else if (bound.RetainedPath is not null)
+                Issue(IssueSeverity.Warning, bound.RetainedPath,
+                    bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
         });
         ok &= !refused;
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.CanceledBeforeChange);
@@ -1630,15 +1727,88 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
                 continue;
             }
             int step = Journal.Intent(info.IsDirectory && !info.IsLink ? "delete-tree" : "delete", path);
-            bool ok = info.IsDirectory && !info.IsLink ? DeleteTree(path) : DeleteOne(path, info);
+            bool ok = Job.Request.OnlyAsCompared && info.IsDirectory && !info.IsLink
+                ? DeleteComparedTree(path, Job.Request.Sources[index])
+                : info.IsDirectory && !info.IsLink ? DeleteTree(path)
+                : Job.Request.OnlyAsCompared && index < Job.Request.Sources.Count
+                    ? DeleteComparedOne(path, info, Job.Request.Sources[index]) : DeleteOne(path, info);
             Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.PartiallyApplied);
             if (ok) Job.RootCompleted(index);
             else Job.RootFailed(index);
         }
     }
 
+    private bool DeleteComparedOne(string path, FileSystemItemInfo info, ItemRef source)
+    {
+        var review = Job.Request.ExpectedSourceTrees?.GetValueOrDefault(source)?.Tree;
+        var root = review?.FindItem(path);
+        if (Fs.DeleteReviewedFile(path, root?.Version.Identity, root?.Content?.Sha256 ?? string.Empty,
+                root?.Content?.Length ?? -1, Job.Token) is not { } bound)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, path, "Not removed: this file system cannot delete the exact compared object through a held handle.",
+                StepOutcome.CanceledBeforeChange);
+            return false;
+        }
+        if (!bound.Deleted)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, path, "Not removed: " + (bound.Reason ?? "the compared file changed."),
+                bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+            return false;
+        }
+        Job.ItemDone();
+        Job.RecordUndoRemainder(path, "This file was permanently deleted; its data was not retained for Undo.");
+        return true;
+    }
+
+    private bool DeleteComparedTree(string path, ItemRef source)
+    {
+        var review = Job.Request.ExpectedSourceTrees?.GetValueOrDefault(source)?.Tree;
+        if (review is null || !review.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint))
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, path, "Not removed: this folder no longer matches its complete review.",
+                StepOutcome.CanceledBeforeChange);
+            return false;
+        }
+        var entries = review.Items.Select(i => new BoundDeletionEntry(i.Path, i.Version.Identity,
+            i.Version.Info.IsDirectory, i.Version.Info.IsLink,
+            i.Content?.Sha256, i.Content?.Length ?? -1)).ToArray();
+        if (Fs.DeleteReviewedTree(path, entries, Job.Checkpoint, Job.Token) is not { } bound)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, path, "Not removed: this file system cannot delete a bound, fully reviewed tree.",
+                StepOutcome.CanceledBeforeChange);
+            return false;
+        }
+        for (int i = 0; i < bound.Done; i++) Job.ItemDone();
+        for (int i = 0; i < bound.Failed; i++) Job.ItemFailed();
+        foreach (var problem in bound.Problems)
+            Issue(IssueSeverity.Warning, path, "The compared folder was not fully removed: " + problem,
+                bound.Done == 0 ? StepOutcome.CanceledBeforeChange : StepOutcome.PartiallyApplied);
+        if (bound.Failed == 0 && bound.Done != entries.Length)
+            Issue(IssueSeverity.Warning, path,
+                "The compared folder's item count changed while it was being removed; inspect what remains.",
+                bound.Done == 0 ? StepOutcome.CanceledBeforeChange : StepOutcome.PartiallyApplied);
+        if (bound.Done > 0)
+            Job.RecordUndoRemainder(path, "This reviewed folder was permanently deleted; its data was not retained for Undo.");
+        return bound.Failed == 0 && bound.Done == entries.Length;
+    }
+
     private bool DeleteTree(string dir)
     {
+        // The Windows adapter walks and removes through no-follow handles, so a child swapped for a junction or
+        // symbolic link after classification is removed as a link and never enumerated as the outside directory.
+        if (Fs.DeleteTreeBound(dir, () => Job.Checkpoint()) is { } bound)
+        {
+            for (int i = 0; i < bound.Done; i++) Job.ItemDone();
+            for (int i = 0; i < bound.Failed; i++) Job.ItemFailed();
+            foreach (string problem in bound.Problems)
+                Issue(IssueSeverity.Error, dir, "The folder could not be fully deleted: " + problem, StepOutcome.PartiallyApplied);
+            if (bound.Done > 0) Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo.");
+            return bound.Failed == 0;
+        }
         bool all = true;
         List<string> children;
         try
@@ -1736,6 +1906,16 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.AddTotals(1, 0);
                     Job.ItemSkipped();
                     Job.RootFailed(i);
+                    continue;
+                }
+                if (Job.Request.OnlyAsCompared)
+                {
+                    Job.AddTotals(1, 0);
+                    Job.ItemSkipped();
+                    Job.RootFailed(i);
+                    Issue(IssueSeverity.Warning, p,
+                        "Not recycled: this file system cannot bind the Recycle Bin operation to the exact compared object.",
+                        StepOutcome.CanceledBeforeChange);
                     continue;
                 }
                 var c = Fs.ClassifyRecycle(p, info.IsDirectory ? -1 : info.Size);

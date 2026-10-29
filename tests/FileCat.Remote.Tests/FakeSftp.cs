@@ -55,6 +55,9 @@ internal sealed class FakeSftpServer
 
     /// <summary>Called with a file's path as it is opened for reading (outside the server's lock): others' changes meanwhile.</summary>
     public Action<string>? OnRead { get; set; }
+    /// <summary>Owned test seam: a server that stops reporting a revision after a file is opened.</summary>
+    public HashSet<string> NoStatAfterOpen { get; } = new(StringComparer.Ordinal);
+    internal HashSet<string> OpenedForRead { get; } = new(StringComparer.Ordinal);
 
     /// <summary>Called once, on the first write of an upload (outside the server's lock), then cleared.</summary>
     public Action? DuringUpload { get; set; }
@@ -199,6 +202,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         Check();
         lock (server.Lock)
         {
+            if (server.NoStatAfterOpen.Contains(path) && server.OpenedForRead.Contains(path)) return null;
             var node = server.Lookup(path, followFinal: true) ?? server.Lookup(path, followFinal: false);
             if (node is null) return null;
             return new RemoteStat(node.IsDirectory, node.LinkTarget is not null, node.Data.Length, node.Modified);
@@ -213,6 +217,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         {
             var node = server.Lookup(path, followFinal: true) ?? throw new FileNotFoundException("No such file: " + path);
             if (node.IsDirectory) throw new IOException("It is a folder.");
+            server.OpenedForRead.Add(path);
             return new MemoryStream(node.Data.ToArray(), writable: false);
         }
     }

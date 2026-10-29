@@ -258,6 +258,38 @@ public sealed class TransferRevalidationTests(ITestOutputHelper output)
         else { Assert.Equal(JobState.Completed, job.State); Assert.False(File.Exists(source)); Assert.Equal(Digest(f.Original), Hash(target)); }
     }
 
+    [Fact]
+    public async Task Replace_does_not_discard_a_same_metadata_destination_substituted_during_conflict_review()
+    {
+        using var f = new Fixture(4096); f.Files.RouteThroughCopy = false;
+        string source = Path.Join(f.Root, "source.dat"); File.WriteAllBytes(source, f.Original);
+        Directory.CreateDirectory(f.Destination);
+        string target = Path.Join(f.Destination, "source.dat");
+        byte[] old = Enumerable.Repeat((byte)0x33, f.Original.Length).ToArray();
+        byte[] replacement = Enumerable.Repeat((byte)0x77, f.Original.Length).ToArray();
+        File.WriteAllBytes(target, old);
+        DateTime stamp = File.GetLastWriteTimeUtc(target);
+        bool swapped = false;
+        f.DecisionAnswer = DecisionAction.Replace;
+        f.BeforeDecision = () =>
+        {
+            string retired = Path.Join(f.Root, "old-destination.dat");
+            File.Move(target, retired);
+            File.WriteAllBytes(target, replacement);
+            File.SetLastWriteTimeUtc(target, stamp);
+            swapped = true;
+        };
+        var job = await f.Run(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Location.FileSystem(f.Destination),
+        });
+        Assert.True(swapped);
+        Assert.Equal(Digest(replacement), Hash(target));
+        Assert.NotEqual(JobState.Completed, job.State);
+    }
+
     private void Emit(string control, object detail, bool syntheticDestinationVolumeRouting = true) => output.WriteLine("TRANSFER_REVALIDATION " + JsonSerializer.Serialize(new
     {
         control, detail, OwnedRealFiles = true, SyntheticDestinationVolumeRouting = syntheticDestinationVolumeRouting,
@@ -302,7 +334,7 @@ public sealed class TransferRevalidationTests(ITestOutputHelper output)
             SpinWait.SpinUntil(() => !_jobs.HasActiveWork, TimeSpan.FromSeconds(3)); FileCat.Tests.TestCleanup.DeleteTree(Root);
         }
     }
-    private sealed class Files(string destinationRoot) : PortableFileOperations
+    private sealed class Files(string destinationRoot) : ReviewedReplacementTestFiles
     {
         public Action? BeforeCopy;
         public Action<string, string>? AfterCopy;

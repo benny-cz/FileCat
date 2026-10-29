@@ -1,0 +1,10 @@
+HighIntegrity=True
+WriterIntegrity=S-1-16-8192
+Swapped=True
+Target=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac15-right\target.bin
+Retired=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\ac15-retired-A.bin
+TargetLength=4096
+JobState=CompletedWithIssues
+TargetFirstByte=66
+RetiredFirstByte=65
+Issues=Not removed: The compared file's identity or complete bytes changed.

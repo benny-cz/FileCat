@@ -129,6 +129,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
         if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
+        if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
         if (container.Scheme != Schemes.Zip)
             return OtherArchives is IArchiveSpoolProvider spools ? spools.OpenSpool(container)
                 : new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
@@ -508,6 +510,8 @@ internal sealed class ZipIndex : IDisposable
 
     private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken)
     {
+        const long maxNameChars = 64L * 1024 * 1024;
+        const long maxDirectoryChars = 32L * 1024 * 1024;
         var entries = new List<ZipArchiveEntry>();
         long nameChars = 0;
         long directoryChars = 0;
@@ -521,8 +525,11 @@ internal sealed class ZipIndex : IDisposable
         {
             // Archive names are untrusted. Walk missing ancestors without using one stack frame per segment.
             var missing = new Stack<string>();
-            for (string current = dir; dirs.Add(current);)
+            for (string current = dir; !dirs.Contains(current);)
             {
+                if (current.Length > maxDirectoryChars - directoryChars)
+                    throw new IOException("The ZIP's generated directory paths exceed FileCat's index budget.");
+                dirs.Add(current);
                 directoryChars += current.Length;
                 directoryCount++;
                 missing.Push(current);
@@ -546,12 +553,16 @@ internal sealed class ZipIndex : IDisposable
                 warning = $"The archive has more than {ZipProvider.MaxEntries:N0} entries; only the first ones are listed.";
                 break;
             }
-            entries.Add(entry);
+            if (entry.FullName.Length > maxNameChars - nameChars)
+                throw new IOException("The ZIP's member names exceed FileCat's index budget.");
             nameChars += entry.FullName.Length;
             var raw = entry.FullName.Replace('\\', '/');
             string? unsafeReason = null;
             if (raw.StartsWith('/') || raw.Length > 1 && raw[1] == ':') unsafeReason = "absolute path";
             var parts = raw.Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (parts.Count > ArchivePaths.MaxMemberSegments)
+                throw new IOException("A ZIP member has too many path components to index safely.");
+            entries.Add(entry);
             if (parts.Any(p => p is "." or "..")) unsafeReason = "\"..\" path traversal";
             parts.RemoveAll(p => p is "." or "..");
             if (parts.Count == 0)

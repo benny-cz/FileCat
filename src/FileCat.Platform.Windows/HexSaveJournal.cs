@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
+using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
@@ -32,7 +33,7 @@ public static class HexSaveJournal
     public const int MaxJournalBytes = 48 * 1024 * 1024;
     private const int RangeHeaderBytes = 12;
 
-    public static IReadOnlyList<string> Pending(string directory) => Directory.Exists(directory)
+    public static IReadOnlyList<string> Pending(string directory) => !WindowsTokenAuthority.IsHighIntegrity && Directory.Exists(directory)
         ? Directory.EnumerateFiles(directory, "hex-*.fcj", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal).ToArray()
         : [];
 
@@ -44,6 +45,7 @@ public static class HexSaveJournal
     public static string Save(ProtectedHexFile file, HexPatchOverlay overlay, string journalDirectory,
         Action<int>? afterDurableStep = null)
     {
+        RefuseElevatedJournal();
         var ranges = overlay.FreezeForSave();
         bool committed = false;
         try
@@ -112,6 +114,7 @@ public static class HexSaveJournal
 
     public static HexRecoveryRecord Read(string journalPath)
     {
+        RefuseElevatedJournal();
         // Open once: a journal may be replaced or grown after a pathname size query.
         // Never let ReadAllBytes allocate from a different, unbounded file.
         using var stream = new FileStream(journalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -211,6 +214,7 @@ public static class HexSaveJournal
     public static void Recover(HexRecoveryRecord record, bool rollback, ProtectedHexFile? openFile = null,
         Action<int>? afterDurableStep = null)
     {
+        RefuseElevatedJournal();
         var owned = openFile is null ? new ProtectedHexFile(record.TargetPath) : null;
         var file = openFile ?? owned!;
         try
@@ -233,7 +237,17 @@ public static class HexSaveJournal
     }
 
     /// <summary>Removes a journal without touching its target (the user accepts the file as it is).</summary>
-    public static void Discard(HexRecoveryRecord record) => File.Delete(record.JournalPath);
+    public static void Discard(HexRecoveryRecord record)
+    {
+        RefuseElevatedJournal();
+        File.Delete(record.JournalPath);
+    }
+
+    private static void RefuseElevatedJournal()
+    {
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            throw new IOException("FileCat does not save or apply user-profile hex recovery while running as administrator. Reopen it without elevation.");
+    }
 
     private static HexRecoveryInspection Compare(IReadOnlyList<HexPatchRange> ranges, Func<long, byte[], int> read)
     {

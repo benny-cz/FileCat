@@ -18,6 +18,12 @@ internal static unsafe partial class ShellImages
             problem = "Not a full path.";
             return null;
         }
+        using var lease = WindowsIcons.IsLocal(path) ? LocalIconFileLease.TryOpen(path) : null;
+        if (WindowsIcons.IsLocal(path) && lease is null)
+        {
+            problem = "The local picture path contains a link or cannot be held.";
+            return null;
+        }
         int hr = SHCreateItemFromParsingName(path, 0, IID_IShellItemImageFactory, out var factoryPtr);
         if (hr < 0 || factoryPtr == 0)
         {
@@ -64,6 +70,8 @@ internal static unsafe partial class ShellImages
     public static ShellImage? GetOverlayIcon(string path, int size, out string? problem)
     {
         problem = null;
+        using var lease = LocalIconFileLease.TryOpen(path);
+        if (lease is null) return null;
         if (!WindowsIcons.TryShellOverlay(path, size, out int width, out int height, out var bgra)) return null;
         WindowsIcons.Premultiply(bgra);
         return new ShellImage(width, height, bgra);

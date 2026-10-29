@@ -64,7 +64,7 @@ public sealed class RecoveryDestinationAdmissionTests
         var item = route == "relative-folder"
             ? new ItemRef(location.WithPath("docs"), report.Name, report.Kind, report.Size) { RelativeFolder = "nested" }
             : new ItemRef(location, "docs", EntryKind.Directory);
-        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(root.Path, "journal"));
+        var jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, Path.Combine(root.Path, "journal"));
         try
         {
             Job job = await Run(jobs, item, destination);
@@ -82,7 +82,15 @@ public sealed class RecoveryDestinationAdmissionTests
             Assert.Equal(sourceBefore, File.ReadAllBytes(image));
             if (route is "existing-folder" or "linked-folder")
                 Assert.Equal(marker, File.ReadAllBytes(Path.Combine(actual, "keep.bin")));
-            if (same == false)
+            if (route == "linked-folder" && same == false)
+            {
+                // Destination leases now refuse a linked component before recovery writes, even when it is on
+                // another disk. The marker under the link is kept; this is the consequential containment change.
+                Assert.Equal(JobState.Failed, job.State);
+                Assert.Contains(job.Issues, i => i.Message.Contains("link", StringComparison.OrdinalIgnoreCase));
+                Assert.False(File.Exists(Path.Combine(actual, report.Name)));
+            }
+            else if (same == false)
             {
                 Assert.True(job.State is JobState.Completed or JobState.CompletedWithIssues);
                 Assert.DoesNotContain(job.Issues, i => i.Message.Contains("same physical disk", StringComparison.Ordinal) || i.Message.Contains("cannot tell", StringComparison.Ordinal));
@@ -129,7 +137,7 @@ public sealed class RecoveryDestinationAdmissionTests
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
         providers.Register(provider);
-        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(root.Path, "journal"));
+        var jobs = new JobManager(new ReviewedReplacementTestFiles(), providers, Path.Combine(root.Path, "journal"));
         jobs.DecisionRequested += request =>
         {
             Assert.Equal("conflict", moment);

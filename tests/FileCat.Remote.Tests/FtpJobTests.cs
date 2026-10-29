@@ -144,6 +144,60 @@ public sealed class FtpJobTests : IDisposable
     [InlineData(RemoteProtocols.Ftp)]
     [InlineData(RemoteProtocols.FtpExplicitTls)]
     [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public async Task Server_to_local_move_keeps_same_metadata_replacement_and_reports_partial_move(string protocol)
+    {
+        bool encrypted = protocol != RemoteProtocols.Ftp;
+        using var server = TestFtpServer.TryStart(
+            encrypted ? TestFtpServer.SelfSigned("FileCat download move test").Pem : null,
+            implicitTls: protocol == RemoteProtocols.FtpImplicitTls);
+        if (server is null) Assert.Skip("No FTP/FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        var profile = server.Profile(protocol);
+        profile.PlainTextAccepted = !encrypted;
+        using var connections = new SftpConnections(id => id == profile.Id ? profile : null,
+            new ProtocolConnector(new SshNetConnector(), new FluentFtpConnector()),
+            new HostKeyTrust(Path.Combine(_dir, "download-known-hosts")), new SessionSecretStore(),
+            new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce },
+            new CertificateTrust(Path.Combine(_dir, "download-trusted-certificates")));
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new SftpProvider(connections, () => [profile], p => p));
+        SftpJobs.Register();
+        string source = Path.Combine(server.Root, "original.bin");
+        File.WriteAllText(source, "AAAA");
+        DateTime stamp = File.GetLastWriteTimeUtc(source);
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "download-" + protocol)).FullName;
+        var ops = new MarkingOps();
+        ops.AfterMove = (from, to) =>
+        {
+            if (to != Path.Combine(dest, "original.bin")) return;
+            ops.AfterMove = null;
+            File.WriteAllText(source, "BBBB");
+            File.SetLastWriteTimeUtc(source, stamp);
+        };
+        var jobs = new JobManager(ops, providers, Path.Combine(_dir, "download-journal-" + protocol));
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [new ItemRef(SftpProvider.At(profile, "/"), "original.bin", EntryKind.File)],
+            Destination = Location.FileSystem(dest),
+        });
+        var clock = Stopwatch.StartNew();
+        while (!job.State.IsFinished() || jobs.HasActiveWork)
+        {
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal("AAAA", File.ReadAllText(Path.Combine(dest, "original.bin")));
+        Assert.Equal("BBBB", File.ReadAllText(source));
+        Assert.Equal(stamp, File.GetLastWriteTimeUtc(source));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, i => i.Message.Contains("server original was kept", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
     public async Task A_real_FTP_server_change_during_backup_rename_prevents_publication(string protocol)
     {
         bool encrypted = protocol != RemoteProtocols.Ftp;

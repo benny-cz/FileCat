@@ -19,8 +19,8 @@ public class UnixFileOperations : PortableFileOperations
     /// A rename, never a copy: .NET's File.Move copies and deletes when a rename crosses file systems (btrfs subvolumes,
     /// bind mounts, overlays), unguarded, which the job engine then does itself, verified and journaled. Without
     /// replacing, the new name is claimed atomically (renameat2 with RENAME_NOREPLACE on Linux, renamex_np with
-    /// RENAME_EXCL on macOS), so an item that appears there meanwhile is never overwritten; only a file system that
-    /// cannot do that is checked just before the rename.
+    /// RENAME_EXCL on macOS), so an item that appears there meanwhile is never overwritten. File systems without an
+    /// atomic no-replace rename are refused; a path check followed by ordinary rename could overwrite a new item.
     /// </summary>
     public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
@@ -30,13 +30,9 @@ public class UnixFileOperations : PortableFileOperations
         {
             int errno = UnixRename.NoReplace(source, destination);
             if (errno == 0) return;
-            // The destination is the source itself: a new letter case on a file system that ignores it (FAT, exFAT).
-            if (errno == 17 && UnixFiles.Stat(source) is { } from && UnixFiles.Stat(destination) is { } to && from.Device == to.Device && from.Inode == to.Inode)
-                errno = UnixRename.Replace(source, destination);
-            if (errno == 0) return;
-            if (!UnixRename.Unsupported(errno)) throw UnixRename.Failure(errno, source, destination);
-            if (File.Exists(destination) || Directory.Exists(destination) || new FileInfo(destination).LinkTarget is not null)
-                throw UnixRename.Failure(17 /* EEXIST */, source, destination);
+            if (UnixRename.Unsupported(errno))
+                throw new IOException("This file system cannot rename without replacing a concurrent destination; both paths were left untouched.");
+            throw UnixRename.Failure(errno, source, destination);
         }
         int error = UnixRename.Replace(source, destination);
         if (error != 0) throw UnixRename.Failure(error, source, destination);

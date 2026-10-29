@@ -84,7 +84,7 @@ public sealed class MultiSourceAdmissionTests(ITestOutputHelper output)
         finally { foreach (var job in jobs.Jobs) job.Cancel(); Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(5))); }
     }
 
-    private sealed class PublicationFiles(Provider provider, string moment) : PortableFileOperations
+    private sealed class PublicationFiles(Provider provider, string moment) : ReviewedReplacementTestFiles
     {
         public int Attempts, Published;
         public override void Move(string staged, string target, bool replaceExisting, bool writeThrough = false)

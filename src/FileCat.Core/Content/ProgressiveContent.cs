@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Runtime.ExceptionServices;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Content;
 
@@ -87,7 +88,7 @@ public sealed class ProgressiveContent : IContentSource
     private uint _crc;
     private Stream? _source;
     private long _sourceAt;
-    private FileStream? _spool;
+    private Stream? _spool;
     private long _produced;
     private bool _decided, _inPlace, _forwardOnly, _ended, _read, _closedOnce;
     private string? _damage;
@@ -108,7 +109,7 @@ public sealed class ProgressiveContent : IContentSource
         _gate = gate;
         _open = open;
         _limits = limits;
-        _maxKept = maxKept;
+        _maxKept = WindowsTokenAuthority.IsHighIntegrity ? Math.Min(maxKept, 64L * 1024 * 1024) : maxKept;
         _tempDirectory = tempDirectory;
         _closed = closed;
         _verifySource = verifySource;
@@ -285,7 +286,7 @@ public sealed class ProgressiveContent : IContentSource
         {
             _limits.Check(total);
             if (!_forwardOnly && total > _maxKept)
-                throw new InvalidDataException($"The member is larger than FileCat keeps for viewing ({_maxKept / (1024 * 1024 * 1024)} GiB); extract it with F5 to read all of it.");
+                throw new InvalidDataException($"The member is larger than FileCat keeps for viewing ({_maxKept / (1024 * 1024)} MiB); extract it with F5 to read all of it.");
         }
         catch (InvalidDataException ex)
         {
@@ -301,8 +302,12 @@ public sealed class ProgressiveContent : IContentSource
         _produced = total;
     }
 
-    private FileStream CreateSpool()
+    private Stream CreateSpool()
     {
+        // A high-token member must not be published under the ordinary user-local temp path.
+        // Keep bounded viewed content in process memory; larger content can be extracted
+        // explicitly to a user-selected destination.
+        if (WindowsTokenAuthority.IsHighIntegrity) return new MemoryStream();
         Directory.CreateDirectory(_tempDirectory);
         return new FileStream(Path.Combine(_tempDirectory, $"member-{Guid.NewGuid():N}.tmp"), FileMode.CreateNew, FileAccess.ReadWrite,
             FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);

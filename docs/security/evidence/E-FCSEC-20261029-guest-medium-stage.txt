@@ -1,0 +1,8 @@
+WriterIntegrity=S-1-16-8192
+LinkCount=12
+Marker=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\high-only-marker.txt
+ExtractLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\extract-destination\folder
+ZipSourceLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\zip-source-link.txt
+VerificationLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\verification-linked.txt
+TypeIconLink=C:\Users\Admin\AppData\Local\Temp\filecat-security-ac12-ac14\data\type-icon-link.ico
+MediumSecretReadDenied=True

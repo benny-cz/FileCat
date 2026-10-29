@@ -187,9 +187,12 @@ public static partial class ChecksumManifests
     /// Reads and parses a manifest, giving the bytes read as well: a signature over it is checked over exactly what was
     /// parsed, never over the file read again (it may have changed since, or a server may answer differently).
     /// </summary>
-    internal static ChecksumManifest Load(string manifestPath, long maxBytes, out byte[] content) => Load(manifestPath, maxBytes, keep: true, out content);
+    internal static ChecksumManifest Load(string manifestPath, long maxBytes, out byte[] content) => Load(manifestPath, maxBytes, keep: true, out content, default);
 
-    private static ChecksumManifest Load(string manifestPath, long maxBytes, bool keep, out byte[] content)
+    internal static ChecksumManifest LoadCancellable(string manifestPath, long maxBytes, out byte[] content, CancellationToken ct) =>
+        Load(manifestPath, maxBytes, keep: true, out content, ct);
+
+    private static ChecksumManifest Load(string manifestPath, long maxBytes, bool keep, out byte[] content, CancellationToken ct = default)
     {
         if (maxBytes is <= 0 or > MaxManifestBytes) throw new ArgumentOutOfRangeException(nameof(maxBytes));
         // Opened as a regular file (a pipe or a device planted under its name would never end), and read once, bounded: a
@@ -201,12 +204,14 @@ public static partial class ChecksumManifests
         try { text = new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(bytes); }
         catch (DecoderFallbackException) { text = Encoding.Latin1.GetString(bytes); }
         if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
-        return Parse(manifestPath, text);
+        return ParseCancellable(manifestPath, text, ct);
     }
 
     private static string Size(long bytes) => bytes >= 1 << 20 ? $"{bytes >> 20} MiB" : $"{bytes:N0} bytes";
 
-    public static ChecksumManifest Parse(string manifestPath, string text)
+    public static ChecksumManifest Parse(string manifestPath, string text) => ParseCancellable(manifestPath, text, default);
+
+    internal static ChecksumManifest ParseCancellable(string manifestPath, string text, CancellationToken ct)
     {
         string root = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(manifestPath))!;
         var announced = KindFromName(System.IO.Path.GetFileName(manifestPath));
@@ -217,6 +222,7 @@ public static partial class ChecksumManifests
         bool clearSigned = false, header = false, armor = false;
         while (true)
         {
+            ct.ThrowIfCancellationRequested();
             int newline = remaining.IndexOf('\n');
             ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
             lineNumber++;
@@ -265,10 +271,10 @@ public static partial class ChecksumManifests
             }
             kind = announced ?? FromLength(hex.Length);
         }
-        else if (SfvLine().Match(line) is { Success: true } sfv && announced is null or ChecksumKind.Crc32)
+        else if ((announced is null or ChecksumKind.Crc32) && TryParseSfv(line, out var sfvName, out var sfvHex))
         {
-            name = sfv.Groups["name"].Value.TrimEnd();
-            hex = sfv.Groups["hex"].Value;
+            name = sfvName;
+            hex = sfvHex;
             kind = ChecksumKind.Crc32;
         }
         else return Bad("This line is not a checksum line.");
@@ -350,8 +356,21 @@ public static partial class ChecksumManifests
     [GeneratedRegex(@"^(?<hex>[0-9A-Fa-f]{8,128})(?: [ *]| )(?<name>.+)$")]
     private static partial Regex GnuLine();
 
-    [GeneratedRegex(@"^(?<name>.+?)\s+(?<hex>[0-9A-Fa-f]{8})$")]
-    private static partial Regex SfvLine();
+    private static bool TryParseSfv(string line, out string name, out string hex)
+    {
+        name = hex = string.Empty;
+        if (line.Length < 10) return false;
+        int start = line.Length - 8;
+        if (!char.IsWhiteSpace(line[start - 1])) return false;
+        for (int i = start; i < line.Length; i++)
+            if (!Uri.IsHexDigit(line[i])) return false;
+        int end = start - 1;
+        while (end > 0 && char.IsWhiteSpace(line[end - 1])) end--;
+        if (end == 0) return false;
+        name = line[..end];
+        hex = line[start..];
+        return true;
+    }
 }
 
 /// <summary>
@@ -408,7 +427,7 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                 ChecksumManifest manifest;
                 byte[] content;
                 // Read once: its lines are verified, and a signature over it is checked, over these very bytes.
-                try { manifest = ChecksumManifests.Load(manifestPath, ChecksumManifests.MaxManifestBytes, out content); }
+                try { manifest = ChecksumManifests.LoadCancellable(manifestPath, ChecksumManifests.MaxManifestBytes, out content, Job.Token); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                 {
                     string why = $"{manifestName} could not be read: {ErrorText.Describe(ex)}";

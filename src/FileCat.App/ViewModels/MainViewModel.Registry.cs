@@ -7,6 +7,7 @@ using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using FileCat.Platform.Windows;
 using Location = FileCat.Core.Resources.Location;
 
@@ -373,6 +374,12 @@ public sealed partial class MainViewModel
         var answer = await Dialogs.ShowCustomAsync("Delete from the Registry", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Delete permanently", "delete", IsDefault: true, IsDanger: true)]);
         if (answer as string != "delete") return;
+        if (WindowsTokenAuthority.IsHighIntegrity && backup.IsChecked == true && backup.IsVisible)
+        {
+            Notify("A Registry backup cannot be saved in the user profile while FileCat runs as administrator. " +
+                   "Cancel or explicitly turn off the backup before deleting.", true);
+            return;
+        }
         string? backupPath = null;
         if (backup.IsChecked == true && backup.IsVisible)
         {

@@ -13,6 +13,8 @@ public static class RegistryImport
 {
     public const long MaxFileBytes = 256L * 1024 * 1024;
     private const int MaxChanges = 250_000;
+    private const int MaxPreviewDirectives = 100_000;
+    private const int MaxKeyPathChars = 8 * 1024 * 1024;
 
     public static RegistryImportPlan Preview(string file, Location scope, CancellationToken ct = default)
     {
@@ -29,12 +31,15 @@ public static class RegistryImport
 
         var changes = new List<RegistryChange>();
         var pendingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pendingAncestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var touched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var deletedKeys = new List<string>();
+        var touchedAncestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deletedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Location? current = null;
         int addedKeys = 0, addedValues = 0, overwritten = 0, deletedValues = 0, deletedTrees = 0;
         long dataBytes = 0;
         int lineNumber = 1;
+        int directives = 0, keyPathChars = 0;
         while (reader.ReadLine() is { } physical)
         {
             ct.ThrowIfCancellationRequested();
@@ -56,24 +61,26 @@ public static class RegistryImport
             }
             if (line.StartsWith(ViewMarker, StringComparison.Ordinal)) RequireSameView(line[ViewMarker.Length..], scope);
             if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#')) continue;
+            if (++directives > MaxPreviewDirectives)
+                throw new IOException("Import preview exceeds 100,000 directives.");
             if (line[0] == '[')
             {
                 if (line[^1] != ']') throw new FormatException($"Invalid Registry key header at line {lineNumber}.");
                 bool delete = line.StartsWith("[-", StringComparison.Ordinal);
                 string path = line[(delete ? 2 : 1)..^1];
+                keyPathChars = checked(keyPathChars + path.Length);
+                if (keyPathChars > MaxKeyPathChars)
+                    throw new IOException("Import preview exceeds 8 MiB of key paths.");
                 current = ParseLocation(path, scope, lineNumber);
-                if (deletedKeys.Any(p => current.Path.Equals(p, StringComparison.OrdinalIgnoreCase) ||
-                    current.Path.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
+                if (HasAncestor(deletedKeys, current.Path))
                     throw new FormatException($"This file changes a key after deleting its ancestor at line {lineNumber}.");
                 if (delete)
                 {
                     if (current.Path.Equals(scope.Path, StringComparison.OrdinalIgnoreCase))
                         throw new FormatException("The selected import scope itself cannot be deleted.");
-                    if (pendingKeys.Any(p => p.Equals(current.Path, StringComparison.OrdinalIgnoreCase) ||
-                        p.StartsWith(current.Path + "\\", StringComparison.OrdinalIgnoreCase)))
+                    if (pendingAncestors.Contains(current.Path))
                         throw new FormatException("A newly created key is also deleted in this file.");
-                    if (touched.Any(p => p.StartsWith(current.Path + "\\", StringComparison.OrdinalIgnoreCase) ||
-                        p.StartsWith(current.Path + "\0", StringComparison.OrdinalIgnoreCase)))
+                    if (touchedAncestors.Contains(current.Path))
                         throw new FormatException("A key is changed before being deleted in this file.");
                     if (Exists(current))
                     {
@@ -96,6 +103,7 @@ public static class RegistryImport
                         {
                             changes.Add(new RegistryChange(RegistryAction.CreateKey, walk, part));
                             pendingKeys.Add(child.Path);
+                            AddAncestors(pendingAncestors, child.Path);
                             addedKeys++;
                         }
                         walk = child;
@@ -108,6 +116,7 @@ public static class RegistryImport
                 var (name, desired) = ParseValue(line, lineNumber);
                 if (!touched.Add(current.Path + "\0" + name))
                     throw new FormatException($"Duplicate value directive at line {lineNumber}.");
+                AddAncestors(touchedAncestors, current.Path);
                 RegistryValueSnapshot? expected = null;
                 if (!pendingKeys.Contains(current.Path))
                 {
@@ -137,6 +146,28 @@ public static class RegistryImport
             if (changes.Count > MaxChanges) throw new IOException("Import exceeds 250,000 changes.");
         }
         return new RegistryImportPlan(changes, addedKeys, addedValues, overwritten, deletedValues, deletedTrees, dataBytes);
+    }
+
+    private static bool HasAncestor(HashSet<string> paths, string path)
+    {
+        while (true)
+        {
+            if (paths.Contains(path)) return true;
+            int cut = path.LastIndexOf('\\');
+            if (cut < 0) return false;
+            path = path[..cut];
+        }
+    }
+
+    private static void AddAncestors(HashSet<string> paths, string path)
+    {
+        while (true)
+        {
+            paths.Add(path);
+            int cut = path.LastIndexOf('\\');
+            if (cut < 0) return;
+            path = path[..cut];
+        }
     }
 
     /// <summary>The comment FileCat's export writes first (<see cref="RegistryInterchange"/>): the view the keys were read in.</summary>

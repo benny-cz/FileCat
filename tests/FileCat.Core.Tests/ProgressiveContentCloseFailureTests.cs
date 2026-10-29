@@ -85,7 +85,7 @@ public sealed class ProgressiveContentCloseFailureTests(ITestOutputHelper output
             string expected = action switch
             {
                 "growth" => "The member expands beyond its declared size; extraction was stopped.",
-                "kept-limit" => "The member is larger than FileCat keeps for viewing (0 GiB); extract it with F5 to read all of it.",
+                "kept-limit" => "The member is larger than FileCat keeps for viewing (0 MiB); extract it with F5 to read all of it.",
                 "short-end" => $"The member ended after {rig.Bytes.Length:N0} of {rig.Bytes.Length + 1:N0} bytes; the archive is damaged.",
                 _ => "The member is damaged: its checksum does not match its content.",
             };

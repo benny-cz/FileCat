@@ -87,7 +87,7 @@ public sealed class FollowLinkFileCopyTests(ITestOutputHelper output)
     }
 
     private sealed record Copy(string Source, string Destination, bool CopyLinkAsLink, bool DisablePreallocation);
-    private sealed class Files(string sourceRoot, bool fastEligible) : PortableFileOperations
+    private sealed class Files(string sourceRoot, bool fastEligible) : ReviewedReplacementTestFiles
     {
         public ConcurrentQueue<Copy> Copies { get; } = new();
         public ConcurrentQueue<string> Deletes { get; } = new();

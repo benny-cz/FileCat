@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using Microsoft.Win32;
 using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -28,6 +29,45 @@ public sealed class IconResourceTests
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"Took {clock.Elapsed}: the network path was tried.");
         string local = Path.Combine(Environment.SystemDirectory, "imageres.dll");
         Assert.Equal(File.GetLastWriteTimeUtc(local).Ticks, NativeIconSource.ResourceTime(new IconLocation(local, 0), Policy));
+    }
+
+    [Fact]
+    public void Native_high_token_refuses_a_medium_staged_per_user_type_icon_link()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_SECURITY_VM_LINK_FIXTURE");
+        if (root is null) Assert.Skip("Run in the owned medium/high Windows fixture.");
+        Assert.True(OperatingSystem.IsWindows() && WindowsTokenAuthority.IsHighIntegrity);
+        string[] lines = File.ReadAllLines(Path.Combine(root!, "ac43-type-association.txt"));
+        var values = lines.Select(line => line.Split('=', 2)).ToDictionary(parts => parts[0], parts => parts[1]);
+        string extension = values["Extension"];
+        string progId = values["ProgId"];
+        string link = values["Icon"];
+        try
+        {
+            var location = WindowsIcons.TypeLocation("owned" + extension, false);
+            if (location is null)
+            {
+                File.WriteAllText(Path.Combine(root, "ac43-type-result.txt"),
+                    $"Extension={extension}\nProgId={progId}\nLocalLink={link}\nTypeLocation=Unavailable\nHighIntegrity=True\n");
+                Assert.Skip("This Win11 Shell did not return the owned per-user type-icon location; the association route is unproved in this fixture.");
+            }
+            Assert.NotNull(location);
+            Assert.Equal(Path.GetFullPath(link), Path.GetFullPath(location.Value.File), ignoreCase: true);
+            Assert.NotNull(ShellPreviewPolicy.IconResourceRefusal(location.Value, allowNetworkAndRemovable: false));
+            Assert.Null(NativeIconSource.ResourceTime(location.Value,
+                icon => ShellPreviewPolicy.IconResourceRefusal(icon, allowNetworkAndRemovable: false)));
+            Assert.False(WindowsIcons.TryExtract(location.Value, 16, out _, out _, out _));
+            var stock = WindowsIcons.StockLocation(WindowsIcons.StockDocumentNoAssociation);
+            Assert.NotNull(stock);
+            Assert.True(WindowsIcons.TryExtract(stock.Value, 16, out _, out _, out _));
+            File.WriteAllText(Path.Combine(root, "ac43-type-result.txt"),
+                $"Extension={extension}\nProgId={progId}\nTypeLocation={location.Value.File}\nLocalLink={link}\nResourceTimeRefused=True\nExtractionRefused=True\nStockIconExtracted=True\nHighIntegrity=True\n");
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKeyTree("Software\\Classes\\" + extension, throwOnMissingSubKey: false);
+            Registry.CurrentUser.DeleteSubKeyTree("Software\\Classes\\" + progId, throwOnMissingSubKey: false);
+        }
     }
 
     /// <summary>
@@ -88,9 +128,19 @@ public sealed class IconResourceTests
         var log = TestContext.Current.TestOutputHelper;
         var ct = TestContext.Current.CancellationToken;
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-v24-icons", Guid.NewGuid().ToString("N"))).FullName;
+        string? localLinkRoot = null;
         try
         {
             string share = $@"\\{host}\evidence-{Guid.NewGuid():N}\folder.ico";
+            string namedIcon = share;
+            if (Environment.GetEnvironmentVariable("FILECAT_AC43_LINKED_ICON") == "1")
+            {
+                localLinkRoot = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+                    "filecat-ac43-icons-" + Guid.NewGuid().ToString("N"))).FullName;
+                namedIcon = Path.Combine(localLinkRoot, "linked.ico");
+                File.CreateSymbolicLink(namedIcon, share);
+                log?.WriteLine($"local icon link: {namedIcon} -> {share}");
+            }
             string local = Path.Combine(Environment.SystemDirectory, "imageres.dll");
             log?.WriteLine($"the share named by the fixture: {share}");
 
@@ -104,13 +154,13 @@ public sealed class IconResourceTests
             }
             // Three files that name an icon on the share, three that name one here, and three that name none: the last
             // are what the type icon looks like, which is what a refused one falls back to.
-            Url("shared.url", share);
+            Url("shared.url", namedIcon);
             Url("local.url", local);
             Url("plain.url", null);
-            File.WriteAllBytes(Path.Combine(root, "shared.lnk"), Shortcut(share));
+            File.WriteAllBytes(Path.Combine(root, "shared.lnk"), Shortcut(namedIcon));
             File.WriteAllBytes(Path.Combine(root, "local.lnk"), Shortcut(local));
             File.WriteAllBytes(Path.Combine(root, "plain.lnk"), Shortcut(null));
-            Custom("shared-folder", share);
+            Custom("shared-folder", namedIcon);
             Custom("local-folder", local);
             Custom("plain-folder", null);
             // Shortcuts that name no icon but a program as their target, whose own icon they then show: on the share,
@@ -198,6 +248,9 @@ public sealed class IconResourceTests
                 Assert.True(ownArrived, "The control shortcut to a local program never showed that program's own icon.");
                 Assert.NotNull(sharedTarget);
                 Assert.Same(typeIcon, sharedTarget);
+                if (localLinkRoot is not null && Environment.GetEnvironmentVariable("FILECAT_SECURITY_VM_LINK_FIXTURE") is { } fixture)
+                    File.WriteAllText(Path.Combine(fixture, "ac43-linked-icon-result.txt"),
+                        $"LocalLink={namedIcon}\nLinkTarget={share}\nShortcutIcon={namedIcon}\nDesktopIniIcon={namedIcon}\nLocalUrlIconArrived={arrived.GetValueOrDefault("local.url")}\nLocalLinkIconArrived={arrived.GetValueOrDefault("local.lnk")}\nLocalFolderIconArrived={arrived.GetValueOrDefault("local-folder")}\nLinkedUrlIconArrived={arrived.GetValueOrDefault("shared.url")}\nLinkedShortcutIconArrived={arrived.GetValueOrDefault("shared.lnk")}\nLinkedFolderIconArrived={arrived.GetValueOrDefault("shared-folder")}\nLocalProgramIconArrived={ownArrived}\nShareTargetUsesTypeIcon={ReferenceEquals(sharedTarget, typeIcon)}\n");
             }
             finally
             {
@@ -208,6 +261,11 @@ public sealed class IconResourceTests
         {
             foreach (var folder in Directory.EnumerateDirectories(root)) new DirectoryInfo(folder).Attributes = FileAttributes.Directory;
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+            if (localLinkRoot is not null)
+            {
+                try { File.Delete(Path.Combine(localLinkRoot, "linked.ico")); } catch (IOException) { }
+                try { Directory.Delete(localLinkRoot); } catch (IOException) { }
+            }
         }
     }
 }

@@ -79,6 +79,7 @@ public static class SyncPlanner
             var (sourceNewer, targetNewer) = sourceIsLeft ? (TreeDiffKind.LeftNewer, TreeDiffKind.RightNewer) : (TreeDiffKind.RightNewer, TreeDiffKind.LeftNewer);
             // A folder only in the target goes only with all it held when compared, so that must be known (a disk's or share's).
             bool unread = e.Contents is null && (e.Left ?? e.Right) is { Kind: EntryKind.Directory } folder && !folder.Has(EntryFlags.Link);
+            bool unreviewed = e.RemovalReview is null;
             string holds = e.Contents is { } contents ? $" ({contents.Describe()})" : "";
             SyncItem item = e.Kind switch
             {
@@ -86,6 +87,8 @@ public static class SyncPlanner
                 var k when k == sourceNewer => new(e, SyncAction.ReplaceOlder, true, "Newer in the source"),
                 var k when k == targetOnly && mode == SyncMode.Mirror && unread =>
                     new(e, SyncAction.None, false, "Only in the target, but the comparison did not read all it holds: Mirror leaves it"),
+                var k when k == targetOnly && mode == SyncMode.Mirror && unreviewed =>
+                    new(e, SyncAction.None, false, "Only in the target, but its complete content and identity could not be reviewed: Mirror leaves it"),
                 var k when k == targetOnly => mode == SyncMode.Mirror
                     ? new(e, SyncAction.Remove, true, "Only in the target: Mirror removes it" + (e.IsFolder ? " with all it holds" + holds : ""))
                     : new(e, SyncAction.None, false, "Only in the target: Update keeps it"),
@@ -131,6 +134,7 @@ public static class SyncPlanner
         var expected = new Dictionary<ItemRef, (long Size, long ModifiedTicks)>();
         // What each folder to remove held when compared: one changed since stays.
         var held = new Dictionary<ItemRef, FileSystem.FolderContents>();
+        var removalReviews = new Dictionary<ItemRef, ReviewedSourceTree>();
         foreach (var item in items.Where(i => i.Include && i.CanInclude))
         {
             var e = item.Entry;
@@ -143,6 +147,7 @@ public static class SyncPlanner
                 var gone = providers.For(folder).GetItemRef(folder, d);
                 remove.Add(gone);
                 if (e.Contents is { } contents) held[gone] = contents;
+                if (e.RemovalReview is { } review) removalReviews[gone] = review;
                 continue;
             }
             var (sourceFolder, sourceData) = sourceIsLeft ? (e.LeftFolder, e.Left) : (e.RightFolder, e.Right);
@@ -186,6 +191,7 @@ public static class SyncPlanner
                 Description = "Synchronize: remove items only in the target",
                 OnlyAsCompared = true,
                 ExpectedContents = held,
+                ExpectedSourceTrees = removalReviews,
             });
         }
         return requests;

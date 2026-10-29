@@ -507,6 +507,11 @@ public sealed partial class MainViewModel
     /// </summary>
     private void OpenSshTerminal(Location location)
     {
+        if (Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        {
+            Notify("Open the SSH terminal from an ordinary FileCat session; elevated sessions do not run user-profile SSH configuration.", true);
+            return;
+        }
         if (location.Session is not { } id || Services.FindRemoteProfile(id) is not { } profile) return;
         if (profile.IsFtp)
         {
