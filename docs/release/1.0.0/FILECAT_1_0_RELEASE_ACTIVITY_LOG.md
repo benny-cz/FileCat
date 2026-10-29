@@ -4775,3 +4775,36 @@ The issue register remains **561/540/2/19**; the acceptance ledger remains **57 
 ## 2026-10-29 — AC-59 source acceptance; integration CI reopened
 
 Main advanced from the immutable preview source `be40902e` to product fix `ee777e94`. [AC-59's execution record](../../security/evidence/E-FCSEC-20261029-AC59-execution.md) contains the exact bounded RAR filter controls and selected archive regression results. The dashboard accepts FCSEC-056-RAR-FILTER-WORK at its direct-reader/public-provider source boundary while retaining installed and final-candidate qualification. GATE-CI-FINAL reopened because the product changed; [run 40936988471](https://github.com/benny-cz/FileCat/actions/runs/40936988471) is in progress. The approved preview tag stays at `be40902e`, so any public preview decision must disclose that it predates AC-59. Evidence index: **900**. Acceptance ledger: **57 cases: 35 Accepted, 11 Open, nine Blocked, two Optional**. Stable publication remains NO-GO.
+
+## 2026-10-29 — preview draft fails on an empty release list; current-source gallery refreshed
+
+The owner approved the protected `release` environment for the immutable
+`v1.0.0-preview.1` tag at `be40902e`. [Run 40936654935](https://github.com/benny-cz/FileCat/actions/runs/40936654935)
+passed all eight upstream producer/build/package jobs, then failed its first
+draft precheck before any upload: GitHub returned an empty release array and
+PowerShell inspected that array as a row with no `tag_name`. GitHub still
+listed zero releases afterward. [I562](evidence/E-I562-preview-draft-empty-release-inventory.md)
+retains the exact failure, a corrected guard at `d3fa34fd`, 36/36 synthetic
+draft controls, 13/13 package-set controls and a successful read-only live
+preflight of all 24 official package assets. The three official artifact ZIPs
+match their GitHub server SHA-256 digests and all 24 extracted members;
+the 39-file private manifest rehashes. The old tag's workflow still contains
+the failure, so a new tag needs an owner decision after corrected-source CI.
+
+[E-PQ01 refresh](evidence/E-PQ01-refresh-cross-platform-gallery.md) records
+ten current-source MainWindow PNGs: all eight Windows themes plus one Classic
+Dark view each on macOS and Ubuntu, every view showing four panels and twelve
+tabs. All images decode and their guest/source hashes verify; the earlier
+native Windows JPEGs remain intact. This accepts the presentation refresh,
+not installed UI or candidate qualification. [Main run 40936988471](https://github.com/benny-cz/FileCat/actions/runs/40936988471)
+passed every required job at product source `ee777e94`; GATE-CI-FINAL stays
+Open only until its exact skip reconciliation is recorded.
+
+**Convergence:** PQ01 presentation accepted; no prior acceptance reopened.
+I562 newly required and Open; REL-PIPELINE changes Open to Failed until a
+fresh private-draft positive control; nine existing external/candidate
+dependencies remain Blocked. Issue register **562 IDs: 540 preliminary
+remediations, two preliminary closures, 20 unresolved**. Evidence index
+**902**. Acceptance ledger **57 cases: 35 Accepted, 10 Open, one Failed,
+nine Blocked, two Optional**. No release was created or published; stable
+publication remains NO-GO.
