@@ -31,8 +31,7 @@ public sealed class AnalysisLeaveTests
             for (int i = 0; i < 500 && !(listing.State == ListingState.Complete && listing.VisibleCount >= 20000); i++) await Task.Delay(20, ct);
             tab.SortByMetadata("hidden", analyzing: true);
             var analysis = tab.AnalyzeAsync("hidden");
-            for (int i = 0; i < 100 && tab.AnalysisStatus is null; i++) await Task.Delay(5, ct);
-            await Task.Delay(100, ct);
+            // Esc at once: a hosted runner analyzed all 20,000 files before a wait for the analysis to get going had ended.
             Assert.False(analysis.IsCompleted);
             Assert.True(tab.CancelAnalysis());
             var ended = await Task.WhenAny(analysis, Task.Delay(TimeSpan.FromSeconds(20), ct));
@@ -82,9 +81,8 @@ public sealed class AnalysisLeaveTests
             for (int i = 0; i < 500 && !(listing.State == ListingState.Complete && listing.VisibleCount >= 20000); i++) await Task.Delay(20, ct);
             tab.SortByMetadata("hidden", analyzing: true);
             var analysis = tab.AnalyzeAsync("hidden");
-            for (int i = 0; i < 100 && tab.AnalysisStatus is null; i++) await Task.Delay(5, ct);
-            await Task.Delay(100, ct);
-            Assert.False(analysis.IsCompleted, "the analysis ended before the folder was left; the test needs more files");
+            // Left at once: a hosted runner can analyze all 20,000 files before a wait for the analysis to get going ends.
+            Assert.False(analysis.IsCompleted, "the analysis ended before the folder was left");
 
             if (close) panel.CloseTab(tab);
             else tab.Navigate(Location.FileSystem(next));
