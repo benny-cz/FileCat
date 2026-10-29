@@ -502,7 +502,7 @@ public sealed class RarReaderTests
             byte[] packed = [.. bits.ToArray(), .. RandomBytes(new Random(seed), 4000)];
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("garbage.bin", new byte[100_000], packed));
-            Assert.IsType<InvalidDataException>((await DecodeOursWithinTenSeconds(path)).Error);
+            Assert.IsType<InvalidDataException>((await DecodeOursWithinHangLimit(path)).Error);
         }
     }
 
@@ -514,7 +514,7 @@ public sealed class RarReaderTests
             byte[] packed = [0x80 | 0x20 | 5, 0, .. RandomBytes(new Random(seed), 3000)];
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("garbage.bin", new byte[100_000], packed));
-            Assert.IsType<InvalidDataException>((await DecodeOursWithinTenSeconds(path)).Error);
+            Assert.IsType<InvalidDataException>((await DecodeOursWithinHangLimit(path)).Error);
         }
     }
 
@@ -526,7 +526,7 @@ public sealed class RarReaderTests
         {
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("test.exe", content, packed[..keep]));
-            Assert.IsType<InvalidDataException>((await DecodeOursWithinTenSeconds(path)).Error);
+            Assert.IsType<InvalidDataException>((await DecodeOursWithinHangLimit(path)).Error);
         }
         // Cut at the very end, a member may lose only its end-of-file marker: like rardecode and UnRAR, FileCat then
         // stops where the data does, and the size and checksum decide.
@@ -534,7 +534,7 @@ public sealed class RarReaderTests
         {
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("test.exe", content, packed[..^cut]));
-            var result = await DecodeOursWithinTenSeconds(path);
+            var result = await DecodeOursWithinHangLimit(path);
             if (result.Error is null) Assert.Equal(Hash(content), result.Contents.Single().Hash);
             else Assert.IsType<InvalidDataException>(result.Error);
         }
@@ -553,7 +553,7 @@ public sealed class RarReaderTests
         {
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("text.txt", content, packed[..keep]));
-            Assert.IsType<InvalidDataException>((await DecodeOursWithinTenSeconds(path)).Error);
+            Assert.IsType<InvalidDataException>((await DecodeOursWithinHangLimit(path)).Error);
         }
     }
 
@@ -564,7 +564,7 @@ public sealed class RarReaderTests
         byte[] packed = [0x80 | 0x20 | 5, 255, 0, 0, 0, 0];
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("big.bin", new byte[1000], packed));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("ends early", error!.Message, StringComparison.Ordinal);
     }
@@ -575,7 +575,7 @@ public sealed class RarReaderTests
         byte[] packed = [0x80 | 5, 1, 2, 3, 4, 5, 6, 7, 8];
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[1000], packed));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("never set up", error!.Message, StringComparison.Ordinal);
     }
@@ -600,7 +600,7 @@ public sealed class RarReaderTests
         stream.EndFile();
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[1100], stream.ToArray()));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("not one of RAR's standard filters", error!.Message, StringComparison.Ordinal);
     }
@@ -630,7 +630,7 @@ public sealed class RarReaderTests
         bits.Write(0, 8);
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[200], bits.ToArray()));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("filter number", error!.Message, StringComparison.Ordinal);
     }
@@ -651,7 +651,7 @@ public sealed class RarReaderTests
         stream.EndFile();
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[500], stream.ToArray()));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("channel count", error!.Message, StringComparison.Ordinal);
     }
@@ -673,7 +673,7 @@ public sealed class RarReaderTests
         bits.Write(0b01, 2);
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[2], bits.ToArray()));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("match distance", error!.Message, StringComparison.Ordinal);
     }
@@ -698,7 +698,7 @@ public sealed class RarReaderTests
         bits.Write(0, 32);
         using var dir = new TempDir();
         string path = WriteRar29Archive(dir, solid: false, ("x.bin", new byte[10], bits.ToArray()));
-        var error = (await DecodeOursWithinTenSeconds(path)).Error;
+        var error = (await DecodeOursWithinHangLimit(path)).Error;
         Assert.IsType<InvalidDataException>(error);
         Assert.Contains("over-subscribed", error!.Message, StringComparison.Ordinal);
     }
@@ -720,7 +720,7 @@ public sealed class RarReaderTests
             for (int i = random.Next(1, 4); i > 0; i--) damaged[random.Next(2, damaged.Length)] ^= (byte)random.Next(1, 256);
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("text.txt", content, damaged));
-            var result = await DecodeOursWithinTenSeconds(path);
+            var result = await DecodeOursWithinHangLimit(path);
             if (result.Error is null) Assert.Equal(Hash(content), result.Contents.Single().Hash);
             else Assert.IsType<InvalidDataException>(result.Error);
         }
@@ -737,7 +737,7 @@ public sealed class RarReaderTests
             for (int i = random.Next(1, 4); i > 0; i--) damaged[random.Next(damaged.Length)] ^= (byte)random.Next(1, 256);
             using var dir = new TempDir();
             string path = WriteRar29Archive(dir, solid: false, ("test.exe", content, damaged));
-            var result = await DecodeOursWithinTenSeconds(path);
+            var result = await DecodeOursWithinHangLimit(path);
             if (result.Error is null) Assert.Equal(Hash(content), result.Contents.Single().Hash);
             else Assert.IsType<InvalidDataException>(result.Error);
         }
@@ -780,11 +780,7 @@ public sealed class RarReaderTests
         Assert.Equal(expected, ours.Contents.Select(c => c.Hash).ToList());
     }
 
-    private static async Task<ArchiveSnapshot> DecodeOursWithinTenSeconds(string path)
-    {
-        var decode = Task.Run(() => Snapshot(() => OpenOurs(path)));
-        return await decode.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-    }
+    private static Task<ArchiveSnapshot> DecodeOursWithinHangLimit(string path) => OnOwnThread(() => Snapshot(() => OpenOurs(path)));
 
     /// <summary>A fixture member's content (from the reference reader) and packed data.</summary>
     private static (byte[] Content, byte[] Packed) FixtureMember(string fixture, string nameEnd)
@@ -988,7 +984,7 @@ public sealed class RarReaderTests
         {
             var (packed, size, _) = Rar15Member(name);
             foreach (int keep in new[] { 1, 2, 3, 16, 100, packed.Length / 4, packed.Length / 2, packed.Length * 9 / 10 })
-                await AssertRefusedWithinTenSeconds(() => DecodeRar15(packed[..keep], size));
+                await AssertRefusedWithinHangLimit(() => DecodeRar15(packed[..keep], size));
         }
     }
 
@@ -1001,7 +997,7 @@ public sealed class RarReaderTests
             var random = new Random(seed);
             byte[] packed = new byte[new[] { 1, 2, 3, 5, 16, 100, 1000, 4096, 65536 }[seed % 9]];
             random.NextBytes(packed);
-            await AssertRefusedWithinTenSeconds(() => DecodeRar15(packed, 1L << 30));
+            await AssertRefusedWithinHangLimit(() => DecodeRar15(packed, 1L << 30));
         }
     }
 
@@ -1011,7 +1007,7 @@ public sealed class RarReaderTests
     [InlineData(long.MaxValue)]
     public async Task Rar15_empty_packed_data_with_a_size_is_refused(long size)
     {
-        await AssertRefusedWithinTenSeconds(() => DecodeRar15([], size));
+        await AssertRefusedWithinHangLimit(() => DecodeRar15([], size));
     }
 
     [Fact]
@@ -1117,8 +1113,7 @@ public sealed class RarReaderTests
             if (round % 3 == 2) damaged = damaged[..random.Next(7, damaged.Length)];
             else for (int i = random.Next(1, 9); i > 0; i--) damaged[random.Next(7, damaged.Length)] ^= (byte)(1 << random.Next(8));
             int[] order = Enumerable.Range(0, members.Count).Concat(Enumerable.Range(0, members.Count)).OrderBy(_ => random.Next()).ToArray();
-            string outcome = await Task.Run(() => ReadDamaged(damaged, order), TestContext.Current.CancellationToken)
-                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            string outcome = await OnOwnThread(() => ReadDamaged(damaged, order));
             outcomes[outcome] = outcomes.GetValueOrDefault(outcome) + 1;
         }
         TestContext.Current.TestOutputHelper?.WriteLine(string.Join(", ", outcomes.OrderBy(o => o.Key).Select(o => $"{o.Key} {o.Value}")));
@@ -1179,13 +1174,8 @@ public sealed class RarReaderTests
         return output.ToArray();
     }
 
-    private static async Task AssertRefusedWithinTenSeconds(Action decode)
-    {
-        var run = Task.Factory.StartNew(() => Record.Exception(decode), TestContext.Current.CancellationToken,
-            TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        var error = await run.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-        Assert.IsType<InvalidDataException>(error);
-    }
+    private static async Task AssertRefusedWithinHangLimit(Action decode) =>
+        Assert.IsType<InvalidDataException>(await OnOwnThread(() => Record.Exception(decode)));
 
     /// <summary>
     /// Four members of one solid stream: literals in phases of uniform, skewed and text-like bytes between matches near
@@ -1516,7 +1506,7 @@ public sealed class RarReaderTests
     [Fact]
     public async Task Rar2_garbage_is_refused_as_invalid_data()
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             var rng = new Random(77);
             for (int round = 0; round < 3000; round++)
@@ -1531,7 +1521,7 @@ public sealed class RarReaderTests
     [Fact]
     public async Task Rar2_garbage_members_fail_as_invalid_data_through_the_reader()
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             var rng = new Random(11);
             using var temp = new TempDir();
@@ -1555,7 +1545,7 @@ public sealed class RarReaderTests
     [Fact]
     public async Task Rar2_truncated_data_is_refused()
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             var rng = new Random(5);
             var writer = new Rar2Writer();
@@ -1579,7 +1569,7 @@ public sealed class RarReaderTests
     [InlineData(true)]
     public async Task Rar2_tables_of_zero_lengths_are_refused(bool audio)
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             // All-zero data: an LZ block whose code for the lengths has no symbol at all.
             Assert.Throws<InvalidDataException>(() => DecodeRar2(new byte[4096], 100));
@@ -1609,7 +1599,7 @@ public sealed class RarReaderTests
     [InlineData(4)]
     public async Task Rar2_audio_headers_with_damaged_tables_are_refused(int channels)
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             var writer = new Rar2Writer();
             writer.Bits(1, 1);
@@ -1637,7 +1627,7 @@ public sealed class RarReaderTests
     [Fact]
     public async Task Rar2_damaged_data_decodes_correctly_or_is_refused()
     {
-        await WithinTenSeconds(() =>
+        await WithinHangLimit(() =>
         {
             var rng = new Random(99);
             var writer = new Rar2Writer();
@@ -1702,8 +1692,23 @@ public sealed class RarReaderTests
 
     private const long Rar2Dictionary = 1 << 20;
 
-    private static Task WithinTenSeconds(Action test) =>
-        Task.Run(test, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    /// <summary>How long guarded work may run before the test calls it hung; each guarded decode or test body here takes
+    /// under two seconds on a desktop.</summary>
+    private static readonly TimeSpan HangLimit = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Runs the work on a thread of its own and waits at most <see cref="HangLimit"/> for it. Work queued to a busy thread
+    /// pool on a hosted runner could wait out the whole limit before it even started.
+    /// </summary>
+    private static Task<T> OnOwnThread<T>(Func<T> work) =>
+        Task.Factory.StartNew(work, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
+            .WaitAsync(HangLimit, TestContext.Current.CancellationToken);
+
+    private static Task WithinHangLimit(Action test) => OnOwnThread(() =>
+    {
+        test();
+        return true;
+    });
 
     /// <summary>
     /// Decodes the members with FileCat's decoder (their checksums come from that), writes them as a RAR archive and
