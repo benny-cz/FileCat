@@ -54,6 +54,17 @@ Encrypted RAR members and encrypted file lists stay unsupported, as for every ot
 | macOS 27.0.1 arm64 (M1) | framework-dependent osx-arm64 test publish, .NET 10.0.12 | 268/268, 0 skipped, 10.1 s | `native-tests-macos-arm64-e57ebaaf.log` | `fc63a9656a8896d4926764048a9f5db69526b34df3f8859047bee84da33f0e67` |
 | Ubuntu 24.04.5 x64 (VM) | self-contained linux-x64 Release test publish, .NET 10.0.14 | 268/268, 0 skipped, 13.2 s | `native-tests-ubuntu2404-x64-e57ebaaf.log` | `dea928f9ac64b0ad5edea303dca6876fb88aa264fcca5f87b6ab8b6a8b7ecd3f` |
 
+**Hosted CI** ([run 40808191406](https://github.com/benny-cz/FileCat/actions/runs/40808191406), exact pushed `e57ebaaf`). The Core suite, with every RAR test and the default-round fuzz seeds, passed on all four lanes:
+
+| Lane | Core tests | Failed |
+|---|---|---:|
+| Windows x64 | 4,846 (159 skipped) | 0 |
+| Windows ARM64 | 4,846 (159 skipped) | 0 |
+| Ubuntu 24.04 | 4,841 (111 skipped) | 0 |
+| macOS 26 | 4,841 (130 skipped) | 0 |
+
+This adds Windows ARM64, which no local run covered. The run failed elsewhere, on App tests unrelated to RAR: 38 state-saving and edit-session tests on each elevated Windows runner (I555), and one macOS checksum-dialog test that timed out waiting for its worker.
+
 ## Stress
 
 `RarFuzzTests` damages a seed archive in a different way each round and reads the result in memory:
@@ -82,7 +93,9 @@ The logs are in `V:\FileCat\artifacts\rar-reader-20261029` (DEC-10 custody):
 | Windows 11 x64, Release, `6e06b8306de7` (all four decoder families and the libarchive seeds, before the switch-over) | 0–29,999 × 23 = **690,000** | 0 | 493 MiB (four-volume set, round 20,120) | 474 ms (PPMd/LZSS switching, round 4,240) | 7,474 s | `fuzz-campaign-all-decoders-30000x23-6e06b830.log` | `be53d23ee224bb8e503d31c1ffa3348079bb2675c6ff8f7da8d6078830a44a87` |
 | macOS 27.0.1 arm64, `e57ebaaf` | 0–9,999 × 23 = **230,000** | 0 | 369 MiB (four-volume set, round 5,280) | 230 ms (four-volume set, round 7,995) | 3,236 s | `fuzz-campaign-all-decoders-10000x23-macos-arm64-e57ebaaf.log` | `0321ded8014b79bfd521512fe117a412c3970a95d6d184cc2d0ba04004977f53` |
 | Ubuntu 24.04.5 x64, `e57ebaaf` | 0–9,999 × 23 = **230,000** | 0 | 369 MiB (four-volume set, round 5,280) | 354 ms (four-volume set, round 4,420) | 2,749 s | `fuzz-campaign-all-decoders-10000x23-ubuntu2404-x64-e57ebaaf.log` | `ea6ca3c7c841c8d86aea902fd5927eb80f8d0aa75cefdc1f5ec130ad4c4658a8` |
+| Windows 11 x64, Release, `e57ebaaf` | 30,000–39,999 × 23 = **230,000** | 0 | 493 MiB (four-volume set, round 31,990) | 380 ms (four-volume set, round 38,463) | 2,522 s | `fuzz-campaign-all-decoders-10000x23-from30000-e57ebaaf.log` | `e002a47c2278dbdbf0b006a3117132dd6d8b7dcdf10f073a5695c5ab595acee6` |
 
+- **The pushed commit on all three platforms.** A further Windows run at `e57ebaaf` used new rounds (30,000–39,999). Every platform has therefore fuzzed the exact pushed source, 690,000 rounds at `e57ebaaf` plus 690,000 at `6e06b830`: **1,380,000 rounds in all, without a failure**.
 - **Same verdicts on both CPUs.** macOS arm64 and Ubuntu x64 produced identical outcome counts for every seed: archive refused, intact, members refused, some members refused. Both ran the same rounds 0–9,999 at `e57ebaaf`.
 - **No round came near the limits.** The largest allocation (493 MiB) is a third of the 1.5 GiB budget; it is window growth on a four-volume set whose sizes the damage inflated. The slowest round took 474 ms against a 120 s limit.
 - **Earlier campaign.** A tree on top of `e1b02a1d` ran 40,000 rounds × 15 seeds (600,000 rounds), all clean. That was before the RAR 1.5 and 2.9/3.x decoders and the libarchive seeds were merged, and the campaigns above supersede it. Its log is `fuzz-campaign-40000x15-e1b02a1d-tree.log`, SHA-256 `9e993933134e4eb52a25d957463be8c24d644dd695b9dbc2a55ad5e92f8aadc0`.

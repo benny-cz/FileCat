@@ -4508,3 +4508,26 @@ Still owed by the release session, after the SharpCompress slice lands, because 
 - R-M15 SBOM fidelity;
 - the LTRData copyright line in a human-readable notice;
 - byte-checked attribution of `reference` libraries.
+
+## 2026-10-29 — Windows RAR fuzz at the pushed commit
+
+The Windows campaign that was still running is clean: 230,000 new rounds (30,000–39,999 × 23 seeds) at `e57ebaaf`, Release, in 2,522 s, with no failure. The largest round allocated 493 MiB and the slowest took 380 ms ([record](evidence/E-I14-rar-reader.md#stress); log SHA-256 `e002a47c…acee6`). Every platform has now fuzzed the exact pushed source, and the total is 1,380,000 rounds without a failure. REL-RAR-LICENSE stays Open until SharpCompress ships without its UnRAR-derived code.
+
+## 2026-10-29 — D-56 record fields implemented on all three systems (DEC-05)
+
+Three branches implemented the nine work items of the [D-56 field audit](evidence/E-I05-D56-field-audit.md), one per system ([record](evidence/E-I05-D56-implementation.md)):
+- **Windows:** `$ObjId`/`$Reparse` index entries checked against Windows, with left-behind entries; runs of every non-resident attribute; EFS users and recovery agents; Cloud Files placeholders read without hydrating them; and the full non-administrator notice.
+- **Linux:** the ext4 inode as the inode table holds it, its crc32c checksum computed as the kernel does, and `i_version`.
+- **macOS:** FAT/exFAT directory entries from the raw device, and the HFS+ journal summary.
+
+The release session reviewed each diff and merged it (`3e646df5`, `e376263b`, `dc5c2f72`), then reran the merged tree itself on all four machines:
+- **This host:** zero-warning Release build; record tests pass.
+- **Win11 VM, elevated, with EFS and Cloud Files on:** 18 of 19 pass, 1 skipped (no FAT drive attached).
+- **Ubuntu VM:** passes as user and as root on a loop ext4 volume.
+- **Mac:** passes as user and as root on fresh FAT32/exFAT/HFS+ images.
+
+The agents' oracle comparisons agree too: ext4 equals debugfs on 394 inodes, and HFS+ equals diskutil and fsck_hfs.
+
+**Claims reconciled.** CAPABILITIES, IMPLEMENTATION_STATUS, plan §16.1 and its D-56 row, and the command's description now say what is read. The P10-helper sentence is corrected, and the plan's audio/video row no longer promises playback (DEC-05). CI gains an ext4 root step.
+
+**Ledger.** I05 moves to Remediated preliminarily; issues are now **556/534/2/20**, and the evidence index **893**. REL-CONTRACT now waits on the macOS minimum-version question and the new tests' first hosted run. Stable publication remains NO-GO.

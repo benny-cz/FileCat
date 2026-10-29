@@ -13,9 +13,11 @@ namespace FileCat.Platform.Windows;
 /// <summary>
 /// What NTFS, ReFS, FAT, and exFAT record about a file or folder (D-56), read through a handle that asks only to read
 /// attributes, so nothing changes: all four times to 100 ns, IDs and parent, hard links, the 8.3 name, the latest
-/// change-journal entry, object ID, reparse data, clusters on the volume, compression, sparse ranges, security, and for
-/// files on SMB shares the connection. As administrator on NTFS also the MFT record ($FILE_NAME times that programs
-/// cannot set, every attribute, the record's slack) and the item's history in the change journal.
+/// change-journal entry, object ID, reparse data (a cloud placeholder's state, from the Cloud Files API), clusters on the
+/// volume, compression, sparse ranges, security, who can decrypt an EFS-encrypted item, and for files on SMB shares the
+/// connection. As administrator on NTFS also the MFT record ($FILE_NAME times that programs cannot set, every attribute
+/// and its runs, the record's slack), the item's entries in $Extend's $ObjId and $Reparse indexes, and its history in
+/// the change journal.
 /// </summary>
 public sealed unsafe partial class WindowsFileRecords : IFileRecords
 {
@@ -36,7 +38,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     internal static long JournalReadLimit { get; set; } = 2L << 30;
 
     public InspectionReport Read(string path, CancellationToken ct) =>
-        new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct).Run();
+        new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct) { ViewIndexLimit = ViewIndexReadLimit }.Run();
 
     private sealed partial class Reader(string path, bool privileged, CancellationToken ct)
     {
@@ -87,9 +89,11 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 _sections.Add(new InspectionSection("Needs administrator rights", [])
                 {
                     Lines = Wrap(_ntfs
-                        ? "Run FileCat as administrator to add the MFT record — the $FILE_NAME times that the strongest timestamp checks compare, every attribute, and the record's slack — and this item's history in the change journal."
+                        ? "Run FileCat as administrator to add: the MFT record (the $FILE_NAME times that the strongest timestamp checks compare, every attribute and its runs, and the record's slack); "
+                          + (_isFolder ? "the names left behind in its index ($I30 slack); " : "")
+                          + "what $LogFile still records about it; its descriptor in $Secure ($SII and $SDS), checked against its hash and mirror copy; its entries in the $ObjId and $Reparse indexes; and the change journal's size and this item's history in it."
                         : fat ? "Run FileCat as administrator to add its raw directory entry: the 8.3 name and case bits, every time as FAT keeps it, and its first cluster and chain."
-                        : "Run FileCat as administrator to add this item's history in the change journal."),
+                        : "Run FileCat as administrator to add the change journal's size and this item's history in it."),
                 });
             _sections.Add(TimesSection());
             if (_record is { Names.Count: > 0 } record) _sections.Add(NamesSection(record));
@@ -98,10 +102,14 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (LogSection() is { } log) _sections.Add(log);
             if (ObjectIdSection() is { } objectId) _sections.Add(objectId);
             if (ReparseSection() is { } reparse) _sections.Add(reparse);
+            if (CloudSection() is { } cloud) _sections.Add(cloud);
+            if (ObjectIdIndexSection() is { } objectIds) _sections.Add(objectIds);
+            if (ReparseIndexSection() is { } reparsePoints) _sections.Add(reparsePoints);
             _sections.Add(LayoutSection());
             if (fat && !_remote && privileged) _sections.Add(FatSection(root));
             if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
             if (SecuritySection() is { } security) _sections.Add(security);
+            if (EfsSection() is { } efs) _sections.Add(efs);
             if (SecureSection() is { } secure) _sections.Add(secure);
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
@@ -150,6 +158,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             }
             using (volume)
             {
+                if (_ntfs) _volumeClusters = VolumeClusters(volume);
                 if (_ntfs && _id is { } id)
                 {
                     try
@@ -168,6 +177,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                             try { _index = ReadIndex(volume, _record); }
                             catch (IOException ex) { _warnings.Add("Its index could not be read: " + ex.Message); }
                         }
+                        ReadViewIndexes(volume);
                     }
                 }
                 try { ReadJournal(volume); }
@@ -213,10 +223,12 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         private byte[] ReadRuns(SafeFileHandle volume, IEnumerable<NtfsRun> runs, long size, int max)
         {
             var data = new byte[(int)Math.Min(Math.Max(0, size), max)];
+            if (_clusterSize <= 0) return data;
             foreach (var run in runs)
             {
+                // Runs come from disk: one before the value's start, past its end, or off the volume is not read.
+                if (run.IsSparse || run.Vcn < 0 || run.Vcn >= (data.Length + (long)_clusterSize - 1) / _clusterSize || !OnVolume(run)) continue;
                 long start = run.Vcn * _clusterSize;
-                if (run.IsSparse || start >= data.Length) continue;
                 int count = (int)Math.Min(run.Length * _clusterSize, data.Length - start);
                 // Volume reads must be whole sectors: read whole clusters, then keep what belongs to the value.
                 var clusters = new byte[(count + _clusterSize - 1) / _clusterSize * _clusterSize];
@@ -761,7 +773,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (record.EaInformation is { } ea) fields.Add(("EAs", $"{ea.PackedSize:N0} bytes packed, {ea.UnpackedSize:N0} unpacked, {ea.NeedEa} needed to open it"));
             var rows = record.Attributes.Select(a => new[]
             {
-                a.Id.ToString(CultureInfo.CurrentCulture), a.TypeName, a.Name, a.Resident ? "resident" : $"runs from VCN {a.StartVcn:N0}",
+                a.Id.ToString(CultureInfo.CurrentCulture), a.TypeName, a.Name, a.Resident ? "resident" : $"{a.Runs.Count:N0} run{(a.Runs.Count == 1 ? "" : "s")} from VCN {a.StartVcn:N0}",
                 a.Size.ToString("N0", CultureInfo.CurrentCulture), a.Allocated.ToString("N0", CultureInfo.CurrentCulture), AttributeFlags(a),
                 a.InRecord == record.Number ? "" : a.InRecord.ToString("N0", CultureInfo.CurrentCulture),
             }).ToList();
@@ -775,6 +787,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                         $"{e.Record:N0}/{e.RecordSequence}", e.Id.ToString(CultureInfo.CurrentCulture),
                     }).ToList()),
                 });
+            if (RunsSection(record) is { } runs) children.Add(runs);
             if (record.Attributes.FirstOrDefault(a => a.Type == NtfsAttributeTypes.Data && a.Name.Length == 0 && a.Resident) is { Value.Length: > 0 } resident)
                 children.Add(new InspectionSection($"Resident content ({resident.Size:N0} bytes)", []) { Lines = RecordText.HexLines(resident.Value, 256) });
             int nonzero = record.Slack.Count(b => b != 0);

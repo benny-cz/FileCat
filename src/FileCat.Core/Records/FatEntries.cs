@@ -111,19 +111,23 @@ public static class FatEntries
             public uint FirstCluster => (uint)(BinaryPrimitives.ReadUInt16LittleEndian(Short.AsSpan(20)) << 16 | BinaryPrimitives.ReadUInt16LittleEndian(Short.AsSpan(26)));
         }
 
-        /// <summary>The entry named <paramref name="name"/> (its long name, or its 8.3 name with the case bits applied).</summary>
+        /// <summary>
+        /// The entry named <paramref name="name"/> (its long name, or its 8.3 name with the case bits applied); failing an
+        /// exact match, the first whose name is the same in another Unicode normalization form.
+        /// </summary>
         private static Entry? Find(Volume volume, List<(long Offset, int Length)> directory, string name)
         {
             var pending = new List<byte[]>();
+            Entry? equivalent = null;
             int scanned = 0;
             foreach (var (offset, length) in directory)
             {
                 var data = volume.Read(offset, length);
                 for (int at = 0; at + 32 <= data.Length; at += 32)
                 {
-                    if (++scanned > 65536) return null;
+                    if (++scanned > 65536) return equivalent;
                     byte first = data[at];
-                    if (first == 0x00) return null; // no entries after this one
+                    if (first == 0x00) return equivalent; // no entries after this one
                     var raw = data.AsSpan(at, 32).ToArray();
                     if (first == 0xE5)
                     {
@@ -144,10 +148,11 @@ public static class FatEntries
                     var (longName, ok) = LongName(pending, raw);
                     if (string.Equals(longName ?? shortName, name, StringComparison.OrdinalIgnoreCase) || string.Equals(shortName, name, StringComparison.OrdinalIgnoreCase))
                         return new Entry(raw, [.. pending], longName, ok, offset + at);
+                    if (equivalent is null && SameName(longName ?? shortName, name)) equivalent = new Entry(raw, [.. pending], longName, ok, offset + at);
                     pending.Clear();
                 }
             }
-            return null;
+            return equivalent;
         }
 
         /// <summary>The 8.3 name as Windows shows it: the case bits of the reserved byte make the base or extension lower case.</summary>
@@ -279,10 +284,11 @@ public static class FatEntries
                 offsets.Add(offset);
             }
             var data = bytes.ToArray();
+            EntrySet? equivalent = null;
             for (int at = 0; at + 32 <= data.Length; at += 32)
             {
                 byte type = data[at];
-                if (type == 0x00) return null;
+                if (type == 0x00) return equivalent;
                 if (type != 0x85) continue;
                 int secondaries = data[at + 1];
                 if (secondaries < 2 || at + 32 * (1 + secondaries) > data.Length) continue;
@@ -293,15 +299,17 @@ public static class FatEntries
                 foreach (var e in entries.Skip(2).Where(e => e[0] == 0xC1))
                     for (int c = 0; c < 15 && sb.Length < length; c++) sb.Append((char)BinaryPrimitives.ReadUInt16LittleEndian(e.AsSpan(2 + c * 2)));
                 string entryName = sb.ToString();
-                if (string.Equals(entryName, name, StringComparison.OrdinalIgnoreCase))
+                bool exact = string.Equals(entryName, name, StringComparison.OrdinalIgnoreCase);
+                if (exact || (equivalent is null && SameName(entryName, name)))
                 {
                     int cluster = at / (int)volume.ClusterBytes;
                     long offset = cluster < offsets.Count ? offsets[cluster] + at % volume.ClusterBytes : -1;
-                    return new EntrySet(entries, entryName, offset);
+                    if (exact) return new EntrySet(entries, entryName, offset);
+                    equivalent = new EntrySet(entries, entryName, offset);
                 }
                 at += 32 * secondaries;
             }
-            return null;
+            return equivalent;
         }
 
         private static InspectionSection Section(Volume volume, EntrySet set)
@@ -368,6 +376,17 @@ public static class FatEntries
     }
 
     // ---- Shared -----------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Whether two names are the same in Unicode's composed form, case ignored: macOS gives paths with accents
+    /// decomposed ("e" and a combining accent), while FAT and exFAT volumes keep them composed as Windows writes them.
+    /// </summary>
+    internal static bool SameName(string a, string b)
+    {
+        try { return string.Equals(a.Normalize(NormalizationForm.FormC), b.Normalize(NormalizationForm.FormC), StringComparison.OrdinalIgnoreCase); }
+        // A lone surrogate (FAT keeps any UTF-16) has no normal form; a runtime without Unicode data has none either.
+        catch (Exception ex) when (ex is ArgumentException or PlatformNotSupportedException) { return false; }
+    }
 
     /// <summary>A volume's FAT and data area: clusters numbered from 2.</summary>
     private sealed class Volume(Func<long, int, byte[]> read, long fatOffset, long fatLength, long dataOffset, long clusterBytes, int bits, long clusters)

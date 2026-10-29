@@ -97,6 +97,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             _sections.Add(ChecksSection(times));
             _sections.Add(LayoutSection(size, blocks * 512, (int)*(uint*)(b + 4), inodeFlags?.Extents));
             if (mount is { } fat && FatKind(fat.Type) is { } typed && FatSection(fat, sniff: !typed) is { } entry) _sections.Add(entry);
+            if (mount is { Type: "ext4" or "ext3" or "ext2" } ext) _sections.Add(Ext4Section(ext.Type, ext.Source, path, inode, devMajor, devMinor, _warnings));
             if (mount is { } volume) _sections.Add(VolumeSection(volume));
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
@@ -327,6 +328,9 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             if (attrs.ResourceLength is > 0) layoutFields.Add(("Resource fork", RecordText.Bytes(attrs.ResourceLength.Value)));
             if (attrs.PrivateSize is { } own && attrs.CloneId is not (null or 0)) layoutFields.Add(("Its own blocks", RecordText.Bytes(own) + " (not shared with its clones)"));
             _sections.Add(layout with { Fields = layoutFields });
+            var volume = MacMountOf((_mode & TypeMask) == 0xA000 ? Path.GetDirectoryName(path) ?? path : path);
+            if (volume is { Type: "msdos" or "exfat" } && MacFatSection(volume, path) is { } entry) _sections.Add(entry);
+            if (volume is not null) _sections.Add(MacVolumeSection(volume));
             return $"File-system record · {mount?.DriveFormat ?? "macOS"}";
         }
 
