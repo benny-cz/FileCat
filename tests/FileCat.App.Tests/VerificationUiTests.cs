@@ -49,7 +49,11 @@ public sealed class VerificationUiTests
             }
             Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Automatic SFV row took {watch.Elapsed}.");
             Assert.True(tab.HasSidecars);
-            Assert.Equal(VerificationState.Matches, result?.State);
+            // The row's first result is the fresh match. A refresh since (on hosted macOS, a late folder event) shows it as
+            // kept, neutral until read again (FCSEC-006). Either way, the claim past the malformed lines was found.
+            Assert.True(result?.State is VerificationState.Matches or VerificationState.NotChecked, $"{result?.State}: {result?.Text}");
+            Assert.Equal(VerificationState.Matches,
+                VerificationService.Current!.OnRequest(Path.Combine(folder, "a.txt"), TestContext.Current.CancellationToken)?.State);
         }
         finally
         {
@@ -122,7 +126,8 @@ public sealed class VerificationUiTests
             // The status line: the focused file's result, and the folder's sum.
             listing.SetFocus(Row("a.txt").Row);
             await Until(() => tab.StatusRight.EndsWith(" · " + Result("a.txt")!.Text, StringComparison.Ordinal), "the focused file's result is in the status line");
-            await Until(() => tab.StatusLeft.Contains("checksums: 2 previously checked, 1 not checked", StringComparison.Ordinal),
+            // b.txt's kept mismatch still counts as failed (review finding R-M13); a.txt's kept match is historical.
+            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 1 previously checked, 1 not checked", StringComparison.Ordinal),
                 $"the folder's sum is in the status line ({tab.StatusLeft}; the service says {VerificationService.Current!.Summary(folder, ["a.txt", "b.txt", "big.bin", "SHA256SUMS"])})");
 
             // Verifying only reads: the folder is not listed again, and values of other rows stay (a probe stands for them).
@@ -150,7 +155,7 @@ public sealed class VerificationUiTests
             await Until(() => !dialogs.IsOpen, "the results close");
 
             await Until(() => Result("big.bin")?.State == VerificationState.Matches, "the freshly checked file has a good row badge");
-            await Until(() => tab.StatusLeft.Contains("checksums: 3 previously checked", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
+            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 2 previously checked", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
 
             // Even a same-size rewrite with its mtime restored loses that good row badge on refresh.
             string bigPath = Path.Combine(folder, "big.bin");
