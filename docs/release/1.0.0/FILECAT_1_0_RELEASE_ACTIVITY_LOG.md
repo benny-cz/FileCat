@@ -4508,3 +4508,7 @@ Still owed by the release session, after the SharpCompress slice lands, because 
 - R-M15 SBOM fidelity;
 - the LTRData copyright line in a human-readable notice;
 - byte-checked attribution of `reference` libraries.
+
+## 2026-10-29 — Windows RAR fuzz at the pushed commit
+
+The Windows campaign that was still running is clean: 230,000 new rounds (30,000–39,999 × 23 seeds) at `e57ebaaf`, Release, in 2,522 s, with no failure. The largest round allocated 493 MiB and the slowest took 380 ms ([record](evidence/E-I14-rar-reader.md#stress); log SHA-256 `e002a47c…acee6`). Every platform has now fuzzed the exact pushed source, and the total is 1,380,000 rounds without a failure. REL-RAR-LICENSE stays Open until SharpCompress ships without its UnRAR-derived code.
