@@ -202,6 +202,40 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
         return true;
     }
 
+    /// <summary>
+    /// The review a replacement binds to, read only where something is to be replaced (review finding F-M1 of f134ba37):
+    /// Skip and Keep both read no content, and the replacement's own check through its held handle is the only read after
+    /// it. A question shown to the user binds the destination it showed, reviewed as it was asked (<paramref name="atQuestion"/>),
+    /// so that a file put in its place while the question waits is never replaced. An answer given without a question
+    /// (the job's policy, or one given for all) is reviewed once given; the destination must still have the type, size
+    /// and modified time it had when the conflict was found (<paramref name="found"/>). Null when it does not, or cannot
+    /// be read; the item is then not replaced.
+    /// </summary>
+    protected FileTreeReview? ReviewForReplacement(string dst, FileSystemItemInfo found, QuestionReview? atQuestion)
+    {
+        if (atQuestion is not null) return atQuestion.Review;
+        var review = CaptureForReplacement(dst);
+        var now = review?.FindItem(dst)?.Version.Info;
+        return now is not null && now.IsDirectory == found.IsDirectory && now.IsLink == found.IsLink && now.Size == found.Size &&
+            now.ModifiedUtc == found.ModifiedUtc ? review : null;
+    }
+
+    protected FileTreeReview? CaptureForReplacement(string dst) => FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(),
+        Job.Checkpoint, itemLimit: 1, allowLinks: true, bindByIdentity: true);
+
+    /// <summary>A destination reviewed as a question offering to replace it was shown; its review is null where it could not be read.</summary>
+    protected sealed record QuestionReview(FileTreeReview? Review);
+
+    /// <summary>
+    /// The review a conflict question offering Replace binds to: taken before the question is shown, and not where the
+    /// job already holds an answer given for all, which it returns without asking (F-M1 of f134ba37).
+    /// </summary>
+    protected QuestionReview? ReviewAtQuestion(ConflictRequest request, string dst) =>
+        request.CanReplace && !Job.Remembers(request.ClassKey) ? new(CaptureForReplacement(dst)) : null;
+
+    protected const string ChangedSinceQuestion =
+        "Not replaced: the destination changed after the conflict question, or could not be read completely. Review the conflict again.";
+
     protected BoundReplacement ReplaceReviewed(string source, string target, FileTreeReview? review, int step)
     {
         var root = review?.FindItem(target);
@@ -214,6 +248,14 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
             ?? new BoundReplacement(false, true,
                 Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
+
+    /// <summary>
+    /// How a bound replacement that published nothing is journaled: refused before any change, failed with the original
+    /// back at its name, or partly applied with the original kept at a recovery name, which is never recorded as canceled
+    /// before any change (review finding W9 of f134ba37).
+    /// </summary>
+    protected static StepOutcome Unpublished(BoundReplacement bound) => bound.RetainedPath is not null ? StepOutcome.PartiallyApplied
+        : bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed;
 
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
         Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
@@ -685,8 +727,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
-        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true, bindByIdentity: true);
+        FileTreeReview? targetReview = null;
+        QuestionReview? atQuestion = null;
         bool replace = false;
         var target = dst;
         if (existing is not null)
@@ -696,7 +738,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 if (info.IsDirectory && !info.IsLink && existing.IsDirectory && !existing.IsLink)
                     return MergeMoveDirectory(src, dst);
-                var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
+                var d = ResolveConflict(src, dst, info, existing, out atQuestion, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
                 switch (d)
                 {
                     case DecisionAction.Skip:
@@ -720,12 +762,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         // A conflict answer can arrive long after the root was admitted.
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
-        if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+        if (replace && (targetReview = ReviewForReplacement(dst, existing!, atQuestion)) is null)
         {
             Job.ItemSkipped();
-            Issue(IssueSeverity.Warning, target,
-                "Not replaced: the destination's complete bytes or identity changed after the conflict review, or could not be read completely. Review the conflict again.",
-                StepOutcome.CanceledBeforeChange);
+            Issue(IssueSeverity.Warning, target, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
             return Result.Skipped;
         }
         // A rename to a new name loses nothing if interrupted (the item is at one of the two names): group-committed.
@@ -733,13 +773,23 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         string? retainedTargetPath = null;
         if (replace)
         {
-            var bound = ReplaceReviewed(src, target, targetReview, step);
-            Journal.Done(step, bound.Published ? StepOutcome.Committed : bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+            BoundReplacement? bound = null;
+            // Held open by another program: asked as in use, and Retry tries the same replacement again.
+            if (!TryIo(target, "replace the existing item", () =>
+                {
+                    bound = ReplaceReviewed(src, target, targetReview, step);
+                    if (bound.InUse is { } busy) throw busy;
+                }))
+            {
+                Journal.Done(step, StepOutcome.CanceledBeforeChange);
+                Job.ItemFailed();
+                return Result.Failed;
+            }
+            Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
             if (!bound.Published)
             {
                 Job.ItemSkipped();
-                Issue(IssueSeverity.Warning, target, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."),
-                    bound.Changed ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+                Issue(IssueSeverity.Warning, target, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."), Unpublished(bound));
                 if (bound.RetainedPath is not null)
                     Issue(IssueSeverity.Warning, bound.RetainedPath, "The original destination was kept at this recovery name.", StepOutcome.PartiallyApplied);
                 return Result.Failed;
@@ -828,7 +878,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (existing is not null && (!existing.IsDirectory || existing.IsLink))
         {
             // Merging into a folder link would write wherever it points: only skipping or keeping both are offered.
-            var d = ResolveConflict(src, dst, info, existing, replaceable: false);
+            var d = ResolveConflict(src, dst, info, existing, out _, replaceable: false);
             if (d == DecisionAction.KeepBothRenameIncoming) target = UniqueSibling(dst, true);
             else if (d == DecisionAction.KeepBothRenameExisting)
             {
@@ -977,14 +1027,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
-        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true, bindByIdentity: true);
+        FileTreeReview? targetReview = null;
+        QuestionReview? atQuestion = null;
         if (existing is not null)
         {
             // A real folder is never replaced by a file or a link: that question offers skipping or keeping both.
             // Nor is anything this file system cannot replace bound to its review (a link, or on Linux, macOS or a
             // network share, by the owner's policy): offered keeping both instead, before anything is copied.
-            var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
+            var d = ResolveConflict(src, dst, info, existing, out atQuestion, replaceable: !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst));
             switch (d)
             {
                 case DecisionAction.Skip:
@@ -1007,6 +1057,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 default:
                     throw new OperationCanceledException();
             }
+        }
+
+        if (replace && (targetReview = ReviewForReplacement(dst, existing!, atQuestion)) is null)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
+            return Result.Skipped;
         }
 
         if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null, targetReview);
@@ -1164,7 +1221,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             // writes the rename through, so the source is never deleted while its copy only exists under a staged
             // name (which recovery would offer to delete).
             int step = Journal.Intent(replace ? "replace" : "publish", src, target, writeTo, durable: replace);
-            bool refused = false;
+            bool refused = false, retained = false;
             string? refusal = null;
             bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () =>
             {
@@ -1175,13 +1232,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     refused = true;
                     return;
                 }
-                if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
-                {
-                    refused = true;
-                    return;
-                }
                 if (replace)
                 {
+                    // It binds the reviewed identity and bytes (or length and time) through its own held handle.
                     var bound = ReplaceReviewed(writeTo, target, targetReview, step);
                     // Held open by another program: asked as in use, and Retry tries the same replacement again.
                     if (bound.InUse is { } busy) throw busy;
@@ -1189,6 +1242,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     {
                         refused = true;
                         refusal = bound.Reason;
+                        retained = bound.RetainedPath is not null;
                         if (bound.RetainedPath is not null)
                             Issue(IssueSeverity.Warning, bound.RetainedPath,
                                 "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
@@ -1203,11 +1257,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (!published || refused)
             {
                 TryDeleteStaged(writeTo);
-                Journal.Done(step, StepOutcome.CanceledBeforeChange);
+                // Moved aside and unable to return to its name, the original is a partial change, never one canceled
+                // before any, and the item failed (review finding W9 of f134ba37).
+                var unpublished = retained ? StepOutcome.PartiallyApplied : StepOutcome.CanceledBeforeChange;
+                Journal.Done(step, unpublished);
                 if (refused)
+                    Issue(IssueSeverity.Warning, target, "Not replaced: " + (refusal ?? "the reviewed destination changed."), unpublished);
+                if (refused && !retained)
                 {
                     Job.ItemSkipped();
-                    Issue(IssueSeverity.Warning, target, "Not replaced: " + (refusal ?? "the reviewed destination changed."), StepOutcome.CanceledBeforeChange);
                     return Result.Skipped;
                 }
                 Job.ItemFailed();
@@ -1488,7 +1546,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         FileTreeReview? targetReview)
     {
         int step = Journal.Intent("replace", src, target, staged);
-        bool refused = false;
+        bool refused = false, retained = false;
         bool ok = TryIo(target, "replace the existing item", () =>
         {
             // Link creation and a publication retry may outlive the comparison's initial target check.
@@ -1497,7 +1555,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 refused = true;
                 return;
             }
-            if (targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
+            // It binds the reviewed identity and bytes (or length and time) through its own held handle.
+            if (targetReview is null)
             {
                 refused = true;
                 return;
@@ -1507,8 +1566,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (!bound.Published)
             {
                 refused = true;
+                retained = bound.RetainedPath is not null;
                 Issue(IssueSeverity.Warning, target, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."),
-                    StepOutcome.CanceledBeforeChange);
+                    retained ? StepOutcome.PartiallyApplied : StepOutcome.CanceledBeforeChange);
                 if (bound.RetainedPath is not null)
                     Issue(IssueSeverity.Warning, bound.RetainedPath,
                         "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
@@ -1518,7 +1578,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
         });
         ok &= !refused;
-        Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.CanceledBeforeChange);
+        // Moved aside and unable to return to its name, the original is a partial change (review finding W9 of f134ba37).
+        Journal.Done(step, ok ? StepOutcome.Committed : retained ? StepOutcome.PartiallyApplied : StepOutcome.CanceledBeforeChange);
         if (ok) return Result.Committed;
         try
         {
@@ -1529,7 +1590,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             Issue(IssueSeverity.Warning, staged, "A temporary link could not be removed; it can be deleted safely.", StepOutcome.PartiallyApplied);
         }
-        if (refused) { Job.ItemSkipped(); return Result.Skipped; }
+        if (refused && !retained) { Job.ItemSkipped(); return Result.Skipped; }
         Job.ItemFailed();
         return Result.Failed;
     }
@@ -1554,8 +1615,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     /// <param name="replaceable">False where the existing item must not be replaced (a folder, or a folder link that
     /// a merge would write through): the question then offers only skipping and keeping both.</param>
-    private DecisionAction ResolveConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing, bool replaceable = true)
+    /// <param name="atQuestion">The destination's review where a question offering Replace was shown; null otherwise.</param>
+    private DecisionAction ResolveConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing,
+        out QuestionReview? atQuestion, bool replaceable = true)
     {
+        atQuestion = null;
         bool typeMismatch = incoming.IsDirectory != existing.IsDirectory;
         bool same = SameItem(src, dst);
         bool newer = IsIncomingNewer(src, dst, incoming, existing);
@@ -1578,6 +1642,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             CanReplace: !typeMismatch && !same && replaceable, SameItem: same, TypeMismatch: typeMismatch, IncomingIsNewer: newer,
             SuggestedIncomingName: Path.GetFileName(UniqueSibling(dst, incoming.IsDirectory)),
             SuggestedExistingName: same ? null : Path.GetFileName(UniqueSibling(dst, existing.IsDirectory)));
+        atQuestion = ReviewAtQuestion(request, dst);
         var d = Job.Ask(request);
         var action = d.Action == DecisionAction.ReplaceIfNewer ? newer ? DecisionAction.Replace : DecisionAction.Skip : d.Action;
         // An answer given for all conflicts can say Replace where nothing may be replaced here.
@@ -2104,12 +2169,18 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         }
         bool caseOnly = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase);
         var existing = caseOnly ? null : Fs.TryGetInfo(dst);
+        QuestionReview? atQuestion = null;
         bool replace = false;
         if (existing is not null)
         {
-            var d = Job.Ask(new ConflictRequest("An item with this name already exists", newName, info, existing, src, dst,
-                CanReplace: !existing.IsDirectory && !info.IsDirectory, false, existing.IsDirectory != info.IsDirectory, false, null, null));
-            if (d.Action == DecisionAction.Replace && !existing.IsDirectory && !info.IsDirectory) replace = true;
+            // Replace as a Move replaces (review finding C7 of f134ba37): offered only where the destination can be replaced
+            // bound to its review, and only the destination the question showed.
+            bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && Fs.CanReplaceReviewed(dst);
+            var request = new ConflictRequest("An item with this name already exists", newName, info, existing, src, dst,
+                CanReplace: replaceable, false, existing.IsDirectory != info.IsDirectory, false, null, null);
+            atQuestion = ReviewAtQuestion(request, dst);
+            var d = Job.Ask(request);
+            if (d.Action == DecisionAction.Replace && replaceable) replace = true;
             else if (d.Action == DecisionAction.Skip)
             {
                 Job.ItemSkipped();
@@ -2118,8 +2189,13 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             }
             else throw new OperationCanceledException();
         }
-        int step = Journal.Intent(replace ? "rename-replace" : "rename", src, dst);
-        bool ok = TryIo(src, "rename the item", () => Fs.Move(src, dst, replace));
+        if (replace)
+        {
+            Replace(src, dst, existing!, atQuestion);
+            return;
+        }
+        int step = Journal.Intent("rename", src, dst);
+        bool ok = TryIo(src, "rename the item", () => Fs.Move(src, dst, replaceExisting: false));
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
@@ -2128,7 +2204,45 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             return;
         }
         var after = Fs.TryGetInfo(dst);
-        if (!replace) Job.AddUndo(new UndoStep(UndoKind.MoveBack, dst, src, after?.Size ?? info.Size, (after?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
+        Job.AddUndo(new UndoStep(UndoKind.MoveBack, dst, src, after?.Size ?? info.Size, (after?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
+        Job.ItemDone();
+        Job.RootCompleted(0);
+    }
+
+    /// <summary>The rename over the reviewed destination, which stays at a recovery name if it cannot be removed.</summary>
+    private void Replace(string src, string dst, FileSystemItemInfo found, QuestionReview? atQuestion)
+    {
+        if (ReviewForReplacement(dst, found, atQuestion) is not { } review)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
+            Job.RootFailed(0);
+            return;
+        }
+        int step = Journal.Intent("rename-replace", src, dst, null, durable: true);
+        BoundReplacement? bound = null;
+        // Held open by another program: asked as in use, and Retry tries the same replacement again.
+        if (!TryIo(dst, "replace the existing item", () =>
+            {
+                bound = ReplaceReviewed(src, dst, review, step);
+                if (bound.InUse is { } busy) throw busy;
+            }))
+        {
+            Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            Job.ItemFailed();
+            Job.RootFailed(0);
+            return;
+        }
+        Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
+        if (bound.RetainedPath is not null)
+            Issue(IssueSeverity.Warning, bound.RetainedPath, bound.Reason ?? "The replaced file remains at this recovery name.", StepOutcome.PartiallyApplied);
+        if (!bound.Published)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, dst, "Not replaced: " + (bound.Reason ?? "the reviewed destination changed."), Unpublished(bound));
+            Job.RootFailed(0);
+            return;
+        }
         Job.ItemDone();
         Job.RootCompleted(0);
     }

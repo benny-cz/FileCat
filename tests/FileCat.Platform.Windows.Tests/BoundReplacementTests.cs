@@ -79,6 +79,38 @@ public sealed class BoundReplacementTests
     }
 
     [Fact]
+    public void A_cancel_after_retirement_reports_the_original_at_its_recovery_name()
+    {
+        // Review finding W9 of f134ba37: canceled after the original was moved aside, and unable to return it to its name
+        // (here a new file took it), the replacement was reported as refused before any change, and the original's
+        // recovery name survived only in the message.
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows object-bound rename required.");
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-bound-cancel-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            var files = new WindowsFileOperations();
+            string target = Path.Combine(root, "target.bin"), source = Path.Combine(root, "source.bin");
+            byte[] a = Enumerable.Repeat((byte)'A', 4096).ToArray(), b = Enumerable.Repeat((byte)'B', 4096).ToArray();
+            File.WriteAllBytes(target, a);
+            File.WriteAllBytes(source, Enumerable.Repeat((byte)'I', 4096).ToArray());
+            string identity = Assert.IsType<string>(files.GetFileIdentity(target));
+            var result = files.ReplaceReviewedCore(source, target, identity,
+                Convert.ToHexString(SHA256.HashData(a)), a.Length, TestContext.Current.CancellationToken,
+                afterRetire: () =>
+                {
+                    File.WriteAllBytes(target, b);
+                    throw new OperationCanceledException();
+                });
+            Assert.NotNull(result);
+            Assert.False(result.Published);
+            Assert.False(result.Changed);
+            Assert.Equal(a, File.ReadAllBytes(Assert.IsType<string>(result.RetainedPath)));
+            Assert.Equal(b, File.ReadAllBytes(target));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Interrupted_retirement_keeps_the_old_bytes_at_the_durably_recorded_name()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows object-bound rename required.");

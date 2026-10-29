@@ -214,9 +214,11 @@ public partial class WindowsFileOperations
                 }
                 catch (Exception restore) when (restore is IOException or UnauthorizedAccessException or Win32Exception)
                 {
-                    if (ex is OperationCanceledException) throw new IOException($"Publication was canceled; the original destination remains at {backupPath}.", ex);
-                    return new BoundReplacement(false, false, backupPath,
-                        "The incoming file was not published and the original destination could not return to its name: " + ex.Message);
+                    // Also when canceled: the original is reported at its recovery name, and the step is not journaled as
+                    // canceled before any change, which left that name only in a message (review finding W9 of f134ba37).
+                    return new BoundReplacement(false, false, backupPath, (ex is OperationCanceledException
+                        ? "Publication was canceled, and the original destination could not return to its name: "
+                        : "The incoming file was not published and the original destination could not return to its name: ") + restore.Message);
                 }
             }
             try { DeleteOpen(old); }

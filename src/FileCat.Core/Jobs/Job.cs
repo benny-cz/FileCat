@@ -493,6 +493,12 @@ public sealed partial class Job
         lock (_lock) return _applyToAll.TryGetValue(classKey, out var answer) && answer.Action == DecisionAction.Skip;
     }
 
+    /// <summary>Whether a class already has a job-scoped "apply to all" answer, which <see cref="Ask"/> gives without asking.</summary>
+    internal bool Remembers(string classKey)
+    {
+        lock (_lock) return _applyToAll.ContainsKey(classKey);
+    }
+
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>
     internal Decision Ask(DecisionRequest request)
     {

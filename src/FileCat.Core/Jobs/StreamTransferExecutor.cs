@@ -346,8 +346,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
-        var targetReview = existing is null ? null : FileTreeReview.Capture(dst, Fs, new LocalFileSystemProvider(), Job.Checkpoint,
-            itemLimit: 1, allowLinks: true, bindByIdentity: true);
+        FileTreeReview? targetReview = null;
+        QuestionReview? atQuestion = null;
         if (existing is not null)
         {
             var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue, DateTime.MinValue, FileAttributes.Normal);
@@ -357,14 +357,20 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             bool replaceable = !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst);
             var policy = Job.Request.Options.Conflicts;
             if (!replaceable && policy is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer) policy = ConflictPolicy.Ask;
+            DecisionAction Ask(FileSystemItemInfo shown)
+            {
+                var request = new ConflictRequest("An item with this name already exists", Path.GetFileName(dst), incoming, shown, item.Name, dst,
+                    replaceable, false, shown.IsDirectory, incoming.ModifiedUtc > shown.ModifiedUtc, Path.GetFileName(Unique(dst)), null);
+                atQuestion = ReviewAtQuestion(request, dst);
+                return Job.Ask(request).Action;
+            }
             var action = policy switch
             {
                 ConflictPolicy.Skip => DecisionAction.Skip,
                 ConflictPolicy.Replace => DecisionAction.Replace,
                 ConflictPolicy.KeepBothRenameIncoming => DecisionAction.KeepBothRenameIncoming,
                 ConflictPolicy.ReplaceIfNewer => incoming.ModifiedUtc > existing.ModifiedUtc.AddSeconds(2) ? DecisionAction.Replace : DecisionAction.Skip,
-                _ => Job.Ask(new ConflictRequest("An item with this name already exists", Path.GetFileName(dst), incoming, existing, item.Name, dst,
-                    replaceable, false, existing.IsDirectory, incoming.ModifiedUtc > existing.ModifiedUtc, Path.GetFileName(Unique(dst)), null)).Action,
+                _ => Ask(existing),
             };
             if (action == DecisionAction.ReplaceIfNewer) action = incoming.ModifiedUtc > existing.ModifiedUtc ? DecisionAction.Replace : DecisionAction.Skip;
             // An answer given for all conflicts can say Replace where nothing may be replaced here.
@@ -392,6 +398,12 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         {
             Job.ItemFailed();
             Issue(IssueSeverity.Error, target, "Not copied: " + ex.Message, StepOutcome.Failed);
+            return false;
+        }
+        if (replace && (targetReview = ReviewForReplacement(dst, existing!, atQuestion)) is null)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
             return false;
         }
         IContentSource? content;
@@ -596,7 +608,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
         int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged, durable: replace);
-        bool refused = false;
+        bool refused = false, retained = false;
         string? replaceRefusal = null;
         bool ok = TryIo(target, "publish the extracted item", () =>
         {
@@ -606,13 +618,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             if (DestinationRefusal(item.Parent, dir) is { } refusal) throw new IOException(refusal);
             CheckBackingTarget(target);
             CheckBackingTarget(staged);
-            if (replace && targetReview?.Matches(Fs, new LocalFileSystemProvider(), Job.Checkpoint) != true)
-            {
-                refused = true;
-                return;
-            }
             if (replace)
             {
+                // It binds the reviewed identity and bytes (or length and time) through its own held handle.
                 var bound = ReplaceReviewed(staged, target, targetReview, step);
                 // Held open by another program: asked as in use, and Retry tries the same replacement again.
                 if (bound.InUse is { } busy) throw busy;
@@ -620,6 +628,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 {
                     refused = true;
                     replaceRefusal = bound.Reason;
+                    retained = bound.RetainedPath is not null;
                     if (bound.RetainedPath is not null)
                         Issue(IssueSeverity.Warning, bound.RetainedPath,
                             "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
@@ -632,7 +641,10 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Fs.Move(staged, target, replaceExisting: false);
         });
         ok &= !refused;
-        Journal.Done(step, ok ? StepOutcome.Committed : refused ? StepOutcome.CanceledBeforeChange : StepOutcome.Failed);
+        // Moved aside and unable to return to its name, the original is a partial change, never one canceled before any
+        // (review finding W9 of f134ba37).
+        var unpublished = retained ? StepOutcome.PartiallyApplied : StepOutcome.CanceledBeforeChange;
+        Journal.Done(step, ok ? StepOutcome.Committed : refused ? unpublished : StepOutcome.Failed);
         if (!ok)
         {
             Job.AddBytes(-written);
@@ -640,7 +652,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Job.ItemFailed();
             if (refused) Issue(IssueSeverity.Warning, target,
                 "Not replaced: " + (replaceRefusal ?? "the destination's complete bytes or identity changed after the conflict review, or could not be read completely."),
-                StepOutcome.CanceledBeforeChange);
+                unpublished);
             return false;
         }
         Job.ItemDone();
