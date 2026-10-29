@@ -221,10 +221,6 @@ qualified 1.0.0 release.
 
 ## Documentation
 
-- [Product architecture and design](docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md)
-- [Implementation status](docs/IMPLEMENTATION_STATUS.md)
-- [Developer build and packaging guide](docs/BUILDING.md)
+- [What works where](docs/CAPABILITIES.md) — supported platforms, locations and actions
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 - [Security policy and vulnerability reporting](SECURITY.md)
-- [Release servicing](docs/SERVICING.md) — no updater; security-release cadence
-- [Validation records](docs/validation/) — scale and latency evidence
