@@ -312,6 +312,44 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_held_source_touched_while_its_copy_is_checked_is_kept()
+    {
+        // A Low of the review of 67b3d66a: the last check before deleting the held source compared its size and identity
+        // but not its time, so a program that still had it open could rewrite it in place, at the same size, unnoticed.
+        string file = LocalFile("held-time.txt", "same bytes");
+        _server.Dir("/up");
+        _server.OnRead = path =>
+        {
+            if (path != "/up/held-time.txt") return;
+            _server.OnRead = null;
+            File.SetLastWriteTimeUtc(Directory.GetFiles(_local, ".FileCat-move-hold-*").Single(), DateTime.UtcNow.AddMinutes(5));
+        };
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)], Destination = Remote("/up") });
+        Assert.True(job.State.IsFinished());
+        Assert.Equal("same bytes", File.ReadAllText(file));
+        Assert.Contains(job.Issues, i => i.Message.Contains("could not be proven identical", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_moved_folder_is_checked_with_one_listing_and_its_verification_is_counted()
+    {
+        // Review finding R-M3: checking each moved file listed the whole destination folder again (O(N²) for N files),
+        // and read both copies again with no verification progress, pause or speed limit.
+        for (int i = 0; i < 40; i++) LocalFile($"batch/f{i:00}.txt", $"file {i}");
+        _server.Dir("/up");
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(Path.Combine(_local, "batch"), EntryKind.Directory)], Destination = Remote("/up"),
+        });
+        Assert.True(job.State == JobState.Completed, string.Join("; ", job.Issues.Select(i => i.Message)));
+        Assert.False(Directory.Exists(Path.Combine(_local, "batch")));
+        Assert.Equal(40, Names("/up/batch").Count());
+        Assert.InRange(_server.Listings.GetValueOrDefault("/up/batch"), 1, 4);
+        Assert.Equal(job.VerifyBytesTotal, job.VerifyBytesDone);
+        Assert.True(job.VerifyBytesTotal >= 2 * Enumerable.Range(0, 40).Sum(i => $"file {i}".Length));
+    }
+
+    [Fact]
     public async Task Jobs_list_a_folder_whole_beyond_the_limit_for_a_folder_shown()
     {
         // Review finding R-M9: jobs used the 20,000-entry listing limit for a folder shown, so any copy, move or delete

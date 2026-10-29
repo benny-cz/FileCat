@@ -30,6 +30,8 @@ internal sealed class FakeSftpServer
     /// <summary>When set, <c>List</c> refuses a folder with more entries, as the real channels do for a folder shown;
     /// <c>ListAll</c>, for jobs, does not.</summary>
     public int? ShownListingLimit { get; set; }
+    /// <summary>How often each folder was listed.</summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, int> Listings { get; } = new(StringComparer.Ordinal);
     public int Connects;
     public int ActiveChannels;
     /// <summary>When set, every channel operation fails as if the connection dropped.</summary>
@@ -199,6 +201,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
     public IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct)
     {
         Check();
+        server.Listings.AddOrUpdate(path, 1, (_, n) => n + 1);
         lock (server.Lock)
         {
             var dir = server.Lookup(path, followFinal: true) ?? throw new FileNotFoundException("No such folder: " + path);

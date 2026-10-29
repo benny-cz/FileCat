@@ -154,7 +154,8 @@ public sealed class UploadSourceEvidenceTests(ITestOutputHelper output)
         if (accepted)
         {
             Assert.Equal(JobState.Completed, job.State); Assert.Equal(data, target!.Data); Assert.Equal(length, job.BytesDone);
-            Assert.Equal(readBack ? 2L * length : 0, job.VerifyBytesDone); Assert.Equal(0, setup.Decisions);
+            // A Move's check of the published copy before its source goes reads both copies, shown as verification (R-M3).
+            Assert.Equal((readBack ? 2L * length : 0) + (move ? 2L * length : 0), job.VerifyBytesDone); Assert.Equal(0, setup.Decisions);
         }
         else
         {
@@ -244,7 +245,9 @@ public sealed class UploadSourceEvidenceTests(ITestOutputHelper output)
         Assert.Equal(!move, exists); if (exists) Assert.Equal(changed, File.ReadAllBytes(source));
         Assert.Equal(changed, target!.Data); Assert.Equal(["copy.dat"], setup.Names); Assert.Empty(setup.Server.WritesAt);
         Assert.Equal(2, setup.Server.Connects); Assert.Equal(changed.Length, job.BytesDone); Assert.Equal(changed.Length, job.BytesTotal);
-        Assert.Equal(readBack ? 2L * changed.Length : 0, job.VerifyBytesDone); Assert.Equal(job.VerifyBytesDone, job.VerifyBytesTotal);
+        // A Move's check of the published copy before its source goes reads both copies, shown as verification (R-M3).
+        Assert.Equal((readBack ? 2L * changed.Length : 0) + (move ? 2L * changed.Length : 0), job.VerifyBytesDone);
+        Assert.Equal(job.VerifyBytesDone, job.VerifyBytesTotal);
     }
 
     private sealed class Setup : IDisposable

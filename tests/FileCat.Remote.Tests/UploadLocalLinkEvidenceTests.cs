@@ -106,7 +106,9 @@ public sealed class UploadLocalLinkEvidenceTests(ITestOutputHelper output)
         Assert.Equal(expected, actual); Assert.Equal(expectedDirectories, actualDirectories);
         Assert.Equal(target, File.ReadAllBytes(targetFile)); Assert.Equal(target, File.ReadAllBytes(Path.Combine(targetDirectory, "target.dat")));
         Assert.Equal(completedRoot ? [0] : Array.Empty<int>(), job.CompletedRootIndices);
-        Assert.Equal(accepted ? length : 0, job.BytesDone); Assert.Equal(accepted && readBack ? 2L * length : 0, job.VerifyBytesDone);
+        Assert.Equal(accepted ? length : 0, job.BytesDone);
+        // A Move's check of the published copy before its source goes reads both copies, shown as verification (R-M3).
+        Assert.Equal((accepted && readBack ? 2L * length : 0) + (accepted && moving ? 2L * length : 0), job.VerifyBytesDone);
         Assert.Equal(tree || link ? JobState.CompletedWithIssues : JobState.Completed, job.State);
         Assert.Empty(setup.Decisions);
         if (link)

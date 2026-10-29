@@ -268,6 +268,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         var sources = Job.Request.Sources;
         string destFolder = Sftp.Resolve(Job.Request.Destination!, Channel);
         CountLocalTotals(sources);
+        var movedRoots = Moving ? new List<MovedSource>() : null;
         for (int i = 0; i < sources.Count; i++)
         {
             Job.Checkpoint();
@@ -289,11 +290,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 continue;
             }
             bool ok = source.FileSystemPath is { } local
-                ? Directory.Exists(local) && !IsLink(local) ? UploadLocalFolder(local, destFolder, name) : UploadLocalFile(local, destFolder, name)
+                ? Directory.Exists(local) && !IsLink(local) ? UploadLocalFolder(local, destFolder, name) : UploadLocalFile(local, destFolder, name, movedRoots)
                 : UploadProviderItem(source, destFolder, name);
             if (ok) Job.RootCompleted(i);
             else Job.RootFailed(i);
         }
+        if (movedRoots is { Count: > 0 }) RetireMovedSources(movedRoots);
         if (_timesNotKept > 0)
             Issue(IssueSeverity.Info, _firstTimeNotKept!, _timesNotKept == 1
                 ? "The server did not keep this file's modified time: on the server it shows when the file arrived."
@@ -360,6 +362,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Issue(IssueSeverity.Error, local, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
             return false;
         }
+        var moved = Moving ? new List<MovedSource>() : null;
         foreach (var child in children)
         {
             Job.Checkpoint();
@@ -376,8 +379,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 all &= !Moving;
                 continue;
             }
-            all &= child is DirectoryInfo ? UploadLocalFolder(child.FullName, dst, child.Name) : UploadLocalFile(child.FullName, dst, child.Name);
+            all &= child is DirectoryInfo ? UploadLocalFolder(child.FullName, dst, child.Name) : UploadLocalFile(child.FullName, dst, child.Name, moved);
         }
+        if (moved is { Count: > 0 }) RetireMovedSources(moved);
         if (all && Moving)
         {
             try { Fs.DeleteDirectory(local); }
@@ -408,7 +412,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         return made;
     }
 
-    private bool UploadLocalFile(string local, string destFolder, string name)
+    /// <summary>A moved file whose published copy is checked, and its local source removed, with its folder's others.</summary>
+    private sealed record MovedSource(string Local, string DestFolder, string Name, FileSystemItemInfo Uploaded);
+
+    /// <param name="moved">Where a moved file waits to be checked with the others of its folder; without it, at once.</param>
+    private bool UploadLocalFile(string local, string destFolder, string name, List<MovedSource>? moved = null)
     {
         if (!AdmitName(name, local)) return false;
         FileSystemItemInfo? info = Fs.TryGetInfo(local);
@@ -430,9 +438,32 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         if (ok && Moving)
         {
             // Checked against the copy under the name it was published as: "a (2).txt" after Keep both (review finding R-M1).
-            DeletePublishedLocalSource(local, destFolder, published, info);
+            var source = new MovedSource(local, destFolder, published, info);
+            if (moved is not null) moved.Add(source);
+            else RetireMovedSources([source]);
         }
         return ok;
+    }
+
+    /// <summary>
+    /// Checks moved files' published copies and removes their local sources, after their folder's uploads. One listing of
+    /// the destination folder serves them all, renewed at most every half minute, where each file used to list the
+    /// whole folder again (O(N²) for N files into one folder; review finding R-M3). Each file's bytes are still read
+    /// again, on the server and here.
+    /// </summary>
+    private void RetireMovedSources(IReadOnlyList<MovedSource> moved)
+    {
+        var listed = new Dictionary<string, Stopwatch>(StringComparer.Ordinal);
+        foreach (var source in moved)
+        {
+            Job.Checkpoint();
+            if (!listed.TryGetValue(source.DestFolder, out var age) || age.Elapsed > TimeSpan.FromSeconds(30))
+            {
+                Changed(source.DestFolder);
+                listed[source.DestFolder] = Stopwatch.StartNew();
+            }
+            DeletePublishedLocalSource(source.Local, source.DestFolder, source.Name, source.Uploaded);
+        }
     }
 
     /// <summary>
@@ -468,14 +499,16 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 throw new IOException("The held local source is not the selected file.");
 
             string remote = RemotePath.Combine(destFolder, name);
-            var published = FreshEntry(destFolder, name);
+            var published = Entry(destFolder, name);
             if (published is null || published.IsDirectory || published.IsLink || published.Size != uploaded.Size)
                 throw new IOException("The published server file is no longer the complete expected file.");
             if (!HeldSourceMatchesRemote(held, remote, uploaded.Size))
                 throw new IOException("The held local bytes differ from the published server bytes.");
-            // The held name is private to this job. A replacement of the original pathname is left untouched.
+            // The held name is private to this job. A replacement of the original pathname is left untouched. Its time is
+            // compared too: a program that still had the file open can rewrite it in place, at the same size (a Low of the
+            // review of 67b3d66a).
             if (Fs.TryGetInfo(held) is not { IsDirectory: false, IsLink: false } after || after.Size != uploaded.Size ||
-                identity is not null && Fs.GetFileIdentity(held) != identity)
+                after.ModifiedUtc != uploaded.ModifiedUtc || identity is not null && Fs.GetFileIdentity(held) != identity)
                 throw new IOException("The held local source changed during verification.");
             Fs.DeleteFile(held);
             Journal.Done(step, StepOutcome.Committed);
@@ -506,16 +539,41 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
     }
 
+    /// <summary>
+    /// Reads both copies whole, shown as verification, paused and stopped like it, and the server's at the speed limit
+    /// (review finding R-M3).
+    /// </summary>
     private bool HeldSourceMatchesRemote(string held, string remote, long length)
     {
         Job.SetCurrent(held + " (verifying moved source)");
-        using var theirStream = Channel.OpenRead(remote, length);
-        byte[] theirHash = PortableFileOperations.HashStream(theirStream,
-            System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, expectedLength: length);
-        using var ourStream = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
-        byte[] ourHash = PortableFileOperations.HashStream(ourStream,
-            System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, expectedLength: length);
-        return ourHash.AsSpan().SequenceEqual(theirHash);
+        Job.AddVerifyTotal(2 * length);
+        long verified = 0, streamDone = 0;
+        void Progress(long done)
+        {
+            Job.AddVerified(done - streamDone);
+            verified += done - streamDone;
+            streamDone = done;
+            Job.Checkpoint();
+        }
+        try
+        {
+            var pace = new TransferPace();
+            byte[] theirHash, ourHash;
+            using (var theirStream = Channel.OpenRead(remote, length))
+                theirHash = PortableFileOperations.HashStream(theirStream, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token,
+                    done => { Progress(done); Job.Throttle(done, pace); }, length);
+            streamDone = 0;
+            using (var ourStream = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan))
+                ourHash = PortableFileOperations.HashStream(ourStream, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
+            return ourHash.AsSpan().SequenceEqual(theirHash);
+        }
+        catch
+        {
+            // A retry reads both again: this attempt's reading does not count.
+            Job.AddVerified(-verified);
+            Job.AddVerifyTotal(-2 * length);
+            throw;
+        }
     }
 
     private bool UploadProviderItem(ItemRef item, string destFolder, string name)
