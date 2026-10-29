@@ -10,6 +10,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace SharpCompress.Compressors.PPMd;
@@ -40,6 +41,8 @@ internal static class PpmdModelH
     public const int MinMemoryBytes = 1 << 11;
 
     /// <summary>Damaged data, or a model state no valid data leads to: "PPMd model" or "PPMd data".</summary>
+    // Not inlined: the hot decoding loops throw it in many places, and inlining it there made them larger and slower.
+    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static InvalidDataException Damaged(string what) => new(what);
 }
 
@@ -124,7 +127,6 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>How often the model was started afresh: once at its first symbol, then each time its memory filled up.</summary>
     internal int Starts { get; private set; }
 
-    private static InvalidDataException Damaged(string what) => PpmdModelH.Damaged(what);
 
     /// <summary>
     /// Sets up a new model of order <paramref name="maxOrder"/> (2–64) in <paramref name="memoryBytes"/> bytes of model
@@ -200,7 +202,7 @@ internal sealed class PpmdModelH<TDecoder>
     private byte TextByte(int pointer)
     {
         int position = unchecked(-pointer);
-        if (pointer >= 0 || position <= 0 || position / 6 >= _stateCount) throw Damaged("PPMd model");
+        if (pointer >= 0 || position <= 0 || position / 6 >= _stateCount) throw PpmdModelH.Damaged("PPMd model");
         var state = _states[position / 6];
         return (position % 6) switch
         {
@@ -213,7 +215,7 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>A block of <paramref name="units"/> units at state <paramref name="index"/> must lie inside the model memory.</summary>
     private void CheckBlock(int index, int units)
     {
-        if (index < 1 || index > _stateCount - Math.Max(units << 1, 2)) throw Damaged("PPMd model");
+        if (index < 1 || index > _stateCount - Math.Max(units << 1, 2)) throw PpmdModelH.Damaged("PPMd model");
     }
 
     private int RemoveFreeBlock(int index)
@@ -236,7 +238,7 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>Frees <paramref name="units"/> units at <paramref name="n"/>, split into the sizes the free lists hold.</summary>
     private void FreeUnits(int n, int units)
     {
-        if ((uint)units > 128) throw Damaged("PPMd model");
+        if ((uint)units > 128) throw PpmdModelH.Damaged("PPMd model");
         int i = s_units2Index[units];
         if (units != s_index2Units[i])
         {
@@ -271,7 +273,7 @@ internal sealed class PpmdModelH<TDecoder>
             SetBlockUnits(ref stamp, s_index2Units[i]);
             for (int n = _freeList[i]; n != 0;)
             {
-                if (--budget < 0) throw Damaged("PPMd model");
+                if (--budget < 0) throw PpmdModelH.Damaged("PPMd model");
                 CheckBlock(n, s_index2Units[i]);
                 _states[n + 1].Successor = head;
                 head = n;
@@ -289,13 +291,13 @@ internal sealed class PpmdModelH<TDecoder>
         budget = _stateCount;
         for (int n = head; n != 0; n = _states[n + 1].Successor)
         {
-            if (--budget < 0) throw Damaged("PPMd model");
+            if (--budget < 0) throw PpmdModelH.Damaged("PPMd model");
             CheckBlock(n, 1);
             if (_states[n].Successor != FreeMark) continue;
             int units = BlockUnits(_states[n]);
             for (int next = n + (units << 1); next < _stateCount && _states[next].Successor == FreeMark; next = n + (units << 1))
             {
-                if (--budget < 0) throw Damaged("PPMd model");
+                if (--budget < 0) throw PpmdModelH.Damaged("PPMd model");
                 units += BlockUnits(_states[next]);
                 if (units > ushort.MaxValue) break;
                 _states[next].Successor = 0;
@@ -307,7 +309,7 @@ internal sealed class PpmdModelH<TDecoder>
         budget = _stateCount;
         for (int n = head; n != 0; n = _states[n + 1].Successor)
         {
-            if (--budget < 0) throw Damaged("PPMd model");
+            if (--budget < 0) throw PpmdModelH.Damaged("PPMd model");
             CheckBlock(n, 1);
             if (_states[n].Successor != FreeMark) continue;
             _states[n].Successor = 0;
@@ -392,7 +394,7 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>A context index read back from the model memory must name two states inside it.</summary>
     private int CheckContext(int context)
     {
-        if ((uint)(context - 1) >= (uint)(_stateCount - 2)) throw Damaged("PPMd model");
+        if ((uint)(context - 1) >= (uint)(_stateCount - 2)) throw PpmdModelH.Damaged("PPMd model");
         return context;
     }
 
@@ -422,7 +424,7 @@ internal sealed class PpmdModelH<TDecoder>
             return 1;
         }
         start = _states[context + 1].Successor;
-        if (start < 1 || start > _stateCount - count) throw Damaged("PPMd model");
+        if (start < 1 || start > _stateCount - count) throw PpmdModelH.Damaged("PPMd model");
         return count;
     }
 
@@ -438,10 +440,10 @@ internal sealed class PpmdModelH<TDecoder>
     private int NewContextSize(int count)
     {
         int context = NewContext(default, 0);
-        if (context == 0) throw Damaged("PPMd model");
+        if (context == 0) throw PpmdModelH.Damaged("PPMd model");
         _states[context].Symbol = (byte)(count - 1);
         int n = AllocUnits(s_units2Index[(count + 1) >> 1]);
-        if (n == 0) throw Damaged("PPMd model");
+        if (n == 0) throw PpmdModelH.Damaged("PPMd model");
         _states[context + 1].Successor = n;
         return context;
     }
@@ -482,7 +484,7 @@ internal sealed class PpmdModelH<TDecoder>
     {
         newCount = 0;
         int count = GetStates(context, out int start);
-        if (count >= 256) throw Damaged("PPMd model");
+        if (count >= 256) throw PpmdModelH.Damaged("PPMd model");
         if (count == 1)
         {
             var only = _states[start];
@@ -562,7 +564,7 @@ internal sealed class PpmdModelH<TDecoder>
             int masked = NumStates(minC);
             do
             {
-                if (++walk > MaxWalk) throw Damaged("PPMd model");
+                if (++walk > MaxWalk) throw PpmdModelH.Damaged("PPMd model");
                 _orderFall++;
                 minC = Suffix(minC);
                 // An escape from the order-0 context: the end mark. The model is left as it is; nothing follows it.
@@ -606,7 +608,7 @@ internal sealed class PpmdModelH<TDecoder>
             int last = count - 1;
             while (_states[start + last].Freq == 0)
             {
-                if (last == 0) throw Damaged("PPMd model");
+                if (last == 0) throw PpmdModelH.Damaged("PPMd model");
                 last--;
                 escFreq++;
             }
@@ -636,7 +638,7 @@ internal sealed class PpmdModelH<TDecoder>
         if (_prevSym >= 64) i += 8;
         if (_states[s].Symbol >= 64) i += 2 * 8;
         int freq = _states[s].Freq;
-        if (freq is < 1 or > 128) throw Damaged("PPMd model");
+        if (freq is < 1 or > 128) throw PpmdModelH.Damaged("PPMd model");
         int index = (freq - 1) * 64 + i;
         ushort bs = _binSumm[index];
         int mean = (ushort)(bs + (1 << (PeriodBits - 2))) >> PeriodBits;
@@ -650,7 +652,7 @@ internal sealed class PpmdModelH<TDecoder>
         }
         bs = unchecked((ushort)(bs - mean));
         _binSumm[index] = bs;
-        if (bs >> 10 >= s_expEscape.Length) throw Damaged("PPMd model");
+        if (bs >> 10 >= s_expEscape.Length) throw PpmdModelH.Damaged("PPMd model");
         _initEsc = s_expEscape[bs >> 10];
         _charMask[_states[s].Symbol] = _escCount;
         _prevSuccess = 0;
@@ -662,9 +664,9 @@ internal sealed class PpmdModelH<TDecoder>
     {
         int count = GetStates(context, out int start);
         uint scale = SummFreq(context);
-        if (scale == 0) throw Damaged("PPMd data");
+        if (scale == 0) throw PpmdModelH.Damaged("PPMd data");
         uint target = Coder.GetThreshold(scale);
-        if (target >= scale) throw Damaged("PPMd data"); // the code lies beyond every symbol and the escape
+        if (target >= scale) throw PpmdModelH.Damaged("PPMd data"); // the code lies beyond every symbol and the escape
         _prevSuccess = 0;
         uint n = 0;
         for (int i = 0; i < count; i++)
@@ -705,7 +707,7 @@ internal sealed class PpmdModelH<TDecoder>
         int count = NumStates(context);
         if (count == 256) return -1;
         int diff = count - numMasked;
-        if (diff < 1) throw Damaged("PPMd model");
+        if (diff < 1) throw PpmdModelH.Damaged("PPMd model");
         int i = _prevSym >= 64 ? 8 : 0;
         if (diff < NumStates(Suffix(context)) - count) i++;
         if (SummFreq(context) < 11 * count) i += 2;
@@ -744,13 +746,13 @@ internal sealed class PpmdModelH<TDecoder>
         uint scale = SeeMean(see);
         int count = GetStates(context, out int start);
         int unmasked = count - numMasked;
-        if (unmasked < 1) throw Damaged("PPMd model");
+        if (unmasked < 1) throw PpmdModelH.Damaged("PPMd model");
         uint hi = 0;
         for (int i = 0, j = 0; j < unmasked; j++, i++)
         {
             while (true)
             {
-                if (i >= count) throw Damaged("PPMd model");
+                if (i >= count) throw PpmdModelH.Damaged("PPMd model");
                 if (_charMask[_states[start + i].Symbol] != _escCount) break;
                 i++;
             }
@@ -759,7 +761,7 @@ internal sealed class PpmdModelH<TDecoder>
         }
         scale += hi;
         uint target = Coder.GetThreshold(scale);
-        if (target >= scale) throw Damaged("PPMd data");
+        if (target >= scale) throw PpmdModelH.Damaged("PPMd data");
         if (target >= hi)
         {
             Coder.Decode(hi, scale - hi);
@@ -771,7 +773,7 @@ internal sealed class PpmdModelH<TDecoder>
         hi = _states[_unmasked[0]].Freq;
         while (hi <= target)
         {
-            if (++k >= unmasked) throw Damaged("PPMd model");
+            if (++k >= unmasked) throw PpmdModelH.Damaged("PPMd model");
             hi += _states[_unmasked[k]].Freq;
         }
         int s = _unmasked[k];
@@ -806,7 +808,7 @@ internal sealed class PpmdModelH<TDecoder>
                 c = CheckContext(_states[ss].Successor);
                 break;
             }
-            if (chain == _chain.Length) throw Damaged("PPMd model");
+            if (chain == _chain.Length) throw PpmdModelH.Damaged("PPMd model");
             _chain[chain++] = ss;
             ss = -1;
         }
@@ -829,7 +831,7 @@ internal sealed class PpmdModelH<TDecoder>
                 else
                 {
                     ushort divisor = (ushort)(2 * s0);
-                    if (divisor == 0) throw Damaged("PPMd model");
+                    if (divisor == 0) throw PpmdModelH.Damaged("PPMd model");
                     up.Freq = (byte)(1 + (ushort)(2 * cf + 3 * s0 - 1) / divisor);
                 }
             }
@@ -868,7 +870,7 @@ internal sealed class PpmdModelH<TDecoder>
                 byte symbol = _states[s].Symbol;
                 while (_states[start + i].Symbol != symbol)
                 {
-                    if (++i >= count) throw Damaged("PPMd model");
+                    if (++i >= count) throw PpmdModelH.Damaged("PPMd model");
                 }
                 if (i > 0 && _states[start + i].Freq >= _states[start + i - 1].Freq)
                 {
@@ -928,7 +930,7 @@ internal sealed class PpmdModelH<TDecoder>
         int walk = 0;
         for (int c = maxC; c != minC; c = Suffix(c))
         {
-            if (++walk > MaxWalk) throw Damaged("PPMd model");
+            if (++walk > MaxWalk) throw PpmdModelH.Damaged("PPMd model");
             int start = ExpandStates(c, out int count);
             if (start < 0) return 0;
             unchecked
