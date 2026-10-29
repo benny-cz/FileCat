@@ -267,27 +267,37 @@ internal sealed class BorrowedStream(Stream inner) : Stream
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
-/// <summary>Counts what a decompressor produced (for the expansion-ratio limit while listing).</summary>
-internal sealed class CountingStream(Stream inner) : Stream
+/// <summary>
+/// Counts what a decompressor produced. Given its compressed <paramref name="source"/>, it also stops the decompressor
+/// once more than <see cref="RatioAfter"/> came out at over <see cref="MaxRatio"/> times what was read in. That is checked
+/// on every read: a reader that skips a member's data internally would otherwise decompress all of it, however large its
+/// header says it is, before any caller could look.
+/// </summary>
+internal sealed class CountingStream(Stream inner, Stream? source = null) : Stream
 {
+    public const long MaxRatio = 1000;
+    public const long RatioAfter = 1L << 30;
+
     public long Count { get; private set; }
+
+    /// <summary>Observed on every read, so that a member skipped inside a reader can be canceled.</summary>
+    public CancellationToken Cancellation { get; set; }
+
     public override bool CanRead => true;
     public override bool CanSeek => false;
     public override bool CanWrite => false;
     public override long Length => throw new NotSupportedException();
     public override long Position { get => Count; set => throw new NotSupportedException(); }
 
-    public override int Read(byte[] buffer, int offset, int count)
-    {
-        int n = inner.Read(buffer, offset, count);
-        Count += n;
-        return n;
-    }
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
 
     public override int Read(Span<byte> buffer)
     {
+        Cancellation.ThrowIfCancellationRequested();
         int n = inner.Read(buffer);
         Count += n;
+        if (source is not null && Count > RatioAfter && Count / Math.Max(1, source.Position) > MaxRatio)
+            throw ExpansionLimit.Exceeded();
         return n;
     }
 
@@ -301,6 +311,21 @@ internal sealed class CountingStream(Stream inner) : Stream
         if (disposing) inner.Dispose();
         base.Dispose(disposing);
     }
+}
+
+/// <summary>A decompressor stopped by <see cref="CountingStream"/>: a likely decompression bomb.</summary>
+internal static class ExpansionLimit
+{
+    private const string Key = "FileCat.ExpansionLimit";
+
+    public static InvalidDataException Exceeded()
+    {
+        var ex = new InvalidDataException("The archive expands more than 1000:1 (possibly a decompression bomb); FileCat stopped decompressing it.");
+        ex.Data[Key] = true;
+        return ex;
+    }
+
+    public static bool Is(Exception ex) => ex is InvalidDataException && ex.Data.Contains(Key);
 }
 
 /// <summary>
@@ -430,8 +455,6 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
     private bool _disposed;
     public TarMemberReader(string path, Func<Stream, Stream>? decompress, string format) : this(path, decompress, format, null) { }
 
-    /// <summary>Beyond this expansion (after 1 GiB), listing stops: a likely decompression bomb.</summary>
-    public const long MaxListingRatio = 1000;
     private readonly List<(long Offset, long Length)> _plainData = [];
     private FileStream? _plain;
     private FileStream? _cursorFile;
@@ -450,7 +473,8 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
         var file = ArchiveFormats.OpenShared(path, verifyOpened);
         try
         {
-            return (file, decompress is null ? file : new CountingStream(decompress(file)));
+            // Beyond 1000:1 (after 1 GiB) the stream stops, also inside a member the TAR reader skips: a likely bomb.
+            return (file, decompress is null ? file : new CountingStream(decompress(file), file));
         }
         catch
         {
@@ -464,6 +488,7 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var (file, data) = OpenStream();
+        if (data is CountingStream counting) counting.Cancellation = ct;
         var guard = new TarHeaderGuard(data);
         using (file)
         using (data)
@@ -479,6 +504,11 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
                     entry = reader.GetNextEntry(copyData: false);
                     if (entry is not null) guard.Returned(entry);
                 }
+                catch (InvalidDataException ex) when (ExpansionLimit.Is(ex))
+                {
+                    warn("The archive expands more than 1000:1 (possibly a decompression bomb); listing stopped.");
+                    yield break;
+                }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     // Any damage, including a decompressor's own error types, ends the list here.
@@ -489,11 +519,6 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
                 if (entry is null) yield break;
                 index++;
                 if (decompress is null) _plainData.Add((entry.DataOffset, entry.Length));
-                if (data is CountingStream counting && counting.Count > (1L << 30) && counting.Count / Math.Max(1, file.Position) > MaxListingRatio)
-                {
-                    warn("The archive expands more than 1000:1 (possibly a decompression bomb); listing stopped.");
-                    yield break;
-                }
                 var kind = entry.EntryType switch
                 {
                     TarEntryType.RegularFile or TarEntryType.V7RegularFile or TarEntryType.ContiguousFile => MemberKind.File,
@@ -524,12 +549,23 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
             return new SliceStream(_plain, offset, length);
         }
         if (_cursorReader is null || index <= _cursorIndex) Restart();
-        while (_cursorIndex < index)
+        if (_cursorStream is CountingStream counting) counting.Cancellation = ct;
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            _cursorEntry = _cursorReader!.GetNextEntry(copyData: false) ?? throw new FileNotFoundException("The member is no longer in the archive.");
-            _cursorGuard!.Returned(_cursorEntry);
-            _cursorIndex++;
+            while (_cursorIndex < index)
+            {
+                ct.ThrowIfCancellationRequested();
+                _cursorEntry = _cursorReader!.GetNextEntry(copyData: false) ?? throw new FileNotFoundException("The member is no longer in the archive.");
+                _cursorGuard!.Returned(_cursorEntry);
+                _cursorIndex++;
+            }
+        }
+        catch
+        {
+            // The cursor stopped inside a member it was passing: the next member starts over.
+            try { CloseCursor(); }
+            catch (Exception cleanup) { AppLog.Warn("TAR cursor cleanup after a stopped pass: " + cleanup.GetType().Name); }
+            throw;
         }
         return new BorrowedStream(_cursorEntry!.DataStream ?? Stream.Null);
     }
@@ -695,6 +731,9 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
     private static readonly PropertyInfo? s_sevenZipHasStream = s_sevenZipHeader?.PropertyType
         .GetProperty("HasStream", BindingFlags.Instance | BindingFlags.Public);
 
+    // The folder (compressed stream) holding an entry's data; null without data.
+    private static object? FolderOf(IEntry entry) => (entry as SevenZipEntry)?.FilePart.Folder;
+
     private static bool HasNoSevenZipStream(IArchiveEntry entry)
     {
         if (entry is not SevenZipArchiveEntry { IsDirectory: false, Size: 0 } sevenZip) return false;
@@ -711,6 +750,11 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
     private readonly int[] _ordinals;
     private readonly Dictionary<string, int> _seen = new(StringComparer.Ordinal);
     private IReader? _reader;
+    // The entry stream handed out last, and its folder: the cursor may be anywhere inside it.
+    private Stream? _current;
+    private object? _currentFolder;
+    // What passing entries decoded since the reader started over.
+    private long _passed;
     private bool _disposed;
 
     private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string path)
@@ -787,11 +831,19 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
             // Already passed (or current, its stream consumed): start over; otherwise continue forward.
             if (_reader is null || _seen.GetValueOrDefault(key) > ordinal)
             {
-                var previous = _reader;
-                _reader = null;
-                previous?.Dispose();
+                StartOver();
                 _reader = _archive.ExtractAllEntries();
-                _seen.Clear();
+            }
+            // SharpCompress decodes every entry it moves past, with no limit, even one in another folder (compressed
+            // stream) than the next; and it does not finish an entry FileCat opened but did not read to its end, so the
+            // next entry of that folder would start inside it. So the cursor opens each entry it passes itself: one in
+            // the member's own folder is read here, under the archive's expansion limit and cancelable; one in another
+            // folder is left unread, as the reader starts each folder's stream afresh.
+            object? folder = FolderOf(_entries[index]);
+            if (_current is { } unfinished)
+            {
+                _current = null;
+                if (folder is null || ReferenceEquals(_currentFolder, folder)) Pass(unfinished, ct);
             }
             while (true)
             {
@@ -799,18 +851,62 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
                 if (!_reader.MoveToNextEntry()) throw new FileNotFoundException("The member is no longer in the archive.");
                 var current = _reader.Entry.Key ?? string.Empty;
                 int seen = _seen[current] = _seen.GetValueOrDefault(current) + 1;
-                if (current != key || seen - 1 != ordinal) continue;
                 var stream = _reader.OpenEntryStream();
+                if (current != key || seen - 1 != ordinal)
+                {
+                    // Not disposed: SharpCompress would decode whatever a stopped pass left of it, unbounded.
+                    if (folder is null || ReferenceEquals(FolderOf(_reader.Entry), folder)) Pass(stream, ct);
+                    continue;
+                }
+                _current = stream;
+                _currentFolder = folder;
                 // SharpCompress checks a 7z member's CRC-32 only when it extracts to a file itself, never on this stream.
                 var entry = _reader.Entry;
                 uint? crc = entry is SevenZipEntry { Checksum: { IsAvailable: true, Kind: ChecksumKind.Crc32 } checksum } ? unchecked((uint)checksum.ExpectedValue) : null;
                 return new SevenZipMemberStream(stream, crc, entry.Size);
             }
         }
-        catch (Exception ex) when (ex is not (IOException or OperationCanceledException or InvalidDataException))
+        catch (Exception ex)
         {
+            // The cursor stopped somewhere unknown: the next member starts over. Closing it may fail as well; this
+            // error is the one to report.
+            try { StartOver(); }
+            catch (Exception cleanup) { AppLog.Warn("7z cursor cleanup after a failed open: " + cleanup.GetType().Name); }
+            if (ex is IOException or OperationCanceledException or InvalidDataException) throw;
             throw new InvalidDataException(Describe(ex), ex);
         }
+    }
+
+    /// <summary>
+    /// Reads the rest of an entry the cursor moves past. Beyond 64 MiB, what passing decodes may not exceed
+    /// <see cref="ArchiveProvider.MaxExpansionRatio"/> times the archive's size: more than any real 7z holds.
+    /// </summary>
+    private void Pass(Stream entry, CancellationToken ct)
+    {
+        long archiveLength = Math.Max(1, _volumes.Sum(volume => volume.Length));
+        var sink = new byte[64 * 1024];
+        int n;
+        while ((n = entry.Read(sink)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            _passed += n;
+            if (_passed > FileCat.Core.Content.MemberLimits.RatioAfter && _passed / archiveLength > ArchiveProvider.MaxExpansionRatio)
+                throw new InvalidDataException("Reaching this member would decompress more than 1000 times the archive's size "
+                    + "(possibly a decompression bomb); it was not opened.");
+        }
+    }
+
+    // Retires the cursor before closing it: if closing fails, that is reported, and the cursor is never used or closed
+    // again.
+    private void StartOver()
+    {
+        var previous = _reader;
+        _reader = null;
+        _current = null;
+        _currentFolder = null;
+        _passed = 0;
+        _seen.Clear();
+        previous?.Dispose();
     }
 
     public void Dispose()

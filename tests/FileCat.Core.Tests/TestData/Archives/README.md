@@ -77,6 +77,21 @@ seed `0x2545F491`, multiplier 1103515245, increment 12345, taking bits 16–23) 
 | `FileCat.Methods.Deflate64.7z` | Deflate64 (FileCat does not read it: refused as unsupported) | 4,117 | `7255f8a5efbc4acd597a6833e25583641b930475991eb9326fa9e91765276b4b` |
 | `FileCat.Methods.Copy.7z` | Copy | 24,619 | `a12c63e392e9845dfbff0bd537e455a0325be91c5ae240b3ba7a3071f1b24da3` |
 
+`FileCat.SolidPartial.7z`, `FileCat.SolidBomb.LZMA2.7z`, `FileCat.TwoFolders.BZip2.7z` and `FileCat.Bomb.tar.bz2`
+are FileCat-owned fixtures for what a reader decodes to get past members nobody asked for
+(`ArchivePassBudgetTests`). Each holds a first member and then a small `b-small.txt` (`hello from b` and a line
+feed; `hello` and a line feed in the TAR). The first member is `a-lines.txt`, 975,000 bytes: 25,000 lines
+"FileCat solid 7z member a, line NNNNNN", SHA-256 `b846b41e3f2e74acfb23c72948bef77d975c0a83ae355f9e2a058ba699cd92c3`.
+In the others it is `a-zeros.bin`, a run of zero bytes. 7-Zip 24.01 (x64) packed the 7z files with
+`-mtc=off -mta=off -mtm=off`; GNU tar 1.35 and bzip2 1.0.8 (in Git for Windows) made the TAR:
+
+| File | Made with | First member | Bytes | SHA-256 |
+|---|---|---|---:|---|
+| `FileCat.SolidPartial.7z` | `a -t7z -ms=on -mx=5`: one solid folder | `a-lines.txt` | 2,343 | `48529bf146f891d586b93fee81f7d17512d26a7f4ab16fae259aa1f2fb05d546` |
+| `FileCat.SolidBomb.LZMA2.7z` | `a -t7z -ms=64g -m0=LZMA2 -mx=9`: one solid folder | 512 MiB of zeros | 78,496 | `e4ef3c3ec0198cd5de58c486d88ead58fb7162f229e7f58226481c8537cb32b9` |
+| `FileCat.TwoFolders.BZip2.7z` | `a -t7z -ms=on -m0=BZip2 -mx=9`: 7-Zip gives each member its own folder | 512 MiB of zeros | 632 | `22b13a1aff5fba9bce78b43d0cddc51c6e847c2456b6350b064330ad653ba12a` |
+| `FileCat.Bomb.tar.bz2` | `tar -cf - a-zeros.bin b-small.txt \| bzip2 -9` | 2 GiB of zeros | 1,710 | `5f3569ce3065bc79609649f0c8a527efa2adf6b04c95356501e7ceb887b23756` |
+
 The other `Rar*` fixtures (RAR 1.5 through 5, stored, solid, multi-volume under both naming
 schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damaged
 `Rar.malformed_512byte.rar` and `Rar.issue1050.rar`) come unchanged from SharpCompress 0.50.5,
