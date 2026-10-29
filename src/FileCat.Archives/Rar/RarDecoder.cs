@@ -14,6 +14,13 @@ internal abstract class RarDecoder
     /// </summary>
     public abstract bool Decode(RarWindow window);
 
+    /// <summary>
+    /// True when a member's data ends with a marker that the next member of a solid run depends on (RAR 2.9). Once
+    /// the member's bytes are all out, the member stream then has the decoder read up to that marker, even for an
+    /// empty member; any further output is damage.
+    /// </summary>
+    public virtual bool EndsWithMarker => false;
+
     /// <summary>Reads a value of up to 64 bits, most significant part first.</summary>
     protected static long ReadLong(RarBitReader input, int count)
     {

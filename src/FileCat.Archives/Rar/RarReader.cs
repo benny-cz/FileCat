@@ -150,6 +150,7 @@ internal sealed class RarReader : IMemberReader
     {
         50 => new Rar5Decoder(rar7: false),
         70 => new Rar5Decoder(rar7: true),
+        29 => new Rar3Decoder(),
         _ => throw RarData.Unsupported($"compression version {version}"),
     };
 
