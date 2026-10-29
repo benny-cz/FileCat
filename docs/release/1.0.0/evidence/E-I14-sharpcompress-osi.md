@@ -66,9 +66,21 @@ SBOM hashes:
 
 The Ubuntu and Mac checkouts came from the public repository plus a git bundle of this branch.
 
+## Hosted CI
+
+[Run 40827349792](https://github.com/benny-cz/FileCat/actions/runs/40827349792) at `1caa2532`, the ledger commit directly after `ca293815`, ran the full suites:
+
+| Lane | Core (every RAR and 7z test) | Other suites |
+|---|---|---|
+| Windows x64 | 4,772 passed, 0 failed, 168 skipped | Platform.Windows, Remote and Rendering pass; App fails 39 tests of I555's state-saving and edit-session kind (the security session's lane) |
+| Windows ARM64 | 4,772 passed, 0 failed, 168 skipped | The same; App 39 failures (I555) |
+| Ubuntu 24.04 | 4,818 passed, 0 failed, 117 skipped | Every suite passes, with the root ext4 record step |
+| macOS 26 | 4,799 passed, 0 failed, 136 skipped | Every suite passes |
+
+No failure touches archives, RAR, SharpCompress or the packaging pins.
+
 ## Not covered
 
-- **Hosted CI** of `ca293815` has not run yet; it starts when this is pushed.
 - **No legal determination.** The inventory records provenance as found.
 - **Unchanged limits.** 7z Deflate64 was never readable, and that is unchanged. ZIP is read by FileCat's own reader, so dropping SharpCompress's ZIP codecs costs nothing.
 - **Intermediate commits** of the branch were not each built and tested; the final tree was.

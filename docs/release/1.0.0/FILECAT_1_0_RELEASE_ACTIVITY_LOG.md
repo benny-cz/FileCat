@@ -4569,3 +4569,19 @@ The release session fixed its own findings from the [review of the Codex commits
 - The evidence index is now **895**.
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — REL-RAR-LICENSE accepted after hosted CI
+
+[Run 40827349792](https://github.com/benny-cz/FileCat/actions/runs/40827349792) at `1caa2532`, the ledger commit directly after `ca293815`, finished:
+- **Core**, with every RAR and 7z test, passes on all four lanes (0 failed): Windows x64 and ARM64 4,772 each, Ubuntu 4,818, macOS 4,799.
+- **Ubuntu, macOS and the producer** pass in full, including Ubuntu's root ext4 step for the D-56 records.
+- **Windows x64 and ARM64** fail only 39 App tests each, of I555's state-saving and edit-session kind, which is the security session's lane. With them, CI skips the ARM64 lane's installer step. The installer was therefore checked on the Win11 VM ([E-I03-SBOM-SHIPPED](evidence/E-I03-SBOM-shipped-bytes.md)).
+
+**Ledger.**
+- REL-RAR-LICENSE is **Accepted**, so the SignPath application (REL-SIGN-WINDOWS) no longer waits on it.
+- REL-CONTRACT now waits only on the macOS minimum-version question.
+- GATE-CI-FINAL stays Open: the latest product head is now Codex's `f134ba37`.
+
+**A security finding in FileCat's RAR reader.** Codex's security audit of the reader raised RAR-SEC-001 (High, availability). Opening a later member of a solid archive decodes the earlier members without the expansion budget, so a tiny member can force a large hidden decode. The finding and its correction are in the security plan's lane and still uncommitted. The release session does not edit those files meanwhile, and will review the correction when it lands.
+
+Stable publication remains NO-GO.
