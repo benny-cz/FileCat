@@ -41,7 +41,10 @@ public static partial class ElevationPaths
         if (root.Length != 3 || root[1] != ':' || root[2] != '\\')
             throw new NotSupportedException("A fixed local drive path is required for handle-bound deletion.");
         string volumeRoot = ToVolumePath(root);
-        return volumeRoot + full[root.Length..];
+        string rest = full[root.Length..];
+        // A volume's root resolves with its trailing separator (\\?\Volume{…}\), but a SUBST drive's root resolves to the
+        // folder behind it, without one (\\?\Volume{…}\work): S:\proj must not become …\workproj, another folder.
+        return rest.Length == 0 || volumeRoot.EndsWith('\\') ? volumeRoot + rest : volumeRoot + "\\" + rest;
     }
 
     internal static unsafe string? FinalPath(SafeFileHandle handle, uint flags)
