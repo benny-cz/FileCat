@@ -136,14 +136,18 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
     [Theory]
     [InlineData(Architecture.X64, 41U)]
     [InlineData(Architecture.Arm64, 198U)]
-    public void Linux_pre_exec_filter_denies_network_and_io_uring_but_keeps_ordinary_io(
+    public void Linux_pre_exec_filter_denies_network_io_uring_and_metadata_changes_but_keeps_ordinary_io(
         Architecture architecture, uint socket)
     {
         var abi = LinuxPictureProcessPolicy.ForArchitecture(architecture);
-        var filter = LinuxPictureSandbox.BuildNetworkFilter(abi);
+        var filter = LinuxPictureSandbox.BuildPreExecFilter(abi);
         const uint denied = 0x00050001, allowed = 0x7fff0000, killed = 0x80000000;
         Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, socket));
         Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 425));
+        // Metadata Landlock does not govern (review finding R-H3): truncate, fchmodat, fchownat, setxattr, utimensat.
+        uint[] metadata = architecture == Architecture.X64 ? [76, 90, 268, 260, 188, 280, 452] : [45, 53, 54, 5, 88, 452];
+        foreach (uint call in metadata) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call));
+        Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, architecture == Architecture.X64 ? 77U : 46U)); // ftruncate
         Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, architecture == Architecture.X64 ? 0U : 63U));
         Assert.Equal(killed, Evaluate(filter,
             architecture == Architecture.X64 ? 0xc00000b7U : 0xc000003eU, socket));
@@ -162,8 +166,12 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         Directory.CreateDirectory(root);
         string secret = Path.Combine(root, "secret.txt"), written = Path.Combine(root, "written.txt");
         await File.WriteAllTextAsync(secret, "not available to the decoder", TestContext.Current.CancellationToken);
+        var modeBefore = File.GetUnixFileMode(secret);
+        var timeBefore = File.GetLastWriteTimeUtc(secret);
+        // Landlock leaves metadata to the seccomp filter (review finding R-H3): no chmod, chown, time, truncation or
+        // extended attribute change reaches a file the user owns.
         const string probe = """
-            import socket, sys
+            import os, socket, sys
             def denied(action, code):
                 try:
                     action()
@@ -173,6 +181,11 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             denied(lambda: open(sys.argv[1], 'rb').read(1), 31)
             denied(lambda: open(sys.argv[2], 'wb').write(b'x'), 32)
             denied(lambda: socket.socket(), 33)
+            denied(lambda: os.chmod(sys.argv[1], 0o666), 35)
+            denied(lambda: os.chown(sys.argv[1], os.getuid(), os.getgid()), 36)
+            denied(lambda: os.utime(sys.argv[1], (0, 0)), 37)
+            denied(lambda: os.truncate(sys.argv[1], 0), 38)
+            denied(lambda: os.setxattr(sys.argv[1], 'user.filecat', b'x'), 39)
             with open(sys.argv[3], 'rb') as allowed:
                 if len(allowed.read(1)) != 1:
                     raise SystemExit(34)
@@ -193,6 +206,8 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             Assert.Equal(0, process.ExitCode);
             Assert.False(File.Exists(written));
             Assert.Equal("not available to the decoder", await File.ReadAllTextAsync(secret, TestContext.Current.CancellationToken));
+            Assert.Equal(modeBefore, File.GetUnixFileMode(secret));
+            Assert.Equal(timeBefore, File.GetLastWriteTimeUtc(secret));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

@@ -89,8 +89,8 @@ internal static unsafe partial class LinuxPictureSandbox
         LinuxPictureProcessPolicy.SetNoNewPrivileges("filesystem and network access");
         ApplyFileSystemPolicy();
         var abi = LinuxPictureProcessPolicy.ForArchitecture(RuntimeInformation.ProcessArchitecture);
-        LinuxPictureProcessPolicy.ApplyFilter(abi, BuildNetworkFilter(abi), synchronizeThreads: false,
-            "The picture decoder could not restrict network access.");
+        LinuxPictureProcessPolicy.ApplyFilter(abi, BuildPreExecFilter(abi), synchronizeThreads: false,
+            "The picture decoder could not restrict network access and file metadata changes.");
     }
 
     private static void ApplyFileSystemPolicy()
@@ -167,7 +167,14 @@ internal static unsafe partial class LinuxPictureSandbox
         finally { Close(parent); }
     }
 
-    internal static LinuxPictureProcessPolicy.Filter[] BuildNetworkFilter(LinuxPictureProcessPolicy.Abi abi)
+    /// <summary>
+    /// The launcher's seccomp filter, which the worker inherits: no network, no io_uring (whose operations would bypass
+    /// this filter), and no change to any file's metadata. Landlock governs no chmod, chown, extended attribute or time
+    /// change, and a path's truncation only from its ABI 3 (Linux 6.2), so a decoder exploit could otherwise make the
+    /// user's keys readable to all or empty a file the user owns (review finding R-H3). ftruncate stays: it needs a
+    /// descriptor open for writing, which Landlock refuses for every file, and .NET's double-mapped code memory uses it.
+    /// </summary>
+    internal static LinuxPictureProcessPolicy.Filter[] BuildPreExecFilter(LinuxPictureProcessPolicy.Abi abi)
     {
         const uint Deny = 0x00050001, Allow = 0x7fff0000;
         var code = new List<LinuxPictureProcessPolicy.Filter>
@@ -180,10 +187,18 @@ internal static unsafe partial class LinuxPictureSandbox
             code.Add(new(0x45, 0, 1, 0x40000000));
             code.Add(new(0x06, 0, 0, Deny));
         }
-        uint[] calls = abi.AuditArchitecture == 0xc000003e
-            ? [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 288, 299, 307, 425, 426, 427]
-            : [198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 242, 243, 269, 425, 426, 427];
-        foreach (uint call in calls)
+        bool x64 = abi.AuditArchitecture == 0xc000003e;
+        uint[] network = x64
+            ? [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 288, 299, 307]
+            : [198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 242, 243, 269];
+        uint[] ioUring = [425, 426, 427];
+        // truncate, then the chmod, chown, extended attribute and time calls: x86-64 has the old path forms too (chmod,
+        // chown, lchown, utime, utimes, futimesat), ARM64 only the *at ones. Both: fchmodat2, setxattrat and removexattrat
+        // (Linux 6.13) and file_setattr (6.17).
+        uint[] metadata = x64
+            ? [76, 90, 91, 92, 93, 94, 132, 188, 189, 190, 197, 198, 199, 235, 260, 261, 268, 280, 452, 463, 466, 469]
+            : [45, 52, 53, 54, 55, 5, 6, 7, 14, 15, 16, 88, 452, 463, 466, 469];
+        foreach (uint call in network.Concat(ioUring).Concat(metadata))
         {
             code.Add(new(0x15, 0, 1, call));
             code.Add(new(0x06, 0, 0, Deny));
