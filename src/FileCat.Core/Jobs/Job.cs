@@ -278,6 +278,8 @@ public sealed partial class Job
 
     public void Resume()
     {
+        // A transfer's pace starts again after a pause (TransferPace).
+        Interlocked.Increment(ref _resumes);
         _runGate.Set();
         if (State is JobState.Paused or JobState.Pausing) SetState(JobState.Running);
         else if (State == JobState.Queued) Changed?.Invoke(this); // wake a job paused before its first scheduling pass
@@ -525,8 +527,10 @@ public sealed partial class Job
         return d;
     }
 
-    /// <summary>Cumulative per-file rate limiting inside copy callbacks.</summary>
-    internal void Throttle(long bytesSinceStart, Stopwatch fileClock)
+    private long _resumes;
+
+    /// <summary>Per-file rate limiting inside copy callbacks, at the file's <see cref="TransferPace"/>.</summary>
+    internal void Throttle(long bytesSinceStart, TransferPace pace)
     {
         // One copied buffer can exceed a second of the chosen allowance.
         // Recheck after each bounded wait so large buffers cannot silently
@@ -534,11 +538,9 @@ public sealed partial class Job
         while (true)
         {
             _cts.Token.ThrowIfCancellationRequested();
-            long limit = RateLimit;
-            if (limit <= 0) return;
-            double remaining = (double)bytesSinceStart / limit - fileClock.Elapsed.TotalSeconds;
-            if (remaining <= 0) return;
-            if (_cts.Token.WaitHandle.WaitOne(TimeSpan.FromSeconds(Math.Min(1.0, remaining))))
+            var wait = pace.Delay(bytesSinceStart, RateLimit, Interlocked.Read(ref _resumes), pace.Clock.Elapsed);
+            if (wait <= TimeSpan.Zero) return;
+            if (_cts.Token.WaitHandle.WaitOne(wait < TimeSpan.FromSeconds(1) ? wait : TimeSpan.FromSeconds(1)))
                 _cts.Token.ThrowIfCancellationRequested();
         }
     }

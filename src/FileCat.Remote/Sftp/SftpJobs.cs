@@ -749,7 +749,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     if (start > 0) input.Seek(start, SeekOrigin.Begin);
                     // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
                     // a cancel takes effect at the next read.
-                    var clock = Stopwatch.StartNew();
+                    var pace = new TransferPace();
                     if (start == 0)
                     {
                         freshBytes = 0;
@@ -762,7 +762,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                         // A new upload's pace, as of its last read (not counting a question that followed a break).
                         if (start == 0) (freshBytes, freshTime) = (written, freshClock.Elapsed);
                         Job.AddBytes(n);
-                        Job.Throttle(written - start, clock);
+                        Job.Throttle(written - start, pace);
                         Job.Checkpoint();
                     }, input is ContentStream ? null : incoming.Size - start, Job.Checkpoint);
                     // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.

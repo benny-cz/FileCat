@@ -487,7 +487,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     if (Fs.HeldDirectoryRedirected(directoryLease))
                         throw new IOException("The destination folder became a link before anything was written; nothing was written through it.");
                     var buffer = new byte[BufferSize];
-                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    var pace = new TransferPace();
                     while (true)
                     {
                         CheckLength();
@@ -525,7 +525,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                         written += n;
                         Job.AddBytes(n);
                         Job.AddDataProcessed(n);
-                        Job.Throttle(written, clock);
+                        Job.Throttle(written, pace);
                     }
                     CheckLength();
                     if (content is not Content.ProgressiveContent && content.Length is >= 0 and var finalLength && finalLength != written)

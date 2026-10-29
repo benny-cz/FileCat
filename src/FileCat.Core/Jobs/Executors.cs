@@ -1058,7 +1058,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         while (!copied)
         {
             long reported = 0;
-            var clock = Stopwatch.StartNew();
+            var pace = new TransferPace();
             try
             {
                 var options = new FileCopyOptions
@@ -1077,7 +1077,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     Job.AddDataProcessed(advanced);
                     reported = done;
                     if (Job.IsPaused) Job.Checkpoint();
-                    Job.Throttle(done, clock);
+                    Job.Throttle(done, pace);
                     return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
                 }, Job.Token);
                 copied = true;
@@ -1256,7 +1256,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (!Fs.CopyPreservesMetadata || !Volume(dst).SupportsNamedStreams) return null;
         RecordFill(src, Path.GetDirectoryName(dst)!);
         long reported = 0;
-        var clock = Stopwatch.StartNew();
+        var pace = new TransferPace();
         try
         {
             Fs.CopyFile(src, dst, new FileCopyOptions { CopyLinkAsLink = !followLink, DisablePreallocation = true }, (done, total) =>
@@ -1266,7 +1266,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 Job.AddDataProcessed(advanced);
                 reported = done;
                 if (Job.IsPaused) Job.Checkpoint();
-                Job.Throttle(done, clock);
+                Job.Throttle(done, pace);
                 return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
             }, Job.Token);
         }
