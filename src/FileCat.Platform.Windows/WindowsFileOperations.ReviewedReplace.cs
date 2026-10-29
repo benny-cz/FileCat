@@ -221,6 +221,7 @@ public partial class WindowsFileOperations
                         : "The incoming file was not published and the original destination could not return to its name: ") + restore.Message);
                 }
             }
+            WriteThrough(parentPath);
             try { DeleteOpen(old); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
             {
@@ -233,6 +234,22 @@ public partial class WindowsFileOperations
         {
             return new BoundReplacement(false, true, Reason: "Bound replacement refused: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Makes the renames that published a replacement durable before its caller goes on, as a replacement by name is
+    /// written through (review finding C8 of f134ba37). Otherwise, after a power loss a Move's only copy could survive
+    /// under its staged name, which recovery offers to delete, its source on another volume already gone. Flushing the
+    /// folder that holds both names commits them; where a file system cannot flush a folder, its own commit follows.
+    /// </summary>
+    private static void WriteThrough(string folder)
+    {
+        const uint AddFile = 0x2, Synchronize = 0x00100000, ShareAll = 7, OpenExisting = 3, BackupSemantics = 0x02000000,
+            OpenReparsePoint = 0x00200000;
+        using var handle = CreateFileForRename(Verbatim(folder), AddFile | Synchronize, ShareAll, 0, OpenExisting,
+            BackupSemantics | OpenReparsePoint, 0);
+        if (handle.IsInvalid || !FlushFileBuffers(handle.DangerousGetHandle()))
+            Core.Diagnostics.AppLog.Warn($"A replacement in a folder could not be written through (Win32 error {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}).");
     }
 
     private static bool DigestMatches(SafeFileHandle handle, string expected, long length, CancellationToken ct)
