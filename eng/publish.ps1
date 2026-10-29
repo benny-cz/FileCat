@@ -74,6 +74,13 @@ foreach ($dir in @($publish, $fdd)) {
     dotnet run --project (Join-Path $root "eng/DependencyNotices") -c Release -- `
         (Join-Path $root "licenses/dependencies") (Join-Path $root "src/FileCat.App/packages.lock.json") $dir (Join-Path $dir "licenses/dependencies")
     if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
+    # FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.
+    $xadmaster = Join-Path $dir "licenses/xadmaster"
+    New-Item -ItemType Directory -Force -Path $xadmaster | Out-Null
+    Copy-Item (Join-Path $root "licenses/xadmaster/LICENSE"), (Join-Path $root "licenses/xadmaster/README.md") $xadmaster -Force
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $xadmaster "LICENSE")).Hash -ne '9B872A8A070B8AD329C4BD380FB1BF0000F564C75023EC8E1E6803F15364B9E9') {
+        throw "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text"
+    }
 }
 
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output) {

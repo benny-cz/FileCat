@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    RAR 1.5 decompression (unpack version 15) for FileCat's own RAR reader: a C# port of XADRAR15Handle from XADMaster
+    (The Unarchiver's archive library), under the GNU LGPL 2.1 or later. It is kept as its own assembly so that it
+    stays a separate, replaceable library under the LGPL while the rest of FileCat stays MIT; its complete
+    corresponding source is this folder. See licenses/xadmaster. No package or project references.
+  -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Archives.Rar15</RootNamespace>
+    <Description>RAR 1.5 decompression ported from XADMaster's XADRAR15Handle; LGPL-2.1-or-later.</Description>
+    <Copyright>Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster, originally by Dag Ågren); C# port Copyright (c) 2026 Benny and FileCat contributors. LGPL-2.1-or-later.</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
+</Project>

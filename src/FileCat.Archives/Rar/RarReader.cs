@@ -1,3 +1,5 @@
+using FileCat.Archives.Rar15;
+
 namespace FileCat.Archives.Rar;
 
 /// <summary>
@@ -15,6 +17,7 @@ internal sealed class RarReader : IMemberReader
     private int _decodedIndex = -1;
     private RarDecoder? _decoder;
     private RarWindow? _window;
+    private Rar15Decoder? _rar15;        // RAR 1.5 runs: a decoder with its own window (FileCat.Archives.Rar15, LGPL)
     private bool _disposed;
 
     private RarReader(List<Stream> volumes, RarArchive archive, bool numberedVolumeGap)
@@ -97,7 +100,7 @@ internal sealed class RarReader : IMemberReader
         int runStart = index;
         while (runStart > 0 && (_archive.Members[runStart].SolidContinuation || !IsCompressedFile(_archive.Members[runStart])))
             runStart--;
-        bool continues = _decoder is not null && _decoded is { Broken: false } && _decodedIndex >= runStart && _decodedIndex < index;
+        bool continues = (_decoder is not null || _rar15 is not null) && _decoded is { Broken: false } && _decodedIndex >= runStart && _decodedIndex < index;
         if (continues)
         {
             _decoded!.Drain();
@@ -123,9 +126,20 @@ internal sealed class RarReader : IMemberReader
 
     private void NewRun(int version, long dictionary, long expectedBytes)
     {
-        _decoder = CreateDecoder(version);
-        _window = new RarWindow(dictionary, expectedBytes);
-        _bits = new RarBitReader();
+        if (version == 15)
+        {
+            // RAR 1.5 keeps its own 64 KiB window; the run's members go through RarMemberStream's external mode.
+            _rar15 = new Rar15Decoder();
+            _decoder = null;
+            _window = null;
+        }
+        else
+        {
+            _decoder = CreateDecoder(version);
+            _window = new RarWindow(dictionary, expectedBytes);
+            _bits = new RarBitReader();
+            _rar15 = null;
+        }
         _decoded = null;
         _decodedIndex = -1;
     }
@@ -133,9 +147,21 @@ internal sealed class RarReader : IMemberReader
     private RarMemberStream Start(int index, bool solid, CancellationToken ct)
     {
         var member = _archive.Members[index];
-        _bits.Reset(new RarPackedStream(_volumes, member.Segments));
-        _decoder!.StartMember(_bits, solid);
-        _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct);
+        if (member.Version == 15)
+        {
+            if (_rar15 is null) throw RarData.Unsupported("a solid run that changes compression version");
+            // RAR 1.5 has no end marker: the decoder needs the size, and a member without one cannot be decoded.
+            if (member.UnpackedSize < 0) throw RarData.Unsupported("a RAR 1.5 member whose size the archive does not record");
+            _rar15.StartMember(new RarPackedStream(_volumes, member.Segments), member.UnpackedSize, solid);
+            _decoded = RarMemberStream.External(member, _rar15.Read, ct);
+        }
+        else
+        {
+            if (_decoder is null) throw RarData.Unsupported("a solid run that changes compression version");
+            _bits.Reset(new RarPackedStream(_volumes, member.Segments));
+            _decoder.StartMember(_bits, solid);
+            _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct);
+        }
         _decodedIndex = index;
         return _decoded;
     }
@@ -162,6 +188,7 @@ internal sealed class RarReader : IMemberReader
         _disposed = true;
         _decoder = null;
         _window = null;
+        _rar15 = null;
         _decoded = null;
         foreach (var volume in _volumes) volume.Dispose();
         _volumes.Clear();
