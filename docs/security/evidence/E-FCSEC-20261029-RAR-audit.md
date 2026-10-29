@@ -6,6 +6,8 @@ The separate AC-15–44 security-plan execution was committed and pushed as `f13
 
 The audit will seek distinct Critical/High outcomes: unbounded CPU or memory from a small RAR, write outside the chosen destination, bypass of member integrity checks, sensitive-data read or spill, and premature trust in damaged/missing volumes. It will use owned fixtures and the product's public archive route, then stop after each credible route has a bounded adverse and healthy control. Findings and negative results are added below as they are obtained; no severity is assigned to a code smell without a reachable consequence.
 
+**Later continuation at `be40902e`:** A separate current-source pass found the distinct open filter-work issue RAR-SEC-003 / FCSEC-056. Its exact probe and AC-59 plan are in [the filter-work receipt](E-FCSEC-20261029-RAR-filter-work.md) and [security plan §20](../FILECAT_SECURITY_REVIEW_AND_PLAN.md). The prior stopping decision below describes the earlier RAR-SEC-001/002 repair audit, not this later finding.
+
 ## Working observations
 
 - 2026-10-29: The combined Release solution at `f134ba37` built with zero warnings/errors after integrating the reader. Security archive depth and Windows extraction/link controls passed at that source; the native handle cases required an out-of-sandbox run. RAR-specific audit tests have not yet been run in this receipt.
@@ -24,6 +26,7 @@ The audit will seek distinct Critical/High outcomes: unbounded CPU or memory fro
 | --- | --- | --- | --- |
 | High / RAR-SEC-001 | Selecting a tiny member in a hostile solid RAR could decode arbitrarily large predecessor output outside the member budget. | Apply per-predecessor and aggregate output/ratio limits during hidden solid preparation; invalidate the decoder after a limit failure. | The 66 MiB/under-66 KiB single-predecessor and two 33 MiB aggregate fixtures refuse through the reader, with the single case also refusing through `ArchiveProvider.OpenContent`; existing healthy RAR/corpus/multipart cases and damaged-input fuzz remain green. **Met.** |
 | High / RAR-SEC-002 | A matching FIFO or FIFO symlink could make Unix multipart archive opening wait indefinitely for a peer. | Admit only regular Unix archive files using the already available nonblocking descriptor helper; retain volume paths separately from opened handles for catalog checks. | Direct and linked FIFO siblings refuse within five seconds through both `RarReader.Open` and public archive listing on macOS; healthy RAR, 7z, multipart and source-binding controls pass. **Met.** |
+| High / RAR-SEC-003 / FCSEC-056 | Repeated standard filters transform the same block thousands of times before the public provider receives bytes; a 128-byte packed member made `OpenContent` take 23.8 seconds. | AC-59 budgets aggregate transform work at 1 GiB per decoder/solid run and preserves finite refusal independent of cancellation. | The 8,192-filter fixture refuses in about 10 ms through the direct reader and public route; 240 selected healthy/adverse regression cases pass with 19 platform skips. [Execution receipt](E-FCSEC-20261029-AC59-execution.md). **Met at source/public scope.** |
 
 ## Final evidence and stopping decision
 

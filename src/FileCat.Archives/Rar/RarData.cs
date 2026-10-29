@@ -21,6 +21,9 @@ internal static class RarLimits
     /// <summary>Filters waiting for their block at once.</summary>
     public const int MaxPendingFilters = 8192;
 
+    /// <summary>Maximum sum of bytes processed by filters in one decoder/solid run.</summary>
+    public const long MaxFilterWorkBytes = 1L << 30;
+
     /// <summary>Channels of a delta or audio filter.</summary>
     public const int MaxFilterChannels = 1024;
 

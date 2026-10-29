@@ -203,7 +203,7 @@ internal sealed class RarMemberStream : Stream
         {
             _ct.ThrowIfCancellationRequested();
             int n;
-            try { n = window.ReadOutput(buffer, _end, _start); }
+            try { n = window.ReadOutput(buffer, _end, _start, _ct); }
             catch { Broken = true; throw; }
             if (n > 0) return n;
             if (window.Read >= _end && !window.HasFilteredOutput)
@@ -229,7 +229,10 @@ internal sealed class RarMemberStream : Stream
                 stoppedWithoutOutput = true;
             }
             // The decoder ran: the next ReadOutput must make progress unless it finished.
-            if (window.ReadOutput(buffer, _end, _start) is int more and > 0) return more;
+            int more;
+            try { more = window.ReadOutput(buffer, _end, _start, _ct); }
+            catch { Broken = true; throw; }
+            if (more > 0) return more;
             if (_decoderDone) continue;
         }
     }

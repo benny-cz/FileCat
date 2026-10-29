@@ -33,6 +33,7 @@ internal sealed class RarWindow
     private byte[]? _filtered;
     private int _filteredPos;
     private int _filteredLength;
+    private long _filterWork;         // every transform in this window's solid run, not just bytes handed out
 
     public RarWindow(long dictionary, long expectedBytes)
     {
@@ -51,6 +52,9 @@ internal sealed class RarWindow
 
     /// <summary>Bytes handed out since the window began.</summary>
     public long Read => _read;
+
+    /// <summary>Aggregate bytes transformed by filters in this decoder, including earlier solid members.</summary>
+    public long FilterWorkBytes => _filterWork;
 
     /// <summary>True when the decoder may add one more symbol's output without touching unread bytes.</summary>
     public bool HasRoom => _written - _read + RarLimits.MaxSymbolOutput <= _maxCapacity;
@@ -128,7 +132,7 @@ internal sealed class RarWindow
     /// Returns 0 when the decoder must decode more first. <paramref name="memberStart"/> is the window position of
     /// the member's first byte, from which E8, ARM and Itanium filters count file offsets.
     /// </summary>
-    public int ReadOutput(Span<byte> destination, long end, long memberStart)
+    public int ReadOutput(Span<byte> destination, long end, long memberStart, CancellationToken ct = default)
     {
         int total = 0;
         while (total < destination.Length)
@@ -148,7 +152,7 @@ internal sealed class RarWindow
                 var first = _filters[0];
                 if (first.Start + first.Length > _written) break; // the block is not all decoded yet
                 if (first.Start + first.Length > end) throw RarData.Corrupt("filter block past the end of the member");
-                ApplyFilters(memberStart);
+                ApplyFilters(memberStart, ct);
                 continue;
             }
             if (_filters.Count > 0) limit = Math.Min(limit, _filters[0].Start);
@@ -168,15 +172,29 @@ internal sealed class RarWindow
     /// <summary>True while filtered output of an earlier block is still being handed out.</summary>
     public bool HasFilteredOutput => _filtered is not null;
 
-    private void ApplyFilters(long memberStart)
+    private void ApplyFilters(long memberStart, CancellationToken ct)
     {
         var filter = _filters[0];
         int length = filter.Length;
+        // One tiny packed record may queue thousands of full-block transforms. Check the whole chain before doing
+        // any of its work; the counter stays with the window across every member of a solid run.
+        long work = 0;
+        foreach (var pending in _filters)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (pending.Start != filter.Start) break;
+            if (pending.Length != length) throw RarData.Corrupt("chained filters of different sizes");
+            work = checked(work + pending.Length);
+            if (work > RarLimits.MaxFilterWorkBytes - _filterWork)
+                throw RarData.Unsupported("the solid run exceeds the 1 GiB filter-work limit");
+        }
+        _filterWork += work;
         EnsureScratch(ref _scratchA, length);
         CopyOut(filter.Start, length, _scratchA);
         byte[] current = _scratchA;
         while (true)
         {
+            ct.ThrowIfCancellationRequested();
             _filters.RemoveAt(0);
             long fileOffset = filter.Start - memberStart;
             current = ReferenceEquals(current, _scratchA)
