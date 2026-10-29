@@ -180,19 +180,17 @@ tracks installed-app and native interaction checks separately.
 - **Create links where supported.** Make symbolic or hard links, or Windows junctions, after
   FileCat checks the target and file system.
 
-## Platforms and validation
+## Made for real work
 
-The planned 1.0.0 distribution has **Windows 11 x64** as its stable tier, with
-**Windows 11 ARM64**, **Ubuntu 24.04/26.04 x64** and **macOS 26+ on Apple silicon**
-labelled as previews. Windows provides Registry, Windows Shell, MTP and installed-build
-administrator retry; the Unix builds use their own trash, permission, keyring and device
-authorization paths. [What works where](docs/CAPABILITIES.md) lists the per-location limits.
+FileCat is shaped around the work people actually do: moving a few files, untangling a large
+folder, inspecting an unfamiliar binary, or trying to recover something lost. The interface
+should stay clear as the task gets harder, on Windows, Ubuntu and macOS.
 
-The implementation is backed by automated suites, failure and interruption tests, and native
-Windows, Ubuntu and Mac checks. We retain exact build and package provenance and record failed
-tests alongside passes in the [release evidence](docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md).
-That work is still in progress: it does not make a development screenshot or source build a
-qualified release. [Current acceptance and gates](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md).
+AI helps build FileCat and helps question it. Security reviews probe trust boundaries; QA tests
+exercise failures and interruptions; UX/UI reviews challenge awkward paths and unclear results.
+The findings feed back into the app and are checked with automated tests and native platform
+runs. People decide what ships, and the [capability matrix](docs/CAPABILITIES.md) records what
+each platform can currently do.
 
 ## Build and run
 
