@@ -67,8 +67,10 @@ public static class TreeCompare
         bool reviewRemovals = true)
     {
         var entries = new List<TreeDiffEntry>();
-        long remainingReviewBytes = 256L * 1024 * 1024;
-        int remainingReviewItems = 4096;
+        // Each side has its own budget for reviewing the items it alone holds, so that many new items on one side cannot
+        // leave the other side's unreviewed, which a Mirror then keeps (review finding F-M2 of f134ba37).
+        long[] remainingReviewBytes = [256L * 1024 * 1024, 256L * 1024 * 1024];
+        int[] remainingReviewItems = [4096, 4096];
         int folders = 0;
         bool complete = true;
         var lp = providers.For(left);
@@ -142,12 +144,16 @@ public static class TreeCompare
             if (!folder.IsFileSystem) return entry;
             string? path = provider.GetItemRef(folder, data).FileSystemPath;
             if (path is null) return entry;
-            FileTreeReview? Capture() => remainingReviewItems <= 0 ? null : FileTreeReview.Capture(path, files ?? new PortableFileOperations(), provider,
-                ct.ThrowIfCancellationRequested, byteLimit: Math.Min(remainingReviewBytes, JournalRecovery.StagedReviewByteLimit),
-                itemLimit: Math.Min(remainingReviewItems, 1000), allowLinks: true);
+            int side = entry.Kind == TreeDiffKind.LeftOnly ? 0 : 1;
+            var spend = new FileTreeReview.Spend();
+            FileTreeReview? Capture() => remainingReviewItems[side] <= 0 ? null : FileTreeReview.Capture(path, files ?? new PortableFileOperations(), provider,
+                ct.ThrowIfCancellationRequested, byteLimit: Math.Min(remainingReviewBytes[side], JournalRecovery.StagedReviewByteLimit),
+                itemLimit: Math.Min(remainingReviewItems[side], 1000), allowLinks: true, spend: spend);
             // It reads the item's bytes and final path: on the device's worker, as the listings are.
             var review = !reviewRemovals ? null : io is null ? Capture() : await io.ReviewAsync(provider, folder, Capture, ct).ConfigureAwait(false);
-            if (review is not null) { remainingReviewItems -= review.Items.Count; remainingReviewBytes -= review.Bytes; }
+            // Charged what it read, also a review that gave up: a folder past the limits is not read again and again.
+            remainingReviewItems[side] -= spend.Items;
+            remainingReviewBytes[side] -= spend.Bytes;
             entry = entry with { RemovalReview = review is null ? null : new ReviewedSourceTree(review, provider) };
             if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
                 return entry;

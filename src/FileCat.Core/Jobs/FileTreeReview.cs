@@ -17,13 +17,22 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
     /// one a cloud provider keeps (a reparse point that is no link, whose bytes would have to be downloaded), is reviewed
     /// by its native identity and metadata alone, without content. Replacement then checks those through the handle it
     /// holds, so a different or rewritten file is still never destroyed.</param>
+    /// <param name="spend">Told what the capture read, also when it gave up: what a budget is charged for it.</param>
     public static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
         Action? check = null, long byteLimit = JournalRecovery.StagedReviewByteLimit, int itemLimit = 1000, bool allowLinks = false,
-        bool bindByIdentity = false)
-        => Capture(root, files, provider, check, byteLimit, itemLimit, allowLinks, bindByIdentity, expected: null);
+        bool bindByIdentity = false, Spend? spend = null)
+        => Capture(root, files, provider, check, byteLimit, itemLimit, allowLinks, bindByIdentity, expected: null, spend);
+
+    /// <summary>The items a capture looked at and the bytes it read, also when it gave up (review finding F-M2 of f134ba37).</summary>
+    public sealed class Spend
+    {
+        public int Items { get; internal set; }
+        public long Bytes { get; internal set; }
+    }
 
     private static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
-        Action? check, long byteLimit, int itemLimit, bool allowLinks, bool bindByIdentity, IReadOnlyDictionary<string, Item>? expected)
+        Action? check, long byteLimit, int itemLimit, bool allowLinks, bool bindByIdentity, IReadOnlyDictionary<string, Item>? expected,
+        Spend? spend = null)
     {
         if (itemLimit <= 0 || byteLimit < 0) return null;
         try
@@ -34,6 +43,7 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
             {
                 check?.Invoke(); if (items.Count == itemLimit || next.Depth > 128) return null;
                 var version = SourcePathReview.Capture(next.Path, files, check);
+                if (spend is not null) spend.Items++;
                 if (version is null) return null;
                 // Do not open content belonging to a changed identity/version or a newly discovered descendant.
                 // Complete hashes are compared afterward, but known path changes must stop before that read.
@@ -53,6 +63,8 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
                 else if (!link && !(bindByIdentity && version.Identity is not null && (reparse || version.Info.Size > remaining)))
                 {
                     content = JournalRecovery.ReviewStagedFile(next.Path, provider, check, remaining);
+                    // A file over what is left is read up to it before it fails.
+                    if (spend is not null) spend.Bytes += content?.Length ?? Math.Min(remaining, Math.Max(0, version.Info.Size));
                     if (content is null) return null;
                     remaining -= content.Length;
                 }
