@@ -97,6 +97,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             _sections.Add(ChecksSection(times));
             _sections.Add(LayoutSection(size, blocks * 512, (int)*(uint*)(b + 4), inodeFlags?.Extents));
             if (mount is { } fat && FatKind(fat.Type) is { } typed && FatSection(fat, sniff: !typed) is { } entry) _sections.Add(entry);
+            if (mount is { Type: "ext4" or "ext3" or "ext2" } ext) _sections.Add(Ext4Section(ext.Type, ext.Source, path, inode, devMajor, devMinor, _warnings));
             if (mount is { } volume) _sections.Add(VolumeSection(volume));
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
