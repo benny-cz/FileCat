@@ -140,7 +140,8 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         Architecture architecture, uint socket)
     {
         var abi = LinuxPictureProcessPolicy.ForArchitecture(architecture);
-        var filter = LinuxPictureSandbox.BuildPreExecFilter(abi);
+        const uint self = 4242;
+        var filter = LinuxPictureSandbox.BuildPreExecFilter(abi, self);
         const uint denied = 0x00050001, allowed = 0x7fff0000, killed = 0x80000000;
         Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, socket));
         Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 425));
@@ -152,6 +153,18 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         Assert.Equal(killed, Evaluate(filter,
             architecture == Architecture.X64 ? 0xc00000b7U : 0xc000003eU, socket));
         if (abi.RejectX32) Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, 0x40000000));
+        // Review finding R-M6: SysV IPC (shmget, msgget), tkill and pidfds are denied; signals reach this process only.
+        bool x64 = architecture == Architecture.X64;
+        foreach (uint call in x64 ? new uint[] { 29, 68, 200, 424, 434, 438 } : [194, 186, 130, 424, 434, 438])
+            Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call));
+        foreach (uint call in x64 ? new uint[] { 62, 234, 129, 297 } : [129, 131, 138, 240])
+        {
+            Assert.Equal(allowed, Evaluate(filter, abi.AuditArchitecture, call, self));
+            Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call, self + 1));
+            Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call, 0));
+            Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call, ulong.MaxValue)); // -1: every process
+            Assert.Equal(denied, Evaluate(filter, abi.AuditArchitecture, call, self | 1UL << 32));
+        }
     }
 
     [Fact]
@@ -186,12 +199,29 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             denied(lambda: os.utime(sys.argv[1], (0, 0)), 37)
             denied(lambda: os.truncate(sys.argv[1], 0), 38)
             denied(lambda: os.setxattr(sys.argv[1], 'user.filecat', b'x'), 39)
+            # Review finding R-M6: no signal to any other process (signal 0 only asks), no SysV IPC, and no descriptor
+            # inherited without close-on-exec (here one for the secret, open in the test process).
+            denied(lambda: os.kill(-1, 0), 40)
+            denied(lambda: os.kill(os.getppid(), 0), 41)
+            import ctypes
+            libc = ctypes.CDLL(None, use_errno=True)
+            def shared_memory():
+                created = libc.shmget(0, 4096, 0o1600)
+                if created < 0:
+                    raise OSError(ctypes.get_errno(), 'shmget')
+                libc.shmctl(created, 0, None)
+            denied(shared_memory, 42)
+            denied(lambda: os.fstat(int(sys.argv[4])), 43)
             with open(sys.argv[3], 'rb') as allowed:
                 if len(allowed.read(1)) != 1:
                     raise SystemExit(34)
             """;
+        // A descriptor without close-on-exec, which the launcher inherits from this process.
+        int inherited = OpenWithoutCloseOnExec(secret);
+        Assert.True(inherited > 2, "The inherited descriptor could not be opened.");
         var start = PictureDecoder.SandboxedProbeStartInfo("/usr/bin/python3",
-            ["-c", probe, secret, written, typeof(PictureDecoder).Assembly.Location]);
+            ["-c", probe, secret, written, typeof(PictureDecoder).Assembly.Location,
+                inherited.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
         start.Environment.Clear();
         start.Environment["DOTNET_EnableDiagnostics"] = "0";
         start.Environment["DOTNET_ROOT"] = LinuxPictureSandbox.RuntimeRoot();
@@ -209,8 +239,18 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
             Assert.Equal(modeBefore, File.GetUnixFileMode(secret));
             Assert.Equal(timeBefore, File.GetLastWriteTimeUtc(secret));
         }
-        finally { Directory.Delete(root, recursive: true); }
+        finally
+        {
+            CloseDescriptor(inherited);
+            Directory.Delete(root, recursive: true);
+        }
     }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenWithoutCloseOnExec(string path, int flags = 0);
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "close")]
+    private static extern int CloseDescriptor(int descriptor);
 
     [Fact]
     public void Unsupported_Linux_architecture_is_not_silently_unrestricted() =>
@@ -227,7 +267,7 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
                 case 0x20:
                     accumulator = instruction.Value switch
                     {
-                        0 => syscall, 4 => architecture, 16 => (uint)firstArgument,
+                        0 => syscall, 4 => architecture, 16 => (uint)firstArgument, 20 => (uint)(firstArgument >> 32),
                         _ => throw new InvalidOperationException($"Unexpected seccomp_data offset {instruction.Value}."),
                     };
                     break;

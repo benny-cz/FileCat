@@ -20,6 +20,8 @@ internal static unsafe partial class LinuxPictureSandbox
     private const ulong Truncate = 1UL << 14;
     private const ulong IoctlDevice = 1UL << 15;
     private const ulong ResolveUnix = 1UL << 16;
+    private const ulong ScopeAbstractUnixSocket = 1UL << 0;
+    private const ulong ScopeSignal = 1UL << 1;
     private const uint LandlockCreateRulesetVersion = 1;
     private const int LandlockRulePathBeneath = 1;
     private const int OpenPath = 0x200000;
@@ -86,11 +88,34 @@ internal static unsafe partial class LinuxPictureSandbox
     /// <summary>Apply before replacing this trusted single entry thread with the actual worker.</summary>
     private static void Apply()
     {
+        var abi = LinuxPictureProcessPolicy.ForArchitecture(RuntimeInformation.ProcessArchitecture);
+        CloseInheritedOnExec(abi);
         LinuxPictureProcessPolicy.SetNoNewPrivileges("filesystem and network access");
         ApplyFileSystemPolicy();
-        var abi = LinuxPictureProcessPolicy.ForArchitecture(RuntimeInformation.ProcessArchitecture);
-        LinuxPictureProcessPolicy.ApplyFilter(abi, BuildPreExecFilter(abi), synchronizeThreads: false,
+        // execv keeps the process ID, so the worker is the process this one is.
+        LinuxPictureProcessPolicy.ApplyFilter(abi, BuildPreExecFilter(abi, (uint)Environment.ProcessId), synchronizeThreads: false,
             "The picture decoder could not restrict network access and file metadata changes.");
+    }
+
+    /// <summary>
+    /// Marks every descriptor but the standard three, and the lifetime pipe FileCat gives the worker, close-on-exec
+    /// (review finding R-M6). One this launcher inherited without it, such as the app's X11 or D-Bus connection or an
+    /// open file, would otherwise reach the worker, past Landlock, which checks only what is opened.
+    /// </summary>
+    private static void CloseInheritedOnExec(LinuxPictureProcessPolicy.Abi abi)
+    {
+        const int CloseRange = 436, CloseRangeCloexec = 4, SetDescriptorFlags = 2, CloseOnExec = 1;
+        int fcntl = abi.AuditArchitecture == 0xc000003e ? 72 : 25;
+        if (Syscall(CloseRange, 3, unchecked((nint)uint.MaxValue), CloseRangeCloexec, 0, 0, 0) != 0)
+        {
+            // Before Linux 5.11, which has no CLOSE_RANGE_CLOEXEC: each descriptor open now, from /proc/self/fd.
+            foreach (string entry in Directory.GetFileSystemEntries("/proc/self/fd"))
+                if (int.TryParse(Path.GetFileName(entry), out int descriptor) && descriptor > 2)
+                    Syscall(fcntl, descriptor, SetDescriptorFlags, CloseOnExec, 0, 0, 0);
+        }
+        if (int.TryParse(Environment.GetEnvironmentVariable(PictureWorkerLifetime.EnvironmentName), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out int lifetime) && lifetime > 2)
+            Syscall(fcntl, lifetime, SetDescriptorFlags, 0, 0, 0, 0);
     }
 
     private static void ApplyFileSystemPolicy()
@@ -108,6 +133,9 @@ internal static unsafe partial class LinuxPictureSandbox
             HandledAccessFileSystem = handled,
             // No rules are added: supported TCP and UDP bind/connect/send operations are denied as a second layer.
             HandledAccessNetwork = abi >= 10 ? 0xfUL : abi >= 4 ? 0x3UL : 0,
+            // From ABI 6 (Linux 6.12): no signal to, and no abstract Unix socket of, any process outside this domain (review
+            // finding R-M6). The seccomp filter keeps signals to this process on older kernels too.
+            Scoped = abi >= 6 ? ScopeAbstractUnixSocket | ScopeSignal : 0,
         };
         long ruleset;
         ruleset = Syscall(444, (nint)(&attributes), sizeof(RulesetAttributes), 0, 0, 0, 0);
@@ -173,8 +201,10 @@ internal static unsafe partial class LinuxPictureSandbox
     /// change, and a path's truncation only from its ABI 3 (Linux 6.2), so a decoder exploit could otherwise make the
     /// user's keys readable to all or empty a file the user owns (review finding R-H3). ftruncate stays: it needs a
     /// descriptor open for writing, which Landlock refuses for every file, and .NET's double-mapped code memory uses it.
+    /// No SysV IPC (other processes' shared memory and queues), and signals only to <paramref name="self"/>, the worker
+    /// (review finding R-M6): kill(-1, SIGKILL) would end the user's session. The runtime signals its own threads.
     /// </summary>
-    internal static LinuxPictureProcessPolicy.Filter[] BuildPreExecFilter(LinuxPictureProcessPolicy.Abi abi)
+    internal static LinuxPictureProcessPolicy.Filter[] BuildPreExecFilter(LinuxPictureProcessPolicy.Abi abi, uint self)
     {
         const uint Deny = 0x00050001, Allow = 0x7fff0000;
         var code = new List<LinuxPictureProcessPolicy.Filter>
@@ -198,9 +228,27 @@ internal static unsafe partial class LinuxPictureSandbox
         uint[] metadata = x64
             ? [76, 90, 91, 92, 93, 94, 132, 188, 189, 190, 197, 198, 199, 235, 260, 261, 268, 280, 452, 463, 466, 469]
             : [45, 52, 53, 54, 55, 5, 6, 7, 14, 15, 16, 88, 452, 463, 466, 469];
-        foreach (uint call in network.Concat(ioUring).Concat(metadata))
+        // SysV shared memory, semaphores and message queues; tkill, which names a thread of any process; and process file
+        // descriptors (pidfd_send_signal, pidfd_open, pidfd_getfd).
+        uint[] ipc = x64
+            ? [29, 30, 31, 64, 65, 66, 67, 68, 69, 70, 71, 220, 200, 424, 434, 438]
+            : [186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 130, 424, 434, 438];
+        foreach (uint call in network.Concat(ioUring).Concat(metadata).Concat(ipc))
         {
             code.Add(new(0x15, 0, 1, call));
+            code.Add(new(0x06, 0, 0, Deny));
+        }
+        // kill, tgkill, rt_sigqueueinfo and rt_tgsigqueueinfo, whose first argument is the target process: allowed only
+        // for this one (its low word, then its high word, which a negative ID such as -1 sets).
+        uint[] signals = x64 ? [62, 234, 129, 297] : [129, 131, 138, 240];
+        foreach (uint call in signals)
+        {
+            code.Add(new(0x15, 0, 6, call));
+            code.Add(new(0x20, 0, 0, 16));
+            code.Add(new(0x15, 0, 3, self));
+            code.Add(new(0x20, 0, 0, 20));
+            code.Add(new(0x15, 0, 1, 0));
+            code.Add(new(0x06, 0, 0, Allow));
             code.Add(new(0x06, 0, 0, Deny));
         }
         code.Add(new(0x06, 0, 0, Allow));
