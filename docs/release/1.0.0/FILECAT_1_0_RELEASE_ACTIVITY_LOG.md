@@ -4872,3 +4872,31 @@ evidence index **904**; acceptance ledger **58 cases: 36 Accepted, 10 Open,
 one Failed, nine Blocked, two Optional**. Next: reconcile exact latest-source
 CI and preflight a new corrected tag for owner approval. The old tag produced
 no release; stable publication remains NO-GO.
+
+## 2026-10-29 — macOS CI path oracle corrected; preview.2 Windows source preflight
+
+[Run 40954472606](https://github.com/benny-cz/FileCat/actions/runs/40954472606)
+at `f32fef2f` failed one Mac Core test because its expected `/var/folders`
+temp path was compared literally with the same file's canonical
+`/private/var/folders` path. The 4,887 passes, 138 skips and one failure remain
+recorded as a failed run. `9a2d45ac` fixes only that test oracle, retaining
+the negative link controls. The focused test passes on Windows and on an
+isolated physical Mac clone of the pushed source (1/1 each); Mac used its
+installed SDK 10.0.403 with a disposable local lock refresh, so the exact
+hosted SDK/lane is still required. [Raw and bounded evidence](evidence/E-PREVIEW2-PREFLIGHT-20261029.md).
+
+The same pushed source locally produced `1.0.0-preview.2` Windows x64 portable
+and framework-dependent ZIPs plus three SPDX documents. Both ZIPs report the
+expected version and exit zero; the portable marker is present only in the
+portable ZIP. The 13-file private evidence manifest rehashes at SHA-256
+`de6cb649a330721768477f58ef4c6f2996c4fc0c5c67cdf31a89362bbee68722`.
+This is a preflight, not a tagged asset or candidate.
+
+**Convergence:** no issue or required case newly Accepted or reopened.
+GATE-CI-FINAL remains Open for all required lanes at the latest product source;
+REL-PIPELINE remains Failed until the corrected protected draft succeeds.
+Evidence index **905**; acceptance ledger remains **58 cases: 36 Accepted,
+10 Open, one Failed, nine Blocked, two Optional**. Next eligible: reconcile
+exact `9a2d45ac` hosted CI, then prepare an exact new preview tag for the
+owner's decision. The previous `preview.1` tag is immutable and cannot supply
+this correction. Stable publication remains NO-GO.
