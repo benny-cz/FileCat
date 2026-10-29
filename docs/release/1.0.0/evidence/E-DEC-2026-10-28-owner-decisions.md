@@ -29,6 +29,8 @@ RAR stays fully accessible, and the shipped code becomes OSI-licensed so the fre
 - Parity target: every RAR 1.5–5.x compression method, all standard filters, solid and multi-volume sets under both naming schemes, CRC32/BLAKE2sp verification, Unicode names, times and links. Encrypted members stay unsupported, as for every format; FileCat does not ask for archive passwords.
 - Acceptance: byte-exact differential tests against the retired SharpCompress path on every corpus archive, with a checksum check on every member. A decoding defect therefore fails as a data error rather than producing silently wrong bytes.
 
+**Route as built (2026-10-29).** The sources changed after this record: RAR 2.0 through 7, PPMd var.H included, was ported from rardecode v2.4.5 (BSD-2-Clause), and only the RAR 1.5 method comes from XADMaster (LGPL-2.1-or-later). libarchive supplied the BSD-2-Clause test corpus. See [E-I14-RAR](E-I14-rar-reader.md).
+
 ## Executed settings (owner-approved in DEC-08 and DEC-09)
 
 All reads and writes used the owner's authenticated `gh` CLI against `benny-cz/FileCat` (public repository, owner user id 5889050).
