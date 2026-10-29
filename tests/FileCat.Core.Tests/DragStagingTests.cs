@@ -3,6 +3,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Tests;
 
@@ -64,6 +65,22 @@ public sealed class DragStagingTests : IDisposable
     {
         public void AddBatch(ReadOnlySpan<EntryData> entries) => list.AddRange(entries.ToArray());
         public void ReportIssue(string message) { }
+    }
+
+    [Fact]
+    public void Elevated_archive_and_recovery_drags_are_refused_before_a_stage_is_created()
+    {
+        Assert.SkipWhen(!WindowsTokenAuthority.IsHighIntegrity, "Elevated Windows staging control.");
+        string zip = Zip(("protected.txt", "OWNED-PROTECTED-BYTES"));
+        var archiveMember = Assert.Single(Members(zip));
+        var recoveryMember = new ItemRef(new Location(Schemes.Recovery, zip), "recovered.txt", EntryKind.File, 21);
+        foreach (var item in new[] { archiveMember, recoveryMember })
+        {
+            var (paths, refusal) = DragStaging.Stage([item], _providers, _ops, _dir.Path, TestContext.Current.CancellationToken);
+            Assert.Null(paths);
+            Assert.Contains("elevated", refusal, StringComparison.OrdinalIgnoreCase);
+            Assert.False(Directory.Exists(Path.Combine(_dir.Path, "drag")));
+        }
     }
 
     [Fact]

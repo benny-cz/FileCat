@@ -132,7 +132,7 @@ public static class ElfInspector
 
         // Symbols: the dynamic symbol table with its versions.
         ct.ThrowIfCancellationRequested();
-        var (imports, exports, symbolCount, versionsNeeded) = DynamicSymbols(r, sectionHeaders, is64, U16, U32, U64, ct);
+        var (imports, exports, symbolCount, versionsNeeded) = DynamicSymbols(r, sectionHeaders, is64, U16, U32, U64, warnings, ct);
         int localSymbols = sectionHeaders.FirstOrDefault(s => s.Type == 2) is { Type: 2 } symtab && symtab.EntSize > 0 ? (int)Math.Min(symtab.Size / symtab.EntSize, int.MaxValue) : 0;
 
         // Notes: build ID, ABI tag, properties (CET, BTI/PAC, x86-64 level), package metadata, Go build ID.
@@ -273,7 +273,7 @@ public static class ElfInspector
     /// its version from .gnu.version against .gnu.version_r (needed) and .gnu.version_d (defined).
     /// </summary>
     private static (List<string[]> Imports, List<string[]> Exports, int Count, List<(string Library, string Version)> VersionsNeeded) DynamicSymbols(
-        ContentReader r, List<SectionHeader> sections, bool is64, Reader16 u16, Reader32 u32, Reader64 u64, CancellationToken ct)
+        ContentReader r, List<SectionHeader> sections, bool is64, Reader16 u16, Reader32 u32, Reader64 u64, List<string> warnings, CancellationToken ct)
     {
         var imports = new List<string[]>();
         var exports = new List<string[]>();
@@ -291,20 +291,42 @@ public static class ElfInspector
         var versions = new Dictionary<int, string>();
         var versym = sections.FirstOrDefault(s => s.Type == 0x6FFFFFFF);
         byte[] versymData = versym.Type == 0x6FFFFFFF ? r.Read((long)Math.Min(versym.Offset, long.MaxValue), count * 2) : [];
+        const int maxVersionRecords = 8_192;
+        const int maxVersionNameChars = 1 << 20;
+        int versionRecords = 0, versionNameChars = 0;
+        bool versionBudgetExceeded = false;
+        var seenVersionTables = new HashSet<(ulong Offset, ulong Size, uint StringTable)>();
+        var decodedVersionNames = new Dictionary<(ulong Table, uint Offset), string>();
         foreach (var verneed in sections.Where(s => s.Type == 0x6FFFFFFE))
         {
+            ct.ThrowIfCancellationRequested();
+            if (!seenVersionTables.Add((verneed.Offset, verneed.Size, verneed.Link))) continue;
             var d = r.Read((long)Math.Min(verneed.Offset, long.MaxValue), (int)Math.Min(verneed.Size, 64 * 1024));
             var names = verneed.Link < sections.Count ? sections[(int)verneed.Link] : strtab;
-            string VersionName(uint offset) => offset < names.Size ? r.AsciiZ((long)Math.Min(names.Offset, long.MaxValue) + offset, 128) : "(unreadable)";
+            string VersionName(uint offset)
+            {
+                if (offset >= names.Size) return "(unreadable)";
+                var key = (names.Offset, offset);
+                if (decodedVersionNames.TryGetValue(key, out string? cached)) return cached;
+                string value = r.AsciiZ((long)Math.Min(names.Offset, long.MaxValue) + offset, 128);
+                versionNameChars += value.Length;
+                if (versionNameChars > maxVersionNameChars) { versionBudgetExceeded = true; return "(budget exceeded)"; }
+                decodedVersionNames.Add(key, value);
+                return value;
+            }
             for (int at = 0, n = 0; at + 16 <= d.Length && n < 256; n++)
             {
+                if (versionBudgetExceeded) break;
                 ushort auxCount = u16(d, at + 2);
                 string library = VersionName(u32(d, at + 4));
                 int aux = at + (int)u32(d, at + 8);
                 for (int k = 0; k < auxCount && aux + 16 <= d.Length && aux >= 0; k++)
                 {
+                    if ((k & 255) == 0) ct.ThrowIfCancellationRequested();
+                    if (versionBudgetExceeded || ++versionRecords > maxVersionRecords) { versionBudgetExceeded = true; break; }
                     int index = u16(d, aux + 6) & 0x7FFF;
                     string version = VersionName(u32(d, aux + 8));
+                    if (versionBudgetExceeded) break;
                     versions[index] = version;
                     needed.Add((library, version));
                     uint nextAux = u32(d, aux + 12);
@@ -315,7 +337,9 @@ public static class ElfInspector
                 if (next == 0) break;
                 at += (int)next;
             }
+            if (versionBudgetExceeded) break;
         }
+        if (versionBudgetExceeded) warnings.Add("The ELF version-need table exceeds its aggregate record or decoded-name budget; the rest is not listed.");
         foreach (var verdef in sections.Where(s => s.Type == 0x6FFFFFFD))
         {
             var d = r.Read((long)Math.Min(verdef.Offset, long.MaxValue), (int)Math.Min(verdef.Size, 64 * 1024));

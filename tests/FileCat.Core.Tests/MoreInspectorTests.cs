@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using FileCat.Core.Inspect;
@@ -139,6 +140,48 @@ public sealed class MoreInspectorTests
         Assert.Contains(symbols, row => row[0] == "puts" && row[3] == "undefined");
     }
 
+    [Fact]
+    public void ELF_aliased_version_need_sections_do_not_amplify_memory()
+    {
+        const int sections = 508, tableAt = 0x800, versionAt = 0x9000, versionBytes = 64 * 1024;
+        byte[] original = ElfWithSymbols();
+        var bytes = new byte[versionAt + versionBytes];
+        original.CopyTo(bytes, 0);
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(60, 2), sections);
+        byte[] template = original.AsSpan(tableAt + 4 * 64, 64).ToArray();
+        for (int i = 4; i < sections; i++)
+        {
+            if (i is 5 or 6 or 7) continue; // retain note, section-name and symbol headers
+            var header = bytes.AsSpan(tableAt + i * 64, 64);
+            template.AsSpan().CopyTo(header);
+            BinaryPrimitives.WriteUInt64LittleEndian(header[24..], versionAt);
+            BinaryPrimitives.WriteUInt64LittleEndian(header[32..], versionBytes);
+        }
+        var need = bytes.AsSpan(versionAt, versionBytes);
+        BinaryPrimitives.WriteUInt16LittleEndian(need, 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(need[2..], 4_095);
+        BinaryPrimitives.WriteUInt32LittleEndian(need[4..], 33); // libc.so.6 in the ordinary string table
+        BinaryPrimitives.WriteUInt32LittleEndian(need[8..], 16);
+        for (int i = 0; i < 4_095; i++)
+        {
+            var aux = need.Slice(16 + i * 16, 16);
+            BinaryPrimitives.WriteUInt16LittleEndian(aux[6..], (ushort)(i + 2));
+            BinaryPrimitives.WriteUInt32LittleEndian(aux[8..], 43); // GLIBC_2.2.5
+            BinaryPrimitives.WriteUInt32LittleEndian(aux[12..], i == 4_094 ? 0u : 16u);
+        }
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var report = ElfInspector.Inspect(new MemoryContentSource("owned.elf", bytes), TestContext.Current.CancellationToken)!;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.DoesNotContain(report.Warnings, w => w.Contains("aggregate record", StringComparison.Ordinal));
+        Assert.InRange(allocated, 0, 50_000_000);
+
+        // Three distinct bounded views of the same bytes exceed the global record budget.
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(tableAt + 8 * 64 + 32), versionBytes - 1);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(tableAt + 9 * 64 + 32), versionBytes - 2);
+        report = ElfInspector.Inspect(new MemoryContentSource("owned.elf", bytes), TestContext.Current.CancellationToken)!;
+        Assert.Contains(report.Warnings, w => w.Contains("aggregate record", StringComparison.Ordinal));
+    }
+
     // ---- Mach-O and Java class ---------------------------------------------------------------------------------------
 
     internal static byte[] MachO(uint cpu = 0x0100000C)
@@ -236,6 +279,92 @@ public sealed class MoreInspectorTests
         Assert.Contains(report.Sections.First(s => s.Title.StartsWith("Load commands", StringComparison.Ordinal)).Table!.Rows, row => row[1] == "LC_CODE_SIGNATURE");
     }
 
+    [Fact]
+    public void Mach_O_repeated_unterminated_symbol_names_have_bounded_work()
+    {
+        const int count = 16_000, symbolsAt = 0x1000, namesAt = 0x50000, namesLength = 16 << 20;
+        var bytes = new byte[namesAt + namesLength];
+        var h = bytes.AsSpan();
+        BinaryPrimitives.WriteUInt32LittleEndian(h, 0xFEEDFACF);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[4..], 0x0100000C);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[12..], 2);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[16..], 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[20..], 24);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[32..], 2); // LC_SYMTAB
+        BinaryPrimitives.WriteUInt32LittleEndian(h[36..], 24);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[40..], symbolsAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[44..], count);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[48..], namesAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(h[52..], namesLength);
+        for (int i = 0; i < count; i++)
+        {
+            int at = symbolsAt + 16 * i;
+            BinaryPrimitives.WriteUInt32LittleEndian(h[at..], (uint)(i + 1));
+            h[at + 4] = 1; // external undefined symbol
+        }
+        h[namesAt..].Fill((byte)'A'); // no NUL across the 16 MiB table
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var watch = Stopwatch.StartNew();
+        var report = MachOInspector.Inspect(new MemoryContentSource("owned.macho", bytes), TestContext.Current.CancellationToken)!;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Contains(report.Warnings, w => w.Contains("character budget", StringComparison.Ordinal));
+        Assert.InRange(watch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+        Assert.InRange(allocated, 0, 80_000_000);
+    }
+
+    [Fact]
+    public void PE_empty_resource_branches_share_a_finite_entry_and_name_budget()
+    {
+        const int types = 64, namesPerType = 4_096, rawAt = 0x200, dirStart = 0x400;
+        const int dirBytes = 16 + namesPerType * 8;
+        int nameAt = dirStart + types * dirBytes;
+        int rawSize = nameAt + 2 + 128 * 2;
+        var bytes = new byte[rawAt + rawSize];
+        var b = bytes.AsSpan();
+        bytes[0] = (byte)'M'; bytes[1] = (byte)'Z';
+        BinaryPrimitives.WriteUInt32LittleEndian(b[0x3C..], 0x80);
+        "PE\0\0"u8.CopyTo(b[0x80..]);
+        BinaryPrimitives.WriteUInt16LittleEndian(b[0x84..], 0x14C);
+        BinaryPrimitives.WriteUInt16LittleEndian(b[0x86..], 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(b[0x94..], 0xE0);
+        BinaryPrimitives.WriteUInt16LittleEndian(b[0x96..], 0x102);
+        const int optional = 0x98;
+        BinaryPrimitives.WriteUInt16LittleEndian(b[optional..], 0x10B);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(optional + 60)..], rawAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(optional + 92)..], 16);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(optional + 96 + 2 * 8)..], 0x1000);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(optional + 96 + 2 * 8 + 4)..], (uint)rawSize);
+        const int section = 0x178;
+        ".rsrc"u8.CopyTo(b[section..]);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(section + 8)..], (uint)rawSize);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(section + 12)..], 0x1000);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(section + 16)..], (uint)rawSize);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(section + 20)..], rawAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[(section + 36)..], 0x40000040);
+        BinaryPrimitives.WriteUInt16LittleEndian(b[(rawAt + 12)..], types);
+        for (int type = 0; type < types; type++)
+        {
+            int entry = rawAt + 16 + type * 8;
+            int dir = dirStart + type * dirBytes;
+            BinaryPrimitives.WriteUInt32LittleEndian(b[entry..], (uint)(type + 1));
+            BinaryPrimitives.WriteUInt32LittleEndian(b[(entry + 4)..], 0x80000000u | (uint)dir);
+            BinaryPrimitives.WriteUInt16LittleEndian(b[(rawAt + dir + 12)..], namesPerType);
+            for (int name = 0; name < namesPerType; name++)
+            {
+                int at = rawAt + dir + 16 + name * 8;
+                BinaryPrimitives.WriteUInt32LittleEndian(b[at..], 0x80000000u | (uint)nameAt);
+                BinaryPrimitives.WriteUInt32LittleEndian(b[(at + 4)..], 0x70000000); // no readable data leaf
+            }
+        }
+        BinaryPrimitives.WriteUInt16LittleEndian(b[(rawAt + nameAt)..], 128);
+        for (int i = 0; i < 128; i++) BinaryPrimitives.WriteUInt16LittleEndian(b[(rawAt + nameAt + 2 + i * 2)..], (ushort)'A');
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var report = PeInspector.Inspect(new MemoryContentSource("owned.exe", bytes), TestContext.Current.CancellationToken)!;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Contains(report.Warnings, w => w.Contains("aggregate entry or name budget", StringComparison.Ordinal));
+        Assert.InRange(allocated, 0, 40_000_000);
+    }
+
     // ---- APK and AAB -------------------------------------------------------------------------------------------------
 
     /// <summary>A minimal binary-XML (AXML) manifest, as aapt writes it.</summary>
@@ -278,6 +407,17 @@ public sealed class MoreInspectorTests
         End(4);
         var b = body.ToArray();
         return new Writer().U16(3).U16(8).U32((uint)(8 + b.Length)).Bytes(b).ToArray();
+    }
+
+    private static byte[] AliasPoolManifest(int count, byte[] stringBytes, Func<int, uint> offset)
+    {
+        int start = 28 + count * 4;
+        var pool = new Writer().U16(1).U16(28).U32((uint)(start + stringBytes.Length))
+            .U32((uint)count).U32(0).U32(0).U32((uint)start).U32(0);
+        for (int i = 0; i < count; i++) pool.U32(offset(i));
+        pool.Bytes(stringBytes);
+        var body = pool.ToArray();
+        return new Writer().U16(3).U16(8).U32((uint)(8 + body.Length)).Bytes(body).ToArray();
     }
 
     internal static byte[] Zip(params (string Name, byte[] Data)[] entries)
@@ -333,6 +473,43 @@ public sealed class MoreInspectorTests
         Assert.Equal(("com.example.bundle", "2.0 (code 7)", "26 (Android 8)"), (Fields(bundle, "Package")["Package"], Fields(bundle, "Package")["Version"], Fields(bundle, "Package")["Minimum SDK"]));
         Assert.Equal("base, camera", Fields(bundle, "Contents")["Modules"]);
         Assert.Null(Inspect(Zip(("readme.txt", [1]))));
+    }
+
+    [Fact]
+    public void Apk_aliased_strings_are_decoded_once_and_unique_overlaps_have_a_budget()
+    {
+        var text = new string('A', 12_000);
+        var oneString = new Writer().U16(text.Length).Bytes(Encoding.Unicode.GetBytes(text)).U16(0).ToArray();
+        byte[] aliased = Zip(("AndroidManifest.xml", AliasPoolManifest(8_000, oneString, _ => 0)));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var ordinary = ApkInspector.Inspect(new MemoryContentSource("owned.apk", aliased), TestContext.Current.CancellationToken)!;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal("Android package (APK)", ordinary.Format);
+        Assert.Empty(ordinary.Warnings);
+        Assert.InRange(allocated, 0, 10_000_000);
+
+        var overlapping = new byte[16_384];
+        for (int i = 0; i < overlapping.Length; i += 2) overlapping[i + 1] = 0x10; // every offset declares 4,096 UTF-16 code units
+        byte[] overBudget = Zip(("AndroidManifest.xml", AliasPoolManifest(8_000, overlapping, i => (uint)(i * 2))));
+        before = GC.GetAllocatedBytesForCurrentThread();
+        var refused = ApkInspector.Inspect(new MemoryContentSource("owned.apk", overBudget), TestContext.Current.CancellationToken)!;
+        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Contains(refused.Warnings, w => w.Contains("decoded-text budget", StringComparison.Ordinal));
+        Assert.InRange(allocated, 0, 50_000_000);
+    }
+
+    [Fact]
+    public void Aab_nested_fields_use_bounded_views_of_the_manifest()
+    {
+        byte[] nested = Proto(2, new byte[1 << 20]);
+        for (int i = 0; i < 64; i++) nested = ProtoElement("manifest", [], nested);
+        byte[] bundle = Zip(("BundleConfig.pb", [0]), ("base/manifest/AndroidManifest.xml", nested));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var report = ApkInspector.Inspect(new MemoryContentSource("owned.aab", bundle), TestContext.Current.CancellationToken)!;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal("Android App Bundle (AAB)", report.Format);
+        Assert.Contains(report.Warnings, w => w.Contains("parsed-byte budget", StringComparison.Ordinal));
+        Assert.InRange(allocated, 0, 16_000_000);
     }
 
     // ---- Audio and video ---------------------------------------------------------------------------------------------
@@ -398,6 +575,34 @@ public sealed class MoreInspectorTests
         var track = Ebml(0xAE, Ebml(0x83, [1]), Ebml(0x86, "V_VP9"u8.ToArray()), Ebml(0xE0, Ebml(0xB0, [0x02, 0x80]), Ebml(0xBA, [0x01, 0x68])));
         var segment = Ebml(0x18538067, info, Ebml(0x1654AE6B, track), Ebml(0x1F43B675, new byte[16]));
         return header.Concat(segment).ToArray();
+    }
+
+    [Fact]
+    public async Task Matroska_nesting_is_bounded_without_a_process_stack_overflow()
+    {
+        var path = new DirectoryInfo(AppContext.BaseDirectory);
+        while (path is not null && !File.Exists(Path.Combine(path.FullName, "FileCat.slnx"))) path = path.Parent;
+        Assert.NotNull(path);
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
+        Assert.True(configuration is "Release" or "Debug");
+        string harness = Path.Combine(path.FullName, "tests", "FileCat.CoreCrashHarness", "bin", configuration, "net10.0", "FileCat.CoreCrashHarness.dll");
+        Assert.True(File.Exists(harness));
+        var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add(harness);
+        start.ArgumentList.Add("--matroska-depth");
+        using var process = Process.Start(start)!;
+        Task<string> output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        Task<string> errors = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try { await process.WaitForExitAsync(timeout.Token); }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException("The isolated Matroska inspector did not finish in ten seconds.");
+        }
+        string text = await output;
+        Assert.True(process.ExitCode == 0, $"Child exit {process.ExitCode}: {text} {await errors}");
+        Assert.Contains("bounded=True", text);
     }
 
     [Fact]

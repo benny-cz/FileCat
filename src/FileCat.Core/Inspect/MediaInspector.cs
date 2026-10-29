@@ -14,6 +14,8 @@ public static class MediaInspector
 {
     private const int MaxBoxes = 10_000;
     private const int MaxMovie = 16 * 1024 * 1024;
+    private const int MaxEbmlDepth = 32;
+    private const int MaxEbmlElements = 50_000;
 
     public static InspectionReport? Inspect(IContentSource source, CancellationToken ct)
     {
@@ -202,17 +204,26 @@ public static class MediaInspector
         var data = r.Read(0, 4 * 1024 * 1024);
         var general = new List<(string, string)>();
         var tracks = new List<(string, string)>();
+        var warnings = new List<string>();
         string docType = "matroska";
         double scale = 1_000_000, duration = 0;
         int at = 0;
+        int elements = 0;
+        bool overDepth = false, overBudget = false;
+        bool Visit()
+        {
+            ct.ThrowIfCancellationRequested();
+            if (++elements <= MaxEbmlElements) return true;
+            overBudget = true;
+            return false;
+        }
         // EBML header, then the Segment's children (read flat: Info and Tracks usually come first).
         void Walk(int start, int end, int depth)
         {
+            if (depth > MaxEbmlDepth) { overDepth = true; return; }
             int pos = start;
-            int guard = 0;
-            while (pos < end && guard++ < 50_000)
+            while (pos < end && !overDepth && !overBudget && Visit())
             {
-                ct.ThrowIfCancellationRequested();
                 if (!ReadId(data, ref pos, out uint id) || !ReadSize(data, ref pos, out long size)) return;
                 long stop = size < 0 ? end : Math.Min(end, pos + size);
                 int bodyEnd = (int)Math.Min(stop, data.Length);
@@ -240,7 +251,7 @@ public static class MediaInspector
             int pos = start;
             string codec = "?", kind = "Track", language = string.Empty;
             string details = string.Empty;
-            while (pos < end)
+            while (pos < end && !overBudget && Visit())
             {
                 if (!ReadId(data, ref pos, out uint id) || !ReadSize(data, ref pos, out long size) || size < 0 || pos + size > end) break;
                 int e = (int)(pos + size);
@@ -252,7 +263,7 @@ public static class MediaInspector
                     case 0xE0: // Video
                         int vp = pos;
                         long w = 0, hgt = 0;
-                        while (vp < e && ReadId(data, ref vp, out uint vid) && ReadSize(data, ref vp, out long vs) && vs >= 0 && vp + vs <= e)
+                        while (vp < e && !overBudget && Visit() && ReadId(data, ref vp, out uint vid) && ReadSize(data, ref vp, out long vs) && vs >= 0 && vp + vs <= e)
                         {
                             if (vid == 0xB0) w = UInt(data, vp, (int)(vp + vs));
                             else if (vid == 0xBA) hgt = UInt(data, vp, (int)(vp + vs));
@@ -264,7 +275,7 @@ public static class MediaInspector
                         int ap = pos;
                         double rate = 0;
                         long channels = 0;
-                        while (ap < e && ReadId(data, ref ap, out uint aid) && ReadSize(data, ref ap, out long asz) && asz >= 0 && ap + asz <= e)
+                        while (ap < e && !overBudget && Visit() && ReadId(data, ref ap, out uint aid) && ReadSize(data, ref ap, out long asz) && asz >= 0 && ap + asz <= e)
                         {
                             if (aid == 0xB5) rate = Float(data, ap, (int)(ap + asz));
                             else if (aid == 0x9F) channels = UInt(data, ap, (int)(ap + asz));
@@ -278,10 +289,12 @@ public static class MediaInspector
             return (kind, $"{codec}{(details.Length > 0 ? ", " + details : "")}{(language is { Length: > 0 } and not "und" ? $" [{language}]" : "")}");
         }
         Walk(at, data.Length, 0);
+        if (overDepth) warnings.Add($"Matroska metadata exceeds the {MaxEbmlDepth}-level nesting limit; the rest is not inspected.");
+        if (overBudget) warnings.Add($"Matroska metadata exceeds the {MaxEbmlElements:N0}-element limit; the rest is not inspected.");
         if (duration > 0) general.Insert(0, ("Duration", Duration(duration * scale / 1e9)));
         var sections = new List<InspectionSection> { new("General", general) };
         if (tracks.Count > 0) sections.Add(new InspectionSection($"Tracks ({tracks.Count})", tracks));
-        return new InspectionReport(docType == "webm" ? "WebM video" : "Matroska video", sections, []);
+        return new InspectionReport(docType == "webm" ? "WebM video" : "Matroska video", sections, warnings);
     }
 
     private static bool ReadId(byte[] d, ref int pos, out uint id)

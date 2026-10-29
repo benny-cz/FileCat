@@ -1,0 +1,3 @@
+medium=
+substitution=MEDIUM-SUBSTITUTION
+protectedWrite=denied UnauthorizedAccessException

@@ -456,7 +456,7 @@ public sealed partial class MainViewModel : ObservableObject
                 }
                 var left = new List<string>();
                 if (outcome.Missing > 0) left.Add($"{outcome.Missing:N0} named nothing that exists");
-                if (outcome.Network > 0) left.Add($"{outcome.Network:N0} on network shares were left out (FileCat does not contact servers for a list; open them from the path line)");
+                if (outcome.Network > 0) left.Add($"{outcome.Network:N0} network, linked, or unsafe paths were left out (list loading does not follow them; open trusted paths directly)");
                 if (outcome.Truncated) left.Add($"the list stops at {Core.Search.ListFile.MaxItems:N0} items");
                 Notify($"Opened {Formatters.Plural(outcome.Added, "item", "items")} from {Path.GetFileName(path)}" + (left.Count > 0 ? "; " + string.Join("; ", left) + "." : "."), left.Count > 0);
             });

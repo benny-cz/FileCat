@@ -1,6 +1,7 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Operations;
 
@@ -22,6 +23,10 @@ public static class DragStaging
         string tempRoot, CancellationToken ct)
     {
         if (items.Count == 0) return (null, null);
+        // A medium process of this account can read the ordinary local temp tree after an elevated
+        // process stages a protected archive or recovered image member there.
+        if (WindowsTokenAuthority.IsHighIntegrity)
+            return (null, "Drag export from an elevated FileCat session is refused because its staging folder is accessible at ordinary integrity. Run FileCat ordinarily or copy with F5 to a reviewed destination.");
         if (items.Any(i => i.Parent.Scheme is not (Schemes.Zip or Schemes.Archive or Schemes.Recovery) || Schemes.Recovery == i.Parent.Scheme && i.Parent.Container?.Scheme == Schemes.Device))
             return (null, "Only files on disk, in archives, and in disk images can be dragged to other programs. Copy these with F5 first.");
         if (items.Any(i => i.IsContainer))

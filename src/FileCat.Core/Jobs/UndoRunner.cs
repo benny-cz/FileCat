@@ -1,5 +1,6 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Jobs;
 
@@ -73,6 +74,10 @@ internal sealed class UndoRunner(UndoPlan plan, IFileSystemOperations fs, Action
             {
                 var now = fs.TryGetInfo(step.From);
                 if (now is null) return (UndoOutcomeKind.Kept, "The item no longer exists at the recorded path.");
+                // The inverse has no child snapshot. At high integrity, a directory exposed to a medium
+                // writer could carry substituted children into a protected destination.
+                if (now.IsDirectory && WindowsTokenAuthority.IsHighIntegrity)
+                    return (UndoOutcomeKind.Kept, "Elevated directory Undo is refused because its contents cannot be bound to the reviewed move. Restore it separately after reviewing its current contents.");
                 // A directory inverse moves the current directory; it never promises a recursive content snapshot.
                 if (!now.IsDirectory && (now.Size != step.Size || now.ModifiedUtc.Ticks != step.ModifiedTicks))
                     return (UndoOutcomeKind.Kept, "It changed since the operation.");

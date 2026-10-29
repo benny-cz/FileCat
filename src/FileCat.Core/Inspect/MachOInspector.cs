@@ -17,10 +17,18 @@ public static class MachOInspector
     private const int MaxLoadCommands = 512;
     private const int MaxSymbols = 200_000;
     private const int MaxListed = 5_000;
+    private const int MaxSymbolNameChars = 4 * 1024 * 1024;
+
+    private sealed class SymbolBudget
+    {
+        public int RemainingSymbols = MaxSymbols;
+        public int RemainingNameChars = MaxSymbolNameChars;
+    }
 
     public static InspectionReport? Inspect(IContentSource source, CancellationToken ct)
     {
         var r = new ContentReader(source);
+        var symbols = new SymbolBudget();
         var head = r.Read(0, 32);
         if (head.Length < 8) return null;
         uint magicBe = BinaryPrimitives.ReadUInt32BigEndian(head);
@@ -29,9 +37,9 @@ public static class MachOInspector
             uint n = BinaryPrimitives.ReadUInt32BigEndian(head.AsSpan(4));
             // Java class files share the magic; their next field is a class-file version, far above any count of architectures.
             if (magicBe == 0xCAFEBABE && n >= 20) return JavaClass(head);
-            return Fat(r, magicBe == 0xCAFEBABF, (int)n, ct);
+            return Fat(r, magicBe == 0xCAFEBABF, (int)n, symbols, ct);
         }
-        return Thin(r, 0, ct, out var report) ? report : null;
+        return Thin(r, 0, symbols, ct, out var report) ? report : null;
     }
 
     private static InspectionReport JavaClass(byte[] head)
@@ -41,7 +49,7 @@ public static class MachOInspector
         return new InspectionReport($"Java class file · {java}", [new InspectionSection("Class file", [("Version", $"{major}.{minor} ({java})")])], []);
     }
 
-    private static InspectionReport Fat(ContentReader r, bool is64, int count, CancellationToken ct)
+    private static InspectionReport Fat(ContentReader r, bool is64, int count, SymbolBudget symbols, CancellationToken ct)
     {
         var warnings = new List<string>();
         if (count > MaxArchitectures) warnings.Add($"The header declares {count} architectures; only the first {MaxArchitectures} are read.");
@@ -60,7 +68,7 @@ public static class MachOInspector
             archs.Add((Cpu(cpu), $"{size:N0} bytes at offset {offset:N0}"));
             rows.Add([Cpu(cpu), Subtype(cpu, subtype), $"0x{offset:X}", $"{size:N0}", align < 32 ? $"2^{align}" : $"{align}"]);
             // Every architecture in full, each section named for its architecture.
-            if (Thin(r, offset, ct, out var slice) && slice is not null)
+            if (Thin(r, offset, symbols, ct, out var slice) && slice is not null)
             {
                 sections.AddRange(slice.Sections.Select(s => s with { Title = $"{Cpu(cpu)}: {s.Title}" }));
                 warnings.AddRange(slice.Warnings.Select(w => $"{Cpu(cpu)}: {w}"));
@@ -72,7 +80,7 @@ public static class MachOInspector
 
     private readonly record struct Library(string Kind, string Path, uint Current, uint Compatibility);
 
-    private static bool Thin(ContentReader r, long at, CancellationToken ct, out InspectionReport? report)
+    private static bool Thin(ContentReader r, long at, SymbolBudget symbols, CancellationToken ct, out InspectionReport? report)
     {
         report = null;
         var h = r.Read(at, 32);
@@ -245,9 +253,11 @@ public static class MachOInspector
         if (symtab is { } st && st.NSyms > 0)
         {
             int entry = is64 ? 16 : 12;
-            int count = (int)Math.Min(st.NSyms, MaxSymbols);
+            int count = (int)Math.Min(st.NSyms, (uint)symbols.RemainingSymbols);
+            symbols.RemainingSymbols -= count;
             var table = r.Read(at + st.SymOff, count * entry);
             var names = r.Read(at + st.StrOff, (int)Math.Min(st.StrSize, 16u << 20));
+            var decodedNames = new Dictionary<uint, string>();
             for (int i = 0; (i + 1) * entry <= table.Length; i++)
             {
                 if (i % 4096 == 0) ct.ThrowIfCancellationRequested();
@@ -260,7 +270,17 @@ public static class MachOInspector
                     if ((nType & 0x0E) == 0x0E) localSymbols++;
                     continue;
                 }
-                string name = Cstr(names.AsSpan((int)strx));
+                if (!decodedNames.TryGetValue(strx, out string? name))
+                {
+                    name = Cstr(names.AsSpan((int)strx, Math.Min(names.Length - (int)strx, 512)));
+                    if (name.Length > symbols.RemainingNameChars)
+                    {
+                        warnings.Add($"Symbol names exceed the {MaxSymbolNameChars:N0}-character budget; the rest are not listed.");
+                        break;
+                    }
+                    symbols.RemainingNameChars -= name.Length;
+                    decodedNames.Add(strx, name);
+                }
                 int kind = nType & 0x0E;
                 if (kind == 0)
                 {
@@ -277,7 +297,7 @@ public static class MachOInspector
                 }
                 else if (kind == 0x0E && (nType & 0x10) == 0) exports.Add([name, $"0x{(is64 ? U64(s, 8) : U32(s, 8)):X}"]);
             }
-            if (st.NSyms > MaxSymbols) warnings.Add($"The symbol table has {st.NSyms:N0} entries; only the first {MaxSymbols:N0} are read.");
+            if (st.NSyms > count) warnings.Add($"The symbol table has {st.NSyms:N0} entries; only {count:N0} fit the binary's {MaxSymbols:N0}-symbol budget.");
             header.Add(("Symbols", $"{exports.Count:N0} exported, {imports.Count:N0} imported, {localSymbols:N0} local{(localSymbols == 0 ? " (stripped)" : "")}"));
         }
 
@@ -452,8 +472,9 @@ public static class MachOInspector
 
     private static string Cstr(ReadOnlySpan<byte> b)
     {
+        b = b[..Math.Min(b.Length, 512)];
         int end = b.IndexOf((byte)0);
-        var s = Encoding.UTF8.GetString(end < 0 ? b[..Math.Min(b.Length, 512)] : b[..Math.Min(end, 512)]);
+        var s = Encoding.UTF8.GetString(end < 0 ? b : b[..end]);
         return Printable(s);
     }
 

@@ -66,4 +66,34 @@ public sealed class ListFileTests : IDisposable
         Assert.Throws<IOException>(() => ListFile.Load(big, set, TestContext.Current.CancellationToken));
         Assert.Equal(0, set.Count);
     }
+
+    [Fact]
+    public void Windows_list_admission_refuses_network_sources_and_linked_entries_before_probing_them()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows network and reparse path control.");
+        var set = new ResultSet("linked-list", "List", "test");
+        Assert.Throws<IOException>(() => ListFile.Load(@"\\filecat-test-server.invalid\share\items.lst", set,
+            TestContext.Current.CancellationToken));
+
+        string target = Path.Combine(_dir.Path, "local.txt");
+        File.WriteAllText(target, "local");
+        string entryLink = Path.Combine(_dir.Path, "entry-link.txt");
+        string source = Path.Combine(_dir.Path, "items.lst");
+        string sourceLink = Path.Combine(_dir.Path, "source-link.lst");
+        try
+        {
+            File.CreateSymbolicLink(entryLink, target);
+            File.WriteAllText(source, entryLink + "\n" + target + "\n");
+            File.CreateSymbolicLink(sourceLink, source);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip("This account cannot create the owned file links: " + ex.Message);
+            return;
+        }
+        Assert.Throws<IOException>(() => ListFile.Load(sourceLink, set, TestContext.Current.CancellationToken));
+        var outcome = ListFile.Load(source, set, TestContext.Current.CancellationToken);
+        Assert.Equal((1, 0, 1), (outcome.Added, outcome.Missing, outcome.Network));
+        Assert.Single(set.Snapshot());
+    }
 }

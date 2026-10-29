@@ -158,6 +158,7 @@ internal sealed class UnverifiedExecutor(IJobExecutor inner, Job job, IFileSyste
 /// <summary>Shared helpers: retry/skip/cancel decisions for I/O failures and plain-language errors.</summary>
 internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJournal journal) : IJobExecutor
 {
+    protected const int MaxRecursiveTreeDepth = 512;
     protected readonly Job Job = job;
     protected readonly IFileSystemOperations Fs = fs;
     protected readonly JobJournal Journal = journal;
@@ -811,9 +812,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// so every folder is made (and later given its times and permissions) by its own step, whatever order the file
     /// system lists entries in.
     /// </param>
-    private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null)
+    private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null, int depth = 0)
     {
         Job.Checkpoint();
+        if (depth >= MaxRecursiveTreeDepth)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, $"The folder tree exceeds the {MaxRecursiveTreeDepth:N0}-level copy limit; the remaining source is kept.", StepOutcome.Failed);
+            return Result.Failed;
+        }
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
@@ -867,7 +874,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Result r;
             if (ci.IsDirectory && !ci.IsLink)
             {
-                r = CopyDirectory(child, childDst, ci, EnsureCreated);
+                r = CopyDirectory(child, childDst, ci, EnsureCreated, depth + 1);
             }
             else
             {
@@ -1803,7 +1810,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
         return bound.Failed == 0 && bound.Done == entries.Length;
     }
 
-    private bool DeleteTree(string dir)
+    private bool DeleteTree(string dir, int depth = 0)
     {
         // The Windows adapter walks and removes through no-follow handles, so a child swapped for a junction or
         // symbolic link after classification is removed as a link and never enumerated as the outside directory.
@@ -1815,6 +1822,12 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
                 Issue(IssueSeverity.Error, dir, "The folder could not be fully deleted: " + problem, StepOutcome.PartiallyApplied);
             if (bound.Done > 0) Job.RecordUndoRemainder(dir, "This folder was permanently deleted; its data was not retained for Undo.");
             return bound.Failed == 0;
+        }
+        if (depth >= MaxRecursiveTreeDepth)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, dir, $"The folder tree exceeds the {MaxRecursiveTreeDepth:N0}-level delete limit; the remaining folder is kept.", StepOutcome.Failed);
+            return false;
         }
         bool all = true;
         List<string> children;
@@ -1843,7 +1856,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
                 all = false;
                 continue;
             }
-            all &= info.IsDirectory && !info.IsLink ? DeleteTree(child) : DeleteOne(child, info);
+            all &= info.IsDirectory && !info.IsLink ? DeleteTree(child, depth + 1) : DeleteOne(child, info);
         }
         if (!all) return false;
         bool removed = TryIo(dir, "delete the folder", () => Fs.DeleteDirectory(dir));

@@ -1,0 +1,3 @@
+integrity=Mandatory Label\High Mandatory Level                          Label            S-1-16-12288
+server=192.168.58.129 directRefused=True sourceRefused=True added=1 unsafe=2 bounded=True
+exit=0

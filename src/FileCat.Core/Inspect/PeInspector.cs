@@ -25,6 +25,8 @@ public static partial class PeInspector
     private const int MaxImportEntries = 200_000; // counted across all libraries: a hostile table cannot make counting slow
     private const int MaxListed = 20_000; // imported and exported names shown, each
     private const int MaxResources = 5_000;
+    private const int MaxResourceEntries = 25_000;
+    private const int MaxResourceNameChars = 1 << 20;
     private const int MaxResource = 64 * 1024;
     private const int MaxMetadata = 64 << 20;
     private const int MaxMetadataRows = 1_000;
@@ -500,12 +502,17 @@ public static partial class PeInspector
             return leaves;
         }
         var seen = new HashSet<long>();
+        int entriesLeft = MaxResourceEntries, nameCharsLeft = MaxResourceNameChars;
+        bool truncated = false;
         List<(uint Name, uint Target)> Entries(long dir)
         {
             if (!seen.Add(dir)) return [];
             var head = img.R.Read(root + dir, 16);
             if (head.Length < 16) return [];
-            int n = Math.Min(U16(head, 12) + U16(head, 14), 4096);
+            int declared = Math.Min(U16(head, 12) + U16(head, 14), 4096);
+            int n = Math.Min(declared, entriesLeft);
+            if (n < declared) truncated = true;
+            entriesLeft -= n;
             var raw = img.R.Read(root + dir + 16, n * 8);
             var list = new List<(uint, uint)>();
             for (int i = 0; i + 8 <= raw.Length; i += 8) list.Add((U32(raw, i), U32(raw, i + 4)));
@@ -514,25 +521,34 @@ public static partial class PeInspector
         string Name(uint name, Func<uint, string> byId)
         {
             if ((name & 0x80000000) == 0) return byId(name);
+            if (nameCharsLeft <= 0) { truncated = true; return "(budget exceeded)"; }
             // A counted UTF-16 string at an offset from the resource root.
             var at = root + (name & 0x7FFFFFFF);
             var length = img.R.Read(at, 2);
             if (length.Length < 2) return "(unreadable)";
             var chars = img.R.Read(at + 2, Math.Min((int)U16(length, 0), 128) * 2);
-            return "\"" + Printable(Encoding.Unicode.GetString(chars)) + "\"";
+            string value = Printable(Encoding.Unicode.GetString(chars));
+            if (value.Length > nameCharsLeft) { truncated = true; return "(budget exceeded)"; }
+            nameCharsLeft -= value.Length;
+            return "\"" + value + "\"";
         }
         foreach (var (typeName, typeTarget) in Entries(0))
         {
+            ct.ThrowIfCancellationRequested();
+            if (truncated) break;
             if ((typeTarget & 0x80000000) == 0) continue;
             int typeId = (typeName & 0x80000000) == 0 ? (int)typeName : -1;
             string type = Name(typeName, ResourceType);
             foreach (var (name, nameTarget) in Entries(typeTarget & 0x7FFFFFFF))
             {
                 ct.ThrowIfCancellationRequested();
+                if (truncated) break;
                 string itemName = Name(name, id => $"#{id}");
                 var languages = (nameTarget & 0x80000000) != 0 ? Entries(nameTarget & 0x7FFFFFFF) : [(0u, nameTarget)];
                 foreach (var (language, target) in languages)
                 {
+                    ct.ThrowIfCancellationRequested();
+                    if (truncated) break;
                     if ((target & 0x80000000) != 0) continue;
                     var data = img.R.Read(root + target, 16);
                     if (data.Length < 16) continue;
@@ -545,6 +561,7 @@ public static partial class PeInspector
                 }
             }
         }
+        if (truncated) warnings.Add("The resource tree exceeds its aggregate entry or name budget; the rest is not listed.");
         return leaves;
     }
 

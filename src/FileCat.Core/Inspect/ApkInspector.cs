@@ -220,7 +220,7 @@ public static class ApkInspector
                 var chunk = data.AsSpan(pos, size);
                 switch (type)
                 {
-                    case 0x0001: strings = StringPool(chunk); break;
+                    case 0x0001: strings = StringPool(chunk, ct); break;
                     case 0x0180:
                         resourceIds = new uint[(size - headerSize) / 4];
                         for (int i = 0; i < resourceIds.Length; i++) resourceIds[i] = BinaryPrimitives.ReadUInt32LittleEndian(chunk[(headerSize + i * 4)..]);
@@ -260,21 +260,35 @@ public static class ApkInspector
             }
         }
 
-        private static string[] StringPool(ReadOnlySpan<byte> chunk)
+        private static string[] StringPool(ReadOnlySpan<byte> chunk, CancellationToken ct)
         {
             if (chunk.Length < 28) return [];
-            int count = (int)Math.Min(BinaryPrimitives.ReadUInt32LittleEndian(chunk[8..]), 200_000);
+            uint declaredCount = BinaryPrimitives.ReadUInt32LittleEndian(chunk[8..]);
+            if (declaredCount > 200_000) throw new InvalidDataException("The Android string pool has too many entries.");
+            int count = (int)declaredCount;
             bool utf8 = (BinaryPrimitives.ReadUInt32LittleEndian(chunk[16..]) & 0x100) != 0;
-            int start = (int)BinaryPrimitives.ReadUInt32LittleEndian(chunk[20..]);
+            long start = BinaryPrimitives.ReadUInt32LittleEndian(chunk[20..]);
             int headerSize = BinaryPrimitives.ReadUInt16LittleEndian(chunk[2..]);
+            if (headerSize < 28 || start > chunk.Length || (long)headerSize + count * 4L > start)
+                throw new InvalidDataException("The Android string pool offset table is damaged.");
             var result = new string[count];
             Array.Fill(result, string.Empty);
+            var decoded = new Dictionary<int, string>();
+            long decodedChars = 0;
             for (int i = 0; i < count; i++)
             {
+                if ((i & 255) == 0) ct.ThrowIfCancellationRequested();
                 int offsetAt = headerSize + i * 4;
-                if (offsetAt + 4 > chunk.Length) break;
-                int at = start + (int)BinaryPrimitives.ReadUInt32LittleEndian(chunk[offsetAt..]);
-                result[i] = at < 0 || at >= chunk.Length ? string.Empty : utf8 ? Utf8(chunk[at..]) : Utf16(chunk[at..]);
+                long at = start + BinaryPrimitives.ReadUInt32LittleEndian(chunk[offsetAt..]);
+                if (at >= chunk.Length) throw new InvalidDataException("An Android string offset is outside its pool.");
+                if (!decoded.TryGetValue((int)at, out string? value))
+                {
+                    value = utf8 ? Utf8(chunk[(int)at..]) : Utf16(chunk[(int)at..]);
+                    decodedChars += value.Length;
+                    if (decodedChars > MaxManifest) throw new InvalidDataException("The Android string pool exceeds its decoded-text budget.");
+                    decoded.Add((int)at, value);
+                }
+                result[i] = value;
             }
             return result;
         }
@@ -312,62 +326,72 @@ public static class ApkInspector
     /// <summary>The protocol-buffer XML of App Bundles (aapt2's XmlNode, read without a schema library).</summary>
     internal static class ProtoXml
     {
+        private const int MaxFields = 100_000;
+        private const long MaxFieldBytes = 32L * 1024 * 1024;
+
         public static void Parse(byte[] data, Manifest manifest, CancellationToken ct)
         {
-            int budget = 100_000;
-            Node(data, manifest, 0, ref budget, ct);
+            int nodes = 100_000, fields = MaxFields;
+            long fieldBytes = MaxFieldBytes;
+            Node(data.AsMemory(), manifest, 0, ref nodes, ref fields, ref fieldBytes, ct);
         }
 
-        private static void Node(ReadOnlySpan<byte> node, Manifest manifest, int depth, ref int budget, CancellationToken ct)
+        private static void Node(ReadOnlyMemory<byte> node, Manifest manifest, int depth, ref int nodes, ref int fields, ref long fieldBytes, CancellationToken ct)
         {
-            if (depth > 64 || --budget < 0) return;
-            foreach (var (field, value) in Fields(node))
-                if (field == 1) Element(value, manifest, depth, ref budget, ct);
+            ct.ThrowIfCancellationRequested();
+            if (depth > 64 || --nodes < 0) throw new InvalidDataException("The Android manifest exceeds its node or depth budget.");
+            foreach (var (field, value) in Fields(node, ref fields, ref fieldBytes, ct))
+                if (field == 1) Element(value, manifest, depth, ref nodes, ref fields, ref fieldBytes, ct);
         }
 
-        private static void Element(ReadOnlySpan<byte> element, Manifest manifest, int depth, ref int budget, CancellationToken ct)
+        private static void Element(ReadOnlyMemory<byte> element, Manifest manifest, int depth, ref int nodes, ref int fields, ref long fieldBytes, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             string name = string.Empty;
             var attributes = new List<(string, string?)>();
-            foreach (var (field, value) in Fields(element))
+            var elementFields = Fields(element, ref fields, ref fieldBytes, ct);
+            foreach (var (field, value) in elementFields)
             {
-                if (field == 3) name = Printable(Encoding.UTF8.GetString(value));
+                if (field == 3) name = Printable(Encoding.UTF8.GetString(value.Span));
                 else if (field == 4)
                 {
                     string attrName = string.Empty;
                     string? attrValue = null;
-                    foreach (var (f, v) in Fields(value))
+                    foreach (var (f, v) in Fields(value, ref fields, ref fieldBytes, ct))
                     {
-                        if (f == 2) attrName = Printable(Encoding.UTF8.GetString(v));
-                        else if (f == 3) attrValue = Printable(Encoding.UTF8.GetString(v));
+                        if (f == 2) attrName = Printable(Encoding.UTF8.GetString(v.Span));
+                        else if (f == 3) attrValue = Printable(Encoding.UTF8.GetString(v.Span));
                     }
                     attributes.Add((attrName, attrValue));
                 }
             }
             manifest.Element(name, attributes);
-            foreach (var (field, value) in Fields(element))
-                if (field == 5) Node(value, manifest, depth + 1, ref budget, ct);
+            foreach (var (field, value) in elementFields)
+                if (field == 5) Node(value, manifest, depth + 1, ref nodes, ref fields, ref fieldBytes, ct);
         }
 
         /// <summary>The length-delimited fields of a message (other wire types are skipped).</summary>
-        private static List<(int Field, byte[] Value)> Fields(ReadOnlySpan<byte> message)
+        private static List<(int Field, ReadOnlyMemory<byte> Value)> Fields(ReadOnlyMemory<byte> message, ref int fields, ref long fieldBytes, CancellationToken ct)
         {
-            var list = new List<(int, byte[])>();
+            var list = new List<(int, ReadOnlyMemory<byte>)>();
             int at = 0;
-            while (at < message.Length && list.Count < 100_000)
+            while (at < message.Length)
             {
-                ulong key = Varint(message, ref at);
+                if (--fields < 0) throw new InvalidDataException("The Android manifest has too many fields.");
+                if ((fields & 255) == 0) ct.ThrowIfCancellationRequested();
+                ulong key = Varint(message.Span, ref at);
                 int field = (int)(key >> 3), wire = (int)(key & 7);
                 switch (wire)
                 {
-                    case 0: Varint(message, ref at); break;
+                    case 0: Varint(message.Span, ref at); break;
                     case 1: at += 8; break;
                     case 5: at += 4; break;
                     case 2:
-                        ulong length = Varint(message, ref at);
+                        ulong length = Varint(message.Span, ref at);
                         if (length > (ulong)(message.Length - at)) return list;
-                        list.Add((field, message.Slice(at, (int)length).ToArray()));
+                        if ((long)length > fieldBytes) throw new InvalidDataException("The Android manifest exceeds its parsed-byte budget.");
+                        fieldBytes -= (long)length;
+                        list.Add((field, message.Slice(at, (int)length)));
                         at += (int)length;
                         break;
                     default: return list;

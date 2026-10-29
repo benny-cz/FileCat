@@ -124,6 +124,11 @@ public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Det
 /// </summary>
 public sealed class SearchSession
 {
+    // A search may follow a very deep ordinary directory chain. These bounds
+    // keep one malicious tree from consuming unbounded path and listing work.
+    public const int MaxTraversalDepth = 4_096;
+    public const int MaxTraversalFolders = 1_000_000;
+    private bool _truncated;
     private const int ChunkBytes = 1024 * 1024;
     private const int MaxLog = 5000;
     private static readonly EnumerationOptions Options = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false };
@@ -238,7 +243,7 @@ public sealed class SearchSession
                     Walk(root, root, 0, ct);
                 }
             }
-            _results.IsComplete = true;
+            _results.IsComplete = !_truncated;
         }
         catch (OperationCanceledException)
         {
@@ -338,53 +343,78 @@ public sealed class SearchSession
 
     private void Walk(string root, string dir, int depth, CancellationToken ct)
     {
-        CurrentFolder = dir;
-        Interlocked.Increment(ref FoldersVisited);
-        List<FileSystemInfo> children;
-        try
-        {
-            children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", Options).ToList();
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            AddLog(SearchLogKind.Inaccessible, dir, ex.Message);
-            return;
-        }
-        var subdirs = new List<string>();
-        foreach (var info in children)
+        var pending = new Stack<(string Dir, int Depth, bool Exit)>();
+        pending.Push((dir, depth, false));
+        while (pending.Count > 0)
         {
             ct.ThrowIfCancellationRequested();
-            if (_skip is { } skip && PathUtil.IsSameOrUnder(dir, skip))
+            var frame = pending.Pop();
+            if (frame.Exit)
             {
-                if (string.Equals(skip, dir, StringComparison.OrdinalIgnoreCase))
+                if (_skip is { } finishedSkip && string.Equals(finishedSkip, frame.Dir, StringComparison.OrdinalIgnoreCase))
                 {
                     _skip = null;
-                    AddLog(SearchLogKind.Skipped, dir);
+                    AddLog(SearchLogKind.Skipped, frame.Dir);
                 }
-                return;
+                continue;
             }
-            bool isDir = info is DirectoryInfo;
-            bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
-            bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
-            if (hidden && !_query.IncludeHidden) continue;
-            if (isDir && !isLink && _query.Recursive && depth < _query.MaxDepth)
+            if (frame.Depth > depth && _skip is { } skipped && PathUtil.IsSameOrUnder(frame.Dir, skipped)) continue;
+            if (FoldersVisited >= MaxTraversalFolders)
             {
-                if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
-                else subdirs.Add(info.FullName);
+                _truncated = true;
+                AddLog(SearchLogKind.Warning, frame.Dir, $"Search stopped after {MaxTraversalFolders:N0} folders.");
+                break;
             }
-            if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
-            if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
-                SearchArchive(root, (FileInfo)info, archives, ct);
-        }
-        foreach (var sub in subdirs)
-        {
-            if (_skip is { } skip && PathUtil.IsSameOrUnder(sub, skip)) continue;
-            Walk(root, sub, depth + 1, ct);
-        }
-        if (_skip is { } s && string.Equals(s, dir, StringComparison.OrdinalIgnoreCase))
-        {
-            _skip = null;
-            AddLog(SearchLogKind.Skipped, dir);
+            CurrentFolder = frame.Dir;
+            Interlocked.Increment(ref FoldersVisited);
+            List<FileSystemInfo> children;
+            try
+            {
+                children = new DirectoryInfo(frame.Dir).EnumerateFileSystemInfos("*", Options).ToList();
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                AddLog(SearchLogKind.Inaccessible, frame.Dir, ex.Message);
+                continue;
+            }
+            var subdirs = new List<string>();
+            bool skipCurrent = false;
+            foreach (var info in children)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (_skip is { } skip && PathUtil.IsSameOrUnder(frame.Dir, skip))
+                {
+                    if (string.Equals(skip, frame.Dir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _skip = null;
+                        AddLog(SearchLogKind.Skipped, frame.Dir);
+                    }
+                    skipCurrent = true;
+                    break;
+                }
+                bool isDir = info is DirectoryInfo;
+                bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
+                bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
+                if (hidden && !_query.IncludeHidden) continue;
+                if (isDir && !isLink && _query.Recursive && frame.Depth < _query.MaxDepth)
+                {
+                    if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
+                    else if (frame.Depth < MaxTraversalDepth) subdirs.Add(info.FullName);
+                    else
+                    {
+                        _truncated = true;
+                        AddLog(SearchLogKind.Warning, info.FullName, $"Search stopped at the {MaxTraversalDepth:N0}-folder depth limit.");
+                    }
+                }
+                if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
+                if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
+                    SearchArchive(root, (FileInfo)info, archives, ct);
+            }
+            if (skipCurrent) continue;
+            pending.Push((frame.Dir, frame.Depth, true));
+            for (int i = subdirs.Count - 1; i >= 0; i--)
+                if (_skip is not { } skip || !PathUtil.IsSameOrUnder(subdirs[i], skip))
+                    pending.Push((subdirs[i], frame.Depth + 1, false));
         }
     }
 

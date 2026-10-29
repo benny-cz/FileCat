@@ -1,0 +1,28 @@
+integrity=Mandatory Label\High Mandatory Level                          Label            S-1-16-12288
+TEST FileCat.Core.Tests.UndoSafetyTests.Moving_a_directory_back_keeps_its_current_contents_instead_of_requiring_an_unrecorded_tree_snapshot
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+  Finished:    FileCat.Core.Tests (ID = '14e596c66d4a0a0848caa66c91ac84ec20dfe1be1356c0b7ae998965cea2a244')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,230s
+EXIT 0
+TEST FileCat.Core.Tests.DragStagingTests.Elevated_archive_and_recovery_drags_are_refused_before_a_stage_is_created
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+  Finished:    FileCat.Core.Tests (ID = '14e596c66d4a0a0848caa66c91ac84ec20dfe1be1356c0b7ae998965cea2a244')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,168s
+EXIT 0
+TEST FileCat.Core.Tests.ListFileTests.Windows_list_admission_refuses_network_sources_and_linked_entries_before_probing_them
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.5)
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+  Finished:    FileCat.Core.Tests (ID = '14e596c66d4a0a0848caa66c91ac84ec20dfe1be1356c0b7ae998965cea2a244')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,174s
+EXIT 0

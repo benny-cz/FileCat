@@ -1,6 +1,7 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Tests;
 
@@ -83,8 +84,18 @@ public sealed class UndoSafetyTests : IDisposable
         var before = new PortableFileOperations().TryGetInfo(current)!;
         File.WriteAllText(Path.Combine(current, "added.txt"), "new child after the move");
         var report = await Run(new UndoStep(UndoKind.MoveBack, current, original, before.Size, before.ModifiedUtc.Ticks));
-        Assert.Equal(UndoOutcomeKind.Restored, Assert.Single(report.Outcomes).Outcome);
-        Assert.False(Directory.Exists(current)); Assert.Equal("new child after the move", File.ReadAllText(Path.Combine(original, "added.txt")));
+        if (WindowsTokenAuthority.IsHighIntegrity)
+        {
+            Assert.Equal(UndoOutcomeKind.Kept, Assert.Single(report.Outcomes).Outcome);
+            Assert.False(Directory.Exists(original));
+            Assert.Equal("new child after the move", File.ReadAllText(Path.Combine(current, "added.txt")));
+        }
+        else
+        {
+            Assert.Equal(UndoOutcomeKind.Restored, Assert.Single(report.Outcomes).Outcome);
+            Assert.False(Directory.Exists(current));
+            Assert.Equal("new child after the move", File.ReadAllText(Path.Combine(original, "added.txt")));
+        }
     }
 
     [Theory]

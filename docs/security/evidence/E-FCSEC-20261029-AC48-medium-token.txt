@@ -1,0 +1,4 @@
+user=DESKTOP-A60F1NE\fcmedium
+integrity=Mandatory Label\Medium Mandatory Level Label            S-1-16-8192
+edit=MEDIUM-EDIT
+protectedWrite=denied UnauthorizedAccessException
