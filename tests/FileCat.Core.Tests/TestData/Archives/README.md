@@ -41,3 +41,10 @@ schemes, comments, BLAKE2sp hashes, encrypted members and headers, and the damag
 commit `e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626` (same MIT license above). Each was fetched by
 its Git blob ID and rehashed with `git hash-object` to that ID. They are the differential corpus of
 FileCat's own RAR reader (`RarReaderTests`) against the retired SharpCompress RAR path.
+
+`libarchive/` holds libarchive's RAR test corpus, unchanged in content: every
+`libarchive/test/test_read_format_rar*.rar.uu` of libarchive v3.8.1 (tag object `7118f97c26bf0b2f426728b482f86508efc81d02`),
+fetched by Git blob ID, rehashed to that ID and uudecoded (BSD 2-Clause, Copyright (c) 2003-2007 Tim Kientzle,
+2011 Andres Mejia, 2018 Grzegorz Antoniak and libarchive contributors). It adds real RAR-made archives that the
+SharpCompress set lacks (RAR 3 PPMd/LZSS switching, the RAR 3 filters, compression levels, RAR 5 ARM filter,
+multi-volume sets) and the damaged files that once crashed real decoders (`RarLibarchiveCorpusTests`).

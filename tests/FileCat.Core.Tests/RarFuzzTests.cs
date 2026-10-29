@@ -27,7 +27,11 @@ public sealed class RarFuzzTests
                  {
                      "Rar5.rar", "Rar5.solid.rar", "Rar5.none.rar", "Rar5.crc_blake2.rar", "Rar5.multi.part01.rar", "Rar5.comment.rar",
                      "Rar5.encrypted_filesOnly.rar", "Rar.none.rar", "Rar.rar", "Rar.solid.rar", "Rar4.rar", "Rar2.rar", "Rar15.rar",
-                     "Rar.Audio_program.rar", "Rar.multi.part01.rar",
+                     "Rar.Audio_program.rar", "Rar.multi.part01.rar", "Rar2.multi.rar",
+                     "libarchive/test_read_format_rar_ppmd_lzss_conversion.rar", "libarchive/test_read_format_rar_filter.rar",
+                     "libarchive/test_read_format_rar_compress_best.rar", "libarchive/test_read_format_rar_multi_lzss_blocks.rar",
+                     "libarchive/test_read_format_rar_multivolume.part0001.rar", "libarchive/test_read_format_rar5_arm.rar",
+                     "libarchive/test_read_format_rar5_multiarchive_solid.part01.rar",
                  })
             if (File.Exists(Path.Combine(Fixtures, name))) data.Add(name);
         return data;
