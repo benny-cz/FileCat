@@ -19,8 +19,8 @@ public class UnixFileOperations : PortableFileOperations
     /// A rename, never a copy: .NET's File.Move copies and deletes when a rename crosses file systems (btrfs subvolumes,
     /// bind mounts, overlays), unguarded, which the job engine then does itself, verified and journaled. Without
     /// replacing, the new name is claimed atomically (renameat2 with RENAME_NOREPLACE on Linux, renamex_np with
-    /// RENAME_EXCL on macOS), so an item that appears there meanwhile is never overwritten. File systems without an
-    /// atomic no-replace rename are refused; a path check followed by ordinary rename could overwrite a new item.
+    /// RENAME_EXCL on macOS), so an item that appears there meanwhile is never overwritten. File systems that take no
+    /// rename flags (NFS, 9p, FUSE without rename2) claim it with a hard link instead (UnixRename.NoReplaceWithoutFlags).
     /// </summary>
     public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
@@ -28,14 +28,40 @@ public class UnixFileOperations : PortableFileOperations
             throw new IOException("Directories are merged item by item, never replaced wholesale.");
         if (!replaceExisting)
         {
-            int errno = UnixRename.NoReplace(source, destination);
-            if (errno == 0) return;
-            if (UnixRename.Unsupported(errno))
-                throw new IOException("This file system cannot rename without replacing a concurrent destination; both paths were left untouched.");
-            throw UnixRename.Failure(errno, source, destination);
+            int errno = ClaimName(source, destination);
+            if (errno == 17 && IsOtherSpelling(source, destination)) errno = NewSpelling(source, destination);
+            if (errno != 0) throw UnixRename.Failure(errno, source, destination);
+            return;
         }
         int error = UnixRename.Replace(source, destination);
         if (error != 0) throw UnixRename.Failure(error, source, destination);
+    }
+
+    private static int ClaimName(string source, string destination)
+    {
+        int errno = UnixRename.NoReplace(source, destination);
+        return UnixRename.Unsupported(errno) ? UnixRename.NoReplaceWithoutFlags(source, destination) : errno;
+    }
+
+    // The destination is the source itself spelled another way (letter case, or Unicode normalization) on a file system
+    // that ignores the difference: FAT, exFAT, macOS's default APFS.
+    private static bool IsOtherSpelling(string source, string destination) =>
+        string.Equals(Path.GetDirectoryName(source), Path.GetDirectoryName(destination), StringComparison.Ordinal)
+        && string.Equals(Path.GetFileName(source).Normalize(), Path.GetFileName(destination).Normalize(), StringComparison.OrdinalIgnoreCase)
+        && UnixFiles.Stat(source) is { } from && UnixFiles.Stat(destination) is { } to && from.Device == to.Device && from.Inode == to.Inode;
+
+    // A plain rename would not respell the item: Linux takes two names of one item as nothing to do. So it goes through a
+    // temporary name, each step claiming its name without replacing, and back if its new name was taken meanwhile.
+    private static int NewSpelling(string source, string destination)
+    {
+        string temporary = Path.Combine(Path.GetDirectoryName(destination) ?? ".", "." + Guid.NewGuid().ToString("N") + ".filecat-rename");
+        int errno = ClaimName(source, temporary);
+        if (errno != 0) return errno;
+        errno = ClaimName(temporary, destination);
+        if (errno != 0 && ClaimName(temporary, source) != 0)
+            throw new IOException($"\"{Path.GetFileName(destination)}\" was taken while \"{Path.GetFileName(source)}\" was being renamed to it; "
+                + $"the item is now named \"{Path.GetFileName(temporary)}\".", errno);
+        return errno;
     }
 
     public override string? ReadOriginMark(string path)
