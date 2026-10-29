@@ -4661,3 +4661,19 @@ The owner chose to raise the macOS bundle's `LSMinimumSystemVersion` from 13.0 t
 - The owner also removed the release session's 17 GB RAR probe folder (`V:\fc-rar-probe`).
 
 Stable publication remains NO-GO.
+
+## 2026-10-29 — Hosted CI green on every lane at `793c9b63` (I561)
+
+[Run 40873823833](https://github.com/benny-cz/FileCat/actions/runs/40873823833) at `793c9b63` passed the producer, Windows x64, Windows ARM64, macOS and Ubuntu in full: the first green run since `445f20dc`. It holds every product change up to `01095a4c`, the security session's AC45–57 work included. Three runs on the way each left a little:
+- at `425380d4`, the Markdown page bound tests under the suite's load (now run alone, `6a20d93f`);
+- at `45642430`, one App test that the comparison's removal review raced (`01095a4c` reviews nothing where no sync can be offered);
+- at `16d7fedf`, one App test whose analysis ended before Esc (`50930389`).
+
+Skips reconciled against `445f20dc`: no skip there runs now, and the one test that ran there and now skips is the undo review of a replacement move on macOS and Ubuntu, where nothing is replaced (the owner's policy). Every other new skip belongs to a test added since and skips by design.
+
+**Ledger.**
+- GATE-CI-FINAL passed at `793c9b63`. The security session's `6edc78e7` (AC-58) changed the product right after, so the run on its head repeats the gate.
+- I561's hosted result is recorded.
+- Issues stay **561/540/2/19**, and the evidence index **897**.
+
+Stable publication remains NO-GO.
