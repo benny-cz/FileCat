@@ -73,5 +73,5 @@ Observed on this host with a solid RAR 5 that WinRAR 7.01 made (`a -s -ds -m1`):
 ## What this does not show
 
 - **Hosted CI** of these commits on all four lanes. Since `f134ba37`, the macOS, Windows and Ubuntu lanes fail for reasons outside these files ([recheck](E-REVIEW-2026-10-29-f134ba37.md#hosted-ci-after-f134ba37)).
-- **macOS.** The archive classes passed on Ubuntu, but the Mac run of them hung in an existing extraction test, on `f134ba37`'s destination-folder refusal (F-H9). The new tests were therefore not observed on macOS.
+- **macOS, in full.** On the physical Mac (macOS 27 arm64) at `a9ad176f`, the new classes, the 7z header and CRC classes, the cursor-reset tests and both RAR suites pass: 260 tests. A first run that also held `ArchiveFormatTests` hung in an existing extraction test, on `f134ba37`'s destination-folder refusal (F-H9).
 - **The provider path.** ArchiveProvider opens members with `CancellationToken.None`, so a 7z pass started from the UI cannot be canceled. It is bounded by the limit instead.
