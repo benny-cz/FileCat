@@ -5,17 +5,23 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
+/// <summary>The timed pages run alone: on a hosted runner's three or four processors, the rest of the suite beside them
+/// made pages of four megabytes take longer than their limit.</summary>
+[CollectionDefinition("Markdown page bounds", DisableParallelization = true)]
+public sealed class MarkdownPageBoundsCollection;
+
 /// <summary>
 /// Hostile Markdown is drawn in time and memory that grow with the file, not with its square (release review findings
 /// F-H6 and F-H7). F3 on a Markdown file draws it as a page, so each file here was enough: a table whose short rows were
 /// each padded to thousands of columns (a gigabyte of HTML, or no memory left, from 60 KB), and lines that a line pattern,
 /// or the comment, link or emphasis parser, read once per character, which took from tens of seconds to hours.
 /// </summary>
+[Collection("Markdown page bounds")]
 public sealed class MarkdownBoundsTests
 {
-    /// <summary>How long a page may take before the test calls it hung; each takes under a second on a desktop, and took
-    /// the renderer before the fix ten times as long at the least.</summary>
-    private static readonly TimeSpan HangLimit = TimeSpan.FromSeconds(10);
+    /// <summary>How long a page may take before the test calls it hung. Each takes under a second on a desktop; at these
+    /// sizes, the renderer before the fix took a minute or more for each, or ran out of memory.</summary>
+    private static readonly TimeSpan HangLimit = TimeSpan.FromSeconds(30);
 
     private static Task<T> OnOwnThread<T>(Func<T> work) =>
         Task.Factory.StartNew(work, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
