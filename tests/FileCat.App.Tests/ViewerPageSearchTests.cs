@@ -227,6 +227,32 @@ public sealed class ViewerPageSearchTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_page_keys_received_by_the_viewer_scroll_only_when_the_native_page_lacks_focus()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var viewer = fixture.Viewer;
+        var page = Field<PageView>(viewer, "_pageView");
+        Assert.True(page.IsEffectivelyVisible);
+
+        viewer.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+        viewer.KeyPress(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+        Assert.Equal([1, -1], fixture.Engine.ScrollDirections);
+
+        fixture.Engine.NativeHasFocus = true;
+        viewer.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+        Assert.Equal([1, -1], fixture.Engine.ScrollDirections);
+
+        fixture.Engine.NativeHasFocus = false;
+        viewer.KeyPressQwerty(PhysicalKey.F7, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(Field<TextBox>(viewer, "_search").IsFocused);
+        viewer.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+        Assert.Equal([1, -1], fixture.Engine.ScrollDirections);
+    }
+
+    [AvaloniaFact]
     public async Task A_click_in_the_page_or_Tab_past_its_ends_moves_the_keys_with_focus()
     {
         // Linux: the keys went to the page whenever the pointer rested on it, and Tab never left it. macOS: a click in
@@ -355,6 +381,14 @@ public sealed class ViewerPageSearchTests
         public void Show(HtmlPage page) { }
         public void SetSize(int width, int height) { }
         public int FocusCount { get; private set; }
+        public bool NativeHasFocus { get; set; }
+        public bool HasKeyboardFocus => NativeHasFocus;
+        public List<int> ScrollDirections { get; } = [];
+        public Task<bool> ScrollByPageAsync(int direction)
+        {
+            ScrollDirections.Add(direction);
+            return Task.FromResult(true);
+        }
         public void Focus() => FocusCount++;
         public int ReturnCount { get; private set; }
         public void ReturnFocus(nint window) => ReturnCount++;

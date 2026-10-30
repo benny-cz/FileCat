@@ -1392,6 +1392,16 @@ public sealed class ViewerWindow : Window
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var focused = FocusManager?.GetFocusedElement();
+        // Native WebView2 normally receives Page keys itself. After activation Windows can instead
+        // hand them to the viewer root or its now-hidden Text surface; preserve the first key there.
+        if (_isPage && OperatingSystem.IsWindows() && e.KeyModifiers == KeyModifiers.None &&
+            e.Key is Key.PageDown or Key.PageUp && !_pageView.PageHasKeyboardFocus &&
+            (focused is null || ReferenceEquals(focused, this) || focused is Control { IsEffectivelyVisible: false }))
+        {
+            e.Handled = true;
+            await _pageView.ScrollByPageAsync(e.Key == Key.PageDown ? 1 : -1);
+            return;
+        }
         if (e.Key == Key.Escape && (_searchCts is not null || _countCts is not null ||
             _checksumCts is not null || _copyCts is not null))
         {

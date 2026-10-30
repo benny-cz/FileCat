@@ -71,6 +71,9 @@ public sealed class PageView : NativeControlHost
     /// <summary>Whether the page finished loading.</summary>
     public bool PageLoaded { get; private set; }
 
+    /// <summary>Whether the native page, rather than its Avalonia window, owns the keyboard.</summary>
+    internal bool PageHasKeyboardFocus => _engine?.HasKeyboardFocus ?? false;
+
     /// <summary>
     /// How long a page may load before it is reported as not shown: on Linux, where WebKitGTK can leave a page waiting
     /// with no callback at all when its page process or sandbox does not start (a Low of the review of c0e9cb5a and
@@ -147,6 +150,20 @@ public sealed class PageView : NativeControlHost
     private void OnWindowGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
     {
         if (!_hasKeyboard || ReferenceEquals(e.Source, this)) return;
+        // The window root, or the initial Text viewer after it is hidden for Page mode, can take
+        // Win32 focus during activation. Neither is a user taking the keyboard away from WebView2.
+        if (OperatingSystem.IsWindows() &&
+            (ReferenceEquals(e.Source, _keyboardOwner) || e.Source is Control { IsEffectivelyVisible: false }))
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_hasKeyboard || !IsEffectivelyVisible || _keyboardOwner is not WindowBase { IsActive: true }) return;
+                var focused = _keyboardOwner.FocusManager?.GetFocusedElement();
+                if (focused is Control { IsEffectivelyVisible: true } control && !ReferenceEquals(control, _keyboardOwner)) return;
+                GiveKeysToPage();
+            }, DispatcherPriority.Background);
+            return;
+        }
         _hasKeyboard = false;
         nint home = _keyboardOwner is WindowBase { IsActive: true } ? KeyboardHome(_keyboardOwner) : 0;
         if (!OperatingSystem.IsMacOS())
@@ -266,12 +283,25 @@ public sealed class PageView : NativeControlHost
             _loadTimer = null;
             PageLoaded = ok;
             LoadCompleted?.Invoke(ok, why);
+            // On Windows a fast initial focus request can precede both the browser controller and the
+            // switch away from the Text surface. If Avalonia still names that hidden surface as focused,
+            // give the newly loaded page the keys. A visible Find or toolbar control keeps its focus.
+            if (ok && OperatingSystem.IsWindows() && IsEffectivelyVisible &&
+                _keyboardOwner is WindowBase { IsActive: true } &&
+                _keyboardOwner.FocusManager?.GetFocusedElement() is Control { IsEffectivelyVisible: false })
+                GiveKeysToPage();
             if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
             Changed?.Invoke();
         });
         engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
         engine.FocusRequested += () => Dispatcher.UIThread.Post(() =>
         {
+            if (OperatingSystem.IsWindows())
+            {
+                // A click inside WebView2 is native focus, outside Avalonia's focus notifications.
+                _hasKeyboard = true;
+                return;
+            }
             if (!IsFocused) Focus(NavigationMethod.Pointer);
         });
         engine.FocusLeft += backward => Dispatcher.UIThread.Post(() => LeavePage(backward));
@@ -349,6 +379,9 @@ public sealed class PageView : NativeControlHost
     }
 
     public void ClearFind() => _engine?.ClearFind();
+
+    /// <summary>Fallback for a Page key received by the window while its native page lacks focus.</summary>
+    internal Task<bool> ScrollByPageAsync(int direction) => _engine?.ScrollByPageAsync(direction) ?? Task.FromResult(false);
 }
 
 /// <summary>One platform's web engine behind <see cref="PageView"/>.</summary>
@@ -364,6 +397,8 @@ internal interface IPageEngine : IDisposable
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
+    bool HasKeyboardFocus => false;
+    Task<bool> ScrollByPageAsync(int direction) => Task.FromResult(false);
     /// <summary>The keyboard back to the window holding the page (its native handle; 0: only stop giving it to the page).</summary>
     void ReturnFocus(nint window) { }
     /// <summary>The page was clicked, or took the keyboard itself, so its host should take focus (raised on the engine's thread).</summary>
@@ -417,6 +452,7 @@ internal sealed class WindowsPageEngine : IPageEngine
     {
         _view = new Platform.Windows.Html.WebView2Page(parent, dataFolder);
         Handle = new PlatformHandle(_view.Handle, "HWND");
+        _view.FocusGained += () => FocusRequested?.Invoke();
         _view.TitleChanged += _ => Changed?.Invoke();
         _view.Blocked += _ => Changed?.Invoke();
         _view.Loaded += (ok, why) => Loaded?.Invoke(ok, why);
@@ -432,8 +468,10 @@ internal sealed class WindowsPageEngine : IPageEngine
     public IPlatformHandle Handle { get; }
     public string? Title => _view.Title;
     public int BlockedCount => _view.BlockedCount;
+    public bool HasKeyboardFocus => _view.HasNativeFocus;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
+    public event Action? FocusRequested;
     public event Action<HtmlPage, string>? LinkedMarkdown;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
     public void Show(HtmlPage page) => _view.Show(page);
@@ -445,6 +483,7 @@ internal sealed class WindowsPageEngine : IPageEngine
         return found is { } value ? new PageFindResult(value) : null;
     }
     public void ClearFind() => _view.ClearFind();
+    public Task<bool> ScrollByPageAsync(int direction) => _view.ScrollByPageAsync(direction);
     public void Dispose() => _view.Dispose();
     public void ReturnFocus(nint window) => _view.CancelPendingFocus();
 

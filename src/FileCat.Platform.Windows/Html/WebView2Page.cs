@@ -20,6 +20,7 @@ public sealed class WebView2Page : IDisposable
     private (int Width, int Height) _size = (1, 1);
     private bool _disposed;
     private bool _focusPending;
+    private bool _nativeHasFocus;
     private long _navigationGeneration;
 
     /// <summary>The installed WebView2 runtime's version, or null when there is none (the view is then unavailable).</summary>
@@ -47,6 +48,12 @@ public sealed class WebView2Page : IDisposable
 
     /// <summary>The page's title (its title element; scripts do not change it).</summary>
     public event Action<string>? TitleChanged;
+
+    /// <summary>The native browser took keyboard focus, including after a click inside its page.</summary>
+    public event Action? FocusGained;
+
+    /// <summary>Whether the browser's native child currently receives keyboard input.</summary>
+    public bool HasNativeFocus => _nativeHasFocus;
 
     /// <summary>A request or a navigation to somewhere else than the page and its folder was refused.</summary>
     public event Action<string>? Blocked;
@@ -136,6 +143,12 @@ public sealed class WebView2Page : IDisposable
                 Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
             };
             _controller.AcceleratorKeyPressed += OnAcceleratorKey;
+            _controller.GotFocus += (_, _) =>
+            {
+                _nativeHasFocus = true;
+                FocusGained?.Invoke();
+            };
+            _controller.LostFocus += (_, _) => _nativeHasFocus = false;
             _controller.Bounds = new System.Drawing.Rectangle(0, 0, _size.Width, _size.Height);
             _controller.IsVisible = true;
             if (_page is { } page) core.Navigate(page.Address);
@@ -183,6 +196,19 @@ public sealed class WebView2Page : IDisposable
 
     /// <summary>A toolbar or Find control took focus before the browser controller was ready.</summary>
     public void CancelPendingFocus() => _focusPending = false;
+
+    /// <summary>Scrolls a rendered page when its parent window, rather than WebView2, received a Page key.</summary>
+    public async Task<bool> ScrollByPageAsync(int direction)
+    {
+        if (_disposed || _controller is not { } controller || direction is not (-1 or 1)) return false;
+        try
+        {
+            await controller.CoreWebView2.ExecuteScriptAsync(
+                $"window.scrollBy(0, {direction} * Math.max(1, window.innerHeight - 32))");
+            return true;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return false; }
+    }
 
     /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>
     public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
@@ -285,6 +311,7 @@ public sealed class WebView2Page : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _nativeHasFocus = false;
         try { _controller?.Close(); }
         catch (Exception ex) when (ex is COMException or InvalidOperationException) { }
         _controller = null;
