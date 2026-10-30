@@ -36,21 +36,31 @@ public sealed class ApplyCommandOutputDeadlineTests(ITestOutputHelper output)
             registry.Register(new LocalFileSystemProvider());
             var jobs = new JobManager(new PortableFileOperations(), registry, Path.Combine(root, "journal"));
             var invocation = new ApplyInvocation(item, "/bin/sh",
-                ["-c", "/bin/sleep 8 & echo $! > held.pid; printf 'owned helper error' >&2; exit 7"],
+                ["-c", "/bin/sleep 20 & echo $! > held.pid; printf 'owned helper error' >&2; exit 7"],
                 root, "owned held-pipe control", null);
-            var clock = Stopwatch.StartNew();
             job = jobs.Submit(new JobRequest { Kind = JobKind.ApplyCommand,
                 Sources = [item], Invocations = [invocation] });
-            while (!job.State.IsFinished() && clock.Elapsed < TimeSpan.FromSeconds(2))
+            // Start the deadline when the helper actually starts its descendant, not when CI
+            // schedules the job. A busy runner can delay process startup without holding a pipe.
+            var startup = Stopwatch.StartNew();
+            int pid = 0;
+            while (startup.Elapsed < TimeSpan.FromSeconds(6))
+            {
+                if (File.Exists(Path.Combine(root, "held.pid")) &&
+                    int.TryParse(File.ReadAllText(Path.Combine(root, "held.pid")), out pid) && pid > 0)
+                    break;
                 await Task.Delay(20, TestContext.Current.CancellationToken);
-            bool prompt = job.State.IsFinished();
-            while (!job.State.IsFinished() && clock.Elapsed < TimeSpan.FromSeconds(12))
+            }
+            Assert.True(pid > 0, "The owned child PID was not captured.");
+            childPid = pid;
+            var afterChildStart = Stopwatch.StartNew();
+            while (!job.State.IsFinished() && afterChildStart.Elapsed < TimeSpan.FromSeconds(6))
                 await Task.Delay(20, TestContext.Current.CancellationToken);
-            Assert.True(File.Exists(Path.Combine(root, "held.pid")), "The owned child PID was not captured.");
-            childPid = int.Parse(File.ReadAllText(Path.Combine(root, "held.pid")));
-            output.WriteLine($"APPLY_OUTPUT_DEADLINE elapsedMs={clock.ElapsedMilliseconds} prompt={prompt} finished={job.State.IsFinished()} state={job.State} childPid={childPid}");
-            Assert.True(job.State.IsFinished(), "The command job remained blocked after its owned child exited.");
-            Assert.True(prompt, "The command job waited for an exited helper's descendant-held output pipe.");
+            using var childAtCompletion = Process.GetProcessById(pid);
+            bool childStillRunning = !childAtCompletion.HasExited;
+            output.WriteLine($"APPLY_OUTPUT_DEADLINE startupMs={startup.ElapsedMilliseconds} afterChildMs={afterChildStart.ElapsedMilliseconds} finished={job.State.IsFinished()} childStillRunning={childStillRunning} state={job.State} childPid={childPid}");
+            Assert.True(job.State.IsFinished() && childStillRunning,
+                "The command job waited for its descendant-held output pipe instead of finishing while the descendant was alive.");
             Assert.Equal(JobState.Failed, job.State);
             Assert.Contains(job.Issues, issue => issue.Message.Contains("owned helper error", StringComparison.Ordinal));
         }

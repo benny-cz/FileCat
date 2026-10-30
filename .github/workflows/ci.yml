@@ -531,8 +531,14 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ github.ref_name }}".TrimStart('v')
-          ./eng/publish.ps1 -Version $v
-          ./eng/publish.ps1 -Version $v -Runtime win-arm64
+          $packageOptions = @{ Version = $v }
+          if ($env:GITHUB_REF -cmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$') {
+            $packageOptions.ProductVersion = '1.0.0'
+            $packageOptions.CandidateRef = $env:GITHUB_REF
+          }
+          ./eng/publish.ps1 @packageOptions
+          $packageOptions.Runtime = 'win-arm64'
+          ./eng/publish.ps1 @packageOptions
       - name: Build installers
         shell: pwsh
         run: |
@@ -595,7 +601,13 @@ jobs:
         run: |
           v="${GITHUB_REF_NAME#v}"
           [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
-          ./eng/package-linux.sh "$v" linux-x64
+          product="$v"
+          candidate_ref=""
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then
+            product="1.0.0"
+            candidate_ref="$GITHUB_REF"
+          fi
+          ./eng/package-linux.sh "$v" linux-x64 "$product" "$candidate_ref"
       - name: Install and start each package
         run: |
           sudo apt-get update -qq
@@ -659,7 +671,13 @@ jobs:
         run: |
           v="${GITHUB_REF_NAME#v}"
           [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
-          ./eng/package-macos.sh "$v"
+          product="$v"
+          candidate_ref=""
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then
+            product="1.0.0"
+            candidate_ref="$GITHUB_REF"
+          fi
+          ./eng/package-macos.sh "$v" "$product" "$candidate_ref"
       - name: Start the packaged app
         run: |
           mkdir unpacked && ditto -x -k artifacts/FileCat-*-osx-arm64.zip unpacked
