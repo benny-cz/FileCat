@@ -162,7 +162,9 @@ jobs:
     name: Windows ARM64 (build, tests, package start)
     needs: producer-policy
     runs-on: windows-11-arm
-    timeout-minutes: 45
+    # The full lane reached the installer step after 44 minutes in run 41047031486.
+    # Keep the per-test blame-hang bounds; allow the aggregate job to finish cleanup.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
