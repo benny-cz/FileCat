@@ -2,39 +2,20 @@
 
 **A file manager for everyday work, with serious tools when you need to go deeper.**
 
-FileCat is a multi-panel, multi-tab file manager for Windows, Ubuntu and macOS. Browse local disks,
-removable storage, archives and remote servers in one workspace; on Windows, reach phones and
-cameras too.
-Search and compare files, recover deleted data from supported NTFS, FAT and exFAT disks or images,
-and go deeper with text and hex viewers, a hex editor, and inspectors for executables, images,
-audio and video. FileCat follows each operating system's native file behavior and makes platform
-and location limits clear.
+FileCat puts local disks, removable storage, archives and remote servers in a multi-panel,
+multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
+its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-FileCat shows the destination before an operation starts and distinguishes completed work from
-failures and uncertainty afterward. It is built with **C# · .NET 10 · Avalonia 12** and is
-**MIT-licensed**. For 1.0.0, Windows 11 x64 is the planned stable tier; Windows 11 ARM64,
-Ubuntu 24.04/26.04 x64 and macOS 26+ on Apple silicon are planned previews. The
-[capability matrix](docs/CAPABILITIES.md) describes the differences.
+**Release status:** FileCat 1.0.0 is still in validation, and no public binary release is
+available yet. [See the release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md).
 
-[Why FileCat](#why-filecat) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) ·
-[Themes and screenshots](#make-it-yours) · [More features](#more-ways-to-work) · [Build](#build-and-run)
+**Start here:** [**Build from source**](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md)
 
-![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.png)
+[![FileCat on Windows: Architecture.md selected in Projects, Documents marked as target, four panels with three tabs each](docs/screenshots/windows/WorkspaceSelected-20261030.png)](docs/screenshots/windows/WorkspaceSelected-20261030.png)
 
-*Four panels, twelve tabs, one workspace. Current FileCat MainWindow rendered on Windows with demonstration files.*
-
-| Windows · Classic | macOS · Classic Dark | Ubuntu · Classic Dark |
-|---|---|---|
-| [![FileCat Classic on Windows, four panels with three tabs each](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![FileCat Classic Dark on macOS, four panels with three tabs each](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) | [![FileCat Classic Dark on Ubuntu, four panels with three tabs each](docs/screenshots/ubuntu/ClassicDark.png)](docs/screenshots/ubuntu/ClassicDark.png) |
-
-*These are current-source MainWindow renders on their named operating systems. The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) separates them from installed-app testing.*
-
-See [all seven Windows theme screenshots](#make-it-yours), including Psychedelic and DOS Commander,
-plus Classic Dark on macOS.
-
-**Release status:** FileCat 1.0.0 is still in validation. The images show development builds;
-the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) tracks
-what has passed and what remains before a public release.
+*Architecture.md is selected in Projects, with Documents marked as the target. Four panels and
+twelve tabs stay in view. This is a [development-source render](docs/screenshots/CAPTURE-2026-10-30.md)
+on Windows, not an installed-package test.*
 
 ## Why FileCat
 
@@ -46,10 +27,52 @@ what has passed and what remains before a public release.
 | Understand a file before acting | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
 | Work outside a local folder | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
-The point is to keep the same workflow as a task grows: find a file, inspect it, compare it,
-copy it to a known target, and see precisely what happened. The sections below describe
-implemented capabilities; the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
-tracks which of them have completed final qualification.
+## See the work
+
+### A copy with a visible result
+
+[![FileCat Operations detail showing Projects to Documents, 3 of 3 items completed, 2.0 MB accounted for and no issues](docs/screenshots/windows/CopyResultDetail-20261030.png)](docs/screenshots/windows/CopyResult-20261030.png)
+
+*A detail crop of a real copy of three demonstration files. The [full window](docs/screenshots/windows/CopyResult-20261030.png)
+shows the source, target and Operations pane together. Its transfer speed belongs to this one
+local run, not a general performance claim.*
+
+### Inspect a program without running it
+
+[![FileCat Info viewer showing PE headers, security features and signature-presence status for Windows notepad.exe](docs/screenshots/windows/InspectorPE-20261030.png)](docs/screenshots/windows/InspectorPE-20261030.png)
+
+*Info view reads the structure of `notepad.exe` without executing it. No embedded signature is
+shown; a catalog signature may still apply, and this view does not verify trust.*
+
+The hero and these workflow views are genuine off-screen renders of current Windows source,
+not installed-package or native-interaction acceptance. The [new capture record](docs/screenshots/CAPTURE-2026-10-30.md)
+describes the scenarios and the cropped detail.
+
+## Try a local build
+
+Install the .NET SDK selected by [`global.json`](global.json). From the repository root:
+
+```sh
+dotnet build FileCat.slnx
+dotnet run --project src/FileCat.App
+```
+
+Pass a folder after `--` to open it, or choose two starting locations:
+
+```sh
+dotnet run --project src/FileCat.App -- --left PATH --right PATH
+```
+
+Try opening two folders, viewing a file with F3, and reviewing the displayed destination
+before starting a copy with F5. This runs local source code; it is not a signed or
+release-qualified package.
+
+Use `--profile NAME` for another saved workspace identity or `--data FOLDER` to put settings,
+history, journals, logs, caches and scratch in one chosen folder. A Windows portable ZIP uses
+`FileCat.portable` to keep that state in `Data/` beside the app. For disk recovery, put `--data`
+on another disk so FileCat's state cannot write to the source.
+
+## Explore FileCat
 
 ### Arrange the workspace around the task
 
@@ -132,47 +155,10 @@ does not make every parser a full sandbox.
   SMB offload. Platform-specific behavior is documented in the
   [capability matrix](docs/CAPABILITIES.md).
 
-## Make it yours
-
-Choose **View → Theme…** to preview a theme on FileCat itself. Press Enter to keep it or Esc to return.
-Animated effects can be turned off, and system high contrast takes priority.
-
-Seven Windows themes and Classic Dark on macOS are shown below, with four panels and three tabs in
-each panel. Select an image to see it at full size. The Ubuntu view is [near the top](#filecat).
-
-| **Classic** | **Classic Dark** |
-|---|---|
-| [![Classic theme on Windows](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![Classic Dark theme on Windows](docs/screenshots/windows/ClassicDark.png)](docs/screenshots/windows/ClassicDark.png) |
-
-| **Cyberpunk** | **Psychedelic** |
-|---|---|
-| [![Cyberpunk theme on Windows](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![Psychedelic theme on Windows](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
-
-| **Steampunk** | **DOS Commander** |
-|---|---|
-| [![Steampunk theme on Windows](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) | [![DOS Commander theme on Windows](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) |
-
-| **High Contrast** | **Classic Dark on macOS** |
-|---|---|
-| [![High Contrast theme on Windows](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![Classic Dark theme on macOS](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) |
-
-[Capture method and exact source](docs/screenshots/CAPTURE-2026-10-29.md).
-
-All gallery images render FileCat's MainWindow on their named operating systems. They show
-the UI at the recorded source; [release qualification](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
-tracks installed-app and native interaction checks separately.
-
 ## More ways to work
 
 - **Rename many files without surprises.** Use masks, counters, dates or regular expressions.
   A live preview catches collisions before the job starts, with guarded undo afterward.
-- **Inspect files down to the bytes.** View very large text and hex files; edit local files in a
-  hex editor with undo and patch export. Inspect PE, ELF, Mach-O, APK, image, audio and video
-  structures without executing or playing them.
-- **Verify files in batches.** Check checksum manifests and supported minisign or OpenPGP
-  signatures, with file-level results that make mismatches easy to find.
-- **Read native filesystem details.** Examine NTFS streams, Unix extended attributes, macOS
-  resource forks and sparse ranges where the platform supports them.
 - **Run your own tools on a selection.** Preview each command for selected files and folders on
   disk, then see its exit code and output tail in the job results.
 - **Keep control close.** Search the command palette, change keyboard bindings, open a terminal
@@ -180,42 +166,67 @@ tracks installed-app and native interaction checks separately.
 - **Create links where supported.** Make symbolic or hard links, or Windows junctions, after
   FileCat checks the target and file system.
 
-## Made for real work
+## Make it yours
 
-FileCat is shaped around the work people actually do: moving a few files, untangling a large
-folder, inspecting an unfamiliar binary, or trying to recover something lost. Across Windows,
-Ubuntu and macOS, FileCat keeps you oriented as routine file work grows into a deeper investigation.
+Choose **View → Theme…** to preview a theme on FileCat itself. Press Enter to keep it or Esc to return.
+Animated effects can be turned off, and system high contrast takes priority.
+
+Here are an everyday look, an expressive choice, DOS Commander and the dark macOS view. Select
+any image for its full-size version. The remaining themes and Ubuntu view follow below.
+
+| Windows · Classic | Windows · Psychedelic |
+|---|---|
+| [![FileCat Classic theme on Windows, four panels with three tabs each](docs/screenshots/windows/Classic.png)](docs/screenshots/windows/Classic.png) | [![FileCat Psychedelic theme on Windows, four panels with three tabs each](docs/screenshots/windows/Psychedelic.png)](docs/screenshots/windows/Psychedelic.png) |
+
+| Windows · DOS Commander | macOS · Classic Dark |
+|---|---|
+| [![FileCat DOS Commander theme on Windows, four panels with three tabs each](docs/screenshots/windows/DosCommander.png)](docs/screenshots/windows/DosCommander.png) | [![FileCat Classic Dark theme on macOS, four panels with three tabs each](docs/screenshots/macos/ClassicDark.png)](docs/screenshots/macos/ClassicDark.png) |
+
+### More themes and platform views
+
+[Windows Classic Dark](docs/screenshots/windows/WorkspaceSelected-20261030.png) is shown in the workspace image
+above. Classic, Psychedelic, DOS Commander and macOS Classic Dark are shown immediately above.
+
+| Windows · Cyberpunk | Windows · Steampunk |
+|---|---|
+| [![FileCat Cyberpunk theme on Windows, four panels with three tabs each](docs/screenshots/windows/Cyberpunk.png)](docs/screenshots/windows/Cyberpunk.png) | [![FileCat Steampunk theme on Windows, four panels with three tabs each](docs/screenshots/windows/Steampunk.png)](docs/screenshots/windows/Steampunk.png) |
+
+| Windows · High Contrast | Ubuntu · Classic Dark |
+|---|---|
+| [![FileCat High Contrast theme on Windows, four panels with three tabs each](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![FileCat Classic Dark theme on Ubuntu, four panels with three tabs each](docs/screenshots/ubuntu/ClassicDark.png)](docs/screenshots/ubuntu/ClassicDark.png) |
+
+These are real MainWindow renders from development source on their named operating systems.
+The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) documents their producers; they do
+not establish installed-package or native-interaction acceptance.
+
+## Platforms
+
+For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
+Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
+These labels describe validation targets, not currently available public packages. Windows
+provides MTP, Registry and native Shell actions; the Unix builds use their own trash,
+permission, keyring and device-authorization paths. [What works where](docs/CAPABILITIES.md)
+lists the differences by platform and location.
+
+## Development and validation
+
+FileCat keeps you oriented as routine file work grows into a deeper investigation. It is built
+with **C# · .NET 10 · Avalonia 12** and is **MIT-licensed**.
 
 AI helps build FileCat and helps question it. Security reviews probe trust boundaries; QA tests
 exercise failures and interruptions; UX/UI reviews challenge awkward paths and unclear results.
-The findings feed back into the app and are checked with automated tests and native platform
-runs. People decide what ships, and the [capability matrix](docs/CAPABILITIES.md) records what
-each platform can currently do.
+Findings are checked with automated tests and native platform runs. People decide what ships;
+the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) records the
+remaining qualification gates.
 
-## Build and run
-
-Install the .NET SDK version selected by [`global.json`](global.json), then from the repository root:
+Contributors can run the full solution suite from the repository root:
 
 ```sh
-dotnet build FileCat.slnx
 dotnet test FileCat.slnx
-dotnet run --project src/FileCat.App
 ```
-
-Pass a folder after `--` to open it, or choose the two starting panels explicitly:
-
-```sh
-dotnet run --project src/FileCat.App -- --left PATH --right PATH
-```
-
-Use `--profile NAME` for another saved workspace identity or `--data FOLDER` to put settings,
-history, journals, logs, caches and scratch in one chosen folder. A Windows portable ZIP uses
-`FileCat.portable` to keep that state in `Data/` beside the app. When recovering from a disk,
-run FileCat with `--data` on **another disk** so its own state cannot write to the source.
 
 Local package scripts, dependency-lock updates, SBOMs and the pinned AppImage runtime are
-covered in the [developer build guide](docs/BUILDING.md). A local build is not a signed or
-qualified 1.0.0 release.
+covered in the [developer build guide](docs/BUILDING.md).
 
 ## Documentation
 
