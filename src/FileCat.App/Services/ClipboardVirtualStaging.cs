@@ -12,6 +12,8 @@ internal static partial class ClipboardVirtualStaging
     internal const int MaximumFiles = 1_000;
     internal const long MaximumBytes = 4L * 1024 * 1024 * 1024;
     private const string Folder = "clipboard";
+    private sealed record Entry(WindowsClipboardFileDrop.VirtualDescriptor Descriptor,
+        string RelativePath, IStorageFile? File);
 
     internal sealed class Prepared(string directory, IReadOnlyList<string> paths) : IDisposable
     {
@@ -45,26 +47,47 @@ internal static partial class ClipboardVirtualStaging
     {
         if (WindowsTokenAuthority.IsHighIntegrity)
             throw new InvalidOperationException("Virtual clipboard files cannot be pasted by an elevated FileCat session. Run FileCat normally and paste again.");
-        if (files.Count is 0 or > MaximumFiles || files.Count != descriptors.Count)
+        if (descriptors.Count is 0 or > MaximumFiles || files.Count > descriptors.Count)
             throw new InvalidOperationException("The clipboard's virtual-file selection is incomplete or too large. Nothing was pasted.");
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new List<Entry>(descriptors.Count);
         long declaredTotal = 0;
-        for (int i = 0; i < files.Count; i++)
+        int fileIndex = 0;
+        foreach (var descriptor in descriptors)
         {
-            var file = files[i];
-            var descriptor = descriptors[i];
-            if (descriptor.IsDirectory || file is not IStorageFile
-                || !string.Equals(file.Name, descriptor.Name, StringComparison.Ordinal)
-                || SafeNames.Validate(descriptor.Name) is not null
-                || !names.Add(descriptor.Name))
-                throw new InvalidOperationException("The clipboard includes a virtual folder, an unsafe name, or an incomplete item. Nothing was pasted; extract the complete selection in Explorer first.");
-            if (descriptor.Size is { } size)
+            var segments = descriptor.Name.Split('\\');
+            if (descriptor.Name.Contains('/') || segments.Any(segment => SafeNames.Validate(segment) is not null)
+                || !names.Add(descriptor.Name)
+                || (segments.Length > 1 && !directories.Contains(string.Join('\\', segments[..^1]))))
+                throw new InvalidOperationException("The clipboard includes an unsafe or incomplete virtual-file path. Nothing was pasted; extract the complete selection in Explorer first.");
+            IStorageFile? file = null;
+            if (descriptor.IsDirectory)
             {
-                if (size > MaximumBytes - declaredTotal)
-                    throw new InvalidOperationException("Virtual clipboard files exceed the 4 GiB paste limit. Nothing was pasted; extract them in Explorer first.");
-                declaredTotal += size;
+                directories.Add(descriptor.Name);
+                // Some Shell adapters expose a directory placeholder as a virtual file; it has no
+                // FileContents stream and must not consume the next real file's stream.
+                if (fileIndex < files.Count && string.Equals(files[fileIndex].Name, descriptor.Name, StringComparison.Ordinal))
+                    fileIndex++;
             }
+            else
+            {
+                if (fileIndex >= files.Count || files[fileIndex] is not IStorageFile storage
+                    || !string.Equals(storage.Name, descriptor.Name, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The clipboard's virtual-file selection is incomplete or out of order. Nothing was pasted.");
+                file = storage;
+                fileIndex++;
+                if (descriptor.Size is { } size)
+                {
+                    if (size > MaximumBytes - declaredTotal)
+                        throw new InvalidOperationException("Virtual clipboard files exceed the 4 GiB paste limit. Nothing was pasted; extract them in Explorer first.");
+                    declaredTotal += size;
+                }
+            }
+            entries.Add(new Entry(descriptor, Path.Combine(segments), file));
         }
+        if (fileIndex != files.Count)
+            throw new InvalidOperationException("The clipboard's virtual-file selection is incomplete or out of order. Nothing was pasted.");
 
         var completion = new TaskCompletionSource<Prepared>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
@@ -73,7 +96,7 @@ internal static partial class ClipboardVirtualStaging
             try
             {
                 if (initialized < 0) Marshal.ThrowExceptionForHR(initialized);
-                completion.TrySetResult(StageOnSta(files, descriptors, tempRoot));
+                completion.TrySetResult(StageOnSta(entries, tempRoot));
             }
             catch (Exception ex) { completion.TrySetException(ex); }
             finally { if (initialized >= 0) OleUninitialize(); }
@@ -83,22 +106,27 @@ internal static partial class ClipboardVirtualStaging
         return completion.Task;
     }
 
-    private static Prepared StageOnSta(IReadOnlyList<IStorageItem> files,
-        IReadOnlyList<WindowsClipboardFileDrop.VirtualDescriptor> descriptors, string tempRoot)
+    private static Prepared StageOnSta(IReadOnlyList<Entry> entries, string tempRoot)
     {
         string parent = Path.Combine(tempRoot, Folder);
         Directory.CreateDirectory(parent);
         string directory = Path.Combine(parent, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        var paths = new List<string>(files.Count);
+        var paths = new List<string>();
         var prepared = new Prepared(directory, paths);
         try
         {
             long total = 0;
-            for (int i = 0; i < files.Count; i++)
+            foreach (var entry in entries)
             {
-                var source = (IStorageFile)files[i];
-                string target = Path.Combine(directory, descriptors[i].Name);
+                string target = Path.Combine(directory, entry.RelativePath);
+                if (entry.Descriptor.IsDirectory)
+                {
+                    Directory.CreateDirectory(target);
+                    if (!entry.Descriptor.Name.Contains('\\')) paths.Add(target);
+                    continue;
+                }
+                var source = entry.File!;
                 using var input = source.OpenReadAsync().GetAwaiter().GetResult();
                 long fileBytes = 0;
                 using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write,
@@ -115,14 +143,14 @@ internal static partial class ClipboardVirtualStaging
                         fileBytes += read;
                     }
                 }
-                if (descriptors[i].Size is { } expected && fileBytes != expected)
+                if (entry.Descriptor.Size is { } expected && fileBytes != expected)
                     throw new IOException("A virtual clipboard file did not match its declared size. Nothing was pasted.");
                 // The virtual stream does not expose its containing archive's provenance. Apply the
                 // conservative Internet mark so extraction cannot silently remove a download warning.
                 File.WriteAllText(target + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
-                if (descriptors[i].ModifiedUtc is { } modified)
+                if (entry.Descriptor.ModifiedUtc is { } modified)
                     File.SetLastWriteTimeUtc(target, modified);
-                paths.Add(target);
+                if (!entry.Descriptor.Name.Contains('\\')) paths.Add(target);
             }
             return prepared;
         }

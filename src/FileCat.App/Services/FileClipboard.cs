@@ -154,7 +154,8 @@ internal sealed class FileClipboard
                                 throw new InvalidOperationException("The clipboard includes an item without a local file-system path. No items were pasted; copy the complete selection to a folder first.");
                             staging = await ClipboardVirtualStaging.StageAsync(files, virtualDescriptors, tempRoot);
                             foreach (var path in staging.Paths)
-                                items.Add(ItemRef.ForFileSystemPath(path, EntryKind.File));
+                                items.Add(ItemRef.ForFileSystemPath(path,
+                                    Directory.Exists(path) ? EntryKind.Directory : EntryKind.File));
                             useWindowsDrop = false;
                         }
                         finally
@@ -178,6 +179,17 @@ internal sealed class FileClipboard
                 }
                 if (!useWindowsDrop && items.Count == 0 && data is not null)
                     text = await data.TryGetTextAsync();
+            }
+            if (!useWindowsDrop && items.Count == 0 && publication is null
+                && windowsSequence != 0 && virtualDescriptors is { Count: > 0 }
+                && virtualDescriptors.All(descriptor => descriptor.IsDirectory))
+            {
+                if (tempRoot is null)
+                    throw new InvalidOperationException("The clipboard's virtual-folder selection could not be prepared. Nothing was pasted.");
+                staging = await ClipboardVirtualStaging.StageAsync([], virtualDescriptors, tempRoot);
+                foreach (var path in staging.Paths)
+                    items.Add(ItemRef.ForFileSystemPath(path, EntryKind.Directory));
+                text = null;
             }
             IReadOnlyList<string>? windowsPaths = null;
             if (useWindowsDrop)
