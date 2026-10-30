@@ -13,6 +13,8 @@
 #>
 param(
     [string]$Version = "0.1.0-preview",
+    [string]$ProductVersion,
+    [string]$CandidateRef,
     [string]$Runtime = "win-x64",
     [string]$Configuration = "Release",
     [string]$ArtifactDirectory
@@ -27,11 +29,27 @@ $artifacts = if ([string]::IsNullOrWhiteSpace($ArtifactDirectory)) {
 $project = Join-Path $root "src/FileCat.App/FileCat.App.csproj"
 $publish = Join-Path $artifacts "publish/$Runtime"
 $fdd = Join-Path $artifacts "publish/$Runtime-fdd"
-$versionPrefix = ($Version -split '-')[0]
 $sourceCommit = @(& git -C $root rev-parse HEAD)[0].Trim()
 $createdUtc = @(& git -C $root show -s --format=%cI $sourceCommit)[0].Trim()
 if ($LASTEXITCODE -ne 0 -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$' -or [string]::IsNullOrWhiteSpace($createdUtc)) {
     throw 'Cannot establish the exact source identity for artifact SBOMs.'
+}
+$product = if ([string]::IsNullOrWhiteSpace($ProductVersion)) { $Version } else { $ProductVersion }
+if (-not [string]::IsNullOrWhiteSpace($CandidateRef)) {
+    if ($Version -cnotmatch '^1\.0\.0-rc\.[1-9][0-9]*$' -or $CandidateRef -cne "refs/tags/v$Version" -or $product -cne '1.0.0') {
+        throw 'An RC package requires its exact candidate ref and explicit product version 1.0.0.'
+    }
+    if ($env:GITHUB_ACTIONS -eq 'true' -and ($env:GITHUB_REF -cne $CandidateRef -or $env:GITHUB_SHA -cne $sourceCommit)) {
+        throw 'The RC ref and source must match the checked-out GitHub event.'
+    }
+} elseif ($Version -cmatch '^1\.0\.0-rc\.' -or $product -cne $Version) {
+    throw 'An RC package requires an explicit candidate ref and product version; other packages cannot override their version.'
+}
+$versionPrefix = ($product -split '-')[0]
+$versionArgs = @("-p:Version=$product", "-p:VersionPrefix=$versionPrefix")
+if (-not [string]::IsNullOrWhiteSpace($CandidateRef)) {
+    $versionArgs += "-p:InformationalVersion=$Version+$sourceCommit"
+    $versionArgs += '-p:IncludeSourceRevisionInInformationalVersion=false'
 }
 # The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
 # so an SBOM never claims a clean commit it was not built from.
@@ -59,12 +77,12 @@ New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
 Write-Host "Publishing self-contained $Runtime ($Version)"
 dotnet publish $project -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
+    @versionArgs -p:DebugType=embedded -o $publish
 if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
 
 Write-Host "Publishing framework-dependent $Runtime"
 dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
+    @versionArgs -p:DebugType=embedded -o $fdd
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 
 # The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
@@ -72,16 +90,16 @@ if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 # process resolve the shared .NET runtime, and the portable build lives in a folder its user can change.
 $broker = Join-Path $root "src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj"
 dotnet publish $broker -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
+    @versionArgs -p:DebugType=embedded -o $publish
 if ($LASTEXITCODE -ne 0) { throw "administrator helper publish failed" }
 
 # The Shell helper (TV-16) runs Windows thumbnail and icon handlers outside FileCat, at low integrity in a job object.
 $shellHost = Join-Path $root "src/FileCat.ShellHost/FileCat.ShellHost.csproj"
 dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
+    @versionArgs -p:DebugType=embedded -o $publish
 if ($LASTEXITCODE -ne 0) { throw "Shell helper publish failed" }
 dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
+    @versionArgs -p:DebugType=embedded -o $fdd
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish failed" }
 
 # A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.

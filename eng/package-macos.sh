@@ -6,17 +6,33 @@
 set -euo pipefail
 
 VERSION="${1:-0.1.0-preview}"
+PRODUCT_VERSION="${2:-$VERSION}"
+CANDIDATE_REF="${3:-}"
 RID="osx-arm64"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/artifacts"
 PUB="$OUT/publish/$RID"
-PREFIX="${VERSION%%-*}"
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 CREATED_UTC="$(git -C "$ROOT" show -s --format=%cI "$SOURCE_COMMIT")"
 if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ || -z "$CREATED_UTC" ]]; then
   echo "Cannot establish exact source identity for artifact SBOM." >&2
   exit 2
 fi
+if [[ -n "$CANDIDATE_REF" ]]; then
+  if [[ ! "$VERSION" =~ ^1\.0\.0-rc\.[1-9][0-9]*$ || "$CANDIDATE_REF" != "refs/tags/v$VERSION" || "$PRODUCT_VERSION" != 1.0.0 ]]; then
+    echo "An RC package requires its exact candidate ref and explicit product version 1.0.0." >&2; exit 2
+  fi
+  if [[ "${GITHUB_ACTIONS:-}" == true && ( "${GITHUB_REF:-}" != "$CANDIDATE_REF" || "${GITHUB_SHA:-}" != "$SOURCE_COMMIT" ) ]]; then
+    echo "The RC ref and source must match the checked-out GitHub event." >&2; exit 2
+  fi
+  VERSION_ARGS=(-p:Version="$PRODUCT_VERSION" -p:VersionPrefix="$PRODUCT_VERSION" \
+    -p:InformationalVersion="$VERSION+$SOURCE_COMMIT" -p:IncludeSourceRevisionInInformationalVersion=false)
+elif [[ "$VERSION" == 1.0.0-rc.* || "$PRODUCT_VERSION" != "$VERSION" ]]; then
+  echo "An RC package requires an explicit candidate ref and product version; other packages cannot override their version." >&2; exit 2
+else
+  VERSION_ARGS=(-p:Version="$VERSION" -p:VersionPrefix="${VERSION%%-*}")
+fi
+PREFIX="${PRODUCT_VERSION%%-*}"
 # The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
 # so an SBOM never claims a clean commit it was not built from.
 BUILD_INPUTS=(src eng licenses Directory.Build.props Directory.Build.targets Directory.Packages.props global.json THIRD-PARTY-NOTICES.md LICENSE FileCat.slnx)
@@ -31,7 +47,7 @@ fi
 rm -rf "$PUB"
 mkdir -p "$OUT"
 dotnet publish "$ROOT/src/FileCat.App/FileCat.App.csproj" -c Release -r "$RID" --self-contained true \
-  -p:PublishReadyToRun=true -p:Version="$VERSION" -p:VersionPrefix="$PREFIX" -p:DebugType=embedded -o "$PUB"
+  -p:PublishReadyToRun=true "${VERSION_ARGS[@]}" -p:DebugType=embedded -o "$PUB"
 rm -f "$PUB"/FileCat.ShellHost* "$PUB"/FileCat.PrivilegedHost*
 
 APP="$OUT/FileCat.app"

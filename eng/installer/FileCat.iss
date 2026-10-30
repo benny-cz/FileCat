@@ -20,6 +20,7 @@
 AppId={{6F3C2B5E-9A41-4E57-8C5E-1F2A3B4C5D6E}
 AppName=FileCat
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=FileCat contributors
 AppPublisherURL=https://github.com/benny-cz/FileCat
 AppSupportURL=https://github.com/benny-cz/FileCat/issues
