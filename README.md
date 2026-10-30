@@ -1,4 +1,4 @@
-# FileCat
+# ![FileCat app icon](docs/images/filecat-icon-72.png) FileCat
 
 **A file manager for everyday work, with serious tools when you need to go deeper.**
 
