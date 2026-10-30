@@ -1,0 +1,39 @@
+{
+    "appDllSha256":  "FC981234F7721CC281814CE4B48ED3604DE3BFD04098ABEB3263181B0E71B927",
+    "windowsDllSha256":  "645338DA82038F0C39E2E4FE46F7BD03B249227BE186A5F52349232F92306D35",
+    "initial":  {
+                    "stage":  "live-initial",
+                    "query":  "",
+                    "matchCount":  "Enter text to find",
+                    "wrapStatus":  null,
+                    "screenshotSha256":  "83B81FEE429EB1B41E7A627D92CE0BC955C2A496C8B4009B0D9FA2A22AEF3DB3"
+                },
+    "found":  {
+                  "stage":  "live-found",
+                  "query":  "needle",
+                  "matchCount":  "At least 1 match · total unavailable in Page mode",
+                  "wrapStatus":  null,
+                  "screenshotSha256":  "E3B6F55D4A86D608665612E00A11B2FE9080F0342750A5BD49E10074C481EF57"
+              },
+    "forwardWrap":  {
+                        "stage":  "live-wrapped-forward",
+                        "query":  "needle",
+                        "matchCount":  "At least 1 match · total unavailable in Page mode",
+                        "wrapStatus":  "Wrapped to the page start. Found \"needle\".",
+                        "screenshotSha256":  "7C5A22CD394060E5FB477567DA4A245C65ED512B1EEBA78003C9B789143E4054"
+                    },
+    "backwardWrap":  {
+                         "stage":  "live-wrapped-backward",
+                         "query":  "needle",
+                         "matchCount":  "At least 1 match · total unavailable in Page mode",
+                         "wrapStatus":  "Wrapped to the page end. Found \"needle\".",
+                         "screenshotSha256":  "0599FCDFC0826AD8A70644D68B31DD1827B3F606545965FA2E36227762646D5D"
+                     },
+    "missing":  {
+                    "stage":  "live-missing",
+                    "query":  "zzabsent",
+                    "matchCount":  "0 matches in page",
+                    "wrapStatus":  null,
+                    "screenshotSha256":  "C5D95FAF681383AFD6F3F29EF92A67472037275C3556154E86E846CF7269071A"
+                }
+}
