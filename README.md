@@ -11,7 +11,7 @@ is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation.
 [preview notes](docs/release/1.0.0/PREVIEW3_RELEASE_NOTES.md) and
 [asset hashes](docs/release/1.0.0/evidence/E-PREVIEW3-TAG-20261030.md) before installing.
 
-**Start here:** [**Download the preview**](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.3) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md)
+**Start here:** [**Download the preview**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
 
 [![FileCat on Windows: Architecture.md selected in Projects, Documents marked as target, four panels with three tabs each](docs/screenshots/windows/WorkspaceSelected-20261030.png)](docs/screenshots/windows/WorkspaceSelected-20261030.png)
 
