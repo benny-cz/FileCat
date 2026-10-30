@@ -9,7 +9,8 @@
     sbom-<ver>-<rid>-setup-payload.spdx.json  exact self-contained payload + reviewed dependency identities
     sbom-<ver>-<rid>-portable.spdx.json       exact portable payload + reviewed dependency identities
     sbom-<ver>-<rid>-fdd.spdx.json            exact framework-dependent payload + reviewed dependency identities
-  Signing is a release-infrastructure step (SignPath Foundation, ADR-15) applied to these outputs in CI.
+  Signing is a separate release-infrastructure step. This producer currently emits unsigned inputs;
+  no Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
 #>
 param(
     [string]$Version = "0.1.0-preview",

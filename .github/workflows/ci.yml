@@ -551,9 +551,8 @@ jobs:
         with:
           name: inno-setup-provenance-windows-package
           path: artifacts/toolchains/inno-setup/**
-      # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
-      # Configure the SignPath project and its GitHub integration, then add the signing step here.
-      # Until then releases are published as clearly labeled, unsigned previews.
+      # Windows signing is a separate candidate producer step. This package job currently emits
+      # unsigned inputs only; the draft-preview job below must never consume an RC tag.
       - name: Select exact Windows release assets
         id: assets
         shell: pwsh
@@ -704,7 +703,7 @@ jobs:
 
   draft-preview:
     name: Draft preview (consume this run's artifacts only)
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v1.0.0-preview.')
     needs: [producer-policy, windows, windows-arm64, portable, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15

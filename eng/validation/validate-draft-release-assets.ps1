@@ -17,7 +17,7 @@ $Parent = [IO.Path]::GetFullPath((Join-Path $TemporaryBase 'FileCatValidation'))
 $Root = Join-Path $Parent ('filecat-draft-controls-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($Root)
 $Source = '0123456789abcdef0123456789abcdef01234567'
-$Version = '1.0.0-rc.1'
+$Version = '1.0.0-preview.3'
 $Reference = "refs/tags/v$Version"
 $Cases = @(
     @{Name='windows-new';Platform='windows'}, @{Name='windows-new-irm-empty';Platform='windows'},
@@ -38,6 +38,7 @@ $Cases = @(
     @{Name='unexpected-name';Error='Manifest asset names differ'},
     @{Name='remote-source-change';Error='Remote tag differs'},
     @{Name='stable-reference';Error='Stable references cannot invoke a producer'},
+    @{Name='rc-reference';Error='Draft asset upload requires a 1.0.0 preview tag'},
     @{Name='published-release';Error='Existing release is not an unsigned preview draft'},
     @{Name='immutable-release';Error='Existing release is immutable'},
     @{Name='api-failure';Error='Read-only GitHub preflight failed'},
@@ -101,9 +102,9 @@ try {
         [void][IO.Directory]::CreateDirectory($Directory)
         $Platform = if ($Case.ContainsKey('Platform')) {$Case.Platform} else {'macos'}
         $Names = switch ($Platform) {
-            windows {@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-win-arm64-fdd.spdx.json')}
-            linux {@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0-rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage','FileCat-1.0.0-rc.1-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-rc.1-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-linux-x64-appimage.spdx.json')}
-            macos {@('FileCat-1.0.0-rc.1-osx-arm64.zip','sbom-1.0.0-rc.1-osx-arm64-macos-app.spdx.json')}
+            windows {@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-preview.3-win-x64-portable.zip','FileCat-1.0.0-preview.3-win-x64-fdd.zip','sbom-1.0.0-preview.3-win-x64-setup-payload.spdx.json','sbom-1.0.0-preview.3-win-x64-portable.spdx.json','sbom-1.0.0-preview.3-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-preview.3-win-arm64-portable.zip','FileCat-1.0.0-preview.3-win-arm64-fdd.zip','sbom-1.0.0-preview.3-win-arm64-setup-payload.spdx.json','sbom-1.0.0-preview.3-win-arm64-portable.spdx.json','sbom-1.0.0-preview.3-win-arm64-fdd.spdx.json')}
+            linux {@('FileCat-1.0.0-preview.3-linux-x64.tar.gz','filecat_1.0.0-preview.3_amd64.deb','FileCat-1.0.0-preview.3-x86_64.AppImage','FileCat-1.0.0-preview.3-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-preview.3-linux-x64-tar.spdx.json','sbom-1.0.0-preview.3-linux-x64-deb.spdx.json','sbom-1.0.0-preview.3-linux-x64-appimage.spdx.json')}
+            macos {@('FileCat-1.0.0-preview.3-osx-arm64.zip','sbom-1.0.0-preview.3-osx-arm64-macos-app.spdx.json')}
         }
         foreach ($Name in $Names) { [IO.File]::WriteAllText((Join-Path $Directory $Name),"external owned contract: $Name") }
         $Selection = & (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $Version -SourceCommit $Source -ArtifactDirectory $Directory
@@ -140,7 +141,7 @@ try {
         $env:GH_TOKEN = if ($Case.Name -eq 'missing-token') {''} else {'synthetic-control-token'}
         $Receipt = Join-Path $Directory 'preflight.json'
         $Result = $null; $ErrorText = $null
-        try { $Result = & $Guard -ManifestPath $Selection.ManifestPath -ManifestSHA256 $Hash -SourceCommit $Source -Reference $(if ($Case.Name -eq 'stable-reference') {'refs/tags/v1.0.0'} else {$Reference}) -Repository owned/fixture -ReceiptPath $Receipt @UploadParameters }
+        try { $Result = & $Guard -ManifestPath $Selection.ManifestPath -ManifestSHA256 $Hash -SourceCommit $Source -Reference $(if ($Case.Name -eq 'stable-reference') {'refs/tags/v1.0.0'} elseif ($Case.Name -eq 'rc-reference') {'refs/tags/v1.0.0-rc.1'} else {$Reference}) -Repository owned/fixture -ReceiptPath $Receipt @UploadParameters }
         catch { $ErrorText = $_.ToString() }
         if ($Case.ContainsKey('Error')) {
             if ($null -ne $Result -or $null -eq $ErrorText -or -not $ErrorText.StartsWith($Case.Error) -or (Test-Path -LiteralPath $Receipt)) { throw "Denied case $($Case.Name) differs from external refusal contract: $ErrorText" }

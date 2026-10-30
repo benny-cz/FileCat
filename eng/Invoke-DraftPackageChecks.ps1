@@ -16,7 +16,9 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $Policy=& (Join-Path $PSScriptRoot 'Assert-ProducerReference.ps1') -Reference $Reference -EventName push
-if($Policy.Mode -cne 'prerelease'){throw 'Draft package checks require a supported prerelease tag.'}
+if($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$'){
+    throw 'Draft package checks require a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
+}
 $Version=$Reference.Substring('refs/tags/v'.Length)
 $Root=[IO.Path]::GetFullPath($ArtifactDirectory)
 if($Root -match '[\r\n\[\]{}()*?!]'){throw 'Artifact root cannot contain action glob metacharacters or newlines.'}
