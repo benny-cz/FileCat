@@ -20,6 +20,10 @@ The actual Page viewer then opened `paging.md` (9,061 bytes, SHA-256 `b819dd13d0
 
 The downloaded manifests, API snapshots, six workflow receipts, exact official ZIP, guest scripts, fixture, receipts, comparison script/output and screenshots are retained in the owner's private store as `V:\FileCat\artifacts\release-evidence\preview3-draft-428910888-verification.zip`: **115,676,027 bytes**, SHA-256 `fcdecb57d0ee6e247f190b2f33229785442fc2716d322c1049e445d30baf3147`. The archive was rehashed after copying and contains 30 entries, including all three manifests, the ZIP, three UI screenshots and the verification output.
 
+## Private draft release notes
+
+[The prepared notes](../PREVIEW3_RELEASE_NOTES.md) describe the preview packages, platform limits, signing and recovery cautions, and three hosted manifest hashes. They were uploaded as the private draft's body. An independent release API read confirmed the hosted body exactly matches the prepared Markdown, with `draft: true`, `prerelease: true`, no publication time and all 24 assets retained. The post-edit 46,947-byte API snapshot is preserved at `V:\FileCat\artifacts\release-evidence\preview3-draft-428910888-release-after-notes.json`, SHA-256 `ff7af7475e49f1096306435aa91947834a475011371e85a3073b38bdc5544453`. The local notes file hashes to `182850bba0b48aaa7c7c70161ac73ad7d63d6ca032f7f4bf36b4a935863ad2d6`. Editing this private body did not publish the release.
+
 ## Exact hosted inventory for the separate public-preview decision
 
 | Hosted asset | Bytes | SHA-256 |
@@ -49,4 +53,4 @@ The downloaded manifests, API snapshots, six workflow receipts, exact official Z
 | sbom-1.0.0-preview.3-win-x64-portable.spdx.json | 268562 | 1754d711ffd3a0c4a957bd7d0c81dafb79f81945b808424d78e27e4337bea109 |
 | sbom-1.0.0-preview.3-win-x64-setup-payload.spdx.json | 273193 | 69cecb56a5dd087bd143666a6cae365ae7252f3e293413331038e697e69e1556 |
 
-The private draft and official Windows portable input check passed at their exact scope. REL-PIPELINE remains Open for the negative tag update/delete controls and a `release/1.0` required-check branch. Candidate installation, signatures, consent and stable GO retain their own gates. Public preview.3 publication requires a separate owner decision on this exact hosted inventory and hashes; until then the draft remains private. Stable 1.0.0 remains NO-GO.
+The private draft and official Windows portable input check passed at their exact scope. Read-only GitHub ruleset inspection found active tag ruleset `26082784` covering `refs/tags/v1.0.0*` with update and deletion rules and no bypass actors; creation ruleset `26082787` restricts creation with an admin bypass. The approved tag push reported that creation bypass. No attempt was made to rewrite or delete an immutable release tag merely to test the negative rule, and no `release/1.0` required-check branch exists yet. REL-PIPELINE remains Open for those negative/branch controls. Candidate installation, signatures, consent and stable GO retain their own gates. Public preview.3 publication requires a separate owner decision on this exact hosted inventory and hashes; until then the draft remains private. Stable 1.0.0 remains NO-GO.
