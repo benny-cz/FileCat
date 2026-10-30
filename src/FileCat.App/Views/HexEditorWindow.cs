@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -66,6 +67,7 @@ public sealed class HexEditorWindow : Window
     private readonly Button _replace = new() { Content = "Replace bytes…" };
     private readonly Button _goTo = new() { Content = "Go to…" };
     private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 6, LineSpacing = 4 };
     private readonly Button _advanced = new() { Content = "More…" };
     private bool _findOpen;
@@ -181,7 +183,10 @@ public sealed class HexEditorWindow : Window
         };
         foreach (var c in new Control[] { _save, _stopCopy, _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, _findToggle, _advanced })
             toolbar.Children.Add(c);
-        foreach (var c in new Control[] { _search, _previousMatch, _nextMatch, _matchCount,
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close hex editor Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); _hex.Focus(); };
+        foreach (var c in new Control[] { _search, _closeFind, _previousMatch, _nextMatch, _matchCount,
                      _hexSearch, _matchCase, _stopSearch }) _findBar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
@@ -459,6 +464,15 @@ public sealed class HexEditorWindow : Window
         if (e.Key == Key.Escape && _clipboardCts is not null)
         {
             e.Handled = true; _clipboardCts.Cancel(); return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _findOpen &&
+            focused is Visual findControl && _findBar.IsVisualAncestorOf(findControl))
+        {
+            e.Handled = true;
+            _findTimer.Stop();
+            if (_searchCts is not null) _searchCts.Cancel();
+            else { SetFindOpen(false); _hex.Focus(); }
+            return;
         }
         if (e.Key == Key.F6 && !ctrl && !alt)
         {

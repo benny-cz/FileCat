@@ -57,6 +57,17 @@ public sealed class CompareTextInteractionTests
             Assert.True(search.IsFocused);
             search.Text = "needle";
             await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
+            window.GetVisualDescendants().OfType<Button>().Single(b =>
+                AutomationProperties.GetName(b) == "Close comparison Find bar")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(search.IsEffectivelyVisible);
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsEffectivelyVisible);
+            Assert.Equal("needle", search.Text);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.False(search.IsEffectivelyVisible);
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsEffectivelyVisible);
             Assert.Contains("searchFound", search.Classes);
             ButtonNamed(window, "Next match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(window.CurrentRow >= 90);

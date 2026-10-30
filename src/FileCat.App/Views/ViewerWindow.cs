@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -79,6 +80,7 @@ public sealed class ViewerWindow : Window
         TextWrapping = TextWrapping.Wrap, MaxWidth = 300, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _modeLabel = new() { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
     private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
     private bool _findOpen;
     private readonly Button _smallerText = new() { Content = "Text −" };
@@ -332,6 +334,10 @@ public sealed class ViewerWindow : Window
         _findToggle.Click += (_, _) => SetFindOpen(!_findOpen, focus: !_findOpen);
         toolbar.Children.Add(_findToggle);
         _findBar.Children.Add(_search);
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close viewer Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); FocusContent(); };
+        _findBar.Children.Add(_closeFind);
         _findBar.Children.Add(_matchCase);
         _findBar.Children.Add(_hexSearch);
         Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease text and hex size");
@@ -1438,6 +1444,15 @@ public sealed class ViewerWindow : Window
             else if (_countCts is not null) _countCts.Cancel();
             else if (_checksumCts is not null) _checksumCts.Cancel();
             else _copyCts?.Cancel();
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _findOpen &&
+            focused is Visual findControl && _findBar.IsVisualAncestorOf(findControl))
+        {
+            _findTimer.Stop();
+            SetFindOpen(false);
+            FocusContent();
             e.Handled = true;
             return;
         }

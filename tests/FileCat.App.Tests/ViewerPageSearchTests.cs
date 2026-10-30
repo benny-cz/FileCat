@@ -62,6 +62,15 @@ public sealed class ViewerPageSearchTests
         Assert.True(search.IsFocused);
         search.Text = "needle";
         Dispatcher.UIThread.RunJobs();
+        viewer.GetVisualDescendants().OfType<Button>().Single(b =>
+            AutomationProperties.GetName(b) == "Close viewer Find bar")
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.False(search.IsEffectivelyVisible);
+        Assert.Equal("needle", search.Text);
+        Assert.True(page.KeyRequested(Key.F, KeyModifiers.Control));
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(search.IsEffectivelyVisible);
+        Assert.True(search.IsFocused);
         var next = Field<Button>(viewer, "_nextMatch");
         var previousButton = Field<Button>(viewer, "_previousMatch");
         var matchCount = Field<TextBlock>(viewer, "_matchCount");

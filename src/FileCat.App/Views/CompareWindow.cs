@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -63,6 +64,7 @@ public sealed class CompareWindow : Window
     private readonly Button _copyDifference = new() { Content = "Copy difference" };
     private readonly TextBlock _textActionStatus = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison",
         Classes = { "searchPending" } };
     private readonly ComboBox _findSide = new() { ItemsSource = new[] { "Both shown sides", "Left shown side", "Right shown side" }, SelectedIndex = 0, MinWidth = 150 };
@@ -201,6 +203,9 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_copySide, "Source side for copying a line");
         Avalonia.Automation.AutomationProperties.SetName(_findText, "Find text in comparison (Ctrl+F)");
         Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide comparison Find bar");
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close comparison Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); _rows.Focus(); };
         Avalonia.Automation.AutomationProperties.SetName(_findSide, "Comparison search source scope");
         Avalonia.Automation.AutomationProperties.SetAutomationId(_findStatus, "Comparison match status");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_findStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
@@ -237,7 +242,7 @@ public sealed class CompareWindow : Window
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
         DockPanel.SetDock(_textTools, Dock.Top);
-        foreach (var control in new Control[] { _findText, _findSide, _findChanged, _findPrevious, _findNext, _findStatus })
+        foreach (var control in new Control[] { _findText, _closeFind, _findSide, _findChanged, _findPrevious, _findNext, _findStatus })
         {
             control.Margin = new Thickness(0, 0, 8, 4);
             _findBar.Children.Add(control);
@@ -428,7 +433,8 @@ public sealed class CompareWindow : Window
     {
         if (_dialogs.IsOpen) return;
         if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None) return;
-        if (_findOpen && _findText.IsFocused)
+        if (_findOpen && FocusManager?.GetFocusedElement() is Visual findControl &&
+            _findBar.IsVisualAncestorOf(findControl))
         {
             SetFindOpen(false);
             _rows.Focus();
