@@ -68,6 +68,7 @@ public sealed class AppServices : IDisposable
         Task.Run(() =>
         {
             Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
+            ClipboardVirtualStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
             paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
         });
         // Deleted items of disk images, read-only (P10).

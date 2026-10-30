@@ -85,6 +85,137 @@ public sealed class ClipboardIntentTests
     }
 
     [AvaloniaFact]
+    public async Task Explorer_zip_virtual_files_stage_complete_bytes_and_cleanup_after_copy()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string temp = Path.Combine(Path.GetTempPath(), "filecat-virtual-clipboard-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var clipboard = ControlledClipboard.Create();
+            var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateFile(VirtualStorageItem("alpha.txt", "alpha bytes")));
+            data.Add(DataTransferItem.CreateFile(VirtualStorageItem("beta.txt", "beta bytes")));
+            clipboard.External(data);
+            var descriptors = new WindowsClipboardFileDrop.VirtualDescriptor[]
+            {
+                new("alpha.txt", false, new DateTime(2020, 1, 2, 3, 4, 6, DateTimeKind.Utc), 11),
+                new("beta.txt", false, null, 10)
+            };
+            var coordinator = new FileClipboard(_ => null, () => 17, () => descriptors);
+
+            var snapshot = await coordinator.ReadAsync(clipboard.Api, temp);
+
+            Assert.Null(snapshot.Publication);
+            Assert.Equal((uint)17, snapshot.WindowsSequence);
+            Assert.Equal(["alpha.txt", "beta.txt"], snapshot.Files.Select(x => Path.GetFileName(x.FileSystemPath)));
+            Assert.Equal("alpha bytes", File.ReadAllText(snapshot.Files[0].FileSystemPath!));
+            Assert.Equal("beta bytes", File.ReadAllText(snapshot.Files[1].FileSystemPath!));
+            Assert.Equal(new DateTime(2020, 1, 2, 3, 4, 6, DateTimeKind.Utc), File.GetLastWriteTimeUtc(snapshot.Files[0].FileSystemPath!));
+            Assert.Contains("ZoneId=3", File.ReadAllText(snapshot.Files[0].FileSystemPath! + ":Zone.Identifier"));
+            Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+            snapshot.Staging!.Dispose();
+            Assert.False(File.Exists(snapshot.Files[0].FileSystemPath));
+            Assert.False(File.Exists(snapshot.Files[1].FileSystemPath));
+        }
+        finally { if (Directory.Exists(temp)) Directory.Delete(temp, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Explorer_zip_virtual_files_use_normal_copy_job_and_leave_no_staging()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var f = await Fixture.Create();
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.CreateFile(VirtualStorageItem("alpha.txt", "alpha bytes")));
+        data.Add(DataTransferItem.CreateFile(VirtualStorageItem("beta.txt", "beta bytes")));
+        f.Clipboard.External(data);
+        var descriptors = new WindowsClipboardFileDrop.VirtualDescriptor[]
+        {
+            new("alpha.txt", false, new DateTime(2020, 1, 2, 3, 4, 6, DateTimeKind.Utc), 11),
+            new("beta.txt", false, null, 10)
+        };
+        typeof(MainViewModel).GetField("_fileClipboard", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .SetValue(f.Vm, new FileClipboard(_ => null, () => 17, () => descriptors));
+        f.NavigateDestination(f.B);
+
+        await f.Paste();
+        var job = await f.FinishedJob();
+
+        Assert.Equal(JobKind.Copy, job.Kind);
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal("alpha bytes", File.ReadAllText(Path.Combine(f.B, "alpha.txt")));
+        Assert.Equal("beta bytes", File.ReadAllText(Path.Combine(f.B, "beta.txt")));
+        Assert.Equal(new DateTime(2020, 1, 2, 3, 4, 6, DateTimeKind.Utc), File.GetLastWriteTimeUtc(Path.Combine(f.B, "alpha.txt")));
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(f.Services.Paths.TempDirectory, "clipboard"), "*", SearchOption.AllDirectories));
+    }
+
+    [AvaloniaFact]
+    public async Task Explorer_zip_virtual_selection_with_missing_or_unsafe_descriptor_never_stages_subset()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string temp = Path.Combine(Path.GetTempPath(), "filecat-virtual-clipboard-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var descriptors in new[]
+            {
+                new WindowsClipboardFileDrop.VirtualDescriptor[] { new("alpha.txt", false) },
+                new WindowsClipboardFileDrop.VirtualDescriptor[] { new("alpha.txt", false), new("..\\escape.txt", false) }
+            })
+            {
+                var clipboard = ControlledClipboard.Create();
+                var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateFile(VirtualStorageItem("alpha.txt", "alpha bytes")));
+                data.Add(DataTransferItem.CreateFile(VirtualStorageItem("beta.txt", "beta bytes")));
+                clipboard.External(data);
+                var coordinator = new FileClipboard(_ => null, () => 17, () => descriptors);
+                await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.ReadAsync(clipboard.Api, temp));
+                Assert.Empty(Directory.Exists(temp) ? Directory.EnumerateFiles(temp, "*", SearchOption.AllDirectories) : []);
+                Assert.Equal(clipboard.ReadCount, clipboard.DisposedReads);
+            }
+        }
+        finally { if (Directory.Exists(temp)) Directory.Delete(temp, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Explorer_zip_stream_failure_cleans_already_staged_files()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string temp = Path.Combine(Path.GetTempPath(), "filecat-virtual-clipboard-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var first = VirtualStorageItem("alpha.txt", "alpha bytes");
+            var second = VirtualStorageItem("beta.txt", "beta bytes");
+            ((StorageProxy)(object)second).FailRead = true;
+            var descriptors = new WindowsClipboardFileDrop.VirtualDescriptor[]
+            {
+                new("alpha.txt", false), new("beta.txt", false)
+            };
+            await Assert.ThrowsAsync<IOException>(() => ClipboardVirtualStaging.StageAsync([first, second], descriptors, temp));
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(temp, "clipboard"), "*", SearchOption.AllDirectories));
+        }
+        finally { if (Directory.Exists(temp)) Directory.Delete(temp, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Explorer_zip_declared_size_mismatch_never_submits_partial_selection()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string temp = Path.Combine(Path.GetTempPath(), "filecat-virtual-clipboard-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var descriptors = new WindowsClipboardFileDrop.VirtualDescriptor[]
+            {
+                new("alpha.txt", false, null, 11), new("beta.txt", false, null, 99)
+            };
+            await Assert.ThrowsAsync<IOException>(() => ClipboardVirtualStaging.StageAsync(
+                [VirtualStorageItem("alpha.txt", "alpha bytes"), VirtualStorageItem("beta.txt", "beta bytes")],
+                descriptors, temp));
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(temp, "clipboard"), "*", SearchOption.AllDirectories));
+        }
+        finally { if (Directory.Exists(temp)) Directory.Delete(temp, true); }
+    }
+
+    [AvaloniaFact]
     public async Task Direct_external_file_import_keeps_its_native_generation_for_outcome_reporting()
     {
         var clipboard = ControlledClipboard.Create();
@@ -728,14 +859,27 @@ public sealed class ClipboardIntentTests
         return item;
     }
 
+    private static IStorageFile VirtualStorageItem(string name, string content)
+    {
+        var item = DispatchProxy.Create<IStorageFile, StorageProxy>();
+        var proxy = (StorageProxy)(object)item;
+        proxy.Path = new Uri("virtual-file:///" + Uri.EscapeDataString(name));
+        proxy.Contents = System.Text.Encoding.UTF8.GetBytes(content);
+        return item;
+    }
+
     public class StorageProxy : DispatchProxy
     {
         public Uri? Path;
         public string? RefusedPath;
+        public byte[]? Contents;
+        public bool FailRead;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
             "get_Path" => Path,
             "get_Name" => System.IO.Path.GetFileName(Path!.LocalPath),
+            "OpenReadAsync" => FailRead ? Task.FromException<Stream>(new IOException("The virtual stream failed."))
+                : Task.FromResult<Stream>(new MemoryStream(Contents!)),
             "TryGetFileFromPathAsync" => Task.FromResult(((Uri)args![0]!).LocalPath == RefusedPath ? null : (IStorageFile)StorageItem(((Uri)args[0]!).LocalPath)),
             "TryGetFolderFromPathAsync" => Task.FromResult(((Uri)args![0]!).LocalPath == RefusedPath ? null : (IStorageFolder)StorageItem(((Uri)args[0]!).LocalPath)),
             "Dispose" => null,

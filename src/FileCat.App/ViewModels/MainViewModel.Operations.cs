@@ -575,6 +575,7 @@ public sealed partial class MainViewModel
         OnExternalClipboardCopyFinished(job);
         OnJobFinishedCore(job);
         OnClipboardMoveFinished(job);
+        OnVirtualClipboardCopyFinished(job);
     }
 
     private void OnJobFinishedCore(Job job)
