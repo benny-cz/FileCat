@@ -604,6 +604,13 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab is null) return;
+        // The parent row remains available when enumeration is denied. Let it
+        // escape the failed location before treating Open as a retry or sign-in.
+        if (tab.Listing.TryGetFocused(out var focused) && focused.Kind == EntryKind.Parent)
+        {
+            tab.GoUp();
+            return;
+        }
         if (tab.Listing.State == ListingState.Failed)
         {
             // A share that needs credentials: Enter opens the Windows sign-in prompt, then retries (NET-004).
