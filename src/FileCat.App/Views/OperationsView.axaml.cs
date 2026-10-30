@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -35,6 +36,11 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        SpeedHistoryDisclosure.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ToggleButton.IsCheckedProperty)
+                SpeedHistoryDisclosure.Content = SpeedHistoryDisclosure.IsChecked == true ? "▾ Speed history" : "▸ Speed history";
+        };
         DataContextChanged += (_, _) => ObserveCenter(Center);
         // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
         // changes: the action starting, a status line wrapping, the window settling around the drawer.

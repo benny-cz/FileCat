@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
@@ -401,6 +402,70 @@ public sealed class OperationsDrawerLayoutTests
         double visibleHeight = Math.Min(bottom, recovery.Bounds.Height) - Math.Max(top, 0);
         Assert.True(visibleHeight >= stop.Bounds.Height - 1,
             $"Stop must be in view {when}: visible {visibleHeight} of {stop.Bounds.Height} DIP in {recovery.Bounds.Height} DIP viewport.");
+    }
+
+    [AvaloniaTheory]
+    [InlineData(640, 420)]
+    [InlineData(1200, 800)]
+    public async Task Speed_history_is_a_compact_optional_disclosure_and_expanded_graph_remains_scrollable(int width, int height)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: width, height: height);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.CreateDirectory,
+                Destination = Location.FileSystem(root),
+                NewName = "speed-history-fixture",
+            });
+            for (int i = 0; i < 300 && !(job.State.IsFinished() && center.Jobs.Count > 0); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.True(job.State.IsFinished());
+            center.Selected = center.Jobs.Single(row => row.Job == job);
+            center.Selected.HasSpeedHistory = true;
+            center.Selected.SpeedHistory = [new Point(1, 10), new Point(2, 0), new Point(3, 20)];
+            center.Selected.GraphCaption = "Last 90 s · peak 20 items/s";
+            Layout(window);
+
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
+            var disclosure = view.FindControl<ToggleButton>("SpeedHistoryDisclosure")!;
+            var graphPanel = view.FindControl<StackPanel>("SpeedHistoryGraph")!;
+            Assert.True(disclosure.IsEffectivelyVisible);
+            Assert.False(disclosure.IsChecked);
+            Assert.False(graphPanel.IsEffectivelyVisible);
+            Assert.Equal("▸ Speed history", disclosure.Content);
+            Assert.Equal("Speed history", AutomationProperties.GetName(disclosure));
+            Assert.True(disclosure.Bounds.Height <= 32,
+                $"Collapsed speed history consumed {disclosure.Bounds.Height} DIP.");
+            Assert.True(disclosure.Focus(), "The disclosure must be keyboard reachable.");
+
+            disclosure.IsChecked = true;
+            Layout(window);
+            Assert.Equal("▾ Speed history", disclosure.Content);
+            var graph = graphPanel.GetVisualDescendants().OfType<SpeedGraph>().Single();
+            Assert.True(graph.IsEffectivelyVisible && graph.Bounds.Width >= 250 && graph.Bounds.Height >= 60);
+            Assert.True(drawer.Bounds.Height <= window.Bounds.Height - 96,
+                $"Expanded speed history consumed too much workspace: {drawer.Bounds.Height} of {window.Bounds.Height} DIP.");
+            Assert.Equal(ScrollBarVisibility.Auto, details.VerticalScrollBarVisibility);
+            if (details.Extent.Height > details.Viewport.Height + 1)
+            {
+                double graphInContent = graph.TranslatePoint(new Point(0, 0), details)!.Value.Y + details.Offset.Y;
+                details.Offset = new Vector(0, Math.Clamp(graphInContent, 0, details.Extent.Height - details.Viewport.Height));
+                Layout(window);
+                double top = graph.TranslatePoint(new Point(0, 0), details)!.Value.Y;
+                Assert.True(top >= -1 && top < details.Viewport.Height,
+                    $"Expanded graph is not reachable within the report scroller: top {top}, viewport {details.Viewport.Height} DIP.");
+            }
+            center.Selected.HasSpeedHistory = false;
+            Layout(window);
+            Assert.False(disclosure.IsEffectivelyVisible);
+            Assert.False(graphPanel.IsEffectivelyVisible);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
     }
 
     [AvaloniaTheory]

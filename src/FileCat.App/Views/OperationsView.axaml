@@ -238,12 +238,17 @@
                          IsVisible="{Binding SpeedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                          AutomationProperties.Name="{Binding SpeedText}" />
             </StackPanel>
-            <Expander Header="Speed history" IsVisible="{Binding HasSpeedHistory}" Margin="0,4,0,0">
-              <StackPanel Spacing="2" HorizontalAlignment="Left">
+            <ToggleButton x:Name="SpeedHistoryDisclosure" Content="▸ Speed history"
+                          IsVisible="{Binding HasSpeedHistory}" Margin="0,2,0,0" HorizontalAlignment="Left"
+                          MinHeight="26" Padding="4,2" Background="Transparent" BorderThickness="0"
+                          AutomationProperties.Name="Speed history" ToolTip.Tip="Show or hide the last 90 seconds of operation pace" />
+            <StackPanel IsVisible="{Binding HasSpeedHistory}">
+              <StackPanel x:Name="SpeedHistoryGraph" Spacing="2" HorizontalAlignment="Left"
+                          IsVisible="{Binding IsChecked, ElementName=SpeedHistoryDisclosure}">
                 <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
                 <TextBlock Text="{Binding GraphCaption}" Classes="small muted" />
               </StackPanel>
-            </Expander>
+            </StackPanel>
           </StackPanel>
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="8,0,8,4">
             <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).IssueSummary}"
