@@ -39,6 +39,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private volatile TaskCompletionSource<PageFindResult?>? _findPending;
     private string? _findPattern;
     private bool _findCase;
+    private bool _findWrap;
     private bool _findFresh;
     private PageFindResult? _findTotal;
     private volatile HtmlPage? _page;
@@ -228,13 +229,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private nuint KeyTarget => _keyTarget != 0 ? _keyTarget : _plug;
 
     public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
-        FindCoreAsync(text, matchCase, forward, ct);
+        FindCoreAsync(text, matchCase, forward, ct, wrap: false);
 
-    private int BeginFindOnGtk(string text, bool matchCase, bool forward, TaskCompletionSource<PageFindResult?> done)
+    public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap) =>
+        FindCoreAsync(text, matchCase, forward, ct, wrap);
+
+    private int BeginFindOnGtk(string text, bool matchCase, bool forward, bool wrap, TaskCompletionSource<PageFindResult?> done)
     {
         if (_disposed != 0 || _findController == 0) { done.TrySetResult(null); return 0; }
         _findPending = done;
-        if (_findPattern == text && _findCase == matchCase)
+        if (_findPattern == text && _findCase == matchCase && _findWrap == wrap)
         {
             _findFresh = false;
             if (forward) Native.webkit_find_controller_search_next(_findController);
@@ -244,9 +248,10 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             _findPattern = text;
             _findCase = matchCase;
+            _findWrap = wrap;
             _findFresh = true;
             _findTotal = null;
-            uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u);
+            uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u) | (wrap ? 16u : 0u);
             fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, MaxFindMatches);
         }
         return 0;

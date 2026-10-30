@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Headless.XUnit;
 using FileCat.App.Controls;
 using FileCat.App.Views;
@@ -17,6 +18,28 @@ public sealed class ReportSearchLifetimeTests
 {
     private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
     private const long HeldOffset = 2L * PagedReader.PageSize;
+
+    [AvaloniaFact]
+    public async Task Typing_in_report_finds_without_enter_and_retires_stale_border()
+    {
+        var window = new ReportWindow("Record", "sample", _ => Task.FromResult("alpha beta alpha"));
+        try
+        {
+            window.Show();
+            await window.Reading!.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            var search = Field<TextBox>(window, "_search");
+            search.Text = "alpha";
+            await WaitFor(() => search.Classes.Contains("searchFound"));
+            Assert.Equal(0, Field<long>(window, "_lastHit"));
+            Assert.Equal("Matches found.", AutomationProperties.GetHelpText(search));
+            search.Text = "missing";
+            Assert.DoesNotContain("searchFound", search.Classes);
+            await WaitFor(() => search.Classes.Contains("searchMissing"));
+            search.Text = "";
+            Assert.DoesNotContain("searchMissing", search.Classes);
+        }
+        finally { window.Close(); }
+    }
 
     [AvaloniaTheory]
     [InlineData("replace", true)]
@@ -120,6 +143,10 @@ public sealed class ReportSearchLifetimeTests
             Field<TextBox>(window, "_search").Text = "prior";
             await Find(window, true); Assert.Equal(0, Field<long>(window, "_lastHit"));
             await Find(window, true); Assert.Equal(12, Field<long>(window, "_lastHit"));
+            await Find(window, true); Assert.Equal(0, Field<long>(window, "_lastHit"));
+            Assert.Contains("Wrapped to the beginning", window.StatusText);
+            await Find(window, false); Assert.Equal(12, Field<long>(window, "_lastHit"));
+            Assert.Contains("Wrapped to the end", window.StatusText);
             await Find(window, false); Assert.Equal(0, Field<long>(window, "_lastHit"));
         }
         finally { window.Close(); }

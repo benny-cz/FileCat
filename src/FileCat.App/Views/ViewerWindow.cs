@@ -41,7 +41,8 @@ public sealed class ViewerWindow : Window
     private readonly HexView _hex = new();
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _encodingInfo = new() { Classes = { "small", "muted" }, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220,
+        Classes = { "searchPending" } };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _previousMatch = new() { Content = "Previous" };
@@ -107,12 +108,16 @@ public sealed class ViewerWindow : Window
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
+    private readonly DispatcherTimer _findTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
     private CancellationTokenSource? _countCts;
     private SearchIdentity? _countIdentity;
     private ContentSearch.MatchCount? _countResult;
     private bool _countFailed;
     private bool _countCanceled;
+    private bool _knownMatch;
     private bool _pageFoundMatch;
+    private bool _pageWholePageNoMatch;
     private bool _pageTriedFind;
     private bool _pageFindUnavailable;
     private PageFindResult? _pageCountResult;
@@ -438,6 +443,11 @@ public sealed class ViewerWindow : Window
         _modePicture.Click += (_, _) => ShowPicture();
         _modePage.Click += (_, _) => ShowPage();
         _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
+        _pageView.LoadCompleted += (ok, _) =>
+        {
+            if (ok && _isPage && !string.IsNullOrEmpty(_search.Text) && !_pageTriedFind &&
+                !_findTimer.IsEnabled && _searchCts is null) ScheduleFind();
+        };
         _pageView.Failed += why =>
         {
             if (_refreshing && _isPage)
@@ -495,6 +505,7 @@ public sealed class ViewerWindow : Window
             else if (e.Key == Key.Escape)
             {
                 e.Handled = true;
+                _findTimer.Stop();
                 _searchCts?.Cancel();
                 _countCts?.Cancel();
                 FocusContent();
@@ -507,19 +518,24 @@ public sealed class ViewerWindow : Window
             if (e.Property != TextBox.TextProperty) return;
             if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
             InvalidateSearch();
+            _text.SetHighlight(null, false);
+            _info.SetHighlight(null, false);
             UpdateStatus();
+            ScheduleFind();
         };
         _matchCase.PropertyChanged += (_, e) =>
         {
             if (e.Property != ToggleButton.IsCheckedProperty) return;
             InvalidateSearch();
             UpdateStatus();
+            ScheduleFind();
         };
         _hexSearch.PropertyChanged += (_, e) =>
         {
             if (e.Property != ToggleButton.IsCheckedProperty) return;
             InvalidateSearch();
             UpdateStatus();
+            ScheduleFind();
         };
         _text.PositionChanged += () => SearchPositionChanged(_text);
         _info.PositionChanged += () => SearchPositionChanged(_info);
@@ -534,6 +550,7 @@ public sealed class ViewerWindow : Window
         // detection has finished, so a refresh cannot race the reader's opening request.
         _changeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1.5) };
         _changeTimer.Tick += (_, _) => { _ = CheckForChanges(); };
+        _findTimer.Tick += (_, _) => { _findTimer.Stop(); _ = FindCoreAsync(forward: true, automatic: true); };
         Opened += async (_, _) =>
         {
             if (!s_open.Contains(this)) s_open.Add(this);
@@ -549,6 +566,7 @@ public sealed class ViewerWindow : Window
         {
             _dialogs.CancelAll();
             _changeTimer.Stop();
+            _findTimer.Stop();
             _refreshCts?.Cancel();
             _searchCts?.Cancel();
             _countCts?.Cancel();
@@ -781,6 +799,7 @@ public sealed class ViewerWindow : Window
         _pageView.FocusPage();
         UpdateStatus();
         UpdateCopyActions();
+        ScheduleFind();
     }
 
     /// <summary>Whether the page mode is shown (tests).</summary>
@@ -961,6 +980,7 @@ public sealed class ViewerWindow : Window
         // Its pages count against the shared content budget until it is disposed.
         old?.Dispose();
         _lastHit = -1;
+        if (_isInfo) ScheduleFind();
     }
 
     public string InfoText => _infoText;
@@ -996,6 +1016,7 @@ public sealed class ViewerWindow : Window
         FocusContent();
         UpdateStatus();
         UpdateCopyActions();
+        ScheduleFind();
     }
 
     private void FocusContent()
@@ -1495,8 +1516,18 @@ public sealed class ViewerWindow : Window
         if (HexEditorWindow.OpenOrActivate(_services, _reader.Source.LocalPath!, offset) is { } error) _status.Text = error;
     }
 
-    private async Task FindAsync(bool forward)
+    private void ScheduleFind()
     {
+        _findTimer.Stop();
+        if (!_closing.IsCancellationRequested && !_isPicture && !string.IsNullOrEmpty(_search.Text))
+            _findTimer.Start();
+    }
+
+    private Task FindAsync(bool forward) => FindCoreAsync(forward, automatic: false);
+
+    private async Task FindCoreAsync(bool forward, bool automatic)
+    {
+        _findTimer.Stop();
         if (_closing.IsCancellationRequested) return;
         var pattern = _search.Text ?? string.Empty;
         if (pattern.Length == 0)
@@ -1506,7 +1537,7 @@ public sealed class ViewerWindow : Window
         }
         if (_isPage)
         {
-            await FindPageAsync(pattern, forward);
+            await FindPageAsync(pattern, forward, automatic);
             return;
         }
         _searchCts?.Cancel();
@@ -1526,7 +1557,7 @@ public sealed class ViewerWindow : Window
         bool matchCase = _matchCase.IsChecked == true;
         var identity = new SearchIdentity(pattern, hexMode, enc.CodePage, matchCase, reader, _isHex && !info);
         bool continuing = _lastHit >= 0 && _lastSearch == identity;
-        long from = continuing ? (forward ? _lastHit + (hexMode ? 1 : TextDecoding.UnitSize(enc)) : _lastHit)
+        long from = automatic ? 0 : continuing ? (forward ? _lastHit + (hexMode ? 1 : TextDecoding.UnitSize(enc)) : _lastHit)
             : info ? _info.TopOffset : _isHex ? _hex.CursorOffset : _text.TopOffset;
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -1535,24 +1566,35 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = $"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)";
         long found;
+        bool wrapped, searchedWhole;
         try
         {
-            found = await Task.Run(() =>
+            (found, wrapped, searchedWhole) = await Task.Run(() =>
             {
-                if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
-                if (!forward) return ContentSearch.FindTextBackward(reader, enc, from, pattern, matchCase, ct);
-                return ContentSearch.FindText(reader, enc, from, pattern, matchCase, ct);
+                long SearchAt(long offset) => bytes is not null
+                    ? forward ? ContentSearch.FindBytes(reader, offset, bytes, ct)
+                        : ContentSearch.FindBytesBackward(reader, offset, bytes, ct)
+                    : forward ? ContentSearch.FindText(reader, enc, offset, pattern, matchCase, ct)
+                        : ContentSearch.FindTextBackward(reader, enc, offset, pattern, matchCase, ct);
+                long first = SearchAt(from);
+                if (first >= 0) return (first, false, false);
+                if (automatic || forward && from <= 0 || !forward && from >= reader.Length)
+                    return (-1L, false, true);
+                long around = SearchAt(forward ? 0 : reader.Length);
+                return (around, around >= 0, true);
             }, ct);
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts)) return;
             ct.ThrowIfCancellationRequested();
             if (found < 0)
             {
-                ShowSearchOutcome($"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.");
+                ShowSearchOutcome(searchedWhole ? $"\"{pattern}\" was not found in this file."
+                    : $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.",
+                    announce: !automatic);
                 EnsureMatchCount(identity, reader, bytes, enc, matchCase);
                 return;
             }
             _lastHit = found;
+            _knownMatch = true;
             _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
             view.SetHighlight(bytes is null ? pattern : null, matchCase);
@@ -1568,6 +1610,7 @@ public sealed class ViewerWindow : Window
             }
             finally { _revealingSearch = false; }
             UpdateStatus();
+            if (wrapped) ShowSearchOutcome($"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".");
             EnsureMatchCount(identity, reader, bytes, enc, matchCase);
         }
         catch (OperationCanceledException)
@@ -1594,15 +1637,16 @@ public sealed class ViewerWindow : Window
         }
     }
 
-    private void ShowSearchOutcome(string message)
+    private void ShowSearchOutcome(string message, bool announce = true)
     {
         // The visible status text is also its accessible name. A fixed AutomationProperties.Name
         // would suppress the name-change event used by screen readers for live announcements.
-        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Polite);
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, announce
+            ? Avalonia.Automation.AutomationLiveSetting.Polite : Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = message;
     }
 
-    private async Task FindPageAsync(string pattern, bool forward)
+    private async Task FindPageAsync(string pattern, bool forward, bool automatic)
     {
         _searchCts?.Cancel();
         _searchCts = null;
@@ -1625,23 +1669,40 @@ public sealed class ViewerWindow : Window
         UpdateStatus();
         try
         {
-            PageFindResult? result = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward, cts.Token);
+            PageFindResult? result = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward,
+                cts.Token, wrap: automatic);
+            bool wrapped = false, searchedWhole = automatic;
+            if (!automatic && result is { Found: false } &&
+                result is not { MatchCount: 0, CountComplete: true })
+            {
+                PageFindResult? around = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward,
+                    cts.Token, wrap: true);
+                if (around is not null)
+                {
+                    result = around;
+                    wrapped = around.Value.Found;
+                    searchedWhole = true;
+                }
+            }
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts) || !_isPage ||
                 !ReferenceEquals(page, _htmlPage) || generation != _sourceGeneration) return;
             _pageSearchStatus = result switch
             {
+                { Found: true } when wrapped => $"Wrapped to {(forward ? "the page start" : "the page end")}. Found \"{pattern}\".",
                 { Found: true } => $"Found \"{pattern}\" in the page.",
-                { Found: false } => $"\"{pattern}\" was not found in this page.",
+                { Found: false } when searchedWhole => $"\"{pattern}\" was not found in this page.",
+                { Found: false } => $"No {(forward ? "later" : "earlier")} match; wrapping was unavailable.",
                 null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
             };
             _pageTriedFind = result is not null;
             _pageFindUnavailable = result is null;
             _pageFoundMatch |= result?.Found == true;
+            if (searchedWhole) _pageWholePageNoMatch = result is { Found: false, MatchCount: null or 0 };
             if (result is { MatchCount: not null }) _pageCountResult = result;
             UpdateMatchControls();
             UpdateStatus();
             // A page does not tell which match is selected: Next and Previous speak each outcome (Orca heard nothing).
-            ShowSearchOutcome(_pageSearchStatus);
+            ShowSearchOutcome(_pageSearchStatus, announce: !automatic);
         }
         catch (OperationCanceledException)
         {
@@ -1664,6 +1725,7 @@ public sealed class ViewerWindow : Window
 
     private void InvalidateSearch(bool keepCount = false)
     {
+        _findTimer.Stop();
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         if (_isPage) _pageView.ClearFind();
         _searchCts?.Cancel();
@@ -1680,8 +1742,10 @@ public sealed class ViewerWindow : Window
             _countResult = null;
             _countFailed = false;
             _countCanceled = false;
+            _knownMatch = false;
             _pageTriedFind = false;
             _pageFoundMatch = false;
+            _pageWholePageNoMatch = false;
             _pageFindUnavailable = false;
             _pageCountResult = null;
             _stopCount.IsVisible = false;
@@ -1747,6 +1811,18 @@ public sealed class ViewerWindow : Window
 
     private void UpdateMatchControls()
     {
+        bool? feedback = null;
+        if (!string.IsNullOrEmpty(_search.Text) && !_isPicture)
+        {
+            if (_isPage)
+            {
+                if (_pageFoundMatch || _pageCountResult is { MatchCount: > 0 }) feedback = true;
+                else if (_pageCountResult is { MatchCount: 0, CountComplete: true } || _pageWholePageNoMatch) feedback = false;
+            }
+            else if (_knownMatch || _countResult is { Matches: > 0 }) feedback = true;
+            else if (_countResult is { Matches: 0, Complete: true }) feedback = false;
+        }
+        ViewerSearchFeedback.Set(_search, feedback);
         _stopCount.IsVisible = _countCts is not null && !_isPicture && !_isPage;
         if (_countResult is null)
         {
@@ -1763,10 +1839,11 @@ public sealed class ViewerWindow : Window
         }
         if (_isPage)
         {
-            bool found = _pageCountResult is not null || _pageFoundMatch;
+            bool found = _pageCountResult is { MatchCount: > 0 } || _pageFoundMatch;
             ShowMatchCount(_pageCountResult is { MatchCount: { } total } pageCount
                 ? pageCount.CountComplete ? $"{total:N0} {(total == 1 ? "match" : "matches")}" : $"At least {total:N0} matches · count limited"
                 : _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
+                : _pageWholePageNoMatch ? "0 matches in page"
                 : _searchCts is not null ? "Searching page…"
                 : _pageFindUnavailable ? "Page search or count unavailable"
                 : _pageTriedFind ? "0 matches from here · total unavailable in Page mode"

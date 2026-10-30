@@ -216,13 +216,16 @@ public sealed class WebView2Page : IDisposable
     }
 
     /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>
-    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+        FindAsync(text, matchCase, forward, ct, wrap: false);
+
+    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
     {
         if (_disposed || _controller is not { } controller) return null;
         long navigation = _navigationGeneration;
         ct.ThrowIfCancellationRequested();
         // JSON encoding keeps even quotes, backslashes and line breaks inside one string literal.
-        string script = $"window.find({JsonSerializer.Serialize(text)}, {JsonSerializer.Serialize(matchCase)}, {JsonSerializer.Serialize(!forward)}, false, false, false, false)";
+        string script = $"window.find({JsonSerializer.Serialize(text)}, {JsonSerializer.Serialize(matchCase)}, {JsonSerializer.Serialize(!forward)}, {JsonSerializer.Serialize(wrap)}, false, false, false)";
         string result;
         try { result = await controller.CoreWebView2.ExecuteScriptAsync(script); }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return null; }

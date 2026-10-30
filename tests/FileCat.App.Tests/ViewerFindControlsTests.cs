@@ -1,12 +1,15 @@
 using System.Diagnostics;
 using System.Reflection;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.Views;
@@ -19,6 +22,54 @@ namespace FileCat.App.Tests;
 public sealed class ViewerFindControlsTests
 {
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+    [AvaloniaFact]
+    public async Task Typing_searches_after_a_pause_and_feedback_tracks_the_current_query()
+    {
+        using var fixture = new Fixture("alpha beta alpha");
+        fixture.Viewer.Styles.Add(new StyleInclude(new Uri("avares://FileCat.App.Tests/"))
+        {
+            Source = new Uri("avares://FileCat/Themes/Styles.axaml"),
+        });
+        string previousTheme = ThemeManager.Current.Name;
+        ThemeManager.Apply("Classic");
+        try
+        {
+            await fixture.OpenAsync();
+            var viewer = fixture.Viewer;
+            var search = Field<TextBox>(viewer, "_search");
+            var count = Field<TextBlock>(viewer, "_matchCount");
+            Invoke(viewer, "SetFindOpen", true, true);
+            viewer.UpdateLayout();
+            var border = search.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
+            Assert.Contains("searchPending", search.Classes);
+            Assert.Equal(Application.Current!.FindResource("FcTextMuted")?.ToString(), border.BorderBrush?.ToString());
+
+            search.Text = "al";
+            search.Text = "alpha";
+            Assert.DoesNotContain("searchFound", search.Classes);
+            Assert.DoesNotContain("searchMissing", search.Classes);
+            await Until(() => count.Text == "2 matches" && search.Classes.Contains("searchFound"));
+            Assert.Equal("Matches found.", AutomationProperties.GetHelpText(search));
+            viewer.UpdateLayout();
+            Assert.Equal(new Thickness(2), border.BorderThickness);
+            Assert.Equal(Application.Current!.FindResource("FcSuccess")?.ToString(), border.BorderBrush?.ToString());
+
+            search.Text = "absent";
+            Assert.DoesNotContain("searchFound", search.Classes);
+            await Until(() => count.Text == "0 matches" && search.Classes.Contains("searchMissing"));
+            Assert.Equal("No matches found.", AutomationProperties.GetHelpText(search));
+            Assert.Equal(new Thickness(2), border.BorderThickness);
+            Assert.Equal(Application.Current!.FindResource("FcError")?.ToString(), border.BorderBrush?.ToString());
+
+            search.Text = "";
+            Assert.Contains("searchPending", search.Classes);
+            Assert.DoesNotContain("searchFound", search.Classes);
+            Assert.DoesNotContain("searchMissing", search.Classes);
+            Assert.Equal(Application.Current!.FindResource("FcTextMuted")?.ToString(), border.BorderBrush?.ToString());
+        }
+        finally { ThemeManager.Apply(previousTheme); }
+    }
 
     [AvaloniaFact]
     public async Task Visible_buttons_and_count_follow_text_hex_and_info_search_contexts()
@@ -42,6 +93,12 @@ public sealed class ViewerFindControlsTests
         await Until(() => Field<HexView>(viewer, "_hex").Selection.Start == 6);
         previous.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await Until(() => Field<HexView>(viewer, "_hex").Selection.Start == 0);
+        await Find(viewer, forward: false);
+        Assert.Equal(12, Field<HexView>(viewer, "_hex").Selection.Start);
+        Assert.Contains("Wrapped to the end", viewer.StatusText);
+        await Find(viewer, forward: true);
+        Assert.Equal(0, Field<HexView>(viewer, "_hex").Selection.Start);
+        Assert.Contains("Wrapped to the beginning", viewer.StatusText);
 
         search.Text = "absent";
         Assert.Equal("Press Next or Previous to count", count.Text);

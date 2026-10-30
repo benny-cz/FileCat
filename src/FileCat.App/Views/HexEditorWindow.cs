@@ -74,7 +74,8 @@ public sealed class HexEditorWindow : Window
     private readonly TextBlock _contentSize = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _stopCopy = new() { Content = "Stop", IsVisible = false, Classes = { "danger" } };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
-    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200 };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200,
+        Classes = { "searchPending" } };
     private readonly Button _previousMatch = new() { Content = "Previous", IsEnabled = false };
     private readonly Button _nextMatch = new() { Content = "Next", IsEnabled = false };
     private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center,
@@ -91,6 +92,10 @@ public sealed class HexEditorWindow : Window
     private long _lastCursor = -1;
     private bool _saving, _allowClose, _closed, _saveConfirmed;
     private CancellationTokenSource? _copyStop, _searchCts, _clipboardCts;
+    private readonly DispatcherTimer _findTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
+    private bool _searchedWholeFileWithoutMatch;
+    private bool _knownMatch;
     private readonly ContentCopyNotice _clipboardNotice = new();
     private readonly SemaphoreSlim _clipboardWrites = new(1, 1);
     private long _lastHit = -1;
@@ -240,9 +245,11 @@ public sealed class HexEditorWindow : Window
             bool hasQuery = !string.IsNullOrEmpty(_search.Text);
             _previousMatch.IsEnabled = hasQuery;
             _nextMatch.IsEnabled = hasQuery;
+            ScheduleFind();
         };
-        _hexSearch.IsCheckedChanged += (_, _) => InvalidateSearch();
-        _matchCase.IsCheckedChanged += (_, _) => InvalidateSearch();
+        _hexSearch.IsCheckedChanged += (_, _) => { InvalidateSearch(); ScheduleFind(); };
+        _matchCase.IsCheckedChanged += (_, _) => { InvalidateSearch(); ScheduleFind(); };
+        _findTimer.Tick += (_, _) => { _findTimer.Stop(); _ = FindCoreAsync(forward: true, automatic: true); };
         _replace.Click += async (_, _) => await ReplaceBytesAsync();
         _undo.Click += (_, _) => UndoRedo(redo: false);
         _redo.Click += (_, _) => UndoRedo(redo: true);
@@ -250,11 +257,11 @@ public sealed class HexEditorWindow : Window
         _search.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter) { e.Handled = true; await FindAsync(forward: (e.KeyModifiers & KeyModifiers.Shift) == 0); }
-            else if (e.Key == Key.Escape) { e.Handled = true; _searchCts?.Cancel(); _hex.Focus(); }
+            else if (e.Key == Key.Escape) { e.Handled = true; _findTimer.Stop(); _searchCts?.Cancel(); _hex.Focus(); }
         };
         _hex.CursorMoved += () =>
         {
-            if (!_revealingSearch) InvalidateSearch();
+            if (!_revealingSearch) InvalidateSearch(keepResult: true);
             if (_hex.CursorOffset != _lastCursor)
             {
                 _hex.PendingNibble = -1;
@@ -270,6 +277,7 @@ public sealed class HexEditorWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            _findTimer.Stop();
             _copyStop?.Cancel();
             _searchCts?.Cancel();
             _clipboardCts?.Cancel();
@@ -345,6 +353,7 @@ public sealed class HexEditorWindow : Window
         _hex.IsModified = _overlay.IsModified;
         _overlay.Changed += OnOverlayChanged;
         Title = WindowTitle();
+        ScheduleFind();
     }
 
     private void OnOverlayChanged(HexOverlayChange change)
@@ -358,6 +367,7 @@ public sealed class HexEditorWindow : Window
             _clipboardCts?.Cancel();
             _hex.ContentChanged();
             UpdateStatus();
+            ScheduleFind();
             UnsavedStateChanged?.Invoke();
         }
         // Edits from the keyboard update the cached page before the next frame; background changes are posted.
@@ -754,13 +764,27 @@ public sealed class HexEditorWindow : Window
         return long.TryParse(t, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out offset);
     }
 
-    private async Task FindAsync(bool forward)
+    private void ScheduleFind()
     {
+        _findTimer.Stop();
+        if (!_closed && !string.IsNullOrEmpty(_search.Text)) _findTimer.Start();
+    }
+
+    private Task FindAsync(bool forward) => FindCoreAsync(forward, automatic: false);
+
+    private async Task FindCoreAsync(bool forward, bool automatic)
+    {
+        _findTimer.Stop();
         if (_closed) return;
         var pattern = _search.Text ?? "";
         if (pattern.Length == 0) { SetFindOpen(true, focus: true); return; }
         byte[]? bytes = _hexSearch.IsChecked == true ? ContentSearch.ParseHex(pattern) : null;
-        if (_hexSearch.IsChecked == true && bytes is null) { Status("Hex search expects bytes such as \"4D 5A 90\"."); return; }
+        if (_hexSearch.IsChecked == true && bytes is null)
+        {
+            Status("Hex search expects bytes such as \"4D 5A 90\".");
+            ViewerSearchFeedback.Set(_search, null);
+            return;
+        }
         _searchCts?.Cancel();
         using var cts = _searchCts = new CancellationTokenSource();
         var ct = cts.Token;
@@ -768,39 +792,55 @@ public sealed class HexEditorWindow : Window
         var identity = (pattern, _hexSearch.IsChecked == true, _matchCase.IsChecked == true, _reader);
         // F3 again continues after (or before) the match that is still selected; otherwise the search starts at the cursor.
         bool continuing = _lastHit >= 0 && _lastSearch == identity && sel.Start == _lastHit && sel.Length == _lastHitLength;
-        long from = continuing ? (forward ? _lastHit + 1 : _lastHit) : _hex.CursorOffset;
+        long from = automatic ? 0 : continuing ? (forward ? _lastHit + 1 : _lastHit) : _hex.CursorOffset;
         bool matchCase = _matchCase.IsChecked == true;
         var reader = _reader;
         _stopSearch.IsVisible = true;
         Status($"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)");
         try
         {
-            long found = await Task.Run(() =>
+            (long found, bool wrapped, bool searchedWhole) = await Task.Run(() =>
             {
-                if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
-                if (forward) return ContentSearch.FindText(reader, s_latin1, from, pattern, matchCase, ct);
-                return ContentSearch.FindTextBackward(reader, s_latin1, from, pattern, matchCase, ct);
+                long SearchAt(long offset) => bytes is not null
+                    ? forward ? ContentSearch.FindBytes(reader, offset, bytes, ct)
+                        : ContentSearch.FindBytesBackward(reader, offset, bytes, ct)
+                    : forward ? ContentSearch.FindText(reader, s_latin1, offset, pattern, matchCase, ct)
+                        : ContentSearch.FindTextBackward(reader, s_latin1, offset, pattern, matchCase, ct);
+                long first = SearchAt(from);
+                if (first >= 0) return (first, false, false);
+                if (automatic || forward && from <= 0 || !forward && from >= reader.Length)
+                    return (-1L, false, true);
+                long around = SearchAt(forward ? 0 : reader.Length);
+                return (around, around >= 0, true);
             }, ct);
             if (_closed || !ReferenceEquals(_searchCts, cts) || !ReferenceEquals(reader, _reader)) return;
             ct.ThrowIfCancellationRequested();
             if (found < 0)
             {
-                Status($"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
-                _hex.SetSearchFeedback($"No {(forward ? "later" : "earlier")} match. {_matchCount.Text}");
+                if (searchedWhole) _searchedWholeFileWithoutMatch = true;
+                ViewerSearchFeedback.Set(_search, _knownMatch ? true :
+                    _searchedWholeFileWithoutMatch ? false : null);
+                Status(searchedWhole ? $"\"{pattern}\" was not found in this file."
+                    : $"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
+                _hex.SetSearchFeedback($"No match in this file. {_matchCount.Text}");
                 return;
             }
             _lastHit = found;
             _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
             if (_observedMatches.Count < MaxObservedMatches) _observedMatches.Add(found);
+            _searchedWholeFileWithoutMatch = false;
+            _knownMatch = true;
+            ViewerSearchFeedback.Set(_search, true);
             UpdateMatchCount();
             _hex.SetSearchFeedback(_matchCount.Text, announce: false);
             _revealingSearch = true;
             try { _hex.GoTo(found, select: true, _lastHitLength); }
             finally { _revealingSearch = false; }
             _hex.Focus();
-            Status($"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
+            Status(wrapped
+                ? $"Wrapped to {(forward ? "the beginning" : "the end")}. Found at 0x{found:X}."
+                : $"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
         }
         catch (OperationCanceledException)
         {
@@ -824,14 +864,22 @@ public sealed class HexEditorWindow : Window
         }
     }
 
-    private void InvalidateSearch()
+    private void InvalidateSearch(bool keepResult = false)
     {
+        _findTimer.Stop();
         _searchCts?.Cancel();
         _searchCts = null;
         _stopSearch.IsVisible = false;
         _lastHit = -1;
         _lastSearch = null;
         _observedMatches.Clear();
+        if (!keepResult)
+        {
+            _searchedWholeFileWithoutMatch = false;
+            _knownMatch = false;
+        }
+        ViewerSearchFeedback.Set(_search, _knownMatch ? true :
+            _searchedWholeFileWithoutMatch ? false : null);
         _hex.SetSearchFeedback(null, announce: false);
         UpdateMatchCount();
     }

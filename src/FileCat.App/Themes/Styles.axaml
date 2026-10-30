@@ -132,6 +132,24 @@
     <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
   </Style>
 
+  <!-- Find fields keep a visible result cue after the debounced search finishes. -->
+  <Style Selector="TextBox.searchPending /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.searchPending:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcTextMuted}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="TextBox.searchFound /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcSuccess}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="TextBox.searchMissing /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcError}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
   <!-- Role chips (non-color cue: text): TARGET, "Set as target" on the other panels, the active panel's own target -->
   <Style Selector="Button.role">
     <Setter Property="Focusable" Value="False" />

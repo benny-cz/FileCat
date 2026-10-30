@@ -23,7 +23,27 @@ public sealed class ViewerPageSearchTests
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [AvaloniaFact]
-    public async Task Page_find_controls_search_forward_backward_report_no_match_and_stop()
+    public async Task Typing_in_page_finds_after_a_pause_and_colors_only_a_known_result()
+    {
+        using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        var search = Field<TextBox>(fixture.Viewer, "_search");
+        search.Text = "needle";
+        Assert.DoesNotContain("searchFound", search.Classes);
+        await WaitFor(() => fixture.Engine.Requests.Count == 1);
+        Assert.True(fixture.Engine.WrapRequests[0]);
+        fixture.Engine.Requests[0].Done.SetResult(new PageFindResult(true));
+        await WaitFor(() => search.Classes.Contains("searchFound"));
+        search.Text = "absent";
+        Assert.DoesNotContain("searchFound", search.Classes);
+        await WaitFor(() => fixture.Engine.Requests.Count == 2);
+        Assert.True(fixture.Engine.WrapRequests[1]);
+        fixture.Engine.Requests[1].Done.SetResult(new PageFindResult(false));
+        await WaitFor(() => search.Classes.Contains("searchMissing"));
+    }
+
+    [AvaloniaFact]
+    public async Task Page_find_controls_wrap_forward_and_backward_then_stop()
     {
         using var fixture = new Fixture();
         await fixture.OpenAsync();
@@ -53,6 +73,7 @@ public sealed class ViewerPageSearchTests
         next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await WaitFor(() => engine.Requests.Count == 1);
         Assert.Equal(("needle", false, true), engine.Requests[0].Query);
+        Assert.False(engine.WrapRequests[0]);
         engine.Requests[0].Done.SetResult(new PageFindResult(true, 2, true));
         await WaitFor(() => matchCount.Text == "2 matches");
         Assert.Contains("counted all matches", AutomationProperties.GetHelpText(matchCount));
@@ -62,19 +83,29 @@ public sealed class ViewerPageSearchTests
         Dispatcher.UIThread.RunJobs();
         await WaitFor(() => engine.Requests.Count == 2);
         engine.Requests[1].Done.SetResult(new PageFindResult(false));
-        await WaitFor(() => viewer.StatusText.Contains("was not found", StringComparison.Ordinal));
-        Assert.Contains("was not found", viewer.StatusText);
+        await WaitFor(() => engine.Requests.Count == 3);
+        Assert.True(engine.WrapRequests[2]);
+        engine.Requests[2].Done.SetResult(new PageFindResult(true));
+        await WaitFor(() => viewer.StatusText.Contains("Wrapped to the page start", StringComparison.Ordinal));
         Assert.Equal("2 matches", matchCount.Text);
 
         previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await WaitFor(() => engine.Requests.Count == 3);
-        Assert.Equal(("needle", false, false), engine.Requests[2].Query);
-        engine.Requests[2].Done.SetResult(new PageFindResult(true, 2, true));
-        await WaitFor(() => viewer.StatusText.Contains("Found \"needle\"", StringComparison.Ordinal));
-        Assert.Contains("Found \"needle\"", viewer.StatusText);
+        await WaitFor(() => engine.Requests.Count == 4);
+        Assert.Equal(("needle", false, false), engine.Requests[3].Query);
+        Assert.False(engine.WrapRequests[3]);
+        engine.Requests[3].Done.SetResult(new PageFindResult(true, 2, true));
+        await WaitFor(() => viewer.StatusText == "Found \"needle\" in the page.");
+
+        previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await WaitFor(() => engine.Requests.Count == 5);
+        engine.Requests[4].Done.SetResult(new PageFindResult(false));
+        await WaitFor(() => engine.Requests.Count == 6);
+        Assert.True(engine.WrapRequests[5]);
+        engine.Requests[5].Done.SetResult(new PageFindResult(true));
+        await WaitFor(() => viewer.StatusText.Contains("Wrapped to the page end", StringComparison.Ordinal));
 
         var stopped = Find(viewer, forward: true);
-        await WaitFor(() => engine.Requests.Count == 4);
+        await WaitFor(() => engine.Requests.Count == 7);
         var stop = Field<Button>(viewer, "_stopSearch");
         Assert.True(stop.IsVisible);
         stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -84,7 +115,7 @@ public sealed class ViewerPageSearchTests
     }
 
     [AvaloniaFact]
-    public async Task Page_find_count_never_claims_an_exact_total_from_a_directional_browser_result()
+    public async Task Page_find_count_uses_whole_page_wrap_or_explicit_native_count()
     {
         using var fixture = new Fixture();
         await fixture.OpenAsync();
@@ -93,24 +124,27 @@ public sealed class ViewerPageSearchTests
         var noMatch = Find(viewer, forward: true);
         await WaitFor(() => fixture.Engine.Requests.Count == 1);
         fixture.Engine.Requests[0].Done.SetResult(new PageFindResult(false));
+        await WaitFor(() => fixture.Engine.Requests.Count == 2);
+        Assert.True(fixture.Engine.WrapRequests[1]);
+        fixture.Engine.Requests[1].Done.SetResult(new PageFindResult(false));
         await noMatch;
-        Assert.Contains("total unavailable", Field<TextBlock>(viewer, "_matchCount").Text);
-        Assert.Contains("0 matches from here", Field<TextBlock>(viewer, "_matchCount").Text);
+        Assert.Equal("0 matches in page", Field<TextBlock>(viewer, "_matchCount").Text);
+        Assert.Contains("searchMissing", Field<TextBox>(viewer, "_search").Classes);
         Field<TextBox>(viewer, "_search").Text = "needle";
         var found = Find(viewer, forward: true);
-        await WaitFor(() => fixture.Engine.Requests.Count == 2);
-        fixture.Engine.Requests[1].Done.SetResult(new PageFindResult(true));
+        await WaitFor(() => fixture.Engine.Requests.Count == 3);
+        fixture.Engine.Requests[2].Done.SetResult(new PageFindResult(true));
         await found;
         Assert.Contains("At least 1 match", Field<TextBlock>(viewer, "_matchCount").Text);
         var limited = Find(viewer, forward: true);
-        await WaitFor(() => fixture.Engine.Requests.Count == 3);
-        fixture.Engine.Requests[2].Done.SetResult(new PageFindResult(true, 1025, false));
+        await WaitFor(() => fixture.Engine.Requests.Count == 4);
+        fixture.Engine.Requests[3].Done.SetResult(new PageFindResult(true, 1025, false));
         await limited;
         Assert.Equal($"At least {1025:N0} matches · count limited", Field<TextBlock>(viewer, "_matchCount").Text);
         Field<TextBox>(viewer, "_search").Text = "absent";
         var completeZero = Find(viewer, forward: true);
-        await WaitFor(() => fixture.Engine.Requests.Count == 4);
-        fixture.Engine.Requests[3].Done.SetResult(new PageFindResult(false, 0, true));
+        await WaitFor(() => fixture.Engine.Requests.Count == 5);
+        fixture.Engine.Requests[4].Done.SetResult(new PageFindResult(false, 0, true));
         await completeZero;
         Assert.Equal("0 matches", Field<TextBlock>(viewer, "_matchCount").Text);
         Field<ToggleButton>(viewer, "_modeHex").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -374,6 +408,7 @@ public sealed class ViewerPageSearchTests
     private sealed class ControlledEngine : IPageEngine
     {
         public List<((string Pattern, bool Case, bool Forward) Query, TaskCompletionSource<PageFindResult?> Done)> Requests { get; } = [];
+        public List<bool> WrapRequests { get; } = [];
         public IPlatformHandle Handle { get; } = new PlatformHandle(0, "page-search-test");
         public string? Title => "Search page";
         public int BlockedCount => 0;
@@ -399,9 +434,12 @@ public sealed class ViewerPageSearchTests
         public void Click() => FocusRequested?.Invoke();
         public void TabOut(bool backward) => FocusLeft?.Invoke(backward);
         public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+            => FindAsync(text, matchCase, forward, ct, wrap: false);
+        public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
         {
             var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
             Requests.Add(((text, matchCase, forward), done));
+            WrapRequests.Add(wrap);
             return done.Task.WaitAsync(ct);
         }
         public void Dispose() { }

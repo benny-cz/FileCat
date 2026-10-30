@@ -29,7 +29,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private static nint s_rules;
     private static string? s_rulesFailed;
     private static bool s_rulesCompiling;
-    private sealed record FindRequest(MacPageEngine Engine, string Text, bool MatchCase, bool Forward,
+    private sealed record FindRequest(MacPageEngine Engine, string Text, bool MatchCase, bool Forward, bool Wrap,
         long Generation, TaskCompletionSource<PageFindResult?> Done)
     {
         public CancellationTokenRegistration Cancellation { get; set; }
@@ -193,12 +193,15 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     }
 
     public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+        => FindAsync(text, matchCase, forward, ct, wrap: false);
+
+    public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
     {
         if (_disposed || _view == 0 || !ObjC.Responds(_view, "findString:withConfiguration:completionHandler:"))
             return Task.FromResult<PageFindResult?>(null);
         var done = new TaskCompletionSource<PageFindResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (ct.IsCancellationRequested) { done.SetCanceled(ct); return done.Task; }
-        var request = new FindRequest(this, text, matchCase, forward, _findGeneration, done);
+        var request = new FindRequest(this, text, matchCase, forward, wrap, _findGeneration, done);
         request.Cancellation = ct.Register(() => done.TrySetCanceled(ct));
         FindQueue.Enqueue(request);
         StartNextFind();
@@ -217,7 +220,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
                 continue;
             }
             s_activeFind = request;
-            try { ObjC.BeginFind(request.Engine._view, request.Text, request.MatchCase, request.Forward); }
+            try { ObjC.BeginFind(request.Engine._view, request.Text, request.MatchCase, request.Forward, request.Wrap); }
             catch (Exception ex)
             {
                 Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message);
@@ -761,7 +764,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         }
 
         /// <summary>A single app-owned completion block; page searches are serialized across views.</summary>
-        public static void BeginFind(nint view, string text, bool matchCase, bool forward)
+        public static void BeginFind(nint view, string text, bool matchCase, bool forward, bool wrap)
         {
             if (Class("WKFindConfiguration") == 0) throw new InvalidOperationException("This WebKit has no page find configuration.");
             if (s_findBlock == 0)
@@ -780,7 +783,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             {
                 SendBool(configuration, "setBackwards:", !forward);
                 SendBool(configuration, "setCaseSensitive:", matchCase);
-                SendBool(configuration, "setWraps:", false);
+                SendBool(configuration, "setWraps:", wrap);
                 ((delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, void>)s_msgSend)(view,
                     sel_registerName("findString:withConfiguration:completionHandler:"), String(text), configuration, s_findBlock);
             }

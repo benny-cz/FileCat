@@ -63,7 +63,8 @@ public sealed class CompareWindow : Window
     private readonly Button _copyDifference = new() { Content = "Copy difference" };
     private readonly TextBlock _textActionStatus = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _findToggle = new() { Content = "Find…" };
-    private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison" };
+    private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison",
+        Classes = { "searchPending" } };
     private readonly ComboBox _findSide = new() { ItemsSource = new[] { "Both shown sides", "Left shown side", "Right shown side" }, SelectedIndex = 0, MinWidth = 150 };
     private readonly CheckBox _findChanged = new() { Content = "Changed rows only", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _findPrevious = new() { Content = "Previous match" };
@@ -818,6 +819,7 @@ public sealed class CompareWindow : Window
         _matchesTruncated = false;
         _matchIndex = -1;
         _findPrevious.IsEnabled = _findNext.IsEnabled = false;
+        ViewerSearchFeedback.Set(_findText, null);
         if (_closed || _shown != Shown.Text || _rows.ItemsSource is not IReadOnlyList<object> rows) return;
         string term = _findText.Text ?? "";
         if (term.Length == 0)
@@ -854,6 +856,7 @@ public sealed class CompareWindow : Window
             _matches = result.Matches;
             _matchesTruncated = result.Truncated;
             _findPrevious.IsEnabled = _findNext.IsEnabled = _matches.Count > 0;
+            ViewerSearchFeedback.Set(_findText, _matches.Count > 0);
             _findStatus.Text = _matches.Count == 0
                 ? $"No matches in {FindScope(scope, changedOnly)}."
                 : $"{_matches.Count:N0}{(_matchesTruncated ? "+" : "")} matches in {FindScope(scope, changedOnly)}. F3/Shift+F3 moves between matches.";
@@ -861,7 +864,11 @@ public sealed class CompareWindow : Window
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            if (!_closed && request == _findRequest) _findStatus.Text = "Search failed: " + ex.Message;
+            if (!_closed && request == _findRequest)
+            {
+                ViewerSearchFeedback.Set(_findText, null);
+                _findStatus.Text = "Search failed: " + ex.Message;
+            }
         }
     }
 
@@ -872,6 +879,8 @@ public sealed class CompareWindow : Window
     private void MoveMatch(int direction)
     {
         if (_closed || _shown != Shown.Text || _matches.Count == 0) return;
+        bool wrapped = _matchIndex >= 0 && (direction > 0 && _matchIndex == _matches.Count - 1 ||
+            direction < 0 && _matchIndex == 0);
         _matchIndex = _matchIndex < 0 ? (direction > 0 ? 0 : _matches.Count - 1) :
             (_matchIndex + direction + _matches.Count) % _matches.Count;
         var match = _matches[_matchIndex];
@@ -882,7 +891,8 @@ public sealed class CompareWindow : Window
         if (_rows.SelectedIndex != match.Row) _rows.SelectedIndex = match.Row;
         else _textView.RevealSelected();
         _rows.ScrollIntoView(match.Row);
-        _findStatus.Text = $"Match {_matchIndex + 1:N0} of {_matches.Count:N0}{(_matchesTruncated ? "+" : "")} in " +
+        _findStatus.Text = (wrapped ? $"Wrapped to {(direction > 0 ? "the beginning" : "the end")}. " : "") +
+            $"Match {_matchIndex + 1:N0} of {_matches.Count:N0}{(_matchesTruncated ? "+" : "")} in " +
             FindScope(_findSide.SelectedIndex, _findChanged.IsChecked == true) + ".";
     }
 

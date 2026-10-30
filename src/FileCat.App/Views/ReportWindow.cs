@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Content;
@@ -30,7 +31,8 @@ public sealed class ReportWindow : Window
     private readonly string _subject;
     private readonly string _kind;
     private readonly TextViewer _view = new() { Wrap = false, ReportStyle = true };
-    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220,
+        Classes = { "searchPending" } };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _refresh = new() { Content = "Refresh" };
@@ -38,6 +40,8 @@ public sealed class ReportWindow : Window
     private readonly CancellationTokenSource _closing = new();
     private CancellationTokenSource? _reading;
     private CancellationTokenSource? _searching;
+    private readonly DispatcherTimer _findTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
     private CancellationTokenSource? _copying;
     private readonly SemaphoreSlim _copyWrites = new(1, 1);
     private readonly ContentCopyNotice _copyNotice = new();
@@ -141,9 +145,29 @@ public sealed class ReportWindow : Window
             else if (e.Key == Key.Escape)
             {
                 e.Handled = true;
+                _findTimer.Stop();
+                _searching?.Cancel();
                 _view.Focus();
             }
         };
+        // PropertyChanged retires the old request before an immediate Enter/F3 can start a new one.
+        _search.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            _searching?.Cancel();
+            _lastHit = -1;
+            _view.SetHighlight(null, false);
+            ViewerSearchFeedback.Set(_search, null);
+            ScheduleFind();
+        };
+        _matchCase.IsCheckedChanged += (_, _) =>
+        {
+            _searching?.Cancel();
+            _lastHit = -1;
+            ViewerSearchFeedback.Set(_search, null);
+            ScheduleFind();
+        };
+        _findTimer.Tick += (_, _) => { _findTimer.Stop(); _ = FindCoreAsync(forward: true, automatic: true); };
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         Opened += async (_, _) =>
         {
@@ -152,6 +176,7 @@ public sealed class ReportWindow : Window
         };
         Closed += (_, _) =>
         {
+            _findTimer.Stop();
             _closing.Cancel();
             _reading?.Cancel();
             _searching?.Cancel();
@@ -244,6 +269,8 @@ public sealed class ReportWindow : Window
         // Its pages count against the shared content budget until it is disposed.
         old?.Dispose();
         _lastHit = -1;
+        ViewerSearchFeedback.Set(_search, null);
+        ScheduleFind();
     }
 
     private (int End, int Next) LineBounds()
@@ -375,8 +402,18 @@ public sealed class ReportWindow : Window
         e.Handled = true;
     }
 
-    private async Task FindAsync(bool forward)
+    private void ScheduleFind()
     {
+        _findTimer.Stop();
+        if (!_closing.IsCancellationRequested && !string.IsNullOrEmpty(_search.Text) && _reader is not null)
+            _findTimer.Start();
+    }
+
+    private Task FindAsync(bool forward) => FindCoreAsync(forward, automatic: false);
+
+    private async Task FindCoreAsync(bool forward, bool automatic)
+    {
+        _findTimer.Stop();
         _searching?.Cancel();
         if (_closing.IsCancellationRequested) return;
         string pattern = _search.Text ?? "";
@@ -389,32 +426,42 @@ public sealed class ReportWindow : Window
         var ct = cts.Token;
         var encoding = new UTF8Encoding(false);
         bool matchCase = _matchCase.IsChecked == true;
-        long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : _view.TopOffset;
+        long from = automatic ? 0 : _lastHit >= 0
+            ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : _view.TopOffset;
         try
         {
-            long found = await Task.Run(() =>
+            (long found, bool wrapped, bool searchedWhole) = await Task.Run(() =>
             {
-                if (forward) return ContentSearch.FindText(reader, encoding, from, pattern, matchCase, ct);
-                long last = -1, at = 0;
-                while (true)
+                long SearchAt(long offset)
                 {
-                    long hit = ContentSearch.FindText(reader, encoding, at, pattern, matchCase, ct);
-                    if (hit < 0 || hit >= from) return last;
-                    last = hit;
-                    at = hit + 1;
+                    if (forward) return ContentSearch.FindText(reader, encoding, offset, pattern, matchCase, ct);
+                    return ContentSearch.FindTextBackward(reader, encoding, offset, pattern, matchCase, ct);
                 }
+                long first = SearchAt(from);
+                if (first >= 0) return (first, false, false);
+                if (automatic || forward && from <= 0 || !forward && from >= reader.Length)
+                    return (-1L, false, true);
+                long around = SearchAt(forward ? 0 : reader.Length);
+                return (around, around >= 0, true);
             }, ct);
             if (ct.IsCancellationRequested || _closing.IsCancellationRequested || !ReferenceEquals(_searching, cts) || !ReferenceEquals(_reader, reader)) return;
             if (found < 0)
             {
-                _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this place.";
+                if (searchedWhole)
+                {
+                    ViewerSearchFeedback.Set(_search, false);
+                }
+                _status.Text = searchedWhole ? $"\"{pattern}\" was not found in this report."
+                    : $"\"{pattern}\" was not found {(forward ? "after" : "before")} this place.";
                 return;
             }
+            ViewerSearchFeedback.Set(_search, true);
             _lastHit = found;
             _lastHitLength = encoding.GetByteCount(pattern);
             _view.SetHighlight(pattern, matchCase);
             _view.ScrollToOffset(found);
             UpdateStatus();
+            if (wrapped) _status.Text = $"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

@@ -378,12 +378,13 @@ public sealed class PageView : NativeControlHost
     }
 
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
-    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct,
+        bool wrap = false)
     {
         var engine = _engine;
         var page = _page;
         if (!PageLoaded || engine is null || page is null) return null;
-        var found = await engine.FindAsync(text, matchCase, forward, ct);
+        var found = await engine.FindAsync(text, matchCase, forward, ct, wrap);
         ct.ThrowIfCancellationRequested();
         return ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded ? found : null;
     }
@@ -417,6 +418,8 @@ internal interface IPageEngine : IDisposable
     event Action<bool>? FocusLeft { add { } remove { } }
     Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         Task.FromResult<PageFindResult?>(null);
+    Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap) =>
+        FindAsync(text, matchCase, forward, ct);
     void ClearFind() { }
 }
 
@@ -488,8 +491,11 @@ internal sealed class WindowsPageEngine : IPageEngine
     public void SetSize(int width, int height) => _view.SetSize(width, height);
     public void Focus() => _view.Focus();
     public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+        => await FindAsync(text, matchCase, forward, ct, wrap: false);
+
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
     {
-        bool? found = await _view.FindAsync(text, matchCase, forward, ct);
+        bool? found = await _view.FindAsync(text, matchCase, forward, ct, wrap);
         return found is { } value ? new PageFindResult(value) : null;
     }
     public void ClearFind() => _view.ClearFind();
