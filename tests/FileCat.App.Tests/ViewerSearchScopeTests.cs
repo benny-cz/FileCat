@@ -47,8 +47,8 @@ public sealed class ViewerSearchScopeTests
         await f.Find(false);
         Assert.Equal((first, (long)needle.Length), f.Hex.Selection);
         await f.Find(false);
-        Assert.Contains("not found before", f.Status);
-        Assert.Equal((first, (long)needle.Length), f.Hex.Selection);
+        Assert.Contains("Wrapped to the end", f.Status);
+        Assert.Equal((second, (long)needle.Length), f.Hex.Selection);
         Assert.False(Field<Button>(f.Window, "_stopSearch").IsVisible);
     }
 
@@ -73,7 +73,8 @@ public sealed class ViewerSearchScopeTests
         await f.Find(false);
         Assert.Equal(first, f.Hex.Selection.Start);
         await f.Find(false);
-        Assert.Contains("not found before", f.Status);
+        Assert.Contains("Wrapped to the end", f.Status);
+        Assert.Equal(second, f.Hex.Selection.Start);
         Assert.Null(typeof(ViewerWindow).GetField("_searchCts", Fields)!.GetValue(f.Window));
     }
 
@@ -250,7 +251,7 @@ public sealed class ViewerSearchScopeTests
         };
         f.Search.Text = "absent";
         await f.Find(true);
-        Assert.Equal(["\"absent\" was not found after this position."], spoken);
+        Assert.Equal(["\"absent\" was not found in this file."], spoken);
         Assert.Equal(spoken[0], peer.GetName());
         Invoke(f.Window, "UpdateStatus");
         Assert.Equal(Avalonia.Automation.AutomationLiveSetting.Off, peer.GetLiveSetting());
