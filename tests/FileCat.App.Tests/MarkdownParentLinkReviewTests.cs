@@ -3,6 +3,7 @@ using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -51,6 +52,7 @@ public sealed class MarkdownParentLinkReviewTests
 
             engine.Request(page, target);
             var card = await ReviewCard(viewer);
+            Assert.False(pageView.IsVisible);
             Assert.Contains(card.GetVisualDescendants().OfType<SelectableTextBlock>(), text =>
                 Text(text).Contains(target.Path, StringComparison.Ordinal));
             Assert.True(FindButton(card, "Cancel").IsDefault);
@@ -58,6 +60,21 @@ public sealed class MarkdownParentLinkReviewTests
             Dispatcher.UIThread.RunJobs();
             Assert.DoesNotContain(ViewerWindow.OpenWindows, window => !before.Contains(window) && !ReferenceEquals(window, viewer));
             Assert.True(viewer.IsPageShown);
+            Assert.True(pageView.IsVisible);
+
+            engine.Request(page, target);
+            card = await ReviewCard(viewer);
+            Assert.True(FindButton(card, "Cancel").IsFocused);
+            bool keySeen = false;
+            viewer.AddHandler(InputElement.KeyDownEvent, (_, _) => keySeen = true, RoutingStrategies.Tunnel, handledEventsToo: true);
+            viewer.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.True(keySeen, "The headless keyboard helper did not deliver Escape to this viewer.");
+            Assert.False(Field<OverlayDialogService>(viewer, "_dialogs").IsOpen);
+            Assert.Empty(Field<Panel>(viewer, "_dialogHost").Children);
+            Assert.Contains(viewer, ViewerWindow.OpenWindows);
+            Assert.True(viewer.IsPageShown);
+            Assert.True(pageView.IsVisible);
+            Assert.DoesNotContain(ViewerWindow.OpenWindows, window => !before.Contains(window) && !ReferenceEquals(window, viewer));
 
             engine.Request(page, target);
             card = await ReviewCard(viewer);

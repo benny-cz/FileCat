@@ -481,6 +481,12 @@ public sealed class ViewerWindow : Window
             {
                 if (_linkedMarkdownReviewOpen) return;
                 _linkedMarkdownReviewOpen = true;
+                // Native page surfaces can cover Avalonia overlays even when the overlay is
+                // visually later in the tree. Hide the page for this owned review so the path
+                // and Cancel action are actually visible and receive Escape/keyboard input.
+                bool pageWasVisible = _pageView.IsVisible;
+                _pageView.ReturnKeyboardToViewer();
+                _pageView.IsVisible = false;
                 bool approved;
                 try
                 {
@@ -489,7 +495,15 @@ public sealed class ViewerWindow : Window
                         "FileCat will not remember this choice.\n\n" + target.Path,
                         "Open this file", danger: true);
                 }
-                finally { _linkedMarkdownReviewOpen = false; }
+                finally
+                {
+                    if (pageWasVisible && !_closing.IsCancellationRequested && _isPage && ReferenceEquals(_htmlPage, page))
+                    {
+                        _pageView.IsVisible = true;
+                        _pageView.FocusPage();
+                    }
+                    _linkedMarkdownReviewOpen = false;
+                }
                 if (!approved || !_isPage || _closing.IsCancellationRequested || !ReferenceEquals(_htmlPage, page)) return;
                 if (!page.TryLinkedMarkdownTarget(target.RequestAddress, out var current) || current != target)
                 {
@@ -1444,6 +1458,12 @@ public sealed class ViewerWindow : Window
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_linkedMarkdownReviewOpen && _dialogs.IsOpen && e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None)
+        {
+            e.Handled = true;
+            _dialogs.CancelAll();
+            return;
+        }
         if (_dialogs.IsOpen) return;
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
