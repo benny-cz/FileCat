@@ -1,0 +1,9 @@
+# I564 — Markdown Page keyboard focus on Windows
+
+The owner reported that Page Up and Page Down did not scroll an opened Markdown file. In the installed Windows FileCat viewer, an actual Page Down key left the rendered `README.md` at the same heading and scrollbar position. That is a native baseline observation, not a post-fix pass; the installed executable's exact source was not established.
+
+Source review found two ways the initial focus request was lost. `PageView.FocusPage()` did not retain a Windows request made before its native engine existed, and `WebView2Page.Focus()` did nothing until its asynchronously created controller existed. Windows also did not replay page focus when the viewer was reactivated. The correction at `e2c4043667186029734fd93f4ad1cc0284b2806b` retains and replays that request, cancels it if another viewer control takes focus, and hands focus back to the page on activation. It does not intercept Page Up or Page Down; WebView2 retains their normal page-scrolling behavior once focused.
+
+The focused App tests pass **8/8** with a new late-engine and focus-cancellation control. The native Windows WebView2 `PageViewTests` pass **8/8**. The App and Platform Windows test projects build with zero warnings and errors. These are source/component checks. A rebuilt source executable did not expose a separate targetable window while the installed single instance was running, so actual post-fix desktop Page Up/Down input remains to be checked on an installed candidate. The local `dotnet test` VSTest adapter timed out before connecting to its test host; the same built xUnit v3 test executable ran the focused cases directly.
+
+The immutable `v1.0.0-preview.2` tag at `5911b0da` predates this correction. Its private draft can establish the release pipeline, but its binaries must not be presented as containing I564. A later exact-source tag requires the new main CI gate and a separate owner decision. Stable 1.0.0 remains NO-GO.

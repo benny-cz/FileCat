@@ -18,4 +18,43 @@ Immediately before tagging, local HEAD and remote `main` both resolved to `5911b
 
 At 23:26 UTC, tag run 40967715439 attempt 1 concluded **cancelled**. Producer policy, Windows x64, Ubuntu and macOS passed. The Windows ARM64 job started at 22:41:16 and reached its 45-minute `timeout-minutes` limit at 23:26:23. GitHub marks the job **cancelled**, even though every substantive step passed: Core, Platform, Remote, App and Rendering tests; the ARM64 package start and window draw; installer compilation; and artifact uploads. Its last cleanup step completed at 23:26:20, just beyond the aggregate budget. The successful main-run ARM64 lane at the same source took 43 minutes 26 seconds, so this is a runner-duration difference, not evidence of a product failure. The tag run's three package jobs and protected draft skipped because the required ARM64 job did not conclude success. `gh release view v1.0.0-preview.2` reported no release.
 
-An exact-tag **failed-jobs rerun** was requested as attempt 2; the tag object and source commit were not changed. Attempt 2 was queued at this observation. The rerun must conclude success and unblock all three package jobs before the protected draft gate can be considered. If the same 45-minute limit recurs, increase the workflow's aggregate ARM64 budget on main, establish a fresh all-lane CI gate, and seek a new exact-tag decision. Do not rewrite the existing tag. REL-PIPELINE/I562 remains **Failed**; no public publication is authorized. Stable 1.0.0 remains NO-GO.
+An exact-tag **failed-jobs rerun** was requested as attempt 2; the tag object and source commit were not changed. The rerun and package outcomes follow. Do not rewrite the existing tag. No public publication is authorized. Stable 1.0.0 remains NO-GO.
+
+## Tag run attempt 2: source and package gates passed
+
+The ARM64 rerun started at 23:55:13 UTC and completed **success** at 00:38:13 UTC, within its unchanged 45-minute budget. Core, Platform, Remote, App and Rendering tests, package start/window draw, installer compilation, artifact uploads and cleanup all passed. The producer policy, Windows x64, Ubuntu and macOS source jobs were also successful. All three package jobs then completed **success**: Linux at 00:44:03, Windows at 00:46:01 and macOS at 00:57:14 UTC on 30 October. The protected `release` environment waited for owner review; the owner approved it in GitHub, and the private-draft job completed **success** at 01:02:02 UTC. This is the positive I562 private-draft control. REL-PIPELINE remains Open for its separate tag update/delete and `release/1.0` required-check controls.
+
+The owner subsequently reported a Markdown Page Up/Down scrolling defect. Its Windows focus correction is on main at `e2c40436`, after this tag; [I564](E-I564-markdown-page-keyboard-focus.md) records the scope and remaining installed-input check. Preview.2 can validate the private release pipeline, but its immutable binaries do not contain I564 and are not a public-preview recommendation. The later source needs its own CI and exact-tag decision.
+
+## Private draft: independently checked hosted inventory
+
+GitHub release ID **428547179** is `draft: true`, `prerelease: true`, tag `v1.0.0-preview.2`; no public release was published. The workflow's [draft receipt artifact](https://github.com/benny-cz/FileCat/actions/runs/40967715439/artifacts/12945652187) (server artifact digest `sha256:65f717caea18492caacba19c1817f142b9be42678ecb31ed2140fccd72c7a45d`) contains six preflight/upload receipts, tied to exact source, ref, release ID and 24 selected assets. Its post-upload checks reported names, IDs, byte sizes and server SHA-256 digests verified for every platform.
+
+Separately, the three small **hosted** producer manifests were downloaded through the release-asset API, hashed locally and parsed. Their SHA-256 digests are `2b4a2646a875a55eb79eb1bfd35c85e1ae7153b1d4c230e4ff221b33154de315` (Windows, 13 assets including manifest), `4d563358e4db1262033117c0eab0e6765536a9383370961e5d84a8408fd61067` (Linux, eight), and `473e3d3d92ccca7230f7d7a68cf7dcb46186e069cb027519a1af07206deecd59` (macOS, three). Each parsed file's name, byte size and SHA-256 was compared to the live GitHub release list, with exactly 24 unique uploaded names. The locally rehashed manifest digests also matched the server's own digests and the producer/receipt values. This checks hosted metadata and the manifest bytes; it does not independently download and hash all large binaries.
+
+| Hosted asset | Bytes | SHA-256 |
+|---|---:|---|
+| `filecat_1.0.0-preview.2_amd64.deb` | 57145530 | `e4573c847a6cca1f052101503eba7e83c5d24be1249b1d04f42a120d56efc833` |
+| `FileCat-1.0.0-preview.2-linux-assets.json` | 1606 | `4d563358e4db1262033117c0eab0e6765536a9383370961e5d84a8408fd61067` |
+| `FileCat-1.0.0-preview.2-linux-x64-appimage-runtime-source.tar.gz` | 4704832 | `be7816ce0e129b0417758f942378bed89350e04fb1700c7bd5caa1005d72e587` |
+| `FileCat-1.0.0-preview.2-linux-x64.tar.gz` | 70271445 | `168093f872ccd4f17a6f716ec6d2ebf2bce32993c0a91b7a32ea721f81254c0a` |
+| `FileCat-1.0.0-preview.2-macos-assets.json` | 690 | `473e3d3d92ccca7230f7d7a68cf7dcb46186e069cb027519a1af07206deecd59` |
+| `FileCat-1.0.0-preview.2-osx-arm64.zip` | 68818646 | `c568de6f737a1783e174c21a1f50fd282099998e1b275d30fb37619bc40bb7d9` |
+| `FileCat-1.0.0-preview.2-win-arm64-fdd.zip` | 63010655 | `16c05749da3de9810f7f1dd405f65cd502ad7f783394907ee0322c5b97409084` |
+| `FileCat-1.0.0-preview.2-win-arm64-portable.zip` | 98244333 | `530ef8522c2c8ded9a8bb53d08d9a26807301d2c935ef04d2bad0d64259a991a` |
+| `FileCat-1.0.0-preview.2-win-x64-fdd.zip` | 65447192 | `14b719e102349e15891e9f4669fd4d9a8293a80afe01a88363e67e8ad40e0406` |
+| `FileCat-1.0.0-preview.2-win-x64-portable.zip` | 102327958 | `218b2c52dbb485150247f0051430723aaf836e2f13bb28479ea296c6c35f6919` |
+| `FileCat-1.0.0-preview.2-windows-assets.json` | 2579 | `2b4a2646a875a55eb79eb1bfd35c85e1ae7153b1d4c230e4ff221b33154de315` |
+| `FileCat-1.0.0-preview.2-x86_64.AppImage` | 65104376 | `6da0181e84437ee5d9905f9078c515c96be1ffa4cd1b0f70229faa6c02e2f75e` |
+| `FileCat-1.0.0-win-arm64-setup.exe` | 67147192 | `1efc9ca45832eb5b35b0e81088bdeff8c9447603109a19ea4530a9228f6c91a0` |
+| `FileCat-1.0.0-win-x64-setup.exe` | 72467550 | `c39cabad60135eb1fea952adcedbbc473ed0f6f55d92aaecd5ac20bf86ff2b92` |
+| `sbom-1.0.0-preview.2-linux-x64-appimage.spdx.json` | 275562 | `0a0287882c2069e1a0c7b886a3c5e276f55b62faa3ae2f7f43e551272a8d0971` |
+| `sbom-1.0.0-preview.2-linux-x64-deb.spdx.json` | 266326 | `c8bb090b9c47368e24752adc941aaa88f5f3a54ebf9cec661f7695327faf5a82` |
+| `sbom-1.0.0-preview.2-linux-x64-tar.spdx.json` | 254828 | `d748ce8b96f01d908581d5c41dd9ab1052e697d495579ed473d0d8e4aef380ea` |
+| `sbom-1.0.0-preview.2-osx-arm64-macos-app.spdx.json` | 259932 | `cb83a27c0249c2d68f9147098e2118c7d9bd38a2b5f0fdf078f71ab70259489a` |
+| `sbom-1.0.0-preview.2-win-arm64-fdd.spdx.json` | 144318 | `5d7b4a56b6d9913097e18337a00dee4f1f5f1838caa0f7598c7c2008bc0839db` |
+| `sbom-1.0.0-preview.2-win-arm64-portable.spdx.json` | 268586 | `ea5334c5b604d563f40959da8f2f7a461a4861e8ded4126b7ca7f80d047d9f19` |
+| `sbom-1.0.0-preview.2-win-arm64-setup-payload.spdx.json` | 273217 | `22ef3bba0093998ad87680f811b8aebe5deb682d0835a747d16149b0cdf98aa4` |
+| `sbom-1.0.0-preview.2-win-x64-fdd.spdx.json` | 144309 | `1c12eeb845b08772b1a269cc12d87490be0c584657dd784601e88cd141680936` |
+| `sbom-1.0.0-preview.2-win-x64-portable.spdx.json` | 268562 | `421295e3362429de6d968d36b2d929ab63a43b9dba67f2b1333f7e9e6643bfca` |
+| `sbom-1.0.0-preview.2-win-x64-setup-payload.spdx.json` | 273193 | `e6bba5fed1cd5a4834774d8ba2597556b739a30449cb553d20c7616d3464fe5c` |
