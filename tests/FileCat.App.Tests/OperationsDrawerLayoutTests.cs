@@ -20,6 +20,75 @@ namespace FileCat.App.Tests;
 
 public sealed class OperationsDrawerLayoutTests
 {
+    [AvaloniaFact]
+    public async Task Open_drawer_follows_newest_work_and_scrolls_history_instead_of_occupying_the_workspace()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            Layout(window);
+            var folder = Directory.CreateDirectory(Path.Combine(root, "operations-target")).FullName;
+            Job Submit(int number) => services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.CreateDirectory,
+                Destination = Location.FileSystem(folder),
+                NewName = $"folder-{number}",
+            });
+
+            var first = Submit(0);
+            for (int i = 0; i < 300 && !(first.State.IsFinished() && center.Jobs.Count == 1); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(first, center.Selected?.Job);
+
+            var newer = Enumerable.Range(1, 5).Select(Submit).ToArray();
+            for (int i = 0; i < 300 && !(newer.All(job => job.State.IsFinished()) && center.Jobs.Count == 6); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Equal(6, center.Jobs.Count);
+            Assert.Same(newer[^1], center.Selected?.Job);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var history = view.FindControl<ListBox>("HistoryList")!;
+            var scroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
+            Assert.True(details.IsEffectivelyVisible);
+            Assert.True(drawer.Bounds.Height <= 320, $"Six short jobs consumed {drawer.Bounds.Height} DIP.");
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height + 1,
+                $"History must scroll: extent {scroll.Extent.Height}, viewport {scroll.Viewport.Height} DIP.");
+            Assert.Contains(scroll.GetVisualDescendants().OfType<ScrollBar>(), bar =>
+                bar.Orientation == Avalonia.Layout.Orientation.Vertical && bar.IsEffectivelyVisible);
+            history.ScrollIntoView(5);
+            Layout(window);
+            Assert.True(history.ContainerFromIndex(5)?.TranslatePoint(new Point(0, 0), history) is { } position &&
+                        position.Y < history.Bounds.Height,
+                "The oldest retained operation must be reachable by scrolling.");
+
+            center.Selected = center.Jobs.Single(row => row.Job == first);
+            var last = Submit(6);
+            for (int i = 0; i < 300 && !(last.State.IsFinished() && center.Jobs.Count == 7); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(first, center.Selected?.Job); // A deliberate older selection stays put.
+
+            services.Jobs.Remove(first);
+            for (int i = 0; i < 300 && center.Jobs.Count != 6; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(last, center.Selected?.Job);
+            Assert.Same(center.Selected, history.SelectedItem);
+            Assert.True(details.IsEffectivelyVisible);
+            center.Selected = center.Jobs.Single(row => row.Job == newer[0]);
+            center.IsOpen = false;
+            center.IsOpen = true;
+            Layout(window);
+            Assert.Same(last, center.Selected?.Job);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(5)]
@@ -137,7 +206,11 @@ public sealed class OperationsDrawerLayoutTests
             for (int i = 1; i < 6; i++) center.Jobs.Add(Finished(i));
             Layout(window);
             double several = drawer.Bounds.Height;
-            Assert.True(several >= one + 60, $"One row used {one} DIP; six rows used {several} DIP.");
+            Assert.InRange(several, one, one + 90);
+            var history = view.FindControl<ListBox>("HistoryList")!;
+            var historyScroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
+            Assert.True(historyScroll.Extent.Height > historyScroll.Viewport.Height + 1,
+                $"Six history rows should scroll in a compact drawer: one {one} DIP, six {several} DIP.");
             Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
 
             var handle = view.FindControl<Border>("DrawerResizeHandle")!;

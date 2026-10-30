@@ -506,10 +506,10 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         }
         _lastAnnouncedIssueCount = Selected?.Job.IssueCount ?? 0;
         UpdateSummary();
-        if (Selected is null)
-            Selected = Primary ?? Jobs.FirstOrDefault();
-        else if (Selected.Job.State.IsFinished() && Primary is { } primary && !primary.Job.State.IsFinished())
-            Selected = primary;
+        var latest = Primary is { } primary && !primary.Job.State.IsFinished()
+            ? primary : Jobs.FirstOrDefault();
+        if (!ReferenceEquals(Selected, latest))
+            Selected = latest;
         else
             ReconcileSelectedIssues();
     }
@@ -585,6 +585,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         // JobAdded callbacks run outside the manager lock and can reach the UI out of
         // admission order. Use the manager's retained order, not callback arrival,
         // so the newest operation is always at the top of history.
+        var previousNewest = Jobs.FirstOrDefault();
         var admitted = Manager.Jobs;
         int position = 0;
         int jobIndex = IndexOf(admitted, vm.Job);
@@ -592,6 +593,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             position++;
         Jobs.Insert(position, vm);
         vm.Refresh();
+        if (IsOpen && (Selected is null || ReferenceEquals(Selected, previousNewest)))
+            Selected = Jobs.FirstOrDefault();
         if (!_timer.IsEnabled) _timer.Start();
         UpdateSummary();
     }
@@ -748,7 +751,16 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     private void RetireRow(Job job)
     {
         if (!_map.Remove(job, out var vm)) return;
+        bool wasSelected = ReferenceEquals(Selected, vm);
         Jobs.Remove(vm);
-        if (ReferenceEquals(Selected, vm)) Selected = null;
+        if (!wasSelected) return;
+        Selected = IsOpen ? Jobs.FirstOrDefault() : null;
+        // ListBox may clear its removed SelectedItem after the collection event.
+        // Restore a fallback only if neither binding nor user chose another row.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (IsOpen && Selected is null && Jobs.Count > 0)
+                Selected = Jobs[0];
+        }, DispatcherPriority.Loaded);
     }
 }

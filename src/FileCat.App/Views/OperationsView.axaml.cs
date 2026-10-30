@@ -217,7 +217,9 @@ public partial class OperationsView : UserControl
         double heading = HistoryHeading.Bounds.Height > 0 ? HistoryHeading.Bounds.Height : 32;
         double row = HistoryList.ContainerFromIndex(0)?.Bounds.Height ?? 0;
         row = Math.Max(44, row);
-        double history = heading + (center.Jobs.Count == 0 ? 34 : Math.Min(center.Jobs.Count, 6) * row);
+        // Three history rows are enough to scan recent work without letting a long
+        // session take over the workspace; the ListBox scrolls to older entries.
+        double history = heading + (center.Jobs.Count == 0 ? 34 : Math.Min(center.Jobs.Count, 3) * row);
         double details = center.Selected is null ? 0 : SelectedDetails.Children
             .Where(child => DockPanel.GetDock(child) == Dock.Top && child.IsVisible)
             .Sum(child => child.Bounds.Height) + Math.Min(center.SelectedIssues.Count, 4) * 48;
