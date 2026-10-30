@@ -98,10 +98,13 @@ public sealed class OperationsDrawerLayoutTests
             if (height > 420)
             {
                 handle.Focus();
-                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
-                window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                bool atMinimum = before < 156;
+                var key = atMinimum ? Key.Up : Key.Down;
+                var physical = atMinimum ? PhysicalKey.ArrowUp : PhysicalKey.ArrowDown;
+                window.KeyPress(key, RawInputModifiers.None, physical, null);
+                window.KeyRelease(key, RawInputModifiers.None, physical, null);
                 Layout(window);
-                Assert.True(drawer.Bounds.Height <= before - 15);
+                Assert.True(atMinimum ? drawer.Bounds.Height >= before + 15 : drawer.Bounds.Height <= before - 15);
                 Assert.Equal(drawer.Bounds.Height, services.Settings.OperationsDrawerHeight, 1);
                 var saved = JsonFileStore.Load(services.Paths.SettingsFile, StateJsonContext.Default.AppSettings,
                     AppSettings.CurrentSchema, () => new AppSettings(), out var status);
@@ -111,6 +114,53 @@ public sealed class OperationsDrawerLayoutTests
             Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Completed_history_fits_its_content_and_grows_until_the_user_resizes()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var first = Finished(0);
+            center.Jobs.Add(first);
+            center.Selected = first;
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            double one = drawer.Bounds.Height;
+            Assert.InRange(one, 140, 230);
+
+            for (int i = 1; i < 6; i++) center.Jobs.Add(Finished(i));
+            Layout(window);
+            double several = drawer.Bounds.Height;
+            Assert.True(several >= one + 60, $"One row used {one} DIP; six rows used {several} DIP.");
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+
+            var handle = view.FindControl<Border>("DrawerResizeHandle")!;
+            handle.Focus();
+            window.KeyPress(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+            window.KeyRelease(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+            Layout(window);
+            double chosen = drawer.Bounds.Height;
+            Assert.True(chosen >= several + 63);
+            center.Jobs.RemoveAt(5);
+            Layout(window);
+            Assert.Equal(chosen, drawer.Bounds.Height, 1);
+            Assert.Equal(chosen, services.Settings.OperationsDrawerHeight, 1);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        static JobViewModel Finished(int index)
+        {
+            var job = new Job(new JobRequest { Kind = JobKind.Delete }, $"Deleted item {index}", "local", [], []);
+            job.SetState(JobState.Completed);
+            var view = new JobViewModel(job);
+            view.Refresh();
+            return view;
+        }
     }
 
     [AvaloniaFact]

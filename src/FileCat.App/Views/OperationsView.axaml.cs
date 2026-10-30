@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -20,6 +22,10 @@ public partial class OperationsView : UserControl
     private Window? _drawerOwner;
     private Grid? _workspaceHost;
     private double _preferredDrawerHeight = 300;
+    private bool _userSizedDrawer;
+    private bool _heightRefreshQueued;
+    private OperationCenterViewModel? _observedCenter;
+    private JobViewModel? _observedSelected;
     private double _nonDrawerHeight = 150;
     private bool _drawerHeightChanged;
     private IPointer? _resizePointer;
@@ -29,6 +35,7 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        DataContextChanged += (_, _) => ObserveCenter(Center);
         // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
         RecoveryScroll.PropertyChanged += (_, e) =>
@@ -103,6 +110,10 @@ public partial class OperationsView : UserControl
             if (_workspaceHost is not null) _workspaceHost.SizeChanged += OnOwnerSizeChanged;
             double saved = Main?.Services.Settings.OperationsDrawerHeight ?? 300;
             _preferredDrawerHeight = double.IsFinite(saved) ? Math.Clamp(saved, MinimumDrawerHeight, 720) : 300;
+            // The existing 300-DIP default means no explicit resize preference. A stored
+            // nondefault height remains the user's choice and is never auto-shrunk.
+            _userSizedDrawer = Math.Abs(_preferredDrawerHeight - 300) >= .5;
+            ObserveCenter(Center);
             RefreshDrawerHeight();
         };
         DetachedFromVisualTree += (_, _) =>
@@ -113,7 +124,65 @@ public partial class OperationsView : UserControl
             _workspaceHost = null;
             if (_drawerOwner is not null) _drawerOwner.SizeChanged -= OnOwnerSizeChanged;
             _drawerOwner = null;
+            ObserveCenter(null);
         };
+    }
+
+    private void ObserveCenter(OperationCenterViewModel? center)
+    {
+        if (ReferenceEquals(_observedCenter, center)) return;
+        if (_observedCenter is { } old)
+        {
+            old.PropertyChanged -= OnCenterChanged;
+            old.Jobs.CollectionChanged -= OnDrawerCollectionChanged;
+            old.SelectedIssues.CollectionChanged -= OnDrawerCollectionChanged;
+            old.Interrupted.CollectionChanged -= OnDrawerCollectionChanged;
+            old.ReviewedRecovery.CollectionChanged -= OnDrawerCollectionChanged;
+        }
+        ObserveSelected(null);
+        _observedCenter = center;
+        if (center is not null)
+        {
+            center.PropertyChanged += OnCenterChanged;
+            center.Jobs.CollectionChanged += OnDrawerCollectionChanged;
+            center.SelectedIssues.CollectionChanged += OnDrawerCollectionChanged;
+            center.Interrupted.CollectionChanged += OnDrawerCollectionChanged;
+            center.ReviewedRecovery.CollectionChanged += OnDrawerCollectionChanged;
+            ObserveSelected(center.Selected);
+        }
+        QueueDrawerHeightRefresh();
+    }
+
+    private void ObserveSelected(JobViewModel? selected)
+    {
+        if (ReferenceEquals(_observedSelected, selected)) return;
+        if (_observedSelected is not null) _observedSelected.PropertyChanged -= OnSelectedChanged;
+        _observedSelected = selected;
+        if (selected is not null) selected.PropertyChanged += OnSelectedChanged;
+    }
+
+    private void OnCenterChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(OperationCenterViewModel.Selected))
+            ObserveSelected(Center?.Selected);
+        if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
+            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery))
+            QueueDrawerHeightRefresh();
+    }
+
+    private void OnSelectedChanged(object? sender, PropertyChangedEventArgs e) => QueueDrawerHeightRefresh();
+
+    private void OnDrawerCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => QueueDrawerHeightRefresh();
+
+    private void QueueDrawerHeightRefresh()
+    {
+        if (_heightRefreshQueued || _drawerOwner is null) return;
+        _heightRefreshQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _heightRefreshQueued = false;
+            RefreshDrawerHeight();
+        }, DispatcherPriority.Background);
     }
 
     private void OnOwnerSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -136,7 +205,25 @@ public partial class OperationsView : UserControl
     private void RefreshDrawerHeight()
     {
         if (_drawerOwner is null) return;
-        ApplyDrawerHeight(Math.Clamp(_preferredDrawerHeight, MinimumDrawerHeight, MaximumDrawerHeight()));
+        double requested = _userSizedDrawer ? _preferredDrawerHeight : ContentFitDrawerHeight();
+        ApplyDrawerHeight(Math.Clamp(requested, MinimumDrawerHeight, MaximumDrawerHeight()));
+    }
+
+    private double ContentFitDrawerHeight()
+    {
+        if (Center is not { IsOpen: true } center) return _preferredDrawerHeight;
+        // The list and selected report share the same row. Size for whichever side needs
+        // more room, but keep both list and issue detail scrollable once they grow long.
+        double heading = HistoryHeading.Bounds.Height > 0 ? HistoryHeading.Bounds.Height : 32;
+        double row = HistoryList.ContainerFromIndex(0)?.Bounds.Height ?? 0;
+        row = Math.Max(44, row);
+        double history = heading + (center.Jobs.Count == 0 ? 34 : Math.Min(center.Jobs.Count, 6) * row);
+        double details = center.Selected is null ? 0 : SelectedDetails.Children
+            .Where(child => DockPanel.GetDock(child) == Dock.Top && child.IsVisible)
+            .Sum(child => child.Bounds.Height) + Math.Min(center.SelectedIssues.Count, 4) * 48;
+        double recovery = center.HasInterrupted || center.HasReviewedRecovery ?
+            Math.Max(300, RecoveryScroll.Bounds.Height + Math.Max(history, details) + 8) : 0;
+        return Math.Max(recovery, Math.Max(history, details) + 12);
     }
 
     private void ApplyDrawerHeight(double height)
@@ -149,6 +236,7 @@ public partial class OperationsView : UserControl
     {
         double next = Math.Clamp(requested, MinimumDrawerHeight, MaximumDrawerHeight());
         ApplyDrawerHeight(next);
+        if (userChoice) _userSizedDrawer = true;
         if (!userChoice || Math.Abs(next - _preferredDrawerHeight) < .5) return;
         _preferredDrawerHeight = next;
         _drawerHeightChanged = true;
