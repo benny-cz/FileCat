@@ -6,10 +6,12 @@ FileCat puts local disks, removable storage, archives and remote servers in a mu
 multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
 its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-**Release status:** FileCat 1.0.0 is still in validation, and no public binary release is
-available yet. [See the release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md).
+**Release status:** The [unsigned 1.0.0-preview.3](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.3)
+is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation. Read the
+[preview notes](docs/release/1.0.0/PREVIEW3_RELEASE_NOTES.md) and
+[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW3-TAG-20261030.md) before installing.
 
-**Start here:** [**Build from source**](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md)
+**Start here:** [**Download the preview**](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.3) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md)
 
 [![FileCat on Windows: Architecture.md selected in Projects, Documents marked as target, four panels with three tabs each](docs/screenshots/windows/WorkspaceSelected-20261030.png)](docs/screenshots/windows/WorkspaceSelected-20261030.png)
 
@@ -193,7 +195,8 @@ not establish installed-package or native-interaction acceptance.
 
 For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
 Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
-These labels describe validation targets, not currently available public packages. Windows
+The public preview packages are unsigned; these labels describe the validation targets for
+stable 1.0.0. Windows
 provides MTP, Registry and native Shell actions; the Unix builds use their own trash,
 permission, keyring and device-authorization paths. [What works where](docs/CAPABILITIES.md)
 lists the differences by platform and location.
