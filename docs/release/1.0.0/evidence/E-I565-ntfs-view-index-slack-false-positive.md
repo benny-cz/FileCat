@@ -1,6 +1,6 @@
 # I565 — NTFS view-index slack false positive
 
-**Status:** product correction committed at `3a326cb06c08a278fcb47e5af92972344d491a08`; exact pushed-source CI run [41099849377](https://github.com/benny-cz/FileCat/actions/runs/41099849377) is pending. This is source-level evidence, not final-candidate qualification.
+**Status:** product correction committed at `3a326cb06c08a278fcb47e5af92972344d491a08`; exact pushed-source CI run [41099849377](https://github.com/benny-cz/FileCat/actions/runs/41099849377) passed all five required jobs. Later documentation-only run [41100432774](https://github.com/benny-cz/FileCat/actions/runs/41100432774) also passed them. This is source-level evidence, not final-candidate qualification.
 
 ## Failure and consequence
 
@@ -16,4 +16,4 @@ The regression fixture uses a fixed object ID whose first eight bytes create a p
 
 ## Stop and remaining gate
 
-Reconcile exact pushed-source run 41099849377: producer, Windows x64, Windows ARM64, Ubuntu and macOS must pass, and any new skips require explanation against the last green product-source run. If one fails, diagnose its exact step before repeating. Once green, retain I565 as remediated at source scope and leave installed/frozen-candidate NTFS recovery qualification under REL-I106-RECOVERY. Do not rerun passed unrelated scenarios without a new consequential trigger.
+The exact pushed-source run 41099849377 and later docs-only run 41100432774 passed producer, Windows x64, Windows ARM64, Ubuntu and macOS. Tag-only packaging and draft jobs skipped by design on main. Retain I565 as remediated at source scope and leave installed/frozen-candidate NTFS recovery qualification under REL-I106-RECOVERY. The later I566 clipboard change is a documented consequential reason to run a new exact-source CI gate; it does not reopen the NTFS-focused scenario. Do not rerun passed unrelated scenarios without another consequential trigger.
