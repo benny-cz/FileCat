@@ -113,8 +113,8 @@ Untrusted content crosses narrower boundaries where implemented: pictures decode
 HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
 outside the main process. These boundaries differ by platform; the
 [capability matrix](docs/CAPABILITIES.md) and [security policy](SECURITY.md) state their limits.
-Some Unix workers still have the ordinary user's filesystem access; process separation alone
-does not make every parser a full sandbox.
+Other parser and helper routes have different OS boundaries; process separation alone does not
+make every parser a full sandbox.
 
 ### Look inside files, not just at their names
 

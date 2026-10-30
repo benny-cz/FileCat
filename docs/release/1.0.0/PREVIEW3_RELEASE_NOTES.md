@@ -27,7 +27,7 @@ These packages have CI build and test coverage on their named platforms. A downl
 
 - Keep a separate backup. Recovery scans request read-only source access, but a mounted operating system can still change its own filesystem metadata. Recover to another physical disk; a disk image or storage-level read-only protection is preferable when source bytes must stay unchanged. Ext4 and APFS undelete are not supported.
 - Remote and device locations do not all have Recycle Bin or Trash support. FileCat shows the delete mode and asks before permanent deletion. Replace guarantees also vary by provider; review the displayed result.
-- Treat unfamiliar files as untrusted. Page preview disables page scripts and network requests, but some Unix content workers still have the signed-in user's filesystem access; process separation is not a complete sandbox.
+- Treat unfamiliar files as untrusted. Page preview disables page scripts and network requests. Linux x64/ARM64 and macOS picture workers restrict filesystem access and deny writes, network access and process creation; they have no OS whole-process memory limit. Other parser and helper routes have different boundaries, so process separation is not complete containment.
 - These downloads do not have trusted release signing. Windows may show an unrecognized-app warning; the macOS app is ad-hoc signed and requires the first-start step above. There is no automatic updater. Report suspected security issues through [private vulnerability reporting](https://github.com/benny-cz/FileCat/security/policy).
 
 ## Verify the downloads
