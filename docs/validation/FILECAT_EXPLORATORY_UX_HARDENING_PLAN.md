@@ -1,6 +1,6 @@
 # FileCat exploratory UX and hardening plan
 
-**Prepared and rechecked:** 30 October 2026. **Status:** plan only; no product behavior is accepted or changed by this document. The product source inspected for this plan is `37e6fc0e` on `main`. Refresh the source and CI identity before executing a shot.
+**Prepared and rechecked:** 30 October 2026. **Status:** executing; this plan does not itself accept product behavior. The product source inspected when preparing it was `37e6fc0e` on `main`. Refresh the source and CI identity before executing a shot.
 
 ## Purpose and boundary
 
@@ -30,6 +30,8 @@ This is exploratory work, not final 1.0.0 candidate qualification. The [release 
 ## A small deck of possible shots
 
 These are **prompts to sample**, not claims of untested defects or a mandatory sequence. Shuffle the remaining prompts, draw one, then veto or reshape it after the evidence search; a spontaneous real-user observation can replace a draw. Across the first tranche, include both everyday file work and at least one expert inspection task; do not force every operating system into every shot.
+
+For a repeatable draw, number the eligible prompt rows in their displayed order and use a recorded random integer to choose among them. Remove a vetoed row before drawing again. The number chooses a *starting idea*, not a prescribed test script; a live user observation can preempt it. Record every veto and its accepted-case link in the [execution log](FILECAT_EXPLORATORY_UX_HARDENING_RESULTS.md) so discarded work remains visible.
 
 ### Cues for an unplanned journey
 
@@ -73,6 +75,8 @@ Pair the ordinary task with **one** bounded pressure: a larger realistic list or
 3. **Triage the consequence.** Check the exact behavior against source, tests, the UX ledger, release issues and security evidence. If it is accepted behavior, explain it and stop. If it is ambiguous, run one narrower positive/negative control. If it is a real new failure, reproduce on an owned fixture before changing code. Do not claim a security defect from a confusing label alone, or a UX pass from a component test alone.
 4. **Fix only proved problems.** Prioritize wrong-item/data-loss/security or blocked core work, then repeated substantial friction, then polish. Add a regression for the user-visible invariant when it protects the fix; avoid tests that mirror implementation order. Run affected tests and the required latest-source CI after a product change. Reopen an accepted case only for its documented consequential reason and stopping condition. Keep an exact installed-candidate follow-up in the release ledger where applicable.
 5. **Record and stop.** One short record per shot: source/environment, goal, prior-case check, fixture/perturbation, observations, hashes or resource/timing evidence, disposition, fix/tests if any, and precise remaining limit. File only a distinct issue; link a related existing ID for a true regression. Remove temporary fixtures and preserve only useful receipts.
+
+Write those records in the [execution log](FILECAT_EXPLORATORY_UX_HARDENING_RESULTS.md), with a link to any larger evidence artifact. Start each native session by confirming the app's exact build/source identity and a small positive fixture. A CI run may proceed in parallel; investigate an actionable required-lane failure before blaming it on a shot or making another product change. Do not wait idle for a queued run.
 
 ## Triage and finite stopping rules
 

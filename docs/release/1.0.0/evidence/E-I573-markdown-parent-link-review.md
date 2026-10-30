@@ -1,0 +1,22 @@
+# I573 — parent-relative Markdown links need a visible, cancel-safe review
+
+Recorded 2026-10-31. This is a distinct user journey beyond I563's accepted contained-link scope. The owner's `docs/validation/FILECAT_EXPLORATORY_UX_HARDENING_RESULTS.md` opens its same-folder plan link, but its `../release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md` link was inert. The original I563 containment rule intentionally rejected every `..` link after an automatic approval review rejected unrestricted traversal. Reopening the contained-link positive control is consequential here because the new exception shares its rendering and navigation path; the earlier three-platform I563 campaign is not repeated.
+
+## Correction and follow-up
+
+At `05777552`, a relative Markdown target containing a parent segment becomes clickable but cannot open automatically. The resolver rejects schemes, absolute/drive/UNC paths, non-Markdown or missing targets, and an unreviewed contained link that resolves outside the source folder through a symbolic link. It resolves the candidate and sends a review-required request to the viewer; the confirmation shows the exact resolved local path, defaults to Cancel, is one-time per click, and re-resolves the request after approval. On Windows, a reviewed parent link cannot change the local drive or become a UNC path through a symbolic link. The target opens only in another FileCat viewer; browser navigation is cancelled. Same-folder links remain direct.
+
+The owner then observed that the second link still looked inert and Escape could not close the viewer after clicking it. That is consistent with an Avalonia overlay hidden beneath the native Page surface while holding modal input. Follow-up `d168e400` hands the keyboard back from the native page, hides that page while the review is open, and restores it after Cancel, Escape or Open. Escape has a review-scoped fallback in the viewer's key route. This is a separate user-visible correction to the first implementation, not a claim that the old installed build was fixed.
+
+## Focused evidence
+
+- Before correction, the exact parent link rendered as inert text while the same-folder link worked. Core Markdown/HtmlPage focused tests then passed **72 passed, one expected Unix FIFO skip, zero failed** after the resolver change.
+- The actual Windows WebView2 page-engine click test passed **1/1**: direct `next.md` emitted a direct target, missing link was refused, parent `../review.md` emitted a review-required target, no target page was served inside WebView2, and `index.md` stayed active.
+- The viewer's headless integration test passed **1/1** at `d168e400`: review text contains the resolved target, Cancel is the default, Cancel and Escape open no new viewer and retain Page, and explicit Open creates the exact new viewer. It also verifies the Page is hidden under the review and restored after either cancellation. The full solution built with **zero warnings and errors**.
+- The earlier main run 41136280631 failed unrelated Operations assertions; `05777552` reconciles those with newest selection and the measured 321-DIP compact layout. The focused Operations layout/retirement suite passed **33/33** locally. The failure remains a failed run; latest-source five-lane CI is pending.
+
+The headless test proves modal state and key routing, but not native z-order pixels or physical WebView2 focus by itself. The owner retested a rebuilt `d168e400`-or-later local build and confirmed **the review is visible and Escape works**. The owner did not attest the new candidate's exact package identity or all negative cases. The amended macOS/Ubuntu native parent-link controls and all hosted lanes remain pending at this record's creation. No installed 1.0.0 candidate exists.
+
+## Finite 1.0.0 stopping rule
+
+On the exact installed Windows candidate, open the two links in the owner's results document: the plan opens directly; the parent release-dashboard link shows a visible resolved-path review above Page with Cancel initially selected. Escape and Cancel each dismiss it without another viewer or a stuck modal; explicit Open creates one viewer for the resolved `.md` while the originating Page remains usable. A missing, non-Markdown, absolute/scheme and unreviewed outside-symlink target must still be refused. Then reconcile producer, Windows x64/ARM64, Ubuntu and macOS CI with skips at the final product source. This source-level remediation does not qualify or authorize stable release.
