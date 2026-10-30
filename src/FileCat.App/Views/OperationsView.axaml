@@ -186,8 +186,11 @@
         </DockPanel>
         <GridSplitter Grid.Row="1" Grid.Column="1" Width="4" ResizeDirection="Columns" Background="Transparent" />
         <!-- The chosen operation's actions and report; nothing while none is chosen. -->
-        <DockPanel x:Name="SelectedDetails" Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel"
-                   IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <ScrollViewer x:Name="DetailsScroll" Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel"
+                      IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Selected operation details">
+        <DockPanel x:Name="SelectedDetails">
           <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" Margin="8,4">
             <Button Classes="flat" Content="Clear finished history…" Click="OnClearFinished"
                     IsVisible="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).HasFinished}"
@@ -255,7 +258,8 @@
                      AutomationProperties.AutomationId="operations-new-issue"
                      AutomationProperties.LiveSetting="Polite" />
           <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}"
-                   SelectedItem="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssue, Mode=TwoWay}" Classes="choices">
+                   SelectedItem="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssue, Mode=TwoWay}"
+                   MaxHeight="220" Classes="choices">
             <AutomationProperties.Name>Selected operation issues</AutomationProperties.Name>
             <ListBox.Styles>
               <Style Selector="ListBoxItem" x:DataType="jobs:JobIssue">
@@ -276,6 +280,7 @@
             </ListBox.ItemTemplate>
           </ListBox>
         </DockPanel>
+        </ScrollViewer>
       </Grid>
     </Border>
   </StackPanel>

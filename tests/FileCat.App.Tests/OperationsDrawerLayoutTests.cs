@@ -360,10 +360,24 @@ public sealed class OperationsDrawerLayoutTests
             var history = view.GetVisualDescendants().OfType<ListBox>()
                 .Single(e => AutomationProperties.GetName(e) == "Operations history");
             var report = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open report");
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
             Assert.True(history.Bounds.Height >= 45, $"Operation history height was {history.Bounds.Height} DIP.");
             Assert.True(report.Bounds.Height >= 20 && report.IsEffectivelyVisible);
             Assert.True(report.TranslatePoint(new Point(0, report.Bounds.Height), view)!.Value.Y <= view.Bounds.Height + 1,
                 "The report action must stay within the drawer.");
+            Assert.True(details.Extent.Height > details.Viewport.Height + 1,
+                $"The selected report needs scrolling: extent {details.Extent.Height}, viewport {details.Viewport.Height} DIP.");
+            Assert.Equal(ScrollBarVisibility.Auto, details.VerticalScrollBarVisibility);
+            Assert.Contains(details.GetVisualDescendants().OfType<ScrollBar>(), bar =>
+                bar.Orientation == Avalonia.Layout.Orientation.Vertical && bar.IsEffectivelyVisible);
+            var save = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Save report…");
+            double saveInContent = save.TranslatePoint(new Point(0, 0), details)!.Value.Y + details.Offset.Y;
+            details.Offset = new Vector(0, Math.Clamp(saveInContent, 0, details.Extent.Height - details.Viewport.Height));
+            Layout(window);
+            var saveTop = save.TranslatePoint(new Point(0, 0), details)!.Value.Y;
+            var saveBottom = save.TranslatePoint(new Point(0, save.Bounds.Height), details)!.Value.Y;
+            Assert.True(saveTop >= -1 && saveBottom <= details.Viewport.Height + 1,
+                $"Save report is outside the scrollable details viewport: {saveTop}..{saveBottom} in {details.Viewport.Height} DIP.");
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
