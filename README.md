@@ -23,11 +23,11 @@ on Windows, not an installed-package test.*
 
 | When you need to… | FileCat gives you… |
 |---|---|
-| Keep several places in view | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
-| Get a large job done without losing track | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
-| Rescue deleted files | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
-| Understand a file before acting | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
-| Work outside a local folder | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
+| [Keep several places in view](#arrange-the-workspace-around-the-task) | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
+| [Get a large job done without losing track](#work-with-visible-outcomes) | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
+| [Rescue deleted files](#recover-deleted-files) | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
+| [Understand a file before acting](#look-inside-files-not-just-at-their-names) | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
+| [Work outside a local folder](#go-beyond-a-local-directory) | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
 ## Inspect a program without running it
 
@@ -223,6 +223,8 @@ covered in the [developer build guide](docs/BUILDING.md).
 
 ## Documentation
 
+- [Downloads and package choices](docs/DOWNLOAD.md) — preview packages, verification and signing status
 - [What works where](docs/CAPABILITIES.md) — supported platforms, locations and actions
+- [Privacy policy](docs/PRIVACY.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 - [Security policy and vulnerability reporting](SECURITY.md)
