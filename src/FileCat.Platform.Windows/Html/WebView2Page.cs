@@ -19,6 +19,7 @@ public sealed class WebView2Page : IDisposable
     private HtmlPage? _page;
     private (int Width, int Height) _size = (1, 1);
     private bool _disposed;
+    private bool _focusPending;
     private long _navigationGeneration;
 
     /// <summary>The installed WebView2 runtime's version, or null when there is none (the view is then unavailable).</summary>
@@ -138,6 +139,11 @@ public sealed class WebView2Page : IDisposable
             _controller.Bounds = new System.Drawing.Rectangle(0, 0, _size.Width, _size.Height);
             _controller.IsVisible = true;
             if (_page is { } page) core.Navigate(page.Address);
+            if (_focusPending)
+            {
+                _focusPending = false;
+                _controller.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
+            }
         }
         catch (Exception ex) when (ex is COMException or WebView2RuntimeNotFoundException or UnauthorizedAccessException or IOException or InvalidOperationException or ArgumentException)
         {
@@ -168,7 +174,15 @@ public sealed class WebView2Page : IDisposable
     }
 
     /// <summary>The keyboard to the page (after a click elsewhere in the viewer).</summary>
-    public void Focus() => _controller?.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
+    public void Focus()
+    {
+        if (_disposed) return;
+        if (_controller is { } controller) controller.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
+        else _focusPending = true;
+    }
+
+    /// <summary>A toolbar or Find control took focus before the browser controller was ready.</summary>
+    public void CancelPendingFocus() => _focusPending = false;
 
     /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>
     public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)

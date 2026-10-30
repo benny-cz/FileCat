@@ -106,7 +106,7 @@ public sealed class PageView : NativeControlHost
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (ManagesKeyboard && TopLevel.GetTopLevel(this) is { } top)
+        if (TopLevel.GetTopLevel(this) is { } top)
         {
             _keyboardOwner = top;
             top.AddHandler(GotFocusEvent, OnWindowGotFocus, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
@@ -175,7 +175,7 @@ public sealed class PageView : NativeControlHost
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
-        if (IsFocused) GiveKeysToPage();
+        if (_hasKeyboard && (OperatingSystem.IsWindows() || IsFocused)) GiveKeysToPage();
     }
 
     private void OnWindowDeactivated(object? sender, EventArgs e) => _engine?.ReturnFocus(0);
@@ -254,6 +254,7 @@ public sealed class PageView : NativeControlHost
         _engine = engine;
         ConnectEngine(engine);
         if (_page is { } page) Load(engine, page);
+        if (_hasKeyboard) GiveKeysToPage();
     }
 
     private void ConnectEngine(IPageEngine engine)
@@ -332,7 +333,8 @@ public sealed class PageView : NativeControlHost
             finally { _focusingPage = false; }
             _hasKeyboard = true;
         }
-        _engine?.Focus();
+        else _hasKeyboard = true;
+        if (ManagesKeyboard || _keyboardOwner is WindowBase { IsActive: true }) _engine?.Focus();
     }
 
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
@@ -444,6 +446,7 @@ internal sealed class WindowsPageEngine : IPageEngine
     }
     public void ClearFind() => _view.ClearFind();
     public void Dispose() => _view.Dispose();
+    public void ReturnFocus(nint window) => _view.CancelPendingFocus();
 
     /// <summary>The keys the viewer acts on: Esc, the function keys, and letters (with Ctrl or Alt).</summary>
     private static Key? ToKey(uint virtualKey) => virtualKey switch

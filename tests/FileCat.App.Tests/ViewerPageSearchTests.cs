@@ -175,12 +175,12 @@ public sealed class ViewerPageSearchTests
         Dispatcher.UIThread.RunJobs();
         Assert.True(search.IsFocused);
         // Linux and macOS: the native keyboard focus left the page too, or the typed text kept going into it.
-        Assert.Equal(PageView.ManagesKeyboard ? 1 : 0, fixture.Engine.ReturnCount);
+        Assert.Equal(1, fixture.Engine.ReturnCount);
         int before = fixture.Engine.FocusCount;
         viewer.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
-        Assert.Equal(PageView.ManagesKeyboard ? 1 : 0, fixture.Engine.ReturnCount);
+        Assert.Equal(1, fixture.Engine.ReturnCount);
         Assert.Equal(PageView.ManagesKeyboard, page.IsFocused);
         Assert.Equal(PageView.ManagesKeyboard ? PageView.ReaderHelp : null, AutomationProperties.GetHelpText(page));
         if (OperatingSystem.IsLinux())
@@ -201,6 +201,28 @@ public sealed class ViewerPageSearchTests
             page.Focus(NavigationMethod.Tab);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(focused + 1, fixture.Engine.FocusCount);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_page_opened_before_its_native_engine_is_ready_keeps_only_its_current_focus_request()
+    {
+        using (var fixture = new Fixture(installEngine: false))
+        {
+            await fixture.OpenAsync();
+            Assert.Equal(0, fixture.Engine.FocusCount);
+            Field<PageView>(fixture.Viewer, "_pageView").InstallEngineForTests(fixture.Engine);
+            Assert.True(fixture.Engine.FocusCount > 0);
+        }
+
+        using (var fixture = new Fixture(installEngine: false))
+        {
+            await fixture.OpenAsync();
+            fixture.Viewer.KeyPressQwerty(PhysicalKey.F7, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(Field<TextBox>(fixture.Viewer, "_search").IsFocused);
+            Field<PageView>(fixture.Viewer, "_pageView").InstallEngineForTests(fixture.Engine);
+            Assert.Equal(0, fixture.Engine.FocusCount);
         }
     }
 
@@ -288,7 +310,7 @@ public sealed class ViewerPageSearchTests
         public ViewerWindow Viewer { get; }
         public ControlledEngine Engine { get; } = new();
 
-        public Fixture()
+        public Fixture(bool installEngine = true)
         {
             Directory.CreateDirectory(_root);
             string path = Path.Combine(_root, "readme.md");
@@ -296,7 +318,7 @@ public sealed class ViewerPageSearchTests
             _services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(_root, "state")));
             _source = new FileContentSource(path);
             Viewer = new ViewerWindow(_services, _source, path, hex: false);
-            Field<PageView>(Viewer, "_pageView").InstallEngineForTests(Engine);
+            if (installEngine) Field<PageView>(Viewer, "_pageView").InstallEngineForTests(Engine);
         }
 
         public async Task OpenAsync()
