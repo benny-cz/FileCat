@@ -367,6 +367,16 @@ public sealed class PageView : NativeControlHost
         if (ManagesKeyboard || _keyboardOwner is WindowBase { IsActive: true }) _engine?.Focus();
     }
 
+    /// <summary>Completes a programmatic handoff from the native Windows page to a viewer control.
+    /// Avalonia can focus Find logically without moving Win32 focus out of WebView2.</summary>
+    internal void ReturnKeyboardToViewer()
+    {
+        if (!OperatingSystem.IsWindows() || !IsEffectivelyVisible ||
+            _keyboardOwner is not WindowBase { IsActive: true } owner) return;
+        _hasKeyboard = false;
+        _engine?.ReturnFocus(KeyboardHome(owner));
+    }
+
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
     public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
     {
@@ -485,7 +495,7 @@ internal sealed class WindowsPageEngine : IPageEngine
     public void ClearFind() => _view.ClearFind();
     public Task<bool> ScrollByPageAsync(int direction) => _view.ScrollByPageAsync(direction);
     public void Dispose() => _view.Dispose();
-    public void ReturnFocus(nint window) => _view.CancelPendingFocus();
+    public void ReturnFocus(nint window) => _view.ReturnFocus(window);
 
     /// <summary>The keys the viewer acts on: Esc, the function keys, and letters (with Ctrl or Alt).</summary>
     private static Key? ToKey(uint virtualKey) => virtualKey switch

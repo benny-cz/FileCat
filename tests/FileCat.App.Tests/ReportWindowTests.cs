@@ -109,6 +109,8 @@ public sealed class ReportWindowTests
 
             // Find (F3) scrolls to the match.
             var search = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().Single(t => t.PlaceholderText == "Find (Ctrl+F)");
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsFocused);
             search.Text = "Security";
             window.KeyPressQwerty(PhysicalKey.F3, RawInputModifiers.None);
             for (int i = 0; i < 250 && window.TopOffset == 0; i++) await Task.Delay(20, ct);
@@ -120,6 +122,8 @@ public sealed class ReportWindowTests
             await window.Reading!;
             Assert.Contains("Read  2", window.Text, StringComparison.Ordinal);
 
+            window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+            Assert.False(closed);
             window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
             Assert.True(closed);
         }

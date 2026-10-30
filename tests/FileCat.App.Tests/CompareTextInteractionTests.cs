@@ -52,8 +52,9 @@ public sealed class CompareTextInteractionTests
             var scope = window.GetVisualDescendants().OfType<ComboBox>().Single(c =>
                 AutomationProperties.GetName(c) == "Comparison search source scope");
             var view = window.GetVisualDescendants().OfType<CompareTextView>().Single();
-            ButtonNamed(window, "Find…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
             Assert.True(search.IsVisible);
+            Assert.True(search.IsFocused);
             search.Text = "needle";
             await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
             ButtonNamed(window, "Next match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

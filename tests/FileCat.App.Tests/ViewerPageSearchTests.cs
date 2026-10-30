@@ -174,13 +174,15 @@ public sealed class ViewerPageSearchTests
         Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
         Dispatcher.UIThread.RunJobs();
         Assert.True(search.IsFocused);
-        // Linux and macOS: the native keyboard focus left the page too, or the typed text kept going into it.
-        Assert.Equal(1, fixture.Engine.ReturnCount);
+        // The Find control must take the native keyboard too; on Windows the explicit handoff
+        // can follow Avalonia's logical focus notification when WebView2 still owns Win32 focus.
+        int returned = fixture.Engine.ReturnCount;
+        Assert.True(returned >= 1);
         int before = fixture.Engine.FocusCount;
         viewer.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
-        Assert.Equal(1, fixture.Engine.ReturnCount);
+        Assert.Equal(returned, fixture.Engine.ReturnCount);
         Assert.Equal(PageView.ManagesKeyboard, page.IsFocused);
         Assert.Equal(PageView.ManagesKeyboard ? PageView.ReaderHelp : null, AutomationProperties.GetHelpText(page));
         if (OperatingSystem.IsLinux())

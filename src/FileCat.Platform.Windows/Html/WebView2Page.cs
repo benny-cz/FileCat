@@ -194,8 +194,13 @@ public sealed class WebView2Page : IDisposable
         else _focusPending = true;
     }
 
-    /// <summary>A toolbar or Find control took focus before the browser controller was ready.</summary>
-    public void CancelPendingFocus() => _focusPending = false;
+    /// <summary>The viewer took logical focus from the page. Its native window must take Win32 keyboard focus too,
+    /// otherwise the next typed characters still go into WebView2 despite Find appearing focused.</summary>
+    public void ReturnFocus(nint window)
+    {
+        _focusPending = false;
+        if (window != 0) Native.SetFocus(window);
+    }
 
     /// <summary>Scrolls a rendered page when its parent window, rather than WebView2, received a Page key.</summary>
     public async Task<bool> ScrollByPageAsync(int direction)
@@ -374,6 +379,9 @@ public sealed class WebView2Page : IDisposable
 
         [DllImport("user32.dll")]
         private static extern short GetKeyState(int virtualKey);
+
+        [DllImport("user32.dll")]
+        public static extern nint SetFocus(nint window);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         private static extern nint GetModuleHandleW(string? name);

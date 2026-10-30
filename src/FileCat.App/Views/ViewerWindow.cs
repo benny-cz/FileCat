@@ -1051,6 +1051,7 @@ public sealed class ViewerWindow : Window
         if (focus && _findBar.IsVisible)
         {
             _search.Focus();
+            if (_isPage) _pageView.ReturnKeyboardToViewer();
             _search.SelectAll();
         }
     }
