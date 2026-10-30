@@ -145,7 +145,11 @@ public sealed class ReportSearchLifetimeTests
             await Find(window, true); Assert.Equal(12, Field<long>(window, "_lastHit"));
             await Find(window, true); Assert.Equal(0, Field<long>(window, "_lastHit"));
             Assert.Contains("Wrapped to the beginning", window.StatusText);
+            typeof(ReportWindow).GetMethod("UpdateStatus", Fields)!.Invoke(window, null);
+            Assert.Contains("Wrapped to the beginning", window.StatusText);
             await Find(window, false); Assert.Equal(12, Field<long>(window, "_lastHit"));
+            Assert.Contains("Wrapped to the end", window.StatusText);
+            typeof(ReportWindow).GetMethod("UpdateStatus", Fields)!.Invoke(window, null);
             Assert.Contains("Wrapped to the end", window.StatusText);
             await Find(window, false); Assert.Equal(0, Field<long>(window, "_lastHit"));
         }

@@ -96,11 +96,17 @@ public sealed class ViewerFindControlsTests
         await Find(viewer, forward: false);
         Assert.Equal(12, Field<HexView>(viewer, "_hex").Selection.Start);
         Assert.Contains("Wrapped to the end", viewer.StatusText);
+        Assert.Equal("Wrapped to the end. Found \"alpha\".", Field<TextBlock>(viewer, "_wrapNotice").Text);
+        Invoke(viewer, "UpdateStatus");
+        Assert.Contains("Wrapped to the end", viewer.StatusText);
         await Find(viewer, forward: true);
         Assert.Equal(0, Field<HexView>(viewer, "_hex").Selection.Start);
         Assert.Contains("Wrapped to the beginning", viewer.StatusText);
+        Invoke(viewer, "SearchPositionChanged", Field<TextViewer>(viewer, "_text"));
+        Assert.Contains("Wrapped to the beginning", viewer.StatusText);
 
         search.Text = "absent";
+        Assert.False(Field<TextBlock>(viewer, "_wrapNotice").IsVisible);
         Assert.Equal("Press Next or Previous to count", count.Text);
         await Find(viewer, true);
         await Until(() => count.Text == "0 matches");

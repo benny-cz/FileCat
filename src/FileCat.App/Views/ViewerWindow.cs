@@ -48,6 +48,8 @@ public sealed class ViewerWindow : Window
     private readonly Button _previousMatch = new() { Content = "Previous" };
     private readonly Button _nextMatch = new() { Content = "Next" };
     private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _wrapNotice = new() { Classes = { "small", "muted" },
+        VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly Button _stopCount = new() { Content = "Stop count", IsVisible = false };
     private readonly Button _refresh = new() { Content = "Refresh" };
@@ -356,6 +358,8 @@ public sealed class ViewerWindow : Window
         ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
         _stopCount.Click += (_, _) => _countCts?.Cancel();
         _findBar.Children.Add(_stopCount);
+        _findBar.Children.Add(_wrapNotice);
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_wrapNotice, "Find wrap notice");
         ToolTip.SetTip(_refresh, _reopen is null ? "This source cannot be reopened from this viewer"
             : "Reopen this source and refresh the current view (F5)");
         Avalonia.Automation.AutomationProperties.SetName(_refresh, "Refresh viewer content");
@@ -1114,6 +1118,7 @@ public sealed class ViewerWindow : Window
             _status.Text = $"The file's structure: {_infoLineCount.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
             if (_infoGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this structure report. " + _status.Text;
+            else if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
             return;
         }
         if (_isPage)
@@ -1129,6 +1134,7 @@ public sealed class ViewerWindow : Window
                 _status.Text = "The file changed; Refresh (F5) to update this page. " + _status.Text;
             else if (_pageSearchStatus is { } searchStatus)
                 _status.Text = searchStatus + " · " + _status.Text;
+            else if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
             return;
         }
         long len = _reader.Length;
@@ -1138,6 +1144,7 @@ public sealed class ViewerWindow : Window
         _status.Text = (_reader.ReadError is { } error ? "Not all of the content could be read: " + error + " · " : string.Empty) +
                        $"{Formatters.ExactSize(len)} · offset 0x{pos:X} ({pos.ToString("N0", CultureInfo.CurrentCulture)}) · {pct:0.#}%" +
                        (_isHex && sel.Length > 1 ? $" · selected {sel.Length.ToString("N0", CultureInfo.CurrentCulture)} bytes" : string.Empty);
+        if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
     }
 
     private async Task CheckForChanges()
@@ -1528,6 +1535,7 @@ public sealed class ViewerWindow : Window
     private async Task FindCoreAsync(bool forward, bool automatic)
     {
         _findTimer.Stop();
+        ClearWrapNotice();
         if (_closing.IsCancellationRequested) return;
         var pattern = _search.Text ?? string.Empty;
         if (pattern.Length == 0)
@@ -1610,7 +1618,11 @@ public sealed class ViewerWindow : Window
             }
             finally { _revealingSearch = false; }
             UpdateStatus();
-            if (wrapped) ShowSearchOutcome($"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".");
+            if (wrapped)
+            {
+                SetWrapNotice($"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".");
+                ShowSearchOutcome(_wrapNotice.Text!);
+            }
             EnsureMatchCount(identity, reader, bytes, enc, matchCase);
         }
         catch (OperationCanceledException)
@@ -1644,6 +1656,18 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, announce
             ? Avalonia.Automation.AutomationLiveSetting.Polite : Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = message;
+    }
+
+    private void SetWrapNotice(string message)
+    {
+        _wrapNotice.Text = message;
+        _wrapNotice.IsVisible = true;
+    }
+
+    private void ClearWrapNotice()
+    {
+        _wrapNotice.Text = null;
+        _wrapNotice.IsVisible = false;
     }
 
     private async Task FindPageAsync(string pattern, bool forward, bool automatic)
@@ -1694,6 +1718,7 @@ public sealed class ViewerWindow : Window
                 { Found: false } => $"No {(forward ? "later" : "earlier")} match; wrapping was unavailable.",
                 null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
             };
+            if (wrapped) SetWrapNotice(_pageSearchStatus);
             _pageTriedFind = result is not null;
             _pageFindUnavailable = result is null;
             _pageFoundMatch |= result?.Found == true;
@@ -1734,6 +1759,7 @@ public sealed class ViewerWindow : Window
         _lastHit = -1;
         _lastSearch = null;
         _pageSearchStatus = null;
+        if (!keepCount) ClearWrapNotice();
         if (!keepCount)
         {
             _countCts?.Cancel();

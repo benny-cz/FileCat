@@ -87,6 +87,9 @@ public sealed class ViewerPageSearchTests
         Assert.True(engine.WrapRequests[2]);
         engine.Requests[2].Done.SetResult(new PageFindResult(true));
         await WaitFor(() => viewer.StatusText.Contains("Wrapped to the page start", StringComparison.Ordinal));
+        Assert.Equal("Wrapped to the page start. Found \"needle\".", Field<TextBlock>(viewer, "_wrapNotice").Text);
+        typeof(ViewerWindow).GetMethod("UpdateStatus", Private)!.Invoke(viewer, null);
+        Assert.Contains("Wrapped to the page start", viewer.StatusText);
         Assert.Equal("2 matches", matchCount.Text);
 
         previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -103,6 +106,8 @@ public sealed class ViewerPageSearchTests
         Assert.True(engine.WrapRequests[5]);
         engine.Requests[5].Done.SetResult(new PageFindResult(true));
         await WaitFor(() => viewer.StatusText.Contains("Wrapped to the page end", StringComparison.Ordinal));
+        typeof(ViewerWindow).GetMethod("UpdateStatus", Private)!.Invoke(viewer, null);
+        Assert.Contains("Wrapped to the page end", viewer.StatusText);
 
         var stopped = Find(viewer, forward: true);
         await WaitFor(() => engine.Requests.Count == 7);

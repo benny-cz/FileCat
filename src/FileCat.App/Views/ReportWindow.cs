@@ -37,6 +37,7 @@ public sealed class ReportWindow : Window
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _refresh = new() { Content = "Refresh" };
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+    private string? _searchNotice;
     private readonly CancellationTokenSource _closing = new();
     private CancellationTokenSource? _reading;
     private CancellationTokenSource? _searching;
@@ -156,6 +157,7 @@ public sealed class ReportWindow : Window
             if (e.Property != TextBox.TextProperty) return;
             _searching?.Cancel();
             _lastHit = -1;
+            _searchNotice = null;
             _view.SetHighlight(null, false);
             ViewerSearchFeedback.Set(_search, null);
             ScheduleFind();
@@ -164,6 +166,7 @@ public sealed class ReportWindow : Window
         {
             _searching?.Cancel();
             _lastHit = -1;
+            _searchNotice = null;
             ViewerSearchFeedback.Set(_search, null);
             ScheduleFind();
         };
@@ -209,6 +212,7 @@ public sealed class ReportWindow : Window
     private async Task ReadCoreAsync()
     {
         if (_closing.IsCancellationRequested) return;
+        _searchNotice = null;
         // An active producer owns this snapshot until it returns, even if its window closes meanwhile.
         var produce = _produce;
         if (produce is null) return;
@@ -351,7 +355,8 @@ public sealed class ReportWindow : Window
     private void UpdateStatus()
     {
         int lines = _text.Count(c => c == '\n');
-        _status.Text = $"{_subject} · read at {_readAt.ToString("T", CultureInfo.CurrentCulture)} · {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · F5 reads it again";
+        _status.Text = (_searchNotice is { } notice ? notice + " · " : "") +
+            $"{_subject} · read at {_readAt.ToString("T", CultureInfo.CurrentCulture)} · {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · F5 reads it again";
     }
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
@@ -414,6 +419,7 @@ public sealed class ReportWindow : Window
     private async Task FindCoreAsync(bool forward, bool automatic)
     {
         _findTimer.Stop();
+        _searchNotice = null;
         _searching?.Cancel();
         if (_closing.IsCancellationRequested) return;
         string pattern = _search.Text ?? "";
@@ -461,7 +467,11 @@ public sealed class ReportWindow : Window
             _view.SetHighlight(pattern, matchCase);
             _view.ScrollToOffset(found);
             UpdateStatus();
-            if (wrapped) _status.Text = $"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".";
+            if (wrapped)
+            {
+                _searchNotice = $"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".";
+                UpdateStatus();
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
