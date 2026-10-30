@@ -1,6 +1,6 @@
 # SignPath Foundation application packet — FileCat 1.0.0
 
-**State:** prepared for owner review and provider submission. No SignPath account, project acceptance, signing policy, credentials, signed candidate or permission to contact the provider is recorded here. The unsigned public preview is a prerequisite, not evidence of acceptance. Stable 1.0.0 remains **NO-GO**.
+**State:** the owner submitted the SignPath Foundation application on 2026-10-30 and received the provider's acknowledgement; review and any follow-up questions are pending. No SignPath project acceptance, active signing policy, credentials or signed candidate is recorded here. The unsigned public preview is a prerequisite, not evidence of acceptance. Stable 1.0.0 remains **NO-GO**.
 
 ## Project and public release
 
