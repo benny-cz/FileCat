@@ -27,26 +27,16 @@ on Windows, not an installed-package test.*
 | Understand a file before acting | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
 | Work outside a local folder | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
-## See the work
-
-### A copy with a visible result
-
-[![FileCat Operations detail showing Projects to Documents, 3 of 3 items completed, 2.0 MB accounted for and no issues](docs/screenshots/windows/CopyResultDetail-20261030.png)](docs/screenshots/windows/CopyResult-20261030.png)
-
-*A detail crop of a real copy of three demonstration files. The [full window](docs/screenshots/windows/CopyResult-20261030.png)
-shows the source, target and Operations pane together. Its transfer speed belongs to this one
-local run, not a general performance claim.*
-
-### Inspect a program without running it
+## Inspect a program without running it
 
 [![FileCat Info viewer showing PE headers, security features and signature-presence status for Windows notepad.exe](docs/screenshots/windows/InspectorPE-20261030.png)](docs/screenshots/windows/InspectorPE-20261030.png)
 
 *Info view reads the structure of `notepad.exe` without executing it. No embedded signature is
 shown; a catalog signature may still apply, and this view does not verify trust.*
 
-The hero and these workflow views are genuine off-screen renders of current Windows source,
-not installed-package or native-interaction acceptance. The [new capture record](docs/screenshots/CAPTURE-2026-10-30.md)
-describes the scenarios and the cropped detail.
+The hero and inspector view are genuine off-screen renders of current Windows source,
+not installed-package or native-interaction acceptance. The [capture record](docs/screenshots/CAPTURE-2026-10-30.md)
+describes their scenarios.
 
 ## Try a local build
 
