@@ -38,9 +38,12 @@ public sealed class PageViewTests : IDisposable
         string site = Directory.CreateDirectory(Path.Combine(_dir, "markdown-links")).FullName;
         string current = Path.Combine(site, "index.md");
         string linked = Path.Combine(site, "next.md");
-        File.WriteAllText(current, "# Index\n\n[Next](next.md) [Missing](missing.md)");
+        string reviewed = Path.Combine(_dir, "review.md");
+        File.WriteAllText(current, "# Index\n\n[Next](next.md) [Missing](missing.md) [Review](../review.md)");
         File.WriteAllText(linked, "# Next");
+        File.WriteAllText(reviewed, "# Review");
         var requests = new ConcurrentQueue<string>();
+        var reviews = new ConcurrentQueue<LinkedMarkdownTarget>();
         var served = new ConcurrentQueue<string>();
         var completions = new ConcurrentQueue<(bool Ok, string? Why)>();
         StaPump.Run(async () =>
@@ -49,7 +52,11 @@ public sealed class PageViewTests : IDisposable
             using var source = new FileContentSource(current);
             using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-markdown"));
             var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            view.LinkedMarkdown += (_, path) => requests.Enqueue(path);
+            view.LinkedMarkdown += (_, target) =>
+            {
+                requests.Enqueue(target.Path);
+                if (target.RequiresConfirmation) reviews.Enqueue(target);
+            };
             view.Served += (path, found) => { if (found) served.Enqueue(path); };
             view.Loaded += (ok, why) =>
             {
@@ -68,6 +75,11 @@ public sealed class PageViewTests : IDisposable
             Assert.Equal(1, view.BlockedCount);
             Assert.Equal(new[] { linked }, requests.ToArray());
             Assert.DoesNotContain("/missing.md", served);
+            await view.ClickLinkForTestsAsync(2);
+            for (int i = 0; i < 100 && reviews.IsEmpty; i++) await Task.Delay(50);
+            Assert.Equal(new[] { linked, reviewed }, requests.ToArray());
+            Assert.True(reviews.TryPeek(out var review) && review.Path == reviewed && review.RequiresConfirmation);
+            Assert.DoesNotContain("/review.md", served);
             await Task.Delay(200);
             Assert.DoesNotContain(completions, result => !result.Ok);
             Assert.Equal("index.md", view.Title);

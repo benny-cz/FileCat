@@ -5,6 +5,9 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Content;
 
+/// <summary>A local Markdown link that opens directly or needs an explicit, one-time path review.</summary>
+public readonly record struct LinkedMarkdownTarget(string Path, bool RequiresConfirmation, string RequestAddress);
+
 /// <summary>
 /// What the viewer's page view serves (plan §16.1, D-51): the page's own bytes, and for a page on disk the files it
 /// refers to in its own folder (images, style sheets, fonts), never anything outside it. Everything else, the web
@@ -78,12 +81,12 @@ public sealed class HtmlPage
         uri.GetComponents(UriComponents.Query, UriFormat.UriEscaped).StartsWith("filecat-open=", StringComparison.Ordinal);
 
     /// <summary>
-    /// A rendered Markdown link asks the host to open another file in a separate viewer. Only Markdown inside this
-    /// page's folder tree qualifies; the synthetic page navigation itself is always cancelled by the host.
+    /// A rendered Markdown link asks the host to open another file in a separate viewer. Contained links open
+    /// directly; a relative parent link needs a one-time confirmation of its resolved full path.
     /// </summary>
-    public bool TryLinkedMarkdownPath(string address, out string? path)
+    public bool TryLinkedMarkdownTarget(string address, out LinkedMarkdownTarget target)
     {
-        path = null;
+        target = default;
         if (_folder is null || _ct.IsCancellationRequested || !IsLinkedMarkdownRequest(address)) return false;
         var uri = new Uri(address);
 
@@ -93,20 +96,40 @@ public sealed class HtmlPage
         string destination;
         try { destination = Uri.UnescapeDataString(query[marker.Length..]); }
         catch (UriFormatException) { return false; }
-        if (!Markdown.TryLocalDestination(destination, out string relative)) return false;
+        if (!Markdown.TryLocalDestination(destination, out string relative, allowParent: true)) return false;
+        bool needsReview = relative.Split('/').Contains("..");
         string full;
         try
         {
             full = Path.GetFullPath(Path.Combine(_folder, relative.Replace('/', Path.DirectorySeparatorChar)));
-            if (!InsideLinked(full, _folder)) return false;
+            if (!needsReview && !InsideLinked(full, _folder)) return false;
             string folder = ResolveLinks(_folder);
             string resolved = ResolveLinks(full);
-            if (!InsideLinked(resolved, folder) || !Markdown.IsMarkdown(resolved)) return false;
-            path = resolved;
+            if ((!needsReview && !InsideLinked(resolved, folder)) || !Markdown.IsMarkdown(resolved)) return false;
+            // A reviewed parent link may leave the source folder, but it cannot turn a local Windows document
+            // into an implicit UNC/network request or switch drives through a symbolic link.
+            if (needsReview && OperatingSystem.IsWindows() && !SameLocalDrive(resolved, folder)) return false;
+            target = new LinkedMarkdownTarget(resolved, needsReview, address);
             return true;
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or
                                    IOException or UnauthorizedAccessException) { return false; }
+    }
+
+    /// <summary>Compatibility path for callers that may open only automatically approved, contained links.</summary>
+    public bool TryLinkedMarkdownPath(string address, out string? path)
+    {
+        path = null;
+        if (!TryLinkedMarkdownTarget(address, out var target) || target.RequiresConfirmation) return false;
+        path = target.Path;
+        return true;
+    }
+
+    private static bool SameLocalDrive(string path, string folder)
+    {
+        string? root = Path.GetPathRoot(path);
+        return root is { Length: 3 } && char.IsLetter(root[0]) && root[1] == ':' && root[2] == '\\' &&
+            string.Equals(root, Path.GetPathRoot(folder), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

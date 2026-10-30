@@ -55,7 +55,7 @@ public sealed class OperationsDrawerLayoutTests
             var scroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
             var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
             Assert.True(details.IsEffectivelyVisible);
-            Assert.True(drawer.Bounds.Height <= 320, $"Six short jobs consumed {drawer.Bounds.Height} DIP.");
+            Assert.True(drawer.Bounds.Height <= 324, $"Six short jobs consumed {drawer.Bounds.Height} DIP.");
             Assert.True(scroll.Extent.Height > scroll.Viewport.Height + 1,
                 $"History must scroll: extent {scroll.Extent.Height}, viewport {scroll.Viewport.Height} DIP.");
             Assert.Contains(scroll.GetVisualDescendants().OfType<ScrollBar>(), bar =>

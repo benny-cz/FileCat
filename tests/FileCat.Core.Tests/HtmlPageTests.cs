@@ -49,6 +49,31 @@ public sealed class HtmlPageTests
     }
 
     [Fact]
+    public void Parent_relative_markdown_link_needs_one_time_review_of_its_resolved_path()
+    {
+        using var root = new TempDir();
+        string validation = Directory.CreateDirectory(Path.Combine(root.Path, "docs", "validation")).FullName;
+        string release = Directory.CreateDirectory(Path.Combine(root.Path, "docs", "release")).FullName;
+        string current = Path.Combine(validation, "results.md");
+        string linked = Path.Combine(release, "status.md");
+        File.WriteAllText(current, "[plan](plan.md) [release dashboard](../release/status.md)");
+        File.WriteAllText(Path.Combine(validation, "plan.md"), "# Plan");
+        File.WriteAllText(linked, "# Release status");
+        using var source = new FileContentSource(current);
+        var page = HtmlPage.ForMarkdown(source, current);
+        string address = page.Address + "?filecat-open=..%2Frelease%2Fstatus.md";
+
+        Assert.False(page.TryLinkedMarkdownPath(address, out _)); // No automatic escape.
+        Assert.True(page.TryLinkedMarkdownTarget(address, out var target));
+        Assert.True(target.RequiresConfirmation);
+        Assert.Equal(address, target.RequestAddress);
+        Assert.Equal(Path.GetFullPath(linked), target.Path);
+        Assert.True(page.TryLinkedMarkdownTarget(page.Address + "?filecat-open=plan.md", out var contained));
+        Assert.False(contained.RequiresConfirmation);
+        Assert.False(page.TryLinkedMarkdownTarget(page.Address + "?filecat-open=file%3A%2F%2F%2Fetc%2Fpasswd", out _));
+    }
+
+    [Fact]
     public void A_markdown_link_through_a_symlink_outside_its_folder_is_refused()
     {
         using var root = new TempDir();

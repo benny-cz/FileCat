@@ -67,7 +67,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     public int BlockedCount => _blocked;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
 
     /// <summary>Raised when the web view takes the keyboard itself (a click in it, say).</summary>
@@ -367,8 +367,8 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             string uri = ObjC.ToString(ObjC.Send(ObjC.Send(ObjC.Send(action, "request"), "URL"), "absoluteString")) ?? "";
             bool newWindow = ObjC.Send(action, "targetFrame") == 0;
             var owner = Of(self);
-            if (owner?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
-                owner.LinkedMarkdown?.Invoke(page, path);
+            if (owner?._page is { } page && page.TryLinkedMarkdownTarget(uri, out var target))
+                owner.LinkedMarkdown?.Invoke(page, target);
             else if (owner?._page?.IsLinkedMarkdownRequest(uri) == true)
                 owner.Refused();
             else if (!newWindow && IsOwn(uri))
@@ -443,8 +443,8 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         {
             var owner = Of(self);
             string uri = ObjC.ToString(ObjC.Send(ObjC.Send(ObjC.Send(action, "request"), "URL"), "absoluteString")) ?? "";
-            if (owner?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
-                owner.LinkedMarkdown?.Invoke(page, path);
+            if (owner?._page is { } page && page.TryLinkedMarkdownTarget(uri, out var target))
+                owner.LinkedMarkdown?.Invoke(page, target);
             else owner?.Refused();
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }

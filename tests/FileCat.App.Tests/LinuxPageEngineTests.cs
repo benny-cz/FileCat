@@ -157,10 +157,13 @@ public sealed class LinuxPageEngineTests
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-page-links", Guid.NewGuid().ToString("N"))).FullName;
         try
         {
-            string current = Path.Combine(root, "index.md");
-            string next = Path.Combine(root, "next.md");
-            File.WriteAllText(current, "# Index\n\n[Next](next.md)");
+            string site = Directory.CreateDirectory(Path.Combine(root, "site")).FullName;
+            string current = Path.Combine(site, "index.md");
+            string next = Path.Combine(site, "next.md");
+            string reviewed = Path.Combine(root, "review.md");
+            File.WriteAllText(current, "# Index\n\n[Next](next.md) [Review](../review.md)");
             File.WriteAllText(next, "# Next");
+            File.WriteAllText(reviewed, "# Review");
             using var source = new FileContentSource(current);
             using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
             Assert.NotNull(engine);
@@ -171,11 +174,16 @@ public sealed class LinuxPageEngineTests
             var linkLoadFailures = new System.Collections.Concurrent.ConcurrentQueue<string>();
             engine.Loaded += (ok, why) => { if (!ok) linkLoadFailures.Enqueue(why ?? "unknown"); };
             var requested = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            engine.LinkedMarkdown += (_, path) => requested.TrySetResult(path);
+            engine.LinkedMarkdown += (_, target) => requested.TrySetResult(target.Path);
             await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=next.md");
             Assert.Equal(next, await requested.Task.WaitAsync(TimeSpan.FromSeconds(15), ct));
             Assert.Equal("index.md", engine.Title);
             Assert.Equal(0, engine.BlockedCount);
+            var review = new TaskCompletionSource<LinkedMarkdownTarget>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.LinkedMarkdown += (_, target) => { if (target.RequiresConfirmation) review.TrySetResult(target); };
+            await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=..%2Freview.md");
+            Assert.Equal(reviewed, (await review.Task.WaitAsync(TimeSpan.FromSeconds(15), ct)).Path);
+            Assert.Equal("index.md", engine.Title);
             await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=missing.md");
             for (int i = 0; i < 100 && engine.BlockedCount == 0; i++) await Task.Delay(50, ct);
             Assert.Equal(1, engine.BlockedCount);

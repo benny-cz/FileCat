@@ -62,7 +62,7 @@ public sealed class WebView2Page : IDisposable
     public event Action<bool, string?>? Loaded;
 
     /// <summary>A contained Markdown link clicked in this page; the host opens it in another viewer.</summary>
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
 
     /// <summary>A key FileCat's viewer may want (Esc, function keys, Ctrl and Alt combinations): the handler says whether it took it.</summary>
     public Func<uint, bool, bool, bool, bool>? KeyPressed { get; set; }
@@ -118,9 +118,9 @@ public sealed class WebView2Page : IDisposable
             core.NewWindowRequested += (_, e) =>
             {
                 e.Handled = true;
-                if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+                if (_page is { } page && page.TryLinkedMarkdownTarget(e.Uri, out var target))
                 {
-                    LinkedMarkdown?.Invoke(page, path);
+                    LinkedMarkdown?.Invoke(page, target);
                     return;
                 }
                 Refuse(e.Uri);
@@ -291,10 +291,10 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The page may go to other pages in its folder (a link, an anchor); anywhere else is refused.</summary>
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+        if (_page is { } page && page.TryLinkedMarkdownTarget(e.Uri, out var target))
         {
             e.Cancel = true;
-            LinkedMarkdown?.Invoke(page, path);
+            LinkedMarkdown?.Invoke(page, target);
             return;
         }
         if (_page?.IsLinkedMarkdownRequest(e.Uri) == true)

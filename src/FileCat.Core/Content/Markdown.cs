@@ -32,7 +32,7 @@ public static partial class Markdown
         Path.GetExtension(name.TrimEnd('/', '\\')).ToLowerInvariant() is ".md" or ".markdown" or ".mdown" or ".mkd" or ".mkdn" or ".mdwn";
 
     /// <summary>A Markdown file link may name only a relative file, never a scheme, drive, network share or directory.</summary>
-    internal static bool TryLocalDestination(string address, out string relativePath)
+    internal static bool TryLocalDestination(string address, out string relativePath, bool allowParent = false)
     {
         relativePath = "";
         string path = address.Split('?', '#')[0];
@@ -41,7 +41,7 @@ public static partial class Markdown
         try { path = Uri.UnescapeDataString(path); }
         catch (UriFormatException) { return false; }
         if (path.Length == 0 || path[0] is '/' or '\\' || path.Contains('\\') || path.Contains(':') ||
-            path.Any(char.IsControl) || path.Split('/').Contains("..") || !IsMarkdown(path)) return false;
+            path.Any(char.IsControl) || (!allowParent && path.Split('/').Contains("..")) || !IsMarkdown(path)) return false;
         relativePath = path;
         return true;
     }
@@ -1028,8 +1028,13 @@ public static partial class Markdown
             string tip = title is { Length: > 0 } ? title + " — " + decoded : decoded;
             if (SafeHref(decoded))
                 return $"<a href=\"{Encode(decoded)}\" title=\"{Encode(tip)}\">{inner}</a>";
-            if (localLinks && TryLocalDestination(decoded, out _))
-                return $"<a href=\"?filecat-open={Uri.EscapeDataString(decoded)}\" title=\"{Encode("Open in a separate FileCat viewer — " + tip)}\">{inner}</a>";
+            if (localLinks && TryLocalDestination(decoded, out string relative, allowParent: true))
+            {
+                string action = relative.Split('/').Contains("..")
+                    ? "Review opening outside this file's folder — "
+                    : "Open in a separate FileCat viewer — ";
+                return $"<a href=\"?filecat-open={Uri.EscapeDataString(decoded)}\" title=\"{Encode(action + tip)}\">{inner}</a>";
+            }
             return $"<span class=\"link\" title=\"{Encode(tip)}\">{inner}</span>";
         }
 

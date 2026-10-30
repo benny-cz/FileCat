@@ -144,7 +144,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     internal bool SandboxEnabled => _sandboxEnabled;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
 
     /// <summary>Raised on the GTK thread when the page is clicked.</summary>
     public event Action? FocusRequested;
@@ -445,8 +445,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 var owner = Of(data);
                 nint newAction = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
                 string newUri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(newAction))) ?? "";
-                if (owner?._page is { } linkedPage && linkedPage.TryLinkedMarkdownPath(newUri, out string? linkedPath) && linkedPath is not null)
-                    owner.LinkedMarkdown?.Invoke(linkedPage, linkedPath);
+                if (owner?._page is { } linkedPage && linkedPage.TryLinkedMarkdownTarget(newUri, out var linkedTarget))
+                    owner.LinkedMarkdown?.Invoke(linkedPage, linkedTarget);
                 else owner?.Refused();
                 return 1;
             }
@@ -454,10 +454,10 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             nint action = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
             string uri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(action))) ?? "";
             var engine = Of(data);
-            if (engine?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
+            if (engine?._page is { } page && page.TryLinkedMarkdownTarget(uri, out var target))
             {
                 Native.webkit_policy_decision_ignore(decision);
-                engine.LinkedMarkdown?.Invoke(page, path);
+                engine.LinkedMarkdown?.Invoke(page, target);
                 return 1;
             }
             if (engine?._page?.IsLinkedMarkdownRequest(uri) == true)

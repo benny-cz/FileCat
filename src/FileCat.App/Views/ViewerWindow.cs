@@ -83,6 +83,7 @@ public sealed class ViewerWindow : Window
     private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
     private bool _findOpen;
+    private bool _linkedMarkdownReviewOpen;
     private readonly Button _smallerText = new() { Content = "Text −" };
     private readonly Button _largerText = new() { Content = "Text +" };
     private readonly TextBlock _contentSize = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
@@ -473,12 +474,32 @@ public sealed class ViewerWindow : Window
             _status.Text = why + " Its source is shown instead.";
         };
         _pageView.KeyRequested = OnPageKey;
-        _pageView.LinkedMarkdown += async path =>
+        _pageView.LinkedMarkdown += async (page, target) =>
         {
-            if (!_isPage || _closing.IsCancellationRequested) return;
-            bool opened = await ViewerLauncher.TryOpenPath(_services, path);
+            if (!_isPage || _closing.IsCancellationRequested || !ReferenceEquals(_htmlPage, page)) return;
+            if (target.RequiresConfirmation)
+            {
+                if (_linkedMarkdownReviewOpen) return;
+                _linkedMarkdownReviewOpen = true;
+                bool approved;
+                try
+                {
+                    approved = await _dialogs.ConfirmAsync("Open linked Markdown file?",
+                        "This link uses a parent directory. Review the resolved local file before opening it once. " +
+                        "FileCat will not remember this choice.\n\n" + target.Path,
+                        "Open this file", danger: true);
+                }
+                finally { _linkedMarkdownReviewOpen = false; }
+                if (!approved || !_isPage || _closing.IsCancellationRequested || !ReferenceEquals(_htmlPage, page)) return;
+                if (!page.TryLinkedMarkdownTarget(target.RequestAddress, out var current) || current != target)
+                {
+                    _status.Text = "The linked Markdown target changed. Open it again to review its current path.";
+                    return;
+                }
+            }
+            bool opened = await ViewerLauncher.TryOpenPath(_services, target.Path);
             if (!opened && !_closing.IsCancellationRequested)
-                _status.Text = "The linked Markdown file could not be opened: " + path;
+                _status.Text = "The linked Markdown file could not be opened: " + target.Path;
         };
         _fitPicture.Click += (_, _) => { _picture.Fit = true; UpdatePictureZoomControls(); };
         _actualSize.Click += (_, _) => { _picture.ShowActualSize(); UpdatePictureZoomControls(); };

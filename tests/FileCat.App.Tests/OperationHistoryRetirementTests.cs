@@ -58,7 +58,7 @@ public sealed class OperationHistoryRetirementTests(ITestOutputHelper output)
             Assert.True(unchanged && rig.FrozenSourcesMatch && rig.DispatchDeferred && witnessRetained);
             Assert.Equal(rig.ExpectedRows, rig.Held.Jobs.Count);
             Assert.Equal(rig.ExpectedRows, rig.Held.Manager.Jobs.Count);
-            Assert.Equal(route == "retained", rig.Held.Selected is not null);
+            Assert.Same(rig.Witness, rig.Held.Selected?.Job);
             Assert.Equal(route == "retained", rowAlive);
             Assert.Equal(route == "retained", jobAlive);
             Assert.Equal(route == "retained", sourcesAlive);
@@ -123,7 +123,9 @@ public sealed class OperationHistoryRetirementTests(ITestOutputHelper output)
         if (route == "clear") manager.ClearFinished();
         if (route == "remove") manager.Remove(victim);
         // All manager notifications are queued while the UI thread is occupied. No private map/list is touched.
-        bool deferred = center.Jobs.Count == beforeRows && ReferenceEquals(center.Selected, row);
+        // The open drawer follows the newest admitted operation, so selection may move
+        // before its queued add callback. Only the collection change must be deferred.
+        bool deferred = center.Jobs.Count == beforeRows;
         Dispatcher.UIThread.RunJobs();
         int expected = route switch { "trim-default" => 51, "trim-one" or "remove" => 2, "clear" => 1, _ => 3 };
         bool match = victim.Request.Sources.Count == count && victim.Request.Sources.All(v => v.FileSystemPath == path);
