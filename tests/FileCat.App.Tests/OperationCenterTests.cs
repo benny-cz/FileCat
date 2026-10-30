@@ -21,6 +21,57 @@ namespace FileCat.App.Tests;
 public sealed class OperationCenterTests
 {
     [AvaloniaFact]
+    public async Task History_shows_newest_admitted_job_first_even_when_an_older_add_arrives_late()
+    {
+        string root = Directory.CreateTempSubdirectory("fc-history-order-").FullName;
+        using var firstEntered = new ManualResetEventSlim();
+        using var releaseFirst = new ManualResetEventSlim();
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var jobs = services.Jobs;
+            jobs.MaxConcurrent = 0;
+            int arrivals = 0;
+            jobs.JobAdded += _ =>
+            {
+                if (Interlocked.Increment(ref arrivals) != 1) return;
+                firstEntered.Set();
+                releaseFirst.Wait(TimeSpan.FromSeconds(10));
+            };
+            var center = new OperationCenterViewModel(jobs);
+            string source = Path.Combine(root, "source.txt");
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            File.WriteAllText(source, "payload");
+            JobRequest request = new()
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Destination = Location.FileSystem(target),
+                Mode = QueueMode.Queue,
+            };
+
+            var firstTask = Task.Run(() => jobs.Submit(request));
+            await Until(() => firstEntered.IsSet);
+            var newest = jobs.Submit(request);
+            await Until(() => center.Jobs.Count == 1);
+            Assert.Same(newest, center.Jobs[0].Job);
+            center.IsOpen = true;
+            Assert.Same(newest, center.Selected?.Job);
+
+            releaseFirst.Set();
+            var oldest = await firstTask;
+            await Until(() => center.Jobs.Count == 2);
+            Assert.Equal([newest, oldest], center.Jobs.Select(row => row.Job));
+            Assert.Same(newest, center.Selected?.Job);
+        }
+        finally
+        {
+            releaseFirst.Set();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Queue_action_is_only_enabled_when_it_will_move_a_queued_operation()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

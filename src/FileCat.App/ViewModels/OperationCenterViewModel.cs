@@ -582,10 +582,25 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     private void Add(JobViewModel vm)
     {
-        Jobs.Insert(0, vm);
+        // JobAdded callbacks run outside the manager lock and can reach the UI out of
+        // admission order. Use the manager's retained order, not callback arrival,
+        // so the newest operation is always at the top of history.
+        var admitted = Manager.Jobs;
+        int position = 0;
+        int jobIndex = IndexOf(admitted, vm.Job);
+        while (position < Jobs.Count && IndexOf(admitted, Jobs[position].Job) > jobIndex)
+            position++;
+        Jobs.Insert(position, vm);
         vm.Refresh();
         if (!_timer.IsEnabled) _timer.Start();
         UpdateSummary();
+    }
+
+    private static int IndexOf(IReadOnlyList<Job> jobs, Job job)
+    {
+        for (int i = 0; i < jobs.Count; i++)
+            if (ReferenceEquals(jobs[i], job)) return i;
+        return -1;
     }
 
     private void Add(Job job)
