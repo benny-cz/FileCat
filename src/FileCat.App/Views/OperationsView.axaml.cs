@@ -250,6 +250,19 @@ public partial class OperationsView : UserControl
         main.Services.SaveSettings();
     }
 
+    private void OnFitDrawerHeight(object? sender, RoutedEventArgs e)
+    {
+        _userSizedDrawer = false;
+        _preferredDrawerHeight = 300;
+        _drawerHeightChanged = false;
+        if (Main is { } main)
+        {
+            main.Services.Settings.OperationsDrawerHeight = 300;
+            main.Services.SaveSettings();
+        }
+        QueueDrawerHeightRefresh();
+    }
+
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
 
     private MainViewModel? Main => TopLevel.GetTopLevel(this)?.DataContext as MainViewModel;

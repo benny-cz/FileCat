@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
@@ -150,6 +151,13 @@ public sealed class OperationsDrawerLayoutTests
             Layout(window);
             Assert.Equal(chosen, drawer.Bounds.Height, 1);
             Assert.Equal(chosen, services.Settings.OperationsDrawerHeight, 1);
+
+            var fit = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Fit height");
+            fit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            while (center.Jobs.Count > 1) center.Jobs.RemoveAt(center.Jobs.Count - 1);
+            Layout(window);
+            Assert.InRange(drawer.Bounds.Height, 140, 230);
+            Assert.Equal(300, services.Settings.OperationsDrawerHeight);
         }
         finally { AccessibilityTests.Close(services, window, root); }
 

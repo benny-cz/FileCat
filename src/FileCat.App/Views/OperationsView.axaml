@@ -192,6 +192,8 @@
             <Button Classes="flat" Content="Clear finished history…" Click="OnClearFinished"
                     IsVisible="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).HasFinished}"
                     ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
+            <Button Classes="flat" Content="Fit height" Click="OnFitDrawerHeight"
+                    ToolTip.Tip="Size Operations to its visible jobs and report; restores automatic sizing after a manual resize" />
             <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
