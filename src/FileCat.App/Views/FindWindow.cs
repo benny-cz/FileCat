@@ -99,6 +99,11 @@ public sealed class FindWindow : Window, IViewActions
     private AdvancedSearchCriteria _advanced = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _qualifications = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly TextBlock _archiveContentNotice = new()
+    {
+        Text = "Inside archives is ignored when Containing has text. This search checks local file contents only; archive member names and contents are not searched.",
+        Classes = { "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false,
+    };
     private readonly TextBlock _activity = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Border _emptyResults = new() { IsVisible = false };
     private readonly TextBlock _emptyHeadline = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
@@ -171,6 +176,7 @@ public sealed class FindWindow : Window, IViewActions
         AutomationName(_logButton, "Search log");
         AutomationName(_status, "Find completion");
         AutomationName(_qualifications, "Search qualifications");
+        AutomationName(_archiveContentNotice, "Archive content search limitation");
         AutomationName(_activity, "Search progress");
         AutomationName(_emptyResults, "Search result summary");
         AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Off);
@@ -187,7 +193,10 @@ public sealed class FindWindow : Window, IViewActions
         if (_within is null) HistoryKeys(_lookIn, () => history.SearchFolders);
         _hex.IsCheckedChanged += (_, _) => UpdateContentOptions();
         _regex.IsCheckedChanged += (_, _) => UpdateContentOptions();
+        _archives.IsCheckedChanged += (_, _) => UpdateArchiveContentNotice();
+        _text.TextChanged += (_, _) => UpdateArchiveContentNotice();
         UpdateContentOptions();
+        UpdateArchiveContentNotice();
 
         var root_ = new Grid();
         var dock = new DockPanel();
@@ -353,6 +362,7 @@ public sealed class FindWindow : Window, IViewActions
         var actions = new StackPanel { Margin = new Thickness(10, 6, 10, 0), Spacing = 4 };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _find, _stop, _skip } };
         actions.Children.Add(buttons);
+        actions.Children.Add(_archiveContentNotice);
         var headline = new DockPanel();
         DockPanel.SetDock(_logButton, Dock.Right);
         headline.Children.Add(_logButton);
@@ -1041,6 +1051,11 @@ public sealed class FindWindow : Window, IViewActions
         _logButton.IsEnabled = log.Count > 0;
         _logButton.Content = log.Count > 0 ? $"Log ({log.Count:N0})" : "Log";
         UpdateEmptyResults(feedback);
+    }
+
+    private void UpdateArchiveContentNotice()
+    {
+        _archiveContentNotice.IsVisible = _archives.IsChecked == true && !string.IsNullOrWhiteSpace(_text.Text);
     }
 
     private void UpdateEmptyResults(FindFeedback feedback)

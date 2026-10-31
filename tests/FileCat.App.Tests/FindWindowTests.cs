@@ -586,6 +586,55 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Content_query_with_inside_archives_explains_that_archive_member_bytes_are_not_searched()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string scope = Path.Combine(root, "files", "archive-search");
+            Directory.CreateDirectory(scope);
+            string zip = Path.Combine(scope, "evidence.zip");
+            using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry("proof.txt").Open()))
+                writer.Write("owned beta");
+
+            var find = await OpenFindAsync(vm, ct);
+            find.LookInBox.Text = scope;
+            var notice = Field<TextBlock>(find, "_archiveContentNotice");
+            Assert.False(notice.IsVisible);
+            find.SetInsideArchives(true);
+            find.SetContent("owned beta", hex: false);
+            await WaitFor(() => notice.IsVisible, ct);
+            Assert.True(notice.IsVisible);
+            Assert.Equal("Archive content search limitation", AutomationProperties.GetName(notice));
+
+            await SearchAsync(find, "*.txt", ct);
+            Assert.Empty(find.Found);
+            Assert.Equal("No matches", find.EmptyResultHeadline);
+            Assert.True(notice.IsVisible);
+            Assert.Contains("archive member names and contents are not searched", notice.Text);
+            find.Width = find.MinWidth;
+            find.Height = find.MinHeight;
+            find.UpdateLayout();
+            var noticeTop = notice.TranslatePoint(new Avalonia.Point(0, 0), find);
+            Assert.NotNull(noticeTop);
+            Assert.True(noticeTop.Value.Y >= 0 && noticeTop.Value.Y + notice.Bounds.Height <= find.ClientSize.Height + 1);
+
+            find.SetContent(string.Empty, hex: false);
+            await WaitFor(() => !notice.IsVisible, ct);
+            Assert.False(notice.IsVisible);
+            await SearchAsync(find, "*.txt", ct);
+            Assert.Equal(["proof.txt"], find.Found);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Hex_criteria_that_cannot_work_say_why_in_the_window()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
