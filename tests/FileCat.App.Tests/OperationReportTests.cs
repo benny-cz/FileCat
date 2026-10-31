@@ -183,6 +183,25 @@ public sealed class OperationReportTests
     }
 
     [Fact]
+    public void Successful_command_output_is_visible_in_the_report_without_claiming_an_issue_or_full_log()
+    {
+        var job = new Job(new JobRequest { Kind = JobKind.ApplyCommand }, "Run a tool", "local", [], []);
+        string path = "/owned/log one\t.txt";
+        job.AddCommandResult(new JobCommandResult(path, 0, "hash=abc\n", "", false, false, false));
+        for (int i = 1; i < 65; i++)
+            job.AddCommandResult(new JobCommandResult($"/owned/file-{i}", 0, $"result-{i}", "", false, false, false));
+        string report = Assert.IsType<string>(OperationReport.ForClipboard(OperationReport.Capture(job)));
+        Assert.Contains("Issues: 0 total", report);
+        Assert.Contains("Command results: first 64 retained; 1 omitted after the 64-result limit", report);
+        Assert.Contains("at most 2,000 characters per stream and item", report);
+        Assert.Contains("Path: " + JsonSerializer.Serialize(path), report);
+        Assert.Contains("Standard output: " + JsonSerializer.Serialize("hash=abc\n"), report);
+        Assert.Contains("result-63", report);
+        Assert.DoesNotContain("result-64", report);
+        Assert.DoesNotContain(path, report);
+    }
+
+    [Fact]
     public void Save_exports_every_retained_detail_and_keeps_existing_report_on_cancellation()
     {
         string root = Directory.CreateTempSubdirectory("fc-report-").FullName;

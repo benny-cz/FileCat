@@ -12,10 +12,11 @@ internal static class OperationReport
     internal const int ReadBatch = 256;
 
     internal sealed record Snapshot(Job Job, DateTime CapturedUtc, JobState State, JobIssueTotals Issues,
+        JobCommandResultTotals CommandResults,
         long ItemsDone, long ItemsSkipped, long ItemsFailed, long ItemsTotal, bool TotalsFinal,
         long DataBytesProcessed, TimeSpan ElapsedSinceStart);
 
-    internal static Snapshot Capture(Job job) => new(job, DateTime.UtcNow, job.State, job.IssueTotals,
+    internal static Snapshot Capture(Job job) => new(job, DateTime.UtcNow, job.State, job.IssueTotals, job.CommandResultTotals,
         job.ItemsDone, job.ItemsSkipped, job.ItemsFailed, job.ItemsTotal, job.TotalsFinal,
         job.DataBytesProcessed, job.ElapsedSinceStart);
 
@@ -59,6 +60,36 @@ internal static class OperationReport
         Line($"Issues: {Count(snapshot.Issues.Total)} total; {Count(snapshot.Issues.Info)} info; {Count(snapshot.Issues.Warning)} warnings; {Count(snapshot.Issues.Error)} errors");
         Line($"Details: first {Count(snapshot.Issues.Retained)} retained; {Count(snapshot.Issues.Omitted)} omitted after the retention limit");
         Line("Quoted paths and reasons use JSON escaping; decoding the quoted value recovers the exact text.");
+
+        if (snapshot.Job.Kind == JobKind.ApplyCommand)
+        {
+            Line($"Command results: first {Count(snapshot.CommandResults.Retained)} retained; " +
+                 $"{Count(snapshot.CommandResults.Omitted)} omitted after the {Job.CommandResultLimit}-result limit");
+            Line($"Text output is a bounded tail of at most {Count(JobCommandResult.StreamTailCharacterLimit)} characters per stream and item; it is not a complete log.");
+            int commandWritten = 0;
+            while (commandWritten < snapshot.CommandResults.Retained)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var batch = snapshot.Job.ReadCommandResults(commandWritten,
+                    Math.Min(ReadBatch, snapshot.CommandResults.Retained - commandWritten));
+                if (batch.Count == 0) break;
+                foreach (var result in batch)
+                {
+                    Line();
+                    Line($"Command [{Count(commandWritten + 1)}]: " +
+                         (result.ExitCode is { } code ? $"exit code {code}" : "not started or no exit code"));
+                    Line("Path: " + Quoted(result.Path));
+                    Line("Standard output" + (result.StandardOutputTruncated ? " (earlier text omitted)" : "") +
+                         ": " + (result.StandardOutputTail.Length == 0 ? "none" : Quoted(result.StandardOutputTail)));
+                    Line("Standard error" + (result.StandardErrorTruncated ? " (earlier text omitted)" : "") +
+                         ": " + (result.StandardErrorTail.Length == 0 ? "none" : Quoted(result.StandardErrorTail)));
+                    if (result.OutputIncomplete) Line("Output collection: incomplete after the process exited; a descendant kept a pipe open.");
+                    commandWritten++;
+                }
+            }
+            if (commandWritten != snapshot.CommandResults.Retained)
+                Line($"Report warning: only {Count(commandWritten)} of {Count(snapshot.CommandResults.Retained)} retained command results were readable at export time.");
+        }
 
         int written = 0;
         while (written < snapshot.Issues.Retained)

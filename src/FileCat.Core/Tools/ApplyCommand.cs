@@ -195,13 +195,15 @@ public static class ApplyCommandPlanner
 
 /// <summary>
 /// Runs <see cref="JobRequest.Invocations"/> one after another, each in its item's folder, and records each exit code.
-/// Output is captured (bounded) so a failure can say why. A cancel stops before the next item and leaves a running
-/// program to finish on its own.
+/// Output is captured (bounded) for per-item reports and failure reasons. A cancel stops before the next item and
+/// leaves a running program to finish on its own.
 /// </summary>
 internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
-    private const int OutputTail = 2000;
+    private const int OutputTail = JobCommandResult.StreamTailCharacterLimit;
     private static readonly TimeSpan OutputCloseGrace = TimeSpan.FromMilliseconds(750);
+    private sealed record RunResult(int? ExitCode, string Stdout, string Stderr,
+        bool StdoutTruncated, bool StderrTruncated, bool OutputIncomplete);
 
     public override void Execute()
     {
@@ -221,11 +223,15 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
                     failed++;
                     Job.ItemFailed();
                     Job.RootFailed(i);
+                    Job.AddCommandResult(new JobCommandResult(path, null, "", "Not run; see issue.",
+                        false, false, false));
                     Issue(IssueSeverity.Error, path, "Not run: " + run.Problem, StepOutcome.Failed);
                     continue;
                 }
-                var (exitCode, output) = RunOne(run);
-                if (exitCode == 0)
+                var result = RunOne(run);
+                Job.AddCommandResult(new JobCommandResult(path, result.ExitCode, result.Stdout, result.Stderr,
+                    result.StdoutTruncated, result.StderrTruncated, result.OutputIncomplete));
+                if (result.ExitCode == 0)
                 {
                     succeeded++;
                     Job.ItemDone();
@@ -236,9 +242,13 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
                     failed++;
                     Job.ItemFailed();
                     Job.RootFailed(i);
-                    Issue(IssueSeverity.Error, path, exitCode is null
+                    string tail = string.IsNullOrWhiteSpace(result.Stderr) ? result.Stdout : result.Stderr;
+                    var lastLines = tail.Trim().Split('\n').Select(l => l.TrimEnd('\r'))
+                        .Where(l => l.Length > 0).TakeLast(3);
+                    string output = string.Join(" / ", lastLines);
+                    Issue(IssueSeverity.Error, path, result.ExitCode is null
                         ? "The program could not be started: " + output
-                        : $"The program ended with exit code {exitCode}" + (output.Length > 0 ? ": " + output : "."), StepOutcome.Failed);
+                        : $"The program ended with exit code {result.ExitCode}" + (output.Length > 0 ? ": " + output : "."), StepOutcome.Failed);
                 }
             }
         }
@@ -249,7 +259,7 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
         }
     }
 
-    private (int? ExitCode, string Output) RunOne(ApplyInvocation run)
+    private RunResult RunOne(ApplyInvocation run)
     {
         var psi = new ProcessStartInfo(run.Executable)
         {
@@ -268,7 +278,9 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            return (null, ex.Message);
+            string message = ex.Message;
+            bool truncated = message.Length > OutputTail;
+            return new RunResult(null, "", truncated ? message[^OutputTail..] : message, false, truncated, false);
         }
         using (process)
         {
@@ -303,10 +315,8 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
             }
             // A descendant can keep a pipe open after the direct process exits. Preserve bytes
             // already captured even if a reader has not completed at the cancellation deadline.
-            string tail = stderrTail.Snapshot().Trim();
-            if (tail.Length == 0) tail = stdoutTail.Snapshot().Trim();
-            var lastLines = tail.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).TakeLast(3);
-            return (process.ExitCode, string.Join(" / ", lastLines));
+            return new RunResult(process.ExitCode, stdoutTail.Snapshot(), stderrTail.Snapshot(),
+                stdoutTail.Truncated, stderrTail.Truncated, !drained || outputCancel.IsCancellationRequested);
         }
     }
 
@@ -314,6 +324,9 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
     {
         private readonly object _gate = new();
         private readonly StringBuilder _tail = new(OutputTail);
+        private bool _truncated;
+
+        internal bool Truncated { get { lock (_gate) return _truncated; } }
 
         internal void Append(ReadOnlySpan<char> chars)
         {
@@ -321,12 +334,17 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
             {
                 if (chars.Length >= OutputTail)
                 {
+                    _truncated |= _tail.Length > 0 || chars.Length > OutputTail;
                     _tail.Clear();
                     _tail.Append(chars[^OutputTail..]);
                     return;
                 }
                 int excess = _tail.Length + chars.Length - OutputTail;
-                if (excess > 0) _tail.Remove(0, excess);
+                if (excess > 0)
+                {
+                    _truncated = true;
+                    _tail.Remove(0, excess);
+                }
                 _tail.Append(chars);
             }
         }

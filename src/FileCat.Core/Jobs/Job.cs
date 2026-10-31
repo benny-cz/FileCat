@@ -3,6 +3,15 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
+/// <summary>A bounded text-output receipt for one Apply Command invocation.</summary>
+public sealed record JobCommandResult(string Path, int? ExitCode, string StandardOutputTail,
+    string StandardErrorTail, bool StandardOutputTruncated, bool StandardErrorTruncated, bool OutputIncomplete)
+{
+    public const int StreamTailCharacterLimit = 2000;
+}
+
+public readonly record struct JobCommandResultTotals(long Total, int Retained, long Omitted);
+
 /// <summary>
 /// A running or finished operation. Counters are updated by the job thread with interlocked writes and
 /// read by the UI at a bounded rate; the UI never receives one notification per byte (PI-01).
@@ -12,6 +21,9 @@ public sealed partial class Job
 {
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
+    private readonly List<JobCommandResult> _commandResults = [];
+    private long _commandResultTotal;
+    public const int CommandResultLimit = 64;
     private long _issueTotal, _issueInfo, _issueWarnings, _issueErrors;
     private ulong[] _completedRoots = [];
     private ulong[] _failedRoots = [];
@@ -173,6 +185,27 @@ public sealed partial class Job
         {
             if (start >= _issues.Count) return [];
             return _issues.GetRange(start, Math.Min(maximum, _issues.Count - start));
+        }
+    }
+
+    public JobCommandResultTotals CommandResultTotals
+    {
+        get
+        {
+            lock (_lock) return new JobCommandResultTotals(_commandResultTotal, _commandResults.Count,
+                _commandResultTotal - _commandResults.Count);
+        }
+    }
+
+    /// <summary>Returns a bounded slice of command receipts without copying every retained output.</summary>
+    public IReadOnlyList<JobCommandResult> ReadCommandResults(int start, int maximum)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximum);
+        lock (_lock)
+        {
+            if (start >= _commandResults.Count) return [];
+            return _commandResults.GetRange(start, Math.Min(maximum, _commandResults.Count - start));
         }
     }
 
@@ -430,6 +463,15 @@ public sealed partial class Job
             if (_issues.Count < 10_000) _issues.Add(issue);
         }
         Changed?.Invoke(this);
+    }
+
+    internal void AddCommandResult(JobCommandResult result)
+    {
+        lock (_lock)
+        {
+            if (_commandResultTotal < long.MaxValue) _commandResultTotal++;
+            if (_commandResults.Count < CommandResultLimit) _commandResults.Add(result);
+        }
     }
 
     /// <summary>Records the outcome of the root at <paramref name="index"/> in the request's sources.</summary>
