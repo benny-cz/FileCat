@@ -13,3 +13,7 @@ After the captures, the exact VM app process was stopped and its owned fixture r
 ## Candidate stopping rule
 
 On the exact installed 1.0.0 candidate, select an owned filename with shell punctuation and compose a command with text after the caret. Ctrl+Enter must insert one correctly quoted filename before that text and leave the caret immediately after the inserted token and separator; Ctrl+Shift+Enter must insert the quoted full path. Replace a selected placeholder once and confirm the panel shortcut still appends. Do not execute the command. Stop after these affected routes and five-lane latest-product-source CI with skips reconciled; do not repeat accepted generic quoting or external-tool tests. SignPath, installed-candidate input and human GO remain separate.
+
+## Source CI follow-up
+
+First product-source run [41182027345](https://github.com/benny-cz/FileCat/actions/runs/41182027345) at `294b26d3` had a Windows x64 setup failure before any build or test: `actions/setup-dotnet` received a prematurely ended response while downloading SDK `10.0.101`; its fallback URLs returned 404. The missing test-project receipt is downstream of that setup failure, not a product test result. The other jobs were still in progress when inspected. A documentation-and-test descendant [run 41182412868](https://github.com/benny-cz/FileCat/actions/runs/41182412868) at `dbc994f9` contains the same product source and is running; its eventual five required jobs and test skips must be checked independently. Do not reclassify the initial failed run as a pass.
