@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Globalization;
 using System.Text.Json;
 using FileCat.Core.Content;
 using Microsoft.Web.WebView2.Core;
@@ -213,6 +214,51 @@ public sealed class WebView2Page : IDisposable
             return true;
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return false; }
+    }
+
+    /// <summary>Reads the page's actual viewport, including mouse-wheel and scrollbar movement.</summary>
+    public async Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct)
+    {
+        if (_disposed || _controller is not { } controller) return null;
+        long navigation = _navigationGeneration;
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            string result = await controller.CoreWebView2.ExecuteScriptAsync("[window.scrollX, window.scrollY]");
+            ct.ThrowIfCancellationRequested();
+            if (_disposed || navigation != _navigationGeneration) return null;
+            double[]? coordinates = JsonSerializer.Deserialize<double[]>(result);
+            return coordinates is { Length: 2 } &&
+                   double.IsFinite(coordinates[0]) && coordinates[0] >= 0 &&
+                   double.IsFinite(coordinates[1]) && coordinates[1] >= 0
+                ? (coordinates[0], coordinates[1]) : null;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Reapplies the prior viewport; the browser clamps it if the new page is shorter.</summary>
+    public async Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+    {
+        if (_disposed || _controller is not { } controller ||
+            !double.IsFinite(position.X) || position.X < 0 ||
+            !double.IsFinite(position.Y) || position.Y < 0) return false;
+        long navigation = _navigationGeneration;
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            string x = position.X.ToString("R", CultureInfo.InvariantCulture);
+            string y = position.Y.ToString("R", CultureInfo.InvariantCulture);
+            await controller.CoreWebView2.ExecuteScriptAsync($"window.scrollTo({x}, {y})");
+            ct.ThrowIfCancellationRequested();
+            return !_disposed && navigation == _navigationGeneration;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>

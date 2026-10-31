@@ -1,6 +1,6 @@
 # FileCat exploratory UX and hardening plan
 
-**Prepared and rechecked:** 30 October 2026. **Status:** executing; this plan does not itself accept product behavior. The product source inspected when preparing it was `37e6fc0e` on `main`. Refresh the source and CI identity before executing a shot.
+**Prepared and rechecked:** 30–31 October 2026. **Status:** owner resumed bounded exploratory cycles after the first tranche; this plan does not itself accept product behavior. The product source inspected when preparing it was `37e6fc0e` on `main`. Refresh the source and CI identity before executing a shot.
 
 ## Purpose and boundary
 
@@ -92,6 +92,6 @@ Write those records in the [execution log](FILECAT_EXPLORATORY_UX_HARDENING_RESU
 - **P2:** Fix a reproducible, consequential UX problem when the remedy is contained and can be verified on the current source. Repetition raises priority but is not required when one real user journey shows substantial friction. A one-off awkward interaction with no demonstrated user cost can be recorded without product churn.
 - **P3/idea:** Keep as an optional note. Do not add a release gate or broadly redesign a control from one exploratory observation.
 - **No finding:** Record the tested scope and stop. “No additional high-ROI improvement found” is a valid result; do not manufacture work to fill the tranche.
-- **Tranche limit:** At most **eight distinct 45-minute shots** before a fresh prioritization decision. An evidence-vetoed duplicate is redrawn and does not count; at most two diagnostic repeats are allowed for one ambiguous result. Stop earlier if executable candidate qualification is prioritized, a P0/P1 needs focused resolution, or the next three proposed shots all collapse into accepted coverage. A SignPath reply alone does not end exploration. Do not automatically start a second tranche.
+- **Cycle limit:** At most **eight distinct 45-minute shots** before a fresh prioritization decision. An evidence-vetoed duplicate is redrawn and does not count; at most two diagnostic repeats are allowed for one ambiguous result. The owner explicitly resumed the loop after the first tranche: start another bounded cycle only after checking release priorities and remaining distinct seams. Stop a cycle earlier if executable candidate qualification is prioritized, a P0/P1 needs focused resolution, or the next three proposed shots collapse into accepted coverage. A SignPath reply alone does not end exploration. Sample GitHub CI between shots, fix a consequential required-lane failure, and continue other independent work while CI runs.
 
 The tranche is complete when every executed shot has a scoped record, all proved P0/P1 findings are either corrected with their release gate or explicitly blocking, P2 decisions are recorded, temporary fixtures are cleaned up, and the latest product source has no unexplained required CI failure caused by the tranche. This does not assert stable-release readiness or replace the owner’s final GO decision.

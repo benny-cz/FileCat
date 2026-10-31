@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Globalization;
+using System.Text.Json;
 using Avalonia.Input;
 using Avalonia.Platform;
 using FileCat.Core.Content;
@@ -36,6 +38,13 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     }
     private static readonly Queue<FindRequest> FindQueue = new();
     private static FindRequest? s_activeFind;
+    private sealed record ScrollRequest(MacPageEngine Engine, string Script, long Generation,
+        TaskCompletionSource<string?> Done)
+    {
+        public CancellationTokenRegistration Cancellation { get; set; }
+    }
+    private static readonly Queue<ScrollRequest> ScrollQueue = new();
+    private static ScrollRequest? s_activeScroll;
     private static readonly Lazy<string?> s_missing = new(() => ObjC.Load());
 
     private nint _view, _handler, _delegate;
@@ -45,6 +54,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private int _blocked;
     private bool _disposed, _observingTitle;
     private long _findGeneration;
+    private bool _hostScriptAvailable;
     /// <summary>URL scheme tasks being answered, each with a token: a stopped task is never answered.</summary>
     private readonly Dictionary<nint, object> _tasks = [];
 
@@ -105,12 +115,17 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         ByObject[_handler] = this;
         ObjC.Send(configuration, "setURLSchemeHandler:forURLScheme:", _handler, ObjC.String(Scheme));
         nint preferences = ObjC.Send(configuration, "preferences");
-        ObjC.SendBool(preferences, "setJavaScriptEnabled:", false);
         ObjC.SendBool(preferences, "setJavaScriptCanOpenWindowsAutomatically:", false);
         if (ObjC.Responds(preferences, "setFraudulentWebsiteWarningEnabled:")) ObjC.SendBool(preferences, "setFraudulentWebsiteWarningEnabled:", false);
         if (ObjC.Responds(configuration, "defaultWebpagePreferences") &&
             ObjC.Send(configuration, "defaultWebpagePreferences") is var webpage and not 0 && ObjC.Responds(webpage, "setAllowsContentJavaScript:"))
+        {
+            // Content scripts stay blocked, while Apple's newer preference permits app-owned
+            // viewport queries. Older WebKit keeps JavaScript fully disabled and skips restore.
             ObjC.SendBool(webpage, "setAllowsContentJavaScript:", false);
+            _hostScriptAvailable = true;
+        }
+        ObjC.SendBool(preferences, "setJavaScriptEnabled:", _hostScriptAvailable);
         if (ObjC.Responds(configuration, "setMediaTypesRequiringUserActionForPlayback:"))
             ObjC.SendNUInt(configuration, "setMediaTypesRequiringUserActionForPlayback:", nuint.MaxValue);
 
@@ -249,6 +264,76 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             StartNextFind();
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page find: " + ex.Message); }
+    }
+
+    public Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+        MacScrollPosition.Capture(EvaluateScrollScriptAsync("JSON.stringify([window.scrollX, window.scrollY])", ct), ct);
+
+    public Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+    {
+        if (!double.IsFinite(position.X) || position.X < 0 || !double.IsFinite(position.Y) || position.Y < 0)
+            return Task.FromResult(false);
+        string x = position.X.ToString("R", CultureInfo.InvariantCulture);
+        string y = position.Y.ToString("R", CultureInfo.InvariantCulture);
+        return MacScrollPosition.Restore(EvaluateScrollScriptAsync(
+            $"window.scrollTo({x}, {y}); JSON.stringify([window.scrollX, window.scrollY])", ct), ct);
+    }
+
+    private Task<string?> EvaluateScrollScriptAsync(string script, CancellationToken ct)
+    {
+        if (_disposed || _view == 0 || !_hostScriptAvailable) return Task.FromResult<string?>(null);
+        if (ct.IsCancellationRequested) return Task.FromCanceled<string?>(ct);
+        var done = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new ScrollRequest(this, script, _findGeneration, done);
+        request.Cancellation = ct.Register(() => done.TrySetCanceled(ct));
+        ScrollQueue.Enqueue(request);
+        StartNextScroll();
+        return MacScrollPosition.Wait(done, ct);
+    }
+
+    private static void StartNextScroll()
+    {
+        if (s_activeScroll is not null) return;
+        while (ScrollQueue.TryDequeue(out var request))
+        {
+            if (request.Done.Task.IsCompleted || request.Engine._disposed ||
+                request.Generation != request.Engine._findGeneration)
+            {
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(null);
+                continue;
+            }
+            s_activeScroll = request;
+            try { ObjC.BeginScrollScript(request.Engine._view, request.Script); }
+            catch (Exception ex)
+            {
+                Core.Diagnostics.AppLog.Warn("Page scroll position: " + ex.Message);
+                s_activeScroll = null;
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(null);
+                continue;
+            }
+            return;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void ScrollBlock(nint block, nint result, nint error)
+    {
+        try
+        {
+            var request = s_activeScroll;
+            s_activeScroll = null;
+            if (request is not null)
+            {
+                request.Cancellation.Dispose();
+                request.Done.TrySetResult(request.Engine._disposed ||
+                    request.Generation != request.Engine._findGeneration || error != 0
+                    ? null : ObjC.ToString(result));
+            }
+            StartNextScroll();
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Page scroll position: " + ex.Message); }
     }
 
     public void Dispose()
@@ -562,7 +647,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         private const string LibObjC = "/usr/lib/libobjc.A.dylib";
         private static nint s_msgSend, s_msgSendSuper;
         public static nint HandlerClass, DelegateClass, ViewClass;
-        private static nint s_mainQueue, s_globalBlock, s_findBlock;
+        private static nint s_mainQueue, s_globalBlock, s_findBlock, s_scrollBlock;
         private static delegate* unmanaged[Cdecl]<nint, nint, delegate* unmanaged[Cdecl]<nint, void>, void> s_dispatchAsync;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -790,6 +875,23 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             finally { Release(configuration); }
         }
 
+        public static void BeginScrollScript(nint view, string script)
+        {
+            if (s_scrollBlock == 0)
+            {
+                var descriptor = (BlockDescriptor*)NativeMemory.AllocZeroed((nuint)sizeof(BlockDescriptor));
+                descriptor->Size = (nuint)sizeof(Block);
+                var block = (Block*)NativeMemory.AllocZeroed((nuint)sizeof(Block));
+                block->Isa = s_globalBlock;
+                block->Flags = 1 << 28; // BLOCK_IS_GLOBAL
+                block->Invoke = (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, void>)&ScrollBlock;
+                block->Descriptor = (nint)descriptor;
+                s_scrollBlock = (nint)block;
+            }
+            ((delegate* unmanaged[Cdecl]<nint, nint, nint, nint, void>)s_msgSend)(view,
+                sel_registerName("evaluateJavaScript:completionHandler:"), String(script), s_scrollBlock);
+        }
+
         /// <summary>Compiles the content rule list into a store of FileCat's own; <see cref="RulesCompiled"/> gets it.</summary>
         public static void CompileRules(string folder, string json)
         {
@@ -835,5 +937,38 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             var handle = GCHandle.Alloc(work);
             s_dispatchAsync(s_mainQueue, GCHandle.ToIntPtr(handle), &RunOnMain);
         }
+    }
+}
+
+internal static class MacScrollPosition
+{
+    public static async Task<string?> Wait(TaskCompletionSource<string?> done, CancellationToken ct)
+    {
+        try { return await done.Task.WaitAsync(TimeSpan.FromSeconds(3), ct); }
+        catch (TimeoutException)
+        {
+            done.TrySetResult(null);
+            return null;
+        }
+    }
+
+    public static async Task<(double X, double Y)?> Capture(Task<string?> script, CancellationToken ct) =>
+        Parse(await script.WaitAsync(ct));
+
+    public static async Task<bool> Restore(Task<string?> script, CancellationToken ct) =>
+        Parse(await script.WaitAsync(ct)) is not null;
+
+    private static (double X, double Y)? Parse(string? json)
+    {
+        if (json is null) return null;
+        try
+        {
+            double[]? values = JsonSerializer.Deserialize<double[]>(json);
+            return values is { Length: 2 } &&
+                   double.IsFinite(values[0]) && values[0] >= 0 &&
+                   double.IsFinite(values[1]) && values[1] >= 0
+                ? (values[0], values[1]) : null;
+        }
+        catch (JsonException) { return null; }
     }
 }

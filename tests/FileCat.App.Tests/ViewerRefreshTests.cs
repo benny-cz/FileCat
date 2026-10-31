@@ -123,6 +123,7 @@ public sealed class ViewerRefreshTests
             await Until(() => engine.Pages.Count == 1);
             engine.Complete(true);
             await Until(() => pageView.PageLoaded && Field<Button>(viewer, "_refresh").IsEnabled);
+            engine.Position = (19, 840);
             Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
             var old = Field<PagedReader>(viewer, "_reader");
             typeof(ViewerWindow).GetField("_sourceGeneration", Private)!.SetValue(viewer, 1L);
@@ -141,6 +142,7 @@ public sealed class ViewerRefreshTests
             Assert.Throws<ObjectDisposedException>(() => old.WithSource(_ => { }));
             Assert.Contains("new page 1", Encoding.UTF8.GetString(engine.Pages[1].Resolve("/")!.Value.Bytes));
             Assert.False(Field<Border>(viewer, "_staleBanner").IsVisible);
+            Assert.Equal((19, 840), engine.Position);
 
             typeof(ViewerWindow).GetField("_sourceGeneration", Private)!.SetValue(viewer, 3L);
             typeof(ViewerWindow).GetMethod("UpdateStatus", Private)!.Invoke(viewer, []);
@@ -155,6 +157,15 @@ public sealed class ViewerRefreshTests
             Assert.True(Field<Border>(viewer, "_staleBanner").IsVisible);
             Assert.Contains("Refresh failed", Field<TextBlock>(viewer, "_staleText").Text);
             Assert.Contains("browser could not complete the page request", Field<TextBlock>(viewer, "_staleText").Text);
+            engine.Complete(true);
+            await Until(() => engine.Position == (19, 840));
+
+            refreshing = viewer.RefreshAsync();
+            await Until(() => engine.Pages.Count == 5);
+            engine.MaxY = 100; // the replacement page has become shorter
+            engine.Complete(true);
+            await refreshing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Equal((19, 100), engine.Position);
             Assert.DoesNotContain("Unknown", Field<TextBlock>(viewer, "_staleText").Text);
         }
         finally
@@ -209,6 +220,17 @@ public sealed class ViewerRefreshTests
             hex.GoTo(5, select: true, length: 4);
             await viewer.RefreshAsync();
             Assert.Equal((5L, 4L), hex.Selection);
+
+            // A shorter replacement cannot leave the text viewport or hex cursor beyond EOF.
+            text.ScrollToOffset(20_000);
+            hex.GoTo(20_000, select: true, length: 32);
+            File.WriteAllText(path, "short replacement\n");
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(30));
+            await viewer.RefreshAsync();
+            long shortLength = Field<PagedReader>(viewer, "_reader").Length;
+            Assert.InRange(text.TopOffset, 0, shortLength);
+            Assert.InRange(hex.CursorOffset, 0, shortLength - 1);
+            Assert.Equal(0, hex.Selection.Length);
         }
         finally
         {
@@ -368,8 +390,17 @@ public sealed class ViewerRefreshTests
         public event Action? Changed { add { } remove { } }
         public event Action<bool, string?>? Loaded;
         public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
-        public void Show(HtmlPage page) => Pages.Add(page);
+        public (double X, double Y) Position { get; set; }
+        public double MaxY { get; set; } = 2000;
+        public void Show(HtmlPage page) { Pages.Add(page); Position = (0, 0); }
         public void Complete(bool ok, string? why = null) => Loaded?.Invoke(ok, why);
+        public Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+            Task.FromResult<(double X, double Y)?>(Position);
+        public Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+        {
+            Position = (position.X, Math.Clamp(position.Y, 0, MaxY));
+            return Task.FromResult(true);
+        }
         public void SetSize(int width, int height) { }
         public void Focus() { }
         public void Dispose() { }

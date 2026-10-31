@@ -59,6 +59,7 @@ public sealed class ViewerWindow : Window
     private string? _refreshFailure;
     private bool _refreshing;
     private CancellationTokenSource? _refreshCts;
+    private Action<bool, string?>? _pendingPagePositionRestore;
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
@@ -613,6 +614,9 @@ public sealed class ViewerWindow : Window
             _changeTimer.Stop();
             _findTimer.Stop();
             _refreshCts?.Cancel();
+            if (_pendingPagePositionRestore is { } restore)
+                _pageView.LoadCompleted -= restore;
+            _pendingPagePositionRestore = null;
             _searchCts?.Cancel();
             _countCts?.Cancel();
             _closing.Cancel();
@@ -1269,6 +1273,7 @@ public sealed class ViewerWindow : Window
         DecodedPicture? decoded = null;
         bool replacementPageShown = false;
         HtmlPage? previousPage = _htmlPage;
+        (double X, double Y)? pagePosition = null;
         try
         {
             if (pageMode && !_pageView.PageLoaded)
@@ -1330,12 +1335,15 @@ public sealed class ViewerWindow : Window
 
             if (page is not null)
             {
-                await LoadReplacementPageAsync(page, ct);
+                pagePosition = await _pageView.CaptureScrollPositionAsync(ct);
+                await LoadReplacementPageAsync(page, pagePosition, ct);
                 replacementPageShown = true;
             }
             ct.ThrowIfCancellationRequested();
             if (page is not null && await _services.Io.Run(_deviceKey, IoPriority.Interactive, token => reader.Refresh(token), ct))
                 throw new IOException("The page changed again while it was loading");
+            if (pagePosition is { } position)
+                await _pageView.RestoreScrollPositionAsync(position, ct);
 
             long textTop = _text.TopOffset, infoTop = _info.TopOffset, hexCursor = _hex.CursorOffset;
             var textSelection = _text.HasSelection ? _text.Selection : (Start: 0L, Length: 0L);
@@ -1420,7 +1428,7 @@ public sealed class ViewerWindow : Window
         finally
         {
             if (replacementPageShown && prepared is not null && previousPage is not null && !_closing.IsCancellationRequested)
-                _pageView.Show(previousPage);
+                RestorePreviousPage(previousPage, pagePosition);
             decoded?.Bitmap.Dispose();
             prepared?.Dispose();
             opened?.Dispose();
@@ -1430,7 +1438,7 @@ public sealed class ViewerWindow : Window
         }
     }
 
-    private async Task LoadReplacementPageAsync(HtmlPage next, CancellationToken ct)
+    private async Task LoadReplacementPageAsync(HtmlPage next, (double X, double Y)? previousPosition, CancellationToken ct)
     {
         var previous = _htmlPage ?? throw new InvalidOperationException("The current page is not ready");
         var completion = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1450,10 +1458,36 @@ public sealed class ViewerWindow : Window
         }
         catch
         {
-            if (!_closing.IsCancellationRequested) _pageView.Show(previous);
+            if (!_closing.IsCancellationRequested) RestorePreviousPage(previous, previousPosition);
             throw;
         }
         finally { _pageView.LoadCompleted -= Completed; }
+    }
+
+    private void RestorePreviousPage(HtmlPage previous, (double X, double Y)? position)
+    {
+        if (_pendingPagePositionRestore is { } pending)
+            _pageView.LoadCompleted -= pending;
+        _pendingPagePositionRestore = null;
+        if (position is { } anchor)
+        {
+            void Loaded(bool ok, string? why)
+            {
+                _pageView.LoadCompleted -= Loaded;
+                _pendingPagePositionRestore = null;
+                if (ok && !_closing.IsCancellationRequested && ReferenceEquals(_htmlPage, previous))
+                    _ = RestorePreviousPagePositionAsync(anchor);
+            }
+            _pendingPagePositionRestore = Loaded;
+            _pageView.LoadCompleted += Loaded;
+        }
+        _pageView.Show(previous);
+    }
+
+    private async Task RestorePreviousPagePositionAsync((double X, double Y) position)
+    {
+        try { await _pageView.RestoreScrollPositionAsync(position, _closing.Token); }
+        catch (OperationCanceledException) { }
     }
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)

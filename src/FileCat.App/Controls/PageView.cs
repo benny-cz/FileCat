@@ -393,6 +393,28 @@ public sealed class PageView : NativeControlHost
 
     /// <summary>Fallback for a Page key received by the window while its native page lacks focus.</summary>
     internal Task<bool> ScrollByPageAsync(int direction) => _engine?.ScrollByPageAsync(direction) ?? Task.FromResult(false);
+
+    /// <summary>Reads the rendered page's viewport before Refresh replaces its source.</summary>
+    internal async Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct)
+    {
+        var engine = _engine;
+        var page = _page;
+        if (!PageLoaded || engine is null || page is null) return null;
+        var position = await engine.CaptureScrollPositionAsync(ct);
+        ct.ThrowIfCancellationRequested();
+        return ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded ? position : null;
+    }
+
+    /// <summary>Restores the old viewport after the replacement page has finished loading.</summary>
+    internal async Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+    {
+        var engine = _engine;
+        var page = _page;
+        if (!PageLoaded || engine is null || page is null) return false;
+        bool restored = await engine.RestoreScrollPositionAsync(position, ct);
+        ct.ThrowIfCancellationRequested();
+        return restored && ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded;
+    }
 }
 
 /// <summary>One platform's web engine behind <see cref="PageView"/>.</summary>
@@ -410,6 +432,10 @@ internal interface IPageEngine : IDisposable
     void Focus();
     bool HasKeyboardFocus => false;
     Task<bool> ScrollByPageAsync(int direction) => Task.FromResult(false);
+    Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+        Task.FromResult<(double X, double Y)?>(null);
+    Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct) =>
+        Task.FromResult(false);
     /// <summary>The keyboard back to the window holding the page (its native handle; 0: only stop giving it to the page).</summary>
     void ReturnFocus(nint window) { }
     /// <summary>The page was clicked, or took the keyboard itself, so its host should take focus (raised on the engine's thread).</summary>
@@ -500,6 +526,10 @@ internal sealed class WindowsPageEngine : IPageEngine
     }
     public void ClearFind() => _view.ClearFind();
     public Task<bool> ScrollByPageAsync(int direction) => _view.ScrollByPageAsync(direction);
+    public Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+        _view.CaptureScrollPositionAsync(ct);
+    public Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct) =>
+        _view.RestoreScrollPositionAsync(position, ct);
     public void Dispose() => _view.Dispose();
     public void ReturnFocus(nint window) => _view.ReturnFocus(window);
 

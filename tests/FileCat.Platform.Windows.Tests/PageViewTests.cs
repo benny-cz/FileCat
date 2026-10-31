@@ -31,6 +31,59 @@ public sealed class PageViewTests : IDisposable
     }
 
     [Fact]
+    public void Host_restores_a_rendered_page_viewport_and_clamps_it_when_the_new_page_is_shorter()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        (double X, double Y)? before = null, after = null, shortened = null;
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-scroll"));
+            using var longSource = new MemoryContentSource("scroll.html",
+                System.Text.Encoding.UTF8.GetBytes("<html><body><div style='width:1800px'>" +
+                    string.Concat(Enumerable.Range(0, 160).Select(i => $"<p>Section {i:D3}</p>")) +
+                    "</div><script>document.title='script ran'</script></body></html>"));
+            using var shortSource = new MemoryContentSource("scroll.html",
+                "<html><body>short replacement</body></html>"u8.ToArray());
+            var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Loaded += (ok, why) =>
+            {
+                if (ok) loaded.TrySetResult();
+                else loaded.TrySetException(new InvalidOperationException(why));
+            };
+            view.SetSize(640, 480);
+            view.Show(new HtmlPage(longSource, "scroll.html"));
+            await loaded.Task;
+            Assert.NotEqual("script ran", view.Title); // page-authored script remains disabled
+            Assert.True(await view.RestoreScrollPositionAsync((200, 1200), TestContext.Current.CancellationToken));
+            before = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            Assert.NotNull(before);
+            Assert.InRange(before.Value.X, 195, 205);
+            Assert.InRange(before.Value.Y, 1195, 1205);
+
+            loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Show(new HtmlPage(longSource, "scroll.html"));
+            await loaded.Task;
+            Assert.True(await view.RestoreScrollPositionAsync(before.Value, TestContext.Current.CancellationToken));
+            after = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            Assert.NotNull(after);
+            Assert.InRange(after.Value.X, 195, 205);
+            Assert.InRange(after.Value.Y, 1195, 1205);
+
+            loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Show(new HtmlPage(shortSource, "scroll.html"));
+            await loaded.Task;
+            Assert.True(await view.RestoreScrollPositionAsync(before.Value, TestContext.Current.CancellationToken));
+            shortened = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(60));
+        Assert.NotNull(shortened);
+        Assert.Equal(0, shortened.Value.Y);
+        Assert.Equal(0, shortened.Value.X);
+    }
+
+    [Fact]
     public void Clicking_a_local_markdown_link_requests_another_viewer_without_navigating_the_page()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");

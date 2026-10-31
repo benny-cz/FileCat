@@ -48,6 +48,41 @@ try
     while ((engine.BlockedCount < 1 || string.IsNullOrEmpty(engine.Title)) && settle.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
     Console.WriteLine($"loaded: {loaded} ({reason}); title: {engine.Title}; refused: {engine.BlockedCount}");
     bool passed = loaded == true && engine.Title == "FileCat test page" && engine.BlockedCount >= 1;
+    string scrollFile = Path.Combine(site, "scroll.html");
+    File.WriteAllText(scrollFile, "<html><title>Long safe page</title><body onload=\"document.title='SCRIPT RAN'\">" +
+        "<script>document.title='SCRIPT RAN'</script><div style='height:6000px'>Long page</div></body></html>");
+    loaded = null;
+    engine.Show(new HtmlPage(new FileContentSource(scrollFile), "scroll.html"));
+    clock.Restart();
+    while ((loaded is null || engine.Title != "Long safe page") && clock.Elapsed < TimeSpan.FromSeconds(30))
+        MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    var restore = engine.RestoreScrollPositionAsync((0, 1200), CancellationToken.None);
+    clock.Restart();
+    while (!restore.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    var capture = engine.CaptureScrollPositionAsync(CancellationToken.None);
+    clock.Restart();
+    while (!capture.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    var before = capture.IsCompletedSuccessfully ? await capture : null;
+    Console.WriteLine($"page position: restored {restore.IsCompletedSuccessfully && restore.Result}, captured {before}");
+    passed &= loaded == true && engine.Title == "Long safe page" &&
+        restore.IsCompletedSuccessfully && restore.Result && before is { Y: >= 1100 and <= 1300 };
+    File.WriteAllText(scrollFile, "<html><title>Short safe page</title><body><p>Short page</p>" +
+        "<script>document.title='SCRIPT RAN'</script></body></html>");
+    loaded = null;
+    engine.Show(new HtmlPage(new FileContentSource(scrollFile), "scroll.html"));
+    clock.Restart();
+    while ((loaded is null || engine.Title != "Short safe page") && clock.Elapsed < TimeSpan.FromSeconds(30))
+        MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    restore = engine.RestoreScrollPositionAsync(before ?? (0, 1200), CancellationToken.None);
+    clock.Restart();
+    while (!restore.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    capture = engine.CaptureScrollPositionAsync(CancellationToken.None);
+    clock.Restart();
+    while (!capture.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+    var after = capture.IsCompletedSuccessfully ? await capture : null;
+    Console.WriteLine($"short page position: restored {restore.IsCompletedSuccessfully && restore.Result}, captured {after}");
+    passed &= loaded == true && engine.Title == "Short safe page" &&
+        restore.IsCompletedSuccessfully && restore.Result && after is { Y: >= 0 and <= 100 };
     engine.Dispose();
 
     // Release issue I25: a Markdown file drawn (its title is the file's name, its script text), the picture beside it

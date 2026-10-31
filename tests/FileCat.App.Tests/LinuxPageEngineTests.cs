@@ -95,6 +95,55 @@ public sealed class LinuxPageEngineTests
     }
 
     [Fact]
+    public async Task WebKitGTK_restores_a_page_viewport_without_running_page_scripts()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("WebKitGTK is Linux's."); return; }
+        bool required = Environment.GetEnvironmentVariable("FILECAT_REQUIRE_WEBKIT") == "1";
+        if (!required && Environment.GetEnvironmentVariable("DISPLAY") is null) { Assert.Skip("No X display."); return; }
+        if (LinuxPageEngine.Unavailable is { } why)
+        {
+            if (required) Assert.Fail(why);
+            Assert.Skip(why);
+            return;
+        }
+
+        using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
+        Assert.NotNull(engine);
+        Assert.True(engine.SandboxEnabled, unavailable);
+        var ct = TestContext.Current.CancellationToken;
+        async Task Load(string html)
+        {
+            var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Completed(bool ok, string? reason) => loaded.TrySetResult(ok);
+            engine.Loaded += Completed;
+            try
+            {
+                engine.Show(new HtmlPage(new MemoryContentSource("scroll.html", System.Text.Encoding.UTF8.GetBytes(html)), "scroll.html"));
+                Assert.True(await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
+            }
+            finally { engine.Loaded -= Completed; }
+        }
+
+        await Load("<html><title>Safe page</title><body onload=\"document.title='SCRIPT RAN'\">" +
+                   "<script>document.title='SCRIPT RAN'</script><div style='height:6000px'>Long page</div></body></html>");
+        for (int i = 0; i < 100 && engine.Title is null; i++) await Task.Delay(20, ct);
+        Assert.Equal("Safe page", engine.Title);
+        Assert.True(await engine.RestoreScrollPositionAsync((0, 1200), ct));
+        var before = await engine.CaptureScrollPositionAsync(ct);
+        Assert.NotNull(before);
+        Assert.InRange(before.Value.Y, 1100, 1300);
+
+        await Load("<html><title>Short safe page</title><body><p>Short page</p>" +
+                   "<script>document.title='SCRIPT RAN'</script></body></html>");
+        for (int i = 0; i < 100 && engine.Title != "Short safe page"; i++) await Task.Delay(20, ct);
+        Assert.Equal("Short safe page", engine.Title);
+        Assert.True(await engine.RestoreScrollPositionAsync(before.Value, ct));
+        var after = await engine.CaptureScrollPositionAsync(ct);
+        Assert.NotNull(after);
+        Assert.InRange(after.Value.Y, 0, 100);
+    }
+
+    [Fact]
     public async Task WebKitGTK_draws_a_markdown_file_and_asks_the_web_for_nothing()
     {
         // Release issue I25 in WebKitGTK: the file drawn (its title is the file's name; its script is text), the picture
