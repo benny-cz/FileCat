@@ -407,6 +407,7 @@ public sealed class OperationsDrawerLayoutTests
     [AvaloniaTheory]
     [InlineData(640, 420)]
     [InlineData(1200, 800)]
+    [InlineData(2800, 1193)]
     public async Task Speed_history_is_a_compact_optional_disclosure_and_expanded_graph_remains_scrollable(int width, int height)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: width, height: height);
@@ -432,22 +433,30 @@ public sealed class OperationsDrawerLayoutTests
             var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
             var drawer = view.FindControl<Border>("DetailsDrawer")!;
             var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
-            var disclosure = view.FindControl<ToggleButton>("SpeedHistoryDisclosure")!;
+            var disclosure = view.FindControl<Button>("SpeedHistoryDisclosure")!;
             var graphPanel = view.FindControl<StackPanel>("SpeedHistoryGraph")!;
             Assert.True(disclosure.IsEffectivelyVisible);
-            Assert.False(disclosure.IsChecked);
             Assert.False(graphPanel.IsEffectivelyVisible);
             Assert.Equal("▸ Speed history", disclosure.Content);
-            Assert.Equal("Speed history", AutomationProperties.GetName(disclosure));
-            Assert.True(disclosure.Bounds.Height <= 32,
+            Assert.Equal("Show speed history", AutomationProperties.GetName(disclosure));
+            Assert.True(disclosure.Bounds.Height >= 28 && disclosure.Bounds.Height <= 36,
                 $"Collapsed speed history consumed {disclosure.Bounds.Height} DIP.");
             Assert.True(disclosure.Focus(), "The disclosure must be keyboard reachable.");
 
-            disclosure.IsChecked = true;
+            double collapsedHeight = drawer.Bounds.Height;
+            disclosure.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Layout(window);
             Assert.Equal("▾ Speed history", disclosure.Content);
+            Assert.Equal("Hide speed history", AutomationProperties.GetName(disclosure));
             var graph = graphPanel.GetVisualDescendants().OfType<SpeedGraph>().Single();
-            Assert.True(graph.IsEffectivelyVisible && graph.Bounds.Width >= 250 && graph.Bounds.Height >= 60);
+            Assert.True(graph.IsEffectivelyVisible && graph.Bounds.Width >= 140 && graph.Bounds.Height is >= 40 and <= 48);
+            Assert.True(graph.Bounds.Width <= details.Viewport.Width + 1,
+                $"Graph width {graph.Bounds.Width} exceeds the report viewport {details.Viewport.Width} DIP.");
+            if (width >= 2800)
+                Assert.InRange(graph.Bounds.Width, 800, 841);
+            if (height >= 800)
+                Assert.True(drawer.Bounds.Height > collapsedHeight + 20,
+                    $"Drawer did not grow for the expanded graph: {collapsedHeight} to {drawer.Bounds.Height} DIP.");
             Assert.True(drawer.Bounds.Height <= window.Bounds.Height - 96,
                 $"Expanded speed history consumed too much workspace: {drawer.Bounds.Height} of {window.Bounds.Height} DIP.");
             Assert.Equal(ScrollBarVisibility.Auto, details.VerticalScrollBarVisibility);

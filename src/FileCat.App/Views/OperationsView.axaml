@@ -238,15 +238,16 @@
                          IsVisible="{Binding SpeedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                          AutomationProperties.Name="{Binding SpeedText}" />
             </StackPanel>
-            <ToggleButton x:Name="SpeedHistoryDisclosure" Content="▸ Speed history"
+            <Button x:Name="SpeedHistoryDisclosure" Content="▸ Speed history" Click="OnToggleSpeedHistory"
                           IsVisible="{Binding HasSpeedHistory}" Margin="0,2,0,0" HorizontalAlignment="Left"
-                          MinHeight="26" Padding="4,2" Background="Transparent" BorderThickness="0"
-                          AutomationProperties.Name="Speed history" ToolTip.Tip="Show or hide the last 90 seconds of operation pace" />
+                          MinHeight="30" Padding="8,3"
+                          AutomationProperties.Name="Show speed history" ToolTip.Tip="Show or hide the last 90 seconds of operation pace" />
             <StackPanel IsVisible="{Binding HasSpeedHistory}">
-              <StackPanel x:Name="SpeedHistoryGraph" Spacing="2" HorizontalAlignment="Left"
-                          IsVisible="{Binding IsChecked, ElementName=SpeedHistoryDisclosure}">
-                <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
-                <TextBlock Text="{Binding GraphCaption}" Classes="small muted" />
+              <StackPanel x:Name="SpeedHistoryGraph" Spacing="2" Margin="0,3,0,2"
+                          IsVisible="False">
+                <controls:SpeedGraph Width="{Binding #DetailsScroll.Viewport.Width}" MaxWidth="840" Height="44" HorizontalAlignment="Left"
+                                     Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
+                <TextBlock Text="{Binding GraphCaption}" Classes="small muted" TextWrapping="Wrap" />
               </StackPanel>
             </StackPanel>
           </StackPanel>

@@ -287,7 +287,7 @@ public sealed partial class JobViewModel : ObservableObject
         if (_speedHistorySamples.Sample(now, units, running))
         {
             SpeedHistory = [.. _speedHistorySamples.Samples];
-            HasSpeedHistory = _speedHistorySamples.HasActivity;
+            HasSpeedHistory = _speedHistorySamples.HasTrend;
             GraphCaption = MeasuresItems
                 ? $"Last 90 s · peak {_speedHistorySamples.Peak:0.#} items/s"
                 : $"Last 90 s · peak {Formatters.Size((long)_speedHistorySamples.Peak)}/s";
