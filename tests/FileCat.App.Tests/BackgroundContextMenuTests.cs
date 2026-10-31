@@ -27,6 +27,35 @@ public sealed class BackgroundContextMenuTests
         BindingFlags.Static | BindingFlags.NonPublic)!;
 
     [AvaloniaFact]
+    public async Task Parent_row_menu_offers_navigation_without_file_mutations()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.ActivePanel!;
+            var tab = panel.ActiveTab!;
+            var child = Location.FileSystem(Path.Combine(root, "files"));
+            tab.Navigate(child);
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.VisibleCount > 1);
+            tab.Listing.SetFocus(0);
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .Single(v => ReferenceEquals(v.DataContext, panel));
+            view.ShowContextMenu(atFocus: true);
+            var menu = Assert.IsType<ContextMenu>(OpenMenu.GetValue(null));
+            var actions = ((IEnumerable<object>)menu.ItemsSource!).OfType<MenuItem>().ToArray();
+            Assert.Equal(new[] { "Go to parent", "Open parent in new tab", "Copy parent path" },
+                actions.Select(a => a.Header as string));
+            Assert.DoesNotContain(actions, a => a.Header as string is "Delete…" or "Cut items to clipboard");
+            actions[0].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            await Until(() => tab.Location == Location.FileSystem(root));
+            Assert.Equal(Location.FileSystem(root), tab.Location);
+            Assert.True(File.Exists(Path.Combine(root, "files", "a.txt")));
+            menu.Close();
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Keyboard_item_context_keeps_the_marked_virtual_item_instead_of_opening_location_actions()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

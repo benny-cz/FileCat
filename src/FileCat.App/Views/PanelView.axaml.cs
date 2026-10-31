@@ -1110,6 +1110,13 @@ public partial class PanelView : UserControl
     private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, long request)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
+        if (Panel is { ActiveTab: { Location: { } current } parentTab } parentPanel &&
+            parentTab.Listing.TryGetFocused(out var focused) && focused.Kind == Core.Resources.EntryKind.Parent &&
+            vm.Services.Providers.For(current).GetParent(current) is { } parent)
+        {
+            if (request == _menuRequest) ShowParentContextMenu(vm, parentPanel, parentTab, current, parent, atFocus, request);
+            return;
+        }
         if (OperatingSystem.IsWindows() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
             tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
         {
@@ -1148,6 +1155,44 @@ public partial class PanelView : UserControl
             menu.Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft;
             menu.PlacementRect = row;
         }
+        _openItemMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
+        menu.Open(List);
+    }
+
+    private void ShowParentContextMenu(MainViewModel vm, PanelViewModel panel, TabViewModel tab,
+        Core.Resources.Location current, Core.Resources.Location parent, bool atFocus, long request)
+    {
+        bool Current() => request == _menuRequest && ReferenceEquals(Panel, panel) &&
+            ReferenceEquals(panel.ActiveTab, tab) && Equals(tab.Location, current);
+        void Run(Action action)
+        {
+            if (!Current()) { vm.Notify("The location changed. Open the parent menu again for the current location."); return; }
+            action();
+            List.Focus();
+        }
+        MenuItem Action(string header, string icon, Action run)
+        {
+            var item = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon) };
+            item.Click += (_, _) => Run(run);
+            return item;
+        }
+        var parentText = parent.IsFileSystem ? parent.Path : vm.Services.Providers.Display(parent);
+        var menu = new ContextMenu
+        {
+            ItemsSource = new[]
+            {
+                Action("Go to parent", Core.Commands.CommandIds.Parent, () => tab.Navigate(parent)),
+                Action("Open parent in new tab", Core.Commands.CommandIds.NewTab, () => panel.OpenTab(parent)),
+                Action("Copy parent path", Core.Commands.CommandIds.CopyPaths, () => _ = CopyToClipboardAsync(parentText)),
+            },
+            Placement = atFocus ? PlacementMode.BottomEdgeAlignedLeft : PlacementMode.Pointer,
+        };
+        if (atFocus && List.FocusedRowBounds() is { } row) menu.PlacementRect = row;
         _openItemMenu = menu;
         menu.Closed += (_, _) =>
         {
