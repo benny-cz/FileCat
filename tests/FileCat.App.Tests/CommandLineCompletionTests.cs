@@ -124,4 +124,40 @@ public sealed class CommandLineCompletionTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Command_history_down_restores_the_unsubmitted_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.History.CommandLine.Insert(0, "cd");
+            vm.Execute(CommandIds.CommandLineFocus);
+            var line = window.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(t => t.Name == "CommandLine");
+            var ct = TestContext.Current.CancellationToken;
+            for (int i = 0; i < 100 && !line.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.True(line.IsFocused);
+
+            line.Text = "echo unfinished";
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            for (int i = 0; i < 100 && line.Text != "cd"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cd", line.Text);
+
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            for (int i = 0; i < 100 && line.Text != "echo unfinished"; i++) await Task.Delay(20, ct);
+            Assert.Equal("echo unfinished", line.Text);
+
+            line.Text = string.Empty;
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            for (int i = 0; i < 100 && line.Text != "cd"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cd", line.Text);
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            for (int i = 0; i < 100 && line.Text != string.Empty; i++) await Task.Delay(20, ct);
+            Assert.Equal(string.Empty, line.Text);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

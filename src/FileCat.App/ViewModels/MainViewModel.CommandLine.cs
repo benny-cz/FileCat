@@ -5,6 +5,7 @@ namespace FileCat.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private int _commandHistoryIndex = -1;
+    private string? _commandHistoryDraft;
 
     /// <summary>
     /// Runs the command line in the configured shell in a visible terminal at the active location
@@ -15,6 +16,7 @@ public sealed partial class MainViewModel
         var text = CommandLineText.Trim();
         if (text.Length == 0) return;
         _commandHistoryIndex = -1;
+        _commandHistoryDraft = null;
         Services.History.CommandLine.Remove(text);
         Services.History.CommandLine.Insert(0, text);
         if (Services.History.CommandLine.Count > 100) Services.History.CommandLine.RemoveRange(100, Services.History.CommandLine.Count - 100);
@@ -72,6 +74,8 @@ public sealed partial class MainViewModel
         }
         if (chosen is null) return;
         ShowCommandLine = true;
+        _commandHistoryIndex = -1;
+        _commandHistoryDraft = null;
         CommandLineText = chosen;
         if (r.Alternate) RunCommandLine();
         else View.FocusCommandLine();
@@ -82,8 +86,11 @@ public sealed partial class MainViewModel
     {
         var h = Services.History.CommandLine;
         if (h.Count == 0) return;
+        if (_commandHistoryIndex < 0 && delta > 0)
+            _commandHistoryDraft = CommandLineText;
         _commandHistoryIndex = Math.Clamp(_commandHistoryIndex + delta, -1, h.Count - 1);
-        CommandLineText = _commandHistoryIndex < 0 ? string.Empty : h[_commandHistoryIndex];
+        CommandLineText = _commandHistoryIndex < 0 ? _commandHistoryDraft ?? CommandLineText : h[_commandHistoryIndex];
+        if (_commandHistoryIndex < 0) _commandHistoryDraft = null;
     }
 
     private static bool TryParseCd(string text, out string argument)
