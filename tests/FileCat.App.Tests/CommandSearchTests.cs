@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -312,6 +313,8 @@ public sealed class CommandSearchTests
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Commands found");
             await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem { Bounds.Height: > 0 }, ct);
             var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            Assert.Equal(window.CommandSearch.Selected?.Title,
+                ControlAutomationPeer.CreatePeerForElement(item).GetName());
             Point Center() => item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
             // The popup settles under the box first.
             var point = Center();
