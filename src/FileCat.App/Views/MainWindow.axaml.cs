@@ -992,8 +992,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         else if (e.Key == Key.Enter && (e.KeyModifiers & KeyModifiers.Control) != 0)
         {
             e.Handled = true;
-            _vm.Execute((e.KeyModifiers & KeyModifiers.Shift) != 0 ? CommandIds.InsertPath : CommandIds.InsertName);
-            Dispatcher.UIThread.Post(() => CommandLine.CaretIndex = CommandLine.Text?.Length ?? 0);
+            int start = CommandLine.SelectionStart;
+            int end = CommandLine.SelectionEnd;
+            if (start == end) start = end = CommandLine.CaretIndex;
+            int caret = _vm.InsertFocusedNameAtCaret((e.KeyModifiers & KeyModifiers.Shift) != 0,
+                start, end);
+            Dispatcher.UIThread.Post(() =>
+            {
+                CommandLine.CaretIndex = caret;
+                CommandLine.SelectionStart = caret;
+                CommandLine.SelectionEnd = caret;
+            });
         }
         else if (e.Key == Key.Enter)
         {

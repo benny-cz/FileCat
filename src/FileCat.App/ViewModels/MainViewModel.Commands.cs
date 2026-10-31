@@ -984,16 +984,28 @@ public sealed partial class MainViewModel
         Notify($"Copied {Formatters.Plural(sel.Count, "entry", "entries")} to the clipboard.");
     }
 
-    private void InsertIntoCommandLine(bool full)
+    /// <summary>Insert at the command-line selection when its editor owns the keyboard.</summary>
+    internal int InsertFocusedNameAtCaret(bool full, int selectionStart, int selectionEnd) =>
+        InsertIntoCommandLine(full, selectionStart, selectionEnd);
+
+    private int InsertIntoCommandLine(bool full, int? selectionStart = null, int? selectionEnd = null)
     {
         var tab = ActiveTab;
-        if (tab is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        if (tab is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent)
+            return Math.Clamp(selectionStart ?? CommandLineText.Length, 0, CommandLineText.Length);
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         var text = full ? DisplayPathOf(item) : f.Name;
         var quoted = Core.Tools.ShellQuoting.Quote(text, Services.Settings.Terminal.Shell);
         var current = CommandLineText;
-        CommandLineText = current.Length == 0 || current.EndsWith(' ') ? current + quoted + " " : current + " " + quoted + " ";
+        int start = Math.Clamp(selectionStart ?? current.Length, 0, current.Length);
+        int end = Math.Clamp(selectionEnd ?? start, 0, current.Length);
+        if (end < start) (start, end) = (end, start);
+        string before = current[..start], after = current[end..];
+        string prefix = before.Length > 0 && !char.IsWhiteSpace(before[^1]) ? " " : "";
+        string suffix = after.Length == 0 || !char.IsWhiteSpace(after[0]) ? " " : "";
+        CommandLineText = before + prefix + quoted + suffix + after;
         ShowCommandLine = true;
+        return before.Length + prefix.Length + quoted.Length + suffix.Length;
     }
 
     private void SetBookmark(int slot)

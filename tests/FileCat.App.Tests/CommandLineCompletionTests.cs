@@ -77,4 +77,43 @@ public sealed class CommandLineCompletionTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Ctrl_Enter_inserts_the_focused_name_at_the_caret_or_selection()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && listing.VisibleCount < 3; i++) await Task.Delay(20, ct);
+            listing.SetFocus(2); // b.txt, after the synthetic parent and a.txt
+            vm.Execute(CommandIds.CommandLineFocus);
+            var line = window.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(t => t.Name == "CommandLine");
+            for (int i = 0; i < 100 && !line.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.True(line.IsFocused);
+
+            line.Text = "echo before after";
+            line.CaretIndex = 12;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
+            for (int i = 0; i < 100 && line.Text != "echo before b.txt after"; i++) await Task.Delay(20, ct);
+            Assert.Equal("echo before b.txt after", line.Text);
+            Assert.Equal("echo before b.txt ".Length, line.CaretIndex);
+
+            line.Text = "cat placeholder > out";
+            line.SelectionStart = 4;
+            line.SelectionEnd = 15;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
+            for (int i = 0; i < 100 && line.Text != "cat b.txt > out"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cat b.txt > out", line.Text);
+
+            line.Text = "echo done";
+            vm.Execute(CommandIds.InsertName); // shortcut from the panel still appends
+            Assert.Equal("echo done b.txt ", line.Text);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }
