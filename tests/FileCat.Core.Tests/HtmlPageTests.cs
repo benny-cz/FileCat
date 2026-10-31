@@ -67,7 +67,9 @@ public sealed class HtmlPageTests
         Assert.True(page.TryLinkedMarkdownTarget(address, out var target));
         Assert.True(target.RequiresConfirmation);
         Assert.Equal(address, target.RequestAddress);
-        Assert.Equal(Path.GetFullPath(linked), target.Path);
+        // macOS may canonicalize /var to /private/var while resolving the existing target.
+        Assert.EndsWith(Path.Combine("docs", "release", "status.md"), target.Path, StringComparison.Ordinal);
+        Assert.Equal(File.ReadAllText(linked), File.ReadAllText(target.Path));
         Assert.True(page.TryLinkedMarkdownTarget(page.Address + "?filecat-open=plan.md", out var contained));
         Assert.False(contained.RequiresConfirmation);
         Assert.False(page.TryLinkedMarkdownTarget(page.Address + "?filecat-open=file%3A%2F%2F%2Fetc%2Fpasswd", out _));

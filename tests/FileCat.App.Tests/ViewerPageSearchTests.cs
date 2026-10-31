@@ -231,6 +231,7 @@ public sealed class ViewerPageSearchTests
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(before + 1, fixture.Engine.FocusCount);
         Assert.Equal(returned, fixture.Engine.ReturnCount);
+        Assert.False(search.IsEffectivelyVisible); // Escape closes Find as well as returning to the page.
         Assert.Equal(PageView.ManagesKeyboard, page.IsFocused);
         Assert.Equal(PageView.ManagesKeyboard ? PageView.ReaderHelp : null, AutomationProperties.GetHelpText(page));
         if (OperatingSystem.IsLinux())
@@ -243,10 +244,11 @@ public sealed class ViewerPageSearchTests
         }
         if (PageView.ManagesKeyboard)
         {
-            // Tab back onto the host from Find hands the keys to the page as well, so the next Tab moves into it.
-            search.Focus();
+            // Reopen Find before using Tab: Escape now hides the bar, so an invisible search box cannot take focus.
+            Assert.True(page.KeyRequested!(Key.F7, KeyModifiers.None));
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(2, fixture.Engine.ReturnCount);
+            Assert.True(search.IsFocused);
+            Assert.Equal(returned + 1, fixture.Engine.ReturnCount);
             int focused = fixture.Engine.FocusCount;
             page.Focus(NavigationMethod.Tab);
             Dispatcher.UIThread.RunJobs();
