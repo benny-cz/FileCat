@@ -18,6 +18,31 @@ namespace FileCat.App.Tests;
 public sealed class DirectoryDiffTests(ITestOutputHelper output)
 {
     [AvaloniaFact]
+    public void Synchronization_step_row_names_the_action_path_and_inclusion()
+    {
+        var result = new TreeCompareResult([
+            new TreeDiffEntry("sub/only-left.txt", TreeDiffKind.LeftOnly,
+                new EntryData("only-left.txt", EntryKind.File), null),
+        ], true, 2);
+        var window = new SyncWindow(result, new SyncContext("owned-left", "owned-right",
+            true, true, true, true, false, static (_, _, _) => false));
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var row = Assert.Single(window.GetVisualDescendants().OfType<ListBoxItem>(),
+                item => item.DataContext is SyncItem);
+            Assert.Equal("copy sub/only-left.txt, included, Only in the source",
+                ControlAutomationPeer.CreatePeerForElement(row).GetName());
+            var box = Assert.Single(row.GetVisualDescendants().OfType<CheckBox>());
+            box.IsChecked = false;
+            Assert.Equal("copy sub/only-left.txt, excluded, Only in the source",
+                ControlAutomationPeer.CreatePeerForElement(row).GetName());
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Native_result_rows_name_the_relative_file_and_difference_without_internal_records()
     {
         var result = new TreeCompareResult([
