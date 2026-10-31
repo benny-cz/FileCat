@@ -117,7 +117,14 @@ public sealed partial class MainViewModel
     {
         while (isOpen() && !running.IsCancellationRequested && !set.IsComplete && set.Issues.Count == 0) await Task.Delay(500);
         if (!isOpen()) return;
-        tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — stopped before completion") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
+        Services.Ui.Post(() =>
+        {
+            if (!isOpen() || tab.Location?.Session != set.Id) return;
+            tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — stopped before completion") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
+            // A small search can finish before OpenResultSet subscribes to Changed. In that case its
+            // first enumeration may have read an empty set and never receive another notification.
+            tab.Refresh();
+        });
     }
 
     /// <summary>Flat view (Ctrl+B): an explicit, cancellable recursive result set of this folder (plan §11).</summary>
