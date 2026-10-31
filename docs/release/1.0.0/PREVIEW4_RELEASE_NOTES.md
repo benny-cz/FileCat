@@ -33,7 +33,7 @@ See the [capability matrix](https://github.com/benny-cz/FileCat/blob/v1.0.0-prev
 
 ## Verify the downloads
 
-The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to the manifest for its platform and to the [exact hosted inventory](evidence/E-PREVIEW4-TAG-20261031.md#exact-hosted-inventory-for-the-public-preview-decision). The three hosted manifests were independently downloaded and rehashed:
+The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to the manifest for its platform and to the [exact hosted inventory](https://github.com/benny-cz/FileCat/blob/c781ffb0cd7d111edf08441984070c7cda516ee6/docs/release/1.0.0/evidence/E-PREVIEW4-TAG-20261031.md#exact-hosted-inventory-for-the-public-preview-decision). The three hosted manifests were independently downloaded and rehashed:
 
 | Manifest | SHA-256 |
 |---|---|
