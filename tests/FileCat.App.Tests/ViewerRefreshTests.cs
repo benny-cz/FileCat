@@ -22,6 +22,45 @@ public sealed class ViewerRefreshTests
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [AvaloniaFact]
+    public async Task Successful_refresh_rechecks_an_open_find_query_against_the_new_bytes()
+    {
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+            "filecat-refresh-find-" + Guid.NewGuid().ToString("N"))).FullName;
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        string replacement = "alpha changed omega";
+        Task<IContentSource?> Reopen(CancellationToken _) => Task.FromResult<IContentSource?>(
+            new MemoryContentSource("note.txt", Encoding.UTF8.GetBytes(replacement)));
+        var viewer = new ViewerWindow(services,
+            new MemoryContentSource("note.txt", "alpha needle omega"u8.ToArray()),
+            "note.txt", hex: false, deviceKey: "refresh-find", preparedReader: null, reopen: Reopen);
+        try
+        {
+            viewer.Show();
+            await Until(() => Field<Button>(viewer, "_refresh").IsEnabled);
+            Field<DispatcherTimer>(viewer, "_changeTimer").Stop();
+            typeof(ViewerWindow).GetMethod("SetFindOpen", Private)!.Invoke(viewer, [true, true]);
+            var search = Field<TextBox>(viewer, "_search");
+            var count = Field<TextBlock>(viewer, "_matchCount");
+            search.Text = "needle";
+            await Until(() => count.Text == "1 match" && search.Classes.Contains("searchFound"));
+
+            await viewer.RefreshAsync();
+            await Until(() => count.Text == "0 matches" && search.Classes.Contains("searchMissing"));
+            Assert.Equal("needle", search.Text);
+
+            replacement = "needle and needle";
+            await viewer.RefreshAsync();
+            await Until(() => count.Text == "2 matches" && search.Classes.Contains("searchFound"));
+            Assert.Equal("needle", search.Text);
+        }
+        finally
+        {
+            viewer.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Failed_refresh_banner_uses_one_sentence_separator_after_a_provider_error()
     {
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),

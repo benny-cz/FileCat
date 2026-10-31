@@ -457,7 +457,7 @@ public sealed class ViewerWindow : Window
         _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
         _pageView.LoadCompleted += (ok, _) =>
         {
-            if (ok && _isPage && !string.IsNullOrEmpty(_search.Text) && !_pageTriedFind &&
+            if (ok && _isPage && !_refreshing && !string.IsNullOrEmpty(_search.Text) && !_pageTriedFind &&
                 !_findTimer.IsEnabled && _searchCts is null) ScheduleFind();
         };
         _pageView.Failed += why =>
@@ -1414,6 +1414,9 @@ public sealed class ViewerWindow : Window
             oldReader.Dispose(); // active source calls retire through PagedReader's ownership gate
             UpdateStatus();
             FocusContent();
+            // Refresh changes the bytes under a retained query. Re-evaluate it on the
+            // published reader so the count and border describe this version.
+            if (_findOpen) ScheduleFind();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested || _closing.IsCancellationRequested) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or
