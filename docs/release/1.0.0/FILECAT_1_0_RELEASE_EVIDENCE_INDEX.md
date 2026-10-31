@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**926 evidence entries; none is final candidate qualification.** No candidate exists.
+**927 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-PREVIEW4-PRETAG-CI-20261031 | Approved exact preview.4 source, five-lane CI, 20-TRX skip reconciliation and immutable tag identity | `c08f8c52`; main run 41195400154 and tag object `028fe871` | 41,246P/1,535S/0F, four new I580 passes, no lost pass or new skip; owner-approved tag peels to exact source. Tag package jobs passed, but private draft and public publication are separate. | [Preview.4 pretag CI](evidence/E-PREVIEW4-PRETAG-CI-20261031.md) | I03, I580, GATE-CI-FINAL, REL-PIPELINE, DEC-07 |
 | E-A01 | CI run 36722039034: per-lane outcomes and explicit skips | `4f6b062` | Preliminary automated | [E-A01](evidence/E-A01-ci-36722039034-skip-inventory.md) | — |
 | E-A02 | CI run 36821398706: every lane's skips with their reasons from source; tests no lane runs | `dd1e326` | Preliminary automated | [E-A02](evidence/E-A02-ci-36821398706-skips-all-lanes.md) | — |
 | E-B02-A1 | Damaged archives of every format, listed and read | `b0b2329`, `6bbbb21`, `c22c793`, `325aa63` | Preliminary automated | [E-B02-A1](evidence/E-B02-A1-archive-fuzz.md) | I58 |

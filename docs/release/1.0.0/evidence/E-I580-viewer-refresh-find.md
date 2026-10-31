@@ -12,6 +12,10 @@ An isolated Ubuntu rebuild with the corrected ViewerWindow started from the no-m
 
 Capture SHA-256: old match `fc7ec3baede00f278459e8cb251679da756c5c4cdaf40d6a7415f9d4cc70d509`; old neutral `759e52bd6561d0d620677cc372d70ccb2b7c0c26e412bfb949d0ec379f90847c`; new miss `1721c73af46bef69d7b30dcf315cf60cb2d9101a873ce58725b1e71b98301269`; new hit `a2033a57f6157c4b0469995fec5a7d06f2044bfa545d29b26c60bbbbde13c29d`.
 
+## Exact-source CI
+
+[Main run 41195400154](https://github.com/benny-cz/FileCat/actions/runs/41195400154) at descendant `c08f8c52` passed producer, Windows x64, Windows ARM64, Ubuntu and macOS. Its 20 TRX files have 41,246 passed, 1,535 not executed and zero failed, compared with 41,242/1,535/0 at previous green I579 run 41191709479. The sole difference is one new passing I580 regression in each lane; no prior pass was lost or newly skipped. [Preview.4 pretag evidence](E-PREVIEW4-PRETAG-CI-20261031.md) retains the artifact IDs, digests and comparison scope. The exact-source CI requirement is met; final installed-candidate checks below are separate.
+
 ## Candidate stopping rule
 
 On the exact installed Windows x64 1.0.0 candidate, open an owned local text file in Text mode and an owned Markdown file in Page mode. With each Find bar open and an existing query, successfully Refresh after replacing its source with a matching and then a nonmatching version. Without another keystroke or Find button, count, highlight and border must describe the newly displayed version. For one failed reopen, the prior view and its query must remain available without a result from an uncommitted replacement. Stop after those affected viewer modes and latest-product five-lane CI with skips reconciled. Do not repeat generic viewer refresh, search or position tests. Stable signing and final GO remain separate.
