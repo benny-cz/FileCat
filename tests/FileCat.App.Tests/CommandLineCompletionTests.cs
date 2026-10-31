@@ -110,6 +110,14 @@ public sealed class CommandLineCompletionTests
             line.Text = "echo done";
             vm.Execute(CommandIds.InsertName); // shortcut from the panel still appends
             Assert.Equal("echo done b.txt ", line.Text);
+
+            line.Text = "cat ";
+            line.CaretIndex = 4;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.Enter, null);
+            string fullPath = Path.Combine(root, "files", "b.txt");
+            string quotedPath = FileCat.Core.Tools.ShellQuoting.Quote(fullPath, services.Settings.Terminal.Shell);
+            for (int i = 0; i < 100 && line.Text != $"cat {quotedPath} "; i++) await Task.Delay(20, ct);
+            Assert.Equal($"cat {quotedPath} ", line.Text);
         }
         finally
         {
