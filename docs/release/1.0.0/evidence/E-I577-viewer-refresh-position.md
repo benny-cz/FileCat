@@ -1,6 +1,6 @@
 # E-I577 — keep the viewer's place on Refresh
 
-31 October 2026. The owner asked that Refresh keep the previous position when the source can be reopened, including edge cases in several viewers. This follows the accepted F5 source-reopen behavior; it reopens that scope only for the consequential viewport loss in rendered Markdown/HTML Page. The work is based on `e937db4e` and is not an installed 1.0.0 candidate.
+31 October 2026. The owner asked that Refresh keep the previous position when the source can be reopened, including edge cases in several viewers. This follows the accepted F5 source-reopen behavior; it reopens that scope only for the consequential viewport loss in rendered Markdown/HTML Page. Product source is `f78638f03b297133416da5ebdcc39f3f0afbdc4c`, based on `e937db4e`; it is not an installed 1.0.0 candidate.
 
 Text and Info already retained their top offsets, Hex retained its cursor, and Picture retained Fit or numeric zoom with approximate pan center. The rendered Page instead navigated to the new content at its top. Refresh now captures the actual Page viewport before replacement and restores it after the new page loads. The browser clamps the old coordinates when the page becomes shorter. A failed replacement reloads the old page and restores its prior viewport; a source that changes again during loading also rolls back. If a backend cannot measure a position, Refresh still proceeds without treating the optional restoration as a content failure.
 
@@ -16,3 +16,7 @@ The host-only viewport query uses fixed application code and finite, nonnegative
 ## Candidate stopping rule
 
 Keep this source in the 1.0.0 candidate only if the five required CI lanes pass with skips reconciled. On the exact installed candidate, open a long Markdown Page, scroll, change the file and press F5; require the same approximate viewport, then shorten it and require a reachable clamped position. Repeat a failure/retry once, and spot-check Text, Hex, Info and Picture anchors on owned files. Stop at those affected modes; do not replay unrelated viewer or archive suites. Signing, installed-candidate input and final release approval remain separate.
+
+## CI follow-up
+
+[Exact-source run 41160637090](https://github.com/benny-cz/FileCat/actions/runs/41160637090) failed before any platform job: the producer's release-register validator found the new I577 row but the summary still stated 576 IDs. The source tests did not run in that hosted attempt. The record correction updates the issue summary, dashboard and evidence catalogue counts without changing product code. The next main run must pass the producer and all four platform jobs; tag-only packaging skips on main are expected.
