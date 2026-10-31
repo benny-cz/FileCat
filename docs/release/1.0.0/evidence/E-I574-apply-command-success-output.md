@@ -18,6 +18,8 @@ On the exact clean `ed87efc9` checkout in the Ubuntu VM, the Release app built w
 
 The isolated app was closed, and the exact test-owned fixture and both app-state directories were removed after verifying their paths. The screenshots and source checkout remain for review.
 
+The first documentation run after adding I574, [41152089425](https://github.com/benny-cz/FileCat/actions/runs/41152089425) at `e8932dcd`, failed only the producer's release-table validation before platform jobs started: the issue-register header still counted 573 although the table reached I574. The summary was corrected to **574 total / 553 remediated / two closed / 19 unresolved**. `python eng/validation/validate-release-issue-register.py` then passed locally, checking those 574 IDs, 920 unique evidence entries and 67 acceptance cases. The failed run remains failed; the corrective documentation run is separate.
+
 ## Finite 1.0.0 stopping rule
 
 On the exact installed candidate, run a harmless owned command that prints a known line or digest for two marked files, one with a space or punctuation in its name. Preview must show both exact invocations before Run. The completed job and its report must show both paths, zero exit codes and matching output without claiming an issue; a failing command must still show its exit code and bounded reason. The two original files must retain their exact bytes. Reconcile producer, Windows x64, Windows ARM64, Ubuntu and macOS CI on the final product source. This preliminary source correction does not qualify or authorize stable release.
