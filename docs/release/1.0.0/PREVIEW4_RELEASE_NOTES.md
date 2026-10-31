@@ -33,4 +33,12 @@ See the [capability matrix](https://github.com/benny-cz/FileCat/blob/v1.0.0-prev
 
 ## Verify the downloads
 
-The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to the manifest for its platform and to the published release inventory. The exact hosted manifest hashes and source commit will be added here only after the protected draft upload is independently verified.
+The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to the manifest for its platform and to the [exact hosted inventory](evidence/E-PREVIEW4-TAG-20261031.md#exact-hosted-inventory-for-the-public-preview-decision). The three hosted manifests were independently downloaded and rehashed:
+
+| Manifest | SHA-256 |
+|---|---|
+| `FileCat-1.0.0-preview.4-windows-assets.json` | `5eda29c52938872a1e8b488dde09a8555a0a31afcea28b75d18d5c9849c2470e` |
+| `FileCat-1.0.0-preview.4-linux-assets.json` | `f7650a60fd41747f65a742c589216c95a08721512adab2752a1aa0ee770685f9` |
+| `FileCat-1.0.0-preview.4-macos-assets.json` | `7f9dcf1c67256924c1fc45275ca422b7a7166deeb4e95e6e84c8c0cdb619eae7` |
+
+The immutable preview source is `c08f8c52bfdcade91ee6ad438ac89ce8d565f5b0`. The preview is unsigned and is not the stable 1.0.0 candidate.
