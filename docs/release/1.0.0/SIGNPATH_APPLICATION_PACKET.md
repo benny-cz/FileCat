@@ -1,6 +1,6 @@
 # SignPath Foundation application packet — FileCat 1.0.0
 
-**State:** the owner submitted the SignPath Foundation application on 2026-10-30. On 2026-10-31, SignPath Foundation declined it because FileCat does not yet have enough independent public visibility and trust signals. This packet is a historical record, not an active application or signing policy. See the [Windows signing route reassessment](WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md). No provider, certificate or signed candidate is recorded. Stable 1.0.0 remains **NO-GO**.
+**State:** the owner submitted the SignPath Foundation application on 2026-10-30. On 2026-10-31, SignPath Foundation declined it because FileCat does not yet have enough independent public visibility and trust signals. This packet is a historical record, not an active application or signing policy. The preview.3 release linked in the submitted packet was subsequently deleted at the owner's request; preview.4 is now the sole public release. See the [Windows signing route reassessment](WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md). No provider, certificate or signed candidate is recorded. Stable 1.0.0 remains **NO-GO**.
 
 ## Project and public release
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | Project and source | [FileCat](https://github.com/benny-cz/FileCat), public GitHub repository; owner `benny-cz` |
 | Project license | [MIT](../../../LICENSE); [third-party notices](../../../THIRD-PARTY-NOTICES.md) and package-specific notices/SBOMs are shipped and indexed in the [release ledger](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) |
-| Existing release | [Unsigned `v1.0.0-preview.3`](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.3), public since 2026-10-30T16:17:53Z; GitHub release ID `428910888`, immutable annotated tag object `17491a88630d455fcee5506ebe3f0ec772c901b0`, source `8320e18a5bd418011a2706c18ac4bebb2e0e33c4` |
+| Release at submission | Unsigned `v1.0.0-preview.3`, public from 2026-10-30T16:17:53Z until owner-approved deletion on 2026-10-31; former GitHub release ID `428910888`. The [annotated Git tag](https://github.com/benny-cz/FileCat/tree/v1.0.0-preview.3) remains at object `17491a88630d455fcee5506ebe3f0ec772c901b0`, source `8320e18a5bd418011a2706c18ac4bebb2e0e33c4`. [Preview.4](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.4) is the current public download. |
 | Download and functionality | The public [download page](../../DOWNLOAD.md), [README](../../../README.md), [capability matrix](../../CAPABILITIES.md) and [preview notes](PREVIEW3_RELEASE_NOTES.md) describe the app, supported systems, unsigned status and limitations |
 | Artifact evidence | [Exact 24-asset inventory and three producer manifest digests](evidence/E-PREVIEW3-TAG-20261030.md#exact-hosted-inventory-for-the-separate-public-preview-decision); [tag CI](https://github.com/benny-cz/FileCat/actions/runs/41033296020) passed all source, package and private-draft jobs; independent unauthenticated post-publication check matched all hosted names, byte sizes, server SHA-256 digests and notes |
 | Security reporting | [Private vulnerability reporting and response policy](../../../SECURITY.md) |
@@ -31,4 +31,4 @@
 
 ## Stop rule
 
-Do not create `v1.0.0-rc.N`, treat an unsigned preview as a signed candidate, or call `REL-SIGN-WINDOWS` Accepted until the provider has accepted the project and policy, the protected pipeline has passed negative/positive signing controls, and the exact final Windows package bytes pass signature, metadata, loader and Smart App Control checks. Provider refusal or an incompatible eligibility ruling returns the Windows signing route to the owner for a separate decision; it does not change the already published preview or approve stable release.
+Do not create `v1.0.0-rc.N`, treat an unsigned preview as a signed candidate, or call `REL-SIGN-WINDOWS` Accepted until the provider has accepted the project and policy, the protected pipeline has passed negative/positive signing controls, and the exact final Windows package bytes pass signature, metadata, loader and Smart App Control checks. Provider refusal or an incompatible eligibility ruling returns the Windows signing route to the owner for a separate decision; it does not approve stable release.
