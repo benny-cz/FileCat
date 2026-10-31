@@ -29,6 +29,12 @@ See the [capability matrix](https://github.com/benny-cz/FileCat/blob/main/docs/C
 
 ## Verify the downloads
 
-The release will contain a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to its platform manifest. The exact hosted asset inventory and manifest hashes will be added here after private-draft upload and independent verification, before public publication.
+The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to its platform manifest and the [exact hosted inventory](https://github.com/benny-cz/FileCat/blob/4087c20f/docs/release/1.0.0/evidence/E-PREVIEW5-TAG-20261031.md#exact-hosted-inventory). The three hosted manifests were independently downloaded and rehashed:
 
-This preview will be built from one immutable source tag after all required CI gates pass. The tag and source commit will be recorded here after that gate. Stable 1.0.0 remains NO-GO.
+| Manifest | SHA-256 |
+|---|---|
+| `FileCat-1.0.0-preview.5-windows-assets.json` | `9df0a14f4810888aeb9282cc8195accf6936551fea9d41056f376477a714ea04` |
+| `FileCat-1.0.0-preview.5-linux-assets.json` | `eac464c4cffa1d47a969ccda741877a1574dbf7ac959d7e2c2924af1a2ec6d75` |
+| `FileCat-1.0.0-preview.5-macos-assets.json` | `bf175b45babef5e9af71cf90ac53b5e2d0167b83c0f02d5dc0c286e413d65a51` |
+
+The immutable preview source is `8adaf1f17d2120a9c3ceb4c596b6b98354e4d3cc`. All five tagged source jobs and three package jobs passed; this is an unsigned prerelease, not the stable 1.0.0 candidate. Stable 1.0.0 remains NO-GO.
