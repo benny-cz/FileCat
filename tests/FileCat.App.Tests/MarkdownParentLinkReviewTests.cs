@@ -80,7 +80,13 @@ public sealed class MarkdownParentLinkReviewTests
             card = await ReviewCard(viewer);
             FindButton(card, "Open this file").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitFor(() => ViewerWindow.OpenWindows.Any(window => !before.Contains(window) && !ReferenceEquals(window, viewer)));
-            Assert.Contains(ViewerWindow.OpenWindows, window => !before.Contains(window) && window.DisplayName == linked);
+            // macOS resolves /var through /private/var when opening the reviewed file. Compare the opened
+            // native path, not the spelling of the temporary directory used to create the fixture.
+            var expectedPath = services.Jobs.FileOperations.GetFinalPath(linked) ?? Path.GetFullPath(linked);
+            Assert.Contains(ViewerWindow.OpenWindows, window => !before.Contains(window) &&
+                window.DisplayName is { } opened &&
+                string.Equals(services.Jobs.FileOperations.GetFinalPath(opened) ?? Path.GetFullPath(opened),
+                    expectedPath, StringComparison.Ordinal));
             Assert.True(viewer.IsPageShown);
         }
         finally
