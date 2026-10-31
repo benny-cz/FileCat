@@ -6,10 +6,10 @@ FileCat puts local disks, removable storage, archives and remote servers in a mu
 multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
 its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-**Release status:** The [unsigned 1.0.0-preview.3](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.3)
+**Release status:** The [unsigned 1.0.0-preview.4](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.4)
 is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation. Read the
-[preview notes](docs/release/1.0.0/PREVIEW3_RELEASE_NOTES.md) and
-[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW3-TAG-20261030.md) before installing.
+[preview notes](docs/release/1.0.0/PREVIEW4_RELEASE_NOTES.md) and
+[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW4-TAG-20261031.md) before installing.
 
 **Start here:** [**Download the preview**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
 
